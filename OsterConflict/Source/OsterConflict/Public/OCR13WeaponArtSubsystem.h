@@ -7,8 +7,8 @@
 class AOCWeaponBase;
 
 /**
- * R13 content bridge. Once /Game/R13/Weapons has been imported, this swaps the old source-only
- * cube/cylinder weapon silhouettes for actual static meshes without touching authoritative weapon logic.
+ * R13 content bridge. Swaps source-only weapon silhouettes for imported art and continuously
+ * keeps equipped/world-pickup presentation sane while the authoritative inventory logic changes state.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13WeaponArtSubsystem : public UTickableWorldSubsystem
@@ -23,5 +23,7 @@ public:
 private:
     float ScanAccumulator = 0.0f;
     TSet<TWeakObjectPtr<AOCWeaponBase>> ProcessedWeapons;
+
     void ApplyArt(AOCWeaponBase* Weapon);
+    void RepairPresentation(AOCWeaponBase* Weapon);
 };
