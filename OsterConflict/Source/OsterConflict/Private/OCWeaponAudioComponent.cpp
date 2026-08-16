@@ -25,6 +25,19 @@ namespace
         const FString ObjectPath = FString::Printf(TEXT("/Game/R13/Audio/%s.%s"), AssetName, AssetName);
         return LoadObject<USoundBase>(nullptr, *ObjectPath);
     }
+
+    USoundBase* LoadAK47Cue(const TCHAR* AssetName)
+    {
+        const FString ObjectPath = FString::Printf(
+            TEXT("/Game/AK-47/Sound/AK-47/Cues/%s.%s"), AssetName, AssetName);
+        return LoadObject<USoundBase>(nullptr, *ObjectPath);
+    }
+
+    bool IsFabAK47(const AActor* Owner)
+    {
+        const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(Owner);
+        return Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::AssaultRifle;
+    }
 }
 
 UOCWeaponAudioComponent::UOCWeaponAudioComponent()
@@ -142,15 +155,20 @@ void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const F
         return;
     }
 
-    // R13 practical fallback: the old source build had a complete audio routing system but no assigned profile assets,
-    // which meant technically valid shots were completely silent. Imported CC0 audio makes combat audible immediately.
     if (!AudioProfile)
     {
-        if (USoundBase* Shot = LoadR13Audio(TEXT("gunfire_sfx")))
+        USoundBase* Shot = IsFabAK47(GetOwner())
+            ? LoadAK47Cue(TEXT("AK47_Fire_Cue"))
+            : LoadR13Audio(TEXT("gunfire_sfx"));
+
+        // Keep the old CC0 fallback if the Fab cue cannot be loaded for any reason.
+        if (!Shot) Shot = LoadR13Audio(TEXT("gunfire_sfx"));
+
+        if (Shot)
         {
-            if (IsLocalWeaponOwner()) Play2D(Shot, bSuppressed ? 0.42f : 0.82f);
-            else PlayAt(Shot, ShotOrigin, bSuppressed ? 0.34f : 0.68f);
-            EmitDebugEvent(TEXT("R13 SHOT"), ShotOrigin);
+            if (IsLocalWeaponOwner()) Play2D(Shot, bSuppressed ? 0.42f : 0.90f);
+            else PlayAt(Shot, ShotOrigin, bSuppressed ? 0.34f : 0.76f);
+            EmitDebugEvent(IsFabAK47(GetOwner()) ? TEXT("FAB AK47 SHOT") : TEXT("R13 SHOT"), ShotOrigin);
         }
         else
         {
@@ -224,21 +242,30 @@ void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, c
     if (!AudioProfile)
     {
         USoundBase* Sound = nullptr;
+        const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(GetOwner());
+        const bool bAK47 = Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::AssaultRifle;
+
         if (Event == EOCWeaponAudioEvent::ReloadStart)
         {
-            const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(GetOwner());
-            if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Pistol)
+            if (bAK47)
+                Sound = LoadAK47Cue(TEXT("Reload_Cue"));
+            else if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Pistol)
                 Sound = LoadR13Audio(TEXT("gunreload1"));
             else if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Shotgun)
                 Sound = LoadR13Audio(TEXT("shotguncock"));
             else
                 Sound = LoadR13Audio(TEXT("assaultriflereload1"));
         }
+        else if (Event == EOCWeaponAudioEvent::DryFire && bAK47)
+        {
+            Sound = LoadAK47Cue(TEXT("AK47_Empty_Cue"));
+        }
+
         if (Sound)
         {
             if (IsLocalWeaponOwner() && Event != EOCWeaponAudioEvent::Drop) Play2D(Sound, 0.90f);
             else PlayAt(Sound, SourceLocation, 0.80f);
-            EmitDebugEvent(TEXT("R13 WEAPON STATE"), SourceLocation);
+            EmitDebugEvent(bAK47 ? TEXT("FAB AK47 STATE") : TEXT("R13 WEAPON STATE"), SourceLocation);
         }
         return;
     }
