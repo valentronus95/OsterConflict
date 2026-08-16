@@ -19,7 +19,29 @@ namespace
             case EOCWeaponClass::Launcher:     return TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern");
             case EOCWeaponClass::LMG:          return TEXT("/Game/R13/Weapons/machinegun.machinegun");
             case EOCWeaponClass::AssaultRifle:
-            default:                           return TEXT("/Game/R13/Weapons/machinegun.machinegun");
+            default:                           return TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47");
+        }
+    }
+
+    void ApplyImportedTransform(UStaticMeshComponent* MainMesh, EOCWeaponClass WeaponClass)
+    {
+        if (!MainMesh) return;
+
+        MainMesh->SetRelativeLocation(FVector::ZeroVector);
+
+        if (WeaponClass == EOCWeaponClass::AssaultRifle)
+        {
+            // Fab AK-47 is already authored for Unreal units. Keep real-world scale rather than the 100x
+            // conversion used by the older metre-authored R13 placeholder meshes. Orientation will be QA-tuned
+            // after the first runtime screenshot, but this gives us the real textured weapon immediately.
+            MainMesh->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+            MainMesh->SetRelativeScale3D(FVector(1.0f));
+        }
+        else
+        {
+            // Older R13 placeholder source geometry is metre-scale with Y-up.
+            MainMesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
+            MainMesh->SetRelativeScale3D(FVector(100.0f));
         }
     }
 }
@@ -52,10 +74,11 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
 {
     if (!Weapon) return;
 
-    UStaticMesh* ImportedMesh = LoadObject<UStaticMesh>(nullptr, MeshPathForClass(Weapon->GetWeaponClass()));
+    const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
+    UStaticMesh* ImportedMesh = LoadObject<UStaticMesh>(nullptr, MeshPathForClass(WeaponClass));
     if (!ImportedMesh)
     {
-        // Do not mark it processed: if assets are imported during an editor session, the next scan may pick them up.
+        // Do not mark it processed: hot-imported content can still be picked up on a later scan.
         return;
     }
 
@@ -71,7 +94,7 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
         }
         else
         {
-            // R04/R11 generated receiver/barrel/stock primitives. Imported R13 mesh replaces the whole silhouette.
+            // Hide the old source-only receiver/barrel/stock primitive silhouette once real art exists.
             Component->SetVisibility(false, true);
             Component->SetHiddenInGame(true, true);
         }
@@ -81,11 +104,7 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
     MainMesh->SetStaticMesh(ImportedMesh);
     MainMesh->SetVisibility(true, true);
     MainMesh->SetHiddenInGame(false, true);
-    MainMesh->SetRelativeLocation(FVector::ZeroVector);
-    // Kenney source geometry is authored in metre-scale coordinates with Y-up. Scale to UE centimetres and rotate
-    // the long weapon axis into the project X-forward convention. This is an art bridge; per-model tuning follows QA.
-    MainMesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
-    MainMesh->SetRelativeScale3D(FVector(100.0f));
+    ApplyImportedTransform(MainMesh, WeaponClass);
     MainMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     ProcessedWeapons.Add(Weapon);
