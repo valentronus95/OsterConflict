@@ -68,7 +68,8 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
 
         // In an actual listen-server/client match the old 'Frontend' is really the Escape menu. Do not show
         // username/IP/connect controls there: they are connection-screen concepts and made the in-match menu
-        // confusing. Keep only a clear title, Settings and Close/Continue. Standalone frontend remains unchanged.
+        // confusing. Keep only a clear title, Settings and Close/Continue. Standalone frontend remains a
+        // connection shell and intentionally has no Close control because there is no hidden local match behind it.
         if (UBorder* FrontendPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("FrontendPanel"))))
         {
             const bool bInGameplaySession = PC->GetNetMode() != NM_Standalone;
@@ -78,8 +79,9 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
             {
                 // Source-built S17 child order: title, subtitle, username, address, connect, localhost,
                 // settings, close, status. This branch deliberately keeps that backend intact.
-                if (UTextBlock* Title = Cast<UTextBlock>(Frontend->GetChildAt(0)))
-                    Title->SetText(NSLOCTEXT("OCR12UI", "PauseMenuTitle", "МЕНЮ ГРИ"));
+                if (Frontend->GetChildrenCount() > 0)
+                    if (UTextBlock* Title = Cast<UTextBlock>(Frontend->GetChildAt(0)))
+                        Title->SetText(NSLOCTEXT("OCR12UI", "PauseMenuTitle", "МЕНЮ ГРИ"));
 
                 SetChildVisibility(Frontend, 1, ESlateVisibility::Collapsed);
                 SetChildVisibility(Frontend, 2, ESlateVisibility::Collapsed);
@@ -100,10 +102,14 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
             }
             else if (Frontend)
             {
-                if (UTextBlock* Title = Cast<UTextBlock>(Frontend->GetChildAt(0)))
-                    Title->SetText(NSLOCTEXT("OCGameUIRootWidget", "Title", "OSTER CONFLICT"));
+                if (Frontend->GetChildrenCount() > 0)
+                    if (UTextBlock* Title = Cast<UTextBlock>(Frontend->GetChildAt(0)))
+                        Title->SetText(NSLOCTEXT("OCGameUIRootWidget", "Title", "OSTER CONFLICT"));
+
                 for (int32 Index = 1; Index < Frontend->GetChildrenCount(); ++Index)
                     SetChildVisibility(Frontend, Index, ESlateVisibility::Visible);
+                SetChildVisibility(Frontend, 7, ESlateVisibility::Collapsed);
+
                 if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(FrontendPanel->Slot))
                 {
                     Slot->SetPosition(FVector2D(500.0f, 120.0f));
