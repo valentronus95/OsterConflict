@@ -1,0 +1,26 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{26DAB027-4C7A-9C65-8022-C0A5B49AEF24}",
+	"Category": "Games",
+	"Description": "Oster Conflict - multiplayer FPS prototype",
+	"Modules": [
+		{
+			"Name": "OsterConflict",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		}
+	],
+	"TargetPlatforms": [
+		"Windows"
+	]
+}

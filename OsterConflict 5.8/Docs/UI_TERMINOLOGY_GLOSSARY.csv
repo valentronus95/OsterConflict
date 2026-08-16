@@ -1,0 +1,32 @@
+key,uk-UA,en,context
+Connect,ПІДКЛЮЧИТИСЯ,CONNECT,Frontend
+Settings,НАЛАШТУВАННЯ,SETTINGS,Frontend/Settings
+CloseMenu,ЗАКРИТИ МЕНЮ,CLOSE MENU,Frontend
+DeploymentTitle,РОЗГОРТАННЯ,DEPLOYMENT,Deployment
+JoinTeamOne,ПРИЄДНАТИСЯ ДО КОМАНДИ 1,JOIN TEAM 1,Deployment
+JoinTeamTwo,ПРИЄДНАТИСЯ ДО КОМАНДИ 2,JOIN TEAM 2,Deployment
+ChangeRole,ЗМІНИТИ РОЛЬ,CHANGE ROLE,Deployment
+NextSquad,НАСТУПНА ГРУПА,NEXT SQUAD,Deployment
+ReadyDeploy,ГОТОВИЙ / У БІЙ,READY / DEPLOY,Deployment
+Scoreboard,ТАБЛИЦЯ РАХУНКУ,SCOREBOARD,Scoreboard
+ChatAll,УСІ,ALL,Chat
+ChatTeam,КОМАНДА,TEAM,Chat
+ChatSquad,ГРУПА,SQUAD,Chat
+ChangeChannel,ЗМІНИТИ КАНАЛ,CHANGE CHANNEL,Chat
+Send,НАДІСЛАТИ,SEND,Chat
+SandboxAdmin,АДМІНІСТРАТОР SANDBOX,SANDBOX ADMIN,Sandbox
+TabGraphics,ГРАФІКА,GRAPHICS,Settings
+TabAudio,ЗВУК,AUDIO,Settings
+TabControls,КЕРУВАННЯ,CONTROLS,Settings
+TabInterface,ІНТЕРФЕЙС,INTERFACE,Settings
+TabAccessibility,ДОСТУПНІСТЬ,ACCESSIBILITY,Settings
+Apply,ЗАСТОСУВАТИ,APPLY,Settings
+SaveBack,ЗБЕРЕГТИ Й НАЗАД,SAVE & BACK,Settings
+Cancel,СКАСУВАТИ,CANCEL,Settings
+ResetDefaults,СКИНУТИ НАЛАШТУВАННЯ,RESET DEFAULTS,Settings
+RoleRifleman,ШТУРМОВИК,RIFLEMAN,Role
+RoleMedic,МЕДИК,MEDIC,Role
+RoleEngineer,ІНЖЕНЕР,ENGINEER,Role
+RoleSupport,ПІДТРИМКА,SUPPORT,Role
+TeamOne,КОМАНДА 1,TEAM 1,Team
+TeamTwo,КОМАНДА 2,TEAM 2,Team

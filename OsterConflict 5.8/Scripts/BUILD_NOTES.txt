@@ -1,0 +1,14 @@
+Oster Conflict S01
+
+Editor build:
+- Generate Visual Studio project files from OsterConflict.uproject
+- Build: Development Editor | Win64
+
+Game build:
+- Build/Cook/Package from Unreal Editor after the project opens successfully.
+
+Dedicated server:
+- OsterConflictServer.Target.cs is included.
+- Epic's UE 5.8 dedicated-server workflow requires a source build of Unreal Engine.
+- Build configuration: Development Server | Win64.
+- Default network port: 7777 unless overridden with -port=<PORT>.
