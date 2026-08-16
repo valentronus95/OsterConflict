@@ -11,4 +11,5 @@ Plugins/**/Intermediate/
 *.sln
 *.suo
 *.VC.db
-*.VC.opendb*.zip
+*.VC.opendb
+*.zip
