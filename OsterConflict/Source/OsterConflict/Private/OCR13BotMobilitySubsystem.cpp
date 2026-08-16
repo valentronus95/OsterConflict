@@ -8,7 +8,6 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "NavigationSystem.h"
-#include "NavMesh/NavMeshBoundsVolume.h"
 
 bool UOCR13BotMobilitySubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
