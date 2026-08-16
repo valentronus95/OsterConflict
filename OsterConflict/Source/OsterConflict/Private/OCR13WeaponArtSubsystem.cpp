@@ -40,7 +40,6 @@ void UOCR13WeaponArtSubsystem::Tick(float DeltaTime)
     if (ScanAccumulator < 0.35f) return;
     ScanAccumulator = 0.0f;
 
-    ProcessedWeapons.Remove(nullptr);
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
         AOCWeaponBase* Weapon = *It;
