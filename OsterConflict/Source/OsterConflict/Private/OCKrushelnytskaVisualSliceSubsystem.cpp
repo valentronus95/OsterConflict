@@ -11,8 +11,10 @@
 
 namespace
 {
-    constexpr float StreetCenterX = -33500.0f;
-    constexpr float StreetStartY = 20500.0f;
+    // R12.2: keep the first visual slice around the normal gameplay spawn instead of hiding it tens of metres away.
+    // The street now crosses the origin area, so a fresh player should see real houses/trees/grass almost immediately.
+    constexpr float StreetCenterX = -3400.0f;
+    constexpr float StreetStartY = -12000.0f;
     constexpr float StreetStepY = 3000.0f;
     constexpr int32 LotCountPerSide = 10;
 
@@ -135,7 +137,8 @@ void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
     VisualRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
-    // These are real content meshes already committed through Git LFS, replacing R11 cube/sphere proxies.
+    // Real content meshes already committed through Git LFS. R12.2 expands the slice beyond houses/fences/trees
+    // so the first thing a player sees is an actual environment, not a brown debug field.
     UStaticMesh* House01 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01.SM_House_Var01"));
     UStaticMesh* House02 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var02.SM_House_Var02"));
     UStaticMesh* Fence01 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var01.SM_Fence_Var01"));
@@ -147,6 +150,13 @@ void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
     UStaticMesh* Tree03 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var03.SM_Tree_Var03"));
     UStaticMesh* Tree04 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
     UStaticMesh* Tree05 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var05.SM_Tree_Var05"));
+    UStaticMesh* Grass01 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01"));
+    UStaticMesh* Grass02 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var02.SM_GrassPatch_Var02"));
+    UStaticMesh* Grass03 = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03"));
+    UStaticMesh* Plant = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plant.SM_Plant"));
+    UStaticMesh* StreetLight = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_StreetLight.SM_StreetLight"));
+    UStaticMesh* Barrel = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Barrel.SM_Barrel"));
+    UStaticMesh* Crate = LoadMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Crate_Closed.SM_Crate_Closed"));
 
     UInstancedStaticMeshComponent* House01ISM = MakeISM(VisualRoot, Root, House01, TEXT("R12_House01"), true);
     UInstancedStaticMeshComponent* House02ISM = MakeISM(VisualRoot, Root, House02, TEXT("R12_House02"), true);
@@ -159,12 +169,20 @@ void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
     UInstancedStaticMeshComponent* Tree03ISM = MakeISM(VisualRoot, Root, Tree03, TEXT("R12_Tree03"), true);
     UInstancedStaticMeshComponent* Tree04ISM = MakeISM(VisualRoot, Root, Tree04, TEXT("R12_Tree04"), true);
     UInstancedStaticMeshComponent* Tree05ISM = MakeISM(VisualRoot, Root, Tree05, TEXT("R12_Tree05"), true);
+    UInstancedStaticMeshComponent* Grass01ISM = MakeISM(VisualRoot, Root, Grass01, TEXT("R12_Grass01"), false);
+    UInstancedStaticMeshComponent* Grass02ISM = MakeISM(VisualRoot, Root, Grass02, TEXT("R12_Grass02"), false);
+    UInstancedStaticMeshComponent* Grass03ISM = MakeISM(VisualRoot, Root, Grass03, TEXT("R12_Grass03"), false);
+    UInstancedStaticMeshComponent* PlantISM = MakeISM(VisualRoot, Root, Plant, TEXT("R12_Plants"), false);
+    UInstancedStaticMeshComponent* StreetLightISM = MakeISM(VisualRoot, Root, StreetLight, TEXT("R12_StreetLights"), false);
+    UInstancedStaticMeshComponent* BarrelISM = MakeISM(VisualRoot, Root, Barrel, TEXT("R12_Barrels"), true);
+    UInstancedStaticMeshComponent* CrateISM = MakeISM(VisualRoot, Root, Crate, TEXT("R12_Crates"), true);
 
     UInstancedStaticMeshComponent* FenceFamilies[] = { Fence01ISM, Fence02ISM, Fence03ISM, Fence04ISM };
     UInstancedStaticMeshComponent* TreeFamilies[] = { Tree01ISM, Tree02ISM, Tree03ISM, Tree04ISM, Tree05ISM };
+    UInstancedStaticMeshComponent* GrassFamilies[] = { Grass01ISM, Grass02ISM, Grass03ISM };
 
-    // Street-reference composition: narrow asphalt, sandy/grass verges, detached low houses behind tall frontage,
-    // dense mature deciduous trees and irregular spacing. Deliberately non-uniform: Oster is not a suburb grid.
+    // Street-reference composition: narrow residential corridor, detached low houses behind mixed frontage,
+    // dense mature deciduous trees, grass/sandy verges and irregular yards. Deliberately non-uniform.
     for (int32 Index = 0; Index < LotCountPerSide; ++Index)
     {
         const float Y = StreetStartY + StreetStepY * static_cast<float>(Index);
@@ -180,7 +198,6 @@ void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
         AddInstance((Index % 3 == 0) ? House01ISM : House02ISM,
             EastHouse, FRotator(0.0f, EastYaw, 0.0f), FVector(0.90f + 0.025f * (Index % 4)));
 
-        // Mixed frontage families instead of one repeated fence. Reference photos show wood, metal and panel fences.
         UInstancedStaticMeshComponent* WestFence = FenceFamilies[Index % UE_ARRAY_COUNT(FenceFamilies)];
         UInstancedStaticMeshComponent* EastFence = FenceFamilies[(Index + 2) % UE_ARRAY_COUNT(FenceFamilies)];
         for (int32 Segment = -2; Segment <= 2; ++Segment)
@@ -198,7 +215,6 @@ void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
             }
         }
 
-        // Mature canopy close to the carriageway, with extra yard trees behind the frontage.
         UInstancedStaticMeshComponent* WestTree = TreeFamilies[Index % UE_ARRAY_COUNT(TreeFamilies)];
         UInstancedStaticMeshComponent* EastTree = TreeFamilies[(Index + 3) % UE_ARRAY_COUNT(TreeFamilies)];
         AddInstance(WestTree, FVector(StreetCenterX - 3150.0f - (Index % 2) * 240.0f, Y - 520.0f, 0.0f),
@@ -216,7 +232,42 @@ void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
             AddInstance(TreeFamilies[(Index + 4) % UE_ARRAY_COUNT(TreeFamilies)],
                 FVector(StreetCenterX + 5350.0f, Y - 1100.0f, 0.0f), FRotator(0.0f, Index * 19.0f, 0.0f), FVector(0.94f));
         }
+
+        // Dense but inexpensive instanced grass on both shoulders and inside yards. Keep the central carriageway clear.
+        for (int32 Patch = 0; Patch < 4; ++Patch)
+        {
+            const float PatchY = Y - 900.0f + Patch * 620.0f + static_cast<float>((Index + Patch) % 3) * 75.0f;
+            const float WestX = StreetCenterX - 2850.0f - static_cast<float>((Patch + Index) % 3) * 480.0f;
+            const float EastX = StreetCenterX + 2850.0f + static_cast<float>((Patch + Index + 1) % 3) * 460.0f;
+            UInstancedStaticMeshComponent* WestGrass = GrassFamilies[(Index + Patch) % UE_ARRAY_COUNT(GrassFamilies)];
+            UInstancedStaticMeshComponent* EastGrass = GrassFamilies[(Index + Patch + 1) % UE_ARRAY_COUNT(GrassFamilies)];
+            AddInstance(WestGrass, FVector(WestX, PatchY, 2.0f), FRotator(0.0f, 31.0f * (Index + Patch), 0.0f),
+                FVector(1.15f + 0.08f * (Patch % 2)));
+            AddInstance(EastGrass, FVector(EastX, PatchY + 120.0f, 2.0f), FRotator(0.0f, 27.0f * (Index + Patch), 0.0f),
+                FVector(1.10f + 0.10f * ((Patch + 1) % 2)));
+        }
+
+        AddInstance(PlantISM, FVector(StreetCenterX - 4050.0f, Y + 1050.0f, 3.0f),
+            FRotator(0.0f, Index * 37.0f, 0.0f), FVector(0.9f + 0.08f * (Index % 3)));
+        AddInstance(PlantISM, FVector(StreetCenterX + 4150.0f, Y - 950.0f, 3.0f),
+            FRotator(0.0f, Index * 29.0f, 0.0f), FVector(0.85f + 0.07f * ((Index + 1) % 3)));
+
+        // Sparse utility poles/lights make the corridor readable at a glance without turning it into a city boulevard.
+        if ((Index % 2) == 0)
+        {
+            AddInstance(StreetLightISM, FVector(StreetCenterX + 2050.0f, Y - 1100.0f, 0.0f),
+                FRotator(0.0f, -90.0f, 0.0f), FVector(1.0f));
+        }
+
+        // Small yard clutter, kept away from the carriageway and repeated sparingly.
+        if (Index == 2 || Index == 7)
+        {
+            AddInstance(BarrelISM, FVector(StreetCenterX - 4200.0f, Y + 1350.0f, 0.0f),
+                FRotator(0.0f, Index * 21.0f, 0.0f), FVector(0.90f));
+            AddInstance(CrateISM, FVector(StreetCenterX - 4450.0f, Y + 1500.0f, 0.0f),
+                FRotator(0.0f, Index * 13.0f, 0.0f), FVector(0.92f));
+        }
     }
 
-    UE_LOG(LogTemp, Display, TEXT("R12 Krushelnytska visual slice built with AdvancedVillagePack meshes."));
+    UE_LOG(LogTemp, Display, TEXT("R12.2 Krushelnytska visual slice built near spawn with houses, fences, trees, grass, plants and street furniture."));
 }
