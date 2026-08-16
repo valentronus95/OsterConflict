@@ -50,6 +50,19 @@ AOCGrenadeProjectile::AOCGrenadeProjectile()
 void AOCGrenadeProjectile::BeginPlay()
 {
     Super::BeginPlay();
+
+    // R13 imported art bridge. Gameplay collision remains the small replicated sphere; only the visible mesh changes.
+    if (GrenadeMesh)
+    {
+        if (UStaticMesh* ImportedGrenade = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/grenade.grenade")))
+        {
+            GrenadeMesh->SetStaticMesh(ImportedGrenade);
+            GrenadeMesh->SetRelativeLocation(FVector::ZeroVector);
+            GrenadeMesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
+            GrenadeMesh->SetRelativeScale3D(FVector(100.0f));
+        }
+    }
+
     if (HasAuthority())
     {
         GetWorldTimerManager().SetTimer(FuseTimerHandle, this, &AOCGrenadeProjectile::DetonateServer, FuseSeconds, false);
