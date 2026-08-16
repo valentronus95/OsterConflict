@@ -1,0 +1,2 @@
+﻿BUILD LOG: C:\Users\Valen\Desktop\Oster Conflict\OsterConflict_UE58_PC_TEST_R11_1_LAUNCHER_FIXED\OsterConflict_UE58_PC_TEST_R11_1_LAUNCHER_FIXED\PC_TEST\TEST_RESULTS\20260816_001551\Logs\03_CompileEditor.log
+No known fatal/build-error markers detected.

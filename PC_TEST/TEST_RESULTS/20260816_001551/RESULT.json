@@ -1,0 +1,46 @@
+﻿{
+    "timestamp":  "20260816_001551",
+    "mode":  "Compile",
+    "ue_root":  "C:\\Program Files\\Epic Games\\UE_5.8",
+    "project":  "C:\\Users\\Valen\\Desktop\\Oster Conflict\\OsterConflict_UE58_PC_TEST_R11_1_LAUNCHER_FIXED\\OsterConflict_UE58_PC_TEST_R11_1_LAUNCHER_FIXED\\OsterConflict\\OsterConflict.uproject",
+    "success":  false,
+    "failed_stage":  "Compile Editor",
+    "error":  "Compile Editor failed with exit code 6",
+    "stages":  [
+                   {
+                       "Stage":  "UE version",
+                       "Status":  "PASS",
+                       "Detail":  "5.8.1"
+                   },
+                   {
+                       "Stage":  "R8 prelaunch check",
+                       "Status":  "PASS",
+                       "Detail":  "log=00A_PrelaunchCheck.log"
+                   },
+                   {
+                       "Stage":  "Visual Studio C++",
+                       "Status":  "PASS",
+                       "Detail":  "C:\\Program Files\\Microsoft Visual Studio\\18\\Community"
+                   },
+                   {
+                       "Stage":  "Static verifier suite",
+                       "Status":  "WARN",
+                       "Detail":  "exit=1; compile continues"
+                   },
+                   {
+                       "Stage":  "S18C toolchain preflight",
+                       "Status":  "PASS",
+                       "Detail":  "log=01_ToolchainPreflight.log"
+                   },
+                   {
+                       "Stage":  "Generate project files",
+                       "Status":  "WARN",
+                       "Detail":  "GenerateProjectFiles.bat not found; continuing with direct UBT."
+                   },
+                   {
+                       "Stage":  "Compile Editor",
+                       "Status":  "FAIL",
+                       "Detail":  "exit=6; log=03_CompileEditor.log"
+                   }
+               ]
+}

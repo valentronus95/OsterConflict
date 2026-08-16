@@ -1,0 +1,1669 @@
+{
+  "kit": "Oster Conflict UE5.8 PC TEST R11 Visual Foundation",
+  "generated": "2026-08-16",
+  "basis": "R10 gameplay/network baseline plus R11 source-only visual foundation and Launcher-aware validation",
+  "manifest_policy": "Hashes all deliverable files except manifest files, Python cache, generated build folders, and runtime TEST_RESULTS.",
+  "file_count": 332,
+  "files": [
+    {
+      "path": "BUILD_EDITOR_LAUNCHER_UE58.cmd",
+      "size": 1149,
+      "sha256": "93c3b8b84c5cde83506662fddf337e704d7e52730769c90d8633099d4cae5ed7"
+    },
+    {
+      "path": "FIRST_RUN_README_UA.txt",
+      "size": 3300,
+      "sha256": "f28ea967cba187c0864a990bff58450fab4b50d33a4abe439ddd865fedbe4c00"
+    },
+    {
+      "path": "OsterConflict/.gitignore",
+      "size": 116,
+      "sha256": "3444fbda67f58e5258e58b4058320416e7d40f4842b85df48972fd9ba0ddcf8b"
+    },
+    {
+      "path": "OsterConflict/AudioSources/README_UA.md",
+      "size": 518,
+      "sha256": "dd904d55d8f8ba859a8cc60c69d9a9c407e11f79573c158e9f1a17ef476c85df"
+    },
+    {
+      "path": "OsterConflict/Build/Release/README.md",
+      "size": 223,
+      "sha256": "9da14db7895c80162d398f8cd1519f21d2d2d5393fb0ab91a59a48548d39a17a"
+    },
+    {
+      "path": "OsterConflict/Config/DefaultEngine.ini",
+      "size": 1133,
+      "sha256": "3db418492e6d08af625b844f1c2692042c4d396f78f41bda9ba28f8de9a7f1a1"
+    },
+    {
+      "path": "OsterConflict/Config/DefaultGame.ini",
+      "size": 824,
+      "sha256": "1dd5f90d400eb935cfa8eca58865a68669e846cd1dfbf844225688dcb80ea6d1"
+    },
+    {
+      "path": "OsterConflict/Config/DefaultInput.ini",
+      "size": 344,
+      "sha256": "88dc1e7d82c199d7aedd7f6a322a0e718fa64d3575a0c2784e013aa04d55ac27"
+    },
+    {
+      "path": "OsterConflict/Config/Localization/Game_Gather.ini",
+      "size": 696,
+      "sha256": "eff2c4d1741deed131cdb9a674196260aa07573e81a5db308de4af5f4fd33353"
+    },
+    {
+      "path": "OsterConflict/Docs/AI_ARCHITECTURE_S13.md",
+      "size": 2673,
+      "sha256": "537f6f538351687a2cf0e8203bc3f29338cdb4f5d191af4de7605b8b9ff8bff6"
+    },
+    {
+      "path": "OsterConflict/Docs/ARMED_VEHICLE_ARCHITECTURE_S11.md",
+      "size": 3269,
+      "sha256": "20f0feb2673fafe3ace8259fcb4cf34b26a469a72788f95050aee2c6ca4f2b16"
+    },
+    {
+      "path": "OsterConflict/Docs/AUDIO_ASSET_MANIFEST_S15A.md",
+      "size": 1561,
+      "sha256": "2f3768e0e626acae8d350aae5249a7863bcf7e3a65e131b04ab586c30d1b98ec"
+    },
+    {
+      "path": "OsterConflict/Docs/AUDIO_ASSET_MANIFEST_S15B.md",
+      "size": 1597,
+      "sha256": "242530a187f586a0a92f9474afaaa7fa7cee0989d583bbad577fae5717055a92"
+    },
+    {
+      "path": "OsterConflict/Docs/AUDIO_UX_BENCHMARK_S15B.md",
+      "size": 2666,
+      "sha256": "7e6f3e04a821b3191ccd431009fb71271b8f7b76425130d68e9f0905579cd900"
+    },
+    {
+      "path": "OsterConflict/Docs/CHARACTER_ART_ANIMATION_ARCHITECTURE_S16C.md",
+      "size": 4065,
+      "sha256": "016fdacdcf879110272728cda64ca2b1de78a0ae52e9dd6ed60ae3d7d5e73bcc"
+    },
+    {
+      "path": "OsterConflict/Docs/CHARACTER_ASSET_MANIFEST_S16C.md",
+      "size": 1312,
+      "sha256": "9305dc70725ec4fb51011916bbfa93fb760019fec82cb743e0cf2dadd0ce4d26"
+    },
+    {
+      "path": "OsterConflict/Docs/CONQUEST_ARCHITECTURE_S06.md",
+      "size": 1369,
+      "sha256": "3332c175af9b103d0ad4a36aee52b273a39dccf1b053500401e4fcfc73ca276f"
+    },
+    {
+      "path": "OsterConflict/Docs/DOWNED_MEDIC_ARCHITECTURE_S05.md",
+      "size": 1656,
+      "sha256": "be3d26391e46a6bd90a1be8de3cdb65cff4dbfdd301bbed516cc5a83849b7d49"
+    },
+    {
+      "path": "OsterConflict/Docs/FIRST_BUILD_RC_GATE_S18B.md",
+      "size": 1924,
+      "sha256": "86647682bdc07f7bf218b16ff73bb1ca6e228c8afd26e6d6427626942e1ebdfb"
+    },
+    {
+      "path": "OsterConflict/Docs/GAMEPLAY_BALANCE_BASELINE_v1.md",
+      "size": 1293,
+      "sha256": "759e6e004673e3d007c604dfd1006a900b951ab82db71b5ee8027dcadd85857e"
+    },
+    {
+      "path": "OsterConflict/Docs/GORE_ANIMATION_SPEC_S13.md",
+      "size": 2687,
+      "sha256": "c4b79a211fb2d1e27157870c7197960d851147783c71aa3cb9456198ebfb314a"
+    },
+    {
+      "path": "OsterConflict/Docs/HOUSEHOLD_DRESSING_S14A.md",
+      "size": 1027,
+      "sha256": "c3642aec520ef16c0847add4fb6381f9b1253f39ec1f42c39f8a7d0ac345cadf"
+    },
+    {
+      "path": "OsterConflict/Docs/IMPLEMENTATION_STATUS_v4.2_SOURCE_R1.md",
+      "size": 924,
+      "sha256": "12377c7d9acc597339124138d00828bbe14414c2a5c2b06464d951460ae08581"
+    },
+    {
+      "path": "OsterConflict/Docs/IMPLEMENTATION_STATUS_v4.2_SOURCE_R7.md",
+      "size": 607,
+      "sha256": "36b2ae66d1b3e07bdd0cc447cb87be1b30b9655c53c5c26026f7dec1317495df"
+    },
+    {
+      "path": "OsterConflict/Docs/IMPLEMENTATION_STATUS_v4.2_SOURCE_R8.md",
+      "size": 528,
+      "sha256": "992e5b9b02c3c5b38caeaf71df96d1a66c5a33716a6ddeea678c9c8e3b837cab"
+    },
+    {
+      "path": "OsterConflict/Docs/INTERACTION_ARCHITECTURE_S08.md",
+      "size": 2651,
+      "sha256": "3ae86ce8cd159ae0f0541a0f3f0761bde860193e494b3920a939f4b4aebeaf50"
+    },
+    {
+      "path": "OsterConflict/Docs/INTERIOR_DRESSING_SPEC.md",
+      "size": 1674,
+      "sha256": "2d037d018257e14256bd8b857ed9bdcf9e0f88f0bbfb7bd3ab76b8c581fc26d1"
+    },
+    {
+      "path": "OsterConflict/Docs/LOBBY_SQUAD_CHAT_ARCHITECTURE_S14A.md",
+      "size": 1721,
+      "sha256": "20eb443373b4c1d2ebc6802cdb604bbf0ed249de19d0470afea2c8b1e8610687"
+    },
+    {
+      "path": "OsterConflict/Docs/LOGIC_PHYSICS_AUDIT_R7.md",
+      "size": 8393,
+      "sha256": "98874896826f81d59172f17fbc8544ba9674baa5e0eb118d41317322153c6390"
+    },
+    {
+      "path": "OsterConflict/Docs/MAP_REFERENCE_OSTER.md",
+      "size": 1131,
+      "sha256": "67b537353800d22ab20aa9e0ad58deb3426853a9ad91ae3e175a23c274a7915b"
+    },
+    {
+      "path": "OsterConflict/Docs/MATCH_POPULATION_SPEC.md",
+      "size": 1788,
+      "sha256": "cf3f8d5dc47cc70db6d5c2419d1ccc12c3914838c2d2de0289f05aaed6a3e828"
+    },
+    {
+      "path": "OsterConflict/Docs/NETWORK_DEGRADATION_MATRIX_R1.md",
+      "size": 935,
+      "sha256": "6b09e9920b7676f052386929ba05621b2e3a9016aee998f41541ccf9618ea14b"
+    },
+    {
+      "path": "OsterConflict/Docs/ORDNANCE_SANDBOX_ARCHITECTURE_S12.md",
+      "size": 2046,
+      "sha256": "d19cd65c345dc1d5ef358c2269c0ee30112f4e07c982b0f566fa86cf92149f84"
+    },
+    {
+      "path": "OsterConflict/Docs/OSTER_MAP_ARCHITECTURE_S07.md",
+      "size": 4179,
+      "sha256": "70d06bafc19e57d482e563d52e442c1dfc0642dc1ac362b0fee915875bfa8eb6"
+    },
+    {
+      "path": "OsterConflict/Docs/OSTER_REFERENCE_MANIFEST_S09.md",
+      "size": 3999,
+      "sha256": "7aa32515a243f37f663e692542acf871c97929725df602f65f59797423e66e90"
+    },
+    {
+      "path": "OsterConflict/Docs/OSTER_REFERENCE_MANIFEST_S16A.md",
+      "size": 3762,
+      "sha256": "9ac2eb19e8e5a6623b7272c6eb91d4126552c5287e401b63c83681d022ac989d"
+    },
+    {
+      "path": "OsterConflict/Docs/PACKAGING_READINESS_S18A.md",
+      "size": 1744,
+      "sha256": "9cdaea11ae059503000765484a3f95b783d19d45be042a894bae093c07b06175"
+    },
+    {
+      "path": "OsterConflict/Docs/PERFORMANCE_BUDGETS_S18A.md",
+      "size": 2488,
+      "sha256": "5f5cc17b6995d4651466e058803bab828b113073ba95c0f5efc21600748d966e"
+    },
+    {
+      "path": "OsterConflict/Docs/ROADMAP_SESSIONS.md",
+      "size": 14519,
+      "sha256": "66699ad4be84d338118a5b8b3ee40d0afb2726a14dedf0fda7503c89694566d4"
+    },
+    {
+      "path": "OsterConflict/Docs/S03_TEST_MATRIX.md",
+      "size": 1552,
+      "sha256": "0401938ba45fc33d76106f2c72b0c0a9a0da140ed29731f2bc53ba5dea5a6523"
+    },
+    {
+      "path": "OsterConflict/Docs/S04_TEST_MATRIX.md",
+      "size": 1748,
+      "sha256": "8a1e0b32afe03eb01ad87ad622ed43aaf7d444bce22eb9509a8cf5059fafc317"
+    },
+    {
+      "path": "OsterConflict/Docs/S05_TEST_MATRIX.md",
+      "size": 1982,
+      "sha256": "14ff2068ee31eb98ad0c6431cb7d9556512a9de30ccb78edb96c0d1eea6baff2"
+    },
+    {
+      "path": "OsterConflict/Docs/S06_TEST_MATRIX.md",
+      "size": 2364,
+      "sha256": "28073f9fa86517614b30478820cc1c79b827569b1b51b517f93bd94f38039999"
+    },
+    {
+      "path": "OsterConflict/Docs/S07_TEST_MATRIX.md",
+      "size": 2035,
+      "sha256": "0ecb7d59641785011e31d7287cd85b6059995bcf9496ada741faf11f7f4efe07"
+    },
+    {
+      "path": "OsterConflict/Docs/S08_TEST_MATRIX.md",
+      "size": 2367,
+      "sha256": "52606d2c60a3a9abf4aa6e9a73257ab7522eb3c41151324a388d16042fd55dc5"
+    },
+    {
+      "path": "OsterConflict/Docs/S09_TEST_MATRIX.md",
+      "size": 922,
+      "sha256": "0242f9776170602a6850187b66e343e6075edf76ac54029311b62023b305dfee"
+    },
+    {
+      "path": "OsterConflict/Docs/S10_TEST_MATRIX.md",
+      "size": 1475,
+      "sha256": "cd7519ec23ef4b33c0e3ae448daa71e0c9c2707259568b9b018c50450e08c115"
+    },
+    {
+      "path": "OsterConflict/Docs/S11_TEST_MATRIX.md",
+      "size": 2232,
+      "sha256": "81cd4343b9e60cd93b7aba27367029bcdceaa99f4bebbc08dfdb7c39cc5fc472"
+    },
+    {
+      "path": "OsterConflict/Docs/S12_TEST_MATRIX.md",
+      "size": 1860,
+      "sha256": "8549e14b5a40fde1737a91309a2ef0dbaf970e4fa6410e5ceed09a4adff0939d"
+    },
+    {
+      "path": "OsterConflict/Docs/S13_TEST_MATRIX.md",
+      "size": 1814,
+      "sha256": "43221df3689beeb7aa1eaa2b0c3cb420c40417946530c8fc2b1d4ea899bf0a98"
+    },
+    {
+      "path": "OsterConflict/Docs/S14A_TEST_MATRIX.md",
+      "size": 1726,
+      "sha256": "e0265e2f5ff0d0e21325d1f4f837a051b003af50d6a17453696485f6bf3ad75d"
+    },
+    {
+      "path": "OsterConflict/Docs/S14B_TEST_MATRIX.md",
+      "size": 1610,
+      "sha256": "342128655278535a31fe76c232731c54f35d51b6a40c6817ccd8909256b3c9ce"
+    },
+    {
+      "path": "OsterConflict/Docs/S15A_TEST_MATRIX.md",
+      "size": 986,
+      "sha256": "b66b51e428bfac5e93385b0ec61313e22326c8420b14834e91b512f59a813f55"
+    },
+    {
+      "path": "OsterConflict/Docs/S15B_TEST_MATRIX.md",
+      "size": 2159,
+      "sha256": "2ee5ef36f4c361014fce76aad173c4ac212407e4c026402491ab7d92f89d90dc"
+    },
+    {
+      "path": "OsterConflict/Docs/S16A_TEST_MATRIX.md",
+      "size": 1901,
+      "sha256": "846f80eafb126ed26757b21445c79a6762b63ffcf16fd4c89e5b74329614645b"
+    },
+    {
+      "path": "OsterConflict/Docs/S16B_TEST_MATRIX.md",
+      "size": 804,
+      "sha256": "1674e4c87362d35f03e2d6d7162b59bb37e26c0a2ec0976fe7c13a441f7c0ac6"
+    },
+    {
+      "path": "OsterConflict/Docs/S16C_TEST_MATRIX.md",
+      "size": 1416,
+      "sha256": "c69efef980d99fd4a598b0db5a2d75b5e7187776dd06f30845d939863e77dd03"
+    },
+    {
+      "path": "OsterConflict/Docs/S17A_TEST_MATRIX.md",
+      "size": 1211,
+      "sha256": "b6c15da1e855be681de2add9641726bc92381e4771af722f7bf00dfb8dc9e597"
+    },
+    {
+      "path": "OsterConflict/Docs/S17B_TEST_MATRIX.md",
+      "size": 3082,
+      "sha256": "81b4c444e79e7ca678abe1a1b84b424044e6f9f8adbc39766e187c27f266e5a4"
+    },
+    {
+      "path": "OsterConflict/Docs/S18A_TEST_MATRIX.md",
+      "size": 1911,
+      "sha256": "e4819317ae60bc2cb674b0a244666e68fbe8b6454879ff2ada1279f5206a9c68"
+    },
+    {
+      "path": "OsterConflict/Docs/S18B_TEST_MATRIX.md",
+      "size": 1186,
+      "sha256": "25806dc0bfff5738e55e0ae037b8248167b793c72700fc50d09708f89071cac4"
+    },
+    {
+      "path": "OsterConflict/Docs/S18C_HARDENING_R1.md",
+      "size": 1230,
+      "sha256": "36a6340b09a497bcf7d83cddc7636bc04eb89bee3b26c361b76b92d85b06bbfb"
+    },
+    {
+      "path": "OsterConflict/Docs/S18C_TEST_MATRIX.md",
+      "size": 832,
+      "sha256": "33319fa1c51dbffb3e904231734c36d4e0ad99cb837303c925e38839f7d6c0aa"
+    },
+    {
+      "path": "OsterConflict/Docs/S19C_SOURCE_READINESS.md",
+      "size": 1674,
+      "sha256": "9da58acfde3010cd07064c19138d7cb7595c8e2c892534e8b43eaec5435f6316"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_01_README_UA.md",
+      "size": 5410,
+      "sha256": "06fc6976482b13c4171824061cdd0fd771d2184066fba6b80e69973d80369e75"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_02_README_UA.md",
+      "size": 4238,
+      "sha256": "ba4d52f4e8c1f3bc5300e8fa803ef4b20d01a224694fc1a29e4c547a8acd2295"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_03_README_UA.md",
+      "size": 2992,
+      "sha256": "33e1a702bd37ba831072619216e07edb926b043a9f9f2f60c1e850caf2c8598a"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_04_README_UA.md",
+      "size": 2702,
+      "sha256": "31c6251ab315a23b18ba59ada5ccccf761dc015500996c10ac9964b75b97e2a8"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_05_README_UA.md",
+      "size": 4306,
+      "sha256": "e43d299415e604ea675f26b1bc8d6a3ce090480aa42641d10ef04803d77037b7"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_06_README_UA.md",
+      "size": 4062,
+      "sha256": "33b2f4a651ea09079a987717fa06bcc6cc39e5ddcac88ee15be37b8ed38ebb2f"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_07_README_UA.md",
+      "size": 7267,
+      "sha256": "3ebda99ce278ae07a4f78cbe1017b71401888c6ef76aee9652c0e928cc2c66a9"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_08_README_UA.md",
+      "size": 6624,
+      "sha256": "d63cf7489bee6f9cf4a89caeb249b8280255a3cdbc50928e5bcaf3ced7bfc34d"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_09_README_UA.md",
+      "size": 2373,
+      "sha256": "877322d6726b87486d98c8271d1597afd5d24b3ba475aec740ac4b56f12c889e"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_10_README_UA.md",
+      "size": 2952,
+      "sha256": "a4b278c413313bb01891033c1bf3273bbba8bca26df49c02829526841c52c1af"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_11_README_UA.md",
+      "size": 4310,
+      "sha256": "71d952b88f3ea8669477e95f7b1f262151147f8a16807b38636cbc6f938de137"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_12_README_UA.md",
+      "size": 4223,
+      "sha256": "c3fe2dbe705176d099540911083760db086267bba5b774b7fe94e0d115795291"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_13_README_UA.md",
+      "size": 2294,
+      "sha256": "dc9cb55d041919360a8bb0c2aa379ef315f6ebbb1cb2870e6cba479b1e52b29f"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_14A_README_UA.md",
+      "size": 3126,
+      "sha256": "110486b70993d9a369e6b147782c6c3200c13aa55668923929bdea51a99b8be8"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_14B_README_UA.md",
+      "size": 2604,
+      "sha256": "d65542df2fe685023be85fa545318ba92e53c67ddcff1b2161508dc185dc54d4"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_15A_README_UA.md",
+      "size": 1466,
+      "sha256": "07faf432f22071bac507f8dcbcec6fc00eced8948e4c4215922672c998e03f4d"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_15B_README_UA.md",
+      "size": 3556,
+      "sha256": "59a04ad123e171778f4ad2cae7e5fb42fd8a33f03e984244ef57e41405bedfbb"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_16A_README_UA.md",
+      "size": 5235,
+      "sha256": "38c8f20d091d9ec348c590bcb339a4b2c2c274a03c7b4bebec5d7ad4db15af8b"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_16B_README_UA.md",
+      "size": 1791,
+      "sha256": "9789faaa621e510d767306607f9daa738be9ac9d4857376fbb89e47f87755a9f"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_16C_README_UA.md",
+      "size": 2330,
+      "sha256": "12611a40d44899a0e2e9b75796ac49626f77b65fcb10a52ca985b69df5de1f98"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_17A_README_UA.md",
+      "size": 1692,
+      "sha256": "29edadd6c42b1c2b4ae5afbc7451677910eed11b91bb4dd7aed6716be9622387"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_17B_README_UA.md",
+      "size": 3982,
+      "sha256": "0c5d0c5515212229ea944547866239fb8ecf068979536adae6cfb3e00433f5c2"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_18A_README_UA.md",
+      "size": 3173,
+      "sha256": "78948dc322b8519f4d726b3efc052f4418b3d2328f010a036c9c14a654226ecd"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_18B_README_UA.md",
+      "size": 1838,
+      "sha256": "7d5efe1a25c188139ae442ba955eac40f4a4a286bcab84fb5eeaf45168988026"
+    },
+    {
+      "path": "OsterConflict/Docs/SESSION_18C_README_UA.md",
+      "size": 1673,
+      "sha256": "744351cc92e0198c0ae947edcc0554ed6d03d44a1a21ca23fd62cc23d572dad6"
+    },
+    {
+      "path": "OsterConflict/Docs/SETTINGS_ARCHITECTURE_S17B.md",
+      "size": 3291,
+      "sha256": "b20c51dfaf73ffa9ead244d4e91e6bb0fb80faa03aed0ef151cfde4567df81ec"
+    },
+    {
+      "path": "OsterConflict/Docs/SQUAD_CHAT_SPEC.md",
+      "size": 1351,
+      "sha256": "88d92686f4c1c2f35a8a84cc9ce98bdd2dcf13a572566d4886d29afc7359295a"
+    },
+    {
+      "path": "OsterConflict/Docs/TRAUMA_DESTRUCTION_ARCHITECTURE_S14B.md",
+      "size": 2502,
+      "sha256": "6ffa30b3e9303bfdba2d1780bd7e9017d91ac3143fe6af45f8e20c42b678fafa"
+    },
+    {
+      "path": "OsterConflict/Docs/UI_ARCHITECTURE_S17A.md",
+      "size": 1613,
+      "sha256": "65b258c7b87e22f5f24f3f831818a41f2779322a8738a356bb9a2d4c149f4679"
+    },
+    {
+      "path": "OsterConflict/Docs/UI_TERMINOLOGY_GLOSSARY.csv",
+      "size": 1611,
+      "sha256": "b7a40edc2011fb1edf7a4d43907b5e97f3df1af8d05ef256f112327301f10bae"
+    },
+    {
+      "path": "OsterConflict/Docs/VEGETATION_FENCE_PALETTE_S16B.md",
+      "size": 2004,
+      "sha256": "f26dab10ad9dee2560a8eabad34cee433efc27fdc96446903f5918e98b0d42cb"
+    },
+    {
+      "path": "OsterConflict/Docs/VEHICLE_ARCHITECTURE_S10.md",
+      "size": 1293,
+      "sha256": "8c9f566118b009f954131cb4d0a5b782e27b3dfd34bf10e897903f50460c6919"
+    },
+    {
+      "path": "OsterConflict/Docs/WEAPON_ARCHITECTURE_S04.md",
+      "size": 1617,
+      "sha256": "a1297d7c51df078a56d6e9ecf7be38acd068113645b2afa5027c06f415771196"
+    },
+    {
+      "path": "OsterConflict/Docs/WEAPON_AUDIO_ARCHITECTURE_S15A.md",
+      "size": 1666,
+      "sha256": "d9c190c6667a3d36db5e8c9a1652b2a35677d4e87f82d4f3c67ff994e4f1a1da"
+    },
+    {
+      "path": "OsterConflict/Docs/WINDOWS_TOOLCHAIN_SETUP_S18B.md",
+      "size": 802,
+      "sha256": "d4755c60bbb8307a760a3c67ca03a47d7a6dddaf37a3df79a3f398763306d31f"
+    },
+    {
+      "path": "OsterConflict/Docs/WORLD_AUDIO_ARCHITECTURE_S15B.md",
+      "size": 2212,
+      "sha256": "b93b18fbb6eb82eab57b784289b9f5821ecba95edf64e33d59a08c1e7e16d2ed"
+    },
+    {
+      "path": "OsterConflict/OsterConflict.uproject",
+      "size": 457,
+      "sha256": "719e6c1fa68c5b33cbec4e69ab2734ee4685bc3ad91809a9ad593059d7d939c8"
+    },
+    {
+      "path": "OsterConflict/README.md",
+      "size": 322,
+      "sha256": "96cbba601a81cdd3f4f1f2510ea44dd6e7883fd3a6d24f122b21e3a15a520bc7"
+    },
+    {
+      "path": "OsterConflict/Scripts/AUDIT_RELEASE_TREE.py",
+      "size": 810,
+      "sha256": "63e4645a9ddb3a35338a0e705f7421110f63a68c6b46dac5f361e609e5b9edec"
+    },
+    {
+      "path": "OsterConflict/Scripts/BUILD_NOTES.txt",
+      "size": 493,
+      "sha256": "47642e0c359435f51111e3812202a99e00f6af3d2342ba70b660de8f159cfe0e"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_ALL_SOURCE_VERIFIERS.py",
+      "size": 653,
+      "sha256": "054bbb7d5f91813e4ab8961cf5cdcd3acc9efcae6c8700384793569dac086160"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_PACKAGED_CLIENT_LOCAL.bat",
+      "size": 270,
+      "sha256": "ff87216b1780d3c0092bfa524083c4fb3e994cfa59f38f491c7ed23e3d3232ac"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_PACKAGED_SERVER.bat",
+      "size": 240,
+      "sha256": "c6246968d02d7c8f602d9f79263222f7d8492946f00768f5ffdd391c95b91dce"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S03_CLIENT_ALPHA.bat",
+      "size": 295,
+      "sha256": "681fb142b3b6c120030374671b838e5ccc8fc564c9846f1505a10f5426632a0a"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S03_CLIENT_BRAVO.bat",
+      "size": 296,
+      "sha256": "26e06b8a6d7a98133a0e91c88c26c6081ac38e7b75993146456c5b9e955a63ae"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S03_SERVER_7777.bat",
+      "size": 231,
+      "sha256": "f57dec8af74f3582a6141a4206e97856439f6363ff474c0cb99a857fa30108d4"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S06_CLIENT_ALPHA.bat",
+      "size": 308,
+      "sha256": "ede27fce6d7dd7d41497fbc48a377ca13c686a542da6d48078fdf95a82c1dde6"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S06_CLIENT_BRAVO.bat",
+      "size": 310,
+      "sha256": "a9d7a3af4716407e5d2f0dbf70d2f8791d7d48be97d13b1222bcf83d6f1adfa4"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S06_CLIENT_CHARLIE.bat",
+      "size": 311,
+      "sha256": "e8ea4e5ebf6c69b9399c40b04eaab19765ab5d7f27123571c2d2a4cca92fe43f"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S06_CLIENT_DELTA.bat",
+      "size": 311,
+      "sha256": "3ff435ee4eede7160497c355be4d966a053f4c6d0869a2ec0e3404726156cb2f"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S06_SERVER_7777.bat",
+      "size": 231,
+      "sha256": "f57dec8af74f3582a6141a4206e97856439f6363ff474c0cb99a857fa30108d4"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S12_SANDBOX_CLIENT.bat",
+      "size": 284,
+      "sha256": "c693b616f9c9dc4373f30d4f00d5a318ab3de7d4e8fb6b2b0a6072799a083113"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S12_SANDBOX_SERVER_7777.bat",
+      "size": 265,
+      "sha256": "d6d1160523f58a88e570d77923915613175913c560e4b5203049b5b53caec2b5"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S12_SANDBOX_SOLO.bat",
+      "size": 292,
+      "sha256": "2532dbe0e10473f47a4ef5e26d70477f465dbd9ab228712fc8b8f411731dc80b"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S13_SANDBOX_BOTS.bat",
+      "size": 141,
+      "sha256": "b25c49c7c12ba8bbf39e844245118050c5c3626b048251a3eef2b26ba56cdddf"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S13_SERVER_16BOTS_HARD.bat",
+      "size": 131,
+      "sha256": "ec3ee96b8a81f50e1d6b63ff53466e664e8475dccaea198dec7b179c469d8d81"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S13_SERVER_8BOTS_NORMAL.bat",
+      "size": 132,
+      "sha256": "f90bc3d75bf7b2bfa7c4c2ead49bd9e4dba99d4be915397ae1ef06cd5aa56039"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S14A_CLIENT_ALPHA.bat",
+      "size": 251,
+      "sha256": "08709c6fbbf21f1fbb3459b3443dc4087c5d0e058e1e16084db08b85c67181fa"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S14A_CLIENT_BRAVO.bat",
+      "size": 253,
+      "sha256": "e483f2071c6b8ddb8093bb6cfaf42c89a1097360582f93feb03b869aee88f37c"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S14A_HYBRID_SERVER_16.bat",
+      "size": 303,
+      "sha256": "bd7769ea8b33fbc46a878264ab7e3497f62ec5dab055a1a9a239dfb452bd7aa5"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S16C_ALT_FACTIONS_SERVER_7777.bat",
+      "size": 257,
+      "sha256": "ba3758d97f1e0a482e6fd6ef5bf0431decff5595dadf7d9cc6c9eec1ea42d01d"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S16C_FACTIONS_SERVER_7777.bat",
+      "size": 301,
+      "sha256": "4228a4c6118981b01e0adc5bc21e73a8951e403c89df97ddb491dfc9247c16f0"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S17A_FRONTEND_CLIENT.bat",
+      "size": 114,
+      "sha256": "1ecf0544eb3951719e9b877d19de4c11b339ea623731fc14ccd2e1d5a0b3fb1f"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S17A_SANDBOX_SERVER_7777.bat",
+      "size": 274,
+      "sha256": "68dce384deb8414358af2e1f56f64d167f8a7c4d11538ba31cae5960cb92617d"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S17A_SERVER_7777.bat",
+      "size": 310,
+      "sha256": "aa92f467c75311b5ef0d6ad048f164eb3f53afe63558818d443adc01b2720fe5"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S17B_FRONTEND_CLIENT.bat",
+      "size": 114,
+      "sha256": "1ecf0544eb3951719e9b877d19de4c11b339ea623731fc14ccd2e1d5a0b3fb1f"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S18A_CLIENT_INSIGHTS.bat",
+      "size": 306,
+      "sha256": "8faea38db9d7faa8dfe597e852914ea9e7844ed6d73791f2ccb66c0f4b28475f"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S18A_SERVER_16_BALANCED.bat",
+      "size": 320,
+      "sha256": "d48bbb1b3e09675e60c01b62481869eb53ab95076f728af0100fca26966f2a7c"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S18A_SERVER_16_INSIGHTS.bat",
+      "size": 464,
+      "sha256": "c5f0fca1c33ae57a24953427bf9f981d5cb9bcac2273a411cd66a745169d755d"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S18A_SERVER_16_LOWCPU.bat",
+      "size": 318,
+      "sha256": "85fdde686bb5b30dcd2d07c5c631e9df9e967f9d74580c68b63c9dd74e88e039"
+    },
+    {
+      "path": "OsterConflict/Scripts/RUN_S18A_SERVER_8_BALANCED.bat",
+      "size": 319,
+      "sha256": "2d16c2de16f304a2099daeda63e08df70e3422e883ba5d34a7ee49e08b1fac27"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18B/BUILD_S18B_ALL.bat",
+      "size": 270,
+      "sha256": "d4948d1ccfaf8603f8d996f80c3410d338c253ecd7bcf9959f71d2a4f7ecf18a"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18B/BuildS18B.ps1",
+      "size": 5620,
+      "sha256": "ae642ee88dfc99ffd1372dd380e3c15dd9e977e2dbbdc8711a9f248f89fc7f61"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18B/COLLECT_RC_LOGS.ps1",
+      "size": 1385,
+      "sha256": "0971ef163b07b12d2a98f88a7e9500c5c8bb331e12d7bb0800c524ff0276a9f9"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18B/CREATE_RELEASE_MAP.py",
+      "size": 674,
+      "sha256": "984299a7292055d4aae2d16ddad56ae730028050bde0c5df99cdbc982593ed9b"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18B/POST_BUILD_AUDIT.py",
+      "size": 2515,
+      "sha256": "a9ee8c913e57d406b85e728415c7ea85e6f98b71b86f0ed8aa6d3575e6b8a704"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18B/SMOKE_LOCAL.ps1",
+      "size": 5309,
+      "sha256": "0bf228572aec7724b54dd4ae93a9c1afa5e04bfa2978c790cb8e58dba9211644"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18C/ANALYZE_BUILD_LOG.py",
+      "size": 1500,
+      "sha256": "711dc6af00990aeb3766d3744db9dd68437e19fdb5683e92891b5271d9f8b4ca"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18C/NETWORK_EMULATION_MATRIX.ps1",
+      "size": 1080,
+      "sha256": "4fefefe71d6a4a61e405ac9ce2cf31599b877585803ff61849efa4ab5b1a5adb"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18C/PREFLIGHT_S18C.py",
+      "size": 5078,
+      "sha256": "d6a21e0624892ea635e4b83ac6cce869a646635cfd6dde922b6da0ac56691434"
+    },
+    {
+      "path": "OsterConflict/Scripts/S18C/WINDOWS_TOOLCHAIN_PREFLIGHT.ps1",
+      "size": 2177,
+      "sha256": "ab601c7689ac17e844b65a998d8faa18c7259b60a7934a82d115bbdc76307c10"
+    },
+    {
+      "path": "OsterConflict/Scripts/S19C/RUN_LOCALIZATION_GATHER.ps1",
+      "size": 1345,
+      "sha256": "74c67b694ad83fffcf11474353cb865206fabb823e989aca10740e07a1c1f3de"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/OsterConflict.Build.cs",
+      "size": 582,
+      "sha256": "7b70928e07fa64068e59e3f5282a33f2c5f4851ef18d4c0ca00c893e3fbfd0e4"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCAIController.cpp",
+      "size": 20705,
+      "sha256": "2d0f8973be3863135bb370321b21c027c28f6b6145d23858e8b0f37bd1afea8c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCAmbientAudioZone.cpp",
+      "size": 3485,
+      "sha256": "9b0793c3ad0f64928daeb1d331e096f6dded5892f80f24365e403218b4aef3c5"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCAmmoBox.cpp",
+      "size": 1098,
+      "sha256": "4162938dd1fb9559162be8ff35f7ec06ebf05ec1640fe47290b04b133493a3c0"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp",
+      "size": 1812,
+      "sha256": "0e18f5ac4746e2569f6004b63bd521261d41afc07f103ff0eed8a6f723367656"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCAntiArmorProjectile.cpp",
+      "size": 3126,
+      "sha256": "664418413839102171ae5b3eab8693f9f53a40dc935a0519ace851a46f9b4087"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCArmedVehicleBase.cpp",
+      "size": 13448,
+      "sha256": "b44c2b6cd4155ba806a44e46feb3478cd8ae15b51fc7e1440981a4e49c6ec6ac"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCAudioUserSettings.cpp",
+      "size": 5376,
+      "sha256": "c3c19962d09b131c45f4a419963e825ab8b1915d988d03c1cb44f1f9881afca8"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCBTR.cpp",
+      "size": 5582,
+      "sha256": "4e60e92a89f56f6cf8ae351af1fd8e389e67442543cde8daee8d8f4b38026daa"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCBotCharacter.cpp",
+      "size": 199,
+      "sha256": "4e70e0ae79aa3e05096344275126fcc5b656c1b0c409d55d11ecadcc3ad5e569"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCBreakableWindow.cpp",
+      "size": 7627,
+      "sha256": "fc334c11746cd3ce491d6c2e63414fcbc7e8df04b5276183abfd94bbf40af747"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCapturePoint.cpp",
+      "size": 5688,
+      "sha256": "11bb843455e43fdbbf285140520f45e433cf96cbdc03c15c8820b737c4861a59"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp",
+      "size": 63833,
+      "sha256": "ff9e279d964c13899bddac76bc0e8cbfd10fbc32acdf51cc47af0721b43396fc"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCharacterAnimInstance.cpp",
+      "size": 2379,
+      "sha256": "bd18e33ded3b27989fcc447d033bc568f6dd0afb4cae1d6c8a9cf16c1291a4b6"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCharacterAudioComponent.cpp",
+      "size": 3348,
+      "sha256": "f83cb88e4de2c5b1dec383819682f571bd39c4988d34e2e4a63360dca020b543"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCharacterAudioProfile.cpp",
+      "size": 345,
+      "sha256": "f5d8c11bf9a701318fc67e5e552ecc321d5a156a781752ab51bdd2d20dbfb590"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp",
+      "size": 11055,
+      "sha256": "4d587062faf85de75740d1fae3def2b436ae7a29a0f7a75e0e0d1f516a978229"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCharacterVisualProfile.cpp",
+      "size": 38,
+      "sha256": "b5c1fb020175e1859ef70585a6de623230bfa96d29fb6de53d404c0b81e999db"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCivilianVehicle.cpp",
+      "size": 1859,
+      "sha256": "5dfabc038d29d368db9b99456d9b32e5caf0cd488e5c7cb245c8c301565cc62b"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCombatVehicleSpawnPoints.cpp",
+      "size": 356,
+      "sha256": "87b41cfc058278b16896a4f8888aeea7a22a5cf6bcabaffc08eab187237ce203"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCCombatVisualComponent.cpp",
+      "size": 14574,
+      "sha256": "e87ad1c6f906ea7fa58be3e3988d33ecba7821e496c6846cc8a393c00cb76141"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCDamageTarget.cpp",
+      "size": 1137,
+      "sha256": "2d204bc5157031e923c19fe49c52b15edc6061111911a59bb864f8502d029e91"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCDamageTypes.cpp",
+      "size": 27,
+      "sha256": "3c11acb6d0cc0df5abe051c29b883ed2cc8627e26dcc1c7cd207fe8218602cc5"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCDeployableTrap.cpp",
+      "size": 5247,
+      "sha256": "5a3d30d0801064ad40b7cc347f678bc9426973c8c552829103f10b287607b091"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCDestructibleProp.cpp",
+      "size": 5807,
+      "sha256": "720b2630d8a1f000ce7b40027b71db9a8ee6d8b64f9a06bec9beda3482af5a1c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp",
+      "size": 14189,
+      "sha256": "02219b07e25c4fe76691cc594e6bce7ef3b9e6a1f31745fef4fcbe5c7a4e975b"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCGameInstance.cpp",
+      "size": 4804,
+      "sha256": "8a12d6f591fbd09d62344b5e0ce42713790055bfe3e2107276cc5fce1b0f48bb"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp",
+      "size": 61359,
+      "sha256": "2c483511ba211b41d36fb88127cc991c43843a5bf91b6e222e4554f6868de927"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCGameState.cpp",
+      "size": 2678,
+      "sha256": "ec9a8a2e777997451abcbc0691d0832349b11b653e4dc08f673b8a0fe932f03c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp",
+      "size": 73474,
+      "sha256": "c667b66522635600b09ed2acbbd3374d9eec0dd0b485f342aee15371a0fe4f4a"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp",
+      "size": 2540,
+      "sha256": "01f3782d7744079b0e2dec651cce3c37933aca69f4a426e159f1a697e98a89fa"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCGrenadeProjectile.cpp",
+      "size": 8620,
+      "sha256": "19931b7920fa9d8db966a5f75116a883a7d5d5e63613e5bfeb55852c72210539"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCHUD.cpp",
+      "size": 32863,
+      "sha256": "24fa08f0103ca18de8bed1639c0d5c22511fcb55352abc057d430c188e546a18"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCHealthComponent.cpp",
+      "size": 7630,
+      "sha256": "a6425c805426517a1db8d28444b3791ad44fe5178aefa934d0d8d98272649f1c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCInteractableActor.cpp",
+      "size": 899,
+      "sha256": "ece0f2ffb2dd889ee2a134346a7e96b1e98fc4d289eb5d81bb42ab6d90365a6f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCInteractableDoor.cpp",
+      "size": 4969,
+      "sha256": "c4ccbe6f5c80ff8ad6910b32cfbd70bf5e4d2c6557fc85cee4d6bdec301352f5"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCInteractableGate.cpp",
+      "size": 2777,
+      "sha256": "35f51d827c07f0c69f3393623accd54be900bc82f2a7a572ab9cec8f96838f27"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCInteractableLight.cpp",
+      "size": 2177,
+      "sha256": "63c11a62a60c80d1502edd947ccbcc6239cf3c8b85cece4788d33d21a258792e"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCMenuAudioProfile.cpp",
+      "size": 482,
+      "sha256": "5537929c7c674fe6e69c58b273e829d215528bd11f4360039e50db6224daf854"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCMenuAudioSubsystem.cpp",
+      "size": 1369,
+      "sha256": "396f4931a57d84389ae0972d00d8444082cb68fc09490901296aadb5c728080c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp",
+      "size": 2715,
+      "sha256": "e2bffc648b31711839fdd931fb8aecc9b2fbba014cdb3a67e8f39e26af437bcb"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCPlayerController.cpp",
+      "size": 26588,
+      "sha256": "197a4aa5b32f62f1acecb80ebdbe05bb232ff3797d1aa532d974ff0957508fbf"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCPlayerState.cpp",
+      "size": 2735,
+      "sha256": "f83399dc52948dba609efa1b05ab8306508046760205669f1b9ab72c518b70f4"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCPlayerUserSettings.cpp",
+      "size": 4760,
+      "sha256": "4d205a924e8b66f61344fcf82bce0d5442eae468cb329ecd731a695a40f20168"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCSmokeCloud.cpp",
+      "size": 1778,
+      "sha256": "0e835eb0645ec5eff27730708e2cadb1d5bcb62e2e495e44deff32ff33bab9cc"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp",
+      "size": 1153,
+      "sha256": "30f1a41fe3787691031572da43c44c5a4168cf85e9874d8fb7fc486bf8842adf"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCTestArena.cpp",
+      "size": 2689,
+      "sha256": "1d5708a17104759483621715dcf06d1203f08ecc0f39bde745e4a5452fea625b"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp",
+      "size": 4085,
+      "sha256": "098754efb16fe9156a16c0d14de24c8ea73f5b04c74878db70b9d4afcdf413e9"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCVehicleAudioComponent.cpp",
+      "size": 3621,
+      "sha256": "2b9d404845cdd871e7a4b4c6cf8bab103d5b7188aa89d3a523a855dab3c96620"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCVehicleAudioProfile.cpp",
+      "size": 35,
+      "sha256": "bd5f45d1a26b17f63e0de1672a9ea442fc097294cf26444b3402ef95410ed1bf"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCVehicleBase.cpp",
+      "size": 34486,
+      "sha256": "604001373f1ab9139c59479dd9be0c270c32f9b885836267e3917058b4bd19ea"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCVehicleSpawnPoint.cpp",
+      "size": 3187,
+      "sha256": "d4dbcc72ef9d257d7536e372a42a76bf2c5bde4e2c961cc204de13fce1afd366"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCVisualEnvironment.cpp",
+      "size": 2479,
+      "sha256": "b634374eb806ca1966201bc8a6fa9e3ee5f281e11e9fa17af6f6578e3c8e1685"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp",
+      "size": 8289,
+      "sha256": "9edeabfa76ad14cbe8eddcc2741d41cabf114567dc370bf2615c4244329d365c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWeaponAudioProfile.cpp",
+      "size": 543,
+      "sha256": "b83556476e55ab496eb0ab3dfa7a88bc9f12babcf6338ef51fcd1c0b5f6e4238"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWeaponBase.cpp",
+      "size": 28296,
+      "sha256": "426909a385b0c5c9ef3ac84dc30ec8b41faaf06fd041079c8b72668efc26f777"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp",
+      "size": 4101,
+      "sha256": "295f2ec3fb552687ed43f8690ad5f268607755ef8636c5d822b195a5719d232f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWorldAudioComponent.cpp",
+      "size": 1683,
+      "sha256": "3ed445aea1e78fd6ce675721c089d888dcf07ab88b95ba0ee54fffa384625c27"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWorldAudioProfile.cpp",
+      "size": 1128,
+      "sha256": "0cb26beb50c9623ef478e7785786f59ad7f14e0c866854e41112ca3932d66b9e"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp",
+      "size": 49284,
+      "sha256": "fe15924f09a8a1a5cece4e2f62e86dec7e92fdc6c4b0f7d9b31b3bb150035e3f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/OsterConflict.cpp",
+      "size": 888,
+      "sha256": "b2056888bf501b02cb08281fa69d9585bf27f50ad93cd7525f6f148b1a31f402"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Private/Tests/OCReleaseSmokeTests.cpp",
+      "size": 3231,
+      "sha256": "2dfec8fefb7f7ec0b5b8feabafc6a54617e84f804a223e92d6fa434dcfd1cba0"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAIController.h",
+      "size": 3781,
+      "sha256": "637de2c2e52b7cf2f8527bab4f457bfcb7d5ba4a3e8695b9ba5daeac94cf37e5"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAmbientAudioZone.h",
+      "size": 1304,
+      "sha256": "0ecd6725c1175c70808ea5ed5c35cbd8d3b36c05a0ca86d400845e60f1d2565a"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAmmoBox.h",
+      "size": 916,
+      "sha256": "93a55a99a96e72be1a6a7ff196e4c0d171df4d416a48be71ce3d47a6be2b63ed"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAntiArmorLauncher.h",
+      "size": 521,
+      "sha256": "869441a1610084a9304c486cc618d1f27e47dabea063b597c744734694f03208"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAntiArmorProjectile.h",
+      "size": 943,
+      "sha256": "9f5b0d704992f7c843e85d5cb2a11256f7f2d207f6ed3770f4745f48a90d290d"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCArmedVehicleBase.h",
+      "size": 6578,
+      "sha256": "7be74ad818199c60230ca4a3dc0546f965d5552626454399405a51519b3f6d2c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAudioTypes.h",
+      "size": 1755,
+      "sha256": "b21738fc602ba93b43acb975e21ff6bb488e92ec09af71383f7d8b78e98aed8f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCAudioUserSettings.h",
+      "size": 4098,
+      "sha256": "7088ec27b9e3fe03e56554819639908a59cd2e730f3d18e732ff8cdce87de93b"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCBTR.h",
+      "size": 1123,
+      "sha256": "b7f659dce45b8cf6f875aa7f997ea5b1ad52908a420166763f47790ba3afe744"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCBotCharacter.h",
+      "size": 295,
+      "sha256": "095b8ddb2179718006f6e9f60318b053a9fd2c937ec3e90b88518c03607e48b2"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCBotTypes.h",
+      "size": 602,
+      "sha256": "ef1ba80814b24e0960a60731b066a0597c1143ff2866f57d70128483a0e86871"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCBreakableWindow.h",
+      "size": 2656,
+      "sha256": "11cab265145cd00ad45fc41aedb02dd5cf32d529a4d1c078af8b60b57f268573"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCBuildVersion.h",
+      "size": 419,
+      "sha256": "af903c3fe770c09701f7a94c97093efd128b24edb5311ab6a278bd7522eecd1f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCapturePoint.h",
+      "size": 2303,
+      "sha256": "5e3a067a4eabc25fdccd10b3d672f6256c51c7fba34cf5086bca25c2d17f4618"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacter.h",
+      "size": 17491,
+      "sha256": "73000d80e7ee48fdd83ca8095b607140b61b0d2982dd47db9cca81235e1e84a1"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacterAnimInstance.h",
+      "size": 1882,
+      "sha256": "7fc43357f4b06620119d6ef44d15e9f4318eab88584bfa1f5b5e1b3d63758b99"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacterAudioComponent.h",
+      "size": 990,
+      "sha256": "809bedf5ec4f111ed80d2c5a98dba00c7918ac68f9a4fe201fa41a39a063fffa"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacterAudioProfile.h",
+      "size": 1651,
+      "sha256": "dfd11cdaa7dad9b782995a0f5ca913cdaea46aacd4701e02cd4fd01835a2f9a3"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h",
+      "size": 3329,
+      "sha256": "49d2f22d4997481ba40560fb5faa81ecbbaaad5026848507260bc559c66156e2"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacterVisualProfile.h",
+      "size": 2687,
+      "sha256": "b087ac0f785dd512023e9f498c4ae0eb75cfa7738e1d3e6a89ba969f003a4a60"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCharacterVisualTypes.h",
+      "size": 2019,
+      "sha256": "84063fd1fd0d0b7c002ffc7c94914b7c024e26ab33885be2697d499c61d15f93"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCivilianVehicle.h",
+      "size": 893,
+      "sha256": "bd8efaa364cbc41c437da69446cf997d62bd84867083cec451e739fe54c94581"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCombatVehicleSpawnPoints.h",
+      "size": 422,
+      "sha256": "cf583e9e84fae8d3769a3d89b941adb2fbbef6c88a972b62c508713c0d9b63ba"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCCombatVisualComponent.h",
+      "size": 3922,
+      "sha256": "abf394b6954be61927043f8a1a2e6744a22cb620cad19bd037072fa9ebe0de3e"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCDamageTarget.h",
+      "size": 546,
+      "sha256": "b672e5ac190715f5c00b2fbaec82198222d750244c5204bbaa88f2a7ee9e7c8d"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCDamageTypes.h",
+      "size": 800,
+      "sha256": "937879fb5555e7330a729cc6c36eee7718d331fee24885f589ebe738fe85b053"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCDeployableTrap.h",
+      "size": 1913,
+      "sha256": "2404776f4cf914611658249ecb9819083344afab2a235b98c883ba9f1a70637b"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCDestructibleProp.h",
+      "size": 2546,
+      "sha256": "62e53b5a62e5af328a66221d06fcded9371e1fad0fba30c5481252ebb2974fac"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h",
+      "size": 2816,
+      "sha256": "47b69ab4cb43671d88137eb5cdb12717b31f49f59762c61ee1b60a1b7c28358f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGameInstance.h",
+      "size": 1582,
+      "sha256": "dc586ebe73b0d47f01cb0395d2af8f90dfd80ff127cc3846c447036636e7d1be"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGameMode.h",
+      "size": 7189,
+      "sha256": "b6af1a1354ae37a06078cac811a82c6ceac86306b44179c8cad7018691c84c8c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGameState.h",
+      "size": 3063,
+      "sha256": "035326fbcc25acdd04b9bd977c3930492fcbf784bf1a9c2f9786c7bba2988e94"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGameUIRootWidget.h",
+      "size": 11672,
+      "sha256": "8cb4ffb992f5e1e9580f7b20ac0e32755114de56bd95688539b8d7f51c1d5e9c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGameplayMode.h",
+      "size": 576,
+      "sha256": "94812cb7661836c1cc57b3b62e09e06087b927d2b1ba63002ac84269efc6f4e8"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGeoReference.h",
+      "size": 1384,
+      "sha256": "19acc2f1310cd474d171a68b271b9afeeeb7785d2a6cd3d1a98e5db2540d5fda"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCGrenadeProjectile.h",
+      "size": 2026,
+      "sha256": "d805d45759818b33c2dd8601e6e6b2f78e8d51cd647084bec9f0296cfb5626f1"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCHUD.h",
+      "size": 633,
+      "sha256": "becc4b48a5dda8723cd96791c3b8587775dee6ea4005436ac5079765e6d798f0"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCHealthComponent.h",
+      "size": 4938,
+      "sha256": "f9c1fc2fff6304d0ee9074b2740e56da572c60fbffa0e38da9bf8a6bf4c82c4f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCHouseTypes.h",
+      "size": 280,
+      "sha256": "85b828c5b1a6f15e1eb28a358476d74a2962766d1705d51faae1f2b305df8e2f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCInteractableActor.h",
+      "size": 1071,
+      "sha256": "d9bea962c6ea9c245ca073d6fcc93b73d54d74e92b95cbdf5f94cdc108af0726"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCInteractableDoor.h",
+      "size": 2304,
+      "sha256": "17ab23f857a2117a1d3ec9b3e38cc5bdebdc9237c9e2712ec8b40a88f3b4a4e5"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCInteractableGate.h",
+      "size": 1117,
+      "sha256": "f5384d69cecc3a2e98b4ff2770f3cf77788dea1d3bcc9c8baaa30605bf074708"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCInteractableLight.h",
+      "size": 1150,
+      "sha256": "c9681d87a7493c0e963be5ea540981aee49d7ec03dd8a2fe1da421ce7be20c31"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCLobbyTypes.h",
+      "size": 2550,
+      "sha256": "a95c4abc6aaf2cf33cb7deffc2ab60237550dcee86d216b523864efd820f9f1f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCMenuAudioProfile.h",
+      "size": 1155,
+      "sha256": "3893da085bff21c16818099d58b475016d149efd6b51c8de138c0973b03798d8"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCMenuAudioSubsystem.h",
+      "size": 950,
+      "sha256": "cc4392f32cd29c5aa604330f49253fdb1b19b1c73c0885ba433096cc5bd43c26"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCOrdnanceTypes.h",
+      "size": 2260,
+      "sha256": "2ef77f20b11810d0e6d740de2046c421ee2bedece95fe722d980719b86df3075"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCPickupGunTruck.h",
+      "size": 682,
+      "sha256": "f5c7991fcda8b088e8d83defa93cb53d71a72cabaf045362456afdfad1615318"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCPlayerController.h",
+      "size": 7332,
+      "sha256": "7acf24e3a20bc71b0dd4c2a0b84cbddc306d186c09be76bc8ca39baf5103ecdc"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCPlayerState.h",
+      "size": 3787,
+      "sha256": "b55afaa7e5c41613dab1d37e163055dc2d89993e1b4d94aa498f878d092e08b6"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCPlayerUserSettings.h",
+      "size": 4895,
+      "sha256": "0721e407475b3bacce18e0f34e1ae9c2d2ee072ecbaac7eccc47302782f4234f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCSmokeCloud.h",
+      "size": 954,
+      "sha256": "f23baac70cda4ed3802a83cf0c09536b28448668bf2dcc7f1c72297a53269569"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCTeamSpawnPoint.h",
+      "size": 1344,
+      "sha256": "173321d761643d454fdf9809f5b3be0feb2f77199c48c01778d365067cc65876"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCTeamTypes.h",
+      "size": 1172,
+      "sha256": "1b35bfbf9616942459351b3ba085b3f890f546badaead21a70cc01eb33387274"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCTestArena.h",
+      "size": 759,
+      "sha256": "72b7b5d5e695161b83edab6507d6cc61d64499facf4ea2dc4369c8aa82ab6f03"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCTransientVisualFX.h",
+      "size": 1225,
+      "sha256": "0dd105accaa74779e4f16d17215c5ac3fb028e9794349bbcf8cc067aa9fb61b8"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCTraumaTypes.h",
+      "size": 2182,
+      "sha256": "2057e8c96cc4d46368e109ea65d6569316112c7bef3722169f31269ea3bb6d77"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCVehicleAudioComponent.h",
+      "size": 1322,
+      "sha256": "c5e284be708025c54bc4282af106423ea561af92e821f257d0a4c095bfc1b35c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCVehicleAudioProfile.h",
+      "size": 1287,
+      "sha256": "804d19fb10932a953ee215746727118780ae026c67e3c7f34603632cbc90488c"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCVehicleBase.h",
+      "size": 11445,
+      "sha256": "0594f87c22ff53e73d3a8e5338faaf5c66a96729a8b155bdf984dd8f9ce90425"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCVehicleSpawnPoint.h",
+      "size": 1478,
+      "sha256": "393495468dcc618bcf0e567ebc8ae95d059b8e9735ef3143aadacced6ef9e50d"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCVisualEnvironment.h",
+      "size": 1015,
+      "sha256": "9be60cb3756b0e0cda9be5a944799d24b794c90a76bca85381e9da37c18d8de2"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWeaponAudioComponent.h",
+      "size": 1982,
+      "sha256": "d6ece574a703515a9ad241bab88b139d726f8979d6c1ae06ce4c63a1cca0bdbf"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWeaponAudioProfile.h",
+      "size": 4193,
+      "sha256": "04319265a7ffd2d5f4ba40be35e835674505a234b7c915ef15ed93bc5648ad85"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h",
+      "size": 7139,
+      "sha256": "c51b1e455b8a98065a65a1207d53354912cb762c9bb9a1b723488c7f1791b087"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWeaponDefinition.h",
+      "size": 744,
+      "sha256": "e8adbc78990ff4df0da0d523068816d3a3404eccc59164b726e625f4a7dcd3ab"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWeaponTypes.h",
+      "size": 3885,
+      "sha256": "69ddc0d20093ea1c70e14f1667a8eb975cc48c1063d6e2563ca2fe643b60df75"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h",
+      "size": 899,
+      "sha256": "ef12d0aa0f93de2b06ead3a0cdd07b91bdb5aaa0a37235c507615c8753325b2f"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWorldAudioComponent.h",
+      "size": 976,
+      "sha256": "80ab09800ab3419988ea6bc6a0d063d0e4072970a4829a2a62f75f21f99febfd"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWorldAudioProfile.h",
+      "size": 3080,
+      "sha256": "37c3c228c324946bcf94da0b41f27e88c48db355cc5198eca07cc4e1b9e13d08"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h",
+      "size": 5757,
+      "sha256": "24050436a7a8aed0005d6c8c27d6a54274bdbf0d01c4cab42b8701d430f49a5a"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict/Public/OsterConflict.h",
+      "size": 39,
+      "sha256": "021d1e841155967ae887365541994a3c2c18cb0fa19921d0346794d6bf323187"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflict.Target.cs",
+      "size": 437,
+      "sha256": "8b9a46db14de2f34cbc4a1357a2fa03a48bd84e35315910a99a43b3a12fe09c2"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflictClient.Target.cs",
+      "size": 451,
+      "sha256": "cebe20290ac7dd82facceff483a63cb12ee29b629f2ca0904cb0329928b231b6"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflictEditor.Target.cs",
+      "size": 451,
+      "sha256": "bd476528bc08fec100096eb0b4d5dea4d2bf99777c310354313630853902e4f8"
+    },
+    {
+      "path": "OsterConflict/Source/OsterConflictServer.Target.cs",
+      "size": 451,
+      "sha256": "e5c19c19b6db42810b8253f8b9004b5c6297d7441dc24583ac8be07d8d5615c6"
+    },
+    {
+      "path": "PC_TEST/LAUNCH_LATEST_LOCAL_SESSION.ps1",
+      "size": 3289,
+      "sha256": "3da90f10b11ad3dcbea534c46215db726707c0f0059ffe907d8ca664be58ee31"
+    },
+    {
+      "path": "PC_TEST/PRELAUNCH_CHECK.ps1",
+      "size": 5895,
+      "sha256": "1a28a001953c7255b63270b3a500ea822051a99272770aea0ae8a4a381f6426c"
+    },
+    {
+      "path": "PC_TEST/README_PC_TEST_UA.md",
+      "size": 5249,
+      "sha256": "82407a09ae898444028e821334dee1b0b339fee26a0a70cf92efb4a8cb277a74"
+    },
+    {
+      "path": "PC_TEST/RUN_UE58_PC_VALIDATION.ps1",
+      "size": 12628,
+      "sha256": "7ae73cc95b1ea7723790cc30a96e41b046cc5e0b08b420f7b937b168474d75c1"
+    },
+    {
+      "path": "PC_TEST/STOP_LOCAL_SERVER.ps1",
+      "size": 1024,
+      "sha256": "112fa256e60121c47b30b2a0755986cd3d04ad8008298d6cffa8b0a7eafe278b"
+    },
+    {
+      "path": "R10_CXX_BATCH_FIX_QA.md",
+      "size": 3589,
+      "sha256": "181fa66d9274695581f1946da4e9a41f43cfe0b2fe83536ca30e6d32c7eccf0c"
+    },
+    {
+      "path": "R11_VISUAL_FOUNDATION_QA.md",
+      "size": 1807,
+      "sha256": "d0e9a6cd63bbbaebc8e6e0d41077223469eb76cae9aa6cc77b4d946b3428da43"
+    },
+    {
+      "path": "R7_LOGIC_PHYSICS_FINDINGS.md",
+      "size": 8393,
+      "sha256": "98874896826f81d59172f17fbc8544ba9674baa5e0eb118d41317322153c6390"
+    },
+    {
+      "path": "R8_UE58_BUILD_FIX_QA.md",
+      "size": 1656,
+      "sha256": "f60ebaac67a42d94e81b25517ec714f25eb3ae83c2e93761652b16d6834e69b4"
+    },
+    {
+      "path": "R9_UHT_TRAUMA_FIX_QA.md",
+      "size": 977,
+      "sha256": "d669710285560b8d6d8fb401af4d1cc158c3a768e8dac101d1da60b6cc5b4131"
+    },
+    {
+      "path": "RUN_ALL_VERIFY.py",
+      "size": 1989,
+      "sha256": "f0d2c42d79dcea47efb7f4c053f33bac3a5ec46613b97dc44305149c37b53a9d"
+    },
+    {
+      "path": "RUN_CLEAN_FULL_TEST.cmd",
+      "size": 731,
+      "sha256": "ae54334867be3c41c2400310e988d35b4c3a0d947bb97f9cc297b3ba4168c741"
+    },
+    {
+      "path": "RUN_COMPILE_ONLY.cmd",
+      "size": 532,
+      "sha256": "3fb71a635c3f770be09c6a4a1737f3c9fda0634298e486d6e711ca68dbae917a"
+    },
+    {
+      "path": "RUN_LOCAL_GAME_AFTER_BUILD.cmd",
+      "size": 215,
+      "sha256": "233bdab33efa17c0bc785e663e198a537ad7dfd9cae09b2d1d3726303b41f5ac"
+    },
+    {
+      "path": "RUN_PC_TEST.cmd",
+      "size": 854,
+      "sha256": "5f688a8303f9171b5c0657ce6361527eb2d33bb437fc00b98b2bca002ac0b45b"
+    },
+    {
+      "path": "RUN_R11_LISTEN_TEST.cmd",
+      "size": 1979,
+      "sha256": "ef31cab798ceb22d4dc1fadad49255d06ff9be7ccf8b54037a1dc520b114d07e"
+    },
+    {
+      "path": "START_HERE.cmd",
+      "size": 1143,
+      "sha256": "468e60086473f508f407ab8d2a0fe8fff287b6a0f7efac72691eed83cb873076"
+    },
+    {
+      "path": "STOP_LOCAL_SERVER.cmd",
+      "size": 165,
+      "sha256": "1f6bddec355d8150c4dfb520afbdd22126a2f05faa832a347d92a326a1cbd499"
+    },
+    {
+      "path": "VERIFY_R10_CXX_BATCH_FIX.py",
+      "size": 3819,
+      "sha256": "fbb469a868f1e7420c2786af16dfd42a636cf2961a4f6e1a6ba6d978af3e2de6"
+    },
+    {
+      "path": "VERIFY_R11_VISUAL_FOUNDATION.py",
+      "size": 4481,
+      "sha256": "344bc36bef16b454839254774bb20af9d8725ba99cbb114d0809133a8ec17820"
+    },
+    {
+      "path": "VERIFY_R6_LAUNCH_KIT.py",
+      "size": 11226,
+      "sha256": "f1539d51925c4c55140f20fa3211d06fe443400b94c0df716dbea135c7f50f53"
+    },
+    {
+      "path": "VERIFY_R7_LOGIC_PHYSICS.py",
+      "size": 6486,
+      "sha256": "6d793d8719acd34c63ca651972441b09351ef2d7d33020443274ce65dc0192aa"
+    },
+    {
+      "path": "VERIFY_R8_UE58_TARGETS.py",
+      "size": 1045,
+      "sha256": "58f8dc29cab2c2d74825d75515d4185507d5756ae8f3cf0d50d33f46e8dca289"
+    },
+    {
+      "path": "VERIFY_R9_UHT_TRAUMA.py",
+      "size": 1424,
+      "sha256": "c57189b7d2d436b4a0a8ce83fecd76a0dedcad02a355b21aa10f37d05c16f351"
+    },
+    {
+      "path": "VERIFY_S04.py",
+      "size": 4295,
+      "sha256": "c3b3739800bcbdf03d70ee6a7b9281563b2805308ecc922dfded7769ac4fb89a"
+    },
+    {
+      "path": "VERIFY_S05.py",
+      "size": 6627,
+      "sha256": "4e44bee73a8a26178d11a50acb61552a383ee799a64223f89832e2600e78dcd2"
+    },
+    {
+      "path": "VERIFY_S06.py",
+      "size": 4279,
+      "sha256": "48a6254bb005b77c0264cf6c91e792f1b391924033933dacd7706263cfa9e197"
+    },
+    {
+      "path": "VERIFY_S07.py",
+      "size": 4946,
+      "sha256": "608310a3b84f92e6b5f219aaab32f3899337090ca45fef521216aa537bca7707"
+    },
+    {
+      "path": "VERIFY_S08.py",
+      "size": 7058,
+      "sha256": "76949ded8b5de4e1b20cedc705bd347af4fbcaa3662c45e04bff6a2947930a53"
+    },
+    {
+      "path": "VERIFY_S09.py",
+      "size": 3272,
+      "sha256": "14473cd9d48dd81a186df9196e674a3bff850ed9497524414323d90373a63dd3"
+    },
+    {
+      "path": "VERIFY_S10.py",
+      "size": 2862,
+      "sha256": "95fc1f25f968994306dd4378c9a166cf9075b8f4dfe60cd81c0bea2cbffce5f7"
+    },
+    {
+      "path": "VERIFY_S11.py",
+      "size": 3510,
+      "sha256": "d05942e05b6f553626060725bf278058e4f43bef1d8a4d3b026d8c88c22ba164"
+    },
+    {
+      "path": "VERIFY_S12.py",
+      "size": 4232,
+      "sha256": "e3e356dbe1755856698a6d5b1e6100d9218e51c7b31e49c992fd8d926eb2a544"
+    },
+    {
+      "path": "VERIFY_S13.py",
+      "size": 2357,
+      "sha256": "676d1bc50d21eb54ffcde15fe3662058907c3609a6438ef0052d9800a6816ae6"
+    },
+    {
+      "path": "VERIFY_S14A.py",
+      "size": 2645,
+      "sha256": "d27bc09ae8d000c3b28986e4dad192bae9381026fb5d4862a14f855caae092d9"
+    },
+    {
+      "path": "VERIFY_S14B.py",
+      "size": 4570,
+      "sha256": "ee7cc0219a310823627ca9e859ccbadb5dd9c04b36f61ceb2cf3be3c820323c2"
+    },
+    {
+      "path": "VERIFY_S15A.py",
+      "size": 3818,
+      "sha256": "9bc16fe07aecfd5038f28756c37c4c5912c5798884064b1d37160cacc3f35d5e"
+    },
+    {
+      "path": "VERIFY_S15B.py",
+      "size": 5927,
+      "sha256": "d1234eb7a3e5a181951ebbeb3d5809d342d00af2f036da68d195bad14bdaacb6"
+    },
+    {
+      "path": "VERIFY_S16A.py",
+      "size": 5261,
+      "sha256": "b5a201952026c21dc42ba4d7c6cb22b8f0abad5044625866e71f51a8d70fec4e"
+    },
+    {
+      "path": "VERIFY_S16B.py",
+      "size": 1006,
+      "sha256": "f0a4029a3d062bac1ffe334fa950b4d461d7c9f4a0813e74044fdfae6983ff4c"
+    },
+    {
+      "path": "VERIFY_S16C.py",
+      "size": 3318,
+      "sha256": "a94a848a8aa356d039536c1355f593d14cda14d0d9acff7f1728c684be87ad6b"
+    },
+    {
+      "path": "VERIFY_S17A.py",
+      "size": 2861,
+      "sha256": "eab19485730ee1fa5c48652f3247c392b7dbae7aaa9803dadec7e18a0e90f3d0"
+    },
+    {
+      "path": "VERIFY_S17B.py",
+      "size": 4288,
+      "sha256": "a4ff98152fc43516302353faf37aa228a426f7e5e04b0052ee283144d5547756"
+    },
+    {
+      "path": "VERIFY_S18A.py",
+      "size": 3862,
+      "sha256": "e8ce0fc31f82b33729aa5e33ac6209778beba90de0a208e00e07d7d9d936227e"
+    },
+    {
+      "path": "VERIFY_S18B.py",
+      "size": 3039,
+      "sha256": "8a00d0bea1e7634c09b7519540b150584435ecedcd4958d9573345cab6fa6b91"
+    },
+    {
+      "path": "VERIFY_S18C.py",
+      "size": 938,
+      "sha256": "181de4c648e65aaf730deee31599ac4b4792d37f42f9f71b82d73bb3f1b8ec35"
+    },
+    {
+      "path": "VERIFY_S18C_HARDENING_R1.py",
+      "size": 2305,
+      "sha256": "268f036aee2045c33d1c7e0f50e4cd26095de2c225df8cee02860b6599f881e0"
+    },
+    {
+      "path": "VERIFY_S19C_SOURCE.py",
+      "size": 2708,
+      "sha256": "7cd5d25c5b47d59cb20f8cadc0ac19ac51fee0ff6a384f1b709d00b4b2158f75"
+    }
+  ]
+}

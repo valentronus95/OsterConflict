@@ -1,0 +1,11 @@
+﻿UE version                       PASS 5.8.1
+R8 prelaunch check               PASS log=00A_PrelaunchCheck.log
+Visual Studio C++                PASS C:\Program Files\Microsoft Visual Studio\18\Community
+Static verifier suite            WARN exit=1; compile continues
+S18C toolchain preflight         PASS log=01_ToolchainPreflight.log
+Generate project files           WARN GenerateProjectFiles.bat not found; continuing with direct UBT.
+Compile Editor                   FAIL exit=6; log=03_CompileEditor.log
+
+RESULT: FAIL at stage [Compile Editor]
+ERROR: Compile Editor failed with exit code 6
+Do not repair files manually. Send the TEST_RESULTS zip/logs for root-cause analysis.

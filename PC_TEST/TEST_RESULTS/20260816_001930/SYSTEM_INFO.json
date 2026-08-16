@@ -1,0 +1,22 @@
+﻿{
+    "timestamp":  "2026-08-16T00:19:42.2541283+03:00",
+    "ue":  "5.8.1",
+    "visual_studio":  "18.9.12105.275",
+    "project_root":  "C:\\Users\\Valen\\Desktop\\Game\\OsterConflict_UE58_PC_TEST_R11_1_LAUNCHER_FIXED\\OsterConflict",
+    "ue_root":  "C:\\Program Files\\Epic Games\\UE_5.8",
+    "free_disk_gb":  252.7,
+    "ram_gb":  15.8,
+    "cpu":  "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+    "gpu":  [
+                {
+                    "Name":  "NVIDIA GeForce RTX 3050 Laptop GPU",
+                    "DriverVersion":  "32.0.16.1047",
+                    "AdapterRAM":  4293918720
+                },
+                {
+                    "Name":  "Intel(R) UHD Graphics",
+                    "DriverVersion":  "27.20.100.8280",
+                    "AdapterRAM":  1073741824
+                }
+            ]
+}

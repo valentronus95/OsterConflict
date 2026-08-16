@@ -1,0 +1,14 @@
+﻿PASS  Windows: Microsoft Windows NT 10.0.26200.0
+PASS  Project path length: 89
+PASS  Project is not in a common sync-folder path.
+PASS  UE version 5.8.1
+PASS  Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required.
+PASS  UE prerequisite installer folder present.
+PASS  Visual Studio 18.9.12105.275 at C:\Program Files\Microsoft Visual Studio\18\Community
+WARN  Could not enumerate Windows SDK versions.
+PASS  Free disk on project drive: 252.7 GB
+WARN  RAM: 15.8 GB. Build may be painful; 32 GB is the UE recommended development target.
+INFO  CPU: Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz
+INFO  GPU: NVIDIA GeForce RTX 3050 Laptop GPU driver=32.0.16.1047
+INFO  GPU: Intel(R) UHD Graphics driver=27.20.100.8280
+PASS  UDP port 7777 is free.

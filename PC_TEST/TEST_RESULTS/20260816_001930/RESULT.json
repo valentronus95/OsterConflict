@@ -1,0 +1,56 @@
+﻿{
+    "timestamp":  "20260816_001930",
+    "mode":  "Compile",
+    "ue_root":  "C:\\Program Files\\Epic Games\\UE_5.8",
+    "project":  "C:\\Users\\Valen\\Desktop\\Game\\OsterConflict_UE58_PC_TEST_R11_1_LAUNCHER_FIXED\\OsterConflict\\OsterConflict.uproject",
+    "success":  true,
+    "failed_stage":  "Compile Game",
+    "error":  "",
+    "stages":  [
+                   {
+                       "Stage":  "UE version",
+                       "Status":  "PASS",
+                       "Detail":  "5.8.1"
+                   },
+                   {
+                       "Stage":  "R8 prelaunch check",
+                       "Status":  "PASS",
+                       "Detail":  "log=00A_PrelaunchCheck.log"
+                   },
+                   {
+                       "Stage":  "Visual Studio C++",
+                       "Status":  "PASS",
+                       "Detail":  "C:\\Program Files\\Microsoft Visual Studio\\18\\Community"
+                   },
+                   {
+                       "Stage":  "Static verifier suite",
+                       "Status":  "WARN",
+                       "Detail":  "exit=1; compile continues"
+                   },
+                   {
+                       "Stage":  "S18C toolchain preflight",
+                       "Status":  "PASS",
+                       "Detail":  "log=01_ToolchainPreflight.log"
+                   },
+                   {
+                       "Stage":  "Generate project files",
+                       "Status":  "WARN",
+                       "Detail":  "GenerateProjectFiles.bat not found; continuing with direct UBT."
+                   },
+                   {
+                       "Stage":  "Compile Editor",
+                       "Status":  "PASS",
+                       "Detail":  "log=03_CompileEditor.log"
+                   },
+                   {
+                       "Stage":  "Compile Game",
+                       "Status":  "PASS",
+                       "Detail":  "log=04_CompileGame.log"
+                   },
+                   {
+                       "Stage":  "Compile Dedicated Server",
+                       "Status":  "SKIP",
+                       "Detail":  "Launcher/installed UE detected; use listen-server test path."
+                   }
+               ]
+}
