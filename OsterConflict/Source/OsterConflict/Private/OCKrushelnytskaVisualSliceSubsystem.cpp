@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -34,7 +35,7 @@ namespace
         Component->SetupAttachment(Root);
         Component->SetStaticMesh(Mesh);
         Component->SetMobility(EComponentMobility::Static);
-        Component->SetCollisionProfileName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision"));
+        Component->SetCollisionProfileName(FName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision")));
         Component->SetCastShadow(true);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
@@ -106,7 +107,19 @@ void UOCKrushelnytskaVisualSliceSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     const FString MapName = InWorld.GetMapName();
     if (!MapName.Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    BuildVisualSlice(InWorld);
+    // UWorldSubsystem::OnWorldBeginPlay runs before GameMode::BeginPlay. R11 spawns OCWorldSectorOster from
+    // GameMode::BeginPlay, so defer one short tick before hiding its proxy components and placing the R12 slice.
+    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
+    FTimerHandle BuildTimer;
+    InWorld.GetTimerManager().SetTimer(BuildTimer,
+        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
+        {
+            if (UWorld* World = WeakWorld.Get())
+            {
+                BuildVisualSlice(*World);
+            }
+        }),
+        0.25f, false);
 }
 
 void UOCKrushelnytskaVisualSliceSubsystem::BuildVisualSlice(UWorld& World)
