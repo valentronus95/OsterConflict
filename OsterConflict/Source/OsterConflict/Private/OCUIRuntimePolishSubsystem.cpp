@@ -48,7 +48,14 @@ namespace
         if (!Widget) return;
         if (UButton* Button = Cast<UButton>(Widget))
         {
-            Button->SetBackgroundColor(FLinearColor(0.055f, 0.075f, 0.095f, 0.98f));
+            Button->SetBackgroundColor(FLinearColor(0.025f, 0.042f, 0.060f, 0.98f));
+            if (UTextBlock* Label = Cast<UTextBlock>(Button->GetContent()))
+            {
+                Label->SetColorAndOpacity(FSlateColor(FLinearColor(0.94f, 0.96f, 0.98f, 1.0f)));
+                FSlateFontInfo Font = Label->GetFont();
+                Font.Size = 16;
+                Label->SetFont(Font);
+            }
         }
         if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
         {
@@ -81,7 +88,7 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
         AOCPlayerController* PC = Cast<AOCPlayerController>(Root->GetOwningPlayer());
         if (!PC || !PC->IsLocalController()) continue;
 
-        // Vehicle input must never survive possession hand-off back to infantry.
+        // Vehicle-specific mappings must never survive possession hand-off back to infantry.
         APawn* CurrentPawn = PC->GetPawn();
         if (CurrentPawn != LastLocalPawn.Get())
         {
@@ -94,7 +101,9 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
                     for (TObjectIterator<UInputMappingContext> ContextIt; ContextIt; ++ContextIt)
                     {
                         UInputMappingContext* Context = *ContextIt;
-                        if (IsValid(Context) && Context->GetFName() == TEXT("IMC_VehicleRuntime"))
+                        if (!IsValid(Context)) continue;
+                        const FName ContextName = Context->GetFName();
+                        if (ContextName == TEXT("IMC_VehicleRuntime") || ContextName == TEXT("IMC_DriverTurretRuntime"))
                         {
                             InputSubsystem->RemoveMappingContext(Context);
                         }
@@ -125,7 +134,7 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
             }
         }
 
-        // R13 deployment flow: make the sequence explicit instead of presenting a debug wall of controls.
+        // R13.1 deployment: one readable decision flow. No bot dump, no giant debug rectangle, no mystery buttons.
         if (UBorder* DeploymentPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("DeploymentPanel"))))
         {
             static TWeakObjectPtr<UTexture2D> CachedOsterBackground;
@@ -139,14 +148,14 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
             if (CachedOsterBackground.IsValid())
             {
                 DeploymentPanel->SetBrushFromTexture(CachedOsterBackground.Get());
-                // Multiply the photo darker so labels remain readable. It is still visibly Oster, not a flat slab.
-                DeploymentPanel->SetBrushColor(FLinearColor(0.28f, 0.31f, 0.34f, 1.0f));
+                // Dark photo treatment keeps Oster clearly visible while preserving text contrast.
+                DeploymentPanel->SetBrushColor(FLinearColor(0.20f, 0.23f, 0.27f, 1.0f));
             }
             else
             {
-                DeploymentPanel->SetBrushColor(FLinearColor(0.012f, 0.018f, 0.026f, 0.98f));
+                DeploymentPanel->SetBrushColor(FLinearColor(0.010f, 0.016f, 0.024f, 0.985f));
             }
-            DeploymentPanel->SetPadding(FMargin(24.0f));
+            DeploymentPanel->SetPadding(FMargin(30.0f));
             PolishButtons(DeploymentPanel->GetContent());
 
             if (UHorizontalBox* Columns = Cast<UHorizontalBox>(DeploymentPanel->GetContent()))
@@ -155,20 +164,22 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
                 {
                     if (UVerticalBox* Left = Cast<UVerticalBox>(Columns->GetChildAt(0)))
                     {
-                        SetText(Left, 0, NSLOCTEXT("OCR13UI", "DeployTitle", "ОСТЕР  •  РОЗГОРТАННЯ"));
-                        SetButtonText(Left, 2, NSLOCTEXT("OCR13UI", "Team1", "1  •  КОМАНДА 1"));
-                        SetButtonText(Left, 3, NSLOCTEXT("OCR13UI", "Team2", "1  •  КОМАНДА 2"));
-                        SetButtonText(Left, 4, NSLOCTEXT("OCR13UI", "Role", "2  •  ЗМІНИТИ КЛАС"));
-                        SetButtonText(Left, 5, NSLOCTEXT("OCR13UI", "Squad", "3  •  ЗМІНИТИ ГРУПУ"));
+                        SetText(Left, 0, NSLOCTEXT("OCR13UI", "DeployTitle", "OSTER CONFLICT"));
+                        SetText(Left, 1, NSLOCTEXT("OCR13UI", "DeploySubtitle", "ОСТЕР  •  ВИБЕРІТЬ КОМАНДУ, КЛАС І ГРУПУ"));
+                        SetButtonText(Left, 2, NSLOCTEXT("OCR13UI", "Team1", "1  КОМАНДА 1"));
+                        SetButtonText(Left, 3, NSLOCTEXT("OCR13UI", "Team2", "1  КОМАНДА 2"));
+                        SetButtonText(Left, 4, NSLOCTEXT("OCR13UI", "Role", "2  КЛАС  •  ЗМІНИТИ"));
+                        SetButtonText(Left, 5, NSLOCTEXT("OCR13UI", "Squad", "3  ГРУПА  •  ЗМІНИТИ"));
                     }
                     if (UVerticalBox* Spawn = Cast<UVerticalBox>(Columns->GetChildAt(1)))
                     {
-                        SetText(Spawn, 0, NSLOCTEXT("OCR13UI", "SpawnTitle", "4  •  ТОЧКА ПОЯВИ"));
+                        SetText(Spawn, 0, NSLOCTEXT("OCR13UI", "SpawnTitle", "4  ТОЧКА ПОЯВИ"));
+                        SetText(Spawn, 1, NSLOCTEXT("OCR13UI", "SpawnHint", "ОБЕРІТЬ МІСЦЕ ПОЯВИ"));
                         SetButtonText(Spawn, 2, NSLOCTEXT("OCR13UI", "Base", "БАЗА"));
                         SetButtonText(Spawn, 3, NSLOCTEXT("OCR13UI", "PointA", "ТОЧКА A"));
                         SetButtonText(Spawn, 4, NSLOCTEXT("OCR13UI", "PointB", "ТОЧКА B"));
                         SetButtonText(Spawn, 5, NSLOCTEXT("OCR13UI", "PointC", "ТОЧКА C"));
-                        SetButtonText(Spawn, 6, NSLOCTEXT("OCR13UI", "Deploy", "5  •  У БІЙ"));
+                        SetButtonText(Spawn, 6, NSLOCTEXT("OCR13UI", "Deploy", "5  У БІЙ"));
                     }
                     if (UVerticalBox* DebugColumn = Cast<UVerticalBox>(Columns->GetChildAt(2)))
                     {
@@ -179,12 +190,12 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
 
             if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(DeploymentPanel->Slot))
             {
-                Slot->SetPosition(FVector2D(260.0f, 210.0f));
-                Slot->SetSize(FVector2D(1080.0f, 400.0f));
+                Slot->SetPosition(FVector2D(190.0f, 150.0f));
+                Slot->SetSize(FVector2D(1220.0f, 560.0f));
             }
         }
 
-        // Escape during a match is a pause menu, not the old direct-connect frontend.
+        // Escape during a match is a pause menu, not the direct-connect frontend.
         if (UBorder* FrontendPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("FrontendPanel"))))
         {
             const bool bInGameplaySession = PC->GetNetMode() != NM_Standalone;
@@ -194,7 +205,7 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
             {
                 if (Frontend->GetChildrenCount() > 0)
                     if (UTextBlock* Title = Cast<UTextBlock>(Frontend->GetChildAt(0)))
-                        Title->SetText(NSLOCTEXT("OCR13UI", "PauseMenuTitle", "OSTER CONFLICT"));
+                        Title->SetText(NSLOCTEXT("OCR13UI", "PauseMenuTitle", "МЕНЮ ГРИ"));
 
                 SetChildVisibility(Frontend, 1, ESlateVisibility::Collapsed);
                 SetChildVisibility(Frontend, 2, ESlateVisibility::Collapsed);
@@ -204,14 +215,16 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
                 SetChildVisibility(Frontend, 6, ESlateVisibility::Visible);
                 SetChildVisibility(Frontend, 7, ESlateVisibility::Visible);
                 SetChildVisibility(Frontend, 8, ESlateVisibility::Collapsed);
+                SetButtonText(Frontend, 6, NSLOCTEXT("OCR13UI", "PauseSettings", "НАЛАШТУВАННЯ"));
+                SetButtonText(Frontend, 7, NSLOCTEXT("OCR13UI", "PauseContinue", "ПРОДОВЖИТИ ГРУ"));
 
-                FrontendPanel->SetBrushColor(FLinearColor(0.012f, 0.018f, 0.026f, 0.97f));
-                FrontendPanel->SetPadding(FMargin(24.0f));
+                FrontendPanel->SetBrushColor(FLinearColor(0.010f, 0.016f, 0.024f, 0.985f));
+                FrontendPanel->SetPadding(FMargin(26.0f));
                 PolishButtons(Frontend);
                 if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(FrontendPanel->Slot))
                 {
-                    Slot->SetPosition(FVector2D(560.0f, 280.0f));
-                    Slot->SetSize(FVector2D(480.0f, 260.0f));
+                    Slot->SetPosition(FVector2D(555.0f, 285.0f));
+                    Slot->SetSize(FVector2D(490.0f, 250.0f));
                 }
             }
             else if (Frontend)
