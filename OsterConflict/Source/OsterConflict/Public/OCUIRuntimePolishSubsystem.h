@@ -4,14 +4,18 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCUIRuntimePolishSubsystem.generated.h"
 
+class APawn;
+
 /**
- * R12.1 runtime UI polish for the source-built test interface.
+ * R12 runtime presentation/QA polish for the source-built interface.
  *
- * Keeps the old S17 backend/API intact while correcting two test-blocking presentation problems:
- * - the inactive chat panel must not look like a permanent 430x330 menu;
- * - Escape during an active match should show a compact pause menu, not the direct-connect frontend.
+ * Keeps the old S17 backend/API intact while making the current test build usable:
+ * - inactive chat is not a permanent giant panel;
+ * - Escape inside a match shows a compact game menu;
+ * - deployment is a compact functional panel instead of a full-screen debug roster;
+ * - stale vehicle input mapping is removed when control returns to the character.
  *
- * This is intentionally isolated so the later final-art UI can replace it without touching gameplay/network code.
+ * Final-art UI can replace this subsystem later without changing gameplay/network APIs.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCUIRuntimePolishSubsystem : public UTickableWorldSubsystem
@@ -22,4 +26,7 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
+
+private:
+    TWeakObjectPtr<APawn> LastLocalPawn;
 };
