@@ -4,6 +4,7 @@
 #include "OCCombatVisualComponent.h"
 #include "OCHealthComponent.h"
 #include "OCDamageTypes.h"
+#include "OCAudioUserSettings.h"
 #include "OCSmokeCloud.h"
 #include "OCWorldAudioComponent.h"
 #include "Components/SphereComponent.h"
@@ -15,6 +16,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -60,6 +62,20 @@ void AOCGrenadeProjectile::BeginPlay()
             GrenadeMesh->SetRelativeLocation(FVector::ZeroVector);
             GrenadeMesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
             GrenadeMesh->SetRelativeScale3D(FVector(100.0f));
+        }
+    }
+
+    // R13 practical feedback. The throw existed before, but without a sound it was easy to miss among placeholder art.
+    if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+    {
+        if (USoundBase* ThrowSound = LoadObject<USoundBase>(nullptr, TEXT("/Game/R13/Audio/snd_throw1.snd_throw1")))
+        {
+            const float Bus = UOCAudioUserSettings::Get()->GetBusVolume(EOCAudioBus::WorldSFX);
+            if (Bus > 0.0f)
+            {
+                UGameplayStatics::PlaySoundAtLocation(this, ThrowSound, GetActorLocation(),
+                    FMath::Clamp(Bus * 0.55f, 0.0f, 1.0f));
+            }
         }
     }
 
@@ -115,7 +131,7 @@ void AOCGrenadeProjectile::DetonateServer()
             FCollisionQueryParams LOSParams(SCENE_QUERY_STAT(OCFragVisualLOS), false, this);
             LOSParams.AddIgnoredActor(this);
             const FVector TargetPoint = Target->GetActorLocation() + FVector(0,0,45);
-            const bool bBlocked = GetWorld()->LineTraceSingleByChannel(LOSHit, GetActorLocation(), TargetPoint, ECC_Visibility, LOSParams);
+            const bool bBlocked = GetWorld()->LineTraceSingleByChannel(LOSHit, GetActorLocation(), TargetPoint, ECC_Visibility);
             if (bBlocked && LOSHit.GetActor() != Target) continue;
 
             const float Distance = FVector::Dist(Target->GetActorLocation(), GetActorLocation());
