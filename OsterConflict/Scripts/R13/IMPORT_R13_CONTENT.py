@@ -4,6 +4,7 @@ import unreal
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 RAW_ROOT = PROJECT_DIR / "Content" / "Raw" / "R13"
 WEAPON_ROOT = RAW_ROOT / "Weapons" / "Kenney"
+AUDIO_ROOT = RAW_ROOT / "Audio"
 UI_ROOT = RAW_ROOT / "UI"
 
 
@@ -18,7 +19,6 @@ def import_file(source: Path, destination: str):
     task.replace_existing = True
     task.replace_existing_settings = True
     task.save = True
-    task.async_ = False
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
     unreal.log(f"R13 imported {source.name} -> {destination}")
     return list(task.imported_object_paths)
@@ -36,6 +36,9 @@ weapons = [
 
 for filename in weapons:
     import_file(WEAPON_ROOT / filename, "/Game/R13/Weapons")
+
+for wav in sorted(AUDIO_ROOT.glob("*.wav")):
+    import_file(wav, "/Game/R13/Audio")
 
 import_file(UI_ROOT / "Oster_Menu_BG.jpg", "/Game/R13/UI")
 
