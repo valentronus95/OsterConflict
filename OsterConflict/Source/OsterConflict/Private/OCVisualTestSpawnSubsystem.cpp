@@ -1,7 +1,6 @@
 #include "OCVisualTestSpawnSubsystem.h"
 
 #include "OCBTR.h"
-#include "OCCombatVehicleSpawnPoints.h"
 #include "OCPickupGunTruck.h"
 #include "OCTeamSpawnPoint.h"
 
@@ -26,8 +25,8 @@ void UOCVisualTestSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!FParse::Param(FCommandLine::Get(), TEXT("R12VisualSlice"))) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // GameMode creates spawn points and combat vehicle spawn points during BeginPlay. Give that source-owned setup
-    // a fraction of a second, then move only the QA routing actors. Normal game launches never enter this path.
+    // GameMode creates spawn points and combat vehicles during BeginPlay. Give that setup a fraction of a second,
+    // then redirect only this explicit QA launch. Normal game launches never enter this path.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
     InWorld.GetTimerManager().SetTimer(Timer,
@@ -39,63 +38,70 @@ void UOCVisualTestSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 void UOCVisualTestSpawnSubsystem::RepositionVisualTestContent(UWorld& World)
 {
-    // Krushelnytska R12 slice spans roughly Y=-12k..+15k around X=-3.4k.
-    // Base spawns are deliberately placed at opposite ends for a short, immediately readable test lane.
-    int32 TeamOneBaseIndex = 0;
-    int32 TeamTwoBaseIndex = 0;
+    // The production bases are over a kilometre from the current art slice. Replace only the base spawn actors
+    // for -R12VisualSlice so clicking BASE puts both teams at opposite ends of the short Krushelnytska QA lane.
+    TArray<AOCTeamSpawnPoint*> OldBaseSpawns;
     for (TActorIterator<AOCTeamSpawnPoint> It(&World); It; ++It)
     {
-        AOCTeamSpawnPoint* Point = *It;
-        if (!Point || !Point->IsBaseSpawn()) continue;
-
-        const bool bOriginalTeamOneSide = Point->GetActorLocation().X < 0.0f;
-        const int32 LocalIndex = bOriginalTeamOneSide ? TeamOneBaseIndex++ : TeamTwoBaseIndex++;
-        const FVector Target = bOriginalTeamOneSide
-            ? FVector(-3900.0f + LocalIndex * 900.0f, -10500.0f, 90.0f)
-            : FVector(-3900.0f + LocalIndex * 900.0f, 13500.0f, 90.0f);
-        Point->SetActorLocationAndRotation(Target,
-            FRotator(0.0f, bOriginalTeamOneSide ? 90.0f : -90.0f, 0.0f), false, nullptr, ETeleportType::TeleportPhysics);
+        if (AOCTeamSpawnPoint* Point = *It; Point && Point->IsBaseSpawn()) OldBaseSpawns.Add(Point);
+    }
+    for (AOCTeamSpawnPoint* Point : OldBaseSpawns)
+    {
+        if (IsValid(Point)) Point->Destroy();
     }
 
-    auto MoveBTR = [](AOCBTR* Vehicle)
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    const FVector TeamOneBases[] =
     {
-        if (!Vehicle) return;
+        FVector(-3900.0f, -10500.0f, 90.0f),
+        FVector(-3000.0f, -10500.0f, 90.0f)
+    };
+    const FVector TeamTwoBases[] =
+    {
+        FVector(-3900.0f, 13500.0f, 90.0f),
+        FVector(-3000.0f, 13500.0f, 90.0f)
+    };
+
+    for (const FVector& Location : TeamOneBases)
+    {
+        if (AOCTeamSpawnPoint* Point = World.SpawnActor<AOCTeamSpawnPoint>(AOCTeamSpawnPoint::StaticClass(),
+            Location, FRotator(0.0f, 90.0f, 0.0f), SpawnParams))
+        {
+            Point->ConfigureServer(EOCTeam::TeamOne, true, NAME_None);
+        }
+    }
+    for (const FVector& Location : TeamTwoBases)
+    {
+        if (AOCTeamSpawnPoint* Point = World.SpawnActor<AOCTeamSpawnPoint>(AOCTeamSpawnPoint::StaticClass(),
+            Location, FRotator(0.0f, -90.0f, 0.0f), SpawnParams))
+        {
+            Point->ConfigureServer(EOCTeam::TeamTwo, true, NAME_None);
+        }
+    }
+
+    // The current BTR and gun-truck prototypes are also moved into the slice so vehicle QA starts in seconds,
+    // not after a several-hundred-metre run. Their production spawn-point geography is left untouched.
+    for (TActorIterator<AOCBTR> It(&World); It; ++It)
+    {
+        AOCBTR* Vehicle = *It;
+        if (!Vehicle) continue;
         const bool bTeamOneSide = Vehicle->GetActorLocation().X < 0.0f;
         const FVector Target = bTeamOneSide ? FVector(-3400.0f, -7600.0f, 190.0f) : FVector(-3400.0f, 10600.0f, 190.0f);
         Vehicle->SetActorLocationAndRotation(Target,
             FRotator(0.0f, bTeamOneSide ? 90.0f : -90.0f, 0.0f), false, nullptr, ETeleportType::TeleportPhysics);
-    };
-    for (TActorIterator<AOCBTR> It(&World); It; ++It) MoveBTR(*It);
+    }
 
-    auto MoveGunTruck = [](AOCPickupGunTruck* Vehicle)
+    for (TActorIterator<AOCPickupGunTruck> It(&World); It; ++It)
     {
-        if (!Vehicle) return;
+        AOCPickupGunTruck* Vehicle = *It;
+        if (!Vehicle) continue;
         const bool bTeamOneSide = Vehicle->GetActorLocation().X < 0.0f;
         const FVector Target = bTeamOneSide ? FVector(-4300.0f, -6900.0f, 180.0f) : FVector(-2500.0f, 9900.0f, 180.0f);
         Vehicle->SetActorLocationAndRotation(Target,
             FRotator(0.0f, bTeamOneSide ? 90.0f : -90.0f, 0.0f), false, nullptr, ETeleportType::TeleportPhysics);
-    };
-    for (TActorIterator<AOCPickupGunTruck> It(&World); It; ++It) MoveGunTruck(*It);
-
-    // Move the persistent combat spawn points as well, so destroyed QA vehicles respawn back inside the slice.
-    for (TActorIterator<AOCBTRSpawnPoint> It(&World); It; ++It)
-    {
-        AOCBTRSpawnPoint* Spawn = *It;
-        if (!Spawn) continue;
-        const bool bTeamOneSide = Spawn->GetActorLocation().X < 0.0f;
-        Spawn->SetActorLocationAndRotation(
-            bTeamOneSide ? FVector(-3400.0f, -7600.0f, 190.0f) : FVector(-3400.0f, 10600.0f, 190.0f),
-            FRotator(0.0f, bTeamOneSide ? 90.0f : -90.0f, 0.0f), false, nullptr, ETeleportType::TeleportPhysics);
-    }
-    for (TActorIterator<AOCPickupGunTruckSpawnPoint> It(&World); It; ++It)
-    {
-        AOCPickupGunTruckSpawnPoint* Spawn = *It;
-        if (!Spawn) continue;
-        const bool bTeamOneSide = Spawn->GetActorLocation().X < 0.0f;
-        Spawn->SetActorLocationAndRotation(
-            bTeamOneSide ? FVector(-4300.0f, -6900.0f, 180.0f) : FVector(-2500.0f, 9900.0f, 180.0f),
-            FRotator(0.0f, bTeamOneSide ? 90.0f : -90.0f, 0.0f), false, nullptr, ETeleportType::TeleportPhysics);
     }
 
-    UE_LOG(LogTemp, Display, TEXT("R12.2 visual-test routing: base spawns and combat vehicles moved onto Krushelnytska slice."));
+    UE_LOG(LogTemp, Display, TEXT("R12.2 visual-test routing: QA base spawns and combat vehicles placed on Krushelnytska slice."));
 }
