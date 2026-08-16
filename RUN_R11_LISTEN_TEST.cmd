@@ -56,7 +56,7 @@ if not exist "%MAP_FILE%" (
   )
 )
 
-echo Starting R11 visual gameplay smoke test...
-echo Daylight + semantic materials + composite weapons + bots + listen server.
-start "Oster Conflict R11" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -NoFrontend -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+echo Starting R12.2 Krushelnytska visual gameplay test...
+echo Real environment slice near spawn + neutral daylight + vehicles + bots + listen server.
+start "Oster Conflict R12.2" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -NoFrontend -R12VisualSlice -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 exit /b 0
