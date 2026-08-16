@@ -3,6 +3,7 @@
 #include "OCCharacter.h"
 #include "OCAudioUserSettings.h"
 #include "OCWeaponAudioProfile.h"
+#include "OCWeaponBase.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -18,6 +19,12 @@ namespace
         0,
         TEXT("Weapon audio debug labels. 0=off, 1=events."),
         ECVF_Default);
+
+    USoundBase* LoadR13Audio(const TCHAR* AssetName)
+    {
+        const FString ObjectPath = FString::Printf(TEXT("/Game/R13/Audio/%s.%s"), AssetName, AssetName);
+        return LoadObject<USoundBase>(nullptr, *ObjectPath);
+    }
 }
 
 UOCWeaponAudioComponent::UOCWeaponAudioComponent()
@@ -130,9 +137,25 @@ void UOCWeaponAudioComponent::EmitDebugEvent(const FString& Label, const FVector
 void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const FVector& TraceEnd, bool bSuppressed, bool bSupersonic,
     EOCAcousticEnvironment Environment, int32 EventSeed)
 {
-    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
-        EmitDebugEvent(TEXT("SHOT(no profile)"), ShotOrigin);
+        return;
+    }
+
+    // R13 practical fallback: the old source build had a complete audio routing system but no assigned profile assets,
+    // which meant technically valid shots were completely silent. Imported CC0 audio makes combat audible immediately.
+    if (!AudioProfile)
+    {
+        if (USoundBase* Shot = LoadR13Audio(TEXT("gunfire_sfx")))
+        {
+            if (IsLocalWeaponOwner()) Play2D(Shot, bSuppressed ? 0.42f : 0.82f);
+            else PlayAt(Shot, ShotOrigin, bSuppressed ? 0.34f : 0.68f);
+            EmitDebugEvent(TEXT("R13 SHOT"), ShotOrigin);
+        }
+        else
+        {
+            EmitDebugEvent(TEXT("SHOT(no profile/assets)"), ShotOrigin);
+        }
         return;
     }
 
@@ -193,8 +216,30 @@ void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const F
 
 void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, const FVector& SourceLocation, int32 EventSeed)
 {
-    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
+        return;
+    }
+
+    if (!AudioProfile)
+    {
+        USoundBase* Sound = nullptr;
+        if (Event == EOCWeaponAudioEvent::ReloadStart)
+        {
+            const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(GetOwner());
+            if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Pistol)
+                Sound = LoadR13Audio(TEXT("gunreload1"));
+            else if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Shotgun)
+                Sound = LoadR13Audio(TEXT("shotguncock"));
+            else
+                Sound = LoadR13Audio(TEXT("assaultriflereload1"));
+        }
+        if (Sound)
+        {
+            if (IsLocalWeaponOwner() && Event != EOCWeaponAudioEvent::Drop) Play2D(Sound, 0.90f);
+            else PlayAt(Sound, SourceLocation, 0.80f);
+            EmitDebugEvent(TEXT("R13 WEAPON STATE"), SourceLocation);
+        }
         return;
     }
 
@@ -229,8 +274,13 @@ void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, c
 
 void UOCWeaponAudioComponent::HandleImpactLocal(const FVector& ImpactLocation, EOCImpactSurface Surface, int32 EventSeed)
 {
-    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
+        return;
+    }
+    if (!AudioProfile)
+    {
+        PlayAt(LoadR13Audio(TEXT("snd_bullethit")), ImpactLocation, 0.55f);
         return;
     }
     PlayAt(Pick(AudioProfile->GetImpactSet(Surface), EventSeed), ImpactLocation, 1.0f);
