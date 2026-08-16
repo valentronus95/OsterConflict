@@ -13,11 +13,16 @@ echo 4. Launch R13 local listen-server gameplay test
 echo 5. Launch latest packaged dedicated-server session (source UE only)
 echo 6. Stop remembered local server
 echo 7. Open Ukrainian first-run README
-echo 8. Download + import R13 models and Oster menu background
+echo 8. Download + import R13 CC0 models, audio and Oster menu photo
+echo 9. Open selected FREE Fab weapon/animation/vehicle packs
 echo 0. Exit
 echo.
-choice /C 123456780 /N /M "Select: "
-if errorlevel 9 goto end
+choice /C 1234567890 /N /M "Select: "
+if errorlevel 10 goto end
+if errorlevel 9 (
+  call "%~dp0R13_OPEN_FREE_FAB_PACKS.cmd"
+  goto menu
+)
 if errorlevel 8 (
   call "%~dp0R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd"
   goto menu
