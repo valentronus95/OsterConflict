@@ -13,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/Widget.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -79,6 +80,16 @@ namespace
         Slot->SetAlignment(FVector2D::ZeroVector);
         Slot->SetZOrder(ZOrder);
     }
+
+    void R13FrontendSetPanelGeometry(UBorder* Panel, const FVector2D& Position, const FVector2D& Size)
+    {
+        if (!Panel) return;
+        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Panel->Slot))
+        {
+            Slot->SetPosition(Position);
+            Slot->SetSize(Size);
+        }
+    }
 }
 
 bool UOCR13FrontendMenuSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -108,24 +119,44 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     if (!Root) return;
 
     EnsureFrontend(Root, PC);
+    SuppressLegacyFrontendLayers(Root);
 
     const bool bSettingsVisible = PC->IsSettingsVisible();
     const bool bFrontendVisible = PC->IsFrontendMenuVisible() && !bSettingsVisible;
+    const bool bDeploymentVisible = !bSettingsVisible && PC->IsDeploymentPanelVisible();
+    const bool bLiveGameplay = bGameplayStarted || PC->GetPawn() != nullptr;
 
-    if (!bFrontendVisible)
+    // Deployment gets the same clean full-screen artwork as the main menu, but the R13 menu panel itself stays out
+    // of the way. DeploymentPanel lives at Z=80, while the dedicated art sits at Z=70..72 beneath it.
+    if (bDeploymentVisible && !bFrontendVisible)
     {
-        SetPresentationVisibility(false, false);
+        bPauseMenuActive = false;
+        SetPresentationVisibility(false, true, false);
         return;
     }
 
-    if (bGameplayStarted)
+    if (bSettingsVisible)
     {
-        SetPresentationVisibility(true, false);
+        // Main-menu settings retain the artwork. In-match settings stay over the current gameplay view.
+        SetPresentationVisibility(false, !bLiveGameplay, bLiveGameplay);
+        return;
+    }
+
+    if (!bFrontendVisible)
+    {
+        bPauseMenuActive = false;
+        SetPresentationVisibility(false, false, false);
+        return;
+    }
+
+    if (bLiveGameplay)
+    {
+        SetPresentationVisibility(true, false, true);
         ApplyPausePage();
     }
     else
     {
-        SetPresentationVisibility(true, true);
+        SetPresentationVisibility(true, true, false);
         ApplyPage();
     }
 
@@ -146,6 +177,7 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     ActiveController = PC;
     Page = 0;
     bGameplayStarted = false;
+    bPauseMenuActive = false;
     BuildFrontend(Root, PC);
 }
 
@@ -156,11 +188,14 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
 
-    // Keep the old direct-connect panel out of the hit-test path. The dedicated R13 tree below owns the menu now.
+    // The old direct-connect FrontendPanel is no longer a presentation surface on R13. Detaching it is stronger
+    // than merely collapsing it: OCGameUIRootWidget::Refresh can keep changing its visibility, but a detached widget
+    // cannot draw, receive clicks or ghost through a translucent pause panel.
     if (UWidget* LegacyFrontend = Root->GetWidgetFromName(TEXT("FrontendPanel")))
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
+        LegacyFrontend->RemoveFromParent();
     }
 
     UBorder* Blocker = NewObject<UBorder>(Root, TEXT("R13_MenuWorldBlocker"));
@@ -170,12 +205,12 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UVerticalBox* Box = NewObject<UVerticalBox>(Root, TEXT("R13_PlayerFrontend"));
     if (!Blocker || !Background || !Shade || !Panel || !Box) return;
 
-    // An opaque blocker is deliberately placed behind the art. Even if an imported texture ever carries alpha again,
-    // the live OsterConflict gameplay world cannot leak through the main-menu composition.
+    // Z=70..72 keeps the art above the gameplay HUD but below the stock DeploymentPanel at Z=80. A fully opaque
+    // blocker behind the texture prevents alpha from the imported menu art from revealing the live world.
     Blocker->SetBrushColor(FLinearColor(0.004f, 0.005f, 0.004f, 1.0f));
-    Blocker->SetVisibility(ESlateVisibility::Visible);
-    Blocker->SetIsEnabled(true);
-    R13FrontendFillCanvas(Canvas->AddChildToCanvas(Blocker), 800);
+    Blocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    Blocker->SetIsEnabled(false);
+    R13FrontendFillCanvas(Canvas->AddChildToCanvas(Blocker), 70);
 
     if (UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, TEXT("/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG")))
     {
@@ -184,17 +219,17 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Background->SetColorAndOpacity(FLinearColor::White);
     Background->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     Background->SetIsEnabled(false);
-    R13FrontendFillCanvas(Canvas->AddChildToCanvas(Background), 801);
+    R13FrontendFillCanvas(Canvas->AddChildToCanvas(Background), 71);
 
     Shade->SetBrushColor(FLinearColor(0.015f, 0.012f, 0.007f, 0.30f));
     Shade->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     Shade->SetIsEnabled(false);
-    R13FrontendFillCanvas(Canvas->AddChildToCanvas(Shade), 802);
+    R13FrontendFillCanvas(Canvas->AddChildToCanvas(Shade), 72);
 
     Panel->SetContent(Box);
     Panel->SetIsEnabled(true);
     Panel->SetVisibility(ESlateVisibility::Visible);
-    Panel->SetBrushColor(FLinearColor(0.012f, 0.017f, 0.011f, 0.91f));
+    Panel->SetBrushColor(FLinearColor(0.012f, 0.017f, 0.011f, 0.94f));
     Panel->SetPadding(FMargin(34.0f, 30.0f, 34.0f, 34.0f));
     if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Panel))
     {
@@ -235,9 +270,6 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UButton* Quit = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
     if (!Primary || !Secondary || !Network || !Settings || !Quit) return;
 
-    // OnPressed is intentional. The earlier OnClicked path required a full press/release cycle while gameplay input
-    // was still active underneath the menu. UI-only input plus OnPressed makes the action fire immediately and
-    // removes the hover-with-no-action failure seen in the R13 test captures.
     Primary->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnPrimaryClicked);
     Secondary->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnSecondaryClicked);
     Network->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnNetworkClicked);
@@ -267,6 +299,14 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
 void UOCR13FrontendMenuSubsystem::ApplyPage()
 {
     if (!MenuBox.IsValid()) return;
+    bPauseMenuActive = false;
+
+    if (MenuPanel.IsValid())
+    {
+        MenuPanel->SetBrushColor(FLinearColor(0.012f, 0.017f, 0.011f, 0.94f));
+        MenuPanel->SetPadding(FMargin(34.0f, 30.0f, 34.0f, 34.0f));
+        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(92.0f, 128.0f), FVector2D(560.0f, 590.0f));
+    }
 
     if (Page == 0)
     {
@@ -324,11 +364,22 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
 void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 {
     if (!MenuBox.IsValid()) return;
+    bPauseMenuActive = true;
+
+    if (MenuPanel.IsValid())
+    {
+        MenuPanel->SetBrushColor(FLinearColor(0.010f, 0.014f, 0.010f, 0.965f));
+        MenuPanel->SetPadding(FMargin(32.0f));
+        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(105.0f, 155.0f), FVector2D(560.0f, 365.0f));
+    }
+
     TitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseTitle", "МЕНЮ ГРИ"));
-    SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseSubtitle", "ESC  •  ПРОДОВЖИТИ ГРУ"));
+    SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseSubtitle", "ГРУ ПРИЗУПИНЕНО"));
     SubtitleText->SetVisibility(ESlateVisibility::Visible);
     FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
-    R13FrontendSetButtonState(PrimaryButton.Get(), false);
+
+    R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseContinue", "ПРОДОВЖИТИ ГРУ"));
+    R13FrontendSetButtonState(PrimaryButton.Get(), true);
     R13FrontendSetButtonState(SecondaryButton.Get(), false);
     R13FrontendSetButtonState(NetworkButton.Get(), false);
     R13FrontendSetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseSettings", "НАЛАШТУВАННЯ"));
@@ -337,19 +388,29 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
     R13FrontendSetButtonState(QuitButton.Get(), true);
 }
 
-void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop)
+void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay)
 {
     const ESlateVisibility MenuVisibility = bShowMenu ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-    const ESlateVisibility ArtVisibility = bShowBackdrop ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+    const ESlateVisibility BackdropVisibility = bShowBackdrop
+        ? ESlateVisibility::SelfHitTestInvisible
+        : ESlateVisibility::Collapsed;
+    const ESlateVisibility ShadeVisibility = (bShowBackdrop || bDimGameplay)
+        ? ESlateVisibility::SelfHitTestInvisible
+        : ESlateVisibility::Collapsed;
 
     if (WorldBlocker.IsValid())
     {
-        // Visible blocker owns hit testing behind the menu; Collapsed removes it completely during gameplay/pause.
-        WorldBlocker->SetVisibility(bShowBackdrop ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-        WorldBlocker->SetIsEnabled(bShowBackdrop);
+        WorldBlocker->SetVisibility(BackdropVisibility);
+        WorldBlocker->SetIsEnabled(false);
     }
-    if (MenuBackground.IsValid()) MenuBackground->SetVisibility(ArtVisibility);
-    if (MenuShade.IsValid()) MenuShade->SetVisibility(ArtVisibility);
+    if (MenuBackground.IsValid()) MenuBackground->SetVisibility(BackdropVisibility);
+    if (MenuShade.IsValid())
+    {
+        MenuShade->SetBrushColor(bDimGameplay
+            ? FLinearColor(0.0f, 0.0f, 0.0f, 0.54f)
+            : FLinearColor(0.015f, 0.012f, 0.007f, 0.30f));
+        MenuShade->SetVisibility(ShadeVisibility);
+    }
     if (MenuPanel.IsValid())
     {
         MenuPanel->SetVisibility(MenuVisibility);
@@ -357,9 +418,58 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
     }
 }
 
+void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidget* Root)
+{
+    if (!Root) return;
+
+    if (UWidget* LegacyFrontend = Root->GetWidgetFromName(TEXT("FrontendPanel")))
+    {
+        LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
+        LegacyFrontend->SetIsEnabled(false);
+        if (LegacyFrontend->GetParent()) LegacyFrontend->RemoveFromParent();
+    }
+
+    // OCUIRuntimePolishSubsystem from the earlier frontend pass can still construct its own background at -100/-99.
+    // The dedicated R13 art now covers main menu and deployment, so those legacy layers are always suppressed.
+    if (UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root"))))
+    {
+        for (int32 Index = 0; Index < Canvas->GetChildrenCount(); ++Index)
+        {
+            UWidget* Child = Canvas->GetChildAt(Index);
+            if (!Child || Child == WorldBlocker.Get() || Child == MenuBackground.Get() ||
+                Child == MenuShade.Get() || Child == MenuPanel.Get())
+            {
+                continue;
+            }
+
+            if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Child->Slot))
+            {
+                const int32 ZOrder = Slot->GetZOrder();
+                if (ZOrder == -100 || ZOrder == -99)
+                {
+                    Child->SetVisibility(ESlateVisibility::Collapsed);
+                    Child->SetIsEnabled(false);
+                }
+            }
+        }
+    }
+}
+
 void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 {
-    UE_LOG(LogTemp, Display, TEXT("R13 frontend: primary pressed, page=%d"), Page);
+    UE_LOG(LogTemp, Display, TEXT("R13 frontend: primary pressed, page=%d pause=%d"), Page, bPauseMenuActive ? 1 : 0);
+
+    if (bPauseMenuActive)
+    {
+        if (AOCPlayerController* PC = ActiveController.Get())
+        {
+            bPauseMenuActive = false;
+            if (PC->IsFrontendMenuVisible()) PC->UIToggleFrontend();
+            ReleaseMenuInput();
+            SetPresentationVisibility(false, false, false);
+        }
+        return;
+    }
 
     if (Page == 0)
     {
@@ -375,7 +485,7 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
         const FString Address = AddressEntry.IsValid() ? AddressEntry->GetText().ToString() : FString(TEXT("127.0.0.1:7777"));
         bGameplayStarted = true;
         ReleaseMenuInput();
-        SetPresentationVisibility(false, false);
+        SetPresentationVisibility(false, false, false);
         PC->UIConnect(Address, Username);
         return;
     }
@@ -385,6 +495,7 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
+    if (bPauseMenuActive) return;
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: secondary pressed, page=%d"), Page);
     Page = (Page == 0) ? 1 : 0;
     ApplyPage();
@@ -393,6 +504,7 @@ void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
+    if (bPauseMenuActive) return;
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: network pressed"));
     Page = 2;
     ApplyPage();
@@ -404,7 +516,7 @@ void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: settings pressed"));
     if (AOCPlayerController* PC = ActiveController.Get())
     {
-        SetPresentationVisibility(false, false);
+        SetPresentationVisibility(false, false, false);
         PC->UIOpenSettings();
     }
 }
@@ -415,11 +527,13 @@ void UOCR13FrontendMenuSubsystem::OnQuitClicked()
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC) return;
 
-    if (bGameplayStarted)
+    if (bPauseMenuActive || bGameplayStarted || PC->GetPawn() != nullptr)
     {
+        bPauseMenuActive = false;
         bGameplayStarted = false;
         Page = 0;
         ReleaseMenuInput();
+        SetPresentationVisibility(false, false, false);
         PC->DisconnectFromServer();
         return;
     }
@@ -434,8 +548,9 @@ void UOCR13FrontendMenuSubsystem::StartLocalGameplay()
 
     if (UsernameEntry.IsValid()) PC->SetNickname(UsernameEntry->GetText().ToString());
     bGameplayStarted = true;
+    bPauseMenuActive = false;
     ReleaseMenuInput();
-    SetPresentationVisibility(false, false);
+    SetPresentationVisibility(false, false, false);
 
     if (PC->GetNetMode() != NM_Standalone)
     {
@@ -443,7 +558,7 @@ void UOCR13FrontendMenuSubsystem::StartLocalGameplay()
         return;
     }
 
-    PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16"));
+    PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16?R13Gameplay=1"));
 }
 
 void UOCR13FrontendMenuSubsystem::ForceMenuInput()
