@@ -21,6 +21,10 @@ AOCWeapon_AssaultRifle::AOCWeapon_AssaultRifle()
         EOCInventorySlot::Primary, EOCAmmoType::Rifle);
     T.Damage = 34.0f; T.RangeCm = 13000.0f; T.RoundsPerMinute = 650.0f;
     T.HipSpreadDegrees = 1.25f; T.ADSSpreadDegrees = 0.20f; T.MagazineSize = 30;
+    // R13 gameplay QA: the legacy local recoil path applies vertical controller pitch with the wrong visual sign
+    // on the current mouse/camera convention. Disable only AR vertical kick for this playable pass instead of
+    // letting automatic fire drag the view toward the player's feet; retain restrained horizontal feedback.
+    T.RecoilPitchMin = 0.0f; T.RecoilPitchMax = 0.0f; T.RecoilYawMax = 0.28f;
     T.InitialReserveAmmo = 120; T.MaxReserveAmmo = 240; T.ReloadDuration = 2.15f;
     T.AudioLoudnessScale = 1.00f;
     ConfigureBuiltInTuning(T);
