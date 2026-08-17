@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - r13-content-gameplay-pass
-  pull_request:
   workflow_dispatch:
 
 permissions:
