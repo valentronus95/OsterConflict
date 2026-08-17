@@ -9,6 +9,7 @@ STEIN_ROOT = RAW_ROOT / "Weapons" / "SteinClassicWeapons" / "WeaponsPack"
 AUDIO_ROOT = RAW_ROOT / "Audio"
 UI_ROOT = RAW_ROOT / "UI"
 LOCAL_MENU_SOURCE = PROJECT_DIR / "Content" / "R13" / "UI" / "Oster_Menu_BG.jpg"
+NORMALIZED_MENU_SOURCE = UI_ROOT / "Oster_Menu_BG.png"
 MENU_ASSET = "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG"
 
 
@@ -63,12 +64,7 @@ def import_stein_static_mesh(source: Path, destination: str):
 
 
 def resolve_menu_source(source: Path) -> Path:
-    """Return an Unreal-importable menu-art path based on file signature, not its Windows extension.
-
-    Browser/download workflows can leave PNG bytes in a file named .jpg. Unreal then selects the JPEG translator
-    from the extension and fails with 'Failed to decode JPEG'. Keep the user-facing filename stable, but if the
-    payload is actually PNG, mirror it to Raw/R13/UI/Oster_Menu_BG.png so Interchange chooses the PNG translator.
-    """
+    """Return an Unreal-importable menu-art path based on file signature, not its Windows extension."""
     if not source.exists():
         raise RuntimeError(f"R13 required menu background is missing: {source}")
 
@@ -78,13 +74,16 @@ def resolve_menu_source(source: Path) -> Path:
         return source
 
     if header.startswith(b"\x89PNG\r\n\x1a\n"):
-        normalized = UI_ROOT / "Oster_Menu_BG.png"
+        # The normal launcher now generates an opaque 24-bit PNG here. This fallback also handles a browser image
+        # that contains PNG bytes despite a .jpg filename when the Python importer is invoked directly.
+        if source == NORMALIZED_MENU_SOURCE:
+            unreal.log(f"R13 menu artwork detected as normalized PNG: {source}")
+            return source
+        normalized = NORMALIZED_MENU_SOURCE
         normalized.parent.mkdir(parents=True, exist_ok=True)
         if source.resolve() != normalized.resolve():
             shutil.copyfile(source, normalized)
-        unreal.log(
-            f"R13 menu artwork contains PNG data despite its .jpg name; importing normalized PNG: {normalized}"
-        )
+        unreal.log(f"R13 menu artwork contains PNG data; importing PNG: {normalized}")
         return normalized
 
     if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
@@ -132,10 +131,15 @@ if not required_audio:
 for wav in required_audio:
     import_required_file(wav, "/Game/R13/Audio")
 
-# Prefer the player-supplied artwork over the fallback museum photo. Reimport in place rather than deleting the
-# existing texture package: deleting an asset that is already referenced by the runtime UI can fail in commandlet
-# mode. Resolve by file signature first because Windows/browser downloads can mislabel PNG content as .jpg.
-menu_candidate = LOCAL_MENU_SOURCE if LOCAL_MENU_SOURCE.exists() else (UI_ROOT / "Oster_Menu_BG.jpg")
+# Prefer the opaque image normalized by R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd. This deliberately strips browser PNG
+# alpha so the live 3D world cannot bleed through transparent menu pixels. Direct-script runs retain signature
+# detection as a fallback.
+if NORMALIZED_MENU_SOURCE.exists():
+    menu_candidate = NORMALIZED_MENU_SOURCE
+elif (UI_ROOT / "Oster_Menu_BG.jpg").exists():
+    menu_candidate = UI_ROOT / "Oster_Menu_BG.jpg"
+else:
+    menu_candidate = LOCAL_MENU_SOURCE
 menu_source = resolve_menu_source(menu_candidate)
 unreal.log(f"R13 menu background source: {menu_source}")
 import_required_file(menu_source, "/Game/R13/UI")
