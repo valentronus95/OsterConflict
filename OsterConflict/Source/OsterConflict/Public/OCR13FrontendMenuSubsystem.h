@@ -17,9 +17,9 @@ class UVerticalBox;
 /**
  * Dedicated R13 player-facing frontend.
  *
- * This subsystem owns a separate high-Z menu tree and full-screen art blocker instead of reusing the legacy
- * direct-connect FrontendPanel. That prevents the legacy runtime-polish pass from rewriting button delegates,
- * panel geometry or the menu background while the player is interacting with the main menu.
+ * This subsystem owns the current frontend and pause presentation. The legacy direct-connect panel is detached
+ * from the canvas so it cannot reappear underneath the R13 menu when the root widget refreshes after deployment
+ * or when Escape is pressed during a live match.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13FrontendMenuSubsystem : public UTickableWorldSubsystem
@@ -42,7 +42,8 @@ private:
     void BuildFrontend(UOCGameUIRootWidget* Root, AOCPlayerController* PC);
     void ApplyPage();
     void ApplyPausePage();
-    void SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop);
+    void SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay = false);
+    void SuppressLegacyFrontendLayers(UOCGameUIRootWidget* Root);
     void StartLocalGameplay();
     void ForceMenuInput();
     void ReleaseMenuInput();
@@ -70,4 +71,5 @@ private:
 
     int32 Page = 0; // 0 main, 1 local, 2 network
     bool bGameplayStarted = false;
+    bool bPauseMenuActive = false;
 };
