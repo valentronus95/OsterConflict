@@ -36,6 +36,9 @@ require('Armed vehicle attachment uses raw scene pointer', 'TurretPivot->SetupAt
 require('Turret damage type fallback is non-ambiguous', 'AppliedDamageType = TurretDamageTypeClass;' in armed and '? TurretDamageTypeClass :' not in armed)
 require('BTR has FDamageEvent definition include', '#include "Engine/DamageEvents.h"' in btr)
 require('Grenade has full CameraComponent include', '#include "Camera/CameraComponent.h"' in grenade)
+
+# The original C4458 issue was inside UOCGameUIRootWidget, whose UObject hierarchy already exposes Slot-related names.
+# A local variable called Slot in unrelated helper/subsystem classes is legal, so keep this regression guard scoped.
 require('UI Slot shadow names removed', not re.search(r'\b(?:UVerticalBoxSlot|UCanvasPanelSlot|UHorizontalBoxSlot)\*\s+Slot\b', ui_cpp))
 require('UI slider out parameter uses raw temporary bridge', 'TObjectPtr<UTextBlock>& OutValueText' not in ui_h and 'UTextBlock* ValueText = nullptr' in ui_cpp)
 require('PlayerController Character shadow removed', 'AOCCharacter* Character = Cast<AOCCharacter>(GetPawn())' not in pc and 'AOCCharacter* ControlledCharacter' in pc)
@@ -48,14 +51,11 @@ require('No deprecated direct NetUpdateFrequency writes', not re.search(r'(?m)^\
 require('No deprecated direct MinNetUpdateFrequency writes', not re.search(r'(?m)^\s*MinNetUpdateFrequency\s*=', all_cpp))
 require('No deprecated direct NetCullDistanceSquared writes', not re.search(r'(?m)^\s*NetCullDistanceSquared\s*=', all_cpp))
 
-# Exact R9 compiler blocker signatures should be gone from source.
+# Exact non-contextual R9 compiler blocker signatures should be gone from all source.
 forbidden = [
     'EOCPlayerRole Role, EOCBotDifficulty Difficulty',
     'TurretPivot->SetupAttachment(PhysicsBody);',
     'TurretDamageTypeClass ? TurretDamageTypeClass :',
-    'if (UVerticalBoxSlot* Slot',
-    'if (UCanvasPanelSlot* Slot',
-    'if (UHorizontalBoxSlot* Slot',
 ]
 joined = '\n'.join(p.read_text(encoding='utf-8', errors='replace') for p in SRC.rglob('*') if p.suffix in {'.h','.cpp'})
 for token in forbidden:
