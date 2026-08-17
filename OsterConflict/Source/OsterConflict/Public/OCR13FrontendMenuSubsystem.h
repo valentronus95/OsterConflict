@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "UObject/UObjectIterator.h"
 #include "OCR13FrontendMenuSubsystem.generated.h"
 
 class AOCPlayerController;
