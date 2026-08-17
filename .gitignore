@@ -9,6 +9,7 @@ Plugins/**/Binaries/
 Plugins/**/Intermediate/
 
 PC_TEST/TEST_RESULTS/
+.source_verify_hold/
 
 # Full validation generates localization catalogs/resources for staging. They are build evidence,
 # not hand-authored source in the current prototype workflow.
