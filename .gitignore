@@ -10,6 +10,13 @@ Plugins/**/Intermediate/
 
 PC_TEST/TEST_RESULTS/
 
+# Full validation generates localization catalogs/resources for staging. They are build evidence,
+# not hand-authored source in the current prototype workflow.
+OsterConflict/Content/Localization/Game/
+
+# UE cook/stage file-open-order logs are regenerated on every full validation/package pass.
+OsterConflict/Build/**/FileOpenOrder/*.log
+
 *.sln
 *.suo
 *.VC.db
