@@ -184,6 +184,9 @@ void UOCCharacterVisualComponent::BuildSourceOnlyProxy()
         ThirdPersonProxyParts.Add(Comp);
     }
 
+    // Keep the old first-person proxy parts allocated only as a source-only fallback reference, but do not show
+    // cylinders/spheres in the player's camera. They were the rectangle plus two floating balls visible in every
+    // R13 screenshot. Until real animated arms are assigned, a clean weapon-only first-person view is preferable.
     if (UCameraComponent* Camera = Character->GetFirstPersonCamera())
     {
         const FPart Arms[] = {
@@ -205,6 +208,7 @@ void UOCCharacterVisualComponent::BuildSourceOnlyProxy()
             Comp->SetGenerateOverlapEvents(false);
             Comp->SetOnlyOwnerSee(true);
             Comp->SetCastShadow(false);
+            Comp->SetVisibility(false, true);
             Comp->RegisterComponent();
             FirstPersonProxyParts.Add(Comp);
         }
@@ -217,10 +221,12 @@ void UOCCharacterVisualComponent::UpdateSourceOnlyProxy(bool bShowProxy)
     {
         if (Part) Part->SetVisibility(bShowProxy, true);
     }
-    const bool bShowFPProxy = bShowProxy && CharacterOwner.IsValid() && CharacterOwner->IsLocallyControlled();
+
+    // Never expose primitive debug arms/hands in first person. Production skeletal arms are handled separately
+    // in ApplyProfile() and become visible automatically when a real profile supplies them.
     for (UStaticMeshComponent* Part : FirstPersonProxyParts)
     {
-        if (Part) Part->SetVisibility(bShowFPProxy, true);
+        if (Part) Part->SetVisibility(false, true);
     }
 }
 

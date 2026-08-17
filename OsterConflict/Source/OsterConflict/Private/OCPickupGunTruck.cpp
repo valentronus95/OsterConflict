@@ -22,9 +22,12 @@ AOCPickupGunTruck::AOCPickupGunTruck()
     TurretDamageTypeClass = UOCBallisticDamageType::StaticClass();
 
     VehicleMassKg = 2250.0f;
-    DriveForce = 720000.0f;
-    SteeringTorque = 91000000.0f;
-    MaxForwardSpeedKmh = 118.0f;
+    DriveForce = 1600000.0f;
+    RollingBrakeForce = 360000.0f;
+    LateralGrip = 12500.0f;
+    SteeringTorque = 165000000.0f;
+    AeroDrag = 0.11f;
+    MaxForwardSpeedKmh = 90.0f;
     MaxVehicleHealth = 700.0f;
     WreckLifetimeSeconds = 28.0f;
 

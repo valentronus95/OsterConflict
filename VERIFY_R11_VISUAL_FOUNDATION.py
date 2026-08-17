@@ -53,7 +53,8 @@ req('AOCTransientVisualFX' in weapon and 'ConfigureMuzzle' in weapon and 'Config
 req('DrawDebugLine(GetWorld(), TraceStart' not in weapon and 'DrawDebugPoint(GetWorld(), ImpactLocation' not in weapon, 'weapon fire/impact debug primitives removed')
 req('SetLifeSpan' in fx and 'UPointLightComponent' in fx_h and 'BasicShapeMaterial' in fx, 'transient FX self-clean and use lit material geometry')
 
-req('FPProxyArmL"), Cylinder' in char and 'FPProxyHandL"), Sphere' in char, 'first-person proxy arms/hands no longer rectangular blocks')
+req('FPProxyArmL"), Cylinder' in char and 'FPProxyHandL"), Sphere' in char, 'first-person proxy arm fallback remains structurally defined')
+req('Part->SetVisibility(false, true);' in char and 'Never expose primitive debug arms/hands in first person' in char, 'first-person primitive arm fallback is hidden from gameplay')
 req('GetComponents<UStaticMeshComponent>(MeshComponents)' in vehicle and 'CivilianPalette' in vehicle and 'MilitaryBody' in vehicle, 'vehicle source proxies receive readable palettes')
 
 req("$BuildBat=Resolve-Required" in validation and 'RunUBT.bat' not in validation, 'validation no longer requires missing RunUBT.bat')
@@ -62,7 +63,8 @@ req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required.
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
 req(any(token in start for token in ['R13 CONTENT + GAMEPLAY PASS','R11 VISUAL FOUNDATION','R11.1 LAUNCHER FIXED']) and 'RUN_R11_LISTEN_TEST.cmd' in start, 'START_HERE exposes the retained R11 visual smoke path in current kit')
-req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')
+req('-Frontend' in quick and '-NoFrontend' not in quick and '?listen?Mode=Conquest' in quick and '-game' in quick,
+    'quick launch enters the current player-facing R13 listen-server frontend')
 req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh quick launch bootstraps generated runtime map')
 
 # Local generated folders are expected after compiling. Only tracked generated artifacts violate the source archive contract.

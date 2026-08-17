@@ -29,15 +29,15 @@ AOCBTR::AOCBTR()
     SpringStiffness = 37000.0f;
     SuspensionDamping = 6500.0f;
 
-    // R12.2 driveability pass: the old prototype took far too long to get out of the teens.
-    // Keep the 82 km/h cap, but give the APC enough low-speed drive force to reach 30+ km/h promptly.
-    DriveForce = 3600000.0f;
-    RollingBrakeForce = 450000.0f;
-    HandbrakeForce = 1800000.0f;
-    LateralGrip = 18000.0f;
-    SteeringTorque = 170000000.0f;
-    AeroDrag = 0.20f;
-    MaxForwardSpeedKmh = 82.0f;
+    // R13 vehicle pass: the APC should comfortably pass 40 km/h and rotate with useful authority in streets,
+    // without pretending an 11.8 tonne eight-wheeler handles like a passenger car.
+    DriveForce = 5200000.0f;
+    RollingBrakeForce = 520000.0f;
+    HandbrakeForce = 2100000.0f;
+    LateralGrip = 26000.0f;
+    SteeringTorque = 310000000.0f;
+    AeroDrag = 0.14f;
+    MaxForwardSpeedKmh = 65.0f;
     MaxVehicleHealth = 1600.0f;
     WreckLifetimeSeconds = 38.0f;
 

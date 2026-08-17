@@ -5,12 +5,11 @@
 #include "OCR13WholeOsterArtSubsystem.generated.h"
 
 /**
- * R13 whole-Oster recovery/art bridge.
+ * R13 whole-Oster environment bridge.
  *
- * R12 intentionally hid the source-generated residential/vegetation proxy families before drawing a single
- * Krushelnytska visual slice. That made the rest of the 2.4 km Oster sector read as an empty desert. R13 keeps the
- * verified city topology visible until each district has a proper art replacement and removes the visibly fantasy
- * fence/lamp pieces from the R12 slice.
+ * Uses the already-committed AdvancedVillagePack meshes to replace the most visible source primitives across the
+ * playable city: residential building boxes, primitive tree trunks/crowns and flat grass proxy tiles. Verified
+ * road/landmark topology stays untouched while real environment meshes progressively replace source geometry.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13WholeOsterArtSubsystem : public UWorldSubsystem
