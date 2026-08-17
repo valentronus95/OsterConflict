@@ -16,13 +16,15 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    // R13 neutral art-QA daylight. Keep the source scene readable while avoiding
-    // the yellow/orange cast that masked the imported materials.
+    // R13 neutral art-QA daylight. The prior 70,000 intensity value was far above
+    // the exposure assumptions used by this source-only runtime scene and washed the
+    // complete gameplay view to white. Keep the neutral colour/scattering fix while
+    // restoring the proven readable source-lighting intensity.
     SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
     SunLight->SetupAttachment(SceneRoot);
     SunLight->SetMobility(EComponentMobility::Movable);
     SunLight->SetRelativeRotation(FRotator(-38.0f, -28.0f, 0.0f));
-    SunLight->SetIntensity(70000.0f);
+    SunLight->SetIntensity(4.0f);
     SunLight->SetLightColor(FLinearColor::White);
     SunLight->SetAtmosphereSunLight(true);
     SunLight->SetAtmosphereSunLightIndex(0);
