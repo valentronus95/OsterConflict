@@ -7,6 +7,8 @@ PROJECT = ROOT / "OsterConflict"
 required = [
     ROOT / ".gitignore",
     ROOT / "R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd",
+    ROOT / "RUN_R11_LISTEN_TEST.cmd",
+    PROJECT / "Scripts" / "R13" / "IMPORT_R13_CONTENT.py",
     PROJECT / "Config" / "DefaultGame.ini",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h",
@@ -23,6 +25,8 @@ if missing:
 
 ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 download = (ROOT / "R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd").read_text(encoding="utf-8")
+listen_test = (ROOT / "RUN_R11_LISTEN_TEST.cmd").read_text(encoding="utf-8")
+import_script = (PROJECT / "Scripts" / "R13" / "IMPORT_R13_CONTENT.py").read_text(encoding="utf-8")
 packaging = (PROJECT / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
 vehicle = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h").read_text(encoding="utf-8")
 ui_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h").read_text(encoding="utf-8")
@@ -42,12 +46,18 @@ checks = [
     ("pause leave button disconnects through controller", "PC->DisconnectFromServer();" in ui_cpp),
     ("pause menu explains Escape resume", "ESC = ПРОДОВЖИТИ" in ui_cpp),
     ("Oster museum is the requested menu source", "Будинок Солонини, Остер.JPG" in download),
+    ("content import creates current-state stamp", "R13_MUSEUM_WEAPONS_V2" in download),
+    ("content importer rejects missing required assets", "runtime-required assets are missing" in import_script and "expected_assets" in import_script),
+    ("gameplay launcher refuses stale content", "R13 GAMEPLAY LAUNCH BLOCKED" in listen_test and "R13_MUSEUM_WEAPONS_V2" in listen_test),
+    ("gameplay launcher checks weapon uassets", "R13_WEAPONS" in listen_test and "%%F.uasset" in listen_test),
+    ("gameplay launcher checks museum background uasset", "Oster_Menu_BG.uasset" in listen_test),
     ("museum accessibility subsystem is world-scoped", "UWorldSubsystem" in access_h and "OsterConflict_Runtime" in access_cpp),
     ("museum entrance step ordering is repaired", "-2240.0f + Step * 120.0f" in access_cpp and "UpdateInstanceTransform" in access_cpp),
     ("AR broken vertical recoil is disabled for R13", "T.RecoilPitchMin = 0.0f; T.RecoilPitchMax = 0.0f;" in weapon_variants),
     ("AR retains horizontal shot feedback", "T.RecoilYawMax = 0.28f;" in weapon_variants),
     ("generated localization output stays out of Git changes", "OsterConflict/Content/Localization/Game/" in ignore),
     ("generated cook open-order logs stay out of Git changes", "OsterConflict/Build/**/FileOpenOrder/*.log" in ignore),
+    ("local content state stays out of Git changes", "OsterConflict/Content/Raw/R13/R13_IMPORT_STATE.txt" in ignore),
 ]
 
 failed = [name for name, ok in checks if not ok]
