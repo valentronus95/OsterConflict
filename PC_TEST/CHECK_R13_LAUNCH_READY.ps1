@@ -13,6 +13,8 @@ $WeaponRoot=Join-Path $ProjectRoot 'Content\R13\Weapons'
 $SteinRoot=Join-Path $WeaponRoot 'Stein'
 $UIRoot=Join-Path $ProjectRoot 'Content\R13\UI'
 
+# Legacy state R13_MUSEUM_WEAPONS_V2 is intentionally superseded by R13_STEIN_WEAPONS_V3.
+
 if(-not(Test-Path $EditorDll)){
     Write-Host '[ERROR] Editor module is not built yet.' -ForegroundColor Red
     Write-Host 'Run START_HERE option 1 first.' -ForegroundColor Yellow
@@ -44,7 +46,6 @@ if(Test-Path $ImportState){
 }
 if(-not $StateOk){ $Missing.Add('R13 content state: R13_STEIN_WEAPONS_V3') }
 
-# Kenney remains only for classes not yet covered by the Stein pack.
 foreach($Name in @('machinegun','shotgun','rocketlauncherModern','grenade')){
     $Path=Join-Path $WeaponRoot ($Name + '.uasset')
     if(-not(Test-Path $Path)){ $Missing.Add('fallback weapon asset: ' + $Name + '.uasset') }
