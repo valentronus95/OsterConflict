@@ -8,10 +8,10 @@ AUDIO_ROOT = RAW_ROOT / "Audio"
 UI_ROOT = RAW_ROOT / "UI"
 
 
-def import_file(source: Path, destination: str):
+def import_required_file(source: Path, destination: str):
     if not source.exists():
-        unreal.log_warning(f"R13 import missing source: {source}")
-        return []
+        raise RuntimeError(f"R13 required import source is missing: {source}")
+
     task = unreal.AssetImportTask()
     task.filename = str(source)
     task.destination_path = destination
@@ -20,11 +20,16 @@ def import_file(source: Path, destination: str):
     task.replace_existing_settings = True
     task.save = True
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    unreal.log(f"R13 imported {source.name} -> {destination}")
-    return list(task.imported_object_paths)
+
+    imported = list(task.imported_object_paths)
+    if not imported:
+        raise RuntimeError(f"R13 importer returned no assets for required source: {source}")
+
+    unreal.log(f"R13 imported {source.name} -> {destination}: {', '.join(imported)}")
+    return imported
 
 
-weapons = [
+weapon_files = [
     "machinegun.obj",
     "pistol.obj",
     "shotgun.obj",
@@ -34,13 +39,31 @@ weapons = [
     "grenade.obj",
 ]
 
-for filename in weapons:
-    import_file(WEAPON_ROOT / filename, "/Game/R13/Weapons")
+for filename in weapon_files:
+    import_required_file(WEAPON_ROOT / filename, "/Game/R13/Weapons")
 
-for wav in sorted(AUDIO_ROOT.glob("*.wav")):
-    import_file(wav, "/Game/R13/Audio")
+required_audio = sorted(AUDIO_ROOT.glob("*.wav"))
+if not required_audio:
+    raise RuntimeError(f"R13 required audio directory contains no WAV files: {AUDIO_ROOT}")
+for wav in required_audio:
+    import_required_file(wav, "/Game/R13/Audio")
 
-import_file(UI_ROOT / "Oster_Menu_BG.jpg", "/Game/R13/UI")
-
+import_required_file(UI_ROOT / "Oster_Menu_BG.jpg", "/Game/R13/UI")
 unreal.EditorAssetLibrary.save_directory("/Game/R13", only_if_is_dirty=False, recursive=True)
-unreal.log("R13 CONTENT IMPORT COMPLETE")
+
+# Runtime code uses string LoadObject paths, so verify the exact package/object names it expects before declaring PASS.
+expected_assets = [
+    "/Game/R13/Weapons/machinegun.machinegun",
+    "/Game/R13/Weapons/pistol.pistol",
+    "/Game/R13/Weapons/shotgun.shotgun",
+    "/Game/R13/Weapons/sniper.sniper",
+    "/Game/R13/Weapons/uzi.uzi",
+    "/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern",
+    "/Game/R13/Weapons/grenade.grenade",
+    "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG",
+]
+missing_assets = [asset for asset in expected_assets if not unreal.EditorAssetLibrary.does_asset_exist(asset)]
+if missing_assets:
+    raise RuntimeError("R13 import finished but runtime-required assets are missing: " + ", ".join(missing_assets))
+
+unreal.log(f"R13 CONTENT IMPORT COMPLETE: verified {len(expected_assets)} runtime-required assets")
