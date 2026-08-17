@@ -10,6 +10,7 @@ $EditorDll=Join-Path $ProjectRoot 'Binaries\Win64\UnrealEditor-OsterConflict.dll
 $SourceRoot=Join-Path $ProjectRoot 'Source'
 $ImportState=Join-Path $ProjectRoot 'Content\Raw\R13\R13_IMPORT_STATE.txt'
 $WeaponRoot=Join-Path $ProjectRoot 'Content\R13\Weapons'
+$SteinRoot=Join-Path $WeaponRoot 'Stein'
 $UIRoot=Join-Path $ProjectRoot 'Content\R13\UI'
 
 if(-not(Test-Path $EditorDll)){
@@ -39,14 +40,31 @@ if($LatestSource -and $LatestSource.LastWriteTimeUtc -gt $DllItem.LastWriteTimeU
 $Missing=New-Object System.Collections.Generic.List[string]
 $StateOk=$false
 if(Test-Path $ImportState){
-    $StateOk=((Get-Content $ImportState -Raw).Trim() -eq 'R13_MUSEUM_WEAPONS_V2')
+    $StateOk=((Get-Content $ImportState -Raw).Trim() -eq 'R13_STEIN_WEAPONS_V3')
 }
-if(-not $StateOk){ $Missing.Add('R13 content state: R13_MUSEUM_WEAPONS_V2') }
+if(-not $StateOk){ $Missing.Add('R13 content state: R13_STEIN_WEAPONS_V3') }
 
-foreach($Name in @('machinegun','pistol','shotgun','sniper','uzi','rocketlauncherModern','grenade')){
+# Kenney remains only for classes not yet covered by the Stein pack.
+foreach($Name in @('machinegun','shotgun','rocketlauncherModern','grenade')){
     $Path=Join-Path $WeaponRoot ($Name + '.uasset')
-    if(-not(Test-Path $Path)){ $Missing.Add('weapon asset: ' + $Name + '.uasset') }
+    if(-not(Test-Path $Path)){ $Missing.Add('fallback weapon asset: ' + $Name + '.uasset') }
 }
+
+$SteinWeapons=@{
+    '1911'='SKM_1911.uasset'
+    'AK47'='SKM_AK47.uasset'
+    'LeverAction'='SKM_LeverAction.uasset'
+    'M14'='SKM_M14.uasset'
+    'M700'='SKM_M700.uasset'
+    'MP5'='SKM_MP5.uasset'
+    'Mac10'='SKM_Mac10.uasset'
+    'Tec9'='SKM_Tec9.uasset'
+}
+foreach($Folder in $SteinWeapons.Keys){
+    $Path=Join-Path (Join-Path $SteinRoot $Folder) $SteinWeapons[$Folder]
+    if(-not(Test-Path $Path)){ $Missing.Add('Stein weapon asset: ' + $Folder + '\' + $SteinWeapons[$Folder]) }
+}
+
 $MenuBackground=Join-Path $UIRoot 'Oster_Menu_BG.uasset'
 if(-not(Test-Path $MenuBackground)){ $Missing.Add('menu background: Oster_Menu_BG.uasset') }
 
@@ -57,9 +75,9 @@ if($Missing.Count -gt 0){
     Write-Host '============================================================' -ForegroundColor Yellow
     foreach($Item in $Missing){ Write-Host ('[MISSING] ' + $Item) -ForegroundColor Red }
     Write-Host 'Run START_HERE option 8 first.' -ForegroundColor Yellow
-    Write-Host 'The importer now verifies the museum background and all runtime-required weapon assets.'
+    Write-Host 'The importer verifies the Stein weapon pack, remaining fallbacks and museum background.'
     exit 7
 }
 
-Write-Host 'R13 launch readiness: PASS (compiled source + current required art).' -ForegroundColor Green
+Write-Host 'R13 launch readiness: PASS (compiled source + Stein V3 required art).' -ForegroundColor Green
 exit 0
