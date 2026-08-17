@@ -10,6 +10,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Image.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -27,34 +28,55 @@ namespace
         if (!Block) return nullptr;
         Block->SetText(Text);
         Block->SetColorAndOpacity(FSlateColor(bBright
-            ? FLinearColor(0.95f, 0.93f, 0.84f, 1.0f)
-            : FLinearColor(0.70f, 0.72f, 0.64f, 1.0f)));
+            ? FLinearColor(0.94f, 0.93f, 0.89f, 1.0f)
+            : FLinearColor(0.69f, 0.69f, 0.66f, 1.0f)));
         FSlateFontInfo Font = Block->GetFont();
         Font.Size = FontSize;
         Block->SetFont(Font);
         return Block;
     }
 
+    void R13FrontendApplyTypeface(UTextBlock* Text, const FName Typeface, int32 LetterSpacing)
+    {
+        if (!Text) return;
+        FSlateFontInfo Font = Text->GetFont();
+        if (!Typeface.IsNone()) Font.TypefaceFontName = Typeface;
+        Font.LetterSpacing = LetterSpacing;
+        Text->SetFont(Font);
+    }
+
     UButton* R13FrontendMakeMenuButton(UObject* Outer, UVerticalBox* Parent, const FText& Label)
     {
         if (!Outer || !Parent) return nullptr;
+
+        USizeBox* Size = NewObject<USizeBox>(Outer);
         UButton* Button = NewObject<UButton>(Outer);
-        UTextBlock* Text = R13FrontendMakeMenuText(Outer, Label, 18, true);
-        if (!Button || !Text) return nullptr;
+        UTextBlock* Text = R13FrontendMakeMenuText(Outer, Label, 16, true);
+        if (!Size || !Button || !Text) return nullptr;
 
+        Size->SetHeightOverride(52.0f);
+        Size->SetWidthOverride(430.0f);
         Text->SetJustification(ETextJustify::Center);
+        R13FrontendApplyTypeface(Text, FName(TEXT("Regular")), 45);
+        Button->SetIsFocusable(true);
         Button->AddChild(Text);
+        Size->SetContent(Button);
 
+        // Reference direction: almost transparent normal state, restrained warm khaki hover and pressed feedback.
+        // The existing Slate button brush keeps the thin outline while these low-alpha tints prevent a heavy panel look.
         FButtonStyle Style = Button->GetStyle();
-        Style.Normal.TintColor = FSlateColor(FLinearColor(0.030f, 0.036f, 0.026f, 0.96f));
-        Style.Hovered.TintColor = FSlateColor(FLinearColor(0.29f, 0.24f, 0.10f, 0.98f));
-        Style.Pressed.TintColor = FSlateColor(FLinearColor(0.46f, 0.34f, 0.10f, 1.0f));
-        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.025f, 0.028f, 0.024f, 0.55f));
+        Style.Normal.TintColor = FSlateColor(FLinearColor(0.05f, 0.05f, 0.045f, 0.10f));
+        Style.Hovered.TintColor = FSlateColor(FLinearColor(0.42f, 0.34f, 0.20f, 0.24f));
+        Style.Pressed.TintColor = FSlateColor(FLinearColor(0.47f, 0.37f, 0.20f, 0.34f));
+        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.04f, 0.04f, 0.035f, 0.07f));
+        Style.NormalPadding = FMargin(1.0f);
+        Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
         Button->SetStyle(Style);
 
-        if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Button))
+        if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Size))
         {
-            Slot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 6.0f));
+            Slot->SetPadding(FMargin(0.0f, 5.0f, 0.0f, 5.0f));
+            Slot->SetHorizontalAlignment(HAlign_Left);
         }
         return Button;
     }
@@ -69,7 +91,14 @@ namespace
     {
         if (!Button) return;
         Button->SetIsEnabled(bVisible);
-        Button->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        if (UWidget* Parent = Button->GetParent())
+        {
+            Parent->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+        else
+        {
+            Button->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
     }
 
     void R13FrontendFillCanvas(UCanvasPanelSlot* Slot, int32 ZOrder)
@@ -77,6 +106,15 @@ namespace
         if (!Slot) return;
         Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
         Slot->SetOffsets(FMargin(0.0f));
+        Slot->SetAlignment(FVector2D::ZeroVector);
+        Slot->SetZOrder(ZOrder);
+    }
+
+    void R13FrontendPlaceGradientStrip(UCanvasPanelSlot* Slot, float Left, float Width, int32 ZOrder)
+    {
+        if (!Slot) return;
+        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 1.0f));
+        Slot->SetOffsets(FMargin(Left, 0.0f, Width, 0.0f));
         Slot->SetAlignment(FVector2D::ZeroVector);
         Slot->SetZOrder(ZOrder);
     }
@@ -126,8 +164,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     const bool bDeploymentVisible = !bSettingsVisible && PC->IsDeploymentPanelVisible();
     const bool bLiveGameplay = bGameplayStarted || PC->GetPawn() != nullptr;
 
-    // Deployment gets the same clean full-screen artwork as the main menu, but the R13 menu panel itself stays out
-    // of the way. DeploymentPanel lives at Z=80, while the dedicated art sits at Z=70..72 beneath it.
     if (bDeploymentVisible && !bFrontendVisible)
     {
         bPauseMenuActive = false;
@@ -137,7 +173,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
     if (bSettingsVisible)
     {
-        // Main-menu settings retain the artwork. In-match settings stay over the current gameplay view.
         SetPresentationVisibility(false, !bLiveGameplay, bLiveGameplay);
         return;
     }
@@ -188,9 +223,6 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
 
-    // The old direct-connect FrontendPanel is no longer a presentation surface on R13. Detaching it is stronger
-    // than merely collapsing it: OCGameUIRootWidget::Refresh can keep changing its visibility, but a detached widget
-    // cannot draw, receive clicks or ghost through a translucent pause panel.
     if (UWidget* LegacyFrontend = Root->GetWidgetFromName(TEXT("FrontendPanel")))
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
@@ -205,8 +237,6 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UVerticalBox* Box = NewObject<UVerticalBox>(Root, TEXT("R13_PlayerFrontend"));
     if (!Blocker || !Background || !Shade || !Panel || !Box) return;
 
-    // Z=70..72 keeps the art above the gameplay HUD but below the stock DeploymentPanel at Z=80. A fully opaque
-    // blocker behind the texture prevents alpha from the imported menu art from revealing the live world.
     Blocker->SetBrushColor(FLinearColor(0.004f, 0.005f, 0.004f, 1.0f));
     Blocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     Blocker->SetIsEnabled(false);
@@ -221,30 +251,66 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Background->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Background), 71);
 
-    Shade->SetBrushColor(FLinearColor(0.015f, 0.012f, 0.007f, 0.30f));
-    Shade->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    // Keep the approved background intact. Shade is reserved for the in-game pause state only; the main menu uses
+    // a local left-side feather instead of globally darkening or recolouring the artwork.
+    Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.54f));
+    Shade->SetVisibility(ESlateVisibility::Collapsed);
     Shade->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Shade), 72);
+
+    MenuGradientLayers.Reset();
+    struct FGradientStrip
+    {
+        float Width;
+        float Alpha;
+    };
+    const FGradientStrip GradientStrips[] = {
+        { 460.0f, 0.25f },
+        { 590.0f, 0.17f },
+        { 730.0f, 0.11f },
+        { 890.0f, 0.065f },
+        { 1080.0f, 0.030f },
+    };
+    for (int32 Index = UE_ARRAY_COUNT(GradientStrips) - 1; Index >= 0; --Index)
+    {
+        UBorder* Gradient = NewObject<UBorder>(Root);
+        if (!Gradient) continue;
+        Gradient->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, GradientStrips[Index].Alpha));
+        Gradient->SetVisibility(ESlateVisibility::Collapsed);
+        Gradient->SetIsEnabled(false);
+        R13FrontendPlaceGradientStrip(Canvas->AddChildToCanvas(Gradient), 0.0f, GradientStrips[Index].Width, 73 + Index);
+        MenuGradientLayers.Add(Gradient);
+    }
 
     Panel->SetContent(Box);
     Panel->SetIsEnabled(true);
     Panel->SetVisibility(ESlateVisibility::Visible);
-    Panel->SetBrushColor(FLinearColor(0.012f, 0.017f, 0.011f, 0.94f));
-    Panel->SetPadding(FMargin(34.0f, 30.0f, 34.0f, 34.0f));
+    Panel->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+    Panel->SetPadding(FMargin(0.0f));
     if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Panel))
     {
         PanelSlot->SetAnchors(FAnchors(0.0f, 0.0f));
         PanelSlot->SetAlignment(FVector2D::ZeroVector);
-        PanelSlot->SetPosition(FVector2D(92.0f, 128.0f));
-        PanelSlot->SetSize(FVector2D(560.0f, 590.0f));
+        PanelSlot->SetPosition(FVector2D(118.0f, 92.0f));
+        PanelSlot->SetSize(FVector2D(470.0f, 760.0f));
         PanelSlot->SetZOrder(810);
     }
 
-    UTextBlock* Title = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Title", "OSTER CONFLICT"), 36, true);
-    UTextBlock* Subtitle = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 15, false);
-    if (!Title || !Subtitle) return;
-    Box->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 3.0f));
-    Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
+    UTextBlock* BrandOster = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "BrandOster", "OSTER"), 50, true);
+    UTextBlock* BrandConflict = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "BrandConflict", "CONFLICT"), 64, true);
+    UTextBlock* Title = R13FrontendMakeMenuText(Root, FText::GetEmpty(), 32, true);
+    UTextBlock* Subtitle = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 14, false);
+    if (!BrandOster || !BrandConflict || !Title || !Subtitle) return;
+
+    R13FrontendApplyTypeface(BrandOster, FName(TEXT("Light")), 180);
+    R13FrontendApplyTypeface(BrandConflict, FName(TEXT("Bold")), 18);
+    R13FrontendApplyTypeface(Title, FName(TEXT("Bold")), 18);
+    R13FrontendApplyTypeface(Subtitle, FName(TEXT("Regular")), 70);
+
+    Box->AddChildToVerticalBox(BrandOster)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, -6.0f));
+    Box->AddChildToVerticalBox(BrandConflict)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    Box->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 7.0f));
+    Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 24.0f));
 
     UButton* Primary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
     UButton* Secondary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Local", "ЛОКАЛЬНА ГРА"));
@@ -261,9 +327,9 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Username->SetText(FText::FromString(Prefs ? Prefs->GetSavedUsername() : FString(TEXT("Player"))));
     Address->SetHintText(NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"));
     Address->SetText(FText::FromString(Prefs ? Prefs->GetLastServerAddress() : FString(TEXT("127.0.0.1:7777"))));
-    Fields->AddChildToVerticalBox(Username)->SetPadding(FMargin(0.0f, 5.0f));
-    Fields->AddChildToVerticalBox(Address)->SetPadding(FMargin(0.0f, 5.0f));
-    Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 4.0f));
+    Fields->AddChildToVerticalBox(Username)->SetPadding(FMargin(0.0f, 6.0f));
+    Fields->AddChildToVerticalBox(Address)->SetPadding(FMargin(0.0f, 6.0f));
+    Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 5.0f));
     Box->AddChildToVerticalBox(Fields)->SetPadding(FMargin(0.0f, 5.0f));
 
     UButton* Settings = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Settings", "НАЛАШТУВАННЯ"));
@@ -281,6 +347,8 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     MenuShade = Shade;
     MenuPanel = Panel;
     MenuBox = Box;
+    BrandOsterText = BrandOster;
+    BrandConflictText = BrandConflict;
     TitleText = Title;
     SubtitleText = Subtitle;
     FieldsBox = Fields;
@@ -303,14 +371,21 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
 
     if (MenuPanel.IsValid())
     {
-        MenuPanel->SetBrushColor(FLinearColor(0.012f, 0.017f, 0.011f, 0.94f));
-        MenuPanel->SetPadding(FMargin(34.0f, 30.0f, 34.0f, 34.0f));
-        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(92.0f, 128.0f), FVector2D(560.0f, 590.0f));
+        const bool bMainPage = Page == 0;
+        MenuPanel->SetBrushColor(bMainPage
+            ? FLinearColor(0.0f, 0.0f, 0.0f, 0.0f)
+            : FLinearColor(0.008f, 0.009f, 0.008f, 0.38f));
+        MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(24.0f));
+        R13FrontendSetPanelGeometry(MenuPanel.Get(),
+            bMainPage ? FVector2D(118.0f, 92.0f) : FVector2D(118.0f, 126.0f),
+            bMainPage ? FVector2D(470.0f, 760.0f) : FVector2D(500.0f, 560.0f));
     }
 
     if (Page == 0)
     {
-        TitleText->SetText(NSLOCTEXT("OCR13Frontend", "MainTitle", "OSTER CONFLICT"));
+        if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Visible);
+        if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Visible);
+        TitleText->SetVisibility(ESlateVisibility::Collapsed);
         SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "MainSubtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"));
         SubtitleText->SetVisibility(ESlateVisibility::Visible);
         FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
@@ -327,7 +402,10 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
     }
     else if (Page == 1)
     {
+        if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
+        if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
         TitleText->SetText(NSLOCTEXT("OCR13Frontend", "LocalTitle", "ЛОКАЛЬНА ГРА"));
+        TitleText->SetVisibility(ESlateVisibility::Visible);
         SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "LocalSubtitle", "ВКАЖІТЬ ІМ'Я ТА ЗАПУСТІТЬ МАТЧ"));
         SubtitleText->SetVisibility(ESlateVisibility::Visible);
         FieldsBox->SetVisibility(ESlateVisibility::Visible);
@@ -344,7 +422,10 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
     }
     else
     {
+        if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
+        if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
         TitleText->SetText(NSLOCTEXT("OCR13Frontend", "NetworkTitle", "МЕРЕЖЕВА ГРА"));
+        TitleText->SetVisibility(ESlateVisibility::Visible);
         SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "NetworkSubtitle", "ПРЯМЕ ПІДКЛЮЧЕННЯ ДО СЕРВЕРА"));
         SubtitleText->SetVisibility(ESlateVisibility::Visible);
         FieldsBox->SetVisibility(ESlateVisibility::Visible);
@@ -368,12 +449,15 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 
     if (MenuPanel.IsValid())
     {
-        MenuPanel->SetBrushColor(FLinearColor(0.010f, 0.014f, 0.010f, 0.965f));
+        MenuPanel->SetBrushColor(FLinearColor(0.010f, 0.014f, 0.010f, 0.91f));
         MenuPanel->SetPadding(FMargin(32.0f));
         R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(105.0f, 155.0f), FVector2D(560.0f, 365.0f));
     }
 
+    if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
+    if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
     TitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseTitle", "МЕНЮ ГРИ"));
+    TitleText->SetVisibility(ESlateVisibility::Visible);
     SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseSubtitle", "ГРУ ПРИЗУПИНЕНО"));
     SubtitleText->SetVisibility(ESlateVisibility::Visible);
     FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
@@ -394,7 +478,10 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
     const ESlateVisibility BackdropVisibility = bShowBackdrop
         ? ESlateVisibility::SelfHitTestInvisible
         : ESlateVisibility::Collapsed;
-    const ESlateVisibility ShadeVisibility = (bShowBackdrop || bDimGameplay)
+    const ESlateVisibility ShadeVisibility = bDimGameplay
+        ? ESlateVisibility::SelfHitTestInvisible
+        : ESlateVisibility::Collapsed;
+    const ESlateVisibility GradientVisibility = (bShowMenu && bShowBackdrop)
         ? ESlateVisibility::SelfHitTestInvisible
         : ESlateVisibility::Collapsed;
 
@@ -406,10 +493,12 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
     if (MenuBackground.IsValid()) MenuBackground->SetVisibility(BackdropVisibility);
     if (MenuShade.IsValid())
     {
-        MenuShade->SetBrushColor(bDimGameplay
-            ? FLinearColor(0.0f, 0.0f, 0.0f, 0.54f)
-            : FLinearColor(0.015f, 0.012f, 0.007f, 0.30f));
+        MenuShade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.54f));
         MenuShade->SetVisibility(ShadeVisibility);
+    }
+    for (const TWeakObjectPtr<UBorder>& Gradient : MenuGradientLayers)
+    {
+        if (Gradient.IsValid()) Gradient->SetVisibility(GradientVisibility);
     }
     if (MenuPanel.IsValid())
     {
@@ -429,8 +518,6 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
         if (LegacyFrontend->GetParent()) LegacyFrontend->RemoveFromParent();
     }
 
-    // OCUIRuntimePolishSubsystem from the earlier frontend pass can still construct its own background at -100/-99.
-    // The dedicated R13 art now covers main menu and deployment, so those legacy layers are always suppressed.
     if (UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root"))))
     {
         for (int32 Index = 0; Index < Canvas->GetChildrenCount(); ++Index)
