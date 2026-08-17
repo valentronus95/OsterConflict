@@ -1,0 +1,31 @@
+name: Source verification
+
+on:
+  push:
+    branches:
+      - r13-content-gameplay-pass
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run structural and regression verifiers
+        shell: pwsh
+        run: python .\RUN_ALL_VERIFY.py
