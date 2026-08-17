@@ -49,6 +49,7 @@ checks = [
     ("content import creates current-state stamp", "R13_MUSEUM_WEAPONS_V2" in download),
     ("content importer rejects missing required assets", "runtime-required assets are missing" in import_script and "expected_assets" in import_script),
     ("gameplay launcher refuses stale content", "R13 GAMEPLAY LAUNCH BLOCKED" in listen_test and "R13_MUSEUM_WEAPONS_V2" in listen_test),
+    ("gameplay launcher refuses stale C++ module", "R13 GAMEPLAY LAUNCH BLOCKED: C++ BUILD IS STALE" in listen_test and "LastWriteTimeUtc" in listen_test),
     ("gameplay launcher checks weapon uassets", "R13_WEAPONS" in listen_test and "%%F.uasset" in listen_test),
     ("gameplay launcher checks museum background uasset", "Oster_Menu_BG.uasset" in listen_test),
     ("museum accessibility subsystem is world-scoped", "UWorldSubsystem" in access_h and "OsterConflict_Runtime" in access_cpp),
