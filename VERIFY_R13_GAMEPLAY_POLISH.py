@@ -14,6 +14,8 @@ required = [
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCUIRuntimePolishSubsystem.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13FrontendMenuSubsystem.h",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13FrontendMenuSubsystem.cpp",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCCharacterVisualComponent.cpp",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCCivilianVehicle.cpp",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCPickupGunTruck.cpp",
@@ -42,6 +44,8 @@ packaging = (PROJECT / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
 vehicle = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h").read_text(encoding="utf-8")
 ui_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h").read_text(encoding="utf-8")
 ui_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCUIRuntimePolishSubsystem.cpp").read_text(encoding="utf-8")
+frontend_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13FrontendMenuSubsystem.h").read_text(encoding="utf-8")
+frontend_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13FrontendMenuSubsystem.cpp").read_text(encoding="utf-8")
 character_visual = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCCharacterVisualComponent.cpp").read_text(encoding="utf-8")
 civilian = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCCivilianVehicle.cpp").read_text(encoding="utf-8")
 pickup = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCPickupGunTruck.cpp").read_text(encoding="utf-8")
@@ -64,9 +68,15 @@ checks = [
     ("deployment start action is explicitly named", "ПОЧАТИ ГРУ" in ui_cpp),
     ("pause menu has leave-game action", "LeaveCurrentSession" in ui_h and "LeaveCurrentSession" in ui_cpp),
     ("pause leave button disconnects through controller", "PC->DisconnectFromServer();" in ui_cpp),
-    ("pause menu explains Escape resume", "ESC = ПРОДОВЖИТИ" in ui_cpp),
-    ("player-facing frontend has five top-level actions", all(marker in ui_cpp for marker in ["MainStart", "MainLocal", "MainNetwork", "MainSettings", "MainQuit"])),
-    ("frontend uses full-screen Oster museum backdrop", "FullscreenMenuBackground" in ui_h and "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG" in ui_cpp and "1600.0f, 900.0f" in ui_cpp),
+    ("dedicated frontend replaces legacy panel content", "Panel->SetContent(Box);" in frontend_cpp and "R13_PlayerFrontend" in frontend_cpp),
+    ("dedicated frontend keeps eight-child compatibility shape", "keep exactly eight direct children" in frontend_cpp.lower()),
+    ("dedicated frontend exposes five top-level actions", all(marker in frontend_cpp for marker in ["MainStart", "MainLocal", "MainNetwork", "MainSettings", "MainQuit"])),
+    ("dedicated frontend owns click delegates", all(marker in frontend_cpp for marker in ["OnPrimaryClicked", "OnSecondaryClicked", "OnNetworkClicked", "OnSettingsClicked", "OnQuitClicked", "OnClicked.AddDynamic"])),
+    ("dedicated frontend forces menu mouse/input mode", "bShowMouseCursor = true" in frontend_cpp and "SetInputMode(Mode)" in frontend_cpp and "SetWidgetToFocus" in frontend_cpp),
+    ("dedicated frontend supports local and network pages", "ПОЧАТИ ЛОКАЛЬНУ ГРУ" in frontend_cpp and "ПІДКЛЮЧИТИСЯ" in frontend_cpp and "IP:порт сервера" in frontend_cpp),
+    ("frontend uses full-screen Oster backdrop", "FullscreenMenuBackground" in ui_h and "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG" in ui_cpp and "1600.0f, 900.0f" in ui_cpp),
+    ("custom menu art is normalized to opaque RGB before import", "Format24bppRgb" in download and "Normalizing custom artwork to an opaque PNG" in download),
+    ("importer prefers normalized opaque menu source", "NORMALIZED_MENU_SOURCE" in import_script and "if NORMALIZED_MENU_SOURCE.exists()" in import_script),
     ("listen gameplay test starts through frontend", " -Frontend " in listen_test and "-NoFrontend" not in listen_test),
     ("driver turret mapping no longer steals free-look", 'ContextName == TEXT("IMC_DriverTurretRuntime")' in ui_cpp and "RemoveMappingContext(Context)" in ui_cpp),
     ("primitive first-person proxy hands are hidden", "Never expose primitive debug arms/hands in first person" in character_visual and "Part->SetVisibility(false, true);" in character_visual),
@@ -80,14 +90,14 @@ checks = [
     ("whole Oster uses real grass meshes", "SM_GrassPatch_Var01.SM_GrassPatch_Var01" in whole_oster_art and "AddGrassReplacements" in whole_oster_art),
     ("whole Oster hides replaced primitive families", 'TEXT("Buildings")' in whole_oster_art and 'TEXT("TreeCrowns")' in whole_oster_art and 'TEXT("GrassMown")' in whole_oster_art),
     ("daylight atmosphere no longer uses amber-heavy scattering", "SetRayleighScatteringScale(1.0f)" in environment and "SetMieScatteringScale(0.004f)" in environment and "SetLightColor(FLinearColor::White)" in environment),
-    ("Oster museum is the requested menu source", "Будинок Солонини, Остер.JPG" in download),
-    ("content import creates current-state stamp", "R13_MUSEUM_WEAPONS_V2" in download),
+    ("Oster museum fallback source remains documented", "Будинок Солонини, Остер.JPG" in download),
+    ("content import creates current-state stamp", "R13_STEIN_WEAPONS_V3" in download),
     ("content importer rejects missing required assets", "runtime-required assets are missing" in import_script and "expected_assets" in import_script),
     ("listen launcher delegates to strict readiness gate", "CHECK_R13_LAUNCH_READY.ps1" in listen_test and "READY_RC" in listen_test),
     ("readiness gate refuses stale content", "R13 GAMEPLAY LAUNCH BLOCKED: REQUIRED ART IS MISSING OR STALE" in launch_ready and "R13_MUSEUM_WEAPONS_V2" in launch_ready),
     ("readiness gate refuses stale C++ module", "R13 GAMEPLAY LAUNCH BLOCKED: C++ BUILD IS STALE" in launch_ready and "LastWriteTimeUtc" in launch_ready),
     ("readiness gate checks weapon uassets", "WeaponRoot" in launch_ready and ".uasset" in launch_ready),
-    ("readiness gate checks museum background uasset", "Oster_Menu_BG.uasset" in launch_ready),
+    ("readiness gate checks menu background uasset", "Oster_Menu_BG.uasset" in launch_ready),
     ("museum accessibility subsystem is world-scoped", "UWorldSubsystem" in access_h and "OsterConflict_Runtime" in access_cpp),
     ("museum entrance step ordering is repaired", "-2240.0f + Step * 120.0f" in access_cpp and "UpdateInstanceTransform" in access_cpp),
     ("AR broken vertical recoil is disabled for R13", "T.RecoilPitchMin = 0.0f; T.RecoilPitchMax = 0.0f;" in weapon_variants),
