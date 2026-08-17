@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 cd /d "%~dp0"
 
 if not defined UE_ROOT set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
@@ -8,6 +8,9 @@ set "EDITOR_CMD=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "MAP_FILE=%~dp0OsterConflict\Content\Maps\OsterConflict_Runtime.umap"
 set "MAP_SCRIPT=%~dp0OsterConflict\Scripts\S18B\CREATE_RELEASE_MAP.py"
+set "R13_STATE=%~dp0OsterConflict\Content\Raw\R13\R13_IMPORT_STATE.txt"
+set "R13_WEAPONS=%~dp0OsterConflict\Content\R13\Weapons"
+set "R13_UI=%~dp0OsterConflict\Content\R13\UI"
 
 if not exist "%EDITOR%" (
   echo UE 5.8 editor not found at:
@@ -41,6 +44,36 @@ if not exist "%~dp0OsterConflict\Binaries\Win64\UnrealEditor-OsterConflict.dll" 
   exit /b 4
 )
 
+rem Do not launch another knowingly-placeholder visual test. R13 gameplay QA now requires the current museum/photo +
+rem imported weapon art state and exact runtime .uassets before the game window is allowed to open.
+set "R13_ART_MISSING=0"
+if not exist "%R13_STATE%" set "R13_ART_MISSING=1"
+if exist "%R13_STATE%" (
+  findstr /x /c:"R13_MUSEUM_WEAPONS_V2" "%R13_STATE%" >nul || set "R13_ART_MISSING=1"
+)
+for %%F in (machinegun pistol shotgun sniper uzi rocketlauncherModern grenade) do (
+  if not exist "%R13_WEAPONS%\%%F.uasset" (
+    echo [MISSING] R13 weapon asset: %%F.uasset
+    set "R13_ART_MISSING=1"
+  )
+)
+if not exist "%R13_UI%\Oster_Menu_BG.uasset" (
+  echo [MISSING] R13 menu background: Oster_Menu_BG.uasset
+  set "R13_ART_MISSING=1"
+)
+if "%R13_ART_MISSING%"=="1" (
+  echo.
+  echo ============================================================
+  echo R13 GAMEPLAY LAUNCH BLOCKED: REQUIRED ART IS MISSING OR STALE
+  echo ============================================================
+  echo Run START_HERE option 8 first.
+  echo It now verifies the museum background and required weapon assets
+  echo instead of letting the gameplay test silently fall back to blocks.
+  echo ============================================================
+  pause
+  exit /b 7
+)
+
 if not exist "%MAP_FILE%" (
   echo Creating OsterConflict_Runtime map for this fresh archive...
   "%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%MAP_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output
@@ -56,7 +89,7 @@ if not exist "%MAP_FILE%" (
   )
 )
 
-echo Starting R12.2 Krushelnytska visual gameplay test...
-echo Real environment slice near spawn + neutral daylight + vehicles + bots + listen server.
-start "Oster Conflict R12.2" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -NoFrontend -R12VisualSlice -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+echo Starting R13 content + gameplay listen-server test...
+echo Museum menu background + verified R13 weapon art + third-person vehicle default + bots + listen server.
+start "Oster Conflict R13" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -NoFrontend -R12VisualSlice -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 exit /b 0
