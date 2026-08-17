@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 import unreal
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -61,6 +62,43 @@ def import_stein_static_mesh(source: Path, destination: str):
     return run_import_task(task, source, destination)
 
 
+def resolve_menu_source(source: Path) -> Path:
+    """Return an Unreal-importable menu-art path based on file signature, not its Windows extension.
+
+    Browser/download workflows can leave PNG bytes in a file named .jpg. Unreal then selects the JPEG translator
+    from the extension and fails with 'Failed to decode JPEG'. Keep the user-facing filename stable, but if the
+    payload is actually PNG, mirror it to Raw/R13/UI/Oster_Menu_BG.png so Interchange chooses the PNG translator.
+    """
+    if not source.exists():
+        raise RuntimeError(f"R13 required menu background is missing: {source}")
+
+    header = source.read_bytes()[:16]
+    if header.startswith(b"\xff\xd8\xff"):
+        unreal.log(f"R13 menu artwork detected as JPEG: {source}")
+        return source
+
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        normalized = UI_ROOT / "Oster_Menu_BG.png"
+        normalized.parent.mkdir(parents=True, exist_ok=True)
+        if source.resolve() != normalized.resolve():
+            shutil.copyfile(source, normalized)
+        unreal.log(
+            f"R13 menu artwork contains PNG data despite its .jpg name; importing normalized PNG: {normalized}"
+        )
+        return normalized
+
+    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        raise RuntimeError(
+            "R13 menu background is WebP data renamed to .jpg. Open it in Windows Paint and use "
+            "Save as -> JPEG picture or PNG picture, then replace Content/R13/UI/Oster_Menu_BG.jpg."
+        )
+
+    raise RuntimeError(
+        "R13 menu background has an unsupported or damaged image payload. "
+        f"First bytes: {header.hex(' ')}. Save the artwork as a real JPEG or PNG before importing."
+    )
+
+
 # Keep the small CC0 Kenney set as fallback for classes Stein does not cover yet.
 kenney_files = [
     "machinegun.obj",
@@ -96,10 +134,9 @@ for wav in required_audio:
 
 # Prefer the player-supplied artwork over the fallback museum photo. Reimport in place rather than deleting the
 # existing texture package: deleting an asset that is already referenced by the runtime UI can fail in commandlet
-# mode. AssetImportTask with replace_existing=True safely refreshes the texture while preserving its object path.
-menu_source = LOCAL_MENU_SOURCE if LOCAL_MENU_SOURCE.exists() else (UI_ROOT / "Oster_Menu_BG.jpg")
-if not menu_source.exists():
-    raise RuntimeError(f"R13 required menu background is missing: {menu_source}")
+# mode. Resolve by file signature first because Windows/browser downloads can mislabel PNG content as .jpg.
+menu_candidate = LOCAL_MENU_SOURCE if LOCAL_MENU_SOURCE.exists() else (UI_ROOT / "Oster_Menu_BG.jpg")
+menu_source = resolve_menu_source(menu_candidate)
 unreal.log(f"R13 menu background source: {menu_source}")
 import_required_file(menu_source, "/Game/R13/UI")
 unreal.EditorAssetLibrary.save_directory("/Game/R13", only_if_is_dirty=False, recursive=True)
