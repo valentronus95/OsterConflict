@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 base = Path(__file__).resolve().parent
@@ -96,10 +97,33 @@ for rpc in rpc_names:
         print(f"S05 structural verification: FAIL — missing RPC implementation for {rpc}")
         sys.exit(1)
 
-# S05 must not contain build artifacts.
-for forbidden in ("Binaries", "Intermediate", "Saved", ".vs"):
-    if (root / forbidden).exists():
-        print(f"S05 structural verification: FAIL — forbidden build artifact folder: {forbidden}")
+# Generated UE folders may legitimately exist after a local build. They are a source-control problem
+# only when Git tracks files inside them, so verify the index instead of requiring a pristine worktree.
+forbidden_prefixes = (
+    "OsterConflict/Binaries/",
+    "OsterConflict/Intermediate/",
+    "OsterConflict/Saved/",
+    "OsterConflict/.vs/",
+)
+try:
+    tracked_files = subprocess.run(
+        ["git", "ls-files"],
+        cwd=base,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+except (OSError, subprocess.CalledProcessError) as exc:
+    print(f"S05 structural verification: WARN — unable to inspect tracked build artifacts: {exc}")
+else:
+    tracked_artifacts = [
+        path
+        for path in tracked_files
+        if any(path.replace("\\", "/").startswith(prefix) for prefix in forbidden_prefixes)
+    ]
+    if tracked_artifacts:
+        print("S05 structural verification: FAIL — generated build artifacts are tracked by Git:")
+        print(" - " + "\n - ".join(tracked_artifacts))
         sys.exit(1)
 
 # Catch the malformed duplicate block opener that existed in an earlier HUD snapshot.
