@@ -20,7 +20,8 @@ Branch: `r13-content-gameplay-pass`
 - 2026-08-17 16:01 the R11 verifier passed, then `VERIFY_R13_GAMEPLAY_POLISH.py` found two regressions introduced by the earlier broad patch: pickup speed/drive force and atmosphere scattering values.
 - Both R13 gameplay-polish mismatches are corrected by `3286977` and `dd80b1e`.
 - 2026-08-17 16:13 local `START_HERE` option 1 completed successfully: `RESULT: PASS for Mode=Compile; every requested stage completed.`
-- Compile/static-verifier gate is now green. Next gate is `START_HERE` option 2 (Full validation), followed by option 4 gameplay smoke test if validation passes.
+- 2026-08-17 16:28 local `START_HERE` option 2 completed successfully: `RESULT: PASS for Mode=Full; every requested stage completed.`
+- Compile and full-validation gates are green. The next gate is the R13 local listen-server gameplay test (`START_HERE` option 4).
 
 ## Remaining visual work
 - Verify approved menu presentation in the local gameplay test.
