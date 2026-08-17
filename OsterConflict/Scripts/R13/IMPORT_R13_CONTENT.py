@@ -94,14 +94,13 @@ if not required_audio:
 for wav in required_audio:
     import_required_file(wav, "/Game/R13/Audio")
 
-# Player-supplied artwork wins over fallback museum art. Delete the old texture package first so Unreal cannot
-# silently preserve the previous source/import data when the JPG changed but kept the same filename.
+# Prefer the player-supplied artwork over the fallback museum photo. Reimport in place rather than deleting the
+# existing texture package: deleting an asset that is already referenced by the runtime UI can fail in commandlet
+# mode. AssetImportTask with replace_existing=True safely refreshes the texture while preserving its object path.
 menu_source = LOCAL_MENU_SOURCE if LOCAL_MENU_SOURCE.exists() else (UI_ROOT / "Oster_Menu_BG.jpg")
 if not menu_source.exists():
     raise RuntimeError(f"R13 required menu background is missing: {menu_source}")
-if unreal.EditorAssetLibrary.does_asset_exist(MENU_ASSET):
-    if not unreal.EditorAssetLibrary.delete_asset(MENU_ASSET):
-        raise RuntimeError(f"Unable to replace existing R13 menu texture: {MENU_ASSET}")
+unreal.log(f"R13 menu background source: {menu_source}")
 import_required_file(menu_source, "/Game/R13/UI")
 unreal.EditorAssetLibrary.save_directory("/Game/R13", only_if_is_dirty=False, recursive=True)
 
