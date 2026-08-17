@@ -35,7 +35,9 @@ quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
 req('bReplicates = true' in env_cpp and 'bAlwaysRelevant = true' in env_cpp, 'daylight rig reaches network clients')
 req('SetAtmosphereSunLight(true)' in env_cpp and 'SetRealTimeCaptureEnabled(true)' in env_cpp, 'sun/sky runtime lighting configured')
-req('SetFogDensity(0.0085f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp, 'lightweight atmospheric depth configured')
+old_depth = 'SetFogDensity(0.0085f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp
+r13_neutral = 'SetFogDensity(0.0f)' in env_cpp and 'SetFogMaxOpacity(0.0f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp
+req(old_depth or r13_neutral, 'atmospheric depth or R13 neutral no-fog art-QA mode configured')
 req('SpawnActor<AOCVisualEnvironment>' in gm, 'GameMode spawns visual environment')
 req(gm.find('SpawnActor<AOCVisualEnvironment>') < gm.find('SpawnActor<AOCWorldSectorOster>'), 'lighting spawns before source world')
 
