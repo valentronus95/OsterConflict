@@ -9,6 +9,7 @@ class AOCPlayerController;
 class UBorder;
 class UButton;
 class UEditableTextBox;
+class UImage;
 class UOCGameUIRootWidget;
 class UTextBlock;
 class UVerticalBox;
@@ -16,10 +17,9 @@ class UVerticalBox;
 /**
  * Dedicated R13 player-facing frontend.
  *
- * The legacy frontend was originally a direct-connect/debug panel and later got rewritten by a second runtime
- * polish layer every frame. That made button bindings and page state fight each other. This subsystem replaces the
- * legacy panel content once with a stable eight-child menu while leaving the existing settings/deployment backend
- * intact. The eight-child shape is intentional: the older polish layer only rewrites nine-child legacy frontends.
+ * This subsystem owns a separate high-Z menu tree and full-screen art blocker instead of reusing the legacy
+ * direct-connect FrontendPanel. That prevents the legacy runtime-polish pass from rewriting button delegates,
+ * panel geometry or the menu background while the player is interacting with the main menu.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13FrontendMenuSubsystem : public UTickableWorldSubsystem
@@ -39,15 +39,22 @@ private:
     UFUNCTION() void OnQuitClicked();
 
     void EnsureFrontend(UOCGameUIRootWidget* Root, AOCPlayerController* PC);
-    void BuildFrontend(UOCGameUIRootWidget* Root, UBorder* Panel, AOCPlayerController* PC);
+    void BuildFrontend(UOCGameUIRootWidget* Root, AOCPlayerController* PC);
     void ApplyPage();
     void ApplyPausePage();
+    void SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop);
     void StartLocalGameplay();
     void ForceMenuInput();
+    void ReleaseMenuInput();
 
     TWeakObjectPtr<UOCGameUIRootWidget> ActiveRoot;
     TWeakObjectPtr<AOCPlayerController> ActiveController;
-    TWeakObjectPtr<UBorder> ActivePanel;
+
+    TWeakObjectPtr<UBorder> WorldBlocker;
+    TWeakObjectPtr<UImage> MenuBackground;
+    TWeakObjectPtr<UBorder> MenuShade;
+    TWeakObjectPtr<UBorder> MenuPanel;
+
     TWeakObjectPtr<UVerticalBox> MenuBox;
     TWeakObjectPtr<UTextBlock> TitleText;
     TWeakObjectPtr<UTextBlock> SubtitleText;
