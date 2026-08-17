@@ -91,5 +91,11 @@ if not exist "%MAP_FILE%" (
 
 echo Starting R13 content + gameplay listen-server test...
 echo Museum menu background + verified R13 weapon art + third-person vehicle default + bots + listen server.
+echo.
+echo ARMED VEHICLE QUICK CONTROLS:
+echo   Solo driver turret: hold RMB to aim, move mouse, LMB fire, R reload.
+echo   Dedicated gunner: a second character approaches an occupied armed vehicle and presses E.
+echo   C toggles vehicle camera. E exits when the vehicle is slow enough.
+echo.
 start "Oster Conflict R13" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -NoFrontend -R12VisualSlice -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 exit /b 0
