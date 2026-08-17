@@ -6,6 +6,8 @@ if not defined UE_ROOT set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "EDITOR_CMD=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
+set "EDITOR_DLL=%~dp0OsterConflict\Binaries\Win64\UnrealEditor-OsterConflict.dll"
+set "SOURCE_ROOT=%~dp0OsterConflict\Source"
 set "MAP_FILE=%~dp0OsterConflict\Content\Maps\OsterConflict_Runtime.umap"
 set "MAP_SCRIPT=%~dp0OsterConflict\Scripts\S18B\CREATE_RELEASE_MAP.py"
 set "R13_STATE=%~dp0OsterConflict\Content\Raw\R13\R13_IMPORT_STATE.txt"
@@ -37,11 +39,25 @@ if not exist "%PROJECT%" (
   exit /b 3
 )
 
-if not exist "%~dp0OsterConflict\Binaries\Win64\UnrealEditor-OsterConflict.dll" (
+if not exist "%EDITOR_DLL%" (
   echo [ERROR] Editor module is not built yet.
   echo Run START_HERE option 1 first.
   pause
   exit /b 4
+)
+
+rem A successful old DLL is still the wrong build after pulling new C++ source. Refuse to run stale gameplay.
+powershell.exe -NoProfile -Command "$dll=Get-Item -LiteralPath '%EDITOR_DLL%'; $latest=Get-ChildItem -LiteralPath '%SOURCE_ROOT%' -Recurse -File -Include *.h,*.cpp ^| Sort-Object LastWriteTimeUtc -Descending ^| Select-Object -First 1; if($latest -and $latest.LastWriteTimeUtc -gt $dll.LastWriteTimeUtc){ exit 9 }"
+if errorlevel 9 (
+  echo.
+  echo ============================================================
+  echo R13 GAMEPLAY LAUNCH BLOCKED: C++ BUILD IS STALE
+  echo ============================================================
+  echo Source files are newer than UnrealEditor-OsterConflict.dll.
+  echo Run START_HERE option 1, then return to option 4.
+  echo ============================================================
+  pause
+  exit /b 9
 )
 
 rem Do not launch another knowingly-placeholder visual test. R13 gameplay QA now requires the current museum/photo +
