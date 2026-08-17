@@ -14,6 +14,7 @@ set "UI=%RAW%\UI"
 set "LOCAL_MENU_OVERRIDE=%~dp0OsterConflict\Content\R13\UI\Oster_Menu_BG.jpg"
 set "IMPORT_STATE=%RAW%\R13_IMPORT_STATE.txt"
 set "CACHE=%TEMP%\OsterConflict_R13_CC0"
+set "IMPORT_LOG=%~dp0PC_TEST\R13_IMPORT_LAST.log"
 
 rem Museum source label: Будинок Солонини, Остер.JPG
 rem Legacy state R13_MUSEUM_WEAPONS_V2 is superseded by R13_STEIN_WEAPONS_V3.
@@ -59,6 +60,7 @@ if not exist "%STEIN%\1911\SKM_1911.fbx" (
 
 if exist "%IMPORT_STATE%" del /q "%IMPORT_STATE%"
 if exist "%CACHE%" rmdir /s /q "%CACHE%"
+if exist "%IMPORT_LOG%" del /q "%IMPORT_LOG%"
 mkdir "%WEAPONS%" 2>nul
 mkdir "%AUDIO%" 2>nul
 mkdir "%UI%" 2>nul
@@ -112,8 +114,11 @@ for %%I in ("%UI%\Oster_Menu_BG.jpg") do if %%~zI LSS 50000 (
 )
 
  echo [5/5] Importing R13 assets into Unreal, including Stein Classic Weapons...
-"%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output
-if errorlevel 1 goto :fail
+echo [5/5] Detailed Unreal import log: %IMPORT_LOG%
+"%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output >"%IMPORT_LOG%" 2>&1
+set "IMPORT_RC=%ERRORLEVEL%"
+type "%IMPORT_LOG%"
+if not "%IMPORT_RC%"=="0" goto :import_fail
 
 >"%IMPORT_STATE%" echo R13_STEIN_WEAPONS_V3
 
@@ -126,6 +131,17 @@ echo ============================================================
 if exist "%CACHE%" rmdir /s /q "%CACHE%"
 pause
 exit /b 0
+
+:import_fail
+echo.
+echo ============================================================
+echo [ERROR] Unreal R13 import failed with exit code %IMPORT_RC%.
+echo Full log: %IMPORT_LOG%
+echo Last 40 log lines:
+echo ------------------------------------------------------------
+powershell.exe -NoProfile -Command "if (Test-Path -LiteralPath '%IMPORT_LOG%') { Get-Content -LiteralPath '%IMPORT_LOG%' -Tail 40 }"
+echo ============================================================
+goto :fail
 
 :fail
 echo.
