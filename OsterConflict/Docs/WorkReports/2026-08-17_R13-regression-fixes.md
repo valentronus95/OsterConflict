@@ -19,10 +19,12 @@ Branch: `r13-content-gameplay-pass`
 - 2026-08-17 15:54 local compile attempt stopped in `VERIFY_R11_VISUAL_FOUNDATION.py`; fixed by `10899a9`.
 - 2026-08-17 16:01 the R11 verifier passed, then `VERIFY_R13_GAMEPLAY_POLISH.py` found two regressions introduced by the earlier broad patch: pickup speed/drive force and atmosphere scattering values.
 - Both R13 gameplay-polish mismatches are corrected by `3286977` and `dd80b1e`.
-- Next required test: pull the latest branch and run START_HERE option 1 again.
+- 2026-08-17 16:13 local `START_HERE` option 1 completed successfully: `RESULT: PASS for Mode=Compile; every requested stage completed.`
+- Compile/static-verifier gate is now green. Next gate is `START_HERE` option 2 (Full validation), followed by option 4 gameplay smoke test if validation passes.
 
 ## Remaining visual work
-- Verify approved menu presentation in the packaged/local test.
+- Verify approved menu presentation in the local gameplay test.
+- Verify ESC -> return-to-game restores mouse look, WASD, sprint and jump across repeated cycles.
 - Verify neutral lighting in-game.
 - Verify first-person vehicle visibility.
 - Remove remaining visible helper/debug primitive(s).
