@@ -11,6 +11,9 @@ required = [
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCUIRuntimePolishSubsystem.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13AccessibilitySubsystem.h",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13AccessibilitySubsystem.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp",
 ]
 missing = [str(p.relative_to(ROOT)) for p in required if not p.exists()]
 if missing:
@@ -24,6 +27,9 @@ packaging = (PROJECT / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
 vehicle = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h").read_text(encoding="utf-8")
 ui_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h").read_text(encoding="utf-8")
 ui_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCUIRuntimePolishSubsystem.cpp").read_text(encoding="utf-8")
+access_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13AccessibilitySubsystem.h").read_text(encoding="utf-8")
+access_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13AccessibilitySubsystem.cpp").read_text(encoding="utf-8")
+weapon_variants = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp").read_text(encoding="utf-8")
 
 checks = [
     ("vehicles default to third-person camera", "bool bFirstPersonCamera = false;" in vehicle),
@@ -36,6 +42,10 @@ checks = [
     ("pause leave button disconnects through controller", "PC->DisconnectFromServer();" in ui_cpp),
     ("pause menu explains Escape resume", "ESC = ПРОДОВЖИТИ" in ui_cpp),
     ("Oster museum is the requested menu source", "Будинок Солонини, Остер.JPG" in download),
+    ("museum accessibility subsystem is world-scoped", "UWorldSubsystem" in access_h and "OsterConflict_Runtime" in access_cpp),
+    ("museum entrance step ordering is repaired", "-2240.0f + Step * 120.0f" in access_cpp and "UpdateInstanceTransform" in access_cpp),
+    ("AR broken vertical recoil is disabled for R13", "T.RecoilPitchMin = 0.0f; T.RecoilPitchMax = 0.0f;" in weapon_variants),
+    ("AR retains horizontal shot feedback", "T.RecoilYawMax = 0.28f;" in weapon_variants),
     ("generated localization output stays out of Git changes", "OsterConflict/Content/Localization/Game/" in ignore),
     ("generated cook open-order logs stay out of Git changes", "OsterConflict/Build/**/FileOpenOrder/*.log" in ignore),
 ]
