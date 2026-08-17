@@ -89,7 +89,7 @@ namespace
 
     UStaticMesh* MeshForVehicle(AOCVehicleBase* Vehicle)
     {
-        if (AOCPickupGunTruck* Pickup = Cast<AOCPickupGunTruck>(Vehicle))
+        if (Cast<AOCPickupGunTruck>(Vehicle))
         {
             return LoadObject<UStaticMesh>(nullptr,
                 TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup"));
@@ -144,22 +144,28 @@ namespace
         UCameraComponent* InteriorCamera = FindCameraComponent(Vehicle, TEXT("InteriorCamera"));
         if (!InteriorCamera) return;
 
-        // Place the camera at a driver's head position behind the authored dashboard rather than near the front of
-        // the visual body. A slightly narrower FOV also stops the road-vehicle shell from reading like a bumper cam.
-        InteriorCamera->SetRelativeLocation(FVector(34.0f, -43.0f, 70.0f));
+        // Driver head position. The previous X=34 position sat on the rear face of the 75 cm
+        // placeholder dashboard and only ~28 cm behind the primitive steering cylinder.
+        InteriorCamera->SetRelativeLocation(FVector(66.0f, -43.0f, 86.0f));
         InteriorCamera->SetRelativeRotation(FRotator::ZeroRotator);
         InteriorCamera->SetFieldOfView(82.0f);
 
+        UStaticMeshComponent* Chassis = FindStaticMeshComponent(Vehicle, TEXT("Chassis"));
+        const bool bUsesImportedRoadMesh = Chassis && Chassis->GetStaticMesh() &&
+            !Chassis->GetStaticMesh()->GetPathName().StartsWith(TEXT("/Engine/BasicShapes/"));
+
         const bool bCockpitView = InteriorCamera->IsActive();
-        const FName CockpitNames[] = { TEXT("Dashboard"), TEXT("SteeringWheel") };
+        const FName CockpitNames[] = { TEXT("Dashboard"), TEXT("SteeringWheel"), TEXT("Windshield") };
         for (const FName Name : CockpitNames)
         {
             if (UStaticMeshComponent* Component = FindStaticMeshComponent(Vehicle, Name))
             {
-                // The imported road meshes provide the exterior. These two simple interior reference parts are only
-                // visible from the driver's camera so first person has a dashboard/wheel instead of floating in air.
-                Component->SetHiddenInGame(!bCockpitView, true);
-                Component->SetVisibility(bCockpitView, true);
+                // Never resurrect the source-only cube/cylinder cockpit over a real imported road mesh.
+                // Those primitives were the huge black dome/bar seen in first-person. Until a proper
+                // authored interior mesh exists, an unobstructed driver's view is preferable.
+                const bool bShowProxyCockpit = bCockpitView && !bUsesImportedRoadMesh && Name != TEXT("Windshield");
+                Component->SetHiddenInGame(!bShowProxyCockpit, true);
+                Component->SetVisibility(bShowProxyCockpit, true);
                 Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             }
         }
