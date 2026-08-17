@@ -60,7 +60,8 @@ namespace
 
     bool IsInsideR12KrushelnytskaSlice(const FVector& Location)
     {
-        // Keep the already-authored real R12 street slice free of duplicate R13 replacement instances.
+        // Houses and trees in the authored R12 street slice already have dedicated art. Grass is intentionally not
+        // excluded: the previous exclusion removed the proxy grass globally and then supplied no replacement here.
         return FMath::Abs(Location.X + 3400.0f) < 7000.0f &&
             Location.Y > -14500.0f && Location.Y < 17500.0f;
     }
@@ -127,14 +128,16 @@ namespace
         const TArray<UInstancedStaticMeshComponent*>& GrassFamilies, int32& OutCount)
     {
         if (!Proxy || GrassFamilies.Num() == 0) return;
-        constexpr float Fractions[] = { -0.32f, 0.0f, 0.32f };
+
+        // Five-by-five coverage is still cheap with ISM, but reads as actual ground vegetation instead of nine
+        // isolated tufts. Do not exclude the R12 slice: its source grass proxy is valid topology data for R13 too.
+        constexpr float Fractions[] = { -0.42f, -0.21f, 0.0f, 0.21f, 0.42f };
 
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
         {
             FTransform ProxyTransform;
             if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
             const FVector Center = ProxyTransform.GetLocation();
-            if (IsInsideR12KrushelnytskaSlice(Center)) continue;
 
             const FVector ProxyScale = ProxyTransform.GetScale3D();
             const float Width = FMath::Max(500.0f, FMath::Abs(ProxyScale.X) * 100.0f);
@@ -149,8 +152,10 @@ namespace
                     ++Local;
                     if (!Target) continue;
 
-                    FVector Location = Center + FVector(FX * Width, FY * Depth, 3.0f - Center.Z);
-                    const float Scale = 0.95f + 0.12f * static_cast<float>((Index + Local) % 4);
+                    const float JitterX = static_cast<float>(((Index * 17 + Local * 7) % 9) - 4) * Width * 0.010f;
+                    const float JitterY = static_cast<float>(((Index * 11 + Local * 13) % 9) - 4) * Depth * 0.010f;
+                    FVector Location = Center + FVector(FX * Width + JitterX, FY * Depth + JitterY, 3.0f - Center.Z);
+                    const float Scale = 0.88f + 0.08f * static_cast<float>((Index + Local) % 5);
                     Target->AddInstance(FTransform(
                         FRotator(0.0f, static_cast<float>(((Index * 29) + Local * 47) % 360), 0.0f),
                         Location, FVector(Scale)), true);
@@ -270,15 +275,28 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassRough")), GrassFamilies, GrassCount);
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassWetland")), GrassFamilies, GrassCount);
 
-    // Remove only proxy families for which R13 now supplies real meshes. Roads, landmark blocks and verified
-    // reference topology stay intact until their own art replacements exist.
-    const FName HiddenProxyFamilies[] = {
-        TEXT("Buildings"), TEXT("ResidentialRoofs"), TEXT("ResidentialDetails"),
-        TEXT("TreeTrunks"), TEXT("TreeCrowns"), TEXT("SovietPoplarTrunks"), TEXT("SovietPoplarCrowns"),
-        TEXT("BirchTrunks"), TEXT("BirchCrowns"), TEXT("PineTrunks"), TEXT("PineCrowns"),
-        TEXT("GrassMown"), TEXT("GrassRough"), TEXT("GrassWetland")
-    };
-    for (const FName Name : HiddenProxyFamilies) HideProxy(WorldSector, Name);
+    // Hide a proxy family only after a real replacement family actually produced instances. This prevents a missing
+    // asset or an empty source family from turning entire parts of the map into featureless ground.
+    if (HouseCount > 0)
+    {
+        HideProxy(WorldSector, TEXT("Buildings"));
+        HideProxy(WorldSector, TEXT("ResidentialRoofs"));
+        HideProxy(WorldSector, TEXT("ResidentialDetails"));
+    }
+    if (TreeCount > 0)
+    {
+        const FName TreeProxyFamilies[] = {
+            TEXT("TreeTrunks"), TEXT("TreeCrowns"), TEXT("SovietPoplarTrunks"), TEXT("SovietPoplarCrowns"),
+            TEXT("BirchTrunks"), TEXT("BirchCrowns"), TEXT("PineTrunks"), TEXT("PineCrowns")
+        };
+        for (const FName Name : TreeProxyFamilies) HideProxy(WorldSector, Name);
+    }
+    if (GrassCount > 0)
+    {
+        HideProxy(WorldSector, TEXT("GrassMown"));
+        HideProxy(WorldSector, TEXT("GrassRough"));
+        HideProxy(WorldSector, TEXT("GrassWetland"));
+    }
 
     int32 HiddenFantasyFamilies = 0;
     for (TActorIterator<AActor> It(&World); It; ++It)
