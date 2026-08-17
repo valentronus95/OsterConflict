@@ -84,5 +84,6 @@ req('HealthComponent->IsAlive()) && !bIsSprinting' in charcpp, 'server reload re
 req('CurrentWeapon && (!HealthComponent || HealthComponent->IsAlive())' in charcpp, 'server fire-mode mutation requires alive state')
 req('Candidate && HasClearLineOfSightTo(Bot, Candidate)' in ai, 'perceived AI targets are filtered by gameplay LOS/smoke')
 req('OCFragImpulseLOS' in gren and 'OcclusionHit.GetActor() != Actor' in gren, 'frag physics impulse respects blocking LOS')
-req(('R8 TARGET RULES FIX' in rt('START_HERE.cmd')) or ('R11 VISUAL FOUNDATION' in rt('START_HERE.cmd')),'current kit retains R7 logic/physics hardened baseline')
+start=rt('START_HERE.cmd')
+req(any(token in start for token in ['R13 CONTENT + GAMEPLAY PASS','R11 VISUAL FOUNDATION','R8 TARGET RULES FIX']),'current kit retains R7 logic/physics hardened baseline')
 print(f'R7 LOGIC/PHYSICS BASELINE: PASS ({len(checks)} checks)')
