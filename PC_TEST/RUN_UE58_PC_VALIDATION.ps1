@@ -160,7 +160,9 @@ try {
     }
 
     Add-Summary ''
-    Add-Summary ("RESULT: PASS for Mode=$Mode; every requested stage completed.")
+    $PassLine="RESULT: PASS for Mode=$Mode; every requested stage completed."
+    $Summary.Add($PassLine)
+    Write-Host $PassLine -ForegroundColor Yellow
 }
 catch {
     $FailureMessage=$_.Exception.Message
