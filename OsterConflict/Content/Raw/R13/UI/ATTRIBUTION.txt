@@ -1,1 +1,1 @@
-Oster museum exterior - Wikimedia Commons, Oster museum of local history. Primary file: "Будинок Солонини, Остер.JPG"; fallback: "Будинок і садиба генерал-лейтенанта В.К.Солонини в Острі.jpg". Preserve the selected file's author and license attribution from its Wikimedia Commons source page when distributing.
+Custom Oster Conflict menu artwork supplied locally for this project build.
