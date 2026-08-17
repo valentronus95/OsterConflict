@@ -8,6 +8,7 @@ required = [
     ROOT / ".gitignore",
     ROOT / "R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd",
     ROOT / "RUN_R11_LISTEN_TEST.cmd",
+    ROOT / "PC_TEST" / "CHECK_R13_LAUNCH_READY.ps1",
     PROJECT / "Scripts" / "R13" / "IMPORT_R13_CONTENT.py",
     PROJECT / "Config" / "DefaultGame.ini",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h",
@@ -26,6 +27,7 @@ if missing:
 ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 download = (ROOT / "R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd").read_text(encoding="utf-8")
 listen_test = (ROOT / "RUN_R11_LISTEN_TEST.cmd").read_text(encoding="utf-8")
+launch_ready = (ROOT / "PC_TEST" / "CHECK_R13_LAUNCH_READY.ps1").read_text(encoding="utf-8")
 import_script = (PROJECT / "Scripts" / "R13" / "IMPORT_R13_CONTENT.py").read_text(encoding="utf-8")
 packaging = (PROJECT / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
 vehicle = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h").read_text(encoding="utf-8")
@@ -48,10 +50,11 @@ checks = [
     ("Oster museum is the requested menu source", "Будинок Солонини, Остер.JPG" in download),
     ("content import creates current-state stamp", "R13_MUSEUM_WEAPONS_V2" in download),
     ("content importer rejects missing required assets", "runtime-required assets are missing" in import_script and "expected_assets" in import_script),
-    ("gameplay launcher refuses stale content", "R13 GAMEPLAY LAUNCH BLOCKED" in listen_test and "R13_MUSEUM_WEAPONS_V2" in listen_test),
-    ("gameplay launcher refuses stale C++ module", "R13 GAMEPLAY LAUNCH BLOCKED: C++ BUILD IS STALE" in listen_test and "LastWriteTimeUtc" in listen_test),
-    ("gameplay launcher checks weapon uassets", "R13_WEAPONS" in listen_test and "%%F.uasset" in listen_test),
-    ("gameplay launcher checks museum background uasset", "Oster_Menu_BG.uasset" in listen_test),
+    ("listen launcher delegates to strict readiness gate", "CHECK_R13_LAUNCH_READY.ps1" in listen_test and "READY_RC" in listen_test),
+    ("readiness gate refuses stale content", "R13 GAMEPLAY LAUNCH BLOCKED: REQUIRED ART IS MISSING OR STALE" in launch_ready and "R13_MUSEUM_WEAPONS_V2" in launch_ready),
+    ("readiness gate refuses stale C++ module", "R13 GAMEPLAY LAUNCH BLOCKED: C++ BUILD IS STALE" in launch_ready and "LastWriteTimeUtc" in launch_ready),
+    ("readiness gate checks weapon uassets", "WeaponRoot" in launch_ready and ".uasset" in launch_ready),
+    ("readiness gate checks museum background uasset", "Oster_Menu_BG.uasset" in launch_ready),
     ("museum accessibility subsystem is world-scoped", "UWorldSubsystem" in access_h and "OsterConflict_Runtime" in access_cpp),
     ("museum entrance step ordering is repaired", "-2240.0f + Step * 120.0f" in access_cpp and "UpdateInstanceTransform" in access_cpp),
     ("AR broken vertical recoil is disabled for R13", "T.RecoilPitchMin = 0.0f; T.RecoilPitchMax = 0.0f;" in weapon_variants),
