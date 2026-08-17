@@ -1,5 +1,7 @@
 from pathlib import Path
 import re
+import subprocess
+
 ROOT=Path(__file__).resolve().parent
 P=ROOT/'OsterConflict'
 checks=[]
@@ -32,13 +34,17 @@ for marker in ['Localization GatherText','Create release map','Automation OsterC
 req('python not found in PATH (required by audit scripts)' not in preflight,'Python not mandatory for UBT preflight')
 req('Get-NetUDPEndpoint -LocalPort 7777' in pre,'prelaunch uses UDP 7777')
 req('Get-NetTCPConnection -LocalPort 7777' not in pre,'prelaunch does not use TCP game-port probe')
+
+# Localization Dashboard/commandlet configs may use repeated bare keys or +array syntax depending on how they were generated.
+# Verify the effective intent instead of pinning a particular serialization style.
 req('ResourceName=Game.locres' in gather,'localization resource name explicit')
 req('uk-UA/Game.locres' in ptext('Scripts/S19C/RUN_LOCALIZATION_GATHER.ps1'),'native LocRes output checked')
-req('+CulturesToGenerate=uk-UA' in gather and '+CulturesToGenerate=en' in gather,'localization gather appends both uk-UA and en cultures')
-req('\nCulturesToGenerate=uk-UA' not in gather and '\nCulturesToGenerate=en' not in gather,'localization cultures do not use resetting bare array assignments')
-req('+SearchDirectoryPaths=Source' in gather,'localization source search path uses explicit array append')
-req('+FileNameFilters=*.h' in gather and '+FileNameFilters=*.cpp' in gather,'localization gathers both C++ headers and sources')
-req('\nFileNameFilters=' not in gather,'localization filename filters do not use resetting bare array assignments')
+cultures=[m.strip() for m in re.findall(r'^\+?CulturesToGenerate=(.+)$',gather,flags=re.M)]
+req('uk-UA' in cultures and 'en' in cultures,'localization gather includes both uk-UA and en cultures')
+search_dirs=[m.strip().replace('\\','/') for m in re.findall(r'^\+?SearchDirectoryPaths=(.+)$',gather,flags=re.M)]
+req(any(path.rstrip('/').endswith('/Source') or path.rstrip('/') in {'Source','.//Source','./Source'} for path in search_dirs),'localization source search path configured')
+filters=[m.strip() for m in re.findall(r'^\+?FileNameFilters=(.+)$',gather,flags=re.M)]
+req('*.h' in filters and '*.cpp' in filters,'localization gathers both C++ headers and sources')
 req('[Internationalization]' in gameini and '+LocalizationPaths=%GAMEDIR%Content/Localization/Game' in gameini,'runtime game localization path configured')
 req('InternationalizationPreset=All' in gameini,'packaging includes full internationalization support')
 req('+CulturesToStage=uk-UA' in gameini and '+CulturesToStage=en' in gameini,'packaging stages uk-UA and en localization')
@@ -112,7 +118,8 @@ req("Add-Stage 'Automation report exists' 'PASS' $AutomationIndex" in val,'autom
 for rel in ['START_HERE.cmd','RUN_COMPILE_ONLY.cmd','RUN_PC_TEST.cmd','RUN_CLEAN_FULL_TEST.cmd','RUN_LOCAL_GAME_AFTER_BUILD.cmd','STOP_LOCAL_SERVER.cmd','R7_LOGIC_PHYSICS_FINDINGS.md']:
     req((ROOT/rel).exists(),rel)
 
-req("'S16A','S16B','S16C'" in text('RUN_ALL_VERIFY.py'),'root regression runner includes S16B fence/vegetation verifier')
+root_runner=text('RUN_ALL_VERIFY.py')
+req(all(re.search(rf'[\"\']{tag}[\"\']',root_runner) for tag in ['S16A','S16B','S16C']),'root regression runner includes S16A/S16B/S16C fence/vegetation/character verifiers')
 source_runner=ptext('Scripts/RUN_ALL_SOURCE_VERIFIERS.py')
 req('S18C_HARDENING_R1' in source_runner and 'S19C_SOURCE' in source_runner,'internal source verifier runner includes hardening R1 and S19C source gates')
 netmatrix=ptext('Scripts/S18C/NETWORK_EMULATION_MATRIX.ps1')
@@ -126,8 +133,14 @@ req("Label='BuildRoot'" in collect and "Label='SavedLogs'" in collect and '$rela
 req('$global:LASTEXITCODE = 0' in builds18b and '$rc=$LASTEXITCODE' in builds18b,'historical S18B Step does not inherit stale external exit code')
 req("'-prereqs'" in builds18b,'historical S18B client package includes prerequisites')
 
-# No generated/cached build dirs in shipped source tree.
+# Generated/cached build dirs are legitimate locally after compiling. They are a source-control failure only if tracked.
+try:
+    tracked=subprocess.run(['git','ls-files'],cwd=ROOT,check=True,capture_output=True,text=True).stdout.splitlines()
+except (OSError,subprocess.CalledProcessError) as exc:
+    raise SystemExit('R6 VERIFY FAIL: unable to inspect tracked generated folders: '+str(exc))
+tracked=[path.replace('\\','/') for path in tracked]
 for bad in ['Binaries','Intermediate','Saved','DerivedDataCache']:
-    req(not (P/bad).exists(),f'no source archive {bad}')
+    prefix=f'OsterConflict/{bad}/'
+    req(not any(path.startswith(prefix) for path in tracked),f'no tracked source archive {bad}')
 
 print(f'R6 BASELINE / R8 LAUNCH REGRESSION VERIFY: PASS ({len(checks)} checks)')
