@@ -13,14 +13,23 @@ namespace
     {
         switch (WeaponClass)
         {
-            case EOCWeaponClass::Pistol:       return TEXT("/Game/R13/Weapons/pistol.pistol");
-            case EOCWeaponClass::SMG:          return TEXT("/Game/R13/Weapons/uzi.uzi");
-            case EOCWeaponClass::SniperRifle:  return TEXT("/Game/R13/Weapons/sniper.sniper");
-            case EOCWeaponClass::Shotgun:      return TEXT("/Game/R13/Weapons/shotgun.shotgun");
-            case EOCWeaponClass::Launcher:     return TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern");
-            case EOCWeaponClass::LMG:          return TEXT("/Game/R13/Weapons/machinegun.machinegun");
+            case EOCWeaponClass::Pistol:
+                return TEXT("/Game/R13/Weapons/Stein/1911/SKM_1911.SKM_1911");
+            case EOCWeaponClass::SMG:
+                return TEXT("/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5");
+            case EOCWeaponClass::SniperRifle:
+                return TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700");
+            case EOCWeaponClass::Shotgun:
+                return TEXT("/Game/R13/Weapons/shotgun.shotgun");
+            case EOCWeaponClass::Launcher:
+                return TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern");
+            case EOCWeaponClass::LMG:
+                return TEXT("/Game/R13/Weapons/machinegun.machinegun");
             case EOCWeaponClass::AssaultRifle:
-            default:                           return TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47");
+            default:
+                // Keep the already-proven Fab AK presentation for the primary rifle. The Stein AK is imported and
+                // ready for a later explicit variant instead of replacing a working asset merely because it exists.
+                return TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47");
         }
     }
 
@@ -40,6 +49,12 @@ namespace
         return nullptr;
     }
 
+    bool IsSteinMesh(const UStaticMeshComponent* MainMesh)
+    {
+        const UStaticMesh* Mesh = MainMesh ? MainMesh->GetStaticMesh() : nullptr;
+        return Mesh && Mesh->GetName().StartsWith(TEXT("SKM_"));
+    }
+
     void ApplyImportedTransform(UStaticMeshComponent* MainMesh, EOCWeaponClass WeaponClass, bool bWorldPickup)
     {
         if (!MainMesh) return;
@@ -49,7 +64,6 @@ namespace
         if (WeaponClass == EOCWeaponClass::AssaultRifle)
         {
             // The Fab AK long axis is Y while the project weapon attach convention is X-forward.
-            // Rotate the barrel into camera-forward space. A dropped AK is additionally rolled onto its side.
             MainMesh->SetRelativeRotation(bWorldPickup
                 ? FRotator(0.0f, -90.0f, 90.0f)
                 : FRotator(0.0f, -90.0f, 0.0f));
@@ -57,18 +71,19 @@ namespace
             return;
         }
 
-        if (WeaponClass == EOCWeaponClass::Pistol)
+        if (IsSteinMesh(MainMesh))
         {
-            // Remove the old 90-degree roll which made the temporary pistol stand vertically in first person.
-            // Keep it deliberately smaller until a production pistol asset replaces this bridge mesh.
+            // Stein FBX meshes are imported through UE's static-mesh FBX pipeline in project units. Do not apply
+            // the old metre-scale Kenney x72/x100 compensation which was responsible for the distorted pistol.
+            // Keep authored orientation for first-person calibration; dropped copies are rolled onto their side.
             MainMesh->SetRelativeRotation(bWorldPickup
-                ? FRotator(0.0f, 90.0f, 90.0f)
-                : FRotator(0.0f, 90.0f, 0.0f));
-            MainMesh->SetRelativeScale3D(FVector(72.0f));
+                ? FRotator(0.0f, 0.0f, 90.0f)
+                : FRotator::ZeroRotator);
+            MainMesh->SetRelativeScale3D(FVector(1.0f));
             return;
         }
 
-        // Older R13 placeholder source geometry is metre-scale with Y-up.
+        // Remaining Kenney fallback source geometry is metre-scale with Y-up.
         MainMesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
         MainMesh->SetRelativeScale3D(FVector(100.0f));
     }
@@ -131,7 +146,6 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
         }
         else
         {
-            // Hide the old source-only receiver/barrel/stock primitive silhouette once imported art exists.
             Component->SetVisibility(false, true);
             Component->SetHiddenInGame(true, true);
             Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -161,13 +175,10 @@ void UOCR13WeaponArtSubsystem::RepairPresentation(AOCWeaponBase* Weapon)
 
     if (!bWorldPickup)
     {
-        // Equipped/stored weapons must never block the owning character or camera.
         MainMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         return;
     }
 
-    // World pickups need a visibility query so the interaction trace can hit them, but they are grounded
-    // explicitly instead of letting a child mesh simulate physics independently from the replicated actor root.
     MainMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     MainMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
     MainMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -189,8 +200,6 @@ void UOCR13WeaponArtSubsystem::RepairPresentation(AOCWeaponBase* Weapon)
             Weapon->SetActorLocation(FVector(Current.X, Current.Y, TargetZ), false, nullptr, ETeleportType::TeleportPhysics);
         }
 
-        // Do not preserve camera pitch/roll from the instant the item was dropped. That was the source of
-        // rifles hanging diagonally in mid-air. Keep only heading; the mesh itself is rolled onto the ground.
         const FRotator CurrentRotation = Weapon->GetActorRotation();
         if (!FMath::IsNearlyZero(CurrentRotation.Pitch, 0.5f) || !FMath::IsNearlyZero(CurrentRotation.Roll, 0.5f))
         {
