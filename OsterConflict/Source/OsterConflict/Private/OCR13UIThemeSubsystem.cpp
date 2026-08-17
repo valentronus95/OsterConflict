@@ -126,6 +126,24 @@ namespace
         Combo->SetItemStyle(RowStyle);
     }
 
+    void ThemeCheckBox(UCheckBox* Check)
+    {
+        if (!Check) return;
+
+        FCheckBoxStyle Style = Check->GetWidgetStyle();
+        Style.ForegroundColor = FSlateColor(ThemeText);
+        Style.HoveredForeground = FSlateColor(ThemeText);
+        Style.PressedForeground = FSlateColor(ThemeText);
+        Style.CheckedForeground = FSlateColor(ThemeAccent);
+        Style.CheckedHoveredForeground = FSlateColor(ThemeAccent);
+        Style.CheckedPressedForeground = FSlateColor(ThemeAccent);
+        Style.UncheckedImage.TintColor = FSlateColor(FLinearColor(0.20f, 0.21f, 0.21f, 1.0f));
+        Style.UncheckedHoveredImage.TintColor = FSlateColor(ThemeControlHover);
+        Style.CheckedImage.TintColor = FSlateColor(ThemeAccent);
+        Style.CheckedHoveredImage.TintColor = FSlateColor(ThemeAccent);
+        Check->SetWidgetStyle(Style);
+    }
+
     void ThemeFrontendTree(UWidget* Widget)
     {
         if (!Widget) return;
@@ -302,9 +320,6 @@ void UOCR13UIThemeSubsystem::ApplyTheme(UOCGameUIRootWidget* Root, AOCPlayerCont
     {
         if (MenuPanel->GetVisibility() != ESlateVisibility::Collapsed)
         {
-            // Preserve the dedicated frontend button style from the menu specification.
-            // Only text/entry fields are normalized here so the legacy runtime layer can no longer
-            // turn the five main actions into opaque grey blocks.
             ThemeFrontendTree(MenuPanel->GetContent());
         }
     }
@@ -338,7 +353,7 @@ void UOCR13UIThemeSubsystem::ThemeWidgetTree(UWidget* Widget)
     }
     else if (UCheckBox* Check = Cast<UCheckBox>(Widget))
     {
-        Check->SetForegroundColor(FSlateColor(ThemeAccent));
+        ThemeCheckBox(Check);
     }
 
     if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
