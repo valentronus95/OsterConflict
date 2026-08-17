@@ -14,6 +14,11 @@ required = [
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCUIRuntimePolishSubsystem.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCCharacterVisualComponent.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCCivilianVehicle.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCPickupGunTruck.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCBTR.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCVisualEnvironment.cpp",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13AccessibilitySubsystem.h",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13AccessibilitySubsystem.cpp",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp",
@@ -33,6 +38,11 @@ packaging = (PROJECT / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
 vehicle = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCVehicleBase.h").read_text(encoding="utf-8")
 ui_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCUIRuntimePolishSubsystem.h").read_text(encoding="utf-8")
 ui_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCUIRuntimePolishSubsystem.cpp").read_text(encoding="utf-8")
+character_visual = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCCharacterVisualComponent.cpp").read_text(encoding="utf-8")
+civilian = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCCivilianVehicle.cpp").read_text(encoding="utf-8")
+pickup = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCPickupGunTruck.cpp").read_text(encoding="utf-8")
+btr = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCBTR.cpp").read_text(encoding="utf-8")
+environment = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCVisualEnvironment.cpp").read_text(encoding="utf-8")
 access_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13AccessibilitySubsystem.h").read_text(encoding="utf-8")
 access_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13AccessibilitySubsystem.cpp").read_text(encoding="utf-8")
 weapon_variants = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp").read_text(encoding="utf-8")
@@ -47,6 +57,15 @@ checks = [
     ("pause menu has leave-game action", "LeaveCurrentSession" in ui_h and "LeaveCurrentSession" in ui_cpp),
     ("pause leave button disconnects through controller", "PC->DisconnectFromServer();" in ui_cpp),
     ("pause menu explains Escape resume", "ESC = ПРОДОВЖИТИ" in ui_cpp),
+    ("player-facing frontend has five top-level actions", all(marker in ui_cpp for marker in ["MainStart", "MainLocal", "MainNetwork", "MainSettings", "MainQuit"])),
+    ("frontend uses full-screen Oster museum backdrop", "FullscreenMenuBackground" in ui_h and "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG" in ui_cpp and "1600.0f, 900.0f" in ui_cpp),
+    ("listen gameplay test starts through frontend", " -Frontend " in listen_test and "-NoFrontend" not in listen_test),
+    ("driver turret mapping no longer steals free-look", 'ContextName == TEXT("IMC_DriverTurretRuntime")' in ui_cpp and "RemoveMappingContext(Context)" in ui_cpp),
+    ("primitive first-person proxy hands are hidden", "Never expose primitive debug arms/hands in first person" in character_visual and "Part->SetVisibility(false, true);" in character_visual),
+    ("civilian road speed is capped near 90 km/h", "MaxForwardSpeedKmh = 90.0f;" in civilian and "DriveForce = 1200000.0f;" in civilian),
+    ("pickup road speed is 90 km/h", "MaxForwardSpeedKmh = 90.0f;" in pickup and "DriveForce = 1600000.0f;" in pickup),
+    ("BTR clears 40 km/h with stronger steering", "MaxForwardSpeedKmh = 65.0f;" in btr and "SteeringTorque = 310000000.0f;" in btr),
+    ("daylight atmosphere no longer uses amber-heavy scattering", "SetRayleighScatteringScale(1.0f)" in environment and "SetMieScatteringScale(0.004f)" in environment and "SetLightColor(FLinearColor::White)" in environment),
     ("Oster museum is the requested menu source", "Будинок Солонини, Остер.JPG" in download),
     ("content import creates current-state stamp", "R13_MUSEUM_WEAPONS_V2" in download),
     ("content importer rejects missing required assets", "runtime-required assets are missing" in import_script and "expected_assets" in import_script),
