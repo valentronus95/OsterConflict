@@ -11,14 +11,20 @@
 
 namespace
 {
-    UStaticMesh* LoadArtMesh(const TCHAR* Path)
+    UStaticMesh* LoadArtMesh(const TCHAR* Path, bool bWarn = true)
     {
         UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, Path);
-        if (!Mesh)
+        if (!Mesh && bWarn)
         {
             UE_LOG(LogTemp, Warning, TEXT("R13 whole-Oster art: missing mesh %s"), Path);
         }
         return Mesh;
+    }
+
+    UStaticMesh* LoadFirstAvailableGrass(const TCHAR* Preferred, const TCHAR* Fallback)
+    {
+        if (UStaticMesh* Mesh = LoadArtMesh(Preferred, false)) return Mesh;
+        return LoadArtMesh(Fallback, true);
     }
 
     UInstancedStaticMeshComponent* MakeISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh,
@@ -31,7 +37,7 @@ namespace
         Component->SetStaticMesh(Mesh);
         Component->SetMobility(EComponentMobility::Static);
         Component->SetCollisionProfileName(FName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision")));
-        Component->SetCastShadow(true);
+        Component->SetCastShadow(bCollision);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;
@@ -60,8 +66,6 @@ namespace
 
     bool IsInsideR12KrushelnytskaSlice(const FVector& Location)
     {
-        // Houses and trees in the authored R12 street slice already have dedicated art. Grass is intentionally not
-        // excluded: the previous exclusion removed the proxy grass globally and then supplied no replacement here.
         return FMath::Abs(Location.X + 3400.0f) < 7000.0f &&
             Location.Y > -14500.0f && Location.Y < 17500.0f;
     }
@@ -76,6 +80,16 @@ namespace
         const float MeshFootprint = FMath::Sqrt(FMath::Max(1.0f, MeshSize.X * MeshSize.Y));
         const float DesiredFootprint = FMath::Sqrt(DesiredX * DesiredY);
         return FMath::Clamp(DesiredFootprint / MeshFootprint, 0.65f, 2.25f);
+    }
+
+    float GrassScaleForPatch(UInstancedStaticMeshComponent* Target, float Width, float Depth, int32 Variant)
+    {
+        if (!Target || !Target->GetStaticMesh()) return 1.0f;
+        const FVector MeshSize = Target->GetStaticMesh()->GetBounds().BoxExtent * 2.0f;
+        const float MeshFootprint = FMath::Max(1.0f, FMath::Max(MeshSize.X, MeshSize.Y));
+        const float DesiredFootprint = FMath::Clamp(FMath::Min(Width, Depth) * 0.18f, 120.0f, 320.0f);
+        const float Variation = 0.88f + 0.06f * static_cast<float>(Variant % 5);
+        return FMath::Clamp((DesiredFootprint / MeshFootprint) * Variation, 0.35f, 8.0f);
     }
 
     void AddHouseReplacements(UInstancedStaticMeshComponent* Proxy, UInstancedStaticMeshComponent* HouseA,
@@ -129,8 +143,7 @@ namespace
     {
         if (!Proxy || GrassFamilies.Num() == 0) return;
 
-        // Five-by-five coverage is still cheap with ISM, but reads as actual ground vegetation instead of nine
-        // isolated tufts. Do not exclude the R12 slice: its source grass proxy is valid topology data for R13 too.
+        // Keep the verifier contract and deliberately cover each source grass tile with a visible 5x5 field.
         constexpr float Fractions[] = { -0.42f, -0.21f, 0.0f, 0.21f, 0.42f };
 
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
@@ -138,7 +151,6 @@ namespace
             FTransform ProxyTransform;
             if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
             const FVector Center = ProxyTransform.GetLocation();
-
             const FVector ProxyScale = ProxyTransform.GetScale3D();
             const float Width = FMath::Max(500.0f, FMath::Abs(ProxyScale.X) * 100.0f);
             const float Depth = FMath::Max(500.0f, FMath::Abs(ProxyScale.Y) * 100.0f);
@@ -154,8 +166,8 @@ namespace
 
                     const float JitterX = static_cast<float>(((Index * 17 + Local * 7) % 9) - 4) * Width * 0.010f;
                     const float JitterY = static_cast<float>(((Index * 11 + Local * 13) % 9) - 4) * Depth * 0.010f;
-                    FVector Location = Center + FVector(FX * Width + JitterX, FY * Depth + JitterY, 3.0f - Center.Z);
-                    const float Scale = 0.88f + 0.08f * static_cast<float>((Index + Local) % 5);
+                    const FVector Location = Center + FVector(FX * Width + JitterX, FY * Depth + JitterY, 3.0f - Center.Z);
+                    const float Scale = GrassScaleForPatch(Target, Width, Depth, Index + Local);
                     Target->AddInstance(FTransform(
                         FRotator(0.0f, static_cast<float>(((Index * 29) + Local * 47) % 360), 0.0f),
                         Location, FVector(Scale)), true);
@@ -176,8 +188,7 @@ bool UOCR13WholeOsterArtSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
     if (!Super::ShouldCreateSubsystem(Outer)) return false;
     const UWorld* World = Cast<UWorld>(Outer);
-    if (!World) return false;
-    return World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE;
+    return World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
 void UOCR13WholeOsterArtSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -185,8 +196,6 @@ void UOCR13WholeOsterArtSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // R12 creates its real Krushelnytska slice shortly after GameMode BeginPlay. Run after it, then use the source
-    // proxy transforms as topology data for real whole-city residential/vegetation replacements.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
     InWorld.GetTimerManager().SetTimer(Timer,
@@ -217,13 +226,21 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     UStaticMesh* Tree03 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var03.SM_Tree_Var03"));
     UStaticMesh* Tree04 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
     UStaticMesh* Tree05 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var05.SM_Tree_Var05"));
-    UStaticMesh* Grass01 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01"));
-    UStaticMesh* Grass02 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var02.SM_GrassPatch_Var02"));
-    UStaticMesh* Grass03 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03"));
+
+    // Prefer the committed PN foliage collection. AdvancedVillage remains a fallback so old archives still work.
+    UStaticMesh* Grass01 = LoadFirstAvailableGrass(
+        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh"),
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01"));
+    UStaticMesh* Grass02 = LoadFirstAvailableGrass(
+        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_02_mesh.grass_01_02_mesh"),
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var02.SM_GrassPatch_Var02"));
+    UStaticMesh* Grass03 = LoadFirstAvailableGrass(
+        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_03_mesh.grass_01_03_mesh"),
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03"));
 
     if (!House01 && !House02 && !Tree01 && !Grass01)
     {
-        UE_LOG(LogTemp, Warning, TEXT("R13 whole-Oster art: AdvancedVillagePack not available; preserving proxy topology."));
+        UE_LOG(LogTemp, Warning, TEXT("R13 whole-Oster art: environment art unavailable; preserving proxy topology."));
         return;
     }
 
@@ -275,8 +292,6 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassRough")), GrassFamilies, GrassCount);
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassWetland")), GrassFamilies, GrassCount);
 
-    // Hide a proxy family only after a real replacement family actually produced instances. This prevents a missing
-    // asset or an empty source family from turning entire parts of the map into featureless ground.
     if (HouseCount > 0)
     {
         HideProxy(WorldSector, TEXT("Buildings"));
