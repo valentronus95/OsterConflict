@@ -14,6 +14,7 @@ __pycache__/
 *$py.class
 
 PC_TEST/TEST_RESULTS/
+PC_TEST/R13_IMPORT_LAST.log
 .source_verify_hold/
 OsterConflict/Content/Raw/R13/R13_IMPORT_STATE.txt
 
