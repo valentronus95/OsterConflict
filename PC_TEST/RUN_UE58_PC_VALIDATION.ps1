@@ -172,9 +172,12 @@ catch {
 finally {
     $StageResults | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 (Join-Path $ResultsRoot 'STAGES.json')
     $Summary | Set-Content -Encoding UTF8 (Join-Path $ResultsRoot 'SUMMARY.txt')
+    $Succeeded=[string]::IsNullOrEmpty($FailureMessage)
+    $FailedStage=''
+    if(-not $Succeeded){ $FailedStage=$CurrentStage }
     $result=[pscustomobject]@{
         timestamp=$Stamp; mode=$Mode; ue_root=$UERoot; project=$Project;
-        success=[string]::IsNullOrEmpty($FailureMessage); failed_stage=$CurrentStage; error=$FailureMessage;
+        success=$Succeeded; failed_stage=$FailedStage; error=$FailureMessage;
         stages=$StageResults
     }
     $result | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 (Join-Path $ResultsRoot 'RESULT.json')
