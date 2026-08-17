@@ -54,9 +54,12 @@ private:
     TWeakObjectPtr<UBorder> WorldBlocker;
     TWeakObjectPtr<UImage> MenuBackground;
     TWeakObjectPtr<UBorder> MenuShade;
+    TArray<TWeakObjectPtr<UBorder>> MenuGradientLayers;
     TWeakObjectPtr<UBorder> MenuPanel;
 
     TWeakObjectPtr<UVerticalBox> MenuBox;
+    TWeakObjectPtr<UTextBlock> BrandOsterText;
+    TWeakObjectPtr<UTextBlock> BrandConflictText;
     TWeakObjectPtr<UTextBlock> TitleText;
     TWeakObjectPtr<UTextBlock> SubtitleText;
     TWeakObjectPtr<UVerticalBox> FieldsBox;
