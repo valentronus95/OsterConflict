@@ -31,6 +31,12 @@ checks = [
     ("validation derives success from failure message", "$Succeeded=[string]::IsNullOrEmpty($FailureMessage)" in validation),
     ("validation clears failed stage on success", "$FailedStage=''" in validation),
     ("validation only fills failed stage on failure", "if(-not $Succeeded){ $FailedStage=$CurrentStage }" in validation),
+    ("static verifier is documented as required quality gate", "Source verifiers are a required quality gate whenever Python is available." in validation),
+    ("static verifier failure is a FAIL stage", "Add-Stage 'Static verifier suite' 'FAIL'" in validation),
+    ("static verifier failure aborts validation", 'throw "Static verifier suite failed with exit code $rc"' in validation),
+    ("static verifier no longer degrades failure to warning", "Add-Stage 'Static verifier suite' 'WARN'" not in validation),
+    ("installed UE skips missing project-file generator", "elseif($InstalledBuild)" in validation and "Launcher/installed UE build; direct UBT does not require GenerateProjectFiles.bat." in validation),
+    ("source UE still warns when project-file generator is unexpectedly missing", "GenerateProjectFiles.bat not found; continuing with direct UBT." in validation),
 ]
 
 failed = [name for name, ok in checks if not ok]
