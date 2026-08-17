@@ -5,6 +5,7 @@
 #include "OCUIRuntimePolishSubsystem.generated.h"
 
 class APawn;
+class UButton;
 
 /**
  * R12 runtime presentation/QA polish for the source-built interface.
@@ -28,5 +29,9 @@ public:
     virtual TStatId GetStatId() const override;
 
 private:
+    UFUNCTION()
+    void LeaveCurrentSession();
+
     TWeakObjectPtr<APawn> LastLocalPawn;
+    TWeakObjectPtr<UButton> BoundPauseLeaveButton;
 };
