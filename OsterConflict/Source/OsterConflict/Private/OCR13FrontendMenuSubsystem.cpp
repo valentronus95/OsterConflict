@@ -17,6 +17,7 @@
 #include "Components/Widget.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerInput.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Styling/SlateTypes.h"
 
@@ -58,7 +59,8 @@ namespace
         Size->SetWidthOverride(430.0f);
         Text->SetJustification(ETextJustify::Center);
         R13FrontendApplyTypeface(Text, FName(TEXT("Regular")), 45);
-        Button->SetIsFocusable(true);
+        // UButton has no public SetIsFocusable() in UE 5.8. IsFocusable is the public interaction property.
+        Button->IsFocusable = true;
         Button->AddChild(Text);
         Size->SetContent(Button);
 
@@ -653,6 +655,10 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC || !MenuBox.IsValid()) return;
 
+    // This function runs from Tick while the menu is visible. IgnoreMove/Look are stack based,
+    // so clear the prior state before applying the single menu lock instead of stacking every frame.
+    PC->ResetIgnoreMoveInput();
+    PC->ResetIgnoreLookInput();
     PC->SetIgnoreMoveInput(true);
     PC->SetIgnoreLookInput(true);
     PC->bShowMouseCursor = true;
@@ -661,7 +667,11 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
 
     FInputModeUIOnly Mode;
     Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-    Mode.SetWidgetToFocus(MenuBox->TakeWidget());
+    // Never focus the VerticalBox. It is not focusable and was causing SVerticalBox focus spam.
+    if (PrimaryButton.IsValid())
+    {
+        Mode.SetWidgetToFocus(PrimaryButton->TakeWidget());
+    }
     PC->SetInputMode(Mode);
 }
 
@@ -670,11 +680,15 @@ void UOCR13FrontendMenuSubsystem::ReleaseMenuInput()
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC) return;
 
-    PC->SetIgnoreMoveInput(false);
-    PC->SetIgnoreLookInput(false);
+    PC->ResetIgnoreMoveInput();
+    PC->ResetIgnoreLookInput();
     PC->bShowMouseCursor = false;
     PC->bEnableClickEvents = false;
     PC->bEnableMouseOverEvents = false;
+    if (PC->PlayerInput)
+    {
+        PC->PlayerInput->FlushPressedKeys();
+    }
 
     FInputModeGameOnly Mode;
     PC->SetInputMode(Mode);
