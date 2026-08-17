@@ -10,6 +10,7 @@ Plugins/**/Intermediate/
 
 PC_TEST/TEST_RESULTS/
 .source_verify_hold/
+OsterConflict/Content/Raw/R13/R13_IMPORT_STATE.txt
 
 # Full validation generates localization catalogs/resources for staging. They are build evidence,
 # not hand-authored source in the current prototype workflow.
