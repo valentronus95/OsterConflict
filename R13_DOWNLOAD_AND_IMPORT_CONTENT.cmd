@@ -71,10 +71,10 @@ curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/snd_th
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/dull_explosion.wav" -o "%AUDIO%\dull_explosion.wav" || goto :fail
 >"%AUDIO%\LICENSES.txt" echo Combat audio sources are CC0. Gunfire: iamoneabe / OpenGameArt. Reloads: SpringySpringo / OpenGameArt. Impact/throw/explosion: Spring Spring / OpenGameArt.
 
- echo [4/5] Downloading real Oster menu background from Wikimedia Commons...
-curl.exe -L --fail --retry 2 "https://commons.wikimedia.org/wiki/Special:Redirect/file/Oster_2.jpg" -o "%UI%\Oster_Menu_BG.jpg"
+ echo [4/5] Downloading Oster local-history museum exterior for the menu background...
+curl.exe -L --fail --retry 2 "https://commons.wikimedia.org/wiki/Special:Redirect/file/%D0%91%D1%83%D0%B4%D0%B8%D0%BD%D0%BE%D0%BA%20%D0%A1%D0%BE%D0%BB%D0%BE%D0%BD%D0%B8%D0%BD%D0%B8%2C%20%D0%9E%D1%81%D1%82%D0%B5%D1%80.JPG" -o "%UI%\Oster_Menu_BG.jpg"
 if errorlevel 1 goto :fail
->"%UI%\ATTRIBUTION.txt" echo Oster 2.jpg - riverbank of the Oster River, author Barow, Wikimedia Commons, CC BY-SA 4.0. Source: https://commons.wikimedia.org/wiki/File:Oster_2.jpg
+>"%UI%\ATTRIBUTION.txt" echo Oster museum exterior - Wikimedia Commons file "Будинок Солонини, Остер.JPG". Preserve author and license attribution from the Wikimedia Commons source page when distributing.
 
  echo [5/5] Importing R13 assets into Unreal...
 "%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output
