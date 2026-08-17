@@ -8,6 +8,8 @@ DerivedDataCache/
 Plugins/**/Binaries/
 Plugins/**/Intermediate/
 
+PC_TEST/TEST_RESULTS/
+
 *.sln
 *.suo
 *.VC.db
