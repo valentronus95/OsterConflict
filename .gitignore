@@ -8,6 +8,11 @@ DerivedDataCache/
 Plugins/**/Binaries/
 Plugins/**/Intermediate/
 
+# Python verifier/importer bytecode caches are local generated artifacts.
+__pycache__/
+*.py[cod]
+*$py.class
+
 PC_TEST/TEST_RESULTS/
 .source_verify_hold/
 OsterConflict/Content/Raw/R13/R13_IMPORT_STATE.txt
