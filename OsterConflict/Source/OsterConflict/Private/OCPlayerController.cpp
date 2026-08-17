@@ -6,6 +6,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerState.h"
+#include "GameFramework/PlayerInput.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
@@ -165,20 +166,34 @@ void AOCPlayerController::CreateRichUI()
 void AOCPlayerController::ApplyUIInputMode()
 {
     if (!IsLocalController()) return;
+
     const bool bNeedsUI = bFrontendMenuVisible || bDeploymentPanelVisible || bAdminPanelVisible || bChatInputActive || bSettingsVisible;
-    SetIgnoreMoveInput(bNeedsUI);
-    SetIgnoreLookInput(bNeedsUI);
-    bShowMouseCursor = bNeedsUI;
+
+    // SetIgnoreMoveInput / SetIgnoreLookInput are stack based. ApplyUIInputMode can be
+    // called repeatedly while a menu is open, so always clear the accumulated stack
+    // before applying the single state that is actually required now.
+    ResetIgnoreMoveInput();
+    ResetIgnoreLookInput();
+
     if (bNeedsUI)
     {
+        SetIgnoreMoveInput(true);
+        SetIgnoreLookInput(true);
+        bShowMouseCursor = true;
+
         FInputModeGameAndUI Mode;
         Mode.SetHideCursorDuringCapture(false);
         SetInputMode(Mode);
+        return;
     }
-    else
+
+    // Returning from Escape/settings/chat must restore a clean gameplay input state.
+    bShowMouseCursor = false;
+    if (PlayerInput)
     {
-        SetInputMode(FInputModeGameOnly());
+        PlayerInput->FlushPressedKeys();
     }
+    SetInputMode(FInputModeGameOnly());
 }
 
 void AOCPlayerController::ApplyDeploymentInputLock()
