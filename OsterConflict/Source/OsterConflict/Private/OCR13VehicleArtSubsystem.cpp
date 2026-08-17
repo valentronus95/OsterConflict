@@ -5,6 +5,7 @@
 #include "OCPickupGunTruck.h"
 #include "OCVehicleBase.h"
 
+#include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -19,6 +20,18 @@ namespace
         TInlineComponentArray<UStaticMeshComponent*> Components;
         Actor->GetComponents(Components);
         for (UStaticMeshComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == Name) return Component;
+        }
+        return nullptr;
+    }
+
+    UCameraComponent* FindCameraComponent(AActor* Actor, const FName Name)
+    {
+        if (!Actor) return nullptr;
+        TInlineComponentArray<UCameraComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UCameraComponent* Component : Components)
         {
             if (Component && Component->GetFName() == Name) return Component;
         }
@@ -90,8 +103,6 @@ namespace
                 return LoadObject<UStaticMesh>(nullptr,
                     TEXT("/Game/VehicleVarietyPack/Meshes/SM_Hatchback.SM_Hatchback"));
             case EOCCivilianVehicleStyle::Sedan:
-                // The pack has no generic sedan static mesh. The SUV gives the sedan slot a complete textured
-                // road-vehicle silhouette until a dedicated Oster-era sedan is selected.
                 return LoadObject<UStaticMesh>(nullptr,
                     TEXT("/Game/VehicleVarietyPack/Meshes/SM_SUV.SM_SUV"));
             case EOCCivilianVehicleStyle::Wagon:
@@ -113,8 +124,6 @@ namespace
         const FVector TargetSize = PhysicsBody->GetUnscaledBoxExtent() * 2.0f;
         if (MeshSize.X <= KINDA_SMALL_NUMBER || MeshSize.Y <= KINDA_SMALL_NUMBER) return;
 
-        // Fit by footprint instead of height so real wheels/body proportions remain intact. The authoritative box
-        // continues to handle collisions, while the visual mesh keeps its authored aspect ratio.
         const float ScaleX = TargetSize.X / MeshSize.X;
         const float ScaleY = TargetSize.Y / MeshSize.Y;
         const float UniformScale = FMath::Clamp(FMath::Min(ScaleX, ScaleY), 0.20f, 5.0f);
@@ -126,6 +135,34 @@ namespace
         Chassis->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Chassis->SetHiddenInGame(false, true);
         Chassis->SetVisibility(true, true);
+    }
+
+    void RepairDriverCockpit(AOCVehicleBase* Vehicle)
+    {
+        if (!Vehicle || Cast<AOCBTR>(Vehicle)) return;
+
+        UCameraComponent* InteriorCamera = FindCameraComponent(Vehicle, TEXT("InteriorCamera"));
+        if (!InteriorCamera) return;
+
+        // Place the camera at a driver's head position behind the authored dashboard rather than near the front of
+        // the visual body. A slightly narrower FOV also stops the road-vehicle shell from reading like a bumper cam.
+        InteriorCamera->SetRelativeLocation(FVector(34.0f, -43.0f, 70.0f));
+        InteriorCamera->SetRelativeRotation(FRotator::ZeroRotator);
+        InteriorCamera->SetFieldOfView(82.0f);
+
+        const bool bCockpitView = InteriorCamera->IsActive();
+        const FName CockpitNames[] = { TEXT("Dashboard"), TEXT("SteeringWheel") };
+        for (const FName Name : CockpitNames)
+        {
+            if (UStaticMeshComponent* Component = FindStaticMeshComponent(Vehicle, Name))
+            {
+                // The imported road meshes provide the exterior. These two simple interior reference parts are only
+                // visible from the driver's camera so first person has a dashboard/wheel instead of floating in air.
+                Component->SetHiddenInGame(!bCockpitView, true);
+                Component->SetVisibility(bCockpitView, true);
+                Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            }
+        }
     }
 }
 
@@ -142,14 +179,20 @@ void UOCR13VehicleArtSubsystem::Tick(float DeltaTime)
     if (!World) return;
 
     ScanAccumulator += DeltaTime;
-    if (ScanAccumulator < 0.50f) return;
+    if (ScanAccumulator < 0.20f) return;
     ScanAccumulator = 0.0f;
 
     for (TActorIterator<AOCVehicleBase> It(World); It; ++It)
     {
         AOCVehicleBase* Vehicle = *It;
-        if (!Vehicle || ProcessedVehicles.Contains(Vehicle)) continue;
-        TryApplyVehicleArt(Vehicle);
+        if (!Vehicle) continue;
+
+        if (!ProcessedVehicles.Contains(Vehicle))
+        {
+            TryApplyVehicleArt(Vehicle);
+        }
+
+        RepairDriverCockpit(Vehicle);
     }
 }
 
@@ -168,7 +211,6 @@ void UOCR13VehicleArtSubsystem::TryApplyVehicleArt(AOCVehicleBase* Vehicle)
     UStaticMesh* Mesh = MeshForVehicle(Vehicle);
     if (!Mesh)
     {
-        // Leave unprocessed so a hot-loaded asset can still be picked up later in the same editor session.
         return;
     }
 
