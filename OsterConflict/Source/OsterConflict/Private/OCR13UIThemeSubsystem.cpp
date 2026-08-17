@@ -7,7 +7,9 @@
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/CheckBox.h"
 #include "Components/ComboBoxString.h"
+#include "Components/EditableTextBox.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/Slider.h"
@@ -21,11 +23,12 @@
 namespace
 {
     const FLinearColor ThemeText(0.94f, 0.93f, 0.89f, 1.0f);
-    const FLinearColor ThemeMuted(0.68f, 0.69f, 0.67f, 1.0f);
-    const FLinearColor ThemeControl(0.045f, 0.052f, 0.055f, 0.96f);
-    const FLinearColor ThemeControlHover(0.16f, 0.145f, 0.105f, 0.98f);
-    const FLinearColor ThemeAccent(0.48f, 0.40f, 0.25f, 1.0f);
-    const FLinearColor ThemeAccentSoft(0.30f, 0.255f, 0.17f, 1.0f);
+    const FLinearColor ThemeMuted(0.67f, 0.68f, 0.66f, 1.0f);
+    const FLinearColor ThemePanel(0.014f, 0.018f, 0.020f, 0.90f);
+    const FLinearColor ThemeControl(0.055f, 0.060f, 0.060f, 0.46f);
+    const FLinearColor ThemeControlHover(0.24f, 0.205f, 0.135f, 0.55f);
+    const FLinearColor ThemeAccent(0.49f, 0.41f, 0.26f, 1.0f);
+    const FLinearColor ThemeAccentSoft(0.32f, 0.27f, 0.18f, 0.66f);
 
     void FillCanvas(UCanvasPanelSlot* Slot, int32 ZOrder)
     {
@@ -53,7 +56,7 @@ namespace
         Style.Normal.TintColor = FSlateColor(ThemeControl);
         Style.Hovered.TintColor = FSlateColor(ThemeControlHover);
         Style.Pressed.TintColor = FSlateColor(ThemeAccentSoft);
-        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.040f, 0.042f, 0.55f));
+        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.038f, 0.038f, 0.28f));
         Style.NormalPadding = FMargin(1.0f);
         Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
         Button->SetStyle(Style);
@@ -63,6 +66,25 @@ namespace
         {
             Label->SetColorAndOpacity(FSlateColor(ThemeText));
         }
+    }
+
+    void ThemeEditable(UEditableTextBox* Entry)
+    {
+        if (!Entry) return;
+
+        FEditableTextBoxStyle Style = Entry->GetWidgetStyle();
+        Style.BackgroundColor = FSlateColor(FLinearColor(0.025f, 0.029f, 0.030f, 0.96f));
+        Style.BackgroundImageNormal.TintColor = FSlateColor(FLinearColor(0.16f, 0.17f, 0.17f, 0.88f));
+        Style.BackgroundImageHovered.TintColor = FSlateColor(FLinearColor(0.25f, 0.22f, 0.16f, 0.95f));
+        Style.BackgroundImageFocused.TintColor = FSlateColor(FLinearColor(0.34f, 0.29f, 0.19f, 1.0f));
+        Style.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.08f, 0.085f, 0.085f, 0.80f));
+        Style.ForegroundColor = FSlateColor(ThemeText);
+        Style.FocusedForegroundColor = FSlateColor(ThemeText);
+        Style.ReadOnlyForegroundColor = FSlateColor(ThemeMuted);
+        Style.TextStyle.ColorAndOpacity = FSlateColor(ThemeText);
+        Style.Padding = FMargin(12.0f, 8.0f);
+        Entry->SetWidgetStyle(Style);
+        Entry->SetForegroundColor(ThemeText);
     }
 
     void TintRowBrush(FSlateBrush& Brush, const FLinearColor& Color)
@@ -76,13 +98,13 @@ namespace
 
         FComboBoxStyle ComboStyle = Combo->GetWidgetStyle();
         FButtonStyle ComboButton = ComboStyle.ComboButtonStyle.ButtonStyle;
-        ComboButton.Normal.TintColor = FSlateColor(ThemeControl);
+        ComboButton.Normal.TintColor = FSlateColor(FLinearColor(0.055f, 0.060f, 0.060f, 0.92f));
         ComboButton.Hovered.TintColor = FSlateColor(ThemeControlHover);
         ComboButton.Pressed.TintColor = FSlateColor(ThemeAccentSoft);
-        ComboButton.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.040f, 0.042f, 0.60f));
+        ComboButton.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.040f, 0.040f, 0.60f));
         ComboStyle.ComboButtonStyle.ButtonStyle = ComboButton;
         ComboStyle.ComboButtonStyle.DownArrowImage.TintColor = FSlateColor(ThemeMuted);
-        ComboStyle.ComboButtonStyle.MenuBorderBrush.TintColor = FSlateColor(FLinearColor(0.020f, 0.023f, 0.024f, 1.0f));
+        ComboStyle.ComboButtonStyle.MenuBorderBrush.TintColor = FSlateColor(FLinearColor(0.018f, 0.021f, 0.022f, 1.0f));
         ComboStyle.ContentPadding = FMargin(12.0f, 7.0f);
         ComboStyle.MenuRowPadding = FMargin(10.0f, 6.0f);
         Combo->SetWidgetStyle(ComboStyle);
@@ -90,8 +112,8 @@ namespace
         Combo->SetContentPadding(FMargin(12.0f, 7.0f));
 
         FTableRowStyle RowStyle = Combo->GetItemStyle();
-        TintRowBrush(RowStyle.EvenRowBackgroundBrush, FLinearColor(0.025f, 0.029f, 0.030f, 1.0f));
-        TintRowBrush(RowStyle.OddRowBackgroundBrush, FLinearColor(0.030f, 0.034f, 0.035f, 1.0f));
+        TintRowBrush(RowStyle.EvenRowBackgroundBrush, FLinearColor(0.020f, 0.023f, 0.024f, 1.0f));
+        TintRowBrush(RowStyle.OddRowBackgroundBrush, FLinearColor(0.026f, 0.029f, 0.030f, 1.0f));
         TintRowBrush(RowStyle.EvenRowBackgroundHoveredBrush, ThemeControlHover);
         TintRowBrush(RowStyle.OddRowBackgroundHoveredBrush, ThemeControlHover);
         TintRowBrush(RowStyle.ActiveBrush, ThemeAccentSoft);
@@ -102,10 +124,29 @@ namespace
         RowStyle.TextColor = FSlateColor(ThemeText);
         RowStyle.SelectedTextColor = FSlateColor(ThemeText);
         Combo->SetItemStyle(RowStyle);
+    }
 
-        const FString Selected = Combo->GetSelectedOption();
-        Combo->RefreshOptions();
-        if (!Selected.IsEmpty()) Combo->SetSelectedOption(Selected);
+    void ThemeFrontendTree(UWidget* Widget)
+    {
+        if (!Widget) return;
+
+        if (UEditableTextBox* Entry = Cast<UEditableTextBox>(Widget))
+        {
+            ThemeEditable(Entry);
+        }
+        else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
+        {
+            const bool bSmall = Text->GetFont().Size <= 13;
+            Text->SetColorAndOpacity(FSlateColor(bSmall ? ThemeMuted : ThemeText));
+        }
+
+        if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+        {
+            for (int32 Index = 0; Index < Panel->GetChildrenCount(); ++Index)
+            {
+                ThemeFrontendTree(Panel->GetChildAt(Index));
+            }
+        }
     }
 }
 
@@ -119,7 +160,7 @@ bool UOCR13UIThemeSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 void UOCR13UIThemeSubsystem::Tick(float DeltaTime)
 {
     TickAccumulator += DeltaTime;
-    if (TickAccumulator < 0.10f) return;
+    if (TickAccumulator < 0.05f) return;
     TickAccumulator = 0.0f;
 
     UWorld* World = GetWorld();
@@ -183,17 +224,15 @@ void UOCR13UIThemeSubsystem::EnsureThemeLayers(UOCGameUIRootWidget* Root)
         ThemeBackdrop = Backdrop;
     }
 
-    // Adjacent narrow strips create a much softer left-side feather than the old
-    // nested 460/590/730/890/1080 px rectangles, which produced visible bands.
-    constexpr int32 StripCount = 18;
-    constexpr float StripWidth = 50.0f;
+    constexpr int32 StripCount = 20;
+    constexpr float StripWidth = 44.0f;
     for (int32 Index = 0; Index < StripCount; ++Index)
     {
         UImage* Strip = NewObject<UImage>(Root);
         if (!Strip) continue;
         if (WhiteTexture) Strip->SetBrushFromTexture(WhiteTexture, false);
         const float T = static_cast<float>(Index) / static_cast<float>(StripCount - 1);
-        const float Alpha = FMath::Lerp(0.40f, 0.015f, FMath::Pow(T, 0.82f));
+        const float Alpha = FMath::Lerp(0.36f, 0.0f, FMath::Pow(T, 0.76f));
         Strip->SetColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, Alpha));
         Strip->SetVisibility(ESlateVisibility::Collapsed);
         Strip->SetIsEnabled(false);
@@ -208,10 +247,9 @@ void UOCR13UIThemeSubsystem::ApplyTheme(UOCGameUIRootWidget* Root, AOCPlayerCont
 
     const bool bSettings = PC->IsSettingsVisible();
     const bool bFrontend = PC->IsFrontendMenuVisible() && !bSettings;
+    const bool bDeployment = !bSettings && !bFrontend && PC->IsDeploymentPanelVisible();
 
-    // Mirror the dedicated frontend's decision for main-vs-pause, but settings always
-    // use the same approved backdrop so they never sit over a live, unreadable scene.
-    bool bShowBackdrop = bSettings;
+    bool bShowBackdrop = bSettings || bDeployment;
     if (bFrontend)
     {
         if (UImage* ExistingBackdrop = FindObject<UImage>(Root, TEXT("R13_MenuBackground")))
@@ -237,7 +275,7 @@ void UOCR13UIThemeSubsystem::ApplyTheme(UOCGameUIRootWidget* Root, AOCPlayerCont
 
     if (UBorder* SettingsPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("SettingsPanel"))))
     {
-        SettingsPanel->SetBrushColor(FLinearColor(0.018f, 0.022f, 0.024f, 0.965f));
+        SettingsPanel->SetBrushColor(FLinearColor(0.014f, 0.018f, 0.020f, 0.975f));
         SettingsPanel->SetPadding(FMargin(26.0f));
         if (SettingsPanel->GetVisibility() != ESlateVisibility::Collapsed)
         {
@@ -245,11 +283,29 @@ void UOCR13UIThemeSubsystem::ApplyTheme(UOCGameUIRootWidget* Root, AOCPlayerCont
         }
     }
 
+    if (UBorder* DeploymentPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("DeploymentPanel"))))
+    {
+        DeploymentPanel->SetBrushColor(ThemePanel);
+        DeploymentPanel->SetPadding(FMargin(28.0f));
+        if (DeploymentPanel->GetVisibility() != ESlateVisibility::Collapsed)
+        {
+            ThemeWidgetTree(DeploymentPanel->GetContent());
+            if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(DeploymentPanel->Slot))
+            {
+                Slot->SetPosition(FVector2D(110.0f, 130.0f));
+                Slot->SetSize(FVector2D(1380.0f, 610.0f));
+            }
+        }
+    }
+
     if (UBorder* MenuPanel = FindObject<UBorder>(Root, TEXT("R13_MenuPanel")))
     {
         if (MenuPanel->GetVisibility() != ESlateVisibility::Collapsed)
         {
-            ThemeWidgetTree(MenuPanel->GetContent());
+            // Preserve the dedicated frontend button style from the menu specification.
+            // Only text/entry fields are normalized here so the legacy runtime layer can no longer
+            // turn the five main actions into opaque grey blocks.
+            ThemeFrontendTree(MenuPanel->GetContent());
         }
     }
 }
@@ -271,10 +327,18 @@ void UOCR13UIThemeSubsystem::ThemeWidgetTree(UWidget* Widget)
     {
         ThemeCombo(Combo);
     }
+    else if (UEditableTextBox* Entry = Cast<UEditableTextBox>(Widget))
+    {
+        ThemeEditable(Entry);
+    }
     else if (USlider* Slider = Cast<USlider>(Widget))
     {
         Slider->SetSliderBarColor(FLinearColor(0.16f, 0.17f, 0.17f, 1.0f));
         Slider->SetSliderHandleColor(ThemeAccent);
+    }
+    else if (UCheckBox* Check = Cast<UCheckBox>(Widget))
+    {
+        Check->SetForegroundColor(FSlateColor(ThemeAccent));
     }
 
     if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
