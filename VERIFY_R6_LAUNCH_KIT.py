@@ -102,10 +102,10 @@ for rel in ['RUN_COMPILE_ONLY.cmd','RUN_CLEAN_FULL_TEST.cmd','RUN_LOCAL_GAME_AFT
     req('set RC=%ERRORLEVEL%' in wt and 'exit /b %RC%' in wt,f'{rel} preserves failure exit code')
 
 # Kit identity and wrappers.
-req(('R8 TARGET RULES FIX' in text('START_HERE.cmd')) or ('R11 VISUAL FOUNDATION' in text('START_HERE.cmd')),'START_HERE identifies current launch kit')
+start=text('START_HERE.cmd')
+req(any(token in start for token in ['R13 CONTENT + GAMEPLAY PASS','R11 VISUAL FOUNDATION','R8 TARGET RULES FIX']),'START_HERE identifies a recognized current launch kit')
 stopps=text('PC_TEST/STOP_LOCAL_SERVER.ps1')
 req("$p.ProcessName -like 'OsterConflict*'" in stopps and 'Refusing to stop it' in stopps,'STOP_LOCAL_SERVER refuses PID reuse by unrelated processes')
-start=text('START_HERE.cmd')
 req('& goto menu' not in start,'START_HERE does not detach goto from IF conditions with ampersand chaining')
 req(start.count('goto menu') >= 6 and start.count('call "%~dp0') >= 5,'START_HERE dispatches each action through explicit conditional blocks')
 req("'R8 prelaunch check'" in val,'validator stage label identifies current R8 kit')
