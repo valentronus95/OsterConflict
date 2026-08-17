@@ -24,6 +24,8 @@ validation = (ROOT / "PC_TEST" / "RUN_UE58_PC_VALIDATION.ps1").read_text(encodin
 
 checks = [
     ("validation evidence ignored", "PC_TEST/TEST_RESULTS/" in ignore),
+    ("generated localization output ignored", "OsterConflict/Content/Localization/Game/" in ignore),
+    ("generated cook file-open-order logs ignored", "OsterConflict/Build/**/FileOpenOrder/*.log" in ignore),
     ("UE binaries ignored", "Binaries/" in ignore),
     ("source runner queries Git index", '["git", "ls-files"]' in runner),
     ("source runner protects generated directories", 'GENERATED_DIRS = ("Binaries", "Intermediate", "Saved", "DerivedDataCache")' in runner),
@@ -37,6 +39,7 @@ checks = [
     ("SDK fallback message names UBT", "UBT will perform authoritative SDK detection" in prelaunch),
     ("static verifier is strict when Python exists", "Static verifier suite' 'FAIL'" in validation and 'throw "Static verifier suite failed with exit code $rc"' in validation),
     ("installed build project files are a clean skip", "Launcher/installed UE build; direct UBT does not require GenerateProjectFiles.bat." in validation),
+    ("successful result is highlighted", "Write-Host $PassLine -ForegroundColor Yellow" in validation),
     ("validation derives success from failure message", "$Succeeded=[string]::IsNullOrEmpty($FailureMessage)" in validation),
     ("validation clears failed stage on success", "$FailedStage=''" in validation),
     ("validation only fills failed stage on failure", "if(-not $Succeeded){ $FailedStage=$CurrentStage }" in validation),
