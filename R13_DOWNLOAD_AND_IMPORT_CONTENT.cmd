@@ -10,6 +10,7 @@ set "RAW=%~dp0OsterConflict\Content\Raw\R13"
 set "WEAPONS=%RAW%\Weapons\Kenney"
 set "AUDIO=%RAW%\Audio"
 set "UI=%RAW%\UI"
+set "IMPORT_STATE=%RAW%\R13_IMPORT_STATE.txt"
 set "CACHE=%TEMP%\OsterConflict_R13_CC0"
 
  echo ============================================================
@@ -40,6 +41,7 @@ if not exist "%EDITOR_CMD%" (
   exit /b 5
 )
 
+if exist "%IMPORT_STATE%" del /q "%IMPORT_STATE%"
 if exist "%CACHE%" rmdir /s /q "%CACHE%"
 mkdir "%WEAPONS%" 2>nul
 mkdir "%AUDIO%" 2>nul
@@ -80,10 +82,13 @@ if errorlevel 1 goto :fail
 "%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output
 if errorlevel 1 goto :fail
 
- echo.
+>"%IMPORT_STATE%" echo R13_MUSEUM_WEAPONS_V2
+
+echo.
 echo ============================================================
 echo R13 CONTENT IMPORT: PASS
 echo Assets: /Game/R13/Weapons  /Game/R13/Audio  /Game/R13/UI
+echo Museum background and runtime-required weapon assets verified.
 echo ============================================================
 if exist "%CACHE%" rmdir /s /q "%CACHE%"
 pause
@@ -92,6 +97,7 @@ exit /b 0
 :fail
 echo.
 echo [ERROR] R13 content import failed. See messages above.
+if exist "%IMPORT_STATE%" del /q "%IMPORT_STATE%"
 if exist "%CACHE%" rmdir /s /q "%CACHE%"
 pause
 exit /b 10
