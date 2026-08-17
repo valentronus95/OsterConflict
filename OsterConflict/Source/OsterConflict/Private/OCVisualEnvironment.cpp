@@ -16,14 +16,14 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    // Neutral overcast/daylight baseline. Keep the sun bright enough for an outdoor FPS,
-    // but do not bake a warm amber tint into every material in the scene.
+    // R13 neutral art-QA daylight. Keep the source scene readable while avoiding
+    // the yellow/orange cast that masked the imported materials.
     SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
     SunLight->SetupAttachment(SceneRoot);
     SunLight->SetMobility(EComponentMobility::Movable);
     SunLight->SetRelativeRotation(FRotator(-38.0f, -28.0f, 0.0f));
     SunLight->SetIntensity(70000.0f);
-    SunLight->SetLightColor(FLinearColor(1.0f, 0.985f, 0.96f));
+    SunLight->SetLightColor(FLinearColor::White);
     SunLight->SetAtmosphereSunLight(true);
     SunLight->SetAtmosphereSunLightIndex(0);
     SunLight->SetLightSourceAngle(0.5357f);
@@ -33,11 +33,11 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
     SkyAtmosphere->SetupAttachment(SceneRoot);
     SkyAtmosphere->SetRayleighScatteringScale(1.0f);
-    SkyAtmosphere->SetMieScatteringScale(0.35f);
+    SkyAtmosphere->SetMieScatteringScale(0.004f);
     SkyAtmosphere->SetMieAnisotropy(0.72f);
     SkyAtmosphere->SetMultiScatteringFactor(1.0f);
     SkyAtmosphere->SetGroundAlbedo(FColor(78, 86, 72));
-    SkyAtmosphere->SetHeightFogContribution(1.0f);
+    SkyAtmosphere->SetHeightFogContribution(0.0f);
 
     SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
     SkyLight->SetupAttachment(SceneRoot);
@@ -50,9 +50,8 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     HeightFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("HeightFog"));
     HeightFog->SetupAttachment(SceneRoot);
 
-    // R13 art-QA mode intentionally disables height fog. This keeps asset/material colour readable
-    // while the yellow/orange presentation regression is being removed and also satisfies the
-    // R11/R13 visual-foundation contract for the neutral no-fog path.
+    // Neutral R13 art-QA mode intentionally disables height fog so imported art can
+    // be judged without another colour layer on top of it.
     HeightFog->SetFogDensity(0.0f);
     HeightFog->SetFogHeightFalloff(0.20f);
     HeightFog->SetFogInscatteringColor(FLinearColor(0.67f, 0.72f, 0.78f));
