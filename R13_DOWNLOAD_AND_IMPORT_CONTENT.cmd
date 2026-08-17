@@ -12,6 +12,7 @@ set "STEIN=%RAW%\Weapons\SteinClassicWeapons\WeaponsPack"
 set "AUDIO=%RAW%\Audio"
 set "UI=%RAW%\UI"
 set "LOCAL_MENU_OVERRIDE=%~dp0OsterConflict\Content\R13\UI\Oster_Menu_BG.jpg"
+set "NORMALIZED_MENU=%UI%\Oster_Menu_BG.png"
 set "IMPORT_STATE=%RAW%\R13_IMPORT_STATE.txt"
 set "CACHE=%TEMP%\OsterConflict_R13_CC0"
 set "IMPORT_LOG=%~dp0PC_TEST\R13_IMPORT_LAST.log"
@@ -92,12 +93,19 @@ curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/dull_e
 >"%AUDIO%\LICENSES.txt" echo Combat audio sources are CC0. Gunfire: iamoneabe / OpenGameArt. Reloads: SpringySpringo / OpenGameArt. Impact/throw/explosion: Spring Spring / OpenGameArt.
 
  echo [4/5] Preparing player-facing menu background...
+set "MENU_IMPORT_SOURCE="
 if exist "%LOCAL_MENU_OVERRIDE%" (
   echo [4/5] Using local custom menu background: %LOCAL_MENU_OVERRIDE%
-  copy /y "%LOCAL_MENU_OVERRIDE%" "%UI%\Oster_Menu_BG.jpg" >nul || goto :fail
+  if exist "%UI%\Oster_Menu_BG.jpg" del /q "%UI%\Oster_Menu_BG.jpg"
+  if exist "%NORMALIZED_MENU%" del /q "%NORMALIZED_MENU%"
+  echo [4/5] Normalizing custom artwork to an opaque PNG so gameplay cannot bleed through alpha...
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.Drawing; $src=[System.Drawing.Image]::FromFile('%LOCAL_MENU_OVERRIDE%'); try { $bmp=[System.Drawing.Bitmap]::new($src.Width,$src.Height,[System.Drawing.Imaging.PixelFormat]::Format24bppRgb); try { $g=[System.Drawing.Graphics]::FromImage($bmp); try { $g.Clear([System.Drawing.Color]::Black); $g.DrawImage($src,0,0,$src.Width,$src.Height); } finally { $g.Dispose() }; $bmp.Save('%NORMALIZED_MENU%',[System.Drawing.Imaging.ImageFormat]::Png); } finally { $bmp.Dispose() } } finally { $src.Dispose() }"
+  if errorlevel 1 goto :fail
+  set "MENU_IMPORT_SOURCE=%NORMALIZED_MENU%"
   >"%UI%\ATTRIBUTION.txt" echo Custom Oster Conflict menu artwork supplied locally for this project build.
 ) else (
   echo [4/5] No local override found; downloading Oster museum exterior fallback...
+  if exist "%NORMALIZED_MENU%" del /q "%NORMALIZED_MENU%"
   if exist "%UI%\Oster_Menu_BG.jpg" del /q "%UI%\Oster_Menu_BG.jpg"
   curl.exe -L --fail --retry 3 --retry-all-errors --connect-timeout 20 -A "OsterConflict-R13/1.0" "%MUSEUM_URL_PRIMARY%" -o "%UI%\Oster_Menu_BG.jpg"
   if errorlevel 1 (
@@ -106,9 +114,10 @@ if exist "%LOCAL_MENU_OVERRIDE%" (
     curl.exe -L --fail --retry 3 --retry-all-errors --connect-timeout 20 -A "OsterConflict-R13/1.0" "%MUSEUM_URL_FALLBACK%" -o "%UI%\Oster_Menu_BG.jpg"
     if errorlevel 1 goto :fail
   )
+  set "MENU_IMPORT_SOURCE=%UI%\Oster_Menu_BG.jpg"
   >"%UI%\ATTRIBUTION.txt" echo Oster museum exterior - Wikimedia Commons, Oster museum of local history. Preserve the selected file's author and license attribution from its Wikimedia Commons source page when distributing.
 )
-for %%I in ("%UI%\Oster_Menu_BG.jpg") do if %%~zI LSS 50000 (
+for %%I in ("%MENU_IMPORT_SOURCE%") do if %%~zI LSS 50000 (
   echo [ERROR] Menu background is unexpectedly small: %%~zI bytes.
   goto :fail
 )
