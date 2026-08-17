@@ -8,7 +8,14 @@ AOCCivilianVehicle::AOCCivilianVehicle()
 {
     VehicleMassKg = 1450.0f;
     MaxVehicleHealth = 450.0f;
-    MaxForwardSpeedKmh = 135.0f;
+
+    // R13 gameplay tuning: these are road cars, not 30 km/h utility carts. Keep the prototype physics stable while
+    // giving them a believable 85-90 km/h gameplay envelope and enough low-speed steering authority for streets.
+    DriveForce = 1200000.0f;
+    SteeringTorque = 145000000.0f;
+    LateralGrip = 10500.0f;
+    AeroDrag = 0.10f;
+    MaxForwardSpeedKmh = 88.0f;
 }
 
 void AOCCivilianVehicle::SetVehicleStyleServer(EOCCivilianVehicleStyle NewStyle)
@@ -35,20 +42,20 @@ void AOCCivilianVehicle::ApplyVehicleStyle()
         Chassis->SetRelativeScale3D(FVector(4.55f, 1.80f, 0.54f));
         if (PhysicsBody) PhysicsBody->SetBoxExtent(FVector(228.0f, 90.0f, 47.0f));
         VehicleMassKg = 1380.0f;
-        MaxForwardSpeedKmh = 142.0f;
+        MaxForwardSpeedKmh = 90.0f;
         break;
     case EOCCivilianVehicleStyle::Hatchback:
         Chassis->SetRelativeScale3D(FVector(3.95f, 1.76f, 0.58f));
         if (PhysicsBody) PhysicsBody->SetBoxExtent(FVector(198.0f, 88.0f, 49.0f));
         VehicleMassKg = 1260.0f;
-        MaxForwardSpeedKmh = 128.0f;
+        MaxForwardSpeedKmh = 85.0f;
         break;
     case EOCCivilianVehicleStyle::Wagon:
     default:
         Chassis->SetRelativeScale3D(FVector(4.65f, 1.84f, 0.60f));
         if (PhysicsBody) PhysicsBody->SetBoxExtent(FVector(233.0f, 92.0f, 50.0f));
         VehicleMassKg = 1490.0f;
-        MaxForwardSpeedKmh = 136.0f;
+        MaxForwardSpeedKmh = 88.0f;
         break;
     }
     if (PhysicsBody) PhysicsBody->SetMassOverrideInKg(NAME_None, VehicleMassKg, true);
