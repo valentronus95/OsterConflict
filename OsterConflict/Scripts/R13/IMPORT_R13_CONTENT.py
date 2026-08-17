@@ -7,6 +7,8 @@ KENNEY_ROOT = RAW_ROOT / "Weapons" / "Kenney"
 STEIN_ROOT = RAW_ROOT / "Weapons" / "SteinClassicWeapons" / "WeaponsPack"
 AUDIO_ROOT = RAW_ROOT / "Audio"
 UI_ROOT = RAW_ROOT / "UI"
+LOCAL_MENU_SOURCE = PROJECT_DIR / "Content" / "R13" / "UI" / "Oster_Menu_BG.jpg"
+MENU_ASSET = "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG"
 
 
 def run_import_task(task: unreal.AssetImportTask, source: Path, destination: str):
@@ -92,7 +94,15 @@ if not required_audio:
 for wav in required_audio:
     import_required_file(wav, "/Game/R13/Audio")
 
-import_required_file(UI_ROOT / "Oster_Menu_BG.jpg", "/Game/R13/UI")
+# Player-supplied artwork wins over fallback museum art. Delete the old texture package first so Unreal cannot
+# silently preserve the previous source/import data when the JPG changed but kept the same filename.
+menu_source = LOCAL_MENU_SOURCE if LOCAL_MENU_SOURCE.exists() else (UI_ROOT / "Oster_Menu_BG.jpg")
+if not menu_source.exists():
+    raise RuntimeError(f"R13 required menu background is missing: {menu_source}")
+if unreal.EditorAssetLibrary.does_asset_exist(MENU_ASSET):
+    if not unreal.EditorAssetLibrary.delete_asset(MENU_ASSET):
+        raise RuntimeError(f"Unable to replace existing R13 menu texture: {MENU_ASSET}")
+import_required_file(menu_source, "/Game/R13/UI")
 unreal.EditorAssetLibrary.save_directory("/Game/R13", only_if_is_dirty=False, recursive=True)
 
 # Runtime code uses string LoadObject paths, so verify exact package/object names before declaring PASS.
@@ -109,7 +119,7 @@ expected_assets = [
     "/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5",
     "/Game/R13/Weapons/Stein/Mac10/SKM_Mac10.SKM_Mac10",
     "/Game/R13/Weapons/Stein/Tec9/SKM_Tec9.SKM_Tec9",
-    "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG",
+    MENU_ASSET,
 ]
 missing_assets = [asset for asset in expected_assets if not unreal.EditorAssetLibrary.does_asset_exist(asset)]
 if missing_assets:
