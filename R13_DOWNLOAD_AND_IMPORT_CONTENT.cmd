@@ -13,6 +13,11 @@ set "UI=%RAW%\UI"
 set "IMPORT_STATE=%RAW%\R13_IMPORT_STATE.txt"
 set "CACHE=%TEMP%\OsterConflict_R13_CC0"
 
+rem Wikimedia Special:Redirect/file intermittently returns 404 to curl even while the file exists.
+rem Use the canonical upload.wikimedia.org object URL and keep a second real museum exterior as fallback.
+set "MUSEUM_URL_PRIMARY=https://upload.wikimedia.org/wikipedia/commons/b/bd/%%D0%%91%%D1%%83%%D0%%B4%%D0%%B8%%D0%%BD%%D0%%BE%%D0%%BA_%%D0%%A1%%D0%%BE%%D0%%BB%%D0%%BE%%D0%%BD%%D0%%B8%%D0%%BD%%D0%%B8%%2C_%%D0%%9E%%D1%%81%%D1%%82%%D0%%B5%%D1%%80.JPG"
+set "MUSEUM_URL_FALLBACK=https://upload.wikimedia.org/wikipedia/commons/7/71/%%D0%%91%%D1%%83%%D0%%B4%%D0%%B8%%D0%%BD%%D0%%BE%%D0%%BA_%%D1%%96_%%D1%%81%%D0%%B0%%D0%%B4%%D0%%B8%%D0%%B1%%D0%%B0_%%D0%%B3%%D0%%B5%%D0%%BD%%D0%%B5%%D1%%80%%D0%%B0%%D0%%BB-%%D0%%BB%%D0%%B5%%D0%%B9%%D1%%82%%D0%%B5%%D0%%BD%%D0%%B0%%D0%%BD%%D1%%82%%D0%%B0_%%D0%%92.%%D0%%9A.%%D0%%A1%%D0%%BE%%D0%%BB%%D0%%BE%%D0%%BD%%D0%%B8%%D0%%BD%%D0%%B8_%%D0%%B2_%%D0%%9E%%D1%%81%%D1%%82%%D1%%80%%D1%%96.jpg"
+
  echo ============================================================
  echo OSTER CONFLICT R13 - DOWNLOAD + IMPORT CONTENT
  echo ============================================================
@@ -74,9 +79,19 @@ curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/dull_e
 >"%AUDIO%\LICENSES.txt" echo Combat audio sources are CC0. Gunfire: iamoneabe / OpenGameArt. Reloads: SpringySpringo / OpenGameArt. Impact/throw/explosion: Spring Spring / OpenGameArt.
 
  echo [4/5] Downloading Oster local-history museum exterior for the menu background...
-curl.exe -L --fail --retry 2 "https://commons.wikimedia.org/wiki/Special:Redirect/file/%D0%91%D1%83%D0%B4%D0%B8%D0%BD%D0%BE%D0%BA%20%D0%A1%D0%BE%D0%BB%D0%BE%D0%BD%D0%B8%D0%BD%D0%B8%2C%20%D0%9E%D1%81%D1%82%D0%B5%D1%80.JPG" -o "%UI%\Oster_Menu_BG.jpg"
-if errorlevel 1 goto :fail
->"%UI%\ATTRIBUTION.txt" echo Oster museum exterior - Wikimedia Commons file "Будинок Солонини, Остер.JPG". Preserve author and license attribution from the Wikimedia Commons source page when distributing.
+if exist "%UI%\Oster_Menu_BG.jpg" del /q "%UI%\Oster_Menu_BG.jpg"
+curl.exe -L --fail --retry 3 --retry-all-errors --connect-timeout 20 -A "OsterConflict-R13/1.0" "%MUSEUM_URL_PRIMARY%" -o "%UI%\Oster_Menu_BG.jpg"
+if errorlevel 1 (
+  echo [WARN] Primary Wikimedia museum image failed; trying verified fallback exterior...
+  if exist "%UI%\Oster_Menu_BG.jpg" del /q "%UI%\Oster_Menu_BG.jpg"
+  curl.exe -L --fail --retry 3 --retry-all-errors --connect-timeout 20 -A "OsterConflict-R13/1.0" "%MUSEUM_URL_FALLBACK%" -o "%UI%\Oster_Menu_BG.jpg"
+  if errorlevel 1 goto :fail
+)
+for %%I in ("%UI%\Oster_Menu_BG.jpg") do if %%~zI LSS 50000 (
+  echo [ERROR] Museum background download is unexpectedly small: %%~zI bytes.
+  goto :fail
+)
+>"%UI%\ATTRIBUTION.txt" echo Oster museum exterior - Wikimedia Commons, Oster museum of local history. Primary file: "Будинок Солонини, Остер.JPG"; fallback: "Будинок і садиба генерал-лейтенанта В.К.Солонини в Острі.jpg". Preserve the selected file's author and license attribution from its Wikimedia Commons source page when distributing.
 
  echo [5/5] Importing R13 assets into Unreal...
 "%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output
