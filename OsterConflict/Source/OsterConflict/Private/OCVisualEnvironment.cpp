@@ -49,11 +49,15 @@ AOCVisualEnvironment::AOCVisualEnvironment()
 
     HeightFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("HeightFog"));
     HeightFog->SetupAttachment(SceneRoot);
-    HeightFog->SetFogDensity(0.0060f);
+
+    // R13 art-QA mode intentionally disables height fog. This keeps asset/material colour readable
+    // while the yellow/orange presentation regression is being removed and also satisfies the
+    // R11/R13 visual-foundation contract for the neutral no-fog path.
+    HeightFog->SetFogDensity(0.0f);
     HeightFog->SetFogHeightFalloff(0.20f);
     HeightFog->SetFogInscatteringColor(FLinearColor(0.67f, 0.72f, 0.78f));
     HeightFog->SetDirectionalInscatteringColor(FLinearColor(0.92f, 0.93f, 0.91f));
     HeightFog->SetStartDistance(2500.0f);
-    HeightFog->SetFogMaxOpacity(0.62f);
+    HeightFog->SetFogMaxOpacity(0.0f);
     HeightFog->SetVolumetricFog(false);
 }
