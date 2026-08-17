@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).resolve().parent
 P = ROOT / 'OsterConflict'
@@ -58,11 +59,18 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-req(('R11 VISUAL FOUNDATION' in start or 'R11.1 LAUNCHER FIXED' in start) and 'RUN_R11_LISTEN_TEST.cmd' in start, 'START_HERE exposes R11 visual smoke test')
+req(any(token in start for token in ['R13 CONTENT + GAMEPLAY PASS','R11 VISUAL FOUNDATION','R11.1 LAUNCHER FIXED']) and 'RUN_R11_LISTEN_TEST.cmd' in start, 'START_HERE exposes the retained R11 visual smoke path in current kit')
 req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')
-req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh R11 quick launch bootstraps generated runtime map')
+req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh quick launch bootstraps generated runtime map')
 
+# Local generated folders are expected after compiling. Only tracked generated artifacts violate the source archive contract.
+try:
+    tracked = subprocess.run(['git','ls-files'], cwd=ROOT, check=True, capture_output=True, text=True).stdout.splitlines()
+except (OSError, subprocess.CalledProcessError) as exc:
+    raise SystemExit('R11 VERIFY FAIL: unable to inspect tracked generated folders: ' + str(exc))
+tracked = [path.replace('\\','/') for path in tracked]
 for bad in ['Binaries','Intermediate','Saved','DerivedDataCache']:
-    req(not (P/bad).exists(), f'archive excludes generated {bad}')
+    prefix=f'OsterConflict/{bad}/'
+    req(not any(path.startswith(prefix) for path in tracked), f'archive does not track generated {bad}')
 
 print(f'R11 VISUAL FOUNDATION verifier: PASS ({len(checks)} checks)')
