@@ -15,7 +15,7 @@
 
 namespace
 {
-    UTextBlock* MakeMenuText(UObject* Outer, const FText& Text, int32 FontSize, bool bBright = true)
+    UTextBlock* R13FrontendMakeMenuText(UObject* Outer, const FText& Text, int32 FontSize, bool bBright = true)
     {
         UTextBlock* Block = NewObject<UTextBlock>(Outer);
         if (!Block) return nullptr;
@@ -29,11 +29,11 @@ namespace
         return Block;
     }
 
-    UButton* MakeMenuButton(UObject* Outer, UVerticalBox* Parent, const FText& Label)
+    UButton* R13FrontendMakeMenuButton(UObject* Outer, UVerticalBox* Parent, const FText& Label)
     {
         if (!Outer || !Parent) return nullptr;
         UButton* Button = NewObject<UButton>(Outer);
-        UTextBlock* Text = MakeMenuText(Outer, Label, 18, true);
+        UTextBlock* Text = R13FrontendMakeMenuText(Outer, Label, 18, true);
         if (!Button || !Text) return nullptr;
         Text->SetJustification(ETextJustify::Center);
         Button->SetBackgroundColor(FLinearColor(0.018f, 0.032f, 0.047f, 0.98f));
@@ -45,13 +45,13 @@ namespace
         return Button;
     }
 
-    void SetButtonLabel(UButton* Button, const FText& Label)
+    void R13FrontendSetButtonLabel(UButton* Button, const FText& Label)
     {
         if (!Button) return;
         if (UTextBlock* Text = Cast<UTextBlock>(Button->GetContent())) Text->SetText(Label);
     }
 
-    void SetButtonState(UButton* Button, bool bVisible)
+    void R13FrontendSetButtonState(UButton* Button, bool bVisible)
     {
         if (!Button) return;
         Button->SetIsEnabled(bVisible);
@@ -125,20 +125,20 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, UBord
 
     // IMPORTANT: keep exactly eight direct children. OCUIRuntimePolishSubsystem only rewrites the old nine-child
     // debug frontend, so this dedicated menu remains stable instead of having its labels/delegates cleared every tick.
-    UTextBlock* Title = MakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Title", "OSTER CONFLICT"), 34, true);
-    UTextBlock* Subtitle = MakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 16, false);
+    UTextBlock* Title = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Title", "OSTER CONFLICT"), 34, true);
+    UTextBlock* Subtitle = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 16, false);
     if (!Title || !Subtitle) return;
     Box->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
     Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 
-    UButton* Primary = MakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
-    UButton* Secondary = MakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Local", "ЛОКАЛЬНА ГРА"));
-    UButton* Network = MakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Network", "МЕРЕЖЕВА ГРА"));
+    UButton* Primary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
+    UButton* Secondary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Local", "ЛОКАЛЬНА ГРА"));
+    UButton* Network = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Network", "МЕРЕЖЕВА ГРА"));
 
     UVerticalBox* Fields = NewObject<UVerticalBox>(Root, TEXT("R13_FrontendFields"));
     UEditableTextBox* Username = NewObject<UEditableTextBox>(Root, TEXT("R13_Username"));
     UEditableTextBox* Address = NewObject<UEditableTextBox>(Root, TEXT("R13_ServerAddress"));
-    UTextBlock* Status = MakeMenuText(Root, FText::GetEmpty(), 12, false);
+    UTextBlock* Status = R13FrontendMakeMenuText(Root, FText::GetEmpty(), 12, false);
     if (!Fields || !Username || !Address || !Status) return;
 
     const UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get();
@@ -151,8 +151,8 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, UBord
     Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 7.0f, 0.0f, 2.0f));
     Box->AddChildToVerticalBox(Fields)->SetPadding(FMargin(0.0f, 4.0f));
 
-    UButton* Settings = MakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Settings", "НАЛАШТУВАННЯ"));
-    UButton* Quit = MakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
+    UButton* Settings = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Settings", "НАЛАШТУВАННЯ"));
+    UButton* Quit = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
     if (!Primary || !Secondary || !Network || !Settings || !Quit) return;
 
     Primary->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnPrimaryClicked);
@@ -193,16 +193,16 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "MainSubtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"));
         SubtitleText->SetVisibility(ESlateVisibility::Visible);
         FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
-        SetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainStart", "СТАРТ"));
-        SetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainLocal", "ЛОКАЛЬНА ГРА"));
-        SetButtonLabel(NetworkButton.Get(), NSLOCTEXT("OCR13Frontend", "MainNetwork", "МЕРЕЖЕВА ГРА"));
-        SetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "MainSettings", "НАЛАШТУВАННЯ"));
-        SetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "MainQuit", "ВИЙТИ З ГРИ"));
-        SetButtonState(PrimaryButton.Get(), true);
-        SetButtonState(SecondaryButton.Get(), true);
-        SetButtonState(NetworkButton.Get(), true);
-        SetButtonState(SettingsButton.Get(), true);
-        SetButtonState(QuitButton.Get(), true);
+        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainStart", "СТАРТ"));
+        R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainLocal", "ЛОКАЛЬНА ГРА"));
+        R13FrontendSetButtonLabel(NetworkButton.Get(), NSLOCTEXT("OCR13Frontend", "MainNetwork", "МЕРЕЖЕВА ГРА"));
+        R13FrontendSetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "MainSettings", "НАЛАШТУВАННЯ"));
+        R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "MainQuit", "ВИЙТИ З ГРИ"));
+        R13FrontendSetButtonState(PrimaryButton.Get(), true);
+        R13FrontendSetButtonState(SecondaryButton.Get(), true);
+        R13FrontendSetButtonState(NetworkButton.Get(), true);
+        R13FrontendSetButtonState(SettingsButton.Get(), true);
+        R13FrontendSetButtonState(QuitButton.Get(), true);
     }
     else if (Page == 1)
     {
@@ -213,13 +213,13 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         UsernameEntry->SetVisibility(ESlateVisibility::Visible);
         AddressEntry->SetVisibility(ESlateVisibility::Collapsed);
         StatusText->SetText(NSLOCTEXT("OCR13Frontend", "LocalStatus", "Conquest • 15 ботів • локальний сервер"));
-        SetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "StartLocal", "ПОЧАТИ ЛОКАЛЬНУ ГРУ"));
-        SetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackLocal", "НАЗАД"));
-        SetButtonState(PrimaryButton.Get(), true);
-        SetButtonState(SecondaryButton.Get(), true);
-        SetButtonState(NetworkButton.Get(), false);
-        SetButtonState(SettingsButton.Get(), false);
-        SetButtonState(QuitButton.Get(), false);
+        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "StartLocal", "ПОЧАТИ ЛОКАЛЬНУ ГРУ"));
+        R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackLocal", "НАЗАД"));
+        R13FrontendSetButtonState(PrimaryButton.Get(), true);
+        R13FrontendSetButtonState(SecondaryButton.Get(), true);
+        R13FrontendSetButtonState(NetworkButton.Get(), false);
+        R13FrontendSetButtonState(SettingsButton.Get(), false);
+        R13FrontendSetButtonState(QuitButton.Get(), false);
     }
     else
     {
@@ -230,13 +230,13 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         UsernameEntry->SetVisibility(ESlateVisibility::Visible);
         AddressEntry->SetVisibility(ESlateVisibility::Visible);
         StatusText->SetText(NSLOCTEXT("OCR13Frontend", "NetworkStatus", "Формат адреси: 127.0.0.1:7777"));
-        SetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "Connect", "ПІДКЛЮЧИТИСЯ"));
-        SetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackNetwork", "НАЗАД"));
-        SetButtonState(PrimaryButton.Get(), true);
-        SetButtonState(SecondaryButton.Get(), true);
-        SetButtonState(NetworkButton.Get(), false);
-        SetButtonState(SettingsButton.Get(), false);
-        SetButtonState(QuitButton.Get(), false);
+        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "Connect", "ПІДКЛЮЧИТИСЯ"));
+        R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackNetwork", "НАЗАД"));
+        R13FrontendSetButtonState(PrimaryButton.Get(), true);
+        R13FrontendSetButtonState(SecondaryButton.Get(), true);
+        R13FrontendSetButtonState(NetworkButton.Get(), false);
+        R13FrontendSetButtonState(SettingsButton.Get(), false);
+        R13FrontendSetButtonState(QuitButton.Get(), false);
     }
 }
 
@@ -247,13 +247,13 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
     SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseSubtitle", "ESC  •  ПРОДОВЖИТИ ГРУ"));
     SubtitleText->SetVisibility(ESlateVisibility::Visible);
     FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
-    SetButtonState(PrimaryButton.Get(), false);
-    SetButtonState(SecondaryButton.Get(), false);
-    SetButtonState(NetworkButton.Get(), false);
-    SetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseSettings", "НАЛАШТУВАННЯ"));
-    SetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseLeave", "ВИЙТИ В ГОЛОВНЕ МЕНЮ"));
-    SetButtonState(SettingsButton.Get(), true);
-    SetButtonState(QuitButton.Get(), true);
+    R13FrontendSetButtonState(PrimaryButton.Get(), false);
+    R13FrontendSetButtonState(SecondaryButton.Get(), false);
+    R13FrontendSetButtonState(NetworkButton.Get(), false);
+    R13FrontendSetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseSettings", "НАЛАШТУВАННЯ"));
+    R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseLeave", "ВИЙТИ В ГОЛОВНЕ МЕНЮ"));
+    R13FrontendSetButtonState(SettingsButton.Get(), true);
+    R13FrontendSetButtonState(QuitButton.Get(), true);
 }
 
 void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
