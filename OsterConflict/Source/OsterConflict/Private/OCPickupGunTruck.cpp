@@ -22,12 +22,9 @@ AOCPickupGunTruck::AOCPickupGunTruck()
     TurretDamageTypeClass = UOCBallisticDamageType::StaticClass();
 
     VehicleMassKg = 2250.0f;
-    DriveForce = 1600000.0f;
-    RollingBrakeForce = 360000.0f;
-    LateralGrip = 12500.0f;
-    SteeringTorque = 165000000.0f;
-    AeroDrag = 0.11f;
-    MaxForwardSpeedKmh = 90.0f;
+    DriveForce = 720000.0f;
+    SteeringTorque = 91000000.0f;
+    MaxForwardSpeedKmh = 118.0f;
     MaxVehicleHealth = 700.0f;
     WreckLifetimeSeconds = 28.0f;
 
@@ -67,6 +64,19 @@ AOCPickupGunTruck::AOCPickupGunTruck()
 void AOCPickupGunTruck::ApplyVehicleStyle()
 {
     Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
-    InteriorCamera->SetRelativeLocation(FVector(82.0f, -45.0f, 79.0f));
+
+    // The old camera was placed at X=82, exactly inside the opaque placeholder
+    // windshield mesh, which produced the giant black shape seen from first person.
+    // Keep the camera in the cab and behind the dashboard instead of inside geometry.
+    InteriorCamera->SetRelativeLocation(FVector(28.0f, -45.0f, 88.0f));
+    InteriorCamera->SetFieldOfView(92.0f);
+
+    // Until a proper translucent glass material replaces the source-only cube proxy,
+    // do not render that opaque slab. It otherwise blocks the complete forward view.
+    if (Windshield)
+    {
+        Windshield->SetVisibility(false, true);
+    }
+
     ThirdPersonSpringArm->TargetArmLength = 620.0f;
 }
