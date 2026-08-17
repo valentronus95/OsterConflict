@@ -115,9 +115,10 @@ try:
         "VERIFY_R10_CXX_BATCH_FIX.py",
         "VERIFY_R11_VISUAL_FOUNDATION.py",
         "VERIFY_R13_PC_TEST_HARDENING.py",
+        "VERIFY_R13_GAMEPLAY_POLISH.py",
     ]:
         run_verifier(ROOT / name)
 
-    print("ALL SOURCE + R13 PC HARDENING + R11 VISUAL + R10 CXX + R9 UHT + R8 UE5.8 TARGET + R7 LOGIC/PHYSICS VERIFIERS: PASS")
+    print("ALL SOURCE + R13 GAMEPLAY POLISH + R13 PC HARDENING + R11 VISUAL + R10 CXX + R9 UHT + R8 UE5.8 TARGET + R7 LOGIC/PHYSICS VERIFIERS: PASS")
 finally:
     restore_local_generated_dirs(moved_generated)
