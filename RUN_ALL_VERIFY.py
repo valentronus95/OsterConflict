@@ -45,11 +45,33 @@ def recover_stale_hold() -> None:
                 f"SOURCE VERIFY FAIL: both live and held generated directories exist for {name}; "
                 f"inspect {HOLD} before continuing"
             )
-        held.rename(live)
+        try:
+            held.rename(live)
+        except OSError as exc:
+            raise SystemExit(
+                f"SOURCE VERIFY FAIL: cannot restore generated directory {name}: {exc}"
+            ) from None
     try:
         HOLD.rmdir()
     except OSError:
         pass
+
+
+def restore_partial_hold(moved: list[str]) -> None:
+    for name in reversed(moved):
+        held = HOLD / name
+        live = PROJECT / name
+        if not held.exists() or live.exists():
+            continue
+        try:
+            held.rename(live)
+        except OSError:
+            pass
+    if HOLD.exists():
+        try:
+            HOLD.rmdir()
+        except OSError:
+            pass
 
 
 def hide_local_generated_dirs() -> list[str]:
@@ -61,16 +83,25 @@ def hide_local_generated_dirs() -> list[str]:
         raise SystemExit(1)
 
     moved: list[str] = []
-    for name in GENERATED_DIRS:
-        live = PROJECT / name
-        if not live.exists():
-            continue
-        HOLD.mkdir(exist_ok=True)
-        held = HOLD / name
-        if held.exists():
-            raise SystemExit(f"SOURCE VERIFY FAIL: hold path already exists: {held}")
-        live.rename(held)
-        moved.append(name)
+    try:
+        for name in GENERATED_DIRS:
+            live = PROJECT / name
+            if not live.exists():
+                continue
+            HOLD.mkdir(exist_ok=True)
+            held = HOLD / name
+            if held.exists():
+                raise RuntimeError(f"hold path already exists: {held}")
+            live.rename(held)
+            moved.append(name)
+    except (OSError, RuntimeError) as exc:
+        restore_partial_hold(moved)
+        raise SystemExit(
+            "SOURCE VERIFY FAIL: cannot temporarily isolate Unreal generated folders. "
+            "Close OsterConflict, Unreal Editor and any local/dedicated server, then run validation again. "
+            f"Details: {exc}"
+        ) from None
+
     if moved:
         print("Local UE generated directories temporarily excluded from source-only checks: " + ", ".join(moved))
     return moved
