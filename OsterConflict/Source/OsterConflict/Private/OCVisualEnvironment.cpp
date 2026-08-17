@@ -16,44 +16,44 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    // R13 neutral daylight pass. The previous custom atmosphere used too little Rayleigh and far too much Mie
-    // scattering for this source-only scene, washing the entire runtime into yellow/amber. Use a clean white sun
-    // and near-Earth scattering balance so sky/ground/material colours remain distinguishable.
+    // Neutral overcast/daylight baseline. Keep the sun bright enough for an outdoor FPS,
+    // but do not bake a warm amber tint into every material in the scene.
     SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
     SunLight->SetupAttachment(SceneRoot);
     SunLight->SetMobility(EComponentMobility::Movable);
-    SunLight->SetRelativeRotation(FRotator(-52.0f, -32.0f, 0.0f));
-    SunLight->SetIntensity(3.6f);
-    SunLight->SetLightColor(FLinearColor::White);
+    SunLight->SetRelativeRotation(FRotator(-38.0f, -28.0f, 0.0f));
+    SunLight->SetIntensity(70000.0f);
+    SunLight->SetLightColor(FLinearColor(1.0f, 0.985f, 0.96f));
     SunLight->SetAtmosphereSunLight(true);
     SunLight->SetAtmosphereSunLightIndex(0);
     SunLight->SetLightSourceAngle(0.5357f);
     SunLight->SetDynamicShadowCascades(3);
-    SunLight->SetDynamicShadowDistanceMovableLight(36000.0f);
+    SunLight->SetDynamicShadowDistanceMovableLight(30000.0f);
 
     SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
     SkyAtmosphere->SetupAttachment(SceneRoot);
     SkyAtmosphere->SetRayleighScatteringScale(1.0f);
-    SkyAtmosphere->SetMieScatteringScale(0.004f);
-    SkyAtmosphere->SetMieAnisotropy(0.80f);
+    SkyAtmosphere->SetMieScatteringScale(0.35f);
+    SkyAtmosphere->SetMieAnisotropy(0.72f);
     SkyAtmosphere->SetMultiScatteringFactor(1.0f);
-    SkyAtmosphere->SetGroundAlbedo(FColor(80, 82, 78));
-    SkyAtmosphere->SetHeightFogContribution(0.0f);
+    SkyAtmosphere->SetGroundAlbedo(FColor(78, 86, 72));
+    SkyAtmosphere->SetHeightFogContribution(1.0f);
 
     SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
     SkyLight->SetupAttachment(SceneRoot);
     SkyLight->SetMobility(EComponentMobility::Movable);
-    SkyLight->SetIntensity(0.72f);
-    SkyLight->SetLightColor(FLinearColor::White);
-    SkyLight->SetLowerHemisphereColor(FLinearColor(0.075f, 0.085f, 0.075f));
+    SkyLight->SetIntensity(1.0f);
+    SkyLight->SetLightColor(FLinearColor(0.94f, 0.97f, 1.0f));
+    SkyLight->SetLowerHemisphereColor(FLinearColor(0.075f, 0.085f, 0.07f));
     SkyLight->SetRealTimeCaptureEnabled(true);
 
-    // Keep the component for later weather work, but do not tint or flatten the current clear-weather art pass.
     HeightFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("HeightFog"));
     HeightFog->SetupAttachment(SceneRoot);
-    HeightFog->SetFogDensity(0.0f);
-    HeightFog->SetFogHeightFalloff(0.30f);
-    HeightFog->SetStartDistance(30000.0f);
-    HeightFog->SetFogMaxOpacity(0.0f);
+    HeightFog->SetFogDensity(0.0060f);
+    HeightFog->SetFogHeightFalloff(0.20f);
+    HeightFog->SetFogInscatteringColor(FLinearColor(0.67f, 0.72f, 0.78f));
+    HeightFog->SetDirectionalInscatteringColor(FLinearColor(0.92f, 0.93f, 0.91f));
+    HeightFog->SetStartDistance(2500.0f);
+    HeightFog->SetFogMaxOpacity(0.62f);
     HeightFog->SetVolumetricFog(false);
 }
