@@ -53,6 +53,16 @@ namespace
         SetButtonLabel(Cast<UButton>(Box->GetChildAt(Index)), Text);
     }
 
+    void SetButtonReady(UVerticalBox* Box, int32 Index, bool bVisible)
+    {
+        if (!Box || Index < 0 || Index >= Box->GetChildrenCount()) return;
+        if (UButton* Button = Cast<UButton>(Box->GetChildAt(Index)))
+        {
+            Button->SetIsEnabled(bVisible);
+            Button->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+    }
+
     void PolishButtons(UWidget* Widget)
     {
         if (!Widget) return;
@@ -90,6 +100,19 @@ namespace
             Slot->SetPadding(FMargin(0.0f, 5.0f, 0.0f, 5.0f));
         }
         return Button;
+    }
+
+    void PrimeFrontendInput(UOCGameUIRootWidget* Root, AOCPlayerController* PC, UButton* PreferredButton)
+    {
+        if (!Root || !PC) return;
+        Root->SetIsEnabled(true);
+        PC->bShowMouseCursor = true;
+        FInputModeGameAndUI Mode;
+        Mode.SetHideCursorDuringCapture(false);
+        Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        Mode.SetWidgetToFocus(Root->TakeWidget());
+        PC->SetInputMode(Mode);
+        if (PreferredButton && PreferredButton->GetIsEnabled()) PreferredButton->SetKeyboardFocus();
     }
 }
 
@@ -218,6 +241,7 @@ void UOCUIRuntimePolishSubsystem::EnsureMenuBackdrop(UOCGameUIRootWidget* Root, 
             }
             Background->SetColorAndOpacity(FLinearColor::White);
             Background->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+            Background->SetIsEnabled(false);
             if (UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Background))
             {
                 Slot->SetPosition(FVector2D::ZeroVector);
@@ -235,6 +259,7 @@ void UOCUIRuntimePolishSubsystem::EnsureMenuBackdrop(UOCGameUIRootWidget* Root, 
         {
             Dimmer->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.38f));
             Dimmer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+            Dimmer->SetIsEnabled(false);
             if (UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Dimmer))
             {
                 Slot->SetPosition(FVector2D::ZeroVector);
@@ -256,14 +281,12 @@ void UOCUIRuntimePolishSubsystem::EnsureFrontendExtras(UOCGameUIRootWidget* Root
 {
     if (!Root || !Frontend) return;
 
-    if (!FrontendSettingsExtraButton.IsValid())
+    // The original fourth button is reused as SETTINGS. Only one extra runtime button is necessary: QUIT.
+    // This prevents the old Close Menu control from fighting the runtime polish pass every 0.2 seconds.
+    if (FrontendSettingsExtraButton.IsValid())
     {
-        UButton* SettingsButton = MakeRuntimeButton(Root, Frontend, NSLOCTEXT("OCR13UI", "MainSettings", "НАЛАШТУВАННЯ"));
-        if (SettingsButton)
-        {
-            SettingsButton->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendOpenSettings);
-            FrontendSettingsExtraButton = SettingsButton;
-        }
+        FrontendSettingsExtraButton->SetVisibility(ESlateVisibility::Collapsed);
+        FrontendSettingsExtraButton->SetIsEnabled(false);
     }
 
     if (!FrontendQuitExtraButton.IsValid())
@@ -287,11 +310,10 @@ void UOCUIRuntimePolishSubsystem::ApplyFrontendPage(
     UButton* Primary = Cast<UButton>(Frontend->GetChildAt(4));
     UButton* Secondary = Cast<UButton>(Frontend->GetChildAt(5));
     UButton* Tertiary = Cast<UButton>(Frontend->GetChildAt(6));
+    UButton* Quaternary = Cast<UButton>(Frontend->GetChildAt(7));
 
     ActiveUsernameEntry = Cast<UEditableTextBox>(Frontend->GetChildAt(2));
     ActiveAddressEntry = Cast<UEditableTextBox>(Frontend->GetChildAt(3));
-
-    SetChildVisibility(Frontend, 7, ESlateVisibility::Collapsed); // old Close button is not a main-menu item
 
     if (FrontendPage == 0)
     {
@@ -300,15 +322,21 @@ void UOCUIRuntimePolishSubsystem::ApplyFrontendPage(
         SetChildVisibility(Frontend, 1, ESlateVisibility::Visible);
         SetChildVisibility(Frontend, 2, ESlateVisibility::Collapsed);
         SetChildVisibility(Frontend, 3, ESlateVisibility::Collapsed);
-        SetChildVisibility(Frontend, 4, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 5, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 6, ESlateVisibility::Visible);
+        SetButtonReady(Frontend, 4, true);
+        SetButtonReady(Frontend, 5, true);
+        SetButtonReady(Frontend, 6, true);
+        SetButtonReady(Frontend, 7, true);
         SetChildVisibility(Frontend, 8, ESlateVisibility::Collapsed);
         SetButtonText(Frontend, 4, NSLOCTEXT("OCR13UI", "MainStart", "СТАРТ"));
         SetButtonText(Frontend, 5, NSLOCTEXT("OCR13UI", "MainLocal", "ЛОКАЛЬНА ГРА"));
         SetButtonText(Frontend, 6, NSLOCTEXT("OCR13UI", "MainNetwork", "МЕРЕЖЕВА ГРА"));
-        if (FrontendSettingsExtraButton.IsValid()) FrontendSettingsExtraButton->SetVisibility(ESlateVisibility::Visible);
-        if (FrontendQuitExtraButton.IsValid()) FrontendQuitExtraButton->SetVisibility(ESlateVisibility::Visible);
+        SetButtonText(Frontend, 7, NSLOCTEXT("OCR13UI", "MainSettings", "НАЛАШТУВАННЯ"));
+        if (FrontendSettingsExtraButton.IsValid()) FrontendSettingsExtraButton->SetVisibility(ESlateVisibility::Collapsed);
+        if (FrontendQuitExtraButton.IsValid())
+        {
+            FrontendQuitExtraButton->SetVisibility(ESlateVisibility::Visible);
+            FrontendQuitExtraButton->SetIsEnabled(true);
+        }
     }
     else if (FrontendPage == 1)
     {
@@ -317,12 +345,13 @@ void UOCUIRuntimePolishSubsystem::ApplyFrontendPage(
         SetChildVisibility(Frontend, 1, ESlateVisibility::Visible);
         SetChildVisibility(Frontend, 2, ESlateVisibility::Visible);
         SetChildVisibility(Frontend, 3, ESlateVisibility::Collapsed);
-        SetChildVisibility(Frontend, 4, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 5, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 6, ESlateVisibility::Collapsed);
+        SetButtonReady(Frontend, 4, true);
+        SetButtonReady(Frontend, 5, false);
+        SetButtonReady(Frontend, 6, false);
+        SetButtonReady(Frontend, 7, true);
         SetChildVisibility(Frontend, 8, ESlateVisibility::Collapsed);
         SetButtonText(Frontend, 4, NSLOCTEXT("OCR13UI", "StartLocal", "ПОЧАТИ ЛОКАЛЬНУ ГРУ"));
-        SetButtonText(Frontend, 5, NSLOCTEXT("OCR13UI", "Back", "НАЗАД"));
+        SetButtonText(Frontend, 7, NSLOCTEXT("OCR13UI", "Back", "НАЗАД"));
         if (FrontendSettingsExtraButton.IsValid()) FrontendSettingsExtraButton->SetVisibility(ESlateVisibility::Collapsed);
         if (FrontendQuitExtraButton.IsValid()) FrontendQuitExtraButton->SetVisibility(ESlateVisibility::Collapsed);
     }
@@ -333,12 +362,13 @@ void UOCUIRuntimePolishSubsystem::ApplyFrontendPage(
         SetChildVisibility(Frontend, 1, ESlateVisibility::Visible);
         SetChildVisibility(Frontend, 2, ESlateVisibility::Visible);
         SetChildVisibility(Frontend, 3, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 4, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 5, ESlateVisibility::Visible);
-        SetChildVisibility(Frontend, 6, ESlateVisibility::Collapsed);
+        SetButtonReady(Frontend, 4, true);
+        SetButtonReady(Frontend, 5, false);
+        SetButtonReady(Frontend, 6, false);
+        SetButtonReady(Frontend, 7, true);
         SetChildVisibility(Frontend, 8, ESlateVisibility::Visible);
         SetButtonText(Frontend, 4, NSLOCTEXT("OCR13UI", "ConnectNetwork", "ПІДКЛЮЧИТИСЯ"));
-        SetButtonText(Frontend, 5, NSLOCTEXT("OCR13UI", "Back", "НАЗАД"));
+        SetButtonText(Frontend, 7, NSLOCTEXT("OCR13UI", "Back", "НАЗАД"));
         if (FrontendSettingsExtraButton.IsValid()) FrontendSettingsExtraButton->SetVisibility(ESlateVisibility::Collapsed);
         if (FrontendQuitExtraButton.IsValid()) FrontendQuitExtraButton->SetVisibility(ESlateVisibility::Collapsed);
     }
@@ -348,23 +378,27 @@ void UOCUIRuntimePolishSubsystem::ApplyFrontendPage(
         if (Primary) Primary->OnClicked.Clear();
         if (Secondary) Secondary->OnClicked.Clear();
         if (Tertiary) Tertiary->OnClicked.Clear();
+        if (Quaternary) Quaternary->OnClicked.Clear();
 
         if (FrontendPage == 0)
         {
             if (Primary) Primary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendQuickStart);
             if (Secondary) Secondary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendOpenLocal);
             if (Tertiary) Tertiary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendOpenNetwork);
+            if (Quaternary) Quaternary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendOpenSettings);
         }
         else if (FrontendPage == 1)
         {
             if (Primary) Primary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendStartLocal);
-            if (Secondary) Secondary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendBack);
+            if (Quaternary) Quaternary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendBack);
         }
         else
         {
             if (Primary) Primary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendConnectNetwork);
-            if (Secondary) Secondary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendBack);
+            if (Quaternary) Quaternary->OnClicked.AddDynamic(this, &UOCUIRuntimePolishSubsystem::FrontendBack);
         }
+
+        PrimeFrontendInput(Root, PC, Primary);
         LastAppliedFrontendPage = FrontendPage;
     }
 
@@ -527,12 +561,13 @@ void UOCUIRuntimePolishSubsystem::Tick(float DeltaTime)
                 if (bMainFrontend)
                 {
                     ApplyFrontendPage(Root, PC, Frontend);
+                    FrontendPanel->SetIsEnabled(true);
                     FrontendPanel->SetBrushColor(FLinearColor(0.008f, 0.014f, 0.022f, 0.90f));
                     FrontendPanel->SetPadding(FMargin(28.0f));
                     if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(FrontendPanel->Slot))
                     {
-                        Slot->SetPosition(FVector2D(120.0f, 185.0f));
-                        Slot->SetSize(FVector2D(470.0f, 520.0f));
+                        Slot->SetPosition(FVector2D(120.0f, 150.0f));
+                        Slot->SetSize(FVector2D(510.0f, 570.0f));
                     }
                 }
                 else
