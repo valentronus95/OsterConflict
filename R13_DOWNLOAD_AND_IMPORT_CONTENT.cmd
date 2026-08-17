@@ -14,10 +14,12 @@ set "UI=%RAW%\UI"
 set "IMPORT_STATE=%RAW%\R13_IMPORT_STATE.txt"
 set "CACHE=%TEMP%\OsterConflict_R13_CC0"
 
+rem Museum source label: Будинок Солонини, Остер.JPG
+rem Legacy state R13_MUSEUM_WEAPONS_V2 is superseded by R13_STEIN_WEAPONS_V3.
 rem Wikimedia Special:Redirect/file intermittently returns 404 to curl even while the file exists.
 rem Use the canonical upload.wikimedia.org object URL and keep a second real museum exterior as fallback.
 set "MUSEUM_URL_PRIMARY=https://upload.wikimedia.org/wikipedia/commons/b/bd/%%D0%%91%%D1%%83%%D0%%B4%%D0%%B8%%D0%%BD%%D0%%BE%%D0%%BA_%%D0%%A1%%D0%%BE%%D0%%BB%%D0%%BE%%D0%%BD%%D0%%B8%%D0%%BD%%D0%%B8%%2C_%%D0%%9E%%D1%%81%%D1%%82%%D0%%B5%%D1%%80.JPG"
-set "MUSEUM_URL_FALLBACK=https://upload.wikimedia.org/wikipedia/commons/7/71/%%D0%%91%%D1%%83%%D0%%B4%%D0%%B8%%D0%%BD%%D0%%BE%%D0%%BA_%%D1%%96_%%D1%%81%%D0%%B0%%D0%%B4%%D0%%B8%%D0%%B1%%D0%%B0_%%D0%%B3%%D0%%B5%%D0%%BD%%D0%%B5%%D1%%80%%D0%%B0%%D0%%BB-%%D0%%BB%%D0%%B5%%D0%%B9%%D1%%82%%D0%%B5%%D0%%BD%%D0%%B0%%D0%92.%%D0%%9A.%%D0%%A1%%D0%%BE%%D0%%BB%%D0%%BE%%D0%%BD%%D0%%B8%%D0%%BD%%D0%%B8_%%D0%%B2_%%D0%%9E%%D1%%81%%D1%%82%%D1%%80%%D1%%96.jpg"
+set "MUSEUM_URL_FALLBACK=https://upload.wikimedia.org/wikipedia/commons/7/71/%%D0%%91%%D1%%83%%D0%%B4%%D0%%B8%%D0%%BD%%D0%%BE%%D0%%BA_%%D1%%96_%%D1%%81%%D0%%B0%%D0%%B4%%D0%%B8%%D0%%B1%%D0%%B0_%%D0%%B3%%D0%%B5%%D0%%BD%%D0%%B5%%D1%%80%%D0%%B0%%D0%%BB-%%D0%%BB%%D0%%B5%%D0%%B9%%D1%%82%%D0%%B5%%D0%%BD%%D0%%B0_%%D0%%92.%%D0%%9A.%%D0%%A1%%D0%%BE%%D0%%BB%%D0%%BE%%D0%%BD%%D0%%B8%%D0%%BD%%D0%%B8_%%D0%%B2_%%D0%%9E%%D1%%81%%D1%%82%%D1%%80%%D1%%96.jpg"
 
  echo ============================================================
  echo OSTER CONFLICT R13 - DOWNLOAD + IMPORT CONTENT
