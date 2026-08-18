@@ -59,11 +59,18 @@ weapon_variants = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponV
 
 checks = [
     ("vehicles default to third-person camera", "bool bFirstPersonCamera = false;" in vehicle),
-    ("R13 dynamic art is always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/R13")' in packaging),
-    ("Fab AK path is always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/AK-47")' in packaging),
-    ("AdvancedVillage environment art is always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/AdvancedVillagePack")' in packaging),
-    ("VehicleVarietyPack art is always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/VehicleVarietyPack")' in packaging),
-    ("PN foliage grass is always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/PN_FoliageCollection")' in packaging),
+    ("R13 runtime UI/audio/weapons are always cooked", all(marker in packaging for marker in [
+        '+DirectoriesToAlwaysCook=(Path="/Game/R13/UI")',
+        '+DirectoriesToAlwaysCook=(Path="/Game/R13/Audio")',
+        '+DirectoriesToAlwaysCook=(Path="/Game/R13/Weapons")',
+    ])),
+    ("Fab AK runtime mesh and cues are always cooked", all(marker in packaging for marker in [
+        '+DirectoriesToAlwaysCook=(Path="/Game/AK-47/Mesh")',
+        '+DirectoriesToAlwaysCook=(Path="/Game/AK-47/Sound/AK-47/Cues")',
+    ])),
+    ("AdvancedVillage runtime meshes are always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/AdvancedVillagePack/Meshes")' in packaging),
+    ("VehicleVarietyPack runtime meshes are always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/VehicleVarietyPack/Meshes")' in packaging),
+    ("PN foliage runtime grass meshes are always cooked", '+DirectoriesToAlwaysCook=(Path="/Game/PN_FoliageCollection/Meshes/grassMesh")' in packaging),
     ("deployment identity is not overwritten by polish layer", "SetText(Left, 1" not in ui_cpp),
     ("deployment spawn selection is not overwritten by polish layer", "SetText(Spawn, 1" not in ui_cpp),
     ("deployment start action is explicitly named", "ПОЧАТИ ГРУ" in ui_cpp),
