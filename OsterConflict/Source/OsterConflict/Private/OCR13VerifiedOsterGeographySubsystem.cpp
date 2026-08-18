@@ -11,6 +11,7 @@
 
 namespace
 {
+    constexpr float LegacySlicePurgeDelaySeconds = 1.82f;
     constexpr float GeographyDelaySeconds = 3.35f;
     constexpr float LegacySliceCenterX = -3400.0f;
     constexpr float LegacySliceHalfWidthCm = 7200.0f;
@@ -79,8 +80,18 @@ void UOCR13VerifiedOsterGeographySubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    FTimerHandle Timer;
-    InWorld.GetTimerManager().SetTimer(Timer,
+
+    // The old R12 art shortcut is purged BEFORE the 1.95 s Oster residential pass. This prevents its fake houses
+    // from consuming replacement slots or surviving invisibly as duplicate map content.
+    FTimerHandle LegacyPurgeTimer;
+    InWorld.GetTimerManager().SetTimer(LegacyPurgeTimer,
+        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
+        {
+            if (UWorld* World = WeakWorld.Get()) SuppressLegacyNearSpawnSlice(*World);
+        }), LegacySlicePurgeDelaySeconds, false);
+
+    FTimerHandle GeographyTimer;
+    InWorld.GetTimerManager().SetTimer(GeographyTimer,
         FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
         {
             if (UWorld* World = WeakWorld.Get()) ApplyVerifiedGeography(*World);
@@ -103,7 +114,7 @@ void UOCR13VerifiedOsterGeographySubsystem::ApplyVerifiedGeography(UWorld& World
 
 void UOCR13VerifiedOsterGeographySubsystem::SuppressLegacyNearSpawnSlice(UWorld& World)
 {
-    int32 HiddenComponents = 0;
+    int32 RemovedComponents = 0;
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
         AActor* Actor = *It;
@@ -114,21 +125,29 @@ void UOCR13VerifiedOsterGeographySubsystem::SuppressLegacyNearSpawnSlice(UWorld&
         for (UInstancedStaticMeshComponent* Component : Components)
         {
             if (!Component || !IsLegacySliceComponent(Component->GetFName())) continue;
-            Component->SetVisibility(false, true);
-            Component->SetHiddenInGame(true, true);
+
+            // These components belong only to the obsolete visual shortcut, not to source map collision. Destroying
+            // them before residential styling is safer than merely hiding them and accidentally letting later scans
+            // treat their transforms as real Oster houses/trees/fences.
             Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             Component->SetCanEverAffectNavigation(false);
-            ++HiddenComponents;
+            Component->DestroyComponent();
+            ++RemovedComponents;
         }
     }
 
-    UE_LOG(LogTemp, Display,
-        TEXT("R13.6 verified geography: suppressed %d legacy near-spawn Krushelnytska visual components; source geo corridor remains authoritative."),
-        HiddenComponents);
+    if (RemovedComponents > 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("R13.6 verified geography: purged %d legacy near-spawn Krushelnytska visual components before Oster residential styling; source geo corridor remains authoritative."),
+            RemovedComponents);
+    }
 }
 
 void UOCR13VerifiedOsterGeographySubsystem::RemoveLegacySliceResidentialPresentation(UWorld& World)
 {
+    // Defensive cleanup for hot-reload/late-order cases where the architecture pass may have seen an obsolete slice
+    // before its components were purged. Normal fresh launches should remove zero instances here.
     int32 RemovedInstances = 0;
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
@@ -157,9 +176,12 @@ void UOCR13VerifiedOsterGeographySubsystem::RemoveLegacySliceResidentialPresenta
         }
     }
 
-    UE_LOG(LogTemp, Display,
-        TEXT("R13.6 verified geography: removed %d residential-art instances inherited from the deprecated fake near-spawn slice."),
-        RemovedInstances);
+    if (RemovedInstances > 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("R13.6 verified geography: removed %d residential-art instances inherited from a late deprecated near-spawn slice."),
+            RemovedInstances);
+    }
 }
 
 void UOCR13VerifiedOsterGeographySubsystem::RelocateStadiumPresentation(UWorld& World)
