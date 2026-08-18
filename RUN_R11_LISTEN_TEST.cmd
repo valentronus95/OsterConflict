@@ -10,6 +10,7 @@ set "PROJECT=%PROJECT_ROOT%\OsterConflict.uproject"
 set "MAP_FILE=%PROJECT_ROOT%\Content\Maps\OsterConflict_Runtime.umap"
 set "MAP_SCRIPT=%PROJECT_ROOT%\Scripts\S18B\CREATE_RELEASE_MAP.py"
 set "READY_CHECK=%~dp0PC_TEST\CHECK_R13_LAUNCH_READY.ps1"
+set "LFS_CHECK=%~dp0PC_TEST\CHECK_R13_LFS_PAYLOADS.ps1"
 
 if not exist "%EDITOR%" (
   echo UE 5.8 editor not found at:
@@ -40,12 +41,24 @@ if not exist "%READY_CHECK%" (
   pause
   exit /b 3
 )
+if not exist "%LFS_CHECK%" (
+  echo [ERROR] R13 Git LFS payload checker not found: %LFS_CHECK%
+  pause
+  exit /b 3
+)
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%READY_CHECK%" -ProjectRoot "%PROJECT_ROOT%"
 set "READY_RC=%ERRORLEVEL%"
 if not "%READY_RC%"=="0" (
   pause
   exit /b %READY_RC%
+)
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%" -ProjectRoot "%PROJECT_ROOT%"
+set "LFS_RC=%ERRORLEVEL%"
+if not "%LFS_RC%"=="0" (
+  pause
+  exit /b %LFS_RC%
 )
 
 if not exist "%MAP_FILE%" (
