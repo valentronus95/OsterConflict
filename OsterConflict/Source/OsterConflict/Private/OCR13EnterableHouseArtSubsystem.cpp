@@ -14,6 +14,10 @@
 
 namespace
 {
+    constexpr float FirstArtPassDelaySeconds = 2.05f;
+    constexpr float ArtRetryIntervalSeconds = 0.75f;
+    constexpr int32 MaxArtRetryPasses = 8;
+
     UMaterialInterface* LoadMaterial(const TCHAR* Path)
     {
         return LoadObject<UMaterialInterface>(nullptr, Path);
@@ -29,12 +33,13 @@ namespace
         if (Component && Material) Component->SetMaterial(0, Material);
     }
 
-    void AddRoof(AOCEnterableHouse* House, UStaticMesh* RoofMesh, UMaterialInterface* RoofMaterial, const int32 Index)
+    void AddRoof(AOCEnterableHouse* House, UStaticMesh* RoofMesh, UMaterialInterface* RoofMaterial)
     {
         if (!House || !House->GetRootComponent() || !RoofMesh) return;
+        if (FindObjectFast<UInstancedStaticMeshComponent>(House, TEXT("R13_EnterableRoof"))) return;
 
         UInstancedStaticMeshComponent* Roof = NewObject<UInstancedStaticMeshComponent>(
-            House, *FString::Printf(TEXT("R13_EnterableRoof_%d"), Index));
+            House, TEXT("R13_EnterableRoof"));
         if (!Roof) return;
 
         Roof->SetupAttachment(House->GetRootComponent());
@@ -51,7 +56,11 @@ namespace
 
         const FBoxSphereBounds Bounds = RoofMesh->GetBounds();
         const FVector Size = Bounds.BoxExtent * 2.0f;
-        if (Size.X <= 10.0f || Size.Y <= 10.0f || Size.Z <= 10.0f) return;
+        if (Size.X <= 10.0f || Size.Y <= 10.0f || Size.Z <= 10.0f)
+        {
+            Roof->DestroyComponent();
+            return;
+        }
 
         // Functional shell footprint is 16 x 11 m. Slight overhang keeps the flat prototype ceiling hidden.
         const float ScaleX = 1780.0f / Size.X;
@@ -85,12 +94,11 @@ void UOCR13EnterableHouseArtSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    FTimerHandle Timer;
-    InWorld.GetTimerManager().SetTimer(Timer,
+    InWorld.GetTimerManager().SetTimer(ArtRetryTimer,
         FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
         {
             if (UWorld* World = WeakWorld.Get()) ApplyEnterableHouseArt(*World);
-        }), 2.05f, false);
+        }), ArtRetryIntervalSeconds, true, FirstArtPassDelaySeconds);
 }
 
 void UOCR13EnterableHouseArtSubsystem::ApplyEnterableHouseArt(UWorld& World)
@@ -112,14 +120,19 @@ void UOCR13EnterableHouseArtSubsystem::ApplyEnterableHouseArt(UWorld& World)
     UMaterialInterface* YardMaterial = LoadMaterial(
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Diorama_Ground.Diorama_Ground"));
 
-    int32 HouseCount = 0;
+    int32 NewlyStyledHouseCount = 0;
     int32 RoofCount = 0;
     for (TActorIterator<AOCEnterableHouse> It(&World); It; ++It)
     {
         AOCEnterableHouse* House = *It;
         if (!House) continue;
 
-        UMaterialInterface* WallMaterial = WallMaterials[HouseCount % UE_ARRAY_COUNT(WallMaterials)];
+        const TWeakObjectPtr<AOCEnterableHouse> HouseKey(House);
+        if (StyledHouses.Contains(HouseKey)) continue;
+
+        const uint32 StableHash = HashCombine(GetTypeHash(House->GetActorLocation().X),
+            HashCombine(GetTypeHash(House->GetActorLocation().Y), GetTypeHash(House->GetActorRotation().Yaw)));
+        UMaterialInterface* WallMaterial = WallMaterials[StableHash % UE_ARRAY_COUNT(WallMaterials)];
         if (!WallMaterial)
         {
             for (UMaterialInterface* Candidate : WallMaterials)
@@ -144,14 +157,29 @@ void UOCR13EnterableHouseArtSubsystem::ApplyEnterableHouseArt(UWorld& World)
 
         if (RoofMesh)
         {
-            AddRoof(House, RoofMesh, RoofMaterial, HouseCount);
+            AddRoof(House, RoofMesh, RoofMaterial);
             ++RoofCount;
         }
 
-        ++HouseCount;
+        StyledHouses.Add(HouseKey);
+        ++NewlyStyledHouseCount;
     }
 
-    UE_LOG(LogTemp, Display,
-        TEXT("R13.4 enterable-house art: houses=%d styled, pitched metal roofs=%d; authored doors/windows/interiors preserved."),
-        HouseCount, RoofCount);
+    for (auto It = StyledHouses.CreateIterator(); It; ++It)
+    {
+        if (!It->IsValid()) It.RemoveCurrent();
+    }
+
+    ++ArtRetryPass;
+    if (ArtRetryPass >= MaxArtRetryPasses)
+    {
+        World.GetTimerManager().ClearTimer(ArtRetryTimer);
+    }
+
+    if (NewlyStyledHouseCount > 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("R13.4 enterable-house art: newly styled=%d roofs=%d pass=%d/%d; authored doors/windows/interiors preserved."),
+            NewlyStyledHouseCount, RoofCount, ArtRetryPass, MaxArtRetryPasses);
+    }
 }
