@@ -7,6 +7,7 @@ required=[
  'Source/OsterConflict/Private/OCGameUIRootWidget.cpp',
  'Source/OsterConflict/Public/OCPlayerController.h',
  'Source/OsterConflict/Private/OCPlayerController.cpp',
+ 'Source/OsterConflict/Private/OCR13DeploymentSelectionBridge.cpp',
  'Source/OsterConflict/Public/OCGameMode.h',
  'Source/OsterConflict/Private/OCGameMode.cpp',
  'Docs/SESSION_17A_README_UA.md','Docs/UI_ARCHITECTURE_S17A.md','Docs/S17A_TEST_MATRIX.md',
@@ -25,9 +26,12 @@ markers=[
 missing=[m for m in markers if m not in alltext and m not in (P/'Source/OsterConflict/OsterConflict.Build.cs').read_text(errors='ignore')]
 if missing: raise SystemExit('MISSING MARKERS: '+', '.join(missing))
 
-# Server RPC declarations should have implementations.
+# Server RPC declarations may be split across focused controller implementation translation units.
 h=(P/'Source/OsterConflict/Public/OCPlayerController.h').read_text()
-cpp=(P/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text()
+cpp='\n'.join([
+    (P/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text(errors='ignore'),
+    (P/'Source/OsterConflict/Private/OCR13DeploymentSelectionBridge.cpp').read_text(errors='ignore'),
+])
 rpcs=re.findall(r'UFUNCTION\(Server, Reliable\)\s+void\s+(\w+)\s*\(',h)
 for rpc in rpcs:
     if f'{rpc}_Implementation' not in cpp: raise SystemExit(f'RPC implementation missing: {rpc}')
@@ -39,7 +43,7 @@ for rel in ['Source/OsterConflict/Public/OCGameUIRootWidget.h','Source/OsterConf
     if not inc or 'generated.h' not in inc[-1]: raise SystemExit(f'generated.h order: {rel}')
 
 # Basic delimiter sanity for touched C++
-for rel in ['Source/OsterConflict/Private/OCGameUIRootWidget.cpp','Source/OsterConflict/Private/OCPlayerController.cpp','Source/OsterConflict/Private/OCGameMode.cpp']:
+for rel in ['Source/OsterConflict/Private/OCGameUIRootWidget.cpp','Source/OsterConflict/Private/OCPlayerController.cpp','Source/OsterConflict/Private/OCR13DeploymentSelectionBridge.cpp','Source/OsterConflict/Private/OCGameMode.cpp']:
     text=(P/rel).read_text()
     # ignore strings/comments imperfectly but enough to catch accidental editing damage
     for a,b in [('(',')'),('{','}'),('[',']')]:
