@@ -1,5 +1,6 @@
 #include "OCR13GroundSurfaceSubsystem.h"
 
+#include "OCGameMode.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -19,6 +20,10 @@ void UOCR13GroundSurfaceSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
 
     // Source BeginPlay assigns the temporary solid-green debug tint. Apply the real surface immediately after
     // the source actor is expected to exist, without changing the ground transform, collision or compact bounds.
