@@ -13,6 +13,8 @@ files = {
     "controller_h": SRC / "Public" / "OCPlayerController.h",
     "spawn_h": SRC / "Public" / "OCR13SpawnSafetySubsystem.h",
     "spawn_cpp": SRC / "Private" / "OCR13SpawnSafetySubsystem.cpp",
+    "compact_h": SRC / "Public" / "OCR13CompactOsterSubsystem.h",
+    "compact_cpp": SRC / "Private" / "OCR13CompactOsterSubsystem.cpp",
     "world": SRC / "Private" / "OCWorldSectorOster.cpp",
     "geo_h": SRC / "Public" / "OCGeoReference.h",
 }
@@ -81,12 +83,18 @@ for token in [
     "UICommitDeployment()",
     "ClientCompleteDeployment(bool bSuccess)",
     "ServerRequestRole(EOCPlayerRole RequestedRole)",
+    "ServerCommitDeployment()",
 ]:
     if token not in text["controller_h"]:
         fail(f"controller deployment API missing: {token}")
 
 for token in [
     "AOCPlayerController::UICommitDeployment()",
+    "AOCPlayerController::ServerCommitDeployment_Implementation()",
+    "World->GetMapName().Contains(TEXT(\"OsterConflict_Runtime\"))",
+    "GetSubsystem<UOCR13CompactOsterSubsystem>()",
+    "Compact->IsCompactLayoutReady()",
+    "ClientCompleteDeployment(false)",
     "ServerSetLobbyReady_Implementation(true)",
     "AOCPlayerController::ClientCompleteDeployment_Implementation",
     "AOCGameMode::RequestRoleChange",
@@ -94,9 +102,32 @@ for token in [
     "Other->GetPlayerRole() == RequestedRole",
 ]:
     if token not in text["bridge"]:
-        fail(f"authoritative selection bridge marker missing: {token}")
+        fail(f"authoritative selection/readiness bridge marker missing: {token}")
 if "State->GetPlayerRole() == RequestedRole) return true" in text["bridge"]:
     fail("legacy default role can still bypass specialist uniqueness validation")
+
+# Explicitly guard the race that produced the user's out-of-bounds/under-map spawn: source bases are authored
+# outside the compact crop and are relocated later by the R13 compact pass, so human ready must wait for bApplied.
+if "bool IsCompactLayoutReady() const { return bApplied; }" not in text["compact_h"]:
+    fail("compact layout does not expose authoritative readiness")
+for token in [
+    "CompactMinX = -70000.0f",
+    "CompactMaxX =  25000.0f",
+    "CompactMinY = -25000.0f",
+    "CompactMaxY =  50000.0f",
+    "TeamOneBase(-64000.0f, 44000.0f, 160.0f)",
+    "TeamTwoBase( 20000.0f,-19000.0f, 160.0f)",
+    "Spawn->SetActorLocation(Target",
+    "bApplied = true;",
+]:
+    if token not in text["compact_cpp"]:
+        fail(f"compact relocation/readiness marker missing: {token}")
+for token in [
+    "FVector(-104000.0f, -92000.0f, 0.0f)",
+    "FVector( 104000.0f,  92000.0f, 0.0f)",
+]:
+    if token not in text["world"]:
+        fail(f"legacy source-base regression marker unexpectedly changed: {token}")
 
 spawn_required = [
     "LineTraceSingleByChannel",
@@ -139,4 +170,4 @@ for token in [
         fail(f"museum origin marker missing: {token}")
 
 print("R13.3 DEPLOYMENT/SPAWN VERIFY: PASS")
-print("Checks single menu backdrop ownership, stable staged team->squad->role->spawn UX, authoritative role selection, collision-grounded spawning and museum preservation/origin.")
+print("Checks single menu backdrop ownership, staged team->squad->role->spawn UX, compact-map readiness before human spawn, collision-grounded spawning and museum preservation/origin.")
