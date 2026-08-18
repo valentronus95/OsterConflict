@@ -134,13 +134,18 @@ for token in [
 
 ground = texts["ground"]
 for token in [
-    "Diorama_Ground.Diorama_Ground",
+    "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "R13_MatteOsterGround",
+    'SetVectorParameterValue(TEXT("Color")',
     "Ground->SetMaterial(0, GroundMaterial)",
     "Do not touch Ground collision, scale, location or visibility",
     "GameMode->IsFrontendOnlySession()",
+    "matte non-water city floor",
 ]:
     if token not in ground:
         fail(f"ground-surface safety marker missing: {token}")
+if "Diorama_Ground.Diorama_Ground" in ground:
+    fail("broad authoritative city floor still uses the wet-looking diorama material")
 for forbidden in ["SetCollisionEnabled", "SetRelativeLocation", "SetWorldLocation", "SetRelativeScale3D", "SetWorldScale3D"]:
     if forbidden in ground:
         fail(f"ground material pass must not mutate gameplay floor geometry: {forbidden}")
@@ -252,4 +257,4 @@ for name in (
             fail(f"delimiter mismatch {left}{right} in {FILES[name].name}")
 
 print("R13.4 VISUAL BATCH CONSOLIDATION VERIFY: PASS")
-print("Checks single-owner grass/foliage/path/pole responsibilities, frontend-only guards, dedicated Krushelnytska infrastructure, real conifers, textured museum upper timber, museum photo-reference facade details, terrain material safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
+print("Checks single-owner grass/foliage/path/pole responsibilities, frontend-only guards, dedicated Krushelnytska infrastructure, real conifers, textured museum upper timber, museum photo-reference facade details, matte broad terrain safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
