@@ -8,6 +8,18 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
 
+bool AOCPlayerController::ConsumeR13DeploymentCommitAuthorization()
+{
+    UWorld* World = GetWorld();
+    const double Now = World ? World->GetTimeSeconds() : TNumericLimits<double>::Max();
+    const bool bFreshAuthorization = bR13DeploymentCommitAuthorized &&
+        R13DeploymentCommitAuthorizationExpiresAt >= Now;
+
+    bR13DeploymentCommitAuthorized = false;
+    R13DeploymentCommitAuthorizationExpiresAt = -1.0;
+    return bFreshAuthorization;
+}
+
 void AOCPlayerController::UIRequestSquad(const int32 SquadId)
 {
     if (!bDeploymentPanelVisible || SquadId < 0 || SquadId >= 8) return;
@@ -38,6 +50,7 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
     UWorld* World = GetWorld();
     AOCPlayerState* State = GetPlayerState<AOCPlayerState>();
     bR13DeploymentCommitAuthorized = false;
+    R13DeploymentCommitAuthorizationExpiresAt = -1.0;
 
     if (!World || !State || State->IsBotPlayer() || State->GetTeamId() == EOCTeam::None || State->GetSquadId() < 0)
     {
@@ -63,7 +76,9 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
 
     // This token is consumed by OCR13SpawnSafetySubsystem on the first new human pawn. Legacy F4/ReadyAction may
     // still exist for compatibility, but it cannot make an accepted gameplay pawn because it never grants this token.
+    // A two-second expiry prevents a failed/aborted RestartPlayer from leaving a stale authorization behind.
     bR13DeploymentCommitAuthorized = true;
+    R13DeploymentCommitAuthorizationExpiresAt = World->GetTimeSeconds() + 2.0;
     ServerSetLobbyReady_Implementation(true);
 }
 
