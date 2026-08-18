@@ -14,7 +14,6 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/PanelWidget.h"
-#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -520,7 +519,9 @@ void UOCR13DeploymentFlowSubsystem::RefreshState(AOCPlayerController* PC)
     }
 
     if (SpawnSelectionText.IsValid())
-        SpawnSelectionText->SetText(FText::FromString(TEXT("ТОЧКА: ") + SpawnLabel(SelectedSpawn)));
+    {
+        SpawnSelectionText->SetText(FText::FromString(FString::Printf(TEXT("ТОЧКА: %s"), *SpawnLabel(SelectedSpawn))));
+    }
 
     if (DeployButton.IsValid())
     {
@@ -642,7 +643,7 @@ void UOCR13DeploymentFlowSubsystem::OnDeploy()
     if (StatusText.IsValid())
         StatusText->SetText(FText::FromString(TEXT("ПЕРЕВІРКА ТОЧКИ ПОЯВИ…")));
     PC->UISelectSpawn(SelectedSpawn);
-    PC->UIReadyDeploy();
+    PC->UICommitDeployment();
 }
 
 TStatId UOCR13DeploymentFlowSubsystem::GetStatId() const
