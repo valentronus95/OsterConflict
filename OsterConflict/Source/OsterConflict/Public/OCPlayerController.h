@@ -36,9 +36,11 @@ public:
     /**
      * One-shot, short-lived server authorization consumed by OCR13SpawnSafetySubsystem.
      * Legacy ready/F4 can still alter lobby-ready state for compatibility, but it cannot produce an accepted
-     * runtime pawn unless the staged deployment commit granted a fresh token first.
+     * initial runtime pawn unless the staged deployment commit granted a fresh token first.
      */
     bool ConsumeR13DeploymentCommitAuthorization();
+    bool HasCompletedR13InitialDeployment() const { return bR13InitialDeploymentCompleted; }
+    void MarkR13InitialDeploymentCompleted() { bR13InitialDeploymentCompleted = true; }
 
     const TArray<FOCChatMessage>& GetRecentChatMessages() const { return RecentChatMessages; }
     const FOCSquadOrder& GetCurrentSquadOrder() const { return CurrentSquadOrder; }
@@ -129,6 +131,7 @@ private:
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
     bool bR13DeploymentCommitAuthorized = false;
+    bool bR13InitialDeploymentCompleted = false;
     double R13DeploymentCommitAuthorizationExpiresAt = -1.0;
     double LastChatServerTime = -100.0;
     TArray<FOCChatMessage> RecentChatMessages;
