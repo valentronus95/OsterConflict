@@ -13,13 +13,19 @@ REQUIRED_ASSETS = [
 REQUIRED_SOURCE_TOKENS = [
     'FindISM(WorldSector, TEXT("ParkDetails"))',
     'AOCWorldSectorOster::ParkAnchor()',
+    'ExpectedCentralParkBenchCount = 14',
     'IsBenchProxyTransform',
+    'BenchTransforms.Num() != ExpectedCentralParkBenchCount',
     'Old_Planks_Plank_1.Old_Planks_Plank_1',
     'Old_Planks_Plank_2.Old_Planks_Plank_2',
     'Old_Planks_Plank_3.Old_Planks_Plank_3',
     'R13_ParkBenchCollision',
     'CollisionProxy->AddInstance(ProxyTransform, true)',
-    'Proxy->UpdateInstanceTransform(Index, HiddenTransform, true, true, true)',
+    'Proxy->UpdateInstanceTransform(BenchIndices[BenchIndex], HiddenTransform, true, true, true)',
+    'Proxy->UpdateInstanceTransform(BenchIndices[RestoreIndex]',
+    'CollisionProxy->ClearInstances()',
+    'Root->SetMobility(EComponentMobility::Static)',
+    'if (Replaced != ExpectedCentralParkBenchCount)',
     'unrelated ParkDetails untouched',
 ]
 
@@ -52,4 +58,4 @@ for asset in REQUIRED_ASSETS:
         fail(f"missing committed plank asset: {asset.relative_to(ROOT)}")
 
 print("R13 PARK FURNITURE VERIFY: PASS")
-print("Checks selective bench detection, preserved collision and bundled old-plank art paths.")
+print("Checks 14-bench all-or-nothing replacement, rollback, collision preservation and bundled old-plank art paths.")
