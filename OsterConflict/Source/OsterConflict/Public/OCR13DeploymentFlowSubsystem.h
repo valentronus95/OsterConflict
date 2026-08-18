@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OCGameplayMode.h"
 #include "OCTeamTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13DeploymentFlowSubsystem.generated.h"
