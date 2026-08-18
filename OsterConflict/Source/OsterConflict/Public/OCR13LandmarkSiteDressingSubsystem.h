@@ -5,9 +5,9 @@
 #include "OCR13LandmarkSiteDressingSubsystem.generated.h"
 
 /**
- * R13.4 landmark-site dressing pass.
- * Adds conservative, visual-only site furniture and planting around already-authored Museum, Stadium and College
- * landmarks. It deliberately does not replace landmark building geometry or participate in navigation/collision.
+ * R13.5 landmark-site hardscape/furniture pass.
+ * Adds conservative visual-only approach and service details around already-authored Museum, Stadium and College.
+ * Planting and roadside poles are owned by the dedicated R13.5 civic/roadside subsystems, avoiding duplicate art.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13LandmarkSiteDressingSubsystem : public UWorldSubsystem
