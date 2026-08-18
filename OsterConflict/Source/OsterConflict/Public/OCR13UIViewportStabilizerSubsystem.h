@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13UIViewportStabilizerSubsystem.generated.h"
 
