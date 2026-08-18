@@ -73,7 +73,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="UI") void UIToggleFrontend();
     UFUNCTION(BlueprintCallable, Category="UI") void UIRequestTeam(EOCTeam Team);
     UFUNCTION(BlueprintCallable, Category="UI") void UIRequestSquad(int32 SquadId);
-    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestRole(EOCPlayerRole Role);
+    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestRole(EOCPlayerRole RequestedRole);
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleRole();
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleSquad();
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
