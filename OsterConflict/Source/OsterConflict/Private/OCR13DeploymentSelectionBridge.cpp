@@ -3,6 +3,7 @@
 #include "OCGameMode.h"
 #include "OCGameState.h"
 #include "OCPlayerState.h"
+#include "OCR13CompactOsterSubsystem.h"
 
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
@@ -25,10 +26,32 @@ void AOCPlayerController::UICommitDeployment()
 {
     if (!bDeploymentPanelVisible || bFrontendMenuVisible || bSettingsVisible) return;
 
-    // Unlike the legacy UIReadyDeploy path, keep the deployment UI visible while the authoritative server
-    // creates and ground-validates the pawn. ClientCompleteDeployment is the only thing allowed to close it.
-    if (HasAuthority()) ServerSetLobbyReady_Implementation(true);
-    else ServerSetLobbyReady(true);
+    // Keep the deployment UI visible while the authoritative server checks that compact Oster has already
+    // relocated the old source PlayerStarts and then creates/ground-validates the pawn.
+    if (HasAuthority()) ServerCommitDeployment_Implementation();
+    else ServerCommitDeployment();
+}
+
+void AOCPlayerController::ServerCommitDeployment_Implementation()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    // The source world still authors legacy bases far outside the R13 compact crop. Never let a human become ready
+    // until OCR13CompactOsterSubsystem has cropped the world, moved objectives and relocated TeamSpawn actors.
+    if (World->GetMapName().Contains(TEXT("OsterConflict_Runtime")))
+    {
+        UOCR13CompactOsterSubsystem* Compact = World->GetSubsystem<UOCR13CompactOsterSubsystem>();
+        if (!Compact || !Compact->IsCompactLayoutReady())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 deployment held: compact Oster layout is not ready for %s."), *GetName());
+            ClientCompleteDeployment(false);
+            return;
+        }
+    }
+
+    ServerSetLobbyReady_Implementation(true);
 }
 
 void AOCPlayerController::ServerRequestRole_Implementation(const EOCPlayerRole RequestedRole)
