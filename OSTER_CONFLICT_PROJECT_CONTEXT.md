@@ -1,71 +1,428 @@
-# OSTER CONFLICT — PROJECT CONTEXT
+# OSTER CONFLICT — PROJECT CONTEXT FOR GPT
 
-> Persistent source-owned project context for continuation work. Keep this file concise enough to remain useful and update it only when a checkpoint materially changes.
+> Цей файл потрібно читати ПЕРШИМ у будь-якому новому чаті ChatGPT/Codex перед роботою з проєктом.
+> Проєкт уже існує. НЕ створювати гру з нуля і НЕ ламати робочі системи, які вже реалізовані.
 
-## Current checkpoint — R13 content + gameplay pass
+## 1. Що це за проєкт
 
-- Active integration branch: `r13-content-gameplay-pass`.
-- Draft PR: #2, `R13 whole Oster content + gameplay pass`.
-- R13 preserves the source-owned Oster topology and existing multiplayer/gameplay backend while progressively replacing greybox visuals with bundled art.
-- Never rebuild the project from scratch and never reconstruct large source files from partial snippets. Prefer isolated subsystems and small commits.
+**Назва гри:** Oster Conflict  
+**Движок:** Unreal Engine 5.8.x  
+**Платформа:** Windows PC  
+**Жанр:** сучасний мережевий FPS  
+**Основна мова користувача та документації:** українська
 
-## Validation checkpoint
+Гра розробляється разом із ChatGPT/Codex. Користувач тестує збірки на своєму Windows-ПК, надає логи, скріншоти та результати тестів, після чого GPT аналізує та вносить зміни в проєкт.
 
-- GitHub Actions `Source verification` now runs for pushes and pull requests on Windows and executes `RUN_ALL_VERIFY.py`.
-- Source verification is GREEN at commit `84e15bc900f5d003748805ff4b68340e9d416570` (workflow run #238).
-- This source-only result does **not** claim an Unreal Engine compile or runtime visual pass.
-- Full local Windows UE 5.8.x `OsterConflictEditor` + `OsterConflict` compile is still required before the draft PR is merge-ready.
+Головна мета — створити сучасний Battlefield/COD-подібний FPS із картою українського міста **Остер, Чернігівська область**.
 
-## Main-menu contract
+Правильне написання:
+- називний: **Остер**
+- родовий: **Остра**
+- не писати «Остера».
 
-- Use `/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG` as the approved static startup backdrop.
-- Do not globally tint or darken the approved main-menu background.
-- The main menu uses only a local left-side black feather; full-frame shade is pause-only.
-- Keep the menu narrow/transparent and keep the approved top-level actions: `СТАРТ`, `ЛОКАЛЬНА ГРА`, `МЕРЕЖЕВА ГРА`, `НАЛАШТУВАННЯ`, `ВИЙТИ З ГРИ`.
-- Legacy frontend/background layers must stay suppressed.
-- Standalone frontend-only sessions must not own a gameplay pawn; `OCR13FrontendShellGuardSubsystem` enforces this so the startup menu cannot fall into the live-world pause presentation.
-- Escape/resume must restore gameplay input, clear ignored move/look state and flush pressed keys.
+## 2. GitHub
 
-## Environment / Oster art bridge
+Основний GitHub-репозиторій:
 
-- Whole-Oster roads and sidewalks use bundled Roadside Construction art.
-- Current environment bridge uses AdvancedVillage houses/trees and PN foliage where semantically safe.
-- `WoodFences`, `LightSheetFences`, Krushelnytska pole replacements and the temporary `MetalFences` visual bridge are transactional per source family: incomplete replacement keeps the original proxy.
-- Central-park bench bridge requires all 14 expected bench proxies and rolls back on failure; unrelated mixed `ParkDetails` must remain untouched.
-- Landmark windows use framed glass while source massing remains unchanged.
-- Museum roof bridge targets exactly 8 pitched museum panels; flat college roofs remain untouched.
-- Museum chimney bridge targets exactly 2 museum chimney proxies; other `LandmarkDetails` remain untouched.
-- Do not substitute unrelated generic/medieval assets for recognizable Oster landmarks just to remove greybox geometry.
+`valentronus95/OsterConflict`
 
-## Characters / weapons / vehicles
+Репозиторій приватний.
 
-- Authored faction character art wins when available; bundled Manny/Quinn + locomotion are the current fallback before primitive third-person proxy art.
-- Primitive first-person proxy arms/hands remain structurally defined but hidden. Production FPS arms are shown only when an authored profile mesh is available.
-- Existing weapon art connected: AK-47, MP5, M1911, M700, M14, Lever Action, MAC-10, TEC-9. Shotgun/LMG/launcher still use existing fallback art.
-- Civilian art connected: hatchback, sports-car sedan, SUV/wagon, pickup and BoxTruck.
-- BTR intentionally remains a gameplay proxy until a real APC/BTR asset is installed. Never disguise it with civilian vehicle art.
+Рекомендований локальний шлях після clone:
 
-## Runtime variant spawn hardening
+`C:\Game\OsterConflict`
 
-- Extra R13 weapon pickups and BoxTruck spawn points skip frontend-only sessions and clients.
-- Both bridges use bounded retry (20 attempts, 0.5 s retry delay) while waiting for `AOCWorldSectorOster`.
-- Weapon variant spawn is all-or-nothing: partial pickup sets are destroyed before retry so successful seeds cannot duplicate.
-- BoxTruck spawn points use UE 5.8 deferred spawning, are configured as `BoxTruck` before `BeginPlay`, and are finished only after both pending spawn points are prepared.
-- `VERIFY_R13_RUNTIME_SPAWN_BRIDGES.py` guards this behavior and is included in `RUN_ALL_VERIFY.py`.
+Усі подальші зміни потрібно вести через Git/GitHub, а не через нескінченні повні ZIP-архіви.
 
-## Known production-art gaps
+### Git LFS
 
-- faction-specific military character bodies/gear;
-- authored first-person arms/hands and weapon animation set;
-- real BTR/APC art;
-- production metal-fence art;
-- final purpose-built park furniture polish;
-- exact production museum/college facade/massing art;
-- stadium, Silpo, bus station and remaining recognizable Oster landmark art.
+Великі Unreal-файли повинні відстежуватися через Git LFS, зокрема:
 
-## Local Windows validation path
+- `*.uasset`
+- `*.umap`
+- `*.fbx`
+- `*.tga`
+- `*.exr`
+- `*.wav`
 
-1. Pull `r13-content-gameplay-pass`.
-2. Run `START_HERE.cmd`.
-3. Option `1` runs source verification first, then compiles `OsterConflictEditor` and `OsterConflict` using installed UE 5.8 `Build.bat`.
-4. Treat the UE compiler/runtime output as authoritative for the next fix cycle.
+Не комітити службові Unreal/Visual Studio папки:
+
+- `.vs/`
+- `Binaries/`
+- `Intermediate/`
+- `Saved/`
+- `DerivedDataCache/`
+- `Plugins/**/Binaries/`
+- `Plugins/**/Intermediate/`
+
+## 3. Базова структура проєкту
+
+Очікувана структура репозиторію:
+
+```text
+OsterConflict/
+├─ Config/
+├─ Content/
+│  ├─ Maps/
+│  ├─ AdvancedVillagePack/
+│  ├─ Modular_Rural_Cabin/
+│  └─ Fab/
+│     └─ Slavic_Medieval_Town_Kit_-_Lite__Free_Starter_Pack_/
+├─ Scripts/
+├─ Source/
+├─ Build/
+├─ Docs/
+├─ AudioSources/
+├─ OsterConflict.uproject
+└─ README.md
+```
+
+У корені робочого архіву/репозиторію також можуть бути:
+
+- `START_HERE.cmd`
+- `PC_TEST/`
+- build/validation `.cmd`, `.bat`, `.ps1`, `.py`
+- технічні `.md` / `.txt`
+
+## 4. Поточна технічна база
+
+Контрольна робоча версія перед переходом на GitHub:
+
+**R11.1 Launcher Fixed / Visual Foundation**
+
+Вона вже підтвердила:
+
+- UE 5.8.1 визначається;
+- Editor компілюється;
+- Game target компілюється;
+- listen-server запускається;
+- `OCGameMode` запускається;
+- гравець підключається;
+- 15 AI-ботів створюються;
+- HUD, команди, ролі, зброя та базова стрільба працюють на рівні логіки;
+- runtime карта `OsterConflict_Runtime` завантажується.
+
+Але візуально R11.1 ще є **greybox / технічним прототипом**, а не готовою грою.
+
+## 5. Головна проблема R11.1
+
+Поточний runtime-вигляд неприйнятний для фінальної гри:
+
+- велика порожня площина;
+- примітивні форми;
+- груба зброя;
+- відсутнє реальне місто;
+- немає нормальних кварталів Остра;
+- немає нормальних будинків, дворів, парканів, транспорту;
+- меню входу в бій незручне;
+- раніше були проблеми з чорним/пересвіченим екраном.
+
+Технічний greybox НЕ видавати за готову карту.
+
+## 6. Встановлені графічні пакети
+
+У проєкт уже були додані Fab/Unreal asset-пакети:
+
+### AdvancedVillagePack
+
+Відомі корисні елементи:
+- `BP_House_Var01`
+- `BP_House_Var02`
+- дерева;
+- криниці;
+- вуличні ліхтарі;
+- дим із димоходів;
+- туман;
+- пил;
+- листя;
+- матеріали ландшафту;
+- вода;
+- рослинність;
+- готові demo/overview maps;
+- день/ніч.
+
+### Modular_Rural_Cabin
+
+Використовувати для:
+- приватних житлових будинків;
+- сільської/малоповерхової забудови;
+- господарських споруд;
+- дворів;
+- інтер’єрів та деталей.
+
+### Slavic Medieval Town Kit — Lite / Free Starter Pack
+
+Шлях орієнтовно:
+
+`Content/Fab/Slavic_Medieval_Town_Kit_-_Lite__Free_Starter_Pack_/`
+
+Використовувати ВИБІРКОВО:
+- дерев’яні паркани;
+- ворота;
+- дерев’яні елементи;
+- ґрунт;
+- дорожні елементи;
+- господарські деталі.
+
+Не використовувати явно середньовічні об’єкти там, де вони не відповідають сучасному Остру.
+
+## 7. Наступний основний етап: R12
+
+R12 має перестати бути пустим greybox і почати виглядати як реальна гра.
+
+Пріоритет:
+
+1. Реальний ігровий сектор Остра.
+2. Нормальна структура вулиць.
+3. Ділянки приватної забудови.
+4. Будинки.
+5. Двори.
+6. Паркани та ворота.
+7. Дерева і трава.
+8. Дороги та узбіччя.
+9. Господарські споруди.
+10. Дрібне міське/дворове оточення.
+11. Нормальні точки появи.
+12. Транспорт.
+13. Нормальна зброя та FX.
+14. Поліпшений frontend / deployment UI.
+
+Не потрібно одразу моделювати все місто. Спочатку зробити **один якісний, повноцінний сектор**, який виглядає як Остер, а не як тестовий полігон.
+
+## 8. Важливі референси Остра
+
+Користувач хоче максимально впізнавану карту міста Остер.
+
+Важливі локації, які плануються/обговорювались:
+
+- центр Остра;
+- музей;
+- стадіон;
+- автостанція;
+- парк;
+- супермаркет «Сільпо»;
+- житлові вулиці;
+- приватні двори;
+- вул. Крушельницька 24 як один із детальних референсів;
+- реальні типи місцевих парканів;
+- радянські/післявоєнні посадки дерев.
+
+Для географії та забудови використовувати фото/відео/супутникові/дрон-референси, коли вони надані користувачем або окремо дозволено дослідження.
+
+## 9. Типові паркани Остра
+
+Потрібно відтворювати різні типи:
+
+- високі дерев’яні паркани, через які не видно двір;
+- металеві паркани;
+- легкі металеві/алюмінієві/профільні паркани;
+- ворота та хвіртки різних типів.
+
+Не робити один універсальний паркан для всього міста.
+
+## 10. Рослинність
+
+Потрібні:
+
+- трава;
+- локальні дерева;
+- дерева, характерні для насаджень радянського періоду;
+- кущі;
+- придорожня рослинність;
+- дворові дерева;
+- випадкова, але правдоподібна щільність.
+
+## 11. Будинки та інтер’єри
+
+Будинки повинні бути різними, а не копіями одного prefab.
+
+Потрібні:
+- старі приватні будинки;
+- цегляні будинки;
+- дерев’яні будинки;
+- господарські споруди;
+- гаражі;
+- сараї;
+- прості подвір’я;
+- частина доступних інтер’єрів.
+
+Інтер’єри можуть містити:
+- дивани;
+- столи;
+- шафи;
+- кухні;
+- холодильники;
+- ноутбуки/ПК;
+- побутові речі.
+
+На першому етапі вони можуть бути статичними.
+
+## 12. Gameplay / multiplayer
+
+Цільова логіка:
+
+- сучасний FPS;
+- multiplayer;
+- dedicated server у майбутньому;
+- listen-server для локального тестування;
+- боти заповнюють сервер;
+- якщо сервер повний і заходить людина, бот має звільняти слот;
+- командна гра;
+- команди/групи як у Battlefield;
+- глобальний чат;
+- командний чат;
+- ім’я користувача перед входом;
+- транспорт із можливістю керувати та стріляти;
+- можливість 3rd person у транспорті;
+- FPS-персонаж від 1st person.
+
+## 13. Здоров’я / ураження
+
+Орієнтир:
+- COD-подібна система здоров’я;
+- різна реакція на попадання залежно від частини тіла та зброї;
+- кров/FX мають відповідати попаданням;
+- фізика пошкоджень повинна бути окремою системою, а не debug-фігурами.
+
+## 14. Зброя
+
+У тестовому режимі планується широкий набір зброї.
+
+Не використовувати `/Engine/BasicShapes/Cube` як фінальну модель зброї.
+
+Потрібні:
+- нормальні weapon meshes;
+- руки;
+- анімації;
+- muzzle flash;
+- tracer;
+- impact FX;
+- recoil;
+- ADS;
+- reload;
+- звуки.
+
+## 15. Стартове меню / deployment UI
+
+Поточне меню потребує переробки.
+
+Потрібна послідовність:
+
+```text
+Ім’я
+→ Команда
+→ Роль / група
+→ Точка появи
+→ Підтвердження
+→ ГОТОВИЙ ДО БОЮ
+→ Spawn
+```
+
+Не показувати одночасно величезну форму з усіма параметрами.
+
+## 16. Режими тестування
+
+Потрібно чітко розділити:
+
+### Greybox / Development Test
+Для:
+- перевірки механік;
+- debug;
+- швидких тестів;
+- технічних примітивів.
+
+### Oster Map / Visual Test
+Для:
+- реальної карти;
+- будинків;
+- графіки;
+- освітлення;
+- транспорту;
+- фінального gameplay-вигляду.
+
+Користувач не повинен запускати greybox і думати, що це готова графіка.
+
+## 17. Правила роботи GPT/Codex з проєктом
+
+1. Перед змінами перевірити поточну структуру репозиторію.
+2. Не створювати нову гру з нуля.
+3. Не видаляти робочу мережеву/gameplay логіку без причини.
+4. Не ламати build scripts.
+5. Робити зміни поетапно.
+6. Після кожного великого етапу проводити regression check.
+7. Не вигадувати, що функція готова, якщо її не перевірено.
+8. Відрізняти:
+   - source code готовий;
+   - compile verified;
+   - runtime verified;
+   - visual verified.
+9. Не називати greybox «готовою картою».
+10. Не додавати випадкові asset-и лише тому, що вони існують.
+11. Використовувати Fab assets відповідно до сучасного Остра.
+12. Зберігати короткі шляхи Windows, бажано `C:\Game\...`, щоб не отримати помилки >260 символів.
+13. UE Launcher 5.8 не має source-only `RunUBT.bat`; build scripts повинні підтримувати Launcher UE через `Build.bat` / UBT DLL.
+14. Dedicated Server може вимагати source build UE; listen-server використовується для Launcher-тестів.
+15. Якщо потрібен asset, спочатку перевірити точний `/Game/...` шлях у Content.
+
+## 18. Відомі технічні особливості тестового ПК
+
+На попередніх тестах:
+
+- Unreal Engine: 5.8.1
+- Windows 11/Windows NT 10.0.26200.x
+- GPU: NVIDIA GeForce RTX 3050 Laptop GPU
+- RAM: приблизно 16 GB
+- CPU: 4 physical / 8 logical cores
+
+Тому:
+- не будувати проєкт навколо надважких City Sample-рішень;
+- уникати безконтрольного завантаження всіх asset-пакетів;
+- використовувати LOD/Nanite там, де доречно;
+- використовувати streaming / soft references;
+- контролювати VRAM/RAM.
+
+## 19. Який результат очікує користувач
+
+Користувач хоче завантажити/відкрити гру і побачити:
+
+- реальне місто;
+- впізнаваний Остер;
+- нормальні будинки;
+- дороги;
+- паркани;
+- дерева;
+- двори;
+- транспорт;
+- зброю;
+- FPS-персонажа;
+- нормальне освітлення;
+- нормальні ефекти;
+- логічне меню;
+- мережеву гру з ботами.
+
+Не приймається як фінальний результат:
+- пустий landscape;
+- куби;
+- spheres/cylinders замість контенту;
+- debug shapes;
+- чорний екран;
+- пересвічений білий екран;
+- випадкова забудова без структури міста.
+
+## 20. Інструкція для нового чату
+
+Якщо цей файл завантажили у новий ChatGPT/Codex чат:
+
+1. Вважати цей файл основним контекстом проєкту.
+2. Якщо доступний GitHub connector, відкрити:
+   `valentronus95/OsterConflict`
+3. Перевірити актуальний стан репозиторію перед відповіддю про код.
+4. Продовжувати проєкт із поточного стану, а не починати заново.
+5. Основний поточний напрям: **R12 — реальна візуальна карта Остра поверх робочої мережевої/gameplay бази**.
+6. Відповідати користувачу українською.
+7. Для великих змін використовувати окрему гілку/PR, якщо робота ведеться через GitHub.
+8. Усі зміни мають бути відтворюваними, перевірюваними та не руйнувати робочу baseline-версію.
+
+---
+
+**Коротко:** Oster Conflict — існуючий UE 5.8 multiplayer FPS-проєкт. Мережева/gameplay база вже працює, але візуальна частина ще greybox. У GitHub потрібно розвивати R12 з реальною картою Остра, використовуючи встановлені Unreal/Fab assets, не починаючи гру з нуля.
