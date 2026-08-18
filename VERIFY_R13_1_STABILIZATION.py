@@ -8,6 +8,7 @@ files = {
     "compact_cpp": SRC / "Private" / "OCR13CompactOsterSubsystem.cpp",
     "ui_h": SRC / "Public" / "OCR13UIViewportStabilizerSubsystem.h",
     "ui_cpp": SRC / "Private" / "OCR13UIViewportStabilizerSubsystem.cpp",
+    "bots_h": SRC / "Public" / "OCR13BotMobilitySubsystem.h",
     "bots": SRC / "Private" / "OCR13BotMobilitySubsystem.cpp",
     "civilian": SRC / "Private" / "OCCivilianVehicle.cpp",
     "vehicle_art": SRC / "Private" / "OCR13VehicleArtSubsystem.cpp",
@@ -100,11 +101,19 @@ bot_required = [
     "Separation * 1.25f",
     "ProjectPointToNavigation",
     "bBotProjects && bObjectiveProjects",
+    "FindPathToLocationSynchronously",
+    "Path->IsValid()",
+    "!Path->IsPartial()",
+    "NavPathRecheckAt.Add(BotKey, Now + (bTrustNavigation ? 0.75 : 0.30))",
+    "NavPathTrustedBots.Contains(BotKey)",
     "Bot->AddMovementInput(FinalDirection, 1.0f, true)",
 ]
 for token in bot_required:
     if token not in text["bots"]:
         fail(f"bot anti-column/navigation fallback guard missing: {token}")
+for token in ["NavPathRecheckAt", "NavPathTrustedBots"]:
+    if token not in text["bots_h"]:
+        fail(f"bot path-cache state missing: {token}")
 
 vehicle_required = [
     "SuspensionTraceLengthCm = 92.0f",
@@ -135,4 +144,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, stable pre-game/deployment world suppression, deployment sizing, bot navigation fallback/separation, vehicle grounding, camera recovery and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, stable pre-game/deployment world suppression, staged deployment sizing, complete-path-aware bot fallback/separation, vehicle grounding, camera recovery and BoxTruck suspension.")
