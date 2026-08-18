@@ -9,6 +9,8 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Widget.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
 
@@ -27,6 +29,11 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     if (!PC || !PC->IsLocalController()) return;
 
+    // Startup frontend is a true UI-only frame. Do not render the 3D world behind the approved static menu image.
+    // Pause menu remains separate and intentionally keeps the live world visible behind its dim layer.
+    const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr;
+    SetWorldRenderingSuppressed(bStartupMenuVisible);
+
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
     {
@@ -39,10 +46,34 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     if (!Root) return;
 
     StabilizeDeployment(Root);
-
-    // Startup frontend must be an isolated full-screen composition. Pause menu intentionally keeps gameplay behind it.
-    const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr;
     ApplyStartupIsolation(Root, bStartupMenuVisible);
+}
+
+void UOCR13UIViewportStabilizerSubsystem::Deinitialize()
+{
+    // GameViewportClient survives world travel. Never allow a frontend world teardown to leave rendering disabled
+    // for the newly opened gameplay world.
+    SetWorldRenderingSuppressed(false);
+    StartupSuppressedWidgets.Reset();
+    bStartupIsolationActive = false;
+    Super::Deinitialize();
+}
+
+void UOCR13UIViewportStabilizerSubsystem::SetWorldRenderingSuppressed(const bool bSuppress)
+{
+    if (bWorldRenderingSuppressed == bSuppress) return;
+
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->bDisableWorldRendering = bSuppress;
+        bWorldRenderingSuppressed = bSuppress;
+        return;
+    }
+
+    if (!bSuppress)
+    {
+        bWorldRenderingSuppressed = false;
+    }
 }
 
 void UOCR13UIViewportStabilizerSubsystem::StabilizeDeployment(UOCGameUIRootWidget* Root) const
