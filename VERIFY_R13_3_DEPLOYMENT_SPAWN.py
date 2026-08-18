@@ -79,7 +79,7 @@ if '#include "OCGameplayMode.h"' not in text["flow_h"]:
 
 for token in [
     "UIRequestSquad(int32 SquadId)",
-    "UIRequestRole(EOCPlayerRole Role)",
+    "UIRequestRole(EOCPlayerRole RequestedRole)",
     "UICommitDeployment()",
     "ClientCompleteDeployment(bool bSuccess)",
     "ServerRequestRole(EOCPlayerRole RequestedRole)",
@@ -87,6 +87,8 @@ for token in [
 ]:
     if token not in text["controller_h"]:
         fail(f"controller deployment API missing: {token}")
+if "UIRequestRole(EOCPlayerRole Role)" in text["controller_h"]:
+    fail("UHT-unsafe Role parameter returned to UIRequestRole; it shadows AActor::Role")
 
 for token in [
     "AOCPlayerController::UICommitDeployment()",
@@ -170,4 +172,4 @@ for token in [
         fail(f"museum origin marker missing: {token}")
 
 print("R13.3 DEPLOYMENT/SPAWN VERIFY: PASS")
-print("Checks single menu backdrop ownership, staged team->squad->role->spawn UX, compact-map readiness before human spawn, collision-grounded spawning and museum preservation/origin.")
+print("Checks single menu backdrop ownership, staged team->squad->role->spawn UX, UHT-safe role API naming, compact-map readiness before human spawn, collision-grounded spawning and museum preservation/origin.")
