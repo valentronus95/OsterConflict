@@ -27,12 +27,17 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
         if (NavSystem->GetDefaultNavDataInstance(FNavigationSystem::DontCreate)) return;
     }
 
+    TArray<AOCBotCharacter*> MobileBots;
     for (TActorIterator<AOCBotCharacter> It(World); It; ++It)
     {
         AOCBotCharacter* Bot = *It;
         if (!Bot || Bot->IsInVehicle() || Bot->IsDowned()) continue;
         if (!Bot->GetHealthComponent() || !Bot->GetHealthComponent()->IsAlive()) continue;
+        MobileBots.Add(Bot);
+    }
 
+    for (AOCBotCharacter* Bot : MobileBots)
+    {
         AOCAIController* AI = Cast<AOCAIController>(Bot->GetController());
         if (!AI || AI->GetBrainState() != EOCBotBrainState::Objective) continue;
 
@@ -71,12 +76,48 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
         }
 
         if (!BestPoint || BestDistanceSq < FMath::Square(450.0f)) continue;
-        FVector Direction = BestPoint->GetActorLocation() - Bot->GetActorLocation();
-        Direction.Z = 0.0f;
-        if (!Direction.Normalize()) continue;
+
+        FVector BaseDirection = BestPoint->GetActorLocation() - Bot->GetActorLocation();
+        BaseDirection.Z = 0.0f;
+        if (!BaseDirection.Normalize()) continue;
+
+        // The old fallback sent every bot to the exact same point, producing a single-file parade.
+        // Give each bot a stable lateral approach lane around the objective before local separation is applied.
+        const FVector Right(-BaseDirection.Y, BaseDirection.X, 0.0f);
+        const uint32 StableHash = GetTypeHash(BotState->GetPlayerName());
+        const int32 LaneIndex = static_cast<int32>(StableHash % 7u) - 3;
+        const float LaneOffsetCm = static_cast<float>(LaneIndex) * 185.0f;
+        const FVector ApproachPoint = BestPoint->GetActorLocation() + Right * LaneOffsetCm;
+
+        FVector DesiredDirection = ApproachPoint - Bot->GetActorLocation();
+        DesiredDirection.Z = 0.0f;
+        if (!DesiredDirection.Normalize()) continue;
+
+        // Cheap source-map avoidance for the no-NavMesh fallback. Fifteen bots means O(n^2) here is tiny,
+        // while a 3.5 m personal-space radius is enough to stop overlapping bodies and rail-like columns.
+        FVector Separation = FVector::ZeroVector;
+        constexpr float SeparationRadiusCm = 350.0f;
+        for (AOCBotCharacter* Other : MobileBots)
+        {
+            if (!Other || Other == Bot) continue;
+            const AOCPlayerState* OtherState = Other->GetPlayerState<AOCPlayerState>();
+            if (!OtherState || OtherState->GetTeamId() != BotState->GetTeamId()) continue;
+
+            FVector Away = Bot->GetActorLocation() - Other->GetActorLocation();
+            Away.Z = 0.0f;
+            const float Distance = Away.Size();
+            if (Distance <= KINDA_SMALL_NUMBER || Distance >= SeparationRadiusCm) continue;
+
+            Away /= Distance;
+            Separation += Away * (1.0f - Distance / SeparationRadiusCm);
+        }
+
+        FVector FinalDirection = DesiredDirection + Separation * 1.25f;
+        FinalDirection.Z = 0.0f;
+        if (!FinalDirection.Normalize()) FinalDirection = DesiredDirection;
 
         // Character movement consumes input every frame; this fixes the old 0.2 s "single pulse" fallback.
-        Bot->AddMovementInput(Direction, 1.0f, true);
+        Bot->AddMovementInput(FinalDirection, 1.0f, true);
     }
 }
 
