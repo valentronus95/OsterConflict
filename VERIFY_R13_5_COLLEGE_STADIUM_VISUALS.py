@@ -51,7 +51,7 @@ for token in [
     "R13_StadiumFieldLines",
     "R13_StadiumGoalAccents",
     "R13_StadiumSpectatorBenches",
-    "Old_Planks.Old_Planks",
+    "Old_Planks_Plank_1.Old_Planks_Plank_1",
     "FVector(10440.0f, 6740.0f, 8.0f)",
     "R13.5 stadium surface: 105x68 m turf",
     "GameMode->IsFrontendOnlySession()",
