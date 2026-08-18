@@ -14,6 +14,15 @@ required_assets = [
     # Structural village houses / deciduous trees.
     "AdvancedVillagePack/Meshes/SM_House_Var01.uasset",
     "AdvancedVillagePack/Meshes/SM_House_Var02.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra01.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra02.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra03.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra04.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra05.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra06.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra07.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var01_Extra08.uasset",
+    "AdvancedVillagePack/Meshes/SM_House_Var02_Extra.uasset",
     "AdvancedVillagePack/Meshes/SM_Tree_Var03.uasset",
     "AdvancedVillagePack/Meshes/SM_Tree_Var04.uasset",
     "AdvancedVillagePack/Meshes/SM_Tree_Var05.uasset",
@@ -47,7 +56,9 @@ required_assets = [
     "Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.uasset",
     "Modular_Rural_Cabin/Meshes/Props/Power_Pole_Addons.uasset",
     "Modular_Rural_Cabin/Meshes/Props/Power_Pole_Light.uasset",
-    "Modular_Rural_Cabin/Meshes/Props/Old_Planks.uasset",
+    "Modular_Rural_Cabin/Meshes/Props/Old_Planks_Plank_1.uasset",
+    "Modular_Rural_Cabin/Meshes/Props/Old_Planks_Plank_2.uasset",
+    "Modular_Rural_Cabin/Meshes/Props/Old_Planks_Plank_3.uasset",
 
     # Residential fence families.
     "Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.uasset",
@@ -88,6 +99,10 @@ source_markers = {
         "SM_Pine_Tree_01.SM_Pine_Tree_01",
     ],
     "OCR13GroundSurfaceSubsystem.cpp": ["Diorama_Ground.Diorama_Ground"],
+    "OCR13EnvironmentDressingSubsystem.cpp": [
+        "SM_House_Var01_Extra%02d.SM_House_Var01_Extra%02d",
+        "SM_House_Var02_Extra.SM_House_Var02_Extra",
+    ],
     "OCR13EnterableHouseArtSubsystem.cpp": [
         "Roof_Both_Ends_4m.Roof_Both_Ends_4m",
         "Metal_Roof.Metal_Roof",
@@ -114,7 +129,7 @@ source_markers = {
         "SM_Pine_Tree_05.SM_Pine_Tree_05",
     ],
     "OCR13CollegeFacadeSubsystem.cpp": ["Glass_Window.Glass_Window"],
-    "OCR13StadiumSurfaceSubsystem.cpp": ["Old_Planks.Old_Planks"],
+    "OCR13StadiumSurfaceSubsystem.cpp": ["Old_Planks_Plank_1.Old_Planks_Plank_1"],
 }
 
 for filename, markers in source_markers.items():
