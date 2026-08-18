@@ -7,6 +7,7 @@
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
 namespace
@@ -110,7 +111,7 @@ void UOCR13VehicleVariantSpawnSubsystem::TrySpawnBundledVehicleVariants(UWorld& 
         const FTransform SpawnTransform(FRotator(0.0f, Seed.Yaw, 0.0f), Seed.Location);
         AOCVehicleSpawnPoint* SpawnPoint = World.SpawnActorDeferred<AOCVehicleSpawnPoint>(
             AOCVehicleSpawnPoint::StaticClass(), SpawnTransform, nullptr, nullptr,
-            ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+            ESpawnActorCollisionHandlingMethod::AlwaysSpawn, ESpawnActorScaleMethod::MultiplyWithRoot);
         if (!SpawnPoint)
         {
             bPreparedAll = false;
@@ -144,7 +145,8 @@ void UOCR13VehicleVariantSpawnSubsystem::TrySpawnBundledVehicleVariants(UWorld& 
 
     for (FPendingTruckSpawn& Item : Pending)
     {
-        Item.SpawnPoint->FinishSpawning(Item.Transform);
+        UGameplayStatics::FinishSpawningActor(
+            Item.SpawnPoint, Item.Transform, ESpawnActorScaleMethod::MultiplyWithRoot);
     }
 
     bSpawnComplete = true;
