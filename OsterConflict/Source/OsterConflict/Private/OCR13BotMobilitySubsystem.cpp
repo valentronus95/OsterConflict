@@ -7,6 +7,7 @@
 #include "OCPlayerState.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "NavigationPath.h"
 #include "NavigationSystem.h"
 
 bool UOCR13BotMobilitySubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -21,6 +22,7 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
     UWorld* World = GetWorld();
     if (!World || DeltaTime <= 0.0f) return;
 
+    const double Now = World->GetTimeSeconds();
     UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
     const bool bHasDefaultNavData = NavSystem &&
         NavSystem->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) != nullptr;
@@ -75,10 +77,12 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
 
         if (!BestPoint || BestDistanceSq < FMath::Square(450.0f)) continue;
 
-        // R13.2: the old guard disabled this fallback as soon as *any* NavData existed in the world. A partial or
-        // disconnected runtime navmesh therefore left bots receiving only the AI controller's occasional one-frame
-        // AddMovementInput pulse. Use normal MoveTo only when both the bot and its current objective actually project
-        // onto the available navigation data; otherwise keep the continuous movement fallback alive.
+        const TWeakObjectPtr<AOCBotCharacter> BotKey(Bot);
+        bool bTrustNavigation = false;
+
+        // Merely projecting two points to NavData is not sufficient: disconnected nav islands can both project
+        // successfully while MoveTo has no complete route between them. Trust navigation only after a real complete
+        // path is confirmed. Cache that answer so fifteen bots do not run synchronous pathfinding every frame.
         if (bHasDefaultNavData && NavSystem)
         {
             FNavLocation BotNavLocation;
@@ -87,10 +91,39 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
                 Bot->GetActorLocation(), BotNavLocation, FVector(300.0f, 300.0f, 450.0f));
             const bool bObjectiveProjects = NavSystem->ProjectPointToNavigation(
                 BestPoint->GetActorLocation(), ObjectiveNavLocation, FVector(500.0f, 500.0f, 550.0f));
+
             if (bBotProjects && bObjectiveProjects)
             {
-                continue;
+                const double* RecheckAt = NavPathRecheckAt.Find(BotKey);
+                if (RecheckAt && Now < *RecheckAt)
+                {
+                    bTrustNavigation = NavPathTrustedBots.Contains(BotKey);
+                }
+                else
+                {
+                    UNavigationPath* Path = UNavigationSystemV1::FindPathToLocationSynchronously(
+                        World, BotNavLocation.Location, ObjectiveNavLocation.Location, Bot, nullptr);
+                    bTrustNavigation = Path && Path->IsValid() && !Path->IsPartial();
+                    NavPathRecheckAt.Add(BotKey, Now + (bTrustNavigation ? 0.75 : 0.30));
+                    if (bTrustNavigation) NavPathTrustedBots.Add(BotKey);
+                    else NavPathTrustedBots.Remove(BotKey);
+                }
             }
+            else
+            {
+                NavPathTrustedBots.Remove(BotKey);
+                NavPathRecheckAt.Add(BotKey, Now + 0.25);
+            }
+        }
+        else
+        {
+            NavPathTrustedBots.Remove(BotKey);
+        }
+
+        if (bTrustNavigation)
+        {
+            // AOCAIController already issued MoveTo. Do not add fallback input when a complete path is actually valid.
+            continue;
         }
 
         FVector BaseDirection = BestPoint->GetActorLocation() - Bot->GetActorLocation();
@@ -132,8 +165,17 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
         FinalDirection.Z = 0.0f;
         if (!FinalDirection.Normalize()) FinalDirection = DesiredDirection;
 
-        // Character movement consumes input every frame; this prevents the old 0.2 s "single pulse" fallback.
+        // Character movement consumes input every frame, so fallback input itself must not be throttled.
         Bot->AddMovementInput(FinalDirection, 1.0f, true);
+    }
+
+    for (auto It = NavPathRecheckAt.CreateIterator(); It; ++It)
+    {
+        if (!It.Key().IsValid())
+        {
+            NavPathTrustedBots.Remove(It.Key());
+            It.RemoveCurrent();
+        }
     }
 }
 
