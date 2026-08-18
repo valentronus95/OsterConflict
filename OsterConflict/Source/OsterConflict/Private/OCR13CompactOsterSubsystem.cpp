@@ -117,56 +117,64 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
     const float CompactWidthCm = CompactMaxX - CompactMinX;
     const float CompactHeightCm = CompactMaxY - CompactMinY;
 
-    TArray<UStaticMeshComponent*> StaticMeshes;
-    WorldSector->GetComponents<UStaticMeshComponent>(StaticMeshes);
-    for (UStaticMeshComponent* Mesh : StaticMeshes)
+    int32 RemovedInstances = 0;
+    if (!bWorldCropped)
     {
-        if (!Mesh || Mesh->GetFName() != TEXT("Ground")) continue;
-        Mesh->SetRelativeLocation(CompactCenter);
-        Mesh->SetRelativeScale3D(FVector(CompactWidthCm / 100.0f, CompactHeightCm / 100.0f, 2.0f));
-        break;
+        TArray<UStaticMeshComponent*> StaticMeshes;
+        WorldSector->GetComponents<UStaticMeshComponent>(StaticMeshes);
+        for (UStaticMeshComponent* Mesh : StaticMeshes)
+        {
+            if (!Mesh || Mesh->GetFName() != TEXT("Ground")) continue;
+            Mesh->SetRelativeLocation(CompactCenter);
+            Mesh->SetRelativeScale3D(FVector(CompactWidthCm / 100.0f, CompactHeightCm / 100.0f, 2.0f));
+            break;
+        }
+
+        TArray<UInstancedStaticMeshComponent*> InstancedComponents;
+        WorldSector->GetComponents<UInstancedStaticMeshComponent>(InstancedComponents);
+        for (UInstancedStaticMeshComponent* Component : InstancedComponents)
+        {
+            if (!Component) continue;
+            const FString ComponentName = Component->GetName();
+            const bool bLinearInfrastructure = ComponentName.Contains(TEXT("Road")) ||
+                ComponentName.Contains(TEXT("Sidewalk")) || ComponentName.Contains(TEXT("Water")) ||
+                ComponentName.Contains(TEXT("Bridge"));
+            const float Padding = bLinearInfrastructure ? 18000.0f : 8000.0f;
+
+            for (int32 Index = Component->GetInstanceCount() - 1; Index >= 0; --Index)
+            {
+                FTransform InstanceTransform;
+                if (!Component->GetInstanceTransform(Index, InstanceTransform, true)) continue;
+                if (!IsInsideCompactBounds(InstanceTransform.GetLocation(), Padding))
+                {
+                    if (Component->RemoveInstance(Index)) ++RemovedInstances;
+                }
+            }
+        }
+        bWorldCropped = true;
     }
 
-    int32 RemovedInstances = 0;
-    TArray<UInstancedStaticMeshComponent*> InstancedComponents;
-    WorldSector->GetComponents<UInstancedStaticMeshComponent>(InstancedComponents);
-    for (UInstancedStaticMeshComponent* Component : InstancedComponents)
-    {
-        if (!Component) continue;
-        const FString ComponentName = Component->GetName();
-        const bool bLinearInfrastructure = ComponentName.Contains(TEXT("Road")) ||
-            ComponentName.Contains(TEXT("Sidewalk")) || ComponentName.Contains(TEXT("Water")) ||
-            ComponentName.Contains(TEXT("Bridge"));
-        const float Padding = bLinearInfrastructure ? 18000.0f : 8000.0f;
+    TMap<FName, FVector> ObjectiveLocations;
+    ObjectiveLocations.Add(TEXT("A"), ObjectiveLocation(TEXT("A")));
+    ObjectiveLocations.Add(TEXT("B"), ObjectiveLocation(TEXT("B")));
+    ObjectiveLocations.Add(TEXT("C"), ObjectiveLocation(TEXT("C")));
 
-        for (int32 Index = Component->GetInstanceCount() - 1; Index >= 0; --Index)
+    // Capture points intentionally do not replicate movement. Apply the same deterministic compact coordinates on
+    // server and clients; clients retry until all replicated point actors exist instead of drawing stale old locations.
+    TSet<FName> ObjectivesMoved;
+    for (TActorIterator<AOCCapturePoint> It(&World); It; ++It)
+    {
+        AOCCapturePoint* Point = *It;
+        if (!Point) continue;
+        if (const FVector* Target = ObjectiveLocations.Find(Point->GetPointId()))
         {
-            FTransform InstanceTransform;
-            if (!Component->GetInstanceTransform(Index, InstanceTransform, true)) continue;
-            if (!IsInsideCompactBounds(InstanceTransform.GetLocation(), Padding))
-            {
-                if (Component->RemoveInstance(Index)) ++RemovedInstances;
-            }
+            Point->SetActorLocation(*Target, false, nullptr, ETeleportType::TeleportPhysics);
+            ObjectivesMoved.Add(Point->GetPointId());
         }
     }
 
     if (World.GetNetMode() != NM_Client)
     {
-        TMap<FName, FVector> ObjectiveLocations;
-        ObjectiveLocations.Add(TEXT("A"), ObjectiveLocation(TEXT("A")));
-        ObjectiveLocations.Add(TEXT("B"), ObjectiveLocation(TEXT("B")));
-        ObjectiveLocations.Add(TEXT("C"), ObjectiveLocation(TEXT("C")));
-
-        for (TActorIterator<AOCCapturePoint> It(&World); It; ++It)
-        {
-            AOCCapturePoint* Point = *It;
-            if (!Point) continue;
-            if (const FVector* Target = ObjectiveLocations.Find(Point->GetPointId()))
-            {
-                Point->SetActorLocation(*Target, false, nullptr, ETeleportType::TeleportPhysics);
-            }
-        }
-
         const FVector TeamOneBase(-64000.0f, 44000.0f, 160.0f);
         const FVector TeamTwoBase( 20000.0f,-19000.0f, 160.0f);
         for (TActorIterator<AOCTeamSpawnPoint> It(&World); It; ++It)
@@ -190,9 +198,24 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
         }
     }
 
+    if (ObjectivesMoved.Num() < ObjectiveLocations.Num())
+    {
+        if (ApplyAttemptCount < MaxApplyAttempts)
+        {
+            ScheduleApply(World, RetryDelaySeconds);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13.1 compact Oster: only %d/%d objective actors synchronized after %d attempts."),
+                ObjectivesMoved.Num(), ObjectiveLocations.Num(), ApplyAttemptCount);
+        }
+        return;
+    }
+
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.1 compact Oster applied: %.0f x %.0f m, center=(%.0f, %.0f), removed source instances=%d."),
+        TEXT("R13.1 compact Oster applied: %.0f x %.0f m, center=(%.0f, %.0f), objectives=%d, removed source instances=%d."),
         CompactWidthCm / 100.0f, CompactHeightCm / 100.0f,
-        CompactCenter.X, CompactCenter.Y, RemovedInstances);
+        CompactCenter.X, CompactCenter.Y, ObjectivesMoved.Num(), RemovedInstances);
 }
