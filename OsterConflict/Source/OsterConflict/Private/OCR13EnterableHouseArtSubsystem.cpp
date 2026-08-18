@@ -1,6 +1,7 @@
 #include "OCR13EnterableHouseArtSubsystem.h"
 
 #include "OCEnterableHouse.h"
+#include "OCGameMode.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -41,6 +42,8 @@ namespace
         Roof->SetMobility(EComponentMobility::Static);
         Roof->SetCollisionProfileName(TEXT("NoCollision"));
         Roof->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Roof->SetGenerateOverlapEvents(false);
+        Roof->SetCanEverAffectNavigation(false);
         Roof->SetCastShadow(true);
         if (RoofMaterial) Roof->SetMaterial(0, RoofMaterial);
         House->AddInstanceComponent(Roof);
@@ -76,6 +79,10 @@ void UOCR13EnterableHouseArtSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
