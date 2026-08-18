@@ -1,0 +1,150 @@
+#include "OCR13UIViewportStabilizerSubsystem.h"
+
+#include "OCGameUIRootWidget.h"
+#include "OCPlayerController.h"
+
+#include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/Widget.h"
+#include "Engine/World.h"
+#include "UObject/UObjectIterator.h"
+
+bool UOCR13UIViewportStabilizerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+    if (!Super::ShouldCreateSubsystem(Outer)) return false;
+    const UWorld* World = Cast<UWorld>(Outer);
+    return World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
+}
+
+void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
+{
+    UWorld* World = GetWorld();
+    if (!World || DeltaTime < 0.0f) return;
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+
+    UOCGameUIRootWidget* Root = nullptr;
+    for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
+    {
+        if (IsValid(*It) && It->GetWorld() == World && It->GetOwningPlayer() == PC)
+        {
+            Root = *It;
+            break;
+        }
+    }
+    if (!Root) return;
+
+    StabilizeDeployment(Root);
+
+    // Startup frontend must be an isolated full-screen composition. Pause menu intentionally keeps gameplay behind it.
+    const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr;
+    ApplyStartupIsolation(Root, bStartupMenuVisible);
+}
+
+void UOCR13UIViewportStabilizerSubsystem::StabilizeDeployment(UOCGameUIRootWidget* Root) const
+{
+    if (!Root) return;
+
+    UBorder* DeploymentPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("DeploymentPanel")));
+    if (!DeploymentPanel) return;
+
+    DeploymentPanel->SetClipping(EWidgetClipping::ClipToBounds);
+    UHorizontalBox* Columns = Cast<UHorizontalBox>(DeploymentPanel->GetContent());
+    if (!Columns) return;
+
+    Columns->SetClipping(EWidgetClipping::ClipToBounds);
+    const float ColumnWeights[] = { 0.58f, 0.18f, 0.24f };
+    const int32 ColumnCount = FMath::Min(Columns->GetChildrenCount(), static_cast<int32>(UE_ARRAY_COUNT(ColumnWeights)));
+    for (int32 Index = 0; Index < ColumnCount; ++Index)
+    {
+        UWidget* Child = Columns->GetChildAt(Index);
+        if (!Child) continue;
+        if (UHorizontalBoxSlot* Slot = Cast<UHorizontalBoxSlot>(Child->Slot))
+        {
+            FSlateChildSize FillSize;
+            FillSize.SizeRule = ESlateSizeRule::Fill;
+            FillSize.Value = ColumnWeights[Index];
+            Slot->SetSize(FillSize);
+            Slot->SetVerticalAlignment(VAlign_Top);
+        }
+        Child->SetClipping(EWidgetClipping::ClipToBounds);
+    }
+}
+
+void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWidget* Root, const bool bEnable)
+{
+    if (!Root) return;
+
+    UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
+    if (!Canvas) return;
+
+    if (bEnable)
+    {
+        for (int32 Index = 0; Index < Canvas->GetChildrenCount(); ++Index)
+        {
+            UWidget* Child = Canvas->GetChildAt(Index);
+            if (!Child) continue;
+
+            UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Child->Slot);
+            const int32 ZOrder = Slot ? Slot->GetZOrder() : INDEX_NONE;
+            const FString Name = Child->GetName();
+            const bool bNamedMenuLayer = Name.StartsWith(TEXT("R13_Menu"));
+            const bool bGradientLayer = (ZOrder >= 73 && ZOrder <= 77) || (ZOrder >= 9003 && ZOrder <= 9007);
+            const bool bMenuLayer = bNamedMenuLayer || bGradientLayer;
+
+            if (!bMenuLayer)
+            {
+                const TWeakObjectPtr<UWidget> WeakChild(Child);
+                if (!StartupSuppressedWidgets.Contains(WeakChild))
+                {
+                    StartupSuppressedWidgets.Add(WeakChild, Child->GetVisibility());
+                }
+                Child->SetVisibility(ESlateVisibility::Collapsed);
+                continue;
+            }
+
+            if (!Slot) continue;
+            if (Name == TEXT("R13_MenuWorldBlocker")) Slot->SetZOrder(9000);
+            else if (Name == TEXT("R13_MenuBackground")) Slot->SetZOrder(9001);
+            else if (Name == TEXT("R13_MenuShade")) Slot->SetZOrder(9002);
+            else if (Name == TEXT("R13_MenuPanel")) Slot->SetZOrder(9010);
+            else if (ZOrder >= 73 && ZOrder <= 77) Slot->SetZOrder(9003 + (ZOrder - 73));
+        }
+
+        if (UBorder* MenuPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("R13_MenuPanel"))))
+        {
+            MenuPanel->SetClipping(EWidgetClipping::ClipToBounds);
+            if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(MenuPanel->Slot))
+            {
+                // Keep the full composition inside the 1600x900 logical frame before the root ScaleBox adapts it.
+                Slot->SetPosition(FVector2D(90.0f, 60.0f));
+                Slot->SetSize(FVector2D(470.0f, 780.0f));
+                Slot->SetZOrder(9010);
+            }
+        }
+
+        bStartupIsolationActive = true;
+        return;
+    }
+
+    if (!bStartupIsolationActive && StartupSuppressedWidgets.IsEmpty()) return;
+
+    for (const TPair<TWeakObjectPtr<UWidget>, ESlateVisibility>& Pair : StartupSuppressedWidgets)
+    {
+        if (UWidget* Widget = Pair.Key.Get())
+        {
+            Widget->SetVisibility(Pair.Value);
+        }
+    }
+    StartupSuppressedWidgets.Reset();
+    bStartupIsolationActive = false;
+}
+
+TStatId UOCR13UIViewportStabilizerSubsystem::GetStatId() const
+{
+    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13UIViewportStabilizerSubsystem, STATGROUP_Tickables);
+}
