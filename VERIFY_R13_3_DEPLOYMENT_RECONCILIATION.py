@@ -85,9 +85,14 @@ for token in [
     "R13DeploymentCommitAuthorizationExpiresAt = World->GetTimeSeconds() + 2.0",
     "bR13DeploymentCommitAuthorized = true",
     "ServerSetLobbyReady_Implementation(true)",
+    "const AOCGameState* CurrentGameState = GetGameState<AOCGameState>()",
+    "for (APlayerState* RawState : CurrentGameState->PlayerArray)",
 ]:
     if token not in text["bridge"]:
         fail(f"server selection/readiness/token marker missing: {token}")
+
+if "const AOCGameState* GameState = GetGameState<AOCGameState>()" in text["bridge"]:
+    fail("AOCGameMode local GameState shadows inherited AGameModeBase::GameState (MSVC C4458)")
 
 for token in [
     "LineTraceSingleByChannel",
@@ -132,4 +137,4 @@ for method in [
         fail(f"{method} must have exactly one implementation owner, found: {owners}")
 
 print("R13.3 DEPLOYMENT RECONCILIATION VERIFY: PASS")
-print("Checks specialist uniqueness, compact readiness, short-lived staged initial-spawn authorization, AutoDeploy smoke exception, grounded + collision-clear placement, replicated-selection reconciliation and single implementation ownership.")
+print("Checks specialist uniqueness, compact readiness, C4458-safe GameState naming, short-lived staged initial-spawn authorization, AutoDeploy smoke exception, grounded + collision-clear placement, replicated-selection reconciliation and single implementation ownership.")
