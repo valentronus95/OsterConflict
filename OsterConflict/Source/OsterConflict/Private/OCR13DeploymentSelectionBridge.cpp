@@ -114,9 +114,9 @@ bool AOCGameMode::RequestRoleChange(AOCPlayerState* State, const EOCPlayerRole R
     // the newly selected squad may already contain that specialist.
     if (RequestedRole != EOCPlayerRole::Rifleman)
     {
-        if (const AOCGameState* GameState = GetGameState<AOCGameState>())
+        if (const AOCGameState* CurrentGameState = GetGameState<AOCGameState>())
         {
-            for (APlayerState* RawState : GameState->PlayerArray)
+            for (APlayerState* RawState : CurrentGameState->PlayerArray)
             {
                 const AOCPlayerState* Other = Cast<AOCPlayerState>(RawState);
                 if (!Other || Other == State) continue;
