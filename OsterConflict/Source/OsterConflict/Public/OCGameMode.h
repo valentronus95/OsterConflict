@@ -58,8 +58,9 @@ public:
     FString BuildPerformanceSnapshot() const;
     EOCFactionArchetype GetFactionForTeam(EOCTeam Team) const { return Team == EOCTeam::TeamTwo ? TeamTwoFaction : TeamOneFaction; }
 
-    /** S14 squad/chat backend. */
+    /** S14/R13 squad/chat/deployment backend. */
     bool RequestSquadChange(AOCPlayerState* State, int32 RequestedSquadId);
+    bool RequestRoleChange(AOCPlayerState* State, EOCPlayerRole RequestedRole);
     bool RequestTeamChange(AOCPlayerState* State, EOCTeam RequestedTeam);
     void RouteChatMessage(AOCPlayerController* Sender, EOCChatChannel Channel, const FString& Message);
     bool SubmitSquadOrder(AOCPlayerController* Sender, EOCSquadOrderType Type, FName ObjectiveId,
