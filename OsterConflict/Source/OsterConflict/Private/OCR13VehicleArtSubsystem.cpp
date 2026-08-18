@@ -114,6 +114,8 @@ namespace
             }
         }
 
+        // VehicleVarietyPack also contains SM_Truck_Box. It intentionally stays unused until a box-truck gameplay
+        // class/style exists with its own mass, collision body and wheelbase instead of forcing truck art onto a car.
         return nullptr;
     }
 
