@@ -12,6 +12,7 @@ REQUIRED_SOURCE_TOKENS = [
     'IsMuseumChimneyProxy',
     'Stone_Chimney.Stone_Chimney',
     'R13_MuseumStoneChimneys',
+    'Root->SetMobility(EComponentMobility::Static)',
     'ChimneyArt->SetCollisionProfileName(TEXT("BlockAll"))',
     'ChimneyTransforms.Num() != ExpectedMuseumChimneyCount',
     'Proxy->UpdateInstanceTransform(ChimneyIndices[RestoreIndex]',
@@ -47,4 +48,4 @@ for token in FORBIDDEN_SOURCE_TOKENS:
         fail(f"unsafe broad landmark mutation present: {token}")
 
 print("R13 MUSEUM CHIMNEYS VERIFY: PASS")
-print("Checks two-proxy museum-only replacement, collision preservation and rollback safety.")
+print("Checks static art-root mobility, two-proxy museum-only replacement, collision preservation and rollback safety.")
