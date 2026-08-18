@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13EnterableHouseArtSubsystem.generated.h"
 
+class AOCEnterableHouse;
+
 /** Improves enterable-house exterior art while preserving authored openings, collision and interiors. */
 UCLASS()
 class OSTERCONFLICT_API UOCR13EnterableHouseArtSubsystem : public UWorldSubsystem
@@ -16,4 +18,8 @@ public:
 
 private:
     void ApplyEnterableHouseArt(UWorld& World);
+
+    TSet<TWeakObjectPtr<AOCEnterableHouse>> StyledHouses;
+    FTimerHandle ArtRetryTimer;
+    int32 ArtRetryPass = 0;
 };
