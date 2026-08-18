@@ -54,17 +54,24 @@ namespace
         Component->SetMaterial(0, MID);
     }
 
-    int32 BuildOpenMetalFence(UInstancedStaticMeshComponent* Proxy,
+    bool BuildOpenMetalFence(UInstancedStaticMeshComponent* Proxy,
         UInstancedStaticMeshComponent* Pickets,
-        UInstancedStaticMeshComponent* Rails)
+        UInstancedStaticMeshComponent* Rails,
+        int32& OutAdded)
     {
-        if (!Proxy || !Pickets || !Rails) return 0;
+        OutAdded = 0;
+        if (!Proxy || Proxy->GetInstanceCount() <= 0 || !Pickets || !Rails) return false;
 
-        int32 Added = 0;
         for (int32 ProxyIndex = 0; ProxyIndex < Proxy->GetInstanceCount(); ++ProxyIndex)
         {
             FTransform ProxyTransform;
-            if (!Proxy->GetInstanceTransform(ProxyIndex, ProxyTransform, true)) continue;
+            if (!Proxy->GetInstanceTransform(ProxyIndex, ProxyTransform, true))
+            {
+                Pickets->ClearInstances();
+                Rails->ClearInstances();
+                OutAdded = 0;
+                return false;
+            }
 
             const FVector ProxyScale = ProxyTransform.GetScale3D().GetAbs();
             const bool bLongX = ProxyScale.X >= ProxyScale.Y;
@@ -88,7 +95,7 @@ namespace
 
                 const FVector Scale(0.055f, 0.055f, DesiredHeight / 100.0f);
                 Pickets->AddInstance(FTransform(Rotation, Location, Scale), true);
-                ++Added;
+                ++OutAdded;
             }
 
             constexpr float RailFractions[] = { 0.24f, 0.55f, 0.82f };
@@ -101,10 +108,10 @@ namespace
                 if (bLongX) Scale = FVector(DesiredLength / 100.0f, 0.065f, 0.065f);
                 else Scale = FVector(0.065f, DesiredLength / 100.0f, 0.065f);
                 Rails->AddInstance(FTransform(Rotation, Location, Scale), true);
-                ++Added;
+                ++OutAdded;
             }
         }
-        return Added;
+        return OutAdded > 0;
     }
 }
 
@@ -152,26 +159,42 @@ void UOCR13MetalFenceBridgeSubsystem::BuildMetalFenceBridge(UWorld& World)
     ArtRoot->SetReplicates(false);
 
     USceneComponent* Root = NewObject<USceneComponent>(ArtRoot, TEXT("R13_MetalFenceBridgeRoot"));
-    if (!Root) return;
+    if (!Root)
+    {
+        ArtRoot->Destroy();
+        return;
+    }
+    Root->SetMobility(EComponentMobility::Static);
     ArtRoot->SetRootComponent(Root);
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
     UInstancedStaticMeshComponent* Pickets = MakeVisualISM(ArtRoot, Root, CubeMesh, TEXT("R13_MetalFencePickets"));
     UInstancedStaticMeshComponent* Rails = MakeVisualISM(ArtRoot, Root, CubeMesh, TEXT("R13_MetalFenceRails"));
-    if (!Pickets || !Rails) return;
+    if (!Pickets || !Rails)
+    {
+        ArtRoot->Destroy();
+        return;
+    }
 
     ApplyMetalTint(Pickets, BaseMaterial);
     ApplyMetalTint(Rails, BaseMaterial);
 
-    const int32 Added = BuildOpenMetalFence(Proxy, Pickets, Rails);
-    if (Added <= 0) return;
+    int32 Added = 0;
+    const bool bComplete = BuildOpenMetalFence(Proxy, Pickets, Rails, Added);
+    if (!bComplete || Added <= 0)
+    {
+        ArtRoot->Destroy();
+        UE_LOG(LogTemp, Warning,
+            TEXT("R13 metal-fence bridge: incomplete source traversal; preserving visible semantic MetalFences proxy."));
+        return;
+    }
 
     // Keep the original invisible proxy as one cheap continuous collision volume. The visible pickets/rails stay
     // collision-free, avoiding thousands of tiny collision bodies on long residential and base perimeter fences.
     Proxy->SetVisibility(false, true);
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 metal-fence bridge: built %d visible picket/rail instances; retained hidden semantic proxy collision."),
+        TEXT("R13 metal-fence bridge: built %d visible picket/rail instances after complete source traversal; retained hidden semantic proxy collision."),
         Added);
 }
