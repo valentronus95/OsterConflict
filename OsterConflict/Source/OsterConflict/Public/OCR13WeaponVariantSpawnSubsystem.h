@@ -15,5 +15,9 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
 private:
-    void SpawnBundledVariants(UWorld& World);
+    void TrySpawnBundledVariants(UWorld& World);
+    void ScheduleSpawnAttempt(UWorld& World, float DelaySeconds);
+
+    int32 SpawnAttemptCount = 0;
+    bool bSpawnComplete = false;
 };
