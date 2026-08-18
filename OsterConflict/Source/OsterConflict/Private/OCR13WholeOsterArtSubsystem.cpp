@@ -92,6 +92,38 @@ namespace
         return FMath::Clamp((DesiredFootprint / MeshFootprint) * Variation, 0.35f, 8.0f);
     }
 
+    void AddFlatProxyReplacements(UInstancedStaticMeshComponent* Proxy,
+        UInstancedStaticMeshComponent* Target, UStaticMesh* TargetMesh, float ZOffset, int32& OutCount)
+    {
+        if (!Proxy || !Target || !TargetMesh) return;
+
+        const FVector TargetSize = TargetMesh->GetBounds().BoxExtent * 2.0f;
+        if (TargetSize.X <= KINDA_SMALL_NUMBER || TargetSize.Y <= KINDA_SMALL_NUMBER) return;
+
+        for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
+        {
+            FTransform ProxyTransform;
+            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
+
+            const FVector ProxyScale = ProxyTransform.GetScale3D();
+            const float DesiredX = FMath::Max(100.0f, FMath::Abs(ProxyScale.X) * 100.0f);
+            const float DesiredY = FMath::Max(100.0f, FMath::Abs(ProxyScale.Y) * 100.0f);
+            const float ScaleX = DesiredX / TargetSize.X;
+            const float ScaleY = DesiredY / TargetSize.Y;
+            const float ScaleZ = FMath::Clamp(FMath::Min(ScaleX, ScaleY), 0.35f, 2.5f);
+
+            FVector Location = ProxyTransform.GetLocation();
+            Location.Z += ZOffset;
+            const FVector TargetScale(ScaleX, ScaleY, ScaleZ);
+            Location -= TargetMesh->GetBounds().Origin * TargetScale;
+
+            Target->AddInstance(FTransform(
+                FRotator(0.0f, ProxyTransform.Rotator().Yaw, 0.0f),
+                Location, TargetScale), true);
+            ++OutCount;
+        }
+    }
+
     void AddHouseReplacements(UInstancedStaticMeshComponent* Proxy, UInstancedStaticMeshComponent* HouseA,
         UInstancedStaticMeshComponent* HouseB, UStaticMesh* MeshA, UStaticMesh* MeshB, int32& OutCount)
     {
@@ -143,7 +175,6 @@ namespace
     {
         if (!Proxy || GrassFamilies.Num() == 0) return;
 
-        // Keep the verifier contract and deliberately cover each source grass tile with a visible 5x5 field.
         constexpr float Fractions[] = { -0.42f, -0.21f, 0.0f, 0.21f, 0.42f };
 
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
@@ -227,6 +258,11 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     UStaticMesh* Tree04 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
     UStaticMesh* Tree05 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var05.SM_Tree_Var05"));
 
+    UStaticMesh* RoadMesh = LoadArtMesh(
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Street_01/SM_Urb_Roa_Street_01.SM_Urb_Roa_Street_01"));
+    UStaticMesh* SidewalkMesh = LoadArtMesh(
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01"));
+
     // Prefer the committed PN foliage collection. AdvancedVillage remains a fallback so old archives still work.
     UStaticMesh* Grass01 = LoadFirstAvailableGrass(
         TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh"),
@@ -238,7 +274,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
         TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_03_mesh.grass_01_03_mesh"),
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03"));
 
-    if (!House01 && !House02 && !Tree01 && !Grass01)
+    if (!House01 && !House02 && !Tree01 && !Grass01 && !RoadMesh && !SidewalkMesh)
     {
         UE_LOG(LogTemp, Warning, TEXT("R13 whole-Oster art: environment art unavailable; preserving proxy topology."));
         return;
@@ -257,6 +293,10 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
 
     UInstancedStaticMeshComponent* House01ISM = MakeISM(ArtRoot, Root, House01, TEXT("R13_House01"), true);
     UInstancedStaticMeshComponent* House02ISM = MakeISM(ArtRoot, Root, House02, TEXT("R13_House02"), true);
+    UInstancedStaticMeshComponent* RoadsISM = MakeISM(ArtRoot, Root, RoadMesh, TEXT("R13_Roads"), true);
+    UInstancedStaticMeshComponent* SidewalksISM = MakeISM(ArtRoot, Root, SidewalkMesh, TEXT("R13_Sidewalks"), true);
+    if (RoadsISM) RoadsISM->SetCastShadow(false);
+    if (SidewalksISM) SidewalksISM->SetCastShadow(false);
 
     TArray<UInstancedStaticMeshComponent*> TreeFamilies = {
         MakeISM(ArtRoot, Root, Tree01, TEXT("R13_Tree01"), true),
@@ -281,7 +321,11 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     int32 HouseCount = 0;
     int32 TreeCount = 0;
     int32 GrassCount = 0;
+    int32 RoadCount = 0;
+    int32 SidewalkCount = 0;
 
+    AddFlatProxyReplacements(FindISM(WorldSector, TEXT("Roads")), RoadsISM, RoadMesh, 1.0f, RoadCount);
+    AddFlatProxyReplacements(FindISM(WorldSector, TEXT("Sidewalks")), SidewalksISM, SidewalkMesh, 1.0f, SidewalkCount);
     AddHouseReplacements(FindISM(WorldSector, TEXT("Buildings")), House01ISM, House02ISM,
         House01, House02, HouseCount);
     AddTreeReplacements(FindISM(WorldSector, TEXT("TreeTrunks")), TreeFamilies, 1.00f, TreeCount);
@@ -292,6 +336,8 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassRough")), GrassFamilies, GrassCount);
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassWetland")), GrassFamilies, GrassCount);
 
+    if (RoadCount > 0) HideProxy(WorldSector, TEXT("Roads"));
+    if (SidewalkCount > 0) HideProxy(WorldSector, TEXT("Sidewalks"));
     if (HouseCount > 0)
     {
         HideProxy(WorldSector, TEXT("Buildings"));
@@ -330,6 +376,6 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 whole-Oster art: real houses=%d trees=%d grass patches=%d; hidden rejected fantasy families=%d."),
-        HouseCount, TreeCount, GrassCount, HiddenFantasyFamilies);
+        TEXT("R13 whole-Oster art: roads=%d sidewalks=%d houses=%d trees=%d grass patches=%d; hidden rejected fantasy families=%d."),
+        RoadCount, SidewalkCount, HouseCount, TreeCount, GrassCount, HiddenFantasyFamilies);
 }
