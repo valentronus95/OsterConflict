@@ -15,6 +15,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  runner-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 2
+    steps:
+      - name: Prove hosted Windows runner can execute a step
+        shell: pwsh
+        run: |
+          Write-Host "WINDOWS_RUNNER_SMOKE: PASS"
+          Get-Date
+
   milestone-verifiers:
     runs-on: windows-latest
     timeout-minutes: 15
