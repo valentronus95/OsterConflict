@@ -11,7 +11,7 @@ files = {
     "bots": SRC / "Private" / "OCR13BotMobilitySubsystem.cpp",
     "civilian": SRC / "Private" / "OCCivilianVehicle.cpp",
     "vehicle_art": SRC / "Private" / "OCR13VehicleArtSubsystem.cpp",
-    "launcher": ROOT / "RUN_R11_LISTEN_TEST.cmd",
+    "launcher": ROOT / "RUN_R13_LISTEN_TEST.cmd",
 }
 
 
@@ -98,11 +98,13 @@ bot_required = [
     "LaneOffsetCm = static_cast<float>(LaneIndex) * 185.0f",
     "constexpr float SeparationRadiusCm = 350.0f",
     "Separation * 1.25f",
+    "ProjectPointToNavigation",
+    "bBotProjects && bObjectiveProjects",
     "Bot->AddMovementInput(FinalDirection, 1.0f, true)",
 ]
 for token in bot_required:
     if token not in text["bots"]:
-        fail(f"bot anti-column guard missing: {token}")
+        fail(f"bot anti-column/navigation fallback guard missing: {token}")
 
 vehicle_required = [
     "SuspensionTraceLengthCm = 92.0f",
@@ -119,16 +121,18 @@ art_required = [
     "ScaledMeshBottom",
     "DesiredVisualBottom = -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f",
     "DesiredVisualBottom - ScaledMeshBottom",
+    "RepairStaleVehicleView",
+    "PC->SetViewTarget(ControlledPawn)",
 ]
 for token in art_required:
     if token not in text["vehicle_art"]:
-        fail(f"vehicle grounding guard missing: {token}")
+        fail(f"vehicle grounding/camera recovery guard missing: {token}")
 
-if "-NoScreenMessages" not in text["launcher"]:
-    fail("player-facing launcher must suppress engine preparation/debug screen messages")
+if "-NoScreenMessages" not in text["launcher"] or "R13Gameplay=1" not in text["launcher"]:
+    fail("current R13 player-facing launcher must suppress debug screen messages and enable R13 gameplay")
 
 if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in text["compact_h"]:
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, hard pre-game world-render suppression, deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, hard pre-game world-render suppression, deployment sizing, bot navigation fallback/separation, vehicle grounding, camera recovery and BoxTruck suspension.")
