@@ -11,6 +11,7 @@ UI_ROOT = RAW_ROOT / "UI"
 LOCAL_MENU_SOURCE = PROJECT_DIR / "Content" / "R13" / "UI" / "Oster_Menu_BG.jpg"
 NORMALIZED_MENU_SOURCE = UI_ROOT / "Oster_Menu_BG.png"
 MENU_ASSET = "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG"
+MENU_MUSIC_ASSET = "/Game/R13/Audio/menu_ambient.menu_ambient"
 
 
 def run_import_task(task: unreal.AssetImportTask, source: Path, destination: str):
@@ -74,8 +75,6 @@ def resolve_menu_source(source: Path) -> Path:
         return source
 
     if header.startswith(b"\x89PNG\r\n\x1a\n"):
-        # The normal launcher now generates an opaque 24-bit PNG here. This fallback also handles a browser image
-        # that contains PNG bytes despite a .jpg filename when the Python importer is invoked directly.
         if source == NORMALIZED_MENU_SOURCE:
             unreal.log(f"R13 menu artwork detected as normalized PNG: {source}")
             return source
@@ -125,11 +124,11 @@ stein_weapons = {
 for folder, filename in stein_weapons.items():
     import_stein_static_mesh(STEIN_ROOT / folder / filename, f"/Game/R13/Weapons/Stein/{folder}")
 
-required_audio = sorted(AUDIO_ROOT.glob("*.wav"))
+required_audio = sorted(list(AUDIO_ROOT.glob("*.wav")) + list(AUDIO_ROOT.glob("*.ogg")))
 if not required_audio:
-    raise RuntimeError(f"R13 required audio directory contains no WAV files: {AUDIO_ROOT}")
-for wav in required_audio:
-    import_required_file(wav, "/Game/R13/Audio")
+    raise RuntimeError(f"R13 required audio directory contains no WAV/OGG files: {AUDIO_ROOT}")
+for audio_file in required_audio:
+    import_required_file(audio_file, "/Game/R13/Audio")
 
 # Prefer the opaque image normalized by R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd. This deliberately strips browser PNG
 # alpha so the live 3D world cannot bleed through transparent menu pixels. Direct-script runs retain signature
@@ -159,10 +158,11 @@ expected_assets = [
     "/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5",
     "/Game/R13/Weapons/Stein/Mac10/SKM_Mac10.SKM_Mac10",
     "/Game/R13/Weapons/Stein/Tec9/SKM_Tec9.SKM_Tec9",
+    MENU_MUSIC_ASSET,
     MENU_ASSET,
 ]
 missing_assets = [asset for asset in expected_assets if not unreal.EditorAssetLibrary.does_asset_exist(asset)]
 if missing_assets:
     raise RuntimeError("R13 import finished but runtime-required assets are missing: " + ", ".join(missing_assets))
 
-unreal.log(f"R13 CONTENT IMPORT COMPLETE: verified {len(expected_assets)} runtime-required assets including Stein CC0 pack")
+unreal.log(f"R13 CONTENT IMPORT COMPLETE: verified {len(expected_assets)} runtime-required assets including Stein CC0 pack + frontend music")
