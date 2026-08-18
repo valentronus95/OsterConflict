@@ -59,13 +59,11 @@ namespace
 
     bool IsInsideCompactBounds(const FVector& P)
     {
-        // Leave a few metres of breathing room from the crop edge so silhouettes are not visibly chopped.
         return P.X >= -66500.0f && P.X <= 21500.0f && P.Y >= -21500.0f && P.Y <= 46500.0f;
     }
 
     bool IsInsideKrushelnytskaReserved(const FVector& P)
     {
-        // R12 gameplay slice and the older geo-authored street corridor are both protected from infill.
         const bool bGameplaySlice = FMath::Abs(P.X + 3400.0f) < 8200.0f && P.Y > -15500.0f && P.Y < 18500.0f;
         const bool bGeoCorridor = FMath::Abs(P.X + 33500.0f) < 6800.0f && P.Y > -17000.0f && P.Y < 48000.0f;
         return bGameplaySlice || bGeoCorridor;
@@ -122,6 +120,26 @@ namespace
         const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
         Location.Z = -LocalBottom * Scale;
         Family.Component->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), Location, FVector(Scale)), true);
+    }
+
+    void AddHiddenSourceFootprint(UInstancedStaticMeshComponent* Buildings, UStaticMesh* HouseMesh,
+        const FVector& Location, const float Yaw, const float HouseScale)
+    {
+        if (!Buildings || !HouseMesh) return;
+
+        // WholeOster has already replaced/hid the cube building proxy before this 1.20 s pass. Keep it hidden and use
+        // extra instances only as metadata footprints: EnvironmentDressing reads Buildings at 1.60 s for grass exclusion,
+        // while ResidentialYard later reuses the same transform for unique yard props. Nothing here is rendered/colliding.
+        Buildings->SetVisibility(false, true);
+        Buildings->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+        const FVector MeshSize = HouseMesh->GetBounds().BoxExtent * 2.0f;
+        const FVector FootprintScale(
+            FMath::Max(3.0f, MeshSize.X * HouseScale / 100.0f),
+            FMath::Max(3.0f, MeshSize.Y * HouseScale / 100.0f),
+            1.0f);
+        Buildings->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f),
+            FVector(Location.X, Location.Y, 0.0f), FootprintScale), true);
     }
 
     void AddFamilyIfValid(TArray<FHouseFamily>& Families, AActor* Owner, USceneComponent* Root,
@@ -246,13 +264,15 @@ void UOCR13ResidentialInfillSubsystem::BuildResidentialInfill(UWorld& World)
             const float HouseYaw = RoadTransform.Rotator().Yaw +
                 (SideSign > 0.0f ? 0.0f : 180.0f) + static_cast<float>((Variant % 5) - 2) * 1.7f;
             const float HouseScale = 0.88f + 0.035f * static_cast<float>(Variant % 4);
-            AddGroundedHouse(Families[Variant % Families.Num()], Candidate, HouseYaw, HouseScale);
+            const FHouseFamily& Family = Families[Variant % Families.Num()];
+            AddGroundedHouse(Family, Candidate, HouseYaw, HouseScale);
+            AddHiddenSourceFootprint(Buildings, Family.Mesh, Candidate, HouseYaw, HouseScale);
             AcceptedLocations.Add(Candidate);
         }
     }
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 residential infill: accepted=%d/%d candidates, cap=%d; canonical house families feed EnvironmentDressing while placement stays clear of source houses, landmarks and Krushelnytska."),
+        TEXT("R13.4 residential infill: accepted=%d/%d candidates, cap=%d; canonical house families feed EnvironmentDressing and hidden source footprints reserve grass/yard space while placement stays clear of source houses, landmarks and Krushelnytska."),
         AcceptedLocations.Num(), ConsideredCandidates, MaxInfillHouses);
 }
