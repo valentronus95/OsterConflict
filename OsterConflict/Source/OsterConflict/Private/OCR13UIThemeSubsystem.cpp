@@ -14,7 +14,6 @@
 #include "Components/PanelWidget.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
-#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/UObjectGlobals.h"
@@ -24,29 +23,11 @@ namespace
 {
     const FLinearColor ThemeText(0.94f, 0.93f, 0.89f, 1.0f);
     const FLinearColor ThemeMuted(0.67f, 0.68f, 0.66f, 1.0f);
-    const FLinearColor ThemePanel(0.014f, 0.018f, 0.020f, 0.90f);
-    const FLinearColor ThemeControl(0.055f, 0.060f, 0.060f, 0.46f);
-    const FLinearColor ThemeControlHover(0.24f, 0.205f, 0.135f, 0.55f);
+    const FLinearColor ThemePanel(0.014f, 0.018f, 0.020f, 0.985f);
+    const FLinearColor ThemeControl(0.055f, 0.060f, 0.060f, 0.70f);
+    const FLinearColor ThemeControlHover(0.24f, 0.205f, 0.135f, 0.72f);
     const FLinearColor ThemeAccent(0.49f, 0.41f, 0.26f, 1.0f);
-    const FLinearColor ThemeAccentSoft(0.32f, 0.27f, 0.18f, 0.66f);
-
-    void FillCanvas(UCanvasPanelSlot* Slot, int32 ZOrder)
-    {
-        if (!Slot) return;
-        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-        Slot->SetOffsets(FMargin(0.0f));
-        Slot->SetAlignment(FVector2D::ZeroVector);
-        Slot->SetZOrder(ZOrder);
-    }
-
-    void PlaceFeather(UCanvasPanelSlot* Slot, float Left, float Width, int32 ZOrder)
-    {
-        if (!Slot) return;
-        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 1.0f));
-        Slot->SetOffsets(FMargin(Left, 0.0f, Width, 0.0f));
-        Slot->SetAlignment(FVector2D::ZeroVector);
-        Slot->SetZOrder(ZOrder);
-    }
+    const FLinearColor ThemeAccentSoft(0.32f, 0.27f, 0.18f, 0.80f);
 
     void ThemeButton(UButton* Button)
     {
@@ -56,7 +37,7 @@ namespace
         Style.Normal.TintColor = FSlateColor(ThemeControl);
         Style.Hovered.TintColor = FSlateColor(ThemeControlHover);
         Style.Pressed.TintColor = FSlateColor(ThemeAccentSoft);
-        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.038f, 0.038f, 0.28f));
+        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.038f, 0.038f, 0.42f));
         Style.NormalPadding = FMargin(1.0f);
         Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
         Button->SetStyle(Style);
@@ -206,94 +187,47 @@ void UOCR13UIThemeSubsystem::Tick(float DeltaTime)
         ThemeFeather.Reset();
     }
 
+    // R13.3: OCR13FrontendMenuSubsystem is the sole owner of menu/deployment/settings backdrop presentation.
+    // Older theme-owned copies of Oster_Menu_BG caused two independently ticked layers to fight and visibly flicker.
     EnsureThemeLayers(Root);
     ApplyTheme(Root, PC);
 }
 
 void UOCR13UIThemeSubsystem::EnsureThemeLayers(UOCGameUIRootWidget* Root)
 {
-    if (!Root || ThemeBackdrop.IsValid()) return;
+    if (!Root) return;
 
-    UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
-    if (!Canvas) return;
-
-    UTexture2D* WhiteTexture = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/WhiteSquareTexture.WhiteSquareTexture"));
-    UTexture2D* MenuTexture = LoadObject<UTexture2D>(nullptr, TEXT("/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG"));
-
-    UImage* Blocker = NewObject<UImage>(Root, TEXT("R13_ThemeOpaqueWorldBlocker"));
-    if (Blocker)
+    // Do not create another menu image here. Retire any stale layers that may exist after hot reload.
+    if (UImage* OldBlocker = FindObject<UImage>(Root, TEXT("R13_ThemeOpaqueWorldBlocker")))
     {
-        if (WhiteTexture) Blocker->SetBrushFromTexture(WhiteTexture, false);
-        Blocker->SetColorAndOpacity(FLinearColor(0.004f, 0.005f, 0.005f, 1.0f));
-        Blocker->SetVisibility(ESlateVisibility::Collapsed);
-        Blocker->SetIsEnabled(false);
-        FillCanvas(Canvas->AddChildToCanvas(Blocker), 77);
-        ThemeWorldBlocker = Blocker;
+        OldBlocker->SetVisibility(ESlateVisibility::Collapsed);
+        OldBlocker->SetIsEnabled(false);
     }
-
-    UImage* Backdrop = NewObject<UImage>(Root, TEXT("R13_ThemeMenuBackdrop"));
-    if (Backdrop)
+    if (UImage* OldBackdrop = FindObject<UImage>(Root, TEXT("R13_ThemeMenuBackdrop")))
     {
-        if (MenuTexture) Backdrop->SetBrushFromTexture(MenuTexture, false);
-        Backdrop->SetColorAndOpacity(FLinearColor::White);
-        Backdrop->SetVisibility(ESlateVisibility::Collapsed);
-        Backdrop->SetIsEnabled(false);
-        FillCanvas(Canvas->AddChildToCanvas(Backdrop), 78);
-        ThemeBackdrop = Backdrop;
+        OldBackdrop->SetVisibility(ESlateVisibility::Collapsed);
+        OldBackdrop->SetIsEnabled(false);
     }
-
-    constexpr int32 StripCount = 20;
-    constexpr float StripWidth = 44.0f;
-    for (int32 Index = 0; Index < StripCount; ++Index)
-    {
-        UImage* Strip = NewObject<UImage>(Root);
-        if (!Strip) continue;
-        if (WhiteTexture) Strip->SetBrushFromTexture(WhiteTexture, false);
-        const float T = static_cast<float>(Index) / static_cast<float>(StripCount - 1);
-        const float Alpha = FMath::Lerp(0.36f, 0.0f, FMath::Pow(T, 0.76f));
-        Strip->SetColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, Alpha));
-        Strip->SetVisibility(ESlateVisibility::Collapsed);
-        Strip->SetIsEnabled(false);
-        PlaceFeather(Canvas->AddChildToCanvas(Strip), StripWidth * Index, StripWidth + 1.0f, 79);
-        ThemeFeather.Add(Strip);
-    }
+    ThemeWorldBlocker.Reset();
+    ThemeBackdrop.Reset();
+    ThemeFeather.Reset();
 }
 
 void UOCR13UIThemeSubsystem::ApplyTheme(UOCGameUIRootWidget* Root, AOCPlayerController* PC)
 {
     if (!Root || !PC) return;
 
-    const bool bSettings = PC->IsSettingsVisible();
-    const bool bFrontend = PC->IsFrontendMenuVisible() && !bSettings;
-    const bool bDeployment = !bSettings && !bFrontend && PC->IsDeploymentPanelVisible();
-
-    bool bShowBackdrop = bSettings || bDeployment;
-    if (bFrontend)
-    {
-        if (UImage* ExistingBackdrop = FindObject<UImage>(Root, TEXT("R13_MenuBackground")))
-        {
-            bShowBackdrop = ExistingBackdrop->GetVisibility() != ESlateVisibility::Collapsed;
-        }
-        else
-        {
-            bShowBackdrop = PC->GetPawn() == nullptr;
-        }
-    }
-
-    const ESlateVisibility BackdropVisibility = bShowBackdrop
-        ? ESlateVisibility::SelfHitTestInvisible
-        : ESlateVisibility::Collapsed;
-
-    if (ThemeWorldBlocker.IsValid()) ThemeWorldBlocker->SetVisibility(BackdropVisibility);
-    if (ThemeBackdrop.IsValid()) ThemeBackdrop->SetVisibility(BackdropVisibility);
+    // Backdrop ownership deliberately lives in OCR13FrontendMenuSubsystem. Theme only styles controls.
+    if (ThemeWorldBlocker.IsValid()) ThemeWorldBlocker->SetVisibility(ESlateVisibility::Collapsed);
+    if (ThemeBackdrop.IsValid()) ThemeBackdrop->SetVisibility(ESlateVisibility::Collapsed);
     for (const TWeakObjectPtr<UImage>& Strip : ThemeFeather)
     {
-        if (Strip.IsValid()) Strip->SetVisibility(BackdropVisibility);
+        if (Strip.IsValid()) Strip->SetVisibility(ESlateVisibility::Collapsed);
     }
 
     if (UBorder* SettingsPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("SettingsPanel"))))
     {
-        SettingsPanel->SetBrushColor(FLinearColor(0.014f, 0.018f, 0.020f, 0.975f));
+        SettingsPanel->SetBrushColor(FLinearColor(0.014f, 0.018f, 0.020f, 0.985f));
         SettingsPanel->SetPadding(FMargin(26.0f));
         if (SettingsPanel->GetVisibility() != ESlateVisibility::Collapsed)
         {
@@ -308,11 +242,6 @@ void UOCR13UIThemeSubsystem::ApplyTheme(UOCGameUIRootWidget* Root, AOCPlayerCont
         if (DeploymentPanel->GetVisibility() != ESlateVisibility::Collapsed)
         {
             ThemeWidgetTree(DeploymentPanel->GetContent());
-            if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(DeploymentPanel->Slot))
-            {
-                Slot->SetPosition(FVector2D(110.0f, 130.0f));
-                Slot->SetSize(FVector2D(1380.0f, 610.0f));
-            }
         }
     }
 
