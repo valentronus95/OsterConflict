@@ -34,16 +34,11 @@ public:
     FString GetAdminActionLabel(int32 Index) const;
 
     /**
-     * One-shot server authorization consumed by OCR13SpawnSafetySubsystem.
+     * One-shot, short-lived server authorization consumed by OCR13SpawnSafetySubsystem.
      * Legacy ready/F4 can still alter lobby-ready state for compatibility, but it cannot produce an accepted
-     * runtime pawn unless the staged deployment commit granted this token first.
+     * runtime pawn unless the staged deployment commit granted a fresh token first.
      */
-    bool ConsumeR13DeploymentCommitAuthorization()
-    {
-        const bool bWasAuthorized = bR13DeploymentCommitAuthorized;
-        bR13DeploymentCommitAuthorized = false;
-        return bWasAuthorized;
-    }
+    bool ConsumeR13DeploymentCommitAuthorization();
 
     const TArray<FOCChatMessage>& GetRecentChatMessages() const { return RecentChatMessages; }
     const FOCSquadOrder& GetCurrentSquadOrder() const { return CurrentSquadOrder; }
@@ -134,6 +129,7 @@ private:
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
     bool bR13DeploymentCommitAuthorized = false;
+    double R13DeploymentCommitAuthorizationExpiresAt = -1.0;
     double LastChatServerTime = -100.0;
     TArray<FOCChatMessage> RecentChatMessages;
     FOCSquadOrder CurrentSquadOrder;
