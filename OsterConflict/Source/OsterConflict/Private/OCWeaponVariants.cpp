@@ -89,3 +89,55 @@ AOCWeapon_LMG::AOCWeapon_LMG()
     T.AudioLoudnessScale = 1.08f;
     ConfigureBuiltInTuning(T);
 }
+
+AOCWeapon_M14::AOCWeapon_M14()
+{
+    FOCWeaponTuning T = BasePreset(TEXT("OC_M14"), TEXT("M14"), EOCWeaponClass::AssaultRifle,
+        EOCInventorySlot::Primary, EOCAmmoType::Rifle);
+    T.Damage = 48.0f; T.RangeCm = 18000.0f; T.RoundsPerMinute = 450.0f;
+    T.HipSpreadDegrees = 1.75f; T.ADSSpreadDegrees = 0.12f; T.MovingSpreadMultiplier = 1.70f;
+    T.RecoilPitchMin = 0.95f; T.RecoilPitchMax = 1.35f; T.RecoilYawMax = 0.42f;
+    T.MagazineSize = 20; T.InitialReserveAmmo = 80; T.MaxReserveAmmo = 160; T.ReloadDuration = 2.55f;
+    T.bSupportsAutomatic = false; T.bSupportsSemiAutomatic = true;
+    T.AudioLoudnessScale = 1.10f;
+    ConfigureBuiltInTuning(T);
+}
+
+AOCWeapon_LeverAction::AOCWeapon_LeverAction()
+{
+    FOCWeaponTuning T = BasePreset(TEXT("OC_LEVER"), TEXT("LEVER ACTION"), EOCWeaponClass::SniperRifle,
+        EOCInventorySlot::Primary, EOCAmmoType::Precision);
+    T.Damage = 76.0f; T.RangeCm = 22000.0f; T.RoundsPerMinute = 68.0f;
+    T.HipSpreadDegrees = 2.15f; T.ADSSpreadDegrees = 0.09f; T.MovingSpreadMultiplier = 2.00f;
+    T.RecoilPitchMin = 1.35f; T.RecoilPitchMax = 1.85f; T.RecoilYawMax = 0.45f;
+    T.MagazineSize = 6; T.InitialReserveAmmo = 30; T.MaxReserveAmmo = 60; T.ReloadDuration = 2.90f;
+    T.bSupportsAutomatic = false; T.bSupportsSemiAutomatic = true;
+    T.AudioLoudnessScale = 1.08f;
+    ConfigureBuiltInTuning(T);
+}
+
+AOCWeapon_MAC10::AOCWeapon_MAC10()
+{
+    FOCWeaponTuning T = BasePreset(TEXT("OC_MAC10"), TEXT("MAC-10"), EOCWeaponClass::SMG,
+        EOCInventorySlot::Primary, EOCAmmoType::Pistol);
+    T.Damage = 22.0f; T.RangeCm = 6000.0f; T.RoundsPerMinute = 1000.0f;
+    T.HipSpreadDegrees = 1.55f; T.ADSSpreadDegrees = 0.44f; T.MovingSpreadMultiplier = 1.45f;
+    T.RecoilPitchMin = 0.38f; T.RecoilPitchMax = 0.70f; T.RecoilYawMax = 0.65f;
+    T.MagazineSize = 30; T.InitialReserveAmmo = 150; T.MaxReserveAmmo = 300; T.ReloadDuration = 2.10f;
+    T.bSupportsAutomatic = true; T.bSupportsSemiAutomatic = true;
+    T.AudioLoudnessScale = 0.94f;
+    ConfigureBuiltInTuning(T);
+}
+
+AOCWeapon_Tec9::AOCWeapon_Tec9()
+{
+    FOCWeaponTuning T = BasePreset(TEXT("OC_TEC9"), TEXT("TEC-9"), EOCWeaponClass::Pistol,
+        EOCInventorySlot::Secondary, EOCAmmoType::Pistol);
+    T.Damage = 25.0f; T.RangeCm = 6500.0f; T.RoundsPerMinute = 500.0f;
+    T.HipSpreadDegrees = 1.30f; T.ADSSpreadDegrees = 0.38f; T.MovingSpreadMultiplier = 1.30f;
+    T.RecoilPitchMin = 0.40f; T.RecoilPitchMax = 0.72f; T.RecoilYawMax = 0.40f;
+    T.MagazineSize = 20; T.InitialReserveAmmo = 80; T.MaxReserveAmmo = 160; T.ReloadDuration = 1.85f;
+    T.bSupportsAutomatic = false; T.bSupportsSemiAutomatic = true;
+    T.AudioLoudnessScale = 0.90f;
+    ConfigureBuiltInTuning(T);
+}
