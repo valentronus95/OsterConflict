@@ -1,4 +1,6 @@
 from pathlib import Path
+import shutil
+import subprocess
 
 ROOT = Path(__file__).resolve().parent
 LFS_CHECK = ROOT / "PC_TEST" / "CHECK_R13_LFS_PAYLOADS.ps1"
@@ -54,5 +56,25 @@ if 'DirectoriesToAlwaysCook=' not in packaging:
 if "Get-ChildItem $ContentRoot -Recurse" in lfs:
     fail("LFS gate must not scan/block unrelated unused Content trees")
 
+# Parse the PowerShell gate without executing it. GitHub source CI intentionally checks out LFS pointers, so running
+# the gate there would correctly fail for the wrong reason; the language parser still catches syntax errors.
+shell = shutil.which("pwsh") or shutil.which("powershell.exe") or shutil.which("powershell")
+if shell:
+    escaped_path = str(LFS_CHECK).replace("'", "''")
+    parse_command = (
+        "$tokens=$null; $errors=$null; "
+        f"[System.Management.Automation.Language.Parser]::ParseFile('{escaped_path}', [ref]$tokens, [ref]$errors) | Out-Null; "
+        "if($errors.Count -gt 0){ $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }"
+    )
+    result = subprocess.run(
+        [shell, "-NoProfile", "-Command", parse_command],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        detail = (result.stdout + "\n" + result.stderr).strip()
+        fail("PowerShell parser rejected CHECK_R13_LFS_PAYLOADS.ps1" + (f": {detail}" if detail else ""))
+
 print("R13 LFS LAUNCH GATE VERIFY: PASS")
-print("Checks runtime-cooked LFS payload detection and pre-Editor launch ordering.")
+print("Checks runtime-cooked LFS payload detection, PowerShell syntax and pre-Editor launch ordering.")
