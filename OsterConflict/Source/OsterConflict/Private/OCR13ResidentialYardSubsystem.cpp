@@ -1,5 +1,6 @@
 #include "OCR13ResidentialYardSubsystem.h"
 
+#include "OCGameMode.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -86,6 +87,10 @@ void UOCR13ResidentialYardSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
