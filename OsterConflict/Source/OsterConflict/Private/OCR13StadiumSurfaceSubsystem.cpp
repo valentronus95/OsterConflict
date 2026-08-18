@@ -97,7 +97,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
 
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh* BenchMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Old_Planks.Old_Planks"));
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Old_Planks_Plank_1.Old_Planks_Plank_1"));
     UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     if (!Cube || !BaseMaterial) return;
@@ -175,7 +175,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         AddBox(Goals, Stadium + FVector(GoalX, 0.0f, 245.0f), FVector(12.0f, 742.0f, 12.0f));
     }
 
-    // Small spectator stand on the north side using the same real plank mesh already validated for park seating.
+    // Small spectator stand on the north side using the same real plank family already validated for park seating.
     if (Benches && BenchMesh)
     {
         int32 SeatIndex = 0;
