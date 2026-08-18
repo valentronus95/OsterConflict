@@ -46,15 +46,16 @@ LAUNCH_REQUIRED = [
     'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%" -ProjectRoot "%PROJECT_ROOT%"',
     'set "LFS_RC=%ERRORLEVEL%"',
     'if not "%LFS_RC%"=="0"',
+    '-NoScreenMessages',
 ]
 for token in LAUNCH_REQUIRED:
     if token not in launcher:
-        fail(f"listen launcher LFS gate missing: {token}")
+        fail(f"listen launcher R13.1 gate missing: {token}")
 
 lfs_call = launcher.find('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%"')
-editor_start = launcher.find('start "Oster Conflict R13"')
+editor_start = launcher.find('start "Oster Conflict R13.1"')
 if lfs_call < 0 or editor_start < 0 or lfs_call >= editor_start:
-    fail("LFS payload check must execute before starting UnrealEditor")
+    fail("LFS payload check must execute before starting the R13.1 UnrealEditor player-facing path")
 
 FULL_REQUIRED = [
     'set "LFS_CHECK=%~dp0PC_TEST\\CHECK_R13_LFS_PAYLOADS.ps1"',
@@ -101,4 +102,4 @@ if shell:
         fail("PowerShell parser rejected CHECK_R13_LFS_PAYLOADS.ps1" + (f": {detail}" if detail else ""))
 
 print("R13 LFS LAUNCH GATE VERIFY: PASS")
-print("Checks runtime-cooked LFS payload detection, PowerShell syntax, full/package gating and pre-Editor launch ordering.")
+print("Checks runtime-cooked LFS payload detection, PowerShell syntax, full/package gating and R13.1 player-facing launch ordering.")
