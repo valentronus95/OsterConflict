@@ -34,6 +34,8 @@ required = [
     "SM_Urb_Roa_Sheet_Metal_Rusty_01",
     "SM_Urb_Roa_Sheet_Metal_Rusty_02",
     "SM_Urb_Roa_Sheet_Metal_Rusty_03",
+    "auto AddFamily = [ArtRoot, Root]",
+    "constexpr float RailFractions[] = { 0.26f, 0.56f, 0.84f }",
     "AddOpenMetalRun",
     "R13_InfillFenceCollision",
     'SetCollisionProfileName(FName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision")))',
@@ -46,20 +48,22 @@ for token in required:
     if token not in cpp:
         fail(f"missing bounded mixed-fence marker: {token}")
 
-# Fence art must never be allowed to become a second generic whole-city fence owner.
+# Fence art must never become a second generic whole-city owner or drift back to initializer-list pair setup that
+# previously created an avoidable MSVC compile-risk before the deferred UE build.
 for forbidden in [
     'FindISM(WorldSector, TEXT("WoodFences"))',
     'FindISM(WorldSector, TEXT("MetalFences"))',
     'FindISM(WorldSector, TEXT("LightSheetFences"))',
+    "TPair<const TCHAR*, FName>",
     "FMath::Rand",
     "FRand",
 ]:
     if forbidden in cpp:
-        fail(f"infill fence pass drifted into generic/non-deterministic ownership: {forbidden}")
+        fail(f"infill fence pass drifted into generic/non-deterministic/fragile ownership: {forbidden}")
 
 for left, right in (("(", ")"), ("{", "}"), ("[", "]")):
     if cpp.count(left) != cpp.count(right):
         fail(f"delimiter mismatch {left}{right}")
 
 print("R13.4 RESIDENTIAL INFILL FENCE VERIFY: PASS")
-print("Checks infill-only ownership, weighted wood/open-metal/sheet frontage, 4.2m gate openings and hidden continuous collision.")
+print("Checks infill-only ownership, MSVC-safe explicit asset setup, weighted wood/open-metal/sheet frontage, 4.2m gate openings and hidden continuous collision.")
