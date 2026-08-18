@@ -16,4 +16,5 @@ public:
 
 private:
     void BuildInfillFences(UWorld& World);
+    bool bApplied = false;
 };
