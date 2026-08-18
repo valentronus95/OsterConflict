@@ -21,11 +21,9 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
     UWorld* World = GetWorld();
     if (!World || DeltaTime <= 0.0f) return;
 
-    // If proper navigation exists, do nothing. The normal OCAIController MoveTo path is better than this fallback.
-    if (UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
-    {
-        if (NavSystem->GetDefaultNavDataInstance(FNavigationSystem::DontCreate)) return;
-    }
+    UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+    const bool bHasDefaultNavData = NavSystem &&
+        NavSystem->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) != nullptr;
 
     TArray<AOCBotCharacter*> MobileBots;
     for (TActorIterator<AOCBotCharacter> It(World); It; ++It)
@@ -77,6 +75,24 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
 
         if (!BestPoint || BestDistanceSq < FMath::Square(450.0f)) continue;
 
+        // R13.2: the old guard disabled this fallback as soon as *any* NavData existed in the world. A partial or
+        // disconnected runtime navmesh therefore left bots receiving only the AI controller's occasional one-frame
+        // AddMovementInput pulse. Use normal MoveTo only when both the bot and its current objective actually project
+        // onto the available navigation data; otherwise keep the continuous movement fallback alive.
+        if (bHasDefaultNavData && NavSystem)
+        {
+            FNavLocation BotNavLocation;
+            FNavLocation ObjectiveNavLocation;
+            const bool bBotProjects = NavSystem->ProjectPointToNavigation(
+                Bot->GetActorLocation(), BotNavLocation, FVector(300.0f, 300.0f, 450.0f));
+            const bool bObjectiveProjects = NavSystem->ProjectPointToNavigation(
+                BestPoint->GetActorLocation(), ObjectiveNavLocation, FVector(500.0f, 500.0f, 550.0f));
+            if (bBotProjects && bObjectiveProjects)
+            {
+                continue;
+            }
+        }
+
         FVector BaseDirection = BestPoint->GetActorLocation() - Bot->GetActorLocation();
         BaseDirection.Z = 0.0f;
         if (!BaseDirection.Normalize()) continue;
@@ -93,8 +109,8 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
         DesiredDirection.Z = 0.0f;
         if (!DesiredDirection.Normalize()) continue;
 
-        // Cheap source-map avoidance for the no-NavMesh fallback. Fifteen bots means O(n^2) here is tiny,
-        // while a 3.5 m personal-space radius is enough to stop overlapping bodies and rail-like columns.
+        // Cheap source-map separation. Fifteen bots means O(n^2) is tiny, while a 3.5 m personal-space radius is
+        // enough to stop overlapping bodies and rail-like columns when the runtime map is still missing full NavMesh.
         FVector Separation = FVector::ZeroVector;
         constexpr float SeparationRadiusCm = 350.0f;
         for (AOCBotCharacter* Other : MobileBots)
@@ -116,7 +132,7 @@ void UOCR13BotMobilitySubsystem::Tick(float DeltaTime)
         FinalDirection.Z = 0.0f;
         if (!FinalDirection.Normalize()) FinalDirection = DesiredDirection;
 
-        // Character movement consumes input every frame; this fixes the old 0.2 s "single pulse" fallback.
+        // Character movement consumes input every frame; this prevents the old 0.2 s "single pulse" fallback.
         Bot->AddMovementInput(FinalDirection, 1.0f, true);
     }
 }
