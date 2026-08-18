@@ -15,6 +15,7 @@ REQUIRED_SOURCE_TOKENS = [
     'Window_Frame.Window_Frame',
     'DecodeWindowProxy',
     'BuildFramedWindows',
+    'Root->SetMobility(EComponentMobility::Static)',
     'const int32 SourceCount = Proxy->GetInstanceCount()',
     'if (Replaced != SourceCount)',
     'ArtRoot->Destroy()',
@@ -52,4 +53,4 @@ for asset in REQUIRED_ASSETS:
         fail(f"missing committed material asset: {asset.relative_to(ROOT)}")
 
 print("R13 LANDMARK WINDOWS VERIFY: PASS")
-print("Checks all-or-nothing framed-glass replacement while preserving landmark blocks/details/roofs.")
+print("Checks static art-root mobility and all-or-nothing framed-glass replacement while preserving landmark blocks/details/roofs.")
