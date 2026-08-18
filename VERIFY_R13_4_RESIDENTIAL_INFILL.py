@@ -29,6 +29,7 @@ required = [
     "IsNearLandmark",
     "HasNearbySourceBuilding",
     "HasNearbyNewBuilding",
+    "AddHiddenSourceFootprint",
     "AOCWorldSectorOster::MuseumAnchor()",
     "AOCWorldSectorOster::StadiumAnchor()",
     "AOCWorldSectorOster::ParkAnchor()",
@@ -37,13 +38,20 @@ required = [
     'FindISM(WorldSector, TEXT("Buildings"))',
     "SM_House_Var01.SM_House_Var01",
     "SM_House_Var02.SM_House_Var02",
+    'TEXT("R13_House01")',
+    'TEXT("R13_House02")',
     "SetCollisionProfileName(TEXT(\"BlockAll\"))",
     "SetCanEverAffectNavigation(true)",
+    "Buildings->SetVisibility(false, true)",
+    "Buildings->SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+    "MeshSize.X * HouseScale / 100.0f",
+    "MeshSize.Y * HouseScale / 100.0f",
     "GameMode->IsFrontendOnlySession()",
     "RoadLengthCm < 16000.0f",
     "RoadWidthCm > 1800.0f",
     "AcceptedLocations.Num() < MaxInfillHouses",
-    "road-derived placement kept clear of source houses, landmarks and Krushelnytska",
+    "canonical house families feed EnvironmentDressing",
+    "hidden source footprints reserve grass/yard space",
 ]
 for token in required:
     if token not in cpp:
@@ -54,14 +62,15 @@ for forbidden in [
     "FRand",
     "while (true)",
     "MaxInfillHouses = 50",
-    "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+    'TEXT("R13_InfillHouse01")',
+    'TEXT("R13_InfillHouse02")',
 ]:
     if forbidden in cpp:
-        fail(f"unsafe/non-deterministic infill marker present: {forbidden}")
+        fail(f"unsafe/stale infill marker present: {forbidden}")
 
 for left, right in (("(", ")"), ("{", "}"), ("[", "]")):
     if cpp.count(left) != cpp.count(right):
         fail(f"delimiter mismatch {left}{right}")
 
 print("R13.4 RESIDENTIAL INFILL VERIFY: PASS")
-print("Checks deterministic road-derived placement, hard 18-house cap, compact/landmark/Krushelnytska exclusions, existing/new-house spacing, gameplay collision/navigation and frontend guard.")
+print("Checks deterministic road-derived placement, hard 18-house cap, compact/landmark/Krushelnytska exclusions, existing/new-house spacing, canonical EnvironmentDressing integration, hidden grass/yard footprints, gameplay collision/navigation and frontend guard.")
