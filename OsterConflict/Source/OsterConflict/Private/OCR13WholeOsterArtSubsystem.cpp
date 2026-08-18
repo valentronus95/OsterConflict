@@ -17,6 +17,12 @@ namespace
         UStaticMesh* Mesh = nullptr;
     };
 
+    struct FTreeArtFamily
+    {
+        UInstancedStaticMeshComponent* Component = nullptr;
+        UStaticMesh* Mesh = nullptr;
+    };
+
     UStaticMesh* LoadArtMesh(const TCHAR* Path, bool bWarn = true)
     {
         UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, Path);
@@ -191,9 +197,8 @@ namespace
             float LocalBaseScale = BaseScale;
             if (IsMuseumGarden(Location))
             {
-                // The photo reference around the museum is dominated by mature conifers/tall established trees.
-                // Bias the landmark garden toward the later tree variants and slightly larger scale without
-                // inventing new collision points outside the source-authored tree topology.
+                // Mature general tree stock remains slightly larger around the landmark garden. Conifers are handled
+                // by a dedicated height-matched pine family below, so this no longer pretends a deciduous mesh is pine.
                 FamilyIndex = FMath::Max(0, TreeFamilies.Num() - 1 - (Index % FMath::Min(2, TreeFamilies.Num())));
                 LocalBaseScale *= 1.10f;
             }
@@ -204,6 +209,38 @@ namespace
             const float Scale = LocalBaseScale * Variation;
             Target->AddInstance(FTransform(
                 FRotator(0.0f, static_cast<float>((Index * 37) % 360), 0.0f), Location, FVector(Scale)), true);
+            ++OutCount;
+        }
+    }
+
+    void AddHeightMatchedTreeReplacements(UInstancedStaticMeshComponent* Proxy,
+        const TArray<FTreeArtFamily>& Families, const float BaseHeightCm, int32& OutCount)
+    {
+        if (!Proxy || Families.Num() == 0) return;
+
+        for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
+        {
+            FTransform ProxyTransform;
+            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
+            FVector Location = ProxyTransform.GetLocation();
+            if (IsInsideR12KrushelnytskaSlice(Location)) continue;
+
+            const FTreeArtFamily& Family = Families[Index % Families.Num()];
+            if (!Family.Component || !Family.Mesh) continue;
+
+            const FBoxSphereBounds Bounds = Family.Mesh->GetBounds();
+            const FVector MeshSize = Bounds.BoxExtent * 2.0f;
+            if (MeshSize.Z <= 10.0f) continue;
+
+            float DesiredHeight = BaseHeightCm * (0.91f + 0.045f * static_cast<float>(Index % 5));
+            if (IsMuseumGarden(Location)) DesiredHeight *= 1.10f;
+            const float Scale = FMath::Clamp(DesiredHeight / MeshSize.Z, 0.30f, 4.0f);
+            const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+            Location.Z = -LocalBottom * Scale;
+
+            Family.Component->AddInstance(FTransform(
+                FRotator(0.0f, static_cast<float>((Index * 53 + 17) % 360), 0.0f),
+                Location, FVector(Scale)), true);
             ++OutCount;
         }
     }
@@ -320,6 +357,15 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     UStaticMesh* Tree04 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
     UStaticMesh* Tree05 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var05.SM_Tree_Var05"));
 
+    // R13.4 species pass: source-authored pine topology now maps to actual bundled conifers instead of random
+    // AdvancedVillage deciduous meshes. Height matching keeps the result stable even when source assets use different units.
+    UStaticMesh* Pine01 = LoadArtMesh(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"), false);
+    UStaticMesh* Pine03 = LoadArtMesh(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"), false);
+    UStaticMesh* Pine05 = LoadArtMesh(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_05.SM_Pine_Tree_05"), false);
+
     UStaticMesh* RoadMesh = LoadArtMesh(
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Street_01/SM_Urb_Roa_Street_01.SM_Urb_Roa_Street_01"));
     UStaticMesh* SidewalkMesh = LoadArtMesh(
@@ -336,7 +382,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
         TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_03_mesh.grass_01_03_mesh"),
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03"));
 
-    if (!House01 && !House02 && !Tree01 && !Grass01 && !RoadMesh && !SidewalkMesh)
+    if (!House01 && !House02 && !Tree01 && !Pine01 && !Grass01 && !RoadMesh && !SidewalkMesh)
     {
         UE_LOG(LogTemp, Warning, TEXT("R13 whole-Oster art: environment art unavailable; preserving proxy topology."));
         return;
@@ -386,6 +432,22 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     };
     TreeFamilies.Remove(nullptr);
 
+    TArray<FTreeArtFamily> PineFamilies;
+    auto AddPineFamily = [&](UStaticMesh* Mesh, const FName Name)
+    {
+        if (!Mesh) return;
+        if (UInstancedStaticMeshComponent* Component = MakeISM(ArtRoot, Root, Mesh, Name, true))
+        {
+            FTreeArtFamily Family;
+            Family.Component = Component;
+            Family.Mesh = Mesh;
+            PineFamilies.Add(Family);
+        }
+    };
+    AddPineFamily(Pine01, TEXT("R13_Pine01"));
+    AddPineFamily(Pine03, TEXT("R13_Pine03"));
+    AddPineFamily(Pine05, TEXT("R13_Pine05"));
+
     TArray<UInstancedStaticMeshComponent*> GrassFamilies = {
         MakeISM(ArtRoot, Root, Grass01, TEXT("R13_Grass01"), false),
         MakeISM(ArtRoot, Root, Grass02, TEXT("R13_Grass02"), false),
@@ -399,6 +461,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
 
     int32 HouseCount = 0;
     int32 TreeCount = 0;
+    int32 PineCount = 0;
     int32 GrassCount = 0;
     int32 RoadCount = 0;
     int32 SidewalkCount = 0;
@@ -409,7 +472,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     AddTreeReplacements(FindISM(WorldSector, TEXT("TreeTrunks")), TreeFamilies, 1.00f, TreeCount);
     AddTreeReplacements(FindISM(WorldSector, TEXT("SovietPoplarTrunks")), TreeFamilies, 1.18f, TreeCount);
     AddTreeReplacements(FindISM(WorldSector, TEXT("BirchTrunks")), TreeFamilies, 1.02f, TreeCount);
-    AddTreeReplacements(FindISM(WorldSector, TEXT("PineTrunks")), TreeFamilies, 1.08f, TreeCount);
+    AddHeightMatchedTreeReplacements(FindISM(WorldSector, TEXT("PineTrunks")), PineFamilies, 1750.0f, PineCount);
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassMown")), GrassFamilies, GrassCount);
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassRough")), GrassFamilies, GrassCount);
     AddGrassReplacements(FindISM(WorldSector, TEXT("GrassWetland")), GrassFamilies, GrassCount);
@@ -422,7 +485,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
         HideProxy(WorldSector, TEXT("ResidentialRoofs"));
         HideProxy(WorldSector, TEXT("ResidentialDetails"));
     }
-    if (TreeCount > 0)
+    if (TreeCount > 0 || PineCount > 0)
     {
         const FName TreeProxyFamilies[] = {
             TEXT("TreeTrunks"), TEXT("TreeCrowns"), TEXT("SovietPoplarTrunks"), TEXT("SovietPoplarCrowns"),
@@ -454,6 +517,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 whole-Oster art: roads=%d sidewalks=%d houses=%d (%d viable house families) trees=%d grass instances=%d; hidden rejected fantasy families=%d."),
-        RoadCount, SidewalkCount, HouseCount, HouseFamilies.Num(), TreeCount, GrassCount, HiddenFantasyFamilies);
+        TEXT("R13.4 whole-Oster art: roads=%d sidewalks=%d houses=%d (%d viable house families) deciduous=%d pines=%d (%d pine families) grass instances=%d; hidden rejected fantasy families=%d."),
+        RoadCount, SidewalkCount, HouseCount, HouseFamilies.Num(), TreeCount, PineCount, PineFamilies.Num(),
+        GrassCount, HiddenFantasyFamilies);
 }
