@@ -41,10 +41,12 @@ VEHICLE_TOKENS = (
     "TrySpawnBundledVehicleVariants",
     "ScheduleSpawnAttempt(World, SpawnRetryDelaySeconds)",
     "SpawnActorDeferred<AOCVehicleSpawnPoint>",
+    "ESpawnActorCollisionHandlingMethod::AlwaysSpawn, ESpawnActorScaleMethod::MultiplyWithRoot",
     "ConfigureRuntime(EOCCivilianVehicleStyle::BoxTruck",
     "Pending.Num() != UE_ARRAY_COUNT(Seeds)",
     "Item.SpawnPoint->Destroy()",
-    "Item.SpawnPoint->FinishSpawning(Item.Transform)",
+    "UGameplayStatics::FinishSpawningActor(",
+    "Item.SpawnPoint, Item.Transform, ESpawnActorScaleMethod::MultiplyWithRoot",
     "bSpawnComplete = true;",
 )
 for token in VEHICLE_TOKENS:
@@ -74,4 +76,4 @@ for obsolete in (
         fail(f"obsolete one-shot spawn entry point returned: {obsolete}")
 
 print("R13 RUNTIME SPAWN BRIDGES VERIFY: PASS")
-print("Checks bounded retries, frontend exclusion, duplicate protection and partial-spawn rollback for BoxTruck/weapon variants.")
+print("Checks bounded retries, frontend exclusion, explicit UE 5.8 deferred spawning, duplicate protection and partial-spawn rollback.")
