@@ -128,14 +128,27 @@ for token in vehicle_required:
 
 art_required = [
     "ScaledMeshBottom",
-    "DesiredVisualBottom = -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f",
-    "DesiredVisualBottom - ScaledMeshBottom",
+    "float VisualRoadContactZ(const UBoxComponent* PhysicsBody)",
+    "-PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f",
+    "const float DesiredVisualBottom = VisualRoadContactZ(PhysicsBody)",
+    "CockpitZFromRoadEye(PhysicsBody, 122.0f)",
+    "CockpitZFromRoadEye(PhysicsBody, 128.0f)",
+    "CockpitZFromRoadEye(PhysicsBody, 218.0f)",
+    "CockpitZFromRoadEye(PhysicsBody, 134.0f)",
     "RepairStaleVehicleView",
     "PC->SetViewTarget(ControlledPawn)",
 ]
 for token in art_required:
     if token not in text["vehicle_art"]:
-        fail(f"vehicle grounding/camera recovery guard missing: {token}")
+        fail(f"vehicle grounding/cockpit/camera recovery guard missing: {token}")
+
+# The old body-centre camera heights were high enough to place SportsCar/BoxTruck eyes near/above their roofs.
+for forbidden in [
+    "FVector(-48.0f, -42.0f, 84.0f)",
+    "FVector(105.0f, -48.0f, 126.0f)",
+]:
+    if forbidden in text["vehicle_art"]:
+        fail(f"legacy body-centre cockpit height returned: {forbidden}")
 
 if "-NoScreenMessages" not in text["launcher"] or "R13Gameplay=1" not in text["launcher"]:
     fail("current R13 player-facing launcher must suppress debug screen messages and enable R13 gameplay")
@@ -144,4 +157,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, stable pre-game/deployment world suppression, staged deployment sizing, complete-path-aware bot fallback/separation, vehicle grounding, camera recovery and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, stable pre-game/deployment world suppression, staged deployment sizing, complete-path-aware bot fallback/separation, road-contact cockpit height, camera recovery and BoxTruck suspension.")
