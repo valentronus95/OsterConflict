@@ -170,6 +170,7 @@ void UOCR13LandmarkWindowArtSubsystem::BuildLandmarkWindowBridge(UWorld& World)
         ArtRoot->Destroy();
         return;
     }
+    Root->SetMobility(EComponentMobility::Static);
     ArtRoot->SetRootComponent(Root);
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
