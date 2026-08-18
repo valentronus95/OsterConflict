@@ -69,6 +69,8 @@ public:
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleSquad();
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
     UFUNCTION(BlueprintCallable, Category="UI") void UIReadyDeploy();
+    /** R13 staged flow keeps the deployment panel visible while the server validates/grounds the spawn. */
+    UFUNCTION(BlueprintCallable, Category="UI") void UICommitDeployment();
     UFUNCTION(BlueprintCallable, Category="UI") void UISendChat(EOCChatChannel Channel, const FString& Message);
     UFUNCTION(BlueprintCallable, Category="UI") void UIEndChatInput();
     UFUNCTION(BlueprintCallable, Category="UI") void UIAdminPrevious();
