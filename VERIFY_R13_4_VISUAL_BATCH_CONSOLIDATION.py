@@ -20,6 +20,8 @@ FILES = {
     "enter_h": SRC / "Public" / "OCR13EnterableHouseArtSubsystem.h",
     "enter": SRC / "Private" / "OCR13EnterableHouseArtSubsystem.cpp",
     "krush": SRC / "Private" / "OCKrushelnytskaVisualSliceSubsystem.cpp",
+    "krush_infra_h": SRC / "Public" / "OCR13KrushelnytskaInfrastructureSubsystem.h",
+    "krush_infra": SRC / "Private" / "OCR13KrushelnytskaInfrastructureSubsystem.cpp",
 }
 
 
@@ -33,7 +35,7 @@ for name, path in FILES.items():
 
 texts = {name: path.read_text(encoding="utf-8", errors="replace") for name, path in FILES.items()}
 
-for name in ("museum_h", "ground_h", "yard_h", "civic_h", "enter_h"):
+for name in ("museum_h", "ground_h", "yard_h", "civic_h", "enter_h", "krush_infra_h"):
     includes = [line.strip() for line in texts[name].splitlines() if line.strip().startswith("#include")]
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h is not the last include in {FILES[name].name}")
@@ -155,7 +157,6 @@ for forbidden in ["Log_Pile_1.Log_Pile_1", "Metal_Barrel.Metal_Barrel"]:
     if forbidden in yard:
         fail(f"yard pass duplicates EnvironmentDressing clutter: {forbidden}")
 
-# R13.5 RoadsideInfrastructure is the sole generic utility-pole owner. The temporary duplicate must stay deleted.
 roadside = texts["roadside"]
 for token in [
     "Power_Pole_1.Power_Pole_1",
@@ -165,6 +166,7 @@ for token in [
     "MinPoleSpacingCm = 5200.0f",
     "MaxPoleSpacingCm = 6400.0f",
     "SetCanEverAffectNavigation(false)",
+    "IsInsideKrushelnytskaSlice(Location)",
 ]:
     if token not in roadside:
         fail(f"RoadsideInfrastructure ownership marker missing: {token}")
@@ -173,9 +175,8 @@ for duplicate in [
     SRC / "Private" / "OCR13UtilityPoleSubsystem.cpp",
 ]:
     if duplicate.exists():
-        fail(f"duplicate utility-pole owner still exists: {duplicate.relative_to(ROOT)}")
+        fail(f"duplicate generic utility-pole owner still exists: {duplicate.relative_to(ROOT)}")
 
-# Civic planting fills the previously missing R13.5 owner expected by the landmark contract.
 civic = texts["civic"]
 for token in [
     "AddMuseumGarden",
@@ -213,15 +214,34 @@ for token in [
     "SM_Pine_Tree_01.SM_Pine_Tree_01",
     "SM_Pine_Tree_03.SM_Pine_Tree_03",
     "SM_Pine_Tree_05.SM_Pine_Tree_05",
+    'TEXT("R12_StreetLights")',
 ]:
     if token not in krush:
-        fail(f"Krushelnytska unified-foliage marker missing: {token}")
+        fail(f"Krushelnytska unified-foliage/legacy-light marker missing: {token}")
 
-for name in ("whole", "museum", "ground", "yard", "roadside", "civic", "site", "enter", "krush"):
+krush_infra = texts["krush_infra"]
+for token in [
+    "Power_Pole_1.Power_Pole_1",
+    "Power_Pole_Addons.Power_Pole_Addons",
+    "Power_Pole_Light.Power_Pole_Light",
+    "StreetCenterX = -3400.0f",
+    "PoleSpacingCm = 5900.0f",
+    "R13_KrushelnytskaUtilityPoles",
+    "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+    "SetCanEverAffectNavigation(false)",
+    "GameMode->IsFrontendOnlySession()",
+    "fantasy R12 streetlights remain suppressed",
+]:
+    if token not in krush_infra:
+        fail(f"dedicated Krushelnytska infrastructure marker missing: {token}")
+
+for name in (
+    "whole", "museum", "ground", "yard", "roadside", "civic", "site", "enter", "krush", "krush_infra"
+):
     text = texts[name]
     for left, right in (("(", ")"), ("{", "}"), ("[", "]")):
         if text.count(left) != text.count(right):
             fail(f"delimiter mismatch {left}{right} in {FILES[name].name}")
 
 print("R13.4 VISUAL BATCH CONSOLIDATION VERIFY: PASS")
-print("Checks single-owner grass/foliage/path/pole responsibilities, real conifers, museum photo-reference facade details, terrain material safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
+print("Checks single-owner grass/foliage/path/pole responsibilities, dedicated Krushelnytska infrastructure, real conifers, museum photo-reference facade details, terrain material safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
