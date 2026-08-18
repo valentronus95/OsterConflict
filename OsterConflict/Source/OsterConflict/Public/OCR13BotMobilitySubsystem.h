@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13BotMobilitySubsystem.generated.h"
 
+class AOCBotCharacter;
+
 /**
  * Runtime fallback for source-generated maps with missing, partial or disconnected navigation coverage.
  * Existing AI/pathfinding remains authoritative only when a complete path actually exists.
@@ -19,5 +21,7 @@ public:
     virtual TStatId GetStatId() const override;
 
 private:
-    float MobilityAccumulator = 0.0f;
+    // Expensive synchronous path checks are cached, while fallback AddMovementInput remains continuous every frame.
+    TMap<TWeakObjectPtr<AOCBotCharacter>, double> NavPathRecheckAt;
+    TSet<TWeakObjectPtr<AOCBotCharacter>> NavPathTrustedBots;
 };
