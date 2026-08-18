@@ -4,7 +4,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parent
 LFS_CHECK = ROOT / "PC_TEST" / "CHECK_R13_LFS_PAYLOADS.ps1"
-LAUNCHER = ROOT / "RUN_R11_LISTEN_TEST.cmd"
+LAUNCHER = ROOT / "RUN_R13_LISTEN_TEST.cmd"
 FULL = ROOT / "RUN_PC_TEST.cmd"
 CLEAN_FULL = ROOT / "RUN_CLEAN_FULL_TEST.cmd"
 COMPILE_ONLY = ROOT / "RUN_COMPILE_ONLY.cmd"
@@ -47,15 +47,16 @@ LAUNCH_REQUIRED = [
     'set "LFS_RC=%ERRORLEVEL%"',
     'if not "%LFS_RC%"=="0"',
     '-NoScreenMessages',
+    'R13Gameplay=1',
 ]
 for token in LAUNCH_REQUIRED:
     if token not in launcher:
-        fail(f"listen launcher R13.1 gate missing: {token}")
+        fail(f"listen launcher R13 gate missing: {token}")
 
 lfs_call = launcher.find('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%"')
-editor_start = launcher.find('start "Oster Conflict R13.1"')
+editor_start = launcher.find('start "Oster Conflict R13.2"')
 if lfs_call < 0 or editor_start < 0 or lfs_call >= editor_start:
-    fail("LFS payload check must execute before starting the R13.1 UnrealEditor player-facing path")
+    fail("LFS payload check must execute before starting the current R13 UnrealEditor player-facing path")
 
 FULL_REQUIRED = [
     'set "LFS_CHECK=%~dp0PC_TEST\\CHECK_R13_LFS_PAYLOADS.ps1"',
@@ -102,4 +103,4 @@ if shell:
         fail("PowerShell parser rejected CHECK_R13_LFS_PAYLOADS.ps1" + (f": {detail}" if detail else ""))
 
 print("R13 LFS LAUNCH GATE VERIFY: PASS")
-print("Checks runtime-cooked LFS payload detection, PowerShell syntax, full/package gating and R13.1 player-facing launch ordering.")
+print("Checks runtime-cooked LFS payload detection, PowerShell syntax, full/package gating and current R13 player-facing launch ordering.")
