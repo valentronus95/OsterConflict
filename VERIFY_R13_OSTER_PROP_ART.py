@@ -47,9 +47,15 @@ METAL_SOURCE_TOKENS = [
     '/Engine/BasicShapes/Cube.Cube',
     'R13_MetalFencePickets',
     'R13_MetalFenceRails',
-    'BuildOpenMetalFence',
+    'Root->SetMobility(EComponentMobility::Static)',
+    'bool BuildOpenMetalFence',
     'PicketCount = FMath::Clamp',
+    'Pickets->ClearInstances()',
+    'Rails->ClearInstances()',
+    'const bool bComplete = BuildOpenMetalFence',
+    'if (!bComplete || Added <= 0)',
     'Proxy->SetVisibility(false, true)',
+    'after complete source traversal',
     'retained hidden semantic proxy collision',
 ]
 
