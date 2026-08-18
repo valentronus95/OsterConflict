@@ -96,6 +96,15 @@ for header in sorted(PUBLIC.glob("*.h")):
     if "UCLASS" in text:
         exported_uclass_names(text, header.name)
 
+    # AActor already owns the reflected Role name. UHT rejects a reflected APlayerController function parameter
+    # named exactly Role, even though ordinary C++ shadowing would otherwise compile. Keep the staged deployment
+    # API on an explicit RequestedRole contract so this cannot regress silently before the expensive UE build.
+    if header.name == "OCPlayerController.h":
+        if re.search(r"\bUIRequestRole\s*\(\s*EOCPlayerRole\s+Role\b", text):
+            fail("OCPlayerController.h: UIRequestRole parameter must be RequestedRole; Role shadows AActor::Role")
+        if not re.search(r"\bUIRequestRole\s*\(\s*EOCPlayerRole\s+RequestedRole\b", text):
+            fail("OCPlayerController.h: expected UHT-safe UIRequestRole(EOCPlayerRole RequestedRole) declaration")
+
 for cpp in sorted(PRIVATE.glob("*.cpp")):
     text = cpp.read_text(encoding="utf-8", errors="replace")
     if ".generated.h\"" in text:
@@ -105,4 +114,4 @@ if checked < 10:
     fail(f"suspiciously few reflected headers checked: {checked}")
 
 print("R13 UHT HEADER SANITY VERIFY: PASS")
-print(f"Checked {checked} reflected public headers for one matching final generated.h include, GENERATED_BODY and cpp hygiene.")
+print(f"Checked {checked} reflected public headers for generated.h/UCLASS hygiene plus the UHT-safe deployment Role naming contract.")
