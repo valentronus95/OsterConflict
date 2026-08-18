@@ -5,8 +5,8 @@
 #include "OCR13BotMobilitySubsystem.generated.h"
 
 /**
- * Runtime fallback for source-generated maps that currently have no baked navigation data.
- * Existing AI/pathfinding remains authoritative whenever NavData exists.
+ * Runtime fallback for source-generated maps with missing, partial or disconnected navigation coverage.
+ * Existing AI/pathfinding remains authoritative only when a complete path actually exists.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13BotMobilitySubsystem : public UTickableWorldSubsystem
@@ -17,4 +17,7 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
+
+private:
+    float MobilityAccumulator = 0.0f;
 };
