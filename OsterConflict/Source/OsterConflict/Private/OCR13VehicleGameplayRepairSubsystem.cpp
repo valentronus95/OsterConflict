@@ -11,7 +11,6 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerInput.h"
 
 namespace
 {
@@ -128,7 +127,7 @@ void UOCR13VehicleGameplayRepairSubsystem::RepairDriverTransition(AOCVehicleBase
     {
         if (APlayerController* PC = Cast<APlayerController>(Vehicle->GetController()))
         {
-            if (PC->PlayerInput) PC->PlayerInput->FlushPressedKeys();
+            PC->FlushPressedKeys();
         }
     }
 }
