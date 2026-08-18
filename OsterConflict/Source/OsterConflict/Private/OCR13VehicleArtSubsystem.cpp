@@ -131,10 +131,20 @@ namespace
         const float ScaleY = TargetSize.Y / MeshSize.Y;
         const float UniformScale = FMath::Clamp(FMath::Min(ScaleX, ScaleY), 0.20f, 5.0f);
 
+        // PhysicsBody is intentionally suspended well above the road by raycast springs. Imported vehicle meshes
+        // already contain visible wheels, so centering their bounds on the body made the whole car appear to hover.
+        // Keep X/Y centered, but place the mesh bottom near the wheel/contact plane below the collision body.
+        const float ScaledMeshBottom = (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
+        const float DesiredVisualBottom = -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f;
+        const FVector GroundedLocation(
+            -Bounds.Origin.X * UniformScale,
+            -Bounds.Origin.Y * UniformScale,
+            DesiredVisualBottom - ScaledMeshBottom);
+
         Chassis->SetStaticMesh(Mesh);
         Chassis->SetRelativeRotation(FRotator::ZeroRotator);
         Chassis->SetRelativeScale3D(FVector(UniformScale));
-        Chassis->SetRelativeLocation(-Bounds.Origin * UniformScale);
+        Chassis->SetRelativeLocation(GroundedLocation);
         Chassis->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Chassis->SetHiddenInGame(false, true);
         Chassis->SetVisibility(true, true);
