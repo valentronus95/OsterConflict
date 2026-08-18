@@ -23,9 +23,9 @@ config_text = CONFIG.read_text(encoding="utf-8", errors="replace")
 always_cook_paths = set(re.findall(r'DirectoriesToAlwaysCook=\(Path="([^"]+)"\)', config_text))
 map_paths = set(re.findall(r'MapsToCook=\(FilePath="([^"]+)"\)', config_text))
 
-# Inspect only files that participate in runtime/object-path loading. Extract every /Game/... literal from those
-# files so indirect patterns such as const TCHAR* MeshPath = TEXT("/Game/..."); LoadObject(..., MeshPath) are
-# covered as well as direct LoadObject(TEXT("/Game/...")) calls.
+# Inspect only files that participate in runtime/object-path loading. Extract every literal /Game/... portion from
+# those files. A literal ending in '/' is a directory prefix used to assemble an object path at runtime, e.g.
+# FString::Printf(TEXT("/Game/R13/Audio/%s.%s"), ...). Other literals are treated as concrete package/object paths.
 loader_markers = (
     "LoadObject<",
     "LoadClass<",
@@ -52,7 +52,8 @@ for source_file in sorted(list(SOURCE.rglob("*.cpp")) + list(SOURCE.rglob("*.h")
 def covered_by_directory(package_path: str) -> bool:
     for cook_path in always_cook_paths:
         prefix = cook_path.rstrip("/")
-        if package_path == prefix or package_path.startswith(prefix + "/"):
+        normalized = package_path.rstrip("/")
+        if normalized == prefix or normalized.startswith(prefix + "/"):
             return True
     return False
 
@@ -74,7 +75,7 @@ def dynamic_asset_to_local(package_path: str) -> Path:
     pieces = relative.split("/")
     leaf = pieces[-1]
     # Object/class references use /Game/Folder/Package.Object or Package.Blueprint_C. The .uasset filename is
-    # always the package part before the first dot in the final path segment.
+    # the package part before the first dot in the final path segment.
     package_leaf = leaf.split(".", 1)[0]
     pieces[-1] = package_leaf + ".uasset"
     return CONTENT.joinpath(*pieces)
@@ -82,6 +83,8 @@ def dynamic_asset_to_local(package_path: str) -> Path:
 
 missing: list[str] = []
 seen_roots: set[str] = set()
+directory_prefix_count = 0
+asset_literal_count = 0
 
 for cook_path in sorted(always_cook_paths):
     if not cook_path.startswith("/Game/"):
@@ -106,11 +109,24 @@ for package_path, files in sorted(dynamic_paths.items()):
 
     if not covered_by_directory(package_path):
         missing.append(
-            f"{package_path}: dynamic string asset path is not covered by DirectoriesToAlwaysCook "
+            f"{package_path}: dynamic string path is not covered by DirectoriesToAlwaysCook "
             f"({', '.join(sorted(files))})"
         )
         continue
 
+    if package_path.endswith("/"):
+        # Runtime format-string prefix. The concrete asset name is assembled later, so validate the directory
+        # itself instead of pretending '/Game/Foo/' should resolve to '/Game/Foo/.uasset'.
+        directory_prefix_count += 1
+        local_dir = game_directory_to_local(package_path)
+        if not local_dir.is_dir():
+            missing.append(
+                f"{package_path}: dynamic directory prefix does not resolve to committed directory "
+                f"{local_dir.relative_to(ROOT)} ({', '.join(sorted(files))})"
+            )
+        continue
+
+    asset_literal_count += 1
     local_asset = dynamic_asset_to_local(package_path)
     if not local_asset.is_file():
         missing.append(
@@ -126,5 +142,6 @@ if missing:
 
 print("R13 DYNAMIC COOK PATHS VERIFY: PASS")
 print("Dynamic /Game roots covered:", ", ".join(sorted(seen_roots)))
-print(f"Dynamic package literals covered and present: {len(dynamic_paths)}")
+print(f"Concrete dynamic package literals covered and present: {asset_literal_count}")
+print(f"Dynamic directory prefixes covered and present: {directory_prefix_count}")
 print(f"DirectoriesToAlwaysCook verified on disk: {len(always_cook_paths)}")
