@@ -14,6 +14,34 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
+namespace
+{
+    bool ApplyBundledMannequinFallback(USkeletalMeshComponent* Mesh, int32 VariantSeed)
+    {
+        if (!Mesh) return false;
+
+        const bool bUseQuinn = (VariantSeed & 1) != 0;
+        const TCHAR* MeshPath = bUseQuinn
+            ? TEXT("/Game/SampleAnimationPack/Demo/Characters/Mannequins/Meshes/SKM_Quinn.SKM_Quinn")
+            : TEXT("/Game/SampleAnimationPack/Demo/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny");
+        const TCHAR* AnimPath = bUseQuinn
+            ? TEXT("/Game/SampleAnimationPack/Demo/Characters/Mannequins/Animations/ABP_Quinn.ABP_Quinn_C")
+            : TEXT("/Game/SampleAnimationPack/Demo/Characters/Mannequins/Animations/ABP_Manny.ABP_Manny_C");
+
+        USkeletalMesh* LoadedMesh = LoadObject<USkeletalMesh>(nullptr, MeshPath);
+        if (!LoadedMesh) return false;
+
+        Mesh->SetSkeletalMeshAsset(LoadedMesh);
+        if (UClass* AnimClass = LoadClass<UAnimInstance>(nullptr, AnimPath))
+        {
+            Mesh->SetAnimInstanceClass(AnimClass);
+        }
+        Mesh->SetOwnerNoSee(true);
+        Mesh->SetVisibility(true, true);
+        return true;
+    }
+}
+
 UOCCharacterVisualComponent::UOCCharacterVisualComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
@@ -121,6 +149,13 @@ void UOCCharacterVisualComponent::ApplyProfile(UOCCharacterVisualProfile* Profil
         }
     }
 
+    // R13 already ships Manny/Quinn and their locomotion animation blueprints. Use them as the visual bridge
+    // before ever exposing the source-only cube/cylinder soldier. Authored faction soldiers still override this.
+    if (!bHasProductionBody && ThirdPersonMesh)
+    {
+        bHasProductionBody = ApplyBundledMannequinFallback(ThirdPersonMesh, CurrentAppearance.VariantSeed);
+    }
+
     if (!bHasProductionBody && ThirdPersonMesh)
     {
         ThirdPersonMesh->SetVisibility(false, true);
@@ -184,9 +219,6 @@ void UOCCharacterVisualComponent::BuildSourceOnlyProxy()
         ThirdPersonProxyParts.Add(Comp);
     }
 
-    // Keep the old first-person proxy parts allocated only as a source-only fallback reference, but do not show
-    // cylinders/spheres in the player's camera. They were the rectangle plus two floating balls visible in every
-    // R13 screenshot. Until real animated arms are assigned, a clean weapon-only first-person view is preferable.
     if (UCameraComponent* Camera = Character->GetFirstPersonCamera())
     {
         const FPart Arms[] = {
@@ -222,8 +254,6 @@ void UOCCharacterVisualComponent::UpdateSourceOnlyProxy(bool bShowProxy)
         if (Part) Part->SetVisibility(bShowProxy, true);
     }
 
-    // Never expose primitive debug arms/hands in first person. Production skeletal arms are handled separately
-    // in ApplyProfile() and become visible automatically when a real profile supplies them.
     for (UStaticMeshComponent* Part : FirstPersonProxyParts)
     {
         if (Part) Part->SetVisibility(false, true);
