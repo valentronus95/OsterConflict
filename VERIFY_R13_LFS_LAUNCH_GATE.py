@@ -5,6 +5,9 @@ import subprocess
 ROOT = Path(__file__).resolve().parent
 LFS_CHECK = ROOT / "PC_TEST" / "CHECK_R13_LFS_PAYLOADS.ps1"
 LAUNCHER = ROOT / "RUN_R11_LISTEN_TEST.cmd"
+FULL = ROOT / "RUN_PC_TEST.cmd"
+CLEAN_FULL = ROOT / "RUN_CLEAN_FULL_TEST.cmd"
+COMPILE_ONLY = ROOT / "RUN_COMPILE_ONLY.cmd"
 PACKAGING = ROOT / "OsterConflict" / "Config" / "DefaultGame.ini"
 
 
@@ -12,12 +15,15 @@ def fail(message: str) -> None:
     raise SystemExit(f"R13 LFS LAUNCH GATE VERIFY FAIL: {message}")
 
 
-for path in (LFS_CHECK, LAUNCHER, PACKAGING):
+for path in (LFS_CHECK, LAUNCHER, FULL, CLEAN_FULL, COMPILE_ONLY, PACKAGING):
     if not path.is_file():
         fail(f"missing required file: {path.relative_to(ROOT)}")
 
 lfs = LFS_CHECK.read_text(encoding="utf-8", errors="replace")
 launcher = LAUNCHER.read_text(encoding="utf-8", errors="replace")
+full = FULL.read_text(encoding="utf-8", errors="replace")
+clean_full = CLEAN_FULL.read_text(encoding="utf-8", errors="replace")
+compile_only = COMPILE_ONLY.read_text(encoding="utf-8", errors="replace")
 packaging = PACKAGING.read_text(encoding="utf-8", errors="replace")
 
 LFS_REQUIRED = [
@@ -50,6 +56,24 @@ editor_start = launcher.find('start "Oster Conflict R13"')
 if lfs_call < 0 or editor_start < 0 or lfs_call >= editor_start:
     fail("LFS payload check must execute before starting UnrealEditor")
 
+FULL_REQUIRED = [
+    'set "LFS_CHECK=%~dp0PC_TEST\\CHECK_R13_LFS_PAYLOADS.ps1"',
+    'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%" -ProjectRoot "%~dp0OsterConflict"',
+    'set "LFS_RC=%ERRORLEVEL%"',
+    'if not "%LFS_RC%"=="0"',
+]
+for label, script in (("full validation", full), ("clean full validation", clean_full)):
+    for token in FULL_REQUIRED:
+        if token not in script:
+            fail(f"{label} LFS gate missing: {token}")
+    lfs_pos = script.find('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%"')
+    validation_pos = script.find('RUN_UE58_PC_VALIDATION.ps1')
+    if lfs_pos < 0 or validation_pos < 0 or lfs_pos >= validation_pos:
+        fail(f"{label} must check LFS payloads before starting UE validation")
+
+if "CHECK_R13_LFS_PAYLOADS.ps1" in compile_only:
+    fail("compile-only path must remain independent of heavy Git LFS runtime payloads")
+
 if 'DirectoriesToAlwaysCook=' not in packaging:
     fail("packaging config must expose runtime cook directories for the LFS gate")
 
@@ -77,4 +101,4 @@ if shell:
         fail("PowerShell parser rejected CHECK_R13_LFS_PAYLOADS.ps1" + (f": {detail}" if detail else ""))
 
 print("R13 LFS LAUNCH GATE VERIFY: PASS")
-print("Checks runtime-cooked LFS payload detection, PowerShell syntax and pre-Editor launch ordering.")
+print("Checks runtime-cooked LFS payload detection, PowerShell syntax, full/package gating and pre-Editor launch ordering.")
