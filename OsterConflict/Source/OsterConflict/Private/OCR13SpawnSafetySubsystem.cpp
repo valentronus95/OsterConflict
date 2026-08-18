@@ -5,7 +5,6 @@
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
 
-#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -19,14 +18,14 @@ bool UOCR13SpawnSafetySubsystem::ShouldCreateSubsystem(UObject* Outer) const
 bool UOCR13SpawnSafetySubsystem::ResolveGroundAt(
     const FVector& XYLocation, const AActor* IgnoreActor, FVector& OutCharacterLocation) const
 {
-    const UWorld* World = GetWorld();
+    UWorld* World = GetWorld();
     if (!World) return false;
 
     // The current Oster runtime sector is intentionally near Z=0. Trace from well above all normal street geometry
     // so a pawn that accidentally started below the ground can still be recovered deterministically.
     const FVector Start(XYLocation.X, XYLocation.Y, 2200.0f);
     const FVector End(XYLocation.X, XYLocation.Y, -3500.0f);
-    FCollisionQueryParams Params(SCENE_QUERY_STAT(R13SpawnGround), false);
+    FCollisionQueryParams Params(TEXT("R13SpawnGround"), false);
     if (IgnoreActor) Params.AddIgnoredActor(IgnoreActor);
 
     FHitResult Hit;
@@ -115,6 +114,8 @@ bool UOCR13SpawnSafetySubsystem::ValidateNewPawn(AOCPlayerController* PC, AOCCha
 
 void UOCR13SpawnSafetySubsystem::Tick(float DeltaTime)
 {
+    (void)DeltaTime;
+
     UWorld* World = GetWorld();
     if (!World || World->GetNetMode() == NM_Client) return;
 
