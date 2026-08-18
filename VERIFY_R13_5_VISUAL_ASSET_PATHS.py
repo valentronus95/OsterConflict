@@ -11,7 +11,7 @@ def fail(message: str) -> None:
 # Runtime LoadObject paths added/relied on by the consolidated environment pass.
 # Verify repository paths directly so typos fail before a long UE compile/runtime test.
 required_assets = [
-    # Structural village houses / deciduous trees.
+    # Structural village houses retained invisibly for collision/placement metadata + deciduous trees.
     "AdvancedVillagePack/Meshes/SM_House_Var01.uasset",
     "AdvancedVillagePack/Meshes/SM_House_Var02.uasset",
     "AdvancedVillagePack/Meshes/SM_House_Var01_Extra01.uasset",
@@ -68,8 +68,10 @@ required_assets = [
     "Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_02/SM_Urb_Roa_Sheet_Metal_Rusty_02.uasset",
     "Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_03/SM_Urb_Roa_Sheet_Metal_Rusty_03.uasset",
 
-    # Enterable-house roof + environment materials.
+    # Oster residential roof/door/porch + enterable-house/environment materials.
     "Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.uasset",
+    "Modular_Rural_Cabin/Meshes/Modular/Porch_4x4m.uasset",
+    "Modular_Rural_Cabin/Meshes/Modular/Door_01.uasset",
     "Modular_Rural_Cabin/Materials/Instances/Metal_Roof.uasset",
     "Modular_Rural_Cabin/Materials/Instances/Diorama_Ground.uasset",
     "Modular_Rural_Cabin/Materials/Instances/Glass_Window.uasset",
@@ -89,8 +91,8 @@ missing = [rel for rel in required_assets if not (CONTENT / rel).is_file()]
 if missing:
     fail("missing committed runtime assets: " + ", ".join(missing))
 
-# Also make sure every new visual source still refers to the intended asset families instead of silently drifting
-# back to Engine cubes for the things for which real art exists.
+# Also make sure every visual source still refers to the intended asset families instead of silently drifting
+# back to old prefab presentation for things for which explicit R13 art now exists.
 source_dir = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private"
 source_markers = {
     "OCR13MuseumReferenceSubsystem.cpp": [
@@ -98,10 +100,22 @@ source_markers = {
         "Glass_Window.Glass_Window",
         "SM_Pine_Tree_01.SM_Pine_Tree_01",
     ],
-    "OCR13GroundSurfaceSubsystem.cpp": ["Diorama_Ground.Diorama_Ground"],
+    "OCR13GroundSurfaceSubsystem.cpp": [
+        "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+        "R13_MatteOsterGround",
+        "matte non-water city floor",
+    ],
     "OCR13EnvironmentDressingSubsystem.cpp": [
         "SM_House_Var01_Extra%02d.SM_House_Var01_Extra%02d",
         "SM_House_Var02_Extra.SM_House_Var02_Extra",
+    ],
+    "OCR13OsterResidentialArchitectureSubsystem.cpp": [
+        "Roof_Both_Ends_4m.Roof_Both_Ends_4m",
+        "Porch_4x4m.Porch_4x4m",
+        "Door_01.Door_01",
+        "Metal_Roof.Metal_Roof",
+        "R13_OsterBrickRed",
+        "legacy collision retained invisibly",
     ],
     "OCR13EnterableHouseArtSubsystem.cpp": [
         "Roof_Both_Ends_4m.Roof_Both_Ends_4m",
@@ -140,6 +154,9 @@ for filename, markers in source_markers.items():
     for marker in markers:
         if marker not in text:
             fail(f"{filename} lost expected asset reference: {marker}")
+
+if "Diorama_Ground.Diorama_Ground" in (source_dir / "OCR13GroundSurfaceSubsystem.cpp").read_text(encoding="utf-8", errors="replace"):
+    fail("broad city ground regressed to the wet-looking diorama material")
 
 print("R13.5 VISUAL ASSET PATH VERIFY: PASS")
 print(f"Checked {len(required_assets)} committed mesh/material assets and {len(source_markers)} visual source integrations.")
