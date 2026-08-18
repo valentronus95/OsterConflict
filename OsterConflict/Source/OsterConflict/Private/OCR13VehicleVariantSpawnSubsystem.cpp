@@ -1,12 +1,19 @@
 #include "OCR13VehicleVariantSpawnSubsystem.h"
 
 #include "OCCivilianVehicle.h"
+#include "OCGameMode.h"
 #include "OCVehicleSpawnPoint.h"
 #include "OCWorldSectorOster.h"
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+
+namespace
+{
+    constexpr int32 MaxSpawnAttempts = 20;
+    constexpr float SpawnRetryDelaySeconds = 0.50f;
+}
 
 bool UOCR13VehicleVariantSpawnSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -22,17 +29,33 @@ void UOCR13VehicleVariantSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_Client) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    FTimerHandle Timer;
-    InWorld.GetTimerManager().SetTimer(Timer,
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-        {
-            if (UWorld* World = WeakWorld.Get()) SpawnBundledVehicleVariants(*World);
-        }), 1.35f, false);
+    // The standalone frontend intentionally owns no gameplay sector or world vehicles.
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
+
+    ScheduleSpawnAttempt(InWorld, 0.25f);
 }
 
-void UOCR13VehicleVariantSpawnSubsystem::SpawnBundledVehicleVariants(UWorld& World)
+void UOCR13VehicleVariantSpawnSubsystem::ScheduleSpawnAttempt(UWorld& World, const float DelaySeconds)
 {
+    if (bSpawnComplete || SpawnAttemptCount >= MaxSpawnAttempts) return;
+
+    TWeakObjectPtr<UWorld> WeakWorld(&World);
+    FTimerHandle Timer;
+    World.GetTimerManager().SetTimer(Timer,
+        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
+        {
+            if (UWorld* RetryWorld = WeakWorld.Get()) TrySpawnBundledVehicleVariants(*RetryWorld);
+        }), FMath::Max(0.05f, DelaySeconds), false);
+}
+
+void UOCR13VehicleVariantSpawnSubsystem::TrySpawnBundledVehicleVariants(UWorld& World)
+{
+    if (bSpawnComplete) return;
+    ++SpawnAttemptCount;
+
     bool bGameplayWorldReady = false;
     for (TActorIterator<AOCWorldSectorOster> It(&World); It; ++It)
     {
@@ -42,7 +65,21 @@ void UOCR13VehicleVariantSpawnSubsystem::SpawnBundledVehicleVariants(UWorld& Wor
             break;
         }
     }
-    if (!bGameplayWorldReady) return;
+
+    if (!bGameplayWorldReady)
+    {
+        if (SpawnAttemptCount < MaxSpawnAttempts)
+        {
+            ScheduleSpawnAttempt(World, SpawnRetryDelaySeconds);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 bundled vehicle variants: Oster world sector was not ready after %d attempts; no BoxTruck spawn points created."),
+                SpawnAttemptCount);
+        }
+        return;
+    }
 
     struct FTruckSeed
     {
@@ -58,19 +95,59 @@ void UOCR13VehicleVariantSpawnSubsystem::SpawnBundledVehicleVariants(UWorld& Wor
         { AOCWorldSectorOster::MuseumAnchor() + FVector(13200.0f, -8400.0f, 165.0f), 182.0f, 48.0f },
     };
 
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    struct FPendingTruckSpawn
+    {
+        AOCVehicleSpawnPoint* SpawnPoint = nullptr;
+        FTransform Transform;
+    };
 
-    int32 Spawned = 0;
+    TArray<FPendingTruckSpawn> Pending;
+    Pending.Reserve(UE_ARRAY_COUNT(Seeds));
+
+    bool bPreparedAll = true;
     for (const FTruckSeed& Seed : Seeds)
     {
-        AOCVehicleSpawnPoint* SpawnPoint = World.SpawnActor<AOCVehicleSpawnPoint>(
-            AOCVehicleSpawnPoint::StaticClass(), Seed.Location, FRotator(0.0f, Seed.Yaw, 0.0f), SpawnParams);
-        if (!SpawnPoint) continue;
+        const FTransform SpawnTransform(FRotator(0.0f, Seed.Yaw, 0.0f), Seed.Location);
+        AOCVehicleSpawnPoint* SpawnPoint = World.SpawnActorDeferred<AOCVehicleSpawnPoint>(
+            AOCVehicleSpawnPoint::StaticClass(), SpawnTransform, nullptr, nullptr,
+            ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if (!SpawnPoint)
+        {
+            bPreparedAll = false;
+            break;
+        }
 
+        // Configure before BeginPlay so the spawn point never emits a default-style vehicle for one frame.
         SpawnPoint->ConfigureRuntime(EOCCivilianVehicleStyle::BoxTruck, Seed.RespawnDelay);
-        ++Spawned;
+        Pending.Add({ SpawnPoint, SpawnTransform });
     }
 
-    UE_LOG(LogTemp, Display, TEXT("R13 bundled vehicle variants spawned: box trucks=%d/2"), Spawned);
+    if (!bPreparedAll || Pending.Num() != UE_ARRAY_COUNT(Seeds))
+    {
+        for (FPendingTruckSpawn& Item : Pending)
+        {
+            if (IsValid(Item.SpawnPoint)) Item.SpawnPoint->Destroy();
+        }
+
+        if (SpawnAttemptCount < MaxSpawnAttempts)
+        {
+            ScheduleSpawnAttempt(World, SpawnRetryDelaySeconds);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 bundled vehicle variants: could not prepare both BoxTruck spawn points after %d attempts."),
+                SpawnAttemptCount);
+        }
+        return;
+    }
+
+    for (FPendingTruckSpawn& Item : Pending)
+    {
+        Item.SpawnPoint->FinishSpawning(Item.Transform);
+    }
+
+    bSpawnComplete = true;
+    UE_LOG(LogTemp, Display,
+        TEXT("R13 bundled vehicle variants spawned: box trucks=2/2 after %d attempt(s)"), SpawnAttemptCount);
 }
