@@ -25,6 +25,7 @@ ui_h = read('Public/OCGameUIRootWidget.h')
 ui_cpp = read('Private/OCGameUIRootWidget.cpp')
 grenade = read('Private/OCGrenadeProjectile.cpp')
 pc = read('Private/OCPlayerController.cpp')
+deployment_bridge = read('Private/OCR13DeploymentSelectionBridge.cpp')
 
 require('AI Role shadow renamed', 'EOCPlayerRole BotRole' in ai_h and 'EOCPlayerRole Role' not in ai_h)
 require('AI Character shadow renamed', 'AOCCharacter* SensedCharacter' in ai_cpp and 'AOCCharacter* Character = Cast<AOCCharacter>(Actor)' not in ai_cpp)
@@ -42,6 +43,13 @@ require('Grenade has full CameraComponent include', '#include "Camera/CameraComp
 require('UI Slot shadow names removed', not re.search(r'\b(?:UVerticalBoxSlot|UCanvasPanelSlot|UHorizontalBoxSlot)\*\s+Slot\b', ui_cpp))
 require('UI slider out parameter uses raw temporary bridge', 'TObjectPtr<UTextBlock>& OutValueText' not in ui_h and 'UTextBlock* ValueText = nullptr' in ui_cpp)
 require('PlayerController Character shadow removed', 'AOCCharacter* Character = Cast<AOCCharacter>(GetPawn())' not in pc and 'AOCCharacter* ControlledCharacter' in pc)
+
+# AOCGameMode inherits AGameModeBase::GameState. With the project's warning policy, declaring a local GameState inside
+# AOCGameMode methods is C4458 and is a hard compile error. Keep the deployment bridge on an unambiguous local name.
+require('Deployment GameState shadow removed',
+        'const AOCGameState* CurrentGameState = GetGameState<AOCGameState>()' in deployment_bridge and
+        'const AOCGameState* GameState = GetGameState<AOCGameState>()' not in deployment_bridge)
+require('Deployment roster uses renamed GameState local', 'CurrentGameState->PlayerArray' in deployment_bridge)
 
 for rel in ['Public/OCBreakableWindow.h','Public/OCInteractableDoor.h','Public/OCInteractableGate.h','Public/OCInteractableLight.h']:
     require(f'{rel} declares WorldAudioComponent', 'TObjectPtr<UOCWorldAudioComponent> WorldAudioComponent' in read(rel))
