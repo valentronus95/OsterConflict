@@ -15,110 +15,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  runner-smoke:
-    runs-on: windows-latest
-    timeout-minutes: 2
-    steps:
-      - name: Prove hosted Windows runner can execute a step
-        shell: pwsh
-        run: |
-          Write-Host "WINDOWS_RUNNER_SMOKE: PASS"
-          Get-Date
-
-  milestone-verifiers:
+  verify-source:
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Verify S04-S19 source milestones
-        shell: pwsh
-        run: |
-          $Checks = @(
-            'VERIFY_S04.py','VERIFY_S05.py','VERIFY_S06.py','VERIFY_S07.py','VERIFY_S08.py','VERIFY_S09.py','VERIFY_S10.py','VERIFY_S11.py','VERIFY_S12.py','VERIFY_S13.py',
-            'VERIFY_S14A.py','VERIFY_S14B.py','VERIFY_S15A.py','VERIFY_S15B.py','VERIFY_S16A.py','VERIFY_S16B.py','VERIFY_S16C.py','VERIFY_S17A.py','VERIFY_S17B.py',
-            'VERIFY_S18A.py','VERIFY_S18B.py','VERIFY_S18C.py','VERIFY_S18C_HARDENING_R1.py','VERIFY_S19C_SOURCE.py'
-          )
-          foreach ($Check in $Checks) {
-            Write-Host "===== $Check ====="
-            python ".\$Check"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
 
-  baseline-verifiers:
-    runs-on: windows-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify R6-R11 baseline
-        shell: pwsh
-        run: |
-          $Checks = @(
-            'VERIFY_R6_LAUNCH_KIT.py','VERIFY_R7_LOGIC_PHYSICS.py','VERIFY_R8_UE58_TARGETS.py',
-            'VERIFY_R9_UHT_TRAUMA.py','VERIFY_R10_CXX_BATCH_FIX.py','VERIFY_R11_VISUAL_FOUNDATION.py'
-          )
-          foreach ($Check in $Checks) {
-            Write-Host "===== $Check ====="
-            python ".\$Check"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
 
-  r13-runtime-verifiers:
-    runs-on: windows-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Verify R13 frontend runtime and spawn contracts
+      - name: Run structural and regression verifiers
         shell: pwsh
-        run: |
-          $Checks = @(
-            'VERIFY_R13_FRONTEND_MENU_GUARD.py','VERIFY_R13_DYNAMIC_COOK_PATHS.py','VERIFY_R13_LFS_LAUNCH_GATE.py',
-            'VERIFY_R13_TICKABLE_SUBSYSTEM_LINKAGE.py','VERIFY_R13_1_STABILIZATION.py','VERIFY_R13_3_DEPLOYMENT_SPAWN.py',
-            'VERIFY_R13_RUNTIME_REGRESSIONS.py','VERIFY_R13_RUNTIME_SPAWN_BRIDGES.py','VERIFY_R13_PC_TEST_HARDENING.py'
-          )
-          foreach ($Check in $Checks) {
-            Write-Host "===== $Check ====="
-            python ".\$Check"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-
-  r13-content-verifiers:
-    runs-on: windows-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Verify R13 Oster content and gameplay contracts
-        shell: pwsh
-        run: |
-          $Checks = @(
-            'VERIFY_R13_OSTER_PROP_ART.py','VERIFY_R13_PARK_FURNITURE.py','VERIFY_R13_LANDMARK_WINDOWS.py',
-            'VERIFY_R13_LANDMARK_ROOFS.py','VERIFY_R13_MUSEUM_CHIMNEYS.py','VERIFY_R13_GAMEPLAY_POLISH.py','VERIFY_R13_STEIN_WEAPONS.py'
-          )
-          foreach ($Check in $Checks) {
-            Write-Host "===== $Check ====="
-            python ".\$Check"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+        run: python .\RUN_ALL_VERIFY.py
