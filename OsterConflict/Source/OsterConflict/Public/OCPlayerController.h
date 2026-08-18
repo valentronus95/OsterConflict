@@ -33,6 +33,18 @@ public:
     bool IsSandboxGodMode() const { return bSandboxGodMode; }
     FString GetAdminActionLabel(int32 Index) const;
 
+    /**
+     * One-shot server authorization consumed by OCR13SpawnSafetySubsystem.
+     * Legacy ready/F4 can still alter lobby-ready state for compatibility, but it cannot produce an accepted
+     * runtime pawn unless the staged deployment commit granted this token first.
+     */
+    bool ConsumeR13DeploymentCommitAuthorization()
+    {
+        const bool bWasAuthorized = bR13DeploymentCommitAuthorized;
+        bR13DeploymentCommitAuthorized = false;
+        return bWasAuthorized;
+    }
+
     const TArray<FOCChatMessage>& GetRecentChatMessages() const { return RecentChatMessages; }
     const FOCSquadOrder& GetCurrentSquadOrder() const { return CurrentSquadOrder; }
 
@@ -121,6 +133,7 @@ private:
     int32 SelectedAdminActionIndex = 0;
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
+    bool bR13DeploymentCommitAuthorized = false;
     double LastChatServerTime = -100.0;
     TArray<FOCChatMessage> RecentChatMessages;
     FOCSquadOrder CurrentSquadOrder;
