@@ -52,6 +52,14 @@ namespace
         return Component;
     }
 
+    void ClearFamilies(const TArray<UInstancedStaticMeshComponent*>& Families)
+    {
+        for (UInstancedStaticMeshComponent* Family : Families)
+        {
+            if (Family) Family->ClearInstances();
+        }
+    }
+
     bool IsUsableVerticalFencePanel(UStaticMesh* Mesh)
     {
         if (!Mesh) return false;
@@ -66,16 +74,21 @@ namespace
         return LongXY >= 50.0f && Size.Z >= 50.0f && Size.Z >= ThinXY * 1.25f;
     }
 
-    int32 AddFenceModules(UInstancedStaticMeshComponent* Proxy,
-        const TArray<UInstancedStaticMeshComponent*>& Families)
+    bool AddFenceModules(UInstancedStaticMeshComponent* Proxy,
+        const TArray<UInstancedStaticMeshComponent*>& Families, int32& OutAdded)
     {
-        if (!Proxy || Families.Num() == 0) return 0;
+        OutAdded = 0;
+        if (!Proxy || Proxy->GetInstanceCount() <= 0 || Families.Num() == 0) return false;
 
-        int32 Added = 0;
         for (int32 ProxyIndex = 0; ProxyIndex < Proxy->GetInstanceCount(); ++ProxyIndex)
         {
             FTransform ProxyTransform;
-            if (!Proxy->GetInstanceTransform(ProxyIndex, ProxyTransform, true)) continue;
+            if (!Proxy->GetInstanceTransform(ProxyIndex, ProxyTransform, true))
+            {
+                ClearFamilies(Families);
+                OutAdded = 0;
+                return false;
+            }
 
             const FVector ProxyScale = ProxyTransform.GetScale3D().GetAbs();
             const bool bDesiredLongX = ProxyScale.X >= ProxyScale.Y;
@@ -85,7 +98,12 @@ namespace
 
             UInstancedStaticMeshComponent* SampleFamily = Families[ProxyIndex % Families.Num()];
             UStaticMesh* SampleMesh = SampleFamily ? SampleFamily->GetStaticMesh() : nullptr;
-            if (!SampleMesh) continue;
+            if (!SampleMesh)
+            {
+                ClearFamilies(Families);
+                OutAdded = 0;
+                return false;
+            }
 
             const FVector SampleSize = SampleMesh->GetBounds().BoxExtent * 2.0f;
             const bool bSampleLongX = SampleSize.X >= SampleSize.Y;
@@ -103,7 +121,12 @@ namespace
             {
                 UInstancedStaticMeshComponent* Target = Families[(ProxyIndex + ModuleIndex) % Families.Num()];
                 UStaticMesh* Mesh = Target ? Target->GetStaticMesh() : nullptr;
-                if (!Target || !Mesh) continue;
+                if (!Target || !Mesh)
+                {
+                    ClearFamilies(Families);
+                    OutAdded = 0;
+                    return false;
+                }
 
                 const FBoxSphereBounds Bounds = Mesh->GetBounds();
                 const FVector MeshSize = Bounds.BoxExtent * 2.0f;
@@ -127,16 +150,17 @@ namespace
                 Location -= Rotation.RotateVector(Bounds.Origin * Scale);
 
                 Target->AddInstance(FTransform(Rotation, Location, Scale), true);
-                ++Added;
+                ++OutAdded;
             }
         }
-        return Added;
+        return OutAdded > 0;
     }
 
-    int32 AddVerticalPropReplacements(UInstancedStaticMeshComponent* Proxy,
-        UInstancedStaticMeshComponent* Target)
+    bool AddVerticalPropReplacements(UInstancedStaticMeshComponent* Proxy,
+        UInstancedStaticMeshComponent* Target, int32& OutAdded)
     {
-        if (!Proxy || !Target || !Target->GetStaticMesh()) return 0;
+        OutAdded = 0;
+        if (!Proxy || Proxy->GetInstanceCount() <= 0 || !Target || !Target->GetStaticMesh()) return false;
 
         UStaticMesh* SourceMesh = Proxy->GetStaticMesh();
         UStaticMesh* TargetMesh = Target->GetStaticMesh();
@@ -146,11 +170,15 @@ namespace
             ? FMath::Max(1.0f, SourceMesh->GetBounds().BoxExtent.Z * 2.0f)
             : TargetHeight;
 
-        int32 Added = 0;
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
         {
             FTransform ProxyTransform;
-            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
+            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true))
+            {
+                Target->ClearInstances();
+                OutAdded = 0;
+                return false;
+            }
 
             const float DesiredHeight = SourceBaseHeight * FMath::Max(0.01f, FMath::Abs(ProxyTransform.GetScale3D().Z));
             const float UniformScale = FMath::Clamp(DesiredHeight / TargetHeight, 0.60f, 1.80f);
@@ -162,14 +190,14 @@ namespace
             Location.Z -= TargetBottom * UniformScale;
 
             Target->AddInstance(FTransform(Rotation, Location, Scale), true);
-            ++Added;
+            ++OutAdded;
         }
-        return Added;
+        return OutAdded == Proxy->GetInstanceCount();
     }
 
-    void HideProxyIfReplaced(UInstancedStaticMeshComponent* Proxy, const int32 Added)
+    void HideProxyIfFullyReplaced(UInstancedStaticMeshComponent* Proxy, const bool bComplete, const int32 Added)
     {
-        if (!Proxy || Added <= 0) return;
+        if (!Proxy || !bComplete || Added <= 0) return;
         Proxy->SetVisibility(false, true);
         Proxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
@@ -247,7 +275,12 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     ArtRoot->SetReplicates(false);
 
     USceneComponent* Root = NewObject<USceneComponent>(ArtRoot, TEXT("R13_OsterPropArtRoot"));
-    if (!Root) return;
+    if (!Root)
+    {
+        ArtRoot->Destroy();
+        return;
+    }
+    Root->SetMobility(EComponentMobility::Static);
     ArtRoot->SetRootComponent(Root);
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
@@ -265,14 +298,25 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     UInstancedStaticMeshComponent* PowerPoleLightISM =
         MakeISM(ArtRoot, Root, PowerPoleLight, TEXT("R13_KrushelnytskaPowerPoleLights"));
 
-    const int32 WoodAdded = AddFenceModules(WoodProxy, FenceFamilies);
-    const int32 LightSheetAdded = AddFenceModules(LightSheetProxy, LightSheetFamilies);
-    const int32 PowerPoleLightAdded = AddVerticalPropReplacements(StreetLightProxy, PowerPoleLightISM);
-    HideProxyIfReplaced(WoodProxy, WoodAdded);
-    HideProxyIfReplaced(LightSheetProxy, LightSheetAdded);
-    HideProxyIfReplaced(StreetLightProxy, PowerPoleLightAdded);
+    int32 WoodAdded = 0;
+    int32 LightSheetAdded = 0;
+    int32 PowerPoleLightAdded = 0;
+    const bool bWoodComplete = AddFenceModules(WoodProxy, FenceFamilies, WoodAdded);
+    const bool bLightSheetComplete = AddFenceModules(LightSheetProxy, LightSheetFamilies, LightSheetAdded);
+    const bool bPowerPoleLightComplete = AddVerticalPropReplacements(StreetLightProxy, PowerPoleLightISM, PowerPoleLightAdded);
+
+    HideProxyIfFullyReplaced(WoodProxy, bWoodComplete, WoodAdded);
+    HideProxyIfFullyReplaced(LightSheetProxy, bLightSheetComplete, LightSheetAdded);
+    HideProxyIfFullyReplaced(StreetLightProxy, bPowerPoleLightComplete, PowerPoleLightAdded);
+
+    if (!bWoodComplete && !bLightSheetComplete && !bPowerPoleLightComplete)
+    {
+        ArtRoot->Destroy();
+    }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 Oster props: wood fence modules=%d, light-sheet fence modules=%d, Krushelnytska power-pole lights=%d; proxies hidden only after successful replacement."),
-        WoodAdded, LightSheetAdded, PowerPoleLightAdded);
+        TEXT("R13 Oster props: wood modules=%d complete=%d, light-sheet modules=%d complete=%d, Krushelnytska poles=%d complete=%d; source family hides only after complete replacement."),
+        WoodAdded, bWoodComplete ? 1 : 0,
+        LightSheetAdded, bLightSheetComplete ? 1 : 0,
+        PowerPoleLightAdded, bPowerPoleLightComplete ? 1 : 0);
 }
