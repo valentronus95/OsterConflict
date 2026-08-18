@@ -103,8 +103,10 @@ namespace
                 return LoadObject<UStaticMesh>(nullptr,
                     TEXT("/Game/VehicleVarietyPack/Meshes/SM_Hatchback.SM_Hatchback"));
             case EOCCivilianVehicleStyle::Sedan:
+                // The pack has no dedicated sedan mesh; SM_SportsCar is the remaining low passenger-car body and
+                // gives Sedan a distinct silhouette instead of duplicating the Wagon/SUV art.
                 return LoadObject<UStaticMesh>(nullptr,
-                    TEXT("/Game/VehicleVarietyPack/Meshes/SM_SUV.SM_SUV"));
+                    TEXT("/Game/VehicleVarietyPack/Meshes/SM_SportsCar.SM_SportsCar"));
             case EOCCivilianVehicleStyle::Wagon:
             default:
                 return LoadObject<UStaticMesh>(nullptr,
@@ -231,9 +233,4 @@ void UOCR13VehicleArtSubsystem::TryApplyVehicleArt(AOCVehicleBase* Vehicle)
     ProcessedVehicles.Add(Vehicle);
     UE_LOG(LogTemp, Display, TEXT("R13 vehicle art applied: %s -> %s"),
         *Vehicle->GetClass()->GetName(), *Mesh->GetName());
-}
-
-TStatId UOCR13VehicleArtSubsystem::GetStatId() const
-{
-    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13VehicleArtSubsystem, STATGROUP_Tickables);
 }
