@@ -1,5 +1,6 @@
 #include "OCR13WeaponVariantSpawnSubsystem.h"
 
+#include "OCGameMode.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
 #include "OCWorldSectorOster.h"
@@ -7,6 +8,12 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+
+namespace
+{
+    constexpr int32 MaxSpawnAttempts = 20;
+    constexpr float SpawnRetryDelaySeconds = 0.50f;
+}
 
 bool UOCR13WeaponVariantSpawnSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -22,18 +29,33 @@ void UOCR13WeaponVariantSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_Client) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    FTimerHandle Timer;
-    InWorld.GetTimerManager().SetTimer(Timer,
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-        {
-            if (UWorld* World = WeakWorld.Get()) SpawnBundledVariants(*World);
-        }), 1.10f, false);
+    // Frontend-only sessions intentionally do not create the Oster world sector or gameplay pickups.
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
+
+    ScheduleSpawnAttempt(InWorld, 0.25f);
 }
 
-void UOCR13WeaponVariantSpawnSubsystem::SpawnBundledVariants(UWorld& World)
+void UOCR13WeaponVariantSpawnSubsystem::ScheduleSpawnAttempt(UWorld& World, const float DelaySeconds)
 {
-    // Frontend-only sessions intentionally do not create the Oster world sector. That keeps menu boot free of gameplay actors.
+    if (bSpawnComplete || SpawnAttemptCount >= MaxSpawnAttempts) return;
+
+    TWeakObjectPtr<UWorld> WeakWorld(&World);
+    FTimerHandle Timer;
+    World.GetTimerManager().SetTimer(Timer,
+        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
+        {
+            if (UWorld* RetryWorld = WeakWorld.Get()) TrySpawnBundledVariants(*RetryWorld);
+        }), FMath::Max(0.05f, DelaySeconds), false);
+}
+
+void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
+{
+    if (bSpawnComplete) return;
+    ++SpawnAttemptCount;
+
     bool bGameplayWorldReady = false;
     for (TActorIterator<AOCWorldSectorOster> It(&World); It; ++It)
     {
@@ -43,7 +65,21 @@ void UOCR13WeaponVariantSpawnSubsystem::SpawnBundledVariants(UWorld& World)
             break;
         }
     }
-    if (!bGameplayWorldReady) return;
+
+    if (!bGameplayWorldReady)
+    {
+        if (SpawnAttemptCount < MaxSpawnAttempts)
+        {
+            ScheduleSpawnAttempt(World, SpawnRetryDelaySeconds);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 bundled weapon variants: Oster world sector was not ready after %d attempts; no extra pickups created."),
+                SpawnAttemptCount);
+        }
+        return;
+    }
 
     struct FVariantSeed
     {
@@ -62,16 +98,46 @@ void UOCR13WeaponVariantSpawnSubsystem::SpawnBundledVariants(UWorld& World)
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-    int32 Spawned = 0;
+    TArray<AOCWeaponBase*> SpawnedWeapons;
+    SpawnedWeapons.Reserve(UE_ARRAY_COUNT(Seeds));
+
+    bool bSpawnedAll = true;
     for (const FVariantSeed& Seed : Seeds)
     {
         AOCWeaponBase* Weapon = World.SpawnActor<AOCWeaponBase>(
             Seed.WeaponClass, Seed.Location, FRotator::ZeroRotator, SpawnParams);
-        if (!Weapon) continue;
+        if (!Weapon)
+        {
+            bSpawnedAll = false;
+            break;
+        }
 
         Weapon->DropToWorldServer(Seed.Location, FRotator::ZeroRotator);
-        ++Spawned;
+        SpawnedWeapons.Add(Weapon);
     }
 
-    UE_LOG(LogTemp, Display, TEXT("R13 bundled weapon variants spawned as pickups: %d/4"), Spawned);
+    if (!bSpawnedAll || SpawnedWeapons.Num() != UE_ARRAY_COUNT(Seeds))
+    {
+        // Do not leave a partial set behind and then duplicate successful seeds on the retry.
+        for (AOCWeaponBase* Weapon : SpawnedWeapons)
+        {
+            if (IsValid(Weapon)) Weapon->Destroy();
+        }
+
+        if (SpawnAttemptCount < MaxSpawnAttempts)
+        {
+            ScheduleSpawnAttempt(World, SpawnRetryDelaySeconds);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 bundled weapon variants: could not create all four pickup variants after %d attempts."),
+                SpawnAttemptCount);
+        }
+        return;
+    }
+
+    bSpawnComplete = true;
+    UE_LOG(LogTemp, Display,
+        TEXT("R13 bundled weapon variants spawned as pickups: 4/4 after %d attempt(s)"), SpawnAttemptCount);
 }
