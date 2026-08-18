@@ -21,7 +21,10 @@ class OSTERCONFLICT_API UOCR13VehicleArtSubsystem : public UTickableWorldSubsyst
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Tick(float DeltaTime) override;
-    virtual TStatId GetStatId() const override;
+    virtual TStatId GetStatId() const override
+    {
+        RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13VehicleArtSubsystem, STATGROUP_Tickables);
+    }
 
 private:
     float ScanAccumulator = 0.0f;
