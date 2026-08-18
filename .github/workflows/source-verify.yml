@@ -31,6 +31,8 @@ jobs:
           python-version: '3.12'
 
       - name: Run structural and regression verifiers
+        id: source_verify
+        continue-on-error: true
         shell: pwsh
         run: |
           python .\RUN_ALL_VERIFY.py 2>&1 | Tee-Object -FilePath .\source_verify.log
@@ -45,3 +47,10 @@ jobs:
           path: source_verify.log
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Fail workflow when source verification failed
+        if: steps.source_verify.outcome == 'failure'
+        shell: pwsh
+        run: |
+          Write-Error "RUN_ALL_VERIFY.py failed. See the uploaded source-verify-log artifact."
+          exit 1
