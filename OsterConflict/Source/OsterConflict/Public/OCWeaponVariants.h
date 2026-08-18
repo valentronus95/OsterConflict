@@ -51,3 +51,35 @@ class OSTERCONFLICT_API AOCWeapon_LMG : public AOCWeaponBase
 public:
     AOCWeapon_LMG();
 };
+
+UCLASS()
+class OSTERCONFLICT_API AOCWeapon_M14 : public AOCWeaponBase
+{
+    GENERATED_BODY()
+public:
+    AOCWeapon_M14();
+};
+
+UCLASS()
+class OSTERCONFLICT_API AOCWeapon_LeverAction : public AOCWeaponBase
+{
+    GENERATED_BODY()
+public:
+    AOCWeapon_LeverAction();
+};
+
+UCLASS()
+class OSTERCONFLICT_API AOCWeapon_MAC10 : public AOCWeaponBase
+{
+    GENERATED_BODY()
+public:
+    AOCWeapon_MAC10();
+};
+
+UCLASS()
+class OSTERCONFLICT_API AOCWeapon_Tec9 : public AOCWeaponBase
+{
+    GENERATED_BODY()
+public:
+    AOCWeapon_Tec9();
+};
