@@ -42,6 +42,8 @@ public:
     UFUNCTION(Exec) void PerfReport();
     UFUNCTION(Client, Reliable) void ClientReceivePerfReport(const FString& Report);
     UFUNCTION(Client, Reliable) void ClientSetSandboxAdminAllowed(bool bAllowed);
+    /** Deployment stays open until the authoritative server confirms that a pawn was actually created. */
+    UFUNCTION(Client, Reliable) void ClientCompleteDeployment(bool bSuccess);
 
     /** S14 chat backend. The final S17 widget will call the same functions. */
     UFUNCTION(Exec) void SayGlobal(const FString& Message);
@@ -57,10 +59,12 @@ public:
     UFUNCTION(Client, Reliable) void ClientReceiveChat(const FOCChatMessage& Message);
     UFUNCTION(Client, Reliable) void ClientReceiveSquadOrder(const FOCSquadOrder& Order);
 
-    // S17A UMG-facing API. These call the same server-authoritative backend used by the old dev hotkeys.
+    // S17A / R13 UMG-facing API. Selection is explicit so deployment can be a real staged flow.
     UFUNCTION(BlueprintCallable, Category="UI") void UIConnect(const FString& Address, const FString& Username);
     UFUNCTION(BlueprintCallable, Category="UI") void UIToggleFrontend();
     UFUNCTION(BlueprintCallable, Category="UI") void UIRequestTeam(EOCTeam Team);
+    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestSquad(int32 SquadId);
+    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestRole(EOCPlayerRole Role);
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleRole();
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleSquad();
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
@@ -81,6 +85,7 @@ protected:
     UFUNCTION(Server, Reliable) void ServerExecuteSandboxAdminAction(int32 ActionIndex);
     UFUNCTION(Server, Reliable) void ServerSendChat(EOCChatChannel Channel, const FString& Message);
     UFUNCTION(Server, Reliable) void ServerCycleRole();
+    UFUNCTION(Server, Reliable) void ServerRequestRole(EOCPlayerRole RequestedRole);
     UFUNCTION(Server, Reliable) void ServerRequestSquad(int32 SquadId);
     UFUNCTION(Server, Reliable) void ServerSetLobbyReady(bool bReady);
     UFUNCTION(Server, Reliable) void ServerSubmitSquadOrder(EOCSquadOrderType Type, FName ObjectiveId, FVector Location);
