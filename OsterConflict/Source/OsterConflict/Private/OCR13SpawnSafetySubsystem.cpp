@@ -126,14 +126,15 @@ void UOCR13SpawnSafetySubsystem::Tick(float DeltaTime)
         AOCCharacter* Character = Cast<AOCCharacter>(PC->GetPawn());
         if (!Character) continue;
 
-        if (const TWeakObjectPtr<AOCCharacter>* Last = LastValidatedPawn.Find(PC))
+        const TWeakObjectPtr<AOCPlayerController> PCKey(PC);
+        if (const TWeakObjectPtr<AOCCharacter>* Last = LastValidatedPawn.Find(PCKey))
         {
             if (Last->Get() == Character) continue;
         }
 
         if (ValidateNewPawn(PC, Character))
         {
-            LastValidatedPawn.Add(PC, Character);
+            LastValidatedPawn.Add(PCKey, TWeakObjectPtr<AOCCharacter>(Character));
             PC->ClientCompleteDeployment(true);
             continue;
         }
@@ -144,7 +145,7 @@ void UOCR13SpawnSafetySubsystem::Tick(float DeltaTime)
         }
         PC->UnPossess();
         Character->Destroy();
-        LastValidatedPawn.Remove(PC);
+        LastValidatedPawn.Remove(PCKey);
         PC->ClientCompleteDeployment(false);
     }
 
