@@ -141,6 +141,8 @@ void AOCGameMode::PreLogin(const FString& Options, const FString& Address, const
     Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
     if (!ErrorMessage.IsEmpty()) return;
 
+    // S18C hardening: explicit protocol mismatch is rejected before deployment.
+    // Missing Protocol is tolerated only outside Shipping for compatibility with older source-only/dev launch paths.
     const FString ProtocolOption = UGameplayStatics::ParseOption(Options, TEXT("Protocol"));
     if (ProtocolOption.IsEmpty())
     {
@@ -163,6 +165,7 @@ void AOCGameMode::PreLogin(const FString& Options, const FString& Address, const
         }
     }
 
+    // Bots never reserve a hard human slot. A real player may join a bot-filled server as long as the human cap is not reached.
     if (GetHumanPlayerCount() >= MaxPlayerSlots)
     {
         ErrorMessage = TEXT("SERVER_FULL_HUMANS");
@@ -173,15 +176,27 @@ FString AOCGameMode::InitNewPlayer(APlayerController* NewPlayerController, const
     const FString& Options, const FString& Portal)
 {
     const FString Error = Super::InitNewPlayer(NewPlayerController, UniqueId, Options, Portal);
-    if (!Error.IsEmpty() || !NewPlayerController) return Error;
-    if (bFrontendOnlySession) return Error;
+    if (!Error.IsEmpty() || !NewPlayerController)
+    {
+        return Error;
+    }
+    if (bFrontendOnlySession)
+    {
+        return Error;
+    }
 
     AOCPlayerState* State = NewPlayerController->GetPlayerState<AOCPlayerState>();
-    if (!State) return Error;
+    if (!State)
+    {
+        return Error;
+    }
 
     FString RequestedName = UGameplayStatics::ParseOption(Options, TEXT("Name"));
     RequestedName.TrimStartAndEndInline();
-    if (RequestedName.IsEmpty()) RequestedName = MakeFallbackPlayerName();
+    if (RequestedName.IsEmpty())
+    {
+        RequestedName = MakeFallbackPlayerName();
+    }
 
     State->SetPlayerName(MakeUniquePlayerName(RequestedName, State));
     State->SetBotPlayerServer(false);
@@ -190,7 +205,10 @@ FString AOCGameMode::InitNewPlayer(APlayerController* NewPlayerController, const
         AutoDeployOption.Equals(TEXT("true"), ESearchCase::IgnoreCase);
     State->SetLobbyReadyServer(bAutoDeployForSmoke);
     State->SetRoleServer(ParseRequestedRole(Options));
-    if (State->GetTeamId() == EOCTeam::None) State->SetTeamServer(AssignBalancedTeam(State));
+    if (State->GetTeamId() == EOCTeam::None)
+    {
+        State->SetTeamServer(AssignBalancedTeam(State));
+    }
     AssignSquadServer(State, ParseRequestedSquad(Options));
     ApplyFactionToState(State);
     return Error;
@@ -200,7 +218,8 @@ FString AOCGameMode::InitNewPlayer(APlayerController* NewPlayerController, const
 void AOCGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
-    if (!NewPlayer || bFrontendOnlySession) return;
+    if (!NewPlayer) return;
+    if (bFrontendOnlySession) return;
 
     if (AOCPlayerState* State = NewPlayer->GetPlayerState<AOCPlayerState>())
     {
@@ -217,6 +236,7 @@ void AOCGameMode::PostLogin(APlayerController* NewPlayer)
         OCPC->ClientSetSandboxAdminAllowed(CanUseSandboxAdmin(OCPC));
     }
 
+    // Human priority: replace a filler bot from the joining human's team first when possible, preserving team parity.
     if (bAutoFillBots)
     {
         if (const AOCPlayerState* State = NewPlayer->GetPlayerState<AOCPlayerState>();
@@ -233,7 +253,11 @@ void AOCGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewP
 {
     if (!NewPlayer || bFrontendOnlySession) return;
     const AOCPlayerState* State = NewPlayer->GetPlayerState<AOCPlayerState>();
-    if (State && !State->IsBotPlayer() && !State->IsLobbyReady()) return;
+    if (State && !State->IsBotPlayer() && !State->IsLobbyReady())
+    {
+        // S17A: humans stay controller-only while choosing team/squad/role/spawn in Deployment UI.
+        return;
+    }
     Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 }
 
@@ -264,9 +288,18 @@ EOCTeam AOCGameMode::AssignBalancedTeam(AOCPlayerState* JoiningState) const
         for (APlayerState* PlayerState : State->PlayerArray)
         {
             const AOCPlayerState* OCState = Cast<AOCPlayerState>(PlayerState);
-            if (!OCState || OCState == JoiningState) continue;
-            if (OCState->GetTeamId() == EOCTeam::TeamOne) ++TeamOneCount;
-            else if (OCState->GetTeamId() == EOCTeam::TeamTwo) ++TeamTwoCount;
+            if (!OCState || OCState == JoiningState)
+            {
+                continue;
+            }
+            if (OCState->GetTeamId() == EOCTeam::TeamOne)
+            {
+                ++TeamOneCount;
+            }
+            else if (OCState->GetTeamId() == EOCTeam::TeamTwo)
+            {
+                ++TeamTwoCount;
+            }
         }
     }
     return TeamOneCount <= TeamTwoCount ? EOCTeam::TeamOne : EOCTeam::TeamTwo;
@@ -282,6 +315,7 @@ EOCPlayerRole AOCGameMode::ParseRequestedRole(const FString& Options)
     return EOCPlayerRole::Medic;
 }
 
+
 int32 AOCGameMode::ParseRequestedSquad(const FString& Options)
 {
     FString Value = UGameplayStatics::ParseOption(Options, TEXT("Squad"));
@@ -293,6 +327,7 @@ int32 AOCGameMode::ParseRequestedSquad(const FString& Options)
     const int32 Numeric = FCString::Atoi(*Value);
     return (Numeric >= 0 && Numeric < 8) ? Numeric : INDEX_NONE;
 }
+
 
 void AOCGameMode::ConfigurePerformanceProfile(const FString& Options)
 {
@@ -310,61 +345,840 @@ void AOCGameMode::ConfigurePerformanceProfile(const FString& Options)
     {
         PerformanceProfileName = TEXT("Quality");
         AIThinkIntervalScale = 0.90f;
-        MaxPersistentCorpses = FMath::Max(MaxPersistentCorpses, 28);
+        MaxPersistentCorpses = FMath::Min(MaxPersistentCorpses, 20);
     }
     else
     {
         PerformanceProfileName = TEXT("Balanced");
         AIThinkIntervalScale = 1.0f;
+        MaxPersistentCorpses = FMath::Min(MaxPersistentCorpses, 16);
     }
+    UE_LOG(LogTemp, Log, TEXT("S18A performance profile: %s | AI think x%.2f | corpse cap %d"),
+        *PerformanceProfileName, AIThinkIntervalScale, MaxPersistentCorpses);
+}
+
+FString AOCGameMode::BuildPerformanceSnapshot() const
+{
+    UWorld* World = GetWorld();
+    if (!World) return TEXT("PERF SNAPSHOT: no world");
+
+    auto CountClass = [World](UClass* Class) -> int32
+    {
+        int32 Count = 0;
+        for (TActorIterator<AActor> It(World, Class); It; ++It) ++Count;
+        return Count;
+    };
+
+    return FString::Printf(TEXT("PERF [%s] Humans=%d Bots=%d Characters=%d Vehicles=%d Capture=%d Doors=%d Windows=%d Destructibles=%d AmbientZones=%d CorpseBudget=%d AIThinkScale=%.2f"),
+        *PerformanceProfileName,
+        GetHumanPlayerCount(), GetBotPlayerCount(),
+        CountClass(AOCCharacter::StaticClass()), CountClass(AOCVehicleBase::StaticClass()),
+        CountClass(AOCCapturePoint::StaticClass()), CountClass(AOCInteractableDoor::StaticClass()),
+        CountClass(AOCBreakableWindow::StaticClass()), CountClass(AOCDestructibleProp::StaticClass()),
+        CountClass(AOCAmbientAudioZone::StaticClass()), MaxPersistentCorpses, AIThinkIntervalScale);
 }
 
 EOCBotDifficulty AOCGameMode::ParseBotDifficulty(const FString& Options)
 {
     FString Value = UGameplayStatics::ParseOption(Options, TEXT("BotDifficulty"));
     Value.TrimStartAndEndInline();
-    if (Value.Equals(TEXT("Recruit"), ESearchCase::IgnoreCase)) return EOCBotDifficulty::Recruit;
+    if (Value.Equals(TEXT("Easy"), ESearchCase::IgnoreCase)) return EOCBotDifficulty::Easy;
+    if (Value.Equals(TEXT("Hard"), ESearchCase::IgnoreCase)) return EOCBotDifficulty::Hard;
     if (Value.Equals(TEXT("Veteran"), ESearchCase::IgnoreCase)) return EOCBotDifficulty::Veteran;
-    return EOCBotDifficulty::Regular;
+    return EOCBotDifficulty::Normal;
 }
 
-EOCFactionArchetype AOCGameMode::ParseFactionOption(const FString& Value, EOCFactionArchetype Fallback)
+
+EOCFactionArchetype AOCGameMode::ParseFactionOption(const FString& InValue, EOCFactionArchetype Fallback)
 {
-    FString Normalized = Value;
-    Normalized.TrimStartAndEndInline();
-    if (Normalized.IsEmpty()) return Fallback;
-    if (Normalized.Equals(TEXT("UA"), ESearchCase::IgnoreCase) || Normalized.Equals(TEXT("UASpecialUnit"), ESearchCase::IgnoreCase)) return EOCFactionArchetype::UASpecialUnit;
-    if (Normalized.Equals(TEXT("Masked"), ESearchCase::IgnoreCase) || Normalized.Equals(TEXT("MaskedFighters"), ESearchCase::IgnoreCase)) return EOCFactionArchetype::MaskedFighters;
-    if (Normalized.Equals(TEXT("US"), ESearchCase::IgnoreCase) || Normalized.Equals(TEXT("USRangers"), ESearchCase::IgnoreCase)) return EOCFactionArchetype::USRangers;
-    if (Normalized.Equals(TEXT("Insurgents"), ESearchCase::IgnoreCase)) return EOCFactionArchetype::Insurgents;
+    FString Value = InValue;
+    Value.TrimStartAndEndInline();
+    if (Value.IsEmpty()) return Fallback;
+    if (Value.Equals(TEXT("UA"), ESearchCase::IgnoreCase) || Value.Equals(TEXT("UASpecial"), ESearchCase::IgnoreCase) ||
+        Value.Equals(TEXT("UASpecialUnit"), ESearchCase::IgnoreCase)) return EOCFactionArchetype::UASpecialUnit;
+    if (Value.Equals(TEXT("Masked"), ESearchCase::IgnoreCase) || Value.Equals(TEXT("MaskedFighters"), ESearchCase::IgnoreCase))
+        return EOCFactionArchetype::MaskedFighters;
+    if (Value.Equals(TEXT("Rangers"), ESearchCase::IgnoreCase) || Value.Equals(TEXT("USRangers"), ESearchCase::IgnoreCase))
+        return EOCFactionArchetype::USRangers;
+    if (Value.Equals(TEXT("Insurgents"), ESearchCase::IgnoreCase) || Value.Equals(TEXT("Rebels"), ESearchCase::IgnoreCase))
+        return EOCFactionArchetype::Insurgents;
     return Fallback;
 }
 
-int32 AOCGameMode::GetBotPlayerCount() const
+void AOCGameMode::ApplyFactionToState(AOCPlayerState* State) const
 {
-    int32 Count = 0;
-    if (const AOCGameState* State = GetGameState<AOCGameState>())
+    if (!State || !HasAuthority() || State->GetTeamId() == EOCTeam::None) return;
+    const EOCFactionArchetype Faction = GetFactionForTeam(State->GetTeamId());
+    const uint32 Hash = HashCombine(GetTypeHash(State->GetPlayerName()), static_cast<uint32>(State->GetPlayerId() + 1));
+    const int32 AppearanceSeed = 1 + static_cast<int32>(Hash % 2000000000u);
+    State->SetFactionServer(Faction, AppearanceSeed);
+}
+
+
+void AOCGameMode::SpawnConfiguredBots()
+{
+    if (!HasAuthority()) return;
+    if (bAutoFillBots) MaintainPopulation();
+    else if (RequestedBotCount > 0) SpawnDebugBots(RequestedBotCount);
+}
+
+void AOCGameMode::SpawnDebugBots(int32 Count)
+{
+    if (!HasAuthority()) return;
+    Count = FMath::Clamp(Count, 0, FMath::Max(0, MaxPlayerSlots - GetHumanPlayerCount() - GetBotPlayerCount()));
+    for (int32 I = 0; I < Count; ++I)
     {
-        for (APlayerState* PlayerState : State->PlayerArray)
+        int32 TeamOne = 0, TeamTwo = 0;
+        if (const AOCGameState* State = GetGameState<AOCGameState>())
         {
-            if (const AOCPlayerState* OCState = Cast<AOCPlayerState>(PlayerState); OCState && OCState->IsBotPlayer()) ++Count;
+            for (APlayerState* PS : State->PlayerArray)
+            {
+                const AOCPlayerState* OPS = Cast<AOCPlayerState>(PS); if (!OPS) continue;
+                if (OPS->GetTeamId() == EOCTeam::TeamOne) ++TeamOne; else if (OPS->GetTeamId() == EOCTeam::TeamTwo) ++TeamTwo;
+            }
+        }
+        const EOCTeam Team = TeamOne <= TeamTwo ? EOCTeam::TeamOne : EOCTeam::TeamTwo;
+        const int32 RoleCycle = (NextBotIndex - 1) % 6;
+        const EOCPlayerRole BotRole = (RoleCycle == 0) ? EOCPlayerRole::Medic : (RoleCycle == 1) ? EOCPlayerRole::Engineer :
+            (RoleCycle == 2) ? EOCPlayerRole::Support : EOCPlayerRole::Rifleman;
+        if (!SpawnSingleBot(Team, BotRole)) break;
+    }
+    RefreshPopulationState();
+}
+
+bool AOCGameMode::SpawnSingleBot(EOCTeam Team, EOCPlayerRole BotRole)
+{
+    if (!HasAuthority() || !GetWorld() || Team==EOCTeam::None) return false;
+    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    AOCAIController* BotController=GetWorld()->SpawnActor<AOCAIController>(AOCAIController::StaticClass(),FVector::ZeroVector,FRotator::ZeroRotator,Params);
+    if(!BotController)return false;
+    BotController->AssignBotIdentityServer(Team, BotRole, ConfiguredBotDifficulty, NextBotIndex++);
+    if (AOCPlayerState* BotState = BotController->GetPlayerState<AOCPlayerState>())
+    {
+        BotState->SetBotPlayerServer(true);
+        AssignSquadServer(BotState, INDEX_NONE);
+        ApplyFactionToState(BotState);
+    }
+    RestartBotController(BotController);
+    if(!BotController->GetPawn()){BotController->Destroy();return false;}
+    UE_LOG(LogTemp,Log,TEXT("Spawned AI bot %s [%s/%s]"),*BotController->GetPlayerState<APlayerState>()->GetPlayerName(),*OCTeamToString(Team),*OCBotDifficultyToString(ConfiguredBotDifficulty));
+    return true;
+}
+
+void AOCGameMode::RestartBotController(AOCAIController* BotController)
+{
+    if(!BotController||!GetWorld())return;
+
+    // A round restart can reach an AI while it is still alive or driving a vehicle.
+    // Return the driver to its hidden character first, then remove that old pawn before spawning a fresh bot pawn.
+    if (APawn* ExistingPawn = BotController->GetPawn())
+    {
+        if (AOCVehicleBase* Vehicle = Cast<AOCVehicleBase>(ExistingPawn))
+        {
+            Vehicle->ForceExitDriverServer();
+            ExistingPawn = BotController->GetPawn();
+        }
+        if (ExistingPawn)
+        {
+            BotController->UnPossess();
+            ExistingPawn->Destroy();
         }
     }
-    return Count;
+
+    FTransform SpawnTransform;
+    if(!FindBestSpawnTransform(BotController,SpawnTransform))
+    {
+        const AOCPlayerState* State=BotController->GetPlayerState<AOCPlayerState>();
+        const bool bTeamTwo=State&&State->GetTeamId()==EOCTeam::TeamTwo;
+        SpawnTransform=FTransform(FRotator(0,bTeamTwo?180.0f:0.0f,0),bTeamTwo?FVector(2800,0,120):FVector(-2800,0,120));
+    }
+    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    AOCBotCharacter* Pawn=GetWorld()->SpawnActor<AOCBotCharacter>(AOCBotCharacter::StaticClass(),SpawnTransform,Params);
+    if(Pawn)BotController->Possess(Pawn);
+}
+
+
+void AOCGameMode::RemoveBotController(AOCAIController* Bot)
+{
+    if (!HasAuthority() || !Bot) return;
+    AOCPlayerState* State = Bot->GetPlayerState<AOCPlayerState>();
+    const EOCTeam Team = State ? State->GetTeamId() : EOCTeam::None;
+    const int32 Squad = State ? State->GetSquadId() : INDEX_NONE;
+    if (State) State->SetSquadServer(INDEX_NONE, false);
+    APawn* Pawn = Bot->GetPawn();
+    if (AOCVehicleBase* Vehicle = Cast<AOCVehicleBase>(Pawn))
+    {
+        Vehicle->ForceExitDriverServer();
+        Pawn = Bot->GetPawn();
+    }
+    if (Pawn)
+    {
+        Bot->UnPossess();
+        Pawn->Destroy();
+    }
+    Bot->Destroy();
+    if (Team != EOCTeam::None && Squad != INDEX_NONE) RepairSquadLeadership(Team, Squad);
+}
+
+void AOCGameMode::RemoveAllBots()
+{
+    if (!HasAuthority() || !GetWorld()) return;
+    TArray<AOCAIController*> Bots;
+    for (TActorIterator<AOCAIController> It(GetWorld()); It; ++It) Bots.Add(*It);
+    for (AOCAIController* Bot : Bots) RemoveBotController(Bot);
+    RefreshPopulationState();
 }
 
 int32 AOCGameMode::GetHumanPlayerCount() const
 {
     int32 Count = 0;
-    if (const AOCGameState* State = GetGameState<AOCGameState>())
+    if (!GetWorld()) return Count;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
     {
-        for (APlayerState* PlayerState : State->PlayerArray)
-        {
-            if (const AOCPlayerState* OCState = Cast<AOCPlayerState>(PlayerState); OCState && !OCState->IsBotPlayer()) ++Count;
-        }
+        const APlayerController* PC = It->Get();
+        if (PC && !PC->IsActorBeingDestroyed()) ++Count;
     }
     return Count;
 }
+
+int32 AOCGameMode::GetBotPlayerCount() const
+{
+    int32 Count = 0;
+    if (!GetWorld()) return Count;
+    for (TActorIterator<AOCAIController> It(GetWorld()); It; ++It) if (*It && !It->IsActorBeingDestroyed()) ++Count;
+    return Count;
+}
+
+void AOCGameMode::RefreshPopulationState()
+{
+    if (AOCGameState* State = GetGameState<AOCGameState>())
+    {
+        State->ConfigurePopulationServer(MaxPlayerSlots, TargetPopulation);
+        State->SetPopulationCountsServer(GetHumanPlayerCount(), GetBotPlayerCount());
+    }
+}
+
+AOCAIController* AOCGameMode::SelectBotToRemove(EOCTeam PreferredTeam) const
+{
+    if (!GetWorld()) return nullptr;
+    AOCAIController* Best = nullptr;
+    float BestScore = -TNumericLimits<float>::Max();
+    for (TActorIterator<AOCAIController> It(GetWorld()); It; ++It)
+    {
+        AOCAIController* Bot = *It; if (!Bot) continue;
+        const AOCPlayerState* State = Bot->GetPlayerState<AOCPlayerState>();
+        float Score = 0.0f;
+        if (State && State->GetTeamId() == PreferredTeam) Score += 1000.0f;
+        APawn* Pawn = Bot->GetPawn();
+        if (!Pawn) Score += 500.0f;
+        if (const AOCCharacter* Character = Cast<AOCCharacter>(Pawn); Character && Character->IsDowned()) Score += 350.0f;
+        if (Cast<AOCVehicleBase>(Pawn)) Score -= 250.0f; // avoid popping an active driver unless necessary
+        if (State) Score -= State->GetScore() * 0.01f;
+        if (!Best || Score > BestScore) { Best = Bot; BestScore = Score; }
+    }
+    return Best;
+}
+
+void AOCGameMode::MaintainPopulation()
+{
+    if (!HasAuthority()) return;
+    const int32 Humans = GetHumanPlayerCount();
+    if (Humans >= MaxPlayerSlots)
+    {
+        while (GetBotPlayerCount() > 0) RemoveBotController(SelectBotToRemove(EOCTeam::None));
+        RefreshPopulationState();
+        return;
+    }
+
+    const int32 DesiredBots = bAutoFillBots ? FMath::Clamp(TargetPopulation - Humans, 0, MaxPlayerSlots - Humans) : GetBotPlayerCount();
+    while (GetBotPlayerCount() > DesiredBots)
+    {
+        // Prefer replacing a bot from the team of the newest/most numerous humans to preserve team parity.
+        const EOCTeam Preferred = AssignBalancedTeam(nullptr) == EOCTeam::TeamOne ? EOCTeam::TeamTwo : EOCTeam::TeamOne;
+        AOCAIController* Bot = SelectBotToRemove(Preferred);
+        if (!Bot) break;
+        RemoveBotController(Bot);
+    }
+    if (bAutoFillBots && GetBotPlayerCount() < DesiredBots) SpawnDebugBots(DesiredBots - GetBotPlayerCount());
+    RefreshPopulationState();
+}
+
+
+int32 AOCGameMode::MakeSquadKey(EOCTeam Team, int32 SquadId)
+{
+    return (Team == EOCTeam::TeamTwo ? 100 : 0) + FMath::Max(0, SquadId);
+}
+
+bool AOCGameMode::IsSquadFull(EOCTeam Team, int32 SquadId, const AOCPlayerState* IgnoreState) const
+{
+    if (Team == EOCTeam::None || SquadId < 0) return true;
+    int32 Count = 0;
+    if (const AOCGameState* State = GetGameState<AOCGameState>())
+    {
+        for (APlayerState* PS : State->PlayerArray)
+        {
+            const AOCPlayerState* OPS = Cast<AOCPlayerState>(PS);
+            if (!OPS || OPS == IgnoreState) continue;
+            if (OPS->GetTeamId() == Team && OPS->GetSquadId() == SquadId) ++Count;
+        }
+    }
+    return Count >= MaxSquadSize;
+}
+
+int32 AOCGameMode::ChooseBestSquad(EOCTeam Team) const
+{
+    int32 BestSquad = 0;
+    int32 BestCount = TNumericLimits<int32>::Max();
+    for (int32 Squad = 0; Squad < 8; ++Squad)
+    {
+        int32 Count = 0;
+        if (const AOCGameState* State = GetGameState<AOCGameState>())
+        {
+            for (APlayerState* PS : State->PlayerArray)
+            {
+                const AOCPlayerState* OPS = Cast<AOCPlayerState>(PS);
+                if (OPS && OPS->GetTeamId() == Team && OPS->GetSquadId() == Squad) ++Count;
+            }
+        }
+        if (Count < MaxSquadSize && Count < BestCount) { BestCount = Count; BestSquad = Squad; }
+    }
+    return BestSquad;
+}
+
+void AOCGameMode::AssignSquadServer(AOCPlayerState* State, int32 RequestedSquadId)
+{
+    if (!HasAuthority() || !State || State->GetTeamId() == EOCTeam::None) return;
+    const EOCTeam Team = State->GetTeamId();
+    int32 Squad = RequestedSquadId;
+    if (Squad < 0 || Squad >= 8 || IsSquadFull(Team, Squad, State)) Squad = ChooseBestSquad(Team);
+
+    bool bHasLeader = false;
+    AOCPlayerState* BotLeader = nullptr;
+    if (const AOCGameState* GS = GetGameState<AOCGameState>())
+    {
+        for (APlayerState* PS : GS->PlayerArray)
+        {
+            AOCPlayerState* OPS = Cast<AOCPlayerState>(PS); if (!OPS || OPS == State) continue;
+            if (OPS->GetTeamId() == Team && OPS->GetSquadId() == Squad && OPS->IsSquadLeader())
+            {
+                bHasLeader = true;
+                if (OPS->IsBotPlayer()) BotLeader = OPS;
+                break;
+            }
+        }
+    }
+    const bool bPromoteHumanOverBot = !State->IsBotPlayer() && BotLeader;
+    if (bPromoteHumanOverBot) BotLeader->SetSquadLeaderServer(false);
+    State->SetSquadServer(Squad, !bHasLeader || bPromoteHumanOverBot);
+}
+
+void AOCGameMode::RepairSquadLeadership(EOCTeam Team, int32 SquadId)
+{
+    if (!HasAuthority() || SquadId < 0) return;
+    TArray<AOCPlayerState*> Members;
+    if (AOCGameState* GS = GetGameState<AOCGameState>())
+    {
+        for (APlayerState* PS : GS->PlayerArray)
+        {
+            AOCPlayerState* OPS = Cast<AOCPlayerState>(PS);
+            if (OPS && OPS->GetTeamId() == Team && OPS->GetSquadId() == SquadId) Members.Add(OPS);
+        }
+    }
+    if (Members.Num() == 0) { SquadOrders.Remove(MakeSquadKey(Team, SquadId)); return; }
+    for (AOCPlayerState* Member : Members) if (Member && Member->IsSquadLeader()) return;
+    Members.Sort([](const AOCPlayerState& A, const AOCPlayerState& B)
+    {
+        if (A.IsBotPlayer() != B.IsBotPlayer()) return !A.IsBotPlayer();
+        return A.GetScore() > B.GetScore();
+    });
+    Members[0]->SetSquadLeaderServer(true);
+}
+
+bool AOCGameMode::RequestTeamChange(AOCPlayerState* State, EOCTeam RequestedTeam)
+{
+    if (!HasAuthority() || !State || RequestedTeam == EOCTeam::None) return false;
+    if (State->GetTeamId() == RequestedTeam) return true;
+    if (State->IsLobbyReady()) return false; // no mid-life team hopping in S17A
+
+    int32 RequestedHumans = 0;
+    int32 OtherHumans = 0;
+    const EOCTeam OtherTeam = RequestedTeam == EOCTeam::TeamOne ? EOCTeam::TeamTwo : EOCTeam::TeamOne;
+    if (const AOCGameState* GS = GetGameState<AOCGameState>())
+    {
+        for (APlayerState* PS : GS->PlayerArray)
+        {
+            const AOCPlayerState* OPS = Cast<AOCPlayerState>(PS);
+            if (!OPS || OPS == State || OPS->IsBotPlayer()) continue;
+            if (OPS->GetTeamId() == RequestedTeam) ++RequestedHumans;
+            else if (OPS->GetTeamId() == OtherTeam) ++OtherHumans;
+        }
+    }
+    if (RequestedHumans > OtherHumans) return false;
+
+    const EOCTeam OldTeam = State->GetTeamId();
+    const int32 OldSquad = State->GetSquadId();
+    State->SetTeamServer(RequestedTeam);
+    State->SetLobbyReadyServer(false);
+    State->SetSquadServer(INDEX_NONE, false);
+    if (OldTeam != EOCTeam::None && OldSquad >= 0) RepairSquadLeadership(OldTeam, OldSquad);
+    AssignSquadServer(State, INDEX_NONE);
+    ApplyFactionToState(State);
+    return true;
+}
+
+bool AOCGameMode::RequestSquadChange(AOCPlayerState* State, int32 RequestedSquadId)
+{
+    if (!HasAuthority() || !State || State->GetTeamId() == EOCTeam::None) return false;
+    if (RequestedSquadId < 0 || RequestedSquadId >= 8) RequestedSquadId = ChooseBestSquad(State->GetTeamId());
+    if (IsSquadFull(State->GetTeamId(), RequestedSquadId, State)) return false;
+    const int32 OldSquad = State->GetSquadId();
+    const EOCTeam Team = State->GetTeamId();
+    State->SetSquadServer(RequestedSquadId, false);
+    RepairSquadLeadership(Team, OldSquad);
+    RepairSquadLeadership(Team, RequestedSquadId);
+    return true;
+}
+
+void AOCGameMode::RouteChatMessage(AOCPlayerController* Sender, EOCChatChannel Channel, const FString& Message)
+{
+    if (!HasAuthority() || !Sender || Message.IsEmpty() || !GetWorld()) return;
+    const AOCPlayerState* SenderState = Sender->GetPlayerState<AOCPlayerState>();
+    if (!SenderState) return;
+
+    FOCChatMessage Chat;
+    Chat.SenderName = SenderState->GetPlayerName();
+    Chat.Message = Message.Left(120);
+    Chat.Channel = Channel;
+    Chat.Team = SenderState->GetTeamId();
+    Chat.SquadId = SenderState->GetSquadId();
+    Chat.ServerTime = GetWorld()->GetTimeSeconds();
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        AOCPlayerController* Recipient = Cast<AOCPlayerController>(It->Get()); if (!Recipient) continue;
+        const AOCPlayerState* RecipientState = Recipient->GetPlayerState<AOCPlayerState>(); if (!RecipientState) continue;
+        bool bDeliver = Channel == EOCChatChannel::Global;
+        if (Channel == EOCChatChannel::Team) bDeliver = RecipientState->GetTeamId() == Chat.Team;
+        if (Channel == EOCChatChannel::Squad) bDeliver = RecipientState->GetTeamId() == Chat.Team && RecipientState->GetSquadId() == Chat.SquadId;
+        if (bDeliver) Recipient->ClientReceiveChat(Chat);
+    }
+}
+
+bool AOCGameMode::SubmitSquadOrder(AOCPlayerController* Sender, EOCSquadOrderType Type, FName ObjectiveId,
+    const FVector& RequestedLocation)
+{
+    if (!HasAuthority() || !Sender || !GetWorld()) return false;
+    const AOCPlayerState* State = Sender->GetPlayerState<AOCPlayerState>();
+    if (!State || !State->IsSquadLeader() || State->GetSquadId() < 0) return false;
+
+    FOCSquadOrder Order;
+    Order.Type = Type;
+    Order.ObjectiveId = ObjectiveId;
+    Order.IssuerName = State->GetPlayerName();
+    Order.ServerTime = GetWorld()->GetTimeSeconds();
+    Order.WorldLocation = Sender->GetPawn() ? Sender->GetPawn()->GetActorLocation() : FVector::ZeroVector;
+
+    if (Type == EOCSquadOrderType::AttackObjective || Type == EOCSquadOrderType::DefendObjective)
+    {
+        AOCCapturePoint* Found = nullptr;
+        for (TActorIterator<AOCCapturePoint> It(GetWorld()); It; ++It)
+            if (It->GetPointId() == ObjectiveId) { Found = *It; break; }
+        if (!Found) return false;
+        Order.WorldLocation = Found->GetActorLocation();
+    }
+    else if (Type == EOCSquadOrderType::Move)
+    {
+        if (!Sender->GetPawn() || FVector::DistSquared(Sender->GetPawn()->GetActorLocation(), RequestedLocation) > FMath::Square(5000.0f)) return false;
+        Order.WorldLocation = RequestedLocation;
+    }
+    else if (Type != EOCSquadOrderType::Regroup) return false;
+
+    SquadOrders.Add(MakeSquadKey(State->GetTeamId(), State->GetSquadId()), Order);
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        AOCPlayerController* Recipient = Cast<AOCPlayerController>(It->Get()); if (!Recipient) continue;
+        const AOCPlayerState* RState = Recipient->GetPlayerState<AOCPlayerState>();
+        if (RState && RState->GetTeamId() == State->GetTeamId() && RState->GetSquadId() == State->GetSquadId())
+            Recipient->ClientReceiveSquadOrder(Order);
+    }
+    return true;
+}
+
+bool AOCGameMode::GetSquadOrderFor(EOCTeam Team, int32 SquadId, FOCSquadOrder& OutOrder) const
+{
+    if (const FOCSquadOrder* Order = SquadOrders.Find(MakeSquadKey(Team, SquadId)))
+    {
+        OutOrder = *Order;
+        return Order->IsActive();
+    }
+    return false;
+}
+
+void AOCGameMode::RestartPlayer(AController* NewPlayer)
+{
+    if (!NewPlayer)
+    {
+        return;
+    }
+
+    const AOCGameState* MatchState = GetGameState<AOCGameState>();
+    if (MatchState && MatchState->GetOCMatchPhase() == EOCMatchPhase::Ended)
+    {
+        return;
+    }
+
+    if (AOCAIController* BotController = Cast<AOCAIController>(NewPlayer))
+    {
+        RestartBotController(BotController);
+        return;
+    }
+
+    FTransform SpawnTransform;
+    if (FindBestSpawnTransform(NewPlayer, SpawnTransform))
+    {
+        RestartPlayerAtTransform(NewPlayer, SpawnTransform);
+        return;
+    }
+
+    const AOCPlayerState* State = NewPlayer->GetPlayerState<AOCPlayerState>();
+    const bool bTeamTwo = State && State->GetTeamId() == EOCTeam::TeamTwo;
+    const FVector FallbackLocation = bTeamTwo ? FVector(2800.0f, 0.0f, 120.0f) : FVector(-2800.0f, 0.0f, 120.0f);
+    const FRotator FallbackRotation(0.0f, bTeamTwo ? 180.0f : 0.0f, 0.0f);
+    RestartPlayerAtTransform(NewPlayer, FTransform(FallbackRotation, FallbackLocation));
+}
+
+bool AOCGameMode::FindBestSpawnTransform(AController* ControllerToSpawn, FTransform& OutTransform) const
+{
+    if (!ControllerToSpawn || !GetWorld()) return false;
+
+    const AOCPlayerState* SpawnState = ControllerToSpawn->GetPlayerState<AOCPlayerState>();
+    const EOCTeam Team = SpawnState ? SpawnState->GetTeamId() : EOCTeam::None;
+    if (Team == EOCTeam::None) return false;
+
+    FName Requested = TEXT("AUTO");
+    if (const AOCPlayerController* HumanPC = Cast<AOCPlayerController>(ControllerToSpawn))
+        Requested = HumanPC->GetRequestedDeploymentSpawn();
+
+    auto MatchesRequest = [Requested](const AOCTeamSpawnPoint* Point)
+    {
+        if (!Point) return false;
+        const FString R = Requested.ToString().ToUpper();
+        if (R == TEXT("AUTO")) return true;
+        if (R == TEXT("BASE")) return Point->IsBaseSpawn();
+        return !Point->IsBaseSpawn() && Point->GetLinkedCapturePointId().ToString().Equals(R, ESearchCase::IgnoreCase);
+    };
+
+    auto FindSafest = [&](bool bHonorRequest) -> const AOCTeamSpawnPoint*
+    {
+        const AOCTeamSpawnPoint* BestPoint = nullptr;
+        double BestSafetyScore = -1.0;
+        for (TActorIterator<AOCTeamSpawnPoint> It(GetWorld()); It; ++It)
+        {
+            const AOCTeamSpawnPoint* Point = *It;
+            if (!Point || !Point->IsAvailableForTeam(Team) || (bHonorRequest && !MatchesRequest(Point))) continue;
+
+            double NearestEnemySq = TNumericLimits<double>::Max();
+            bool bFoundEnemy = false;
+            for (TActorIterator<AOCCharacter> CharacterIt(GetWorld()); CharacterIt; ++CharacterIt)
+            {
+                const AOCCharacter* Character = *CharacterIt;
+                const AOCPlayerState* CharacterState = Character ? Character->GetPlayerState<AOCPlayerState>() : nullptr;
+                if (!Character || !CharacterState || CharacterState->GetTeamId() == Team || CharacterState->GetTeamId() == EOCTeam::None ||
+                    !Character->GetHealthComponent() || !Character->GetHealthComponent()->IsAlive()) continue;
+                bFoundEnemy = true;
+                NearestEnemySq = FMath::Min(NearestEnemySq,
+                    static_cast<double>(FVector::DistSquared(Point->GetActorLocation(), Character->GetActorLocation())));
+            }
+            const double SafetyScore = bFoundEnemy ? NearestEnemySq : TNumericLimits<double>::Max() * 0.5;
+            if (!BestPoint || SafetyScore > BestSafetyScore) { BestPoint = Point; BestSafetyScore = SafetyScore; }
+        }
+        return BestPoint;
+    };
+
+    // Requested forward point may be unavailable because it is neutral/contested/lost. In that case we safely fall back.
+    const AOCTeamSpawnPoint* BestPoint = FindSafest(Requested != FName(TEXT("AUTO")));
+    if (!BestPoint) BestPoint = FindSafest(false);
+    if (!BestPoint) return false;
+
+    OutTransform = BestPoint->GetActorTransform();
+    OutTransform.AddToTranslation(FVector(0.0f, 0.0f, 80.0f));
+    return true;
+}
+
+void AOCGameMode::HandleCharacterDeath(AOCCharacter* DeadCharacter, AController* KillerController)
+{
+    if (!DeadCharacter || !HasAuthority())
+    {
+        return;
+    }
+
+    AController* DeadController = DeadCharacter->GetController();
+    AOCPlayerState* VictimState = DeadCharacter->GetPlayerState<AOCPlayerState>();
+    AOCPlayerState* KillerState = KillerController ? KillerController->GetPlayerState<AOCPlayerState>() : nullptr;
+
+    if (VictimState)
+    {
+        VictimState->RegisterDeath();
+        if (!bSandboxMode)
+        {
+            if (AOCGameState* MatchState = GetGameState<AOCGameState>()) MatchState->RemoveTicketsServer(VictimState->GetTeamId(), 1);
+        }
+    }
+
+    if (KillerState && KillerState != VictimState && VictimState && KillerState->GetTeamId() != VictimState->GetTeamId())
+    {
+        KillerState->RegisterKill(100);
+    }
+
+    if (!bSandboxMode) CheckForRoundEnd();
+
+    RegisterCorpse(DeadCharacter);
+
+    if (!DeadController)
+    {
+        DeadCharacter->SetLifeSpan(FMath::Max(CorpseLifetimeSeconds, 3.0f));
+        return;
+    }
+
+    DeadCharacter->DetachFromControllerPendingDestroy();
+    // Respawn timing and corpse cleanup are intentionally independent in S14B.
+    DeadCharacter->SetLifeSpan(FMath::Max(CorpseLifetimeSeconds, RespawnDelay + 1.0f));
+
+    const AOCGameState* MatchState = GetGameState<AOCGameState>();
+    if (MatchState && MatchState->GetOCMatchPhase() == EOCMatchPhase::Ended)
+    {
+        return;
+    }
+
+    FTimerDelegate RespawnDelegate;
+    RespawnDelegate.BindUObject(this, &AOCGameMode::RespawnController, DeadController);
+    FTimerHandle RespawnTimer;
+    GetWorldTimerManager().SetTimer(RespawnTimer, RespawnDelegate, RespawnDelay, false);
+}
+
+void AOCGameMode::RegisterCorpse(AOCCharacter* DeadCharacter)
+{
+    if (!HasAuthority() || !DeadCharacter) return;
+
+    CorpseQueue.RemoveAll([](const TWeakObjectPtr<AOCCharacter>& Item) { return !Item.IsValid(); });
+    CorpseQueue.Add(DeadCharacter);
+
+    while (CorpseQueue.Num() > MaxPersistentCorpses)
+    {
+        TWeakObjectPtr<AOCCharacter> Oldest = CorpseQueue[0];
+        CorpseQueue.RemoveAt(0);
+        if (Oldest.IsValid()) Oldest->Destroy();
+    }
+}
+
+void AOCGameMode::RespawnController(AController* ControllerToRespawn)
+{
+    const AOCGameState* MatchState = GetGameState<AOCGameState>();
+    if (IsValid(ControllerToRespawn) && (!MatchState || MatchState->GetOCMatchPhase() != EOCMatchPhase::Ended))
+    {
+        RestartPlayer(ControllerToRespawn);
+    }
+}
+
+void AOCGameMode::HandleCapturePointOwnerChanged(AOCCapturePoint* Point, EOCTeam PreviousOwner, EOCTeam NewOwner)
+{
+    if (!HasAuthority() || !Point)
+    {
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("Capture point %s owner: %s -> %s"), *Point->GetPointId().ToString(),
+        *OCTeamToString(PreviousOwner), *OCTeamToString(NewOwner));
+}
+
+bool AOCGameMode::CanUseSandboxAdmin(const AController* Controller) const
+{
+#if UE_BUILD_SHIPPING
+    return false;
+#else
+    if (!bSandboxMode || !Controller) return false;
+    if (bAllowSandboxAdminAll) return true;
+    // A listen/local host may administer its own local Sandbox. Remote clients on a dedicated server
+    // require the server-owned SandboxAdminAll test switch until a persistent account/admin identity exists.
+    const APlayerController* PlayerController = Cast<APlayerController>(Controller);
+    return PlayerController && GetNetMode() != NM_DedicatedServer && PlayerController->IsLocalController();
+#endif
+}
+
+bool AOCGameMode::CanDealDamage(const AController* InstigatorController, const AActor* VictimActor) const
+{
+    if (bSandboxMode && VictimActor)
+    {
+        const APawn* SandboxVictimPawn = Cast<APawn>(VictimActor);
+        const AOCPlayerController* SandboxVictimPC = SandboxVictimPawn ? Cast<AOCPlayerController>(SandboxVictimPawn->GetController()) : nullptr;
+        if (SandboxVictimPC && SandboxVictimPC->IsSandboxGodMode())
+        {
+            return false;
+        }
+    }
+    if (bFriendlyFire || !InstigatorController || !VictimActor)
+    {
+        return true;
+    }
+
+    const AOCPlayerState* InstigatorState = InstigatorController->GetPlayerState<AOCPlayerState>();
+    if (const AOCArmedVehicleBase* ArmedVehicle = Cast<AOCArmedVehicleBase>(VictimActor))
+    {
+        if (InstigatorState && ArmedVehicle->GetOccupantTeam() != EOCTeam::None &&
+            InstigatorState->GetTeamId() == ArmedVehicle->GetOccupantTeam())
+        {
+            return false;
+        }
+    }
+
+    const APawn* VictimPawn = Cast<APawn>(VictimActor);
+    const AController* VictimController = VictimPawn ? VictimPawn->GetController() : nullptr;
+    if (!VictimController || VictimController == InstigatorController)
+    {
+        return true;
+    }
+
+    const AOCPlayerState* VictimState = VictimController->GetPlayerState<AOCPlayerState>();
+    if (!InstigatorState || !VictimState || InstigatorState->GetTeamId() == EOCTeam::None || VictimState->GetTeamId() == EOCTeam::None)
+    {
+        return true;
+    }
+
+    return InstigatorState->GetTeamId() != VictimState->GetTeamId();
+}
+
+void AOCGameMode::ApplyTicketBleed()
+{
+    if (bSandboxMode) return;
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    AOCGameState* MatchState = GetGameState<AOCGameState>();
+    if (!MatchState || MatchState->GetOCMatchPhase() != EOCMatchPhase::InProgress)
+    {
+        return;
+    }
+
+    int32 TeamOnePoints = 0;
+    int32 TeamTwoPoints = 0;
+    for (TActorIterator<AOCCapturePoint> It(GetWorld()); It; ++It)
+    {
+        const AOCCapturePoint* Point = *It;
+        if (!Point) continue;
+        if (Point->GetOwnerTeam() == EOCTeam::TeamOne) ++TeamOnePoints;
+        else if (Point->GetOwnerTeam() == EOCTeam::TeamTwo) ++TeamTwoPoints;
+    }
+
+    if (TeamOnePoints > TeamTwoPoints)
+    {
+        MatchState->RemoveTicketsServer(EOCTeam::TeamTwo, TeamOnePoints - TeamTwoPoints);
+    }
+    else if (TeamTwoPoints > TeamOnePoints)
+    {
+        MatchState->RemoveTicketsServer(EOCTeam::TeamOne, TeamTwoPoints - TeamOnePoints);
+    }
+
+    CheckForRoundEnd();
+}
+
+void AOCGameMode::CheckForRoundEnd()
+{
+    if (bSandboxMode) return;
+    AOCGameState* MatchState = GetGameState<AOCGameState>();
+    if (!MatchState || MatchState->GetOCMatchPhase() != EOCMatchPhase::InProgress)
+    {
+        return;
+    }
+
+    const int32 TeamOne = MatchState->GetTickets(EOCTeam::TeamOne);
+    const int32 TeamTwo = MatchState->GetTickets(EOCTeam::TeamTwo);
+    if (TeamOne <= 0 || TeamTwo <= 0)
+    {
+        EOCTeam Winner = EOCTeam::None;
+        if (TeamOne > TeamTwo) Winner = EOCTeam::TeamOne;
+        else if (TeamTwo > TeamOne) Winner = EOCTeam::TeamTwo;
+        MatchState->FinishRoundServer(Winner);
+        if (!GetWorldTimerManager().IsTimerActive(RoundRestartTimerHandle))
+        {
+            GetWorldTimerManager().SetTimer(RoundRestartTimerHandle, this, &AOCGameMode::RestartPrototypeRound,
+                RoundEndDuration, false);
+        }
+    }
+}
+
+void AOCGameMode::RestartPrototypeRound()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    for (TActorIterator<AOCCapturePoint> It(GetWorld()); It; ++It) if (AOCCapturePoint* Point = *It) Point->ResetPointServer();
+    for (TActorIterator<AOCInteractableDoor> It(GetWorld()); It; ++It) if (AOCInteractableDoor* Door = *It) Door->ResetServer();
+    for (TActorIterator<AOCInteractableGate> It(GetWorld()); It; ++It) if (AOCInteractableGate* Gate = *It) Gate->ResetServer();
+    for (TActorIterator<AOCInteractableLight> It(GetWorld()); It; ++It) if (AOCInteractableLight* Light = *It) Light->ResetServer();
+    for (TActorIterator<AOCBreakableWindow> It(GetWorld()); It; ++It) if (AOCBreakableWindow* Window = *It) Window->ResetServer();
+    for (TActorIterator<AOCDestructibleProp> It(GetWorld()); It; ++It) if (AOCDestructibleProp* Prop = *It) Prop->ResetServer();
+
+    TArray<AActor*> TransientRoundActors;
+    for (TActorIterator<AOCSmokeCloud> It(GetWorld()); It; ++It) if (AOCSmokeCloud* Smoke = *It) TransientRoundActors.Add(Smoke);
+    for (TActorIterator<AOCDeployableTrap> It(GetWorld()); It; ++It) if (AOCDeployableTrap* Trap = *It) TransientRoundActors.Add(Trap);
+    for (AActor* Actor : TransientRoundActors) if (IsValid(Actor)) Actor->Destroy();
+
+    // Clear vehicle-seat ownership before pawns are destroyed/restarted.
+    for (TActorIterator<AOCArmedVehicleBase> It(GetWorld()); It; ++It) if (AOCArmedVehicleBase* Vehicle = *It) Vehicle->ForceExitGunnerServer();
+    for (TActorIterator<AOCVehicleBase> It(GetWorld()); It; ++It) if (AOCVehicleBase* Vehicle = *It) Vehicle->ForceExitDriverServer();
+
+    TArray<AOCVehicleBase*> RoundVehicles;
+    for (TActorIterator<AOCVehicleBase> It(GetWorld()); It; ++It) if (AOCVehicleBase* Vehicle = *It) RoundVehicles.Add(Vehicle);
+    for (AOCVehicleBase* Vehicle : RoundVehicles) if (IsValid(Vehicle)) Vehicle->Destroy();
+    for (TActorIterator<AOCVehicleSpawnPoint> It(GetWorld()); It; ++It) if (AOCVehicleSpawnPoint* SpawnPoint = *It) SpawnPoint->ResetForRoundServer();
+
+    if (AOCGameState* MatchState = GetGameState<AOCGameState>())
+    {
+        MatchState->InitializeRoundServer(StartingTickets);
+        for (APlayerState* RawState : MatchState->PlayerArray)
+        {
+            if (AOCPlayerState* State = Cast<AOCPlayerState>(RawState)) State->ResetRoundStatsServer();
+        }
+    }
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        APlayerController* PC = It->Get();
+        if (!PC)
+        {
+            continue;
+        }
+        if (APawn* ExistingPawn = PC->GetPawn())
+        {
+            if (AOCVehicleBase* Vehicle = Cast<AOCVehicleBase>(ExistingPawn))
+            {
+                Vehicle->ForceExitDriverServer();
+                ExistingPawn = PC->GetPawn();
+            }
+            if (ExistingPawn)
+            {
+                PC->UnPossess();
+                ExistingPawn->Destroy();
+            }
+        }
+        RestartPlayer(PC);
+    }
+
+    TArray<AOCAIController*> BotControllers;
+    for (TActorIterator<AOCAIController> It(GetWorld()); It; ++It)
+    {
+        if (AOCAIController* Bot = *It) BotControllers.Add(Bot);
+    }
+    for (AOCAIController* Bot : BotControllers)
+    {
+        RestartBotController(Bot);
+    }
+}
+
 
 FString AOCGameMode::MakeUniquePlayerName(const FString& RequestedName, const AOCPlayerState* IgnoreState) const
 {
@@ -405,5 +1219,258 @@ FString AOCGameMode::MakeFallbackPlayerName()
     return FString::Printf(TEXT("Player %02d"), FallbackPlayerNumber++);
 }
 
-// ---- Remaining existing gameplay functions are unchanged in this R13 content pass. ----
-// This file is intentionally not regenerated piecemeal. The original implementation continues below in source history.
+void AOCGameMode::SpawnOsterCenterSector()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    // R11: the release map is intentionally blank, so provide a source-owned daylight/atmosphere rig first.
+    GetWorld()->SpawnActor<AOCVisualEnvironment>(AOCVisualEnvironment::StaticClass(), FTransform::Identity, SpawnParams);
+
+    GetWorld()->SpawnActor<AOCWorldSectorOster>(AOCWorldSectorOster::StaticClass(), FTransform::Identity, SpawnParams);
+
+    // S08 first true enterable private-sector house. The lot is gameplay-authored and is not a copy of a specific residence.
+    if (AOCEnterableHouse* House = GetWorld()->SpawnActor<AOCEnterableHouse>(AOCEnterableHouse::StaticClass(),
+        AOCWorldSectorOster::KrushelnytskaEnterableHouseAnchor(),
+        FRotator(0.0f, AOCWorldSectorOster::KrushelnytskaEnterableHouseYaw(), 0.0f), SpawnParams))
+    {
+        House->ConfigureInteriorVariantServer(1408, EOCHouseCondition::Worn, 1);
+    }
+
+    const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
+    const FVector Stadium = AOCWorldSectorOster::StadiumAnchor();
+    const FVector Park = AOCWorldSectorOster::ParkAnchor();
+    const FVector College = AOCWorldSectorOster::CollegeAnchor();
+
+    // S15B ambient topology. These are client-local presentation zones; final Sound/MetaSound profiles are assigned in Content.
+    struct FAmbientZoneSeed { FVector Location; FVector Extent; float MinInterval; float MaxInterval; float Radius; };
+    const FAmbientZoneSeed AmbientSeeds[] =
+    {
+        { Museum, FVector(18000,15000,7000), 7.0f, 16.0f, 2100.0f },
+        { Park, FVector(26000,24000,7000), 4.0f, 11.0f, 2600.0f },
+        { College, FVector(17000,16000,7000), 8.0f, 18.0f, 2200.0f },
+        { AOCWorldSectorOster::KrushelnytskaEnterableHouseAnchor(), FVector(24000,30000,6500), 5.0f, 14.0f, 2400.0f }
+    };
+    for (const FAmbientZoneSeed& Seed : AmbientSeeds)
+    {
+        if (AOCAmbientAudioZone* Zone = GetWorld()->SpawnActor<AOCAmbientAudioZone>(AOCAmbientAudioZone::StaticClass(), Seed.Location, FRotator::ZeroRotator, SpawnParams))
+        {
+            Zone->ConfigureRuntime(Seed.Extent, Seed.MinInterval, Seed.MaxInterval, Seed.Radius);
+        }
+    }
+
+    // A small S07 firing lane remains near the southern edge for regression testing of S01-S05 combat.
+    const FVector TargetLocations[] =
+    {
+        FVector(43000.0f, -43000.0f, 180.0f), FVector(45500.0f, -43000.0f, 180.0f),
+        FVector(48000.0f, -43000.0f, 180.0f), FVector(50500.0f, -43000.0f, 180.0f),
+        FVector(53000.0f, -43000.0f, 180.0f)
+    };
+    for (const FVector& Location : TargetLocations)
+    {
+        GetWorld()->SpawnActor<AOCDamageTarget>(AOCDamageTarget::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
+    }
+
+    // S14B source-only destruction lane: wood/metal/masonry props react to bullets and explosions.
+    struct FDestructibleSeed { EOCImpactSurface Surface; FVector Location; FVector Scale; float Durability; };
+    const FDestructibleSeed DestructionSeeds[] =
+    {
+        { EOCImpactSurface::Wood, FVector(43000.0f, -40500.0f, 80.0f), FVector(1.6f,0.22f,1.1f), 65.0f },
+        { EOCImpactSurface::Metal, FVector(45500.0f, -40500.0f, 80.0f), FVector(1.2f,0.18f,1.2f), 160.0f },
+        { EOCImpactSurface::Masonry, FVector(48000.0f, -40500.0f, 90.0f), FVector(1.8f,0.28f,1.4f), 220.0f }
+    };
+    for (const FDestructibleSeed& Seed : DestructionSeeds)
+    {
+        if (AOCDestructibleProp* Prop = GetWorld()->SpawnActor<AOCDestructibleProp>(
+            AOCDestructibleProp::StaticClass(), Seed.Location, FRotator::ZeroRotator, SpawnParams))
+        {
+            Prop->ConfigureRuntime(Seed.Surface, Seed.Durability, Seed.Scale);
+        }
+    }
+
+    struct FPickupSeed { TSubclassOf<AOCWeaponBase> Class; FVector Location; };
+    const FPickupSeed WeaponSeeds[] =
+    {
+        { AOCWeapon_AssaultRifle::StaticClass(), Museum + FVector(-4200.0f, -5200.0f, 80.0f) },
+        { AOCWeapon_SMG::StaticClass(), Stadium + FVector(0.0f, -6500.0f, 80.0f) },
+        { AOCWeapon_Sniper::StaticClass(), Park + FVector(6500.0f, 5000.0f, 80.0f) },
+        { AOCWeapon_Shotgun::StaticClass(), College + FVector(4800.0f, -2600.0f, 80.0f) },
+        { AOCWeapon_LMG::StaticClass(), College + FVector(-5000.0f, 5200.0f, 80.0f) },
+        { AOCWeapon_Pistol::StaticClass(), Museum + FVector(3500.0f, 4200.0f, 80.0f) }
+    };
+
+    int32 WeaponIndex = 0;
+    for (const FPickupSeed& Seed : WeaponSeeds)
+    {
+        AOCWeaponBase* Weapon = GetWorld()->SpawnActor<AOCWeaponBase>(Seed.Class, Seed.Location, FRotator::ZeroRotator, SpawnParams);
+        if (Weapon)
+        {
+            Weapon->DropToWorldServer(Seed.Location, FRotator::ZeroRotator);
+            if (WeaponIndex == 0)
+            {
+                Weapon->InstallAttachmentServer(EOCAttachmentSlot::Optic, FName(TEXT("RedDot")));
+                Weapon->InstallAttachmentServer(EOCAttachmentSlot::Underbarrel, FName(TEXT("VerticalGrip")));
+            }
+            else if (WeaponIndex == 1)
+            {
+                Weapon->InstallAttachmentServer(EOCAttachmentSlot::Muzzle, FName(TEXT("Suppressor")));
+            }
+            else if (WeaponIndex == 4)
+            {
+                Weapon->InstallAttachmentServer(EOCAttachmentSlot::Magazine, FName(TEXT("ExtendedMag")));
+            }
+        }
+        ++WeaponIndex;
+    }
+
+    const FVector AmmoLocations[] =
+    {
+        Museum + FVector(-3000.0f, -4500.0f, 60.0f),
+        Park + FVector(0.0f, -4500.0f, 60.0f),
+        College + FVector(3600.0f, 4300.0f, 60.0f)
+    };
+    for (const FVector& Location : AmmoLocations)
+    {
+        GetWorld()->SpawnActor<AOCAmmoBox>(AOCAmmoBox::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
+    }
+
+    // S07 objective layout uses the real-city-inspired sectors instead of the old 80 m test arena.
+    struct FObjectiveSeed { const TCHAR* Id; FVector Location; float Radius; float CaptureSeconds; };
+    const FObjectiveSeed ObjectiveSeeds[] =
+    {
+        { TEXT("A"), (Museum + Stadium) * 0.5f + FVector(0.0f, 0.0f, 20.0f), 1100.0f, 14.0f },
+        { TEXT("B"), Park + FVector(0.0f, 0.0f, 20.0f), 1250.0f, 15.0f },
+        { TEXT("C"), College + FVector(0.0f, 2400.0f, 20.0f), 1100.0f, 14.0f }
+    };
+    for (const FObjectiveSeed& Seed : ObjectiveSeeds)
+    {
+        AOCCapturePoint* Point = GetWorld()->SpawnActor<AOCCapturePoint>(AOCCapturePoint::StaticClass(), Seed.Location,
+            FRotator::ZeroRotator, SpawnParams);
+        if (Point)
+        {
+            Point->ConfigureServer(FName(Seed.Id), Seed.Radius, Seed.CaptureSeconds);
+        }
+    }
+
+    struct FSpawnSeed { EOCTeam Team; FVector Location; float Yaw; bool bBase; const TCHAR* LinkedPoint; };
+    const FSpawnSeed SpawnSeeds[] =
+    {
+        // S16A: opposing base zones near the south-west / north-east edges of the expanded 2.4 x 2.4 km reference layout.
+        { EOCTeam::TeamOne, FVector(-106000.0f, -90000.0f, 40.0f), 35.0f, true, TEXT("") },
+        { EOCTeam::TeamOne, FVector(-102500.0f, -94000.0f, 40.0f), 35.0f, true, TEXT("") },
+        { EOCTeam::TeamTwo, FVector(106000.0f, 90000.0f, 40.0f), 215.0f, true, TEXT("") },
+        { EOCTeam::TeamTwo, FVector(102500.0f, 94000.0f, 40.0f), 215.0f, true, TEXT("") },
+
+        // Forward spawn candidates are intentionally outside the capture radius and require point ownership.
+        { EOCTeam::TeamOne, Museum + FVector(-7500.0f, -1500.0f, 40.0f), 15.0f, false, TEXT("A") },
+        { EOCTeam::TeamTwo, Stadium + FVector(7600.0f, 2000.0f, 40.0f), 195.0f, false, TEXT("A") },
+        { EOCTeam::TeamOne, Park + FVector(-8500.0f, -5200.0f, 40.0f), 20.0f, false, TEXT("B") },
+        { EOCTeam::TeamTwo, Park + FVector(8500.0f, 5200.0f, 40.0f), 200.0f, false, TEXT("B") },
+        { EOCTeam::TeamOne, College + FVector(-7500.0f, -5000.0f, 40.0f), 10.0f, false, TEXT("C") },
+        { EOCTeam::TeamTwo, College + FVector(7600.0f, 5500.0f, 40.0f), 190.0f, false, TEXT("C") }
+    };
+    for (const FSpawnSeed& Seed : SpawnSeeds)
+    {
+        AOCTeamSpawnPoint* Point = GetWorld()->SpawnActor<AOCTeamSpawnPoint>(AOCTeamSpawnPoint::StaticClass(), Seed.Location,
+            FRotator(0.0f, Seed.Yaw, 0.0f), SpawnParams);
+        if (Point)
+        {
+            Point->ConfigureServer(Seed.Team, Seed.bBase, Seed.bBase ? NAME_None : FName(Seed.LinkedPoint));
+        }
+    }
+}
+
+
+void AOCGameMode::SpawnCivilianVehicleFleet()
+{
+    if (!HasAuthority() || !GetWorld())
+    {
+        return;
+    }
+
+    struct FVehicleSeed
+    {
+        FVector Location;
+        float Yaw;
+        EOCCivilianVehicleStyle Style;
+        float RespawnDelay;
+    };
+
+    // S10 distributed civilian mobility. Positions sit on the existing central road graph and deliberately avoid
+    // spawning every vehicle at the two team bases. This provides several recoverable transport options per round.
+    const FVehicleSeed Seeds[] =
+    {
+        { FVector(-47000.0f,  9000.0f, 145.0f),   0.0f, EOCCivilianVehicleStyle::Wagon,     34.0f },
+        { FVector(-25500.0f, 17000.0f, 145.0f), 180.0f, EOCCivilianVehicleStyle::Sedan,     34.0f },
+        { FVector(-33500.0f, 36000.0f, 145.0f),  92.0f, EOCCivilianVehicleStyle::Hatchback, 30.0f },
+        { FVector( -2500.0f, 47000.0f, 145.0f),  84.0f, EOCCivilianVehicleStyle::Wagon,     36.0f },
+        { FVector( 11000.0f, -9000.0f, 145.0f),   0.0f, EOCCivilianVehicleStyle::Sedan,     32.0f },
+        { FVector( 33000.0f, -9000.0f, 145.0f), 180.0f, EOCCivilianVehicleStyle::Hatchback, 32.0f },
+        { FVector(-58500.0f, 67500.0f, 145.0f),   0.0f, EOCCivilianVehicleStyle::Wagon,     38.0f },
+        { FVector(-26000.0f,  9200.0f, 145.0f), 180.0f, EOCCivilianVehicleStyle::Sedan,     34.0f }
+    };
+
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    for (const FVehicleSeed& Seed : Seeds)
+    {
+        AOCVehicleSpawnPoint* SpawnPoint = GetWorld()->SpawnActor<AOCVehicleSpawnPoint>(
+            AOCVehicleSpawnPoint::StaticClass(), Seed.Location, FRotator(0.0f, Seed.Yaw, 0.0f), Params);
+        if (SpawnPoint)
+        {
+            SpawnPoint->ConfigureRuntime(Seed.Style, Seed.RespawnDelay);
+        }
+    }
+}
+
+
+void AOCGameMode::SpawnCombatVehicleFleet()
+{
+    if (!HasAuthority() || !GetWorld())
+    {
+        return;
+    }
+
+    struct FCombatSeed
+    {
+        bool bBTR;
+        FVector Location;
+        float Yaw;
+        float RespawnDelay;
+    };
+
+    // S11 prototype distribution: each side gets access to one gun truck and one BTR-class vehicle.
+    const FCombatSeed Seeds[] =
+    {
+        { false, FVector(-69000.0f, -61000.0f, 180.0f),  35.0f, 52.0f },
+        { true,  FVector(-73500.0f, -66000.0f, 190.0f),  32.0f, 78.0f },
+        { false, FVector( 69000.0f,  61000.0f, 180.0f), 215.0f, 52.0f },
+        { true,  FVector( 73500.0f,  66000.0f, 180.0f), 200.0f, 78.0f }
+    };
+
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    for (const FCombatSeed& Seed : Seeds)
+    {
+        AOCVehicleSpawnPoint* SpawnPoint = nullptr;
+        if (Seed.bBTR)
+        {
+            SpawnPoint = GetWorld()->SpawnActor<AOCBTRSpawnPoint>(AOCBTRSpawnPoint::StaticClass(),
+                Seed.Location, FRotator(0.0f, Seed.Yaw, 0.0f), Params);
+        }
+        else
+        {
+            SpawnPoint = GetWorld()->SpawnActor<AOCPickupGunTruckSpawnPoint>(AOCPickupGunTruckSpawnPoint::StaticClass(),
+                Seed.Location, FRotator(0.0f, Seed.Yaw, 0.0f), Params);
+        }
+        if (SpawnPoint)
+        {
+            SpawnPoint->ConfigureRespawnDelayRuntime(Seed.RespawnDelay);
+        }
+    }
+}
