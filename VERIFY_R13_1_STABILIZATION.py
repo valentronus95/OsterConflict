@@ -72,12 +72,26 @@ ui_required = [
     "Slot->SetPosition(FVector2D(90.0f, 60.0f))",
     "Slot->SetSize(FVector2D(470.0f, 780.0f))",
     "RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13UIViewportStabilizerSubsystem",
+    "GEngine->GameViewport->bDisableWorldRendering = bSuppress",
+    "SetWorldRenderingSuppressed(bStartupMenuVisible)",
+    "SetWorldRenderingSuppressed(false)",
+    "Super::Deinitialize()",
 ]
 for token in ui_required:
     if token not in text["ui_cpp"]:
         fail(f"UI viewport stabilization guard missing: {token}")
 if '#include "Components/SlateWrapperTypes.h"' not in text["ui_h"]:
     fail("UI stabilizer must include ESlateVisibility definition explicitly")
+for token in ["virtual void Deinitialize() override", "bool bWorldRenderingSuppressed = false", "SetWorldRenderingSuppressed(bool bSuppress)"]:
+    if token not in text["ui_h"]:
+        fail(f"UI world-render lifecycle declaration missing: {token}")
+
+# Suppression must be reversed before the subsystem/world disappears. GameViewportClient survives world travel.
+deinit_pos = text["ui_cpp"].find("void UOCR13UIViewportStabilizerSubsystem::Deinitialize()")
+restore_pos = text["ui_cpp"].find("SetWorldRenderingSuppressed(false)", deinit_pos)
+super_pos = text["ui_cpp"].find("Super::Deinitialize()", deinit_pos)
+if deinit_pos < 0 or restore_pos < 0 or super_pos < 0 or not (deinit_pos < restore_pos < super_pos):
+    fail("world rendering must be restored before UWorldSubsystem deinitialization completes")
 
 bot_required = [
     "const int32 LaneIndex = static_cast<int32>(StableHash % 7u) - 3",
@@ -117,4 +131,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, UI isolation/deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, hard startup world-render suppression, deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
