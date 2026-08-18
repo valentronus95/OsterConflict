@@ -1,6 +1,7 @@
 #include "OCR13WeaponArtSubsystem.h"
 
 #include "OCWeaponBase.h"
+#include "OCWeaponVariants.h"
 #include "CollisionQueryParams.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -9,9 +10,28 @@
 
 namespace
 {
-    const TCHAR* MeshPathForClass(EOCWeaponClass WeaponClass)
+    const TCHAR* MeshPathForWeapon(const AOCWeaponBase* Weapon)
     {
-        switch (WeaponClass)
+        if (!Weapon) return nullptr;
+
+        if (Weapon->IsA(AOCWeapon_M14::StaticClass()))
+        {
+            return TEXT("/Game/R13/Weapons/Stein/M14/SKM_M14.SKM_M14");
+        }
+        if (Weapon->IsA(AOCWeapon_LeverAction::StaticClass()))
+        {
+            return TEXT("/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction.SKM_LeverAction");
+        }
+        if (Weapon->IsA(AOCWeapon_MAC10::StaticClass()))
+        {
+            return TEXT("/Game/R13/Weapons/Stein/Mac10/SKM_Mac10.SKM_Mac10");
+        }
+        if (Weapon->IsA(AOCWeapon_Tec9::StaticClass()))
+        {
+            return TEXT("/Game/R13/Weapons/Stein/Tec9/SKM_Tec9.SKM_Tec9");
+        }
+
+        switch (Weapon->GetWeaponClass())
         {
             case EOCWeaponClass::Pistol:
                 return TEXT("/Game/R13/Weapons/Stein/1911/SKM_1911.SKM_1911");
@@ -61,24 +81,23 @@ namespace
 
         MainMesh->SetRelativeLocation(FVector::ZeroVector);
 
+        if (IsSteinMesh(MainMesh))
+        {
+            // Stein FBX meshes are imported through UE's static-mesh FBX pipeline in project units. Keep authored
+            // scale/orientation for equipped use; dropped copies are rolled onto their side.
+            MainMesh->SetRelativeRotation(bWorldPickup
+                ? FRotator(0.0f, 0.0f, 90.0f)
+                : FRotator::ZeroRotator);
+            MainMesh->SetRelativeScale3D(FVector(1.0f));
+            return;
+        }
+
         if (WeaponClass == EOCWeaponClass::AssaultRifle)
         {
             // The Fab AK long axis is Y while the project weapon attach convention is X-forward.
             MainMesh->SetRelativeRotation(bWorldPickup
                 ? FRotator(0.0f, -90.0f, 90.0f)
                 : FRotator(0.0f, -90.0f, 0.0f));
-            MainMesh->SetRelativeScale3D(FVector(1.0f));
-            return;
-        }
-
-        if (IsSteinMesh(MainMesh))
-        {
-            // Stein FBX meshes are imported through UE's static-mesh FBX pipeline in project units. Do not apply
-            // the old metre-scale Kenney x72/x100 compensation which was responsible for the distorted pistol.
-            // Keep authored orientation for first-person calibration; dropped copies are rolled onto their side.
-            MainMesh->SetRelativeRotation(bWorldPickup
-                ? FRotator(0.0f, 0.0f, 90.0f)
-                : FRotator::ZeroRotator);
             MainMesh->SetRelativeScale3D(FVector(1.0f));
             return;
         }
@@ -127,7 +146,8 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
     if (!Weapon) return;
 
     const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
-    UStaticMesh* ImportedMesh = LoadObject<UStaticMesh>(nullptr, MeshPathForClass(WeaponClass));
+    const TCHAR* MeshPath = MeshPathForWeapon(Weapon);
+    UStaticMesh* ImportedMesh = MeshPath ? LoadObject<UStaticMesh>(nullptr, MeshPath) : nullptr;
     if (!ImportedMesh)
     {
         // Do not mark it processed: hot-imported content can still be picked up on a later scan.
