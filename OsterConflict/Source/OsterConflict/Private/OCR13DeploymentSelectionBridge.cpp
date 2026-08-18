@@ -57,9 +57,10 @@ bool AOCGameMode::RequestRoleChange(AOCPlayerState* State, const EOCPlayerRole R
 {
     if (!HasAuthority() || !State || State->IsLobbyReady()) return false;
     if (State->GetTeamId() == EOCTeam::None || State->GetSquadId() < 0) return false;
-    if (State->GetPlayerRole() == RequestedRole) return true;
 
     // Riflemen are the flexible/default slot. Specialist roles are unique inside a four-person squad.
+    // Do not short-circuit just because a legacy pre-deployment default already equals RequestedRole:
+    // the newly selected squad may already contain that specialist.
     if (RequestedRole != EOCPlayerRole::Rifleman)
     {
         if (const AOCGameState* GameState = GetGameState<AOCGameState>())
