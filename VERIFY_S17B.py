@@ -9,6 +9,7 @@ required=[
  'Source/OsterConflict/Private/OCGameUIRootWidget.cpp',
  'Source/OsterConflict/Public/OCPlayerController.h',
  'Source/OsterConflict/Private/OCPlayerController.cpp',
+ 'Source/OsterConflict/Private/OCR13DeploymentSelectionBridge.cpp',
  'Source/OsterConflict/Public/OCCharacter.h',
  'Source/OsterConflict/Private/OCCharacter.cpp',
  'Source/OsterConflict/Private/OCHUD.cpp',
@@ -46,9 +47,12 @@ for rel in ['Source/OsterConflict/Public/OCPlayerUserSettings.h','Source/OsterCo
     inc=[x.strip() for x in lines if x.strip().startswith('#include')]
     if not inc or 'generated.h' not in inc[-1]: raise SystemExit(f'generated.h order: {rel}')
 
-# server RPC declarations still have implementations
+# server RPC declarations may be split across focused controller implementation translation units
 h=(P/'Source/OsterConflict/Public/OCPlayerController.h').read_text(errors='ignore')
-cpp=(P/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text(errors='ignore')
+cpp='\n'.join([
+    (P/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text(errors='ignore'),
+    (P/'Source/OsterConflict/Private/OCR13DeploymentSelectionBridge.cpp').read_text(errors='ignore'),
+])
 rpcs=re.findall(r'UFUNCTION\(Server, Reliable\)\s+void\s+(\w+)\s*\(',h)
 for rpc in rpcs:
     if f'{rpc}_Implementation' not in cpp: raise SystemExit(f'RPC implementation missing: {rpc}')
