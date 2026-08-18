@@ -47,6 +47,13 @@ namespace
         Component->AddInstance(FTransform(FRotator::ZeroRotator, Center, SizeCm / 100.0f), true);
     }
 
+    void AddRotatedBox(UInstancedStaticMeshComponent* Component, const FVector& Center,
+        const FVector& SizeCm, const FRotator& Rotation)
+    {
+        if (!Component) return;
+        Component->AddInstance(FTransform(Rotation, Center, SizeCm / 100.0f), true);
+    }
+
     void AddGroundedTree(UInstancedStaticMeshComponent* Component, UStaticMesh* Mesh,
         const FVector& XYLocation, const float DesiredHeightCm, const float Yaw)
     {
@@ -107,6 +114,8 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
     UStaticMesh* Pine05 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_05.SM_Pine_Tree_05"));
+    UMaterialInterface* GlassMaterial = LoadObject<UMaterialInterface>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Glass_Window.Glass_Window"));
 
     AActor* ArtRoot = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!ArtRoot) return;
@@ -150,6 +159,8 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
         TEXT("R13_MuseumGreyDoors"), false, true);
     UInstancedStaticMeshComponent* Path = MakeISM(ArtRoot, Root, CubeMesh, PathMaterial,
         TEXT("R13_MuseumApproachPath"), false, false);
+    UInstancedStaticMeshComponent* Glass = MakeISM(ArtRoot, Root, CubeMesh, GlassMaterial,
+        TEXT("R13_MuseumSideGlazing"), false, false);
 
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
 
@@ -168,6 +179,14 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
     AddBox(UpperCladding, Museum + FVector(-728.0f, 80.0f, 720.0f), FVector(18.0f, 1260.0f, 410.0f));
     AddBox(UpperCladding, Museum + FVector(828.0f, 80.0f, 720.0f), FVector(18.0f, 1260.0f, 410.0f));
 
+    // Pale gable outline over the raised blue-grey volume. Two sloped beams keep the triangular pediment visible
+    // without covering the existing roof bridge or inventing a solid modern facade.
+    AddRotatedBox(Trim, Museum + FVector(-315.0f, -580.0f, 962.0f), FVector(720.0f, 20.0f, 28.0f),
+        FRotator(0.0f, 0.0f, -28.0f));
+    AddRotatedBox(Trim, Museum + FVector(415.0f, -580.0f, 962.0f), FVector(720.0f, 20.0f, 28.0f),
+        FRotator(0.0f, 0.0f, 28.0f));
+    AddBox(Trim, Museum + FVector(50.0f, -581.0f, 792.0f), FVector(1260.0f, 20.0f, 24.0f));
+
     // Grey double entrance door and pale surround on the front porch/bay.
     AddBox(Doors, Museum + FVector(1092.0f, -1438.0f, 265.0f), FVector(166.0f, 16.0f, 410.0f));
     AddBox(Doors, Museum + FVector(1268.0f, -1438.0f, 265.0f), FVector(166.0f, 16.0f, 410.0f));
@@ -175,9 +194,30 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
     AddBox(Trim, Museum + FVector(1365.0f, -1448.0f, 265.0f), FVector(28.0f, 18.0f, 450.0f));
     AddBox(Trim, Museum + FVector(1180.0f, -1448.0f, 485.0f), FVector(398.0f, 18.0f, 28.0f));
 
+    // Three shallow entrance steps and a compact landing reproduce the photographed raised entrance. Visual-only
+    // for this batch so they cannot introduce a new collision snag before the eventual consolidated gameplay test.
+    AddBox(Path, Museum + FVector(1180.0f, -1700.0f, 9.0f), FVector(720.0f, 210.0f, 18.0f));
+    AddBox(Path, Museum + FVector(1180.0f, -1600.0f, 21.0f), FVector(650.0f, 170.0f, 42.0f));
+    AddBox(Path, Museum + FVector(1180.0f, -1518.0f, 36.0f), FVector(580.0f, 120.0f, 72.0f));
+    AddBox(Path, Museum + FVector(1180.0f, -1460.0f, 54.0f), FVector(520.0f, 120.0f, 108.0f));
+
     // Broad concrete/slab pedestrian approach visible through the mature trees in the reference set.
     AddBox(Path, Museum + FVector(1180.0f, -4550.0f, 3.0f), FVector(340.0f, 5900.0f, 6.0f));
-    AddBox(Path, Museum + FVector(1180.0f, -1610.0f, 4.0f), FVector(900.0f, 520.0f, 8.0f));
+    AddBox(Path, Museum + FVector(1180.0f, -1830.0f, 4.0f), FVector(900.0f, 350.0f, 8.0f));
+
+    // Side porch/glazed volume visible in oblique reference angles. Thin pale mullions surround actual bundled
+    // Glass_Window material. It remains a restrained attachment instead of turning the historic facade into a greenhouse.
+    const float GlassX = -2725.0f;
+    const float GlassY = 280.0f;
+    AddBox(Trim, Museum + FVector(GlassX, GlassY - 540.0f, 250.0f), FVector(28.0f, 28.0f, 500.0f));
+    AddBox(Trim, Museum + FVector(GlassX, GlassY + 540.0f, 250.0f), FVector(28.0f, 28.0f, 500.0f));
+    AddBox(Trim, Museum + FVector(GlassX, GlassY, 492.0f), FVector(28.0f, 1108.0f, 28.0f));
+    AddBox(Trim, Museum + FVector(GlassX, GlassY, 20.0f), FVector(28.0f, 1108.0f, 40.0f));
+    AddBox(Trim, Museum + FVector(GlassX, GlassY - 180.0f, 250.0f), FVector(32.0f, 24.0f, 470.0f));
+    AddBox(Trim, Museum + FVector(GlassX, GlassY + 180.0f, 250.0f), FVector(32.0f, 24.0f, 470.0f));
+    AddBox(Glass, Museum + FVector(GlassX + 2.0f, GlassY - 360.0f, 255.0f), FVector(12.0f, 330.0f, 420.0f));
+    AddBox(Glass, Museum + FVector(GlassX + 2.0f, GlassY, 255.0f), FVector(12.0f, 330.0f, 420.0f));
+    AddBox(Glass, Museum + FVector(GlassX + 2.0f, GlassY + 360.0f, 255.0f), FVector(12.0f, 330.0f, 420.0f));
 
     // Actual bundled pine meshes, not primitive tree proxies. These are visual-only because the source-authored
     // museum garden already provides gameplay collision; the extra reference trees must not create surprise blockers.
@@ -217,6 +257,6 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 museum reference: photo-driven plinth/cornice/upper cladding/entrance/path applied; bundled mature pines=%d."),
+        TEXT("R13.4 museum reference: photo-driven plinth/cornice/upper gable/entrance steps/side glazing/path applied; bundled mature pines=%d."),
         PineCount);
 }
