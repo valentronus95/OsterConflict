@@ -26,6 +26,15 @@ namespace
         return nullptr;
     }
 
+    UInstancedStaticMeshComponent* FindISMInWorld(UWorld& World, const FName Name)
+    {
+        for (TActorIterator<AActor> It(&World); It; ++It)
+        {
+            if (UInstancedStaticMeshComponent* Component = FindISM(*It, Name)) return Component;
+        }
+        return nullptr;
+    }
+
     UInstancedStaticMeshComponent* MakeISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh, const FName Name)
     {
         if (!Owner || !Root || !Mesh) return nullptr;
@@ -124,6 +133,40 @@ namespace
         return Added;
     }
 
+    int32 AddVerticalPropReplacements(UInstancedStaticMeshComponent* Proxy,
+        UInstancedStaticMeshComponent* Target)
+    {
+        if (!Proxy || !Target || !Target->GetStaticMesh()) return 0;
+
+        UStaticMesh* SourceMesh = Proxy->GetStaticMesh();
+        UStaticMesh* TargetMesh = Target->GetStaticMesh();
+        const FBoxSphereBounds TargetBounds = TargetMesh->GetBounds();
+        const float TargetHeight = FMath::Max(1.0f, TargetBounds.BoxExtent.Z * 2.0f);
+        const float SourceBaseHeight = SourceMesh
+            ? FMath::Max(1.0f, SourceMesh->GetBounds().BoxExtent.Z * 2.0f)
+            : TargetHeight;
+
+        int32 Added = 0;
+        for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
+        {
+            FTransform ProxyTransform;
+            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
+
+            const float DesiredHeight = SourceBaseHeight * FMath::Max(0.01f, FMath::Abs(ProxyTransform.GetScale3D().Z));
+            const float UniformScale = FMath::Clamp(DesiredHeight / TargetHeight, 0.60f, 1.80f);
+            const FVector Scale(UniformScale);
+            const FRotator Rotation(0.0f, ProxyTransform.Rotator().Yaw, 0.0f);
+
+            FVector Location = ProxyTransform.GetLocation();
+            const float TargetBottom = TargetBounds.Origin.Z - TargetBounds.BoxExtent.Z;
+            Location.Z -= TargetBottom * UniformScale;
+
+            Target->AddInstance(FTransform(Rotation, Location, Scale), true);
+            ++Added;
+        }
+        return Added;
+    }
+
     void HideProxyIfReplaced(UInstancedStaticMeshComponent* Proxy, const int32 Added)
     {
         if (!Proxy || Added <= 0) return;
@@ -165,9 +208,11 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
 
     UInstancedStaticMeshComponent* WoodProxy = FindISM(WorldSector, TEXT("WoodFences"));
     UInstancedStaticMeshComponent* LightSheetProxy = FindISM(WorldSector, TEXT("LightSheetFences"));
+    UInstancedStaticMeshComponent* StreetLightProxy = FindISMInWorld(World, TEXT("R12_StreetLights"));
     const bool bHasWoodProxy = WoodProxy && WoodProxy->GetInstanceCount() > 0;
     const bool bHasLightSheetProxy = LightSheetProxy && LightSheetProxy->GetInstanceCount() > 0;
-    if (!bHasWoodProxy && !bHasLightSheetProxy) return;
+    const bool bHasStreetLightProxy = StreetLightProxy && StreetLightProxy->GetInstanceCount() > 0;
+    if (!bHasWoodProxy && !bHasLightSheetProxy && !bHasStreetLightProxy) return;
 
     UStaticMesh* Fence01 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"));
@@ -183,14 +228,17 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     UStaticMesh* Sheet03 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_03/SM_Urb_Roa_Sheet_Metal_Rusty_03.SM_Urb_Roa_Sheet_Metal_Rusty_03"));
 
+    UStaticMesh* PowerPoleLight = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_Light.Power_Pole_Light"));
+
     if (!IsUsableVerticalFencePanel(Sheet01)) Sheet01 = nullptr;
     if (!IsUsableVerticalFencePanel(Sheet02)) Sheet02 = nullptr;
     if (!IsUsableVerticalFencePanel(Sheet03)) Sheet03 = nullptr;
 
-    if (!Fence01 && !Fence02 && !Fence03 && !Sheet01 && !Sheet02 && !Sheet03)
+    if (!Fence01 && !Fence02 && !Fence03 && !Sheet01 && !Sheet02 && !Sheet03 && !PowerPoleLight)
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("R13 Oster props: bundled fence meshes unavailable or unsuitable; preserving fence proxies."));
+            TEXT("R13 Oster props: bundled prop meshes unavailable or unsuitable; preserving source proxies."));
         return;
     }
 
@@ -214,12 +262,17 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Sheet02, TEXT("R13_LightSheetFence02"))) LightSheetFamilies.Add(Family);
     if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Sheet03, TEXT("R13_LightSheetFence03"))) LightSheetFamilies.Add(Family);
 
+    UInstancedStaticMeshComponent* PowerPoleLightISM =
+        MakeISM(ArtRoot, Root, PowerPoleLight, TEXT("R13_KrushelnytskaPowerPoleLights"));
+
     const int32 WoodAdded = AddFenceModules(WoodProxy, FenceFamilies);
     const int32 LightSheetAdded = AddFenceModules(LightSheetProxy, LightSheetFamilies);
+    const int32 PowerPoleLightAdded = AddVerticalPropReplacements(StreetLightProxy, PowerPoleLightISM);
     HideProxyIfReplaced(WoodProxy, WoodAdded);
     HideProxyIfReplaced(LightSheetProxy, LightSheetAdded);
+    HideProxyIfReplaced(StreetLightProxy, PowerPoleLightAdded);
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 Oster props: wood fence modules=%d, light-sheet fence modules=%d; proxies hidden only after successful replacement."),
-        WoodAdded, LightSheetAdded);
+        TEXT("R13 Oster props: wood fence modules=%d, light-sheet fence modules=%d, Krushelnytska power-pole lights=%d; proxies hidden only after successful replacement."),
+        WoodAdded, LightSheetAdded, PowerPoleLightAdded);
 }
