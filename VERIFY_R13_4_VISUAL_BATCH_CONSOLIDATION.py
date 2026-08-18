@@ -13,8 +13,10 @@ FILES = {
     "ground": SRC / "Private" / "OCR13GroundSurfaceSubsystem.cpp",
     "yard_h": SRC / "Public" / "OCR13ResidentialYardSubsystem.h",
     "yard": SRC / "Private" / "OCR13ResidentialYardSubsystem.cpp",
-    "poles_h": SRC / "Public" / "OCR13UtilityPoleSubsystem.h",
-    "poles": SRC / "Private" / "OCR13UtilityPoleSubsystem.cpp",
+    "roadside": SRC / "Private" / "OCR13RoadsideInfrastructureSubsystem.cpp",
+    "civic_h": SRC / "Public" / "OCR13CivicLandscapingSubsystem.h",
+    "civic": SRC / "Private" / "OCR13CivicLandscapingSubsystem.cpp",
+    "site": SRC / "Private" / "OCR13LandmarkSiteDressingSubsystem.cpp",
     "enter_h": SRC / "Public" / "OCR13EnterableHouseArtSubsystem.h",
     "enter": SRC / "Private" / "OCR13EnterableHouseArtSubsystem.cpp",
     "krush": SRC / "Private" / "OCKrushelnytskaVisualSliceSubsystem.cpp",
@@ -31,13 +33,11 @@ for name, path in FILES.items():
 
 texts = {name: path.read_text(encoding="utf-8", errors="replace") for name, path in FILES.items()}
 
-# All new UHT headers must preserve generated.h as the final include.
-for name in ("museum_h", "ground_h", "yard_h", "poles_h", "enter_h"):
+for name in ("museum_h", "ground_h", "yard_h", "civic_h", "enter_h"):
     includes = [line.strip() for line in texts[name].splitlines() if line.strip().startswith("#include")]
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h is not the last include in {FILES[name].name}")
 
-# Whole-city base art owns structures/primary trees only. EnvironmentDressing owns dense grass.
 whole = texts["whole"]
 for token in [
     "adaptive grass delegated to EnvironmentDressing",
@@ -53,7 +53,6 @@ for token in [
 ]:
     if token not in whole:
         fail(f"WholeOster ownership/species marker missing: {token}")
-
 for forbidden in [
     "AddGrassReplacements(",
     "SM_House_Var01_Extra03.SM_House_Var01_Extra03",
@@ -61,9 +60,8 @@ for forbidden in [
     "SM_House_Var01_Extra07.SM_House_Var01_Extra07",
 ]:
     if forbidden in whole:
-        fail(f"WholeOster still duplicates delegated dressing responsibility: {forbidden}")
+        fail(f"WholeOster duplicates delegated dressing responsibility: {forbidden}")
 
-# Existing richer environment owner must still provide adaptive PN grass, exclusions and companion house dressing.
 environment = texts["environment"]
 for token in [
     "MownSpacingCm = 450.0f",
@@ -78,7 +76,6 @@ for token in [
     if token not in environment:
         fail(f"EnvironmentDressing ownership marker missing: {token}")
 
-# FoliageDiversity remains the only companion shrub/reed owner. The temporary duplicate subsystem must be gone.
 foliage = texts["foliage"]
 for token in [
     "Shrubs_1.Shrubs_1",
@@ -92,7 +89,6 @@ for token in [
 ]:
     if token not in foliage:
         fail(f"FoliageDiversity ownership marker missing: {token}")
-
 for duplicate in [
     SRC / "Public" / "OCR13FoliageDetailSubsystem.h",
     SRC / "Private" / "OCR13FoliageDetailSubsystem.cpp",
@@ -100,7 +96,6 @@ for duplicate in [
     if duplicate.exists():
         fail(f"duplicate foliage owner still exists: {duplicate.relative_to(ROOT)}")
 
-# Museum must preserve photo-driven identity beyond the generic landmark bridges.
 museum = texts["museum"]
 for token in [
     "R13_MuseumDarkPlinth",
@@ -108,20 +103,29 @@ for token in [
     "R13_MuseumBlueGreyUpper",
     "R13_MuseumPaleTrim",
     "R13_MuseumGreyDoors",
-    "R13_MuseumApproachPath",
+    "R13_MuseumEntranceSteps",
     "R13_MuseumSideGlazing",
     "Glass_Window.Glass_Window",
-    "Pale gable outline",
-    "Three shallow entrance steps",
-    "Side porch/glazed volume",
+    "LandmarkSiteDressing remains the owner",
     "SM_Pine_Tree_01.SM_Pine_Tree_01",
     "SM_Pine_Tree_03.SM_Pine_Tree_03",
     "SM_Pine_Tree_05.SM_Pine_Tree_05",
+    "GameMode->IsFrontendOnlySession()",
 ]:
     if token not in museum:
         fail(f"museum photo-reference marker missing: {token}")
+if "R13_MuseumApproachPath" in museum:
+    fail("museum reference pass duplicates the long approach path owned by LandmarkSiteDressing")
 
-# Ground is material-only so the spawn/vehicle collision floor remains untouched.
+site = texts["site"]
+for token in [
+    "R13_MuseumApproachPath",
+    "/Game/TileableForestRoad/Meshes/SM_Forest_Path.SM_Forest_Path",
+    "DressMuseum(AOCWorldSectorOster::MuseumAnchor(), Path, Bin)",
+]:
+    if token not in site:
+        fail(f"LandmarkSiteDressing museum-path owner marker missing: {token}")
+
 ground = texts["ground"]
 for token in [
     "Diorama_Ground.Diorama_Ground",
@@ -134,7 +138,6 @@ for forbidden in ["SetCollisionEnabled", "SetRelativeLocation", "SetWorldLocatio
     if forbidden in ground:
         fail(f"ground material pass must not mutate gameplay floor geometry: {forbidden}")
 
-# Unique residential detail is intentionally non-blocking and must not re-add clutter already owned by EnvironmentDressing.
 yard = texts["yard"]
 for token in [
     "Side_Shed.Side_Shed",
@@ -152,19 +155,43 @@ for forbidden in ["Log_Pile_1.Log_Pile_1", "Metal_Barrel.Metal_Barrel"]:
     if forbidden in yard:
         fail(f"yard pass duplicates EnvironmentDressing clutter: {forbidden}")
 
-# Utility poles derive from road topology and stay visual-only.
-poles = texts["poles"]
+# R13.5 RoadsideInfrastructure is the sole generic utility-pole owner. The temporary duplicate must stay deleted.
+roadside = texts["roadside"]
 for token in [
     "Power_Pole_1.Power_Pole_1",
-    'FindISM(WorldSector, TEXT("Roads"))',
-    "IsInsideCompactBounds",
-    "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
-    "Museum + FVector(-5200.0f, 2300.0f, 0.0f)",
+    "Power_Pole_Addons.Power_Pole_Addons",
+    "Power_Pole_Light.Power_Pole_Light",
+    "AddRoadsidePoles",
+    "MinPoleSpacingCm = 5200.0f",
+    "MaxPoleSpacingCm = 6400.0f",
+    "SetCanEverAffectNavigation(false)",
 ]:
-    if token not in poles:
-        fail(f"utility-pole marker missing: {token}")
+    if token not in roadside:
+        fail(f"RoadsideInfrastructure ownership marker missing: {token}")
+for duplicate in [
+    SRC / "Public" / "OCR13UtilityPoleSubsystem.h",
+    SRC / "Private" / "OCR13UtilityPoleSubsystem.cpp",
+]:
+    if duplicate.exists():
+        fail(f"duplicate utility-pole owner still exists: {duplicate.relative_to(ROOT)}")
 
-# Enterable house art must style surfaces/roof without replacing its authored shell openings or interiors.
+# Civic planting fills the previously missing R13.5 owner expected by the landmark contract.
+civic = texts["civic"]
+for token in [
+    "AddMuseumGarden",
+    "AddCollegeCampusPlanting",
+    "AddStadiumPerimeterPlanting",
+    "R13_CivicLandscapingRoot",
+    "Shrubs_1.Shrubs_1",
+    "Bush_1.Bush_1",
+    "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+    "SetCanEverAffectNavigation(false)",
+    "GameMode->IsFrontendOnlySession()",
+    "entrances/pitch/navigation remain clear",
+]:
+    if token not in civic:
+        fail(f"civic-landscaping marker missing: {token}")
+
 enter = texts["enter"]
 for token in [
     "Roof_Both_Ends_4m.Roof_Both_Ends_4m",
@@ -178,7 +205,6 @@ for token in [
     if token not in enter:
         fail(f"enterable-house art marker missing: {token}")
 
-# Dedicated Krushelnytska slice uses the same PN family and real conifers as the rest of the map.
 krush = texts["krush"]
 for token in [
     "/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh",
@@ -191,12 +217,11 @@ for token in [
     if token not in krush:
         fail(f"Krushelnytska unified-foliage marker missing: {token}")
 
-# Cheap source-level delimiter sanity for every touched C++ source.
-for name in ("whole", "museum", "ground", "yard", "poles", "enter", "krush"):
+for name in ("whole", "museum", "ground", "yard", "roadside", "civic", "site", "enter", "krush"):
     text = texts[name]
     for left, right in (("(", ")"), ("{", "}"), ("[", "]")):
         if text.count(left) != text.count(right):
             fail(f"delimiter mismatch {left}{right} in {FILES[name].name}")
 
 print("R13.4 VISUAL BATCH CONSOLIDATION VERIFY: PASS")
-print("Checks single-owner grass/foliage responsibilities, real conifers, museum photo-reference details, terrain material safety, unique rural-yard props, road-derived poles, enterable-house exterior art and Krushelnytska foliage consistency.")
+print("Checks single-owner grass/foliage/path/pole responsibilities, real conifers, museum photo-reference facade details, terrain material safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
