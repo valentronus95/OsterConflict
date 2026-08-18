@@ -26,11 +26,20 @@ PROP_SOURCE_TOKENS = [
     'SM_Urb_Roa_Sheet_Metal_Rusty_01.SM_Urb_Roa_Sheet_Metal_Rusty_01',
     'SM_Urb_Roa_Sheet_Metal_Rusty_02.SM_Urb_Roa_Sheet_Metal_Rusty_02',
     'SM_Urb_Roa_Sheet_Metal_Rusty_03.SM_Urb_Roa_Sheet_Metal_Rusty_03',
+    'Root->SetMobility(EComponentMobility::Static)',
     'IsUsableVerticalFencePanel',
-    'AddVerticalPropReplacements',
-    'HideProxyIfReplaced(WoodProxy, WoodAdded)',
-    'HideProxyIfReplaced(LightSheetProxy, LightSheetAdded)',
-    'HideProxyIfReplaced(StreetLightProxy, PowerPoleLightAdded)',
+    'ClearFamilies',
+    'bool AddFenceModules',
+    'bool AddVerticalPropReplacements',
+    'Target->ClearInstances()',
+    'HideProxyIfFullyReplaced',
+    'const bool bWoodComplete = AddFenceModules',
+    'const bool bLightSheetComplete = AddFenceModules',
+    'const bool bPowerPoleLightComplete = AddVerticalPropReplacements',
+    'HideProxyIfFullyReplaced(WoodProxy, bWoodComplete, WoodAdded)',
+    'HideProxyIfFullyReplaced(LightSheetProxy, bLightSheetComplete, LightSheetAdded)',
+    'HideProxyIfFullyReplaced(StreetLightProxy, bPowerPoleLightComplete, PowerPoleLightAdded)',
+    'source family hides only after complete replacement',
 ]
 
 METAL_SOURCE_TOKENS = [
@@ -57,6 +66,9 @@ prop_text = PROP_SOURCE.read_text(encoding="utf-8")
 for token in PROP_SOURCE_TOKENS:
     if token not in prop_text:
         fail(f"missing prop-art source guard/token: {token}")
+
+if 'HideProxyIfReplaced(' in prop_text:
+    fail("prop bridge must not hide a whole source family after only partial replacement")
 
 metal_text = METAL_SOURCE.read_text(encoding="utf-8")
 for token in METAL_SOURCE_TOKENS:
