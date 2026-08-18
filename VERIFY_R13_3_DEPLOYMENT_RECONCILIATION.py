@@ -92,6 +92,8 @@ for token in [
 for token in [
     "LineTraceSingleByChannel",
     "ResolveSafeTeamFallback",
+    "World->FindTeleportSpot(Character, CollisionSafeLocation, Character->GetActorRotation())",
+    "ground exists but no collision-clear capsule placement was found",
     'World->URL.HasOption(TEXT("AutoDeploy=1"))',
     "!PC->HasCompletedR13InitialDeployment()",
     "PC->ConsumeR13DeploymentCommitAuthorization()",
@@ -101,7 +103,14 @@ for token in [
     "ClientCompleteDeployment(false)",
 ]:
     if token not in text["spawn"]:
-        fail(f"grounded/authorized spawn confirmation marker missing: {token}")
+        fail(f"grounded/collision-clear/authorized spawn marker missing: {token}")
+
+for forbidden in [
+    "SetActorLocation(SafeLocation, false",
+    "SetActorLocation(GroundCandidate, false",
+]:
+    if forbidden in text["spawn"]:
+        fail(f"spawn can bypass collision-clear placement: {forbidden}")
 
 # Duplicate definitions here would produce linker errors after a long UE build, precisely what this gate is meant to prevent.
 private_dir = SRC / "Private"
@@ -123,4 +132,4 @@ for method in [
         fail(f"{method} must have exactly one implementation owner, found: {owners}")
 
 print("R13.3 DEPLOYMENT RECONCILIATION VERIFY: PASS")
-print("Checks specialist uniqueness, compact readiness, short-lived staged initial-spawn authorization, AutoDeploy smoke exception, grounded spawn, replicated-selection reconciliation and single implementation ownership.")
+print("Checks specialist uniqueness, compact readiness, short-lived staged initial-spawn authorization, AutoDeploy smoke exception, grounded + collision-clear placement, replicated-selection reconciliation and single implementation ownership.")
