@@ -73,6 +73,7 @@ for token in [
     "IsExcluded(Location, Exclusions",
     "/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh",
     "SM_House_Var01_Extra%02d.SM_House_Var01_Extra%02d",
+    "GameMode->IsFrontendOnlySession()",
     "R13 environment dressing: grass=%d plants=%d house extras=%d yard props=%d companion trees=%d stumps=%d.",
 ]:
     if token not in environment:
@@ -88,6 +89,7 @@ for token in [
     "AddCompanionPines",
     "AddShrubCompanions",
     "AddWetlandReeds",
+    "GameMode->IsFrontendOnlySession()",
 ]:
     if token not in foliage:
         fail(f"FoliageDiversity ownership marker missing: {token}")
@@ -108,6 +110,8 @@ for token in [
     "R13_MuseumEntranceSteps",
     "R13_MuseumSideGlazing",
     "Glass_Window.Glass_Window",
+    "Wood_Planks_Painted_Blue.Wood_Planks_Painted_Blue",
+    "UpperSurfaceMaterial = PaintedBlueWood ? PaintedBlueWood : UpperFallbackMaterial",
     "LandmarkSiteDressing remains the owner",
     "SM_Pine_Tree_01.SM_Pine_Tree_01",
     "SM_Pine_Tree_03.SM_Pine_Tree_03",
@@ -133,6 +137,7 @@ for token in [
     "Diorama_Ground.Diorama_Ground",
     "Ground->SetMaterial(0, GroundMaterial)",
     "Do not touch Ground collision, scale, location or visibility",
+    "GameMode->IsFrontendOnlySession()",
 ]:
     if token not in ground:
         fail(f"ground-surface safety marker missing: {token}")
@@ -149,6 +154,7 @@ for token in [
     "Tire.Tire",
     "Utility_Box_1a.Utility_Box_1a",
     "SetCanEverAffectNavigation(false)",
+    "GameMode->IsFrontendOnlySession()",
     "base yard clutter remains owned by EnvironmentDressing",
 ]:
     if token not in yard:
@@ -201,6 +207,8 @@ for token in [
     'FindISM(House, TEXT("Shell"))',
     'FindISM(House, TEXT("YardFences"))',
     'FindISM(House, TEXT("YardPaths"))',
+    "SetCanEverAffectNavigation(false)",
+    "GameMode->IsFrontendOnlySession()",
     "authored doors/windows/interiors preserved",
 ]:
     if token not in enter:
@@ -244,4 +252,4 @@ for name in (
             fail(f"delimiter mismatch {left}{right} in {FILES[name].name}")
 
 print("R13.4 VISUAL BATCH CONSOLIDATION VERIFY: PASS")
-print("Checks single-owner grass/foliage/path/pole responsibilities, dedicated Krushelnytska infrastructure, real conifers, museum photo-reference facade details, terrain material safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
+print("Checks single-owner grass/foliage/path/pole responsibilities, frontend-only guards, dedicated Krushelnytska infrastructure, real conifers, textured museum upper timber, museum photo-reference facade details, terrain material safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
