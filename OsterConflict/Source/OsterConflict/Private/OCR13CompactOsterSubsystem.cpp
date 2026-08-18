@@ -3,6 +3,7 @@
 #include "OCCapturePoint.h"
 #include "OCGameMode.h"
 #include "OCTeamSpawnPoint.h"
+#include "OCVehicleSpawnPoint.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -45,6 +46,24 @@ namespace
         }
         return FVector::ZeroVector;
     }
+
+    struct FCompactVehicleSlot
+    {
+        FVector Location;
+        float Yaw;
+    };
+
+    const FCompactVehicleSlot CompactVehicleSlots[] =
+    {
+        { FVector(-61000.0f, 40000.0f, 180.0f),  35.0f },
+        { FVector(-55500.0f, 35000.0f, 190.0f),  35.0f },
+        { FVector( 18000.0f,-16000.0f, 180.0f), 215.0f },
+        { FVector( 13500.0f,-12000.0f, 190.0f), 215.0f },
+        { FVector(-49000.0f, 45500.0f, 150.0f),  90.0f },
+        { FVector(  9000.0f, 41000.0f, 150.0f), 180.0f },
+        { FVector(-58500.0f,  9000.0f, 150.0f),   0.0f },
+        { FVector( 17000.0f,  8000.0f, 150.0f), 180.0f },
+    };
 }
 
 bool UOCR13CompactOsterSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -173,6 +192,7 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
         }
     }
 
+    int32 RelocatedVehicleSpawns = 0;
     if (World.GetNetMode() != NM_Client)
     {
         const FVector TeamOneBase(-64000.0f, 44000.0f, 160.0f);
@@ -196,6 +216,26 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
 
             Spawn->SetActorLocation(Target, false, nullptr, ETeleportType::TeleportPhysics);
         }
+
+        // Vehicle spawn points are server-only and spawn their vehicle during BeginPlay. Move only legacy seeds that
+        // are now outside the compact area, then reset so the already-created old vehicle is destroyed and recreated
+        // at the new in-bounds slot. Existing in-bounds civilian traffic stays where it was authored.
+        for (TActorIterator<AOCVehicleSpawnPoint> It(&World); It; ++It)
+        {
+            AOCVehicleSpawnPoint* SpawnPoint = *It;
+            if (!SpawnPoint || IsInsideCompactBounds(SpawnPoint->GetActorLocation())) continue;
+
+            const int32 SlotIndex = RelocatedVehicleSpawns % UE_ARRAY_COUNT(CompactVehicleSlots);
+            const int32 OverflowRing = RelocatedVehicleSpawns / UE_ARRAY_COUNT(CompactVehicleSlots);
+            const FCompactVehicleSlot& Slot = CompactVehicleSlots[SlotIndex];
+            const FVector OverflowOffset(0.0f, static_cast<float>(OverflowRing) * 900.0f, 0.0f);
+            SpawnPoint->SetActorLocationAndRotation(
+                Slot.Location + OverflowOffset,
+                FRotator(0.0f, Slot.Yaw, 0.0f),
+                false, nullptr, ETeleportType::TeleportPhysics);
+            SpawnPoint->ResetForRoundServer();
+            ++RelocatedVehicleSpawns;
+        }
     }
 
     if (ObjectivesMoved.Num() < ObjectiveLocations.Num())
@@ -215,7 +255,7 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.1 compact Oster applied: %.0f x %.0f m, center=(%.0f, %.0f), objectives=%d, removed source instances=%d."),
+        TEXT("R13.1 compact Oster applied: %.0f x %.0f m, center=(%.0f, %.0f), objectives=%d, vehicles relocated=%d, removed source instances=%d."),
         CompactWidthCm / 100.0f, CompactHeightCm / 100.0f,
-        CompactCenter.X, CompactCenter.Y, ObjectivesMoved.Num(), RemovedInstances);
+        CompactCenter.X, CompactCenter.Y, ObjectivesMoved.Num(), RelocatedVehicleSpawns, RemovedInstances);
 }
