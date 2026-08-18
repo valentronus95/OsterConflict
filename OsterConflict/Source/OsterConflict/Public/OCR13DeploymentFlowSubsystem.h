@@ -30,6 +30,13 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
 
+    /**
+     * Called by the small reconciliation watcher. Selection buttons are optimistic for responsive UI,
+     * but the replicated PlayerState is authoritative. Rejected team/squad/role choices return to the
+     * relevant step instead of leaving the client on a fictional selection.
+     */
+    void ReconcileAuthoritativeState(AOCPlayerController* PC, float DeltaSeconds);
+
 private:
     void EnsureBuilt(UOCGameUIRootWidget* Root, AOCPlayerController* PC);
     void SetStep(int32 NewStep);
@@ -71,6 +78,14 @@ private:
     FName SelectedSpawn = NAME_None;
     bool bWasVisible = false;
     float RefreshAccumulator = 0.0f;
+
+    // Short replication grace window prevents a valid remote selection from being treated as a rejection
+    // during the normal client -> server -> PlayerState replication round-trip.
+    float AuthorityReconcileAge = 0.0f;
+    EOCTeam ReconcileTeamSnapshot = EOCTeam::None;
+    int32 ReconcileSquadSnapshot = INDEX_NONE;
+    EOCPlayerRole ReconcileRoleSnapshot = EOCPlayerRole::Rifleman;
+    bool bReconcileRoleSelectedSnapshot = false;
 
     UFUNCTION() void OnTeamOne();
     UFUNCTION() void OnTeamTwo();
