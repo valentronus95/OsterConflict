@@ -20,9 +20,9 @@ config_text = CONFIG.read_text(encoding="utf-8", errors="replace")
 always_cook_paths = set(re.findall(r'DirectoriesToAlwaysCook=\(Path="([^"]+)"\)', config_text))
 map_paths = set(re.findall(r'MapsToCook=\(FilePath="([^"]+)"\)', config_text))
 
-# Only inspect files that actually participate in runtime/object-path loading. Extract all /Game/... literals from
-# those files so indirect patterns such as const TCHAR* MeshPath = TEXT("/Game/..."); LoadObject(..., MeshPath)
-# are covered as well as direct LoadObject(TEXT("/Game/...")) calls.
+# Inspect only files that participate in runtime/object-path loading. Extract every /Game/... literal from those
+# files so indirect patterns such as const TCHAR* MeshPath = TEXT("/Game/..."); LoadObject(..., MeshPath) are
+# covered as well as direct LoadObject(TEXT("/Game/...")) calls.
 loader_markers = (
     "LoadObject<",
     "LoadClass<",
@@ -33,29 +33,53 @@ loader_markers = (
 )
 path_pattern = re.compile(r'/Game/[A-Za-z0-9_./\-]+')
 
-seen_paths: dict[str, set[str]] = {}
+dynamic_paths: dict[str, set[str]] = {}
 for source_file in sorted(list(SOURCE.rglob("*.cpp")) + list(SOURCE.rglob("*.h"))):
     text = source_file.read_text(encoding="utf-8", errors="replace")
     if not any(marker in text for marker in loader_markers):
         continue
+    relative_file = str(source_file.relative_to(ROOT)).replace("\\", "/")
     for raw_path in path_pattern.findall(text):
         package_path = raw_path.rstrip(".)")
-        # Object references commonly end in .Asset or .Blueprint_C. Cooking is directory-based here, so only
-        # the top-level /Game/<Root> package directory matters for non-map content.
-        parts = package_path.split("/")
-        if len(parts) < 3:
+        if not package_path.startswith("/Game/"):
             continue
-        root_path = f"/Game/{parts[2]}"
-        seen_paths.setdefault(root_path, set()).add(str(source_file.relative_to(ROOT)).replace("\\", "/"))
+        dynamic_paths.setdefault(package_path, set()).add(relative_file)
+
+
+def covered_by_directory(package_path: str) -> bool:
+    for cook_path in always_cook_paths:
+        prefix = cook_path.rstrip("/")
+        if package_path == prefix or package_path.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def covered_by_map(package_path: str) -> bool:
+    for map_path in map_paths:
+        if package_path == map_path or package_path.startswith(map_path + "."):
+            return True
+    return False
+
 
 missing: list[str] = []
-for root_path, files in sorted(seen_paths.items()):
-    if root_path == "/Game/Maps":
-        if not map_paths:
-            missing.append(f"{root_path}: runtime map path(s) found but MapsToCook is empty ({', '.join(sorted(files))})")
+seen_roots: set[str] = set()
+for package_path, files in sorted(dynamic_paths.items()):
+    parts = package_path.split("/")
+    if len(parts) >= 3:
+        seen_roots.add(f"/Game/{parts[2]}")
+
+    if package_path.startswith("/Game/Maps/"):
+        if not covered_by_map(package_path):
+            missing.append(
+                f"{package_path}: runtime map path is not covered by MapsToCook ({', '.join(sorted(files))})"
+            )
         continue
-    if root_path not in always_cook_paths:
-        missing.append(f"{root_path}: dynamic string asset root is not DirectoriesToAlwaysCook ({', '.join(sorted(files))})")
+
+    if not covered_by_directory(package_path):
+        missing.append(
+            f"{package_path}: dynamic string asset path is not covered by DirectoriesToAlwaysCook "
+            f"({', '.join(sorted(files))})"
+        )
 
 if missing:
     print("R13 dynamic cook path verification: FAIL")
@@ -64,4 +88,5 @@ if missing:
     raise SystemExit(1)
 
 print("R13 DYNAMIC COOK PATHS VERIFY: PASS")
-print("Dynamic /Game roots covered:", ", ".join(sorted(seen_paths)))
+print("Dynamic /Game roots covered:", ", ".join(sorted(seen_roots)))
+print(f"Dynamic package literals covered: {len(dynamic_paths)}")
