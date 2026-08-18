@@ -32,6 +32,10 @@ MENU_REQUIRED = [
     'SetPresentationVisibility(true, false, true)',
     'PanelSlot->SetPosition(FVector2D(112.0f, 92.0f))',
     'PanelSlot->SetSize(FVector2D(440.0f, 760.0f))',
+    'SuppressLegacyFrontendLayers(Root)',
+    'const int32 ZOrder = Slot->GetZOrder()',
+    'if (ZOrder == -100 || ZOrder == -99)',
+    'LegacyFrontend->RemoveFromParent()',
     '"СТАРТ"',
     '"ЛОКАЛЬНА ГРА"',
     '"МЕРЕЖЕВА ГРА"',
@@ -40,8 +44,11 @@ for token in MENU_REQUIRED:
     if token not in menu:
         fail(f"missing approved frontend token: {token}")
 
-if 'Background->SetColorAndOpacity(FLinearColor(' in menu and 'Background->SetColorAndOpacity(FLinearColor::White)' not in menu:
-    fail("main-menu background must not receive a global colour tint")
+background_tint_calls = menu.count('Background->SetColorAndOpacity(')
+if background_tint_calls != 1:
+    fail(f"expected exactly one background tint call, found {background_tint_calls}")
+if menu.count('Background->SetColorAndOpacity(FLinearColor::White)') != 1:
+    fail("the only menu-background tint must be neutral white")
 
 if 'IsFrontendOnlySession() const { return bFrontendOnlySession; }' not in game_mode_h:
     fail("GameMode must expose read-only frontend-only session state")
@@ -59,6 +66,7 @@ GUARD_REQUIRED = [
     'public UTickableWorldSubsystem',
     'virtual void OnWorldBeginPlay(UWorld& InWorld) override;',
     'virtual void Tick(float DeltaTime) override;',
+    'virtual TStatId GetStatId() const override;',
 ]
 for token in GUARD_REQUIRED:
     if token not in guard_h:
@@ -70,6 +78,7 @@ GUARD_CPP_REQUIRED = [
     'PC->UnPossess()',
     'Pawn->HasAuthority()',
     'Pawn->Destroy()',
+    'RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13FrontendShellGuardSubsystem, STATGROUP_Tickables)',
     'static menu backdrop preserved',
 ]
 for token in GUARD_CPP_REQUIRED:
@@ -82,4 +91,4 @@ if 'SetPresentationVisibility(true, true, false)' not in menu:
     fail("main-menu static-backdrop presentation marker missing")
 
 print("R13 FRONTEND MENU GUARD VERIFY: PASS")
-print("Checks approved static backdrop, local-only gradient/pause dimming and leaked-pawn protection for the UI-only shell.")
+print("Checks approved static backdrop, legacy-layer suppression, neutral-only background tint, local-only gradient/pause dimming and leaked-pawn protection for the UI-only shell.")
