@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import runpy
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "OsterConflict" / "Source" / "OsterConflict"
@@ -10,6 +11,11 @@ PRIVATE = SOURCE / "Private"
 def fail(message: str) -> None:
     raise SystemExit(f"R13 TICKABLE SUBSYSTEM LINKAGE VERIFY FAIL: {message}")
 
+
+uht_gate = ROOT / "VERIFY_R13_UHT_HEADER_SANITY.py"
+if not uht_gate.is_file():
+    fail("global UHT header sanity gate is missing")
+runpy.run_path(str(uht_gate), run_name="__main__")
 
 if not PUBLIC.is_dir() or not PRIVATE.is_dir():
     fail("missing OsterConflict Public/Private source directories")
@@ -44,4 +50,4 @@ if checked == 0:
     fail("no tickable subsystem GetStatId declarations were inspected")
 
 print("R13 TICKABLE SUBSYSTEM LINKAGE VERIFY: PASS")
-print(f"Checked {checked} tickable subsystem GetStatId override(s) for linkable definitions.")
+print(f"Checked global reflected-header UHT hygiene plus {checked} tickable subsystem GetStatId override(s) for linkable definitions.")
