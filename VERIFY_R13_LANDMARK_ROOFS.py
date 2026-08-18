@@ -13,6 +13,7 @@ REQUIRED_SOURCE_TOKENS = [
     'Slope >= 18.0f && Slope <= 36.0f',
     'Metal_Roof.Metal_Roof',
     'R13_MuseumMetalRoof',
+    'Root->SetMobility(EComponentMobility::Static)',
     'RoofArt->SetCollisionProfileName(TEXT("BlockAll"))',
     'MuseumRoofTransforms.Num() != ExpectedMuseumRoofPanelCount',
     'Proxy->UpdateInstanceTransform(MuseumRoofIndices[RestoreIndex]',
@@ -49,4 +50,4 @@ for token in FORBIDDEN_SOURCE_TOKENS:
         fail(f"unsafe broad landmark mutation present: {token}")
 
 print("R13 LANDMARK ROOFS VERIFY: PASS")
-print("Checks the eight-panel museum-only roof bridge, collision preservation and rollback safety.")
+print("Checks static art-root mobility, the eight-panel museum-only roof bridge, collision preservation and rollback safety.")
