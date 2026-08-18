@@ -29,10 +29,14 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     if (!PC || !PC->IsLocalController()) return;
 
-    // Startup frontend is a true UI-only frame. Do not render the 3D world behind the approved static menu image.
-    // Pause menu remains separate and intentionally keeps the live world visible behind its dim layer.
+    // Before a gameplay pawn exists, frontend/settings/deployment are a UI-only presentation. Keep the approved
+    // static background instead of suddenly exposing the 3D world while switching between pre-game pages.
+    const bool bPreGamePresentationVisible = PC->GetPawn() == nullptr &&
+        (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible() || PC->IsDeploymentPanelVisible());
+    SetWorldRenderingSuppressed(bPreGamePresentationVisible);
+
+    // Only the startup main menu gets hard widget-layer isolation. Deployment/settings need their own root widgets.
     const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr;
-    SetWorldRenderingSuppressed(bStartupMenuVisible);
 
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
