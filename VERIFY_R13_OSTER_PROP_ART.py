@@ -7,6 +7,7 @@ REQUIRED_ASSETS = [
     ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Props" / "Fence_Old_1_2m.uasset",
     ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Props" / "Fence_Old_2_2m.uasset",
     ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Props" / "Fence_Old_3_2m.uasset",
+    ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Props" / "Power_Pole_Light.uasset",
     ROOT / "OsterConflict" / "Content" / "Scene_RoadsideConstruction" / "Assets" / "MS" / "3D" / "Urb_Roa_Sheet_Metal_Rusty_01" / "SM_Urb_Roa_Sheet_Metal_Rusty_01.uasset",
     ROOT / "OsterConflict" / "Content" / "Scene_RoadsideConstruction" / "Assets" / "MS" / "3D" / "Urb_Roa_Sheet_Metal_Rusty_02" / "SM_Urb_Roa_Sheet_Metal_Rusty_02.uasset",
     ROOT / "OsterConflict" / "Content" / "Scene_RoadsideConstruction" / "Assets" / "MS" / "3D" / "Urb_Roa_Sheet_Metal_Rusty_03" / "SM_Urb_Roa_Sheet_Metal_Rusty_03.uasset",
@@ -15,15 +16,19 @@ REQUIRED_ASSETS = [
 REQUIRED_SOURCE_TOKENS = [
     'FindISM(WorldSector, TEXT("WoodFences"))',
     'FindISM(WorldSector, TEXT("LightSheetFences"))',
+    'FindISMInWorld(World, TEXT("R12_StreetLights"))',
     'Fence_Old_1_2m.Fence_Old_1_2m',
     'Fence_Old_2_2m.Fence_Old_2_2m',
     'Fence_Old_3_2m.Fence_Old_3_2m',
+    'Power_Pole_Light.Power_Pole_Light',
     'SM_Urb_Roa_Sheet_Metal_Rusty_01.SM_Urb_Roa_Sheet_Metal_Rusty_01',
     'SM_Urb_Roa_Sheet_Metal_Rusty_02.SM_Urb_Roa_Sheet_Metal_Rusty_02',
     'SM_Urb_Roa_Sheet_Metal_Rusty_03.SM_Urb_Roa_Sheet_Metal_Rusty_03',
     'IsUsableVerticalFencePanel',
+    'AddVerticalPropReplacements',
     'HideProxyIfReplaced(WoodProxy, WoodAdded)',
     'HideProxyIfReplaced(LightSheetProxy, LightSheetAdded)',
+    'HideProxyIfReplaced(StreetLightProxy, PowerPoleLightAdded)',
 ]
 
 
