@@ -17,13 +17,10 @@ FOCWeaponTuning BasePreset(const TCHAR* Id, const TCHAR* Name, EOCWeaponClass We
 
 AOCWeapon_AssaultRifle::AOCWeapon_AssaultRifle()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_AR1"), TEXT("OC-AR1"), EOCWeaponClass::AssaultRifle,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_AR1"), TEXT("AK-47"), EOCWeaponClass::AssaultRifle,
         EOCInventorySlot::Primary, EOCAmmoType::Rifle);
     T.Damage = 34.0f; T.RangeCm = 13000.0f; T.RoundsPerMinute = 650.0f;
     T.HipSpreadDegrees = 1.25f; T.ADSSpreadDegrees = 0.20f; T.MagazineSize = 30;
-    // R13 gameplay QA: the legacy local recoil path applies vertical controller pitch with the wrong visual sign
-    // on the current mouse/camera convention. Disable only AR vertical kick for this playable pass instead of
-    // letting automatic fire drag the view toward the player's feet; retain restrained horizontal feedback.
     T.RecoilPitchMin = 0.0f; T.RecoilPitchMax = 0.0f; T.RecoilYawMax = 0.28f;
     T.InitialReserveAmmo = 120; T.MaxReserveAmmo = 240; T.ReloadDuration = 2.15f;
     T.AudioLoudnessScale = 1.00f;
@@ -32,7 +29,7 @@ AOCWeapon_AssaultRifle::AOCWeapon_AssaultRifle()
 
 AOCWeapon_SMG::AOCWeapon_SMG()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_SMG1"), TEXT("OC-SMG1"), EOCWeaponClass::SMG,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_SMG1"), TEXT("MP5"), EOCWeaponClass::SMG,
         EOCInventorySlot::Primary, EOCAmmoType::Pistol);
     T.Damage = 25.0f; T.RangeCm = 8500.0f; T.RoundsPerMinute = 850.0f;
     T.HipSpreadDegrees = 1.05f; T.ADSSpreadDegrees = 0.28f; T.MovingSpreadMultiplier = 1.35f;
@@ -44,7 +41,7 @@ AOCWeapon_SMG::AOCWeapon_SMG()
 
 AOCWeapon_Pistol::AOCWeapon_Pistol()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_PST1"), TEXT("OC-PST1"), EOCWeaponClass::Pistol,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_PST1"), TEXT("M1911"), EOCWeaponClass::Pistol,
         EOCInventorySlot::Secondary, EOCAmmoType::Pistol);
     T.Damage = 29.0f; T.RangeCm = 7000.0f; T.RoundsPerMinute = 420.0f;
     T.HipSpreadDegrees = 1.10f; T.ADSSpreadDegrees = 0.32f;
@@ -57,7 +54,7 @@ AOCWeapon_Pistol::AOCWeapon_Pistol()
 
 AOCWeapon_Sniper::AOCWeapon_Sniper()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_SNP1"), TEXT("OC-SNP1"), EOCWeaponClass::SniperRifle,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_SNP1"), TEXT("M700"), EOCWeaponClass::SniperRifle,
         EOCInventorySlot::Primary, EOCAmmoType::Precision);
     T.Damage = 90.0f; T.RangeCm = 35000.0f; T.RoundsPerMinute = 55.0f;
     T.HipSpreadDegrees = 3.25f; T.ADSSpreadDegrees = 0.035f; T.MovingSpreadMultiplier = 2.40f;
@@ -70,7 +67,7 @@ AOCWeapon_Sniper::AOCWeapon_Sniper()
 
 AOCWeapon_Shotgun::AOCWeapon_Shotgun()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_SG1"), TEXT("OC-SG1"), EOCWeaponClass::Shotgun,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_SG1"), TEXT("SHOTGUN"), EOCWeaponClass::Shotgun,
         EOCInventorySlot::Primary, EOCAmmoType::Shell);
     T.Damage = 11.5f; T.PelletsPerShot = 8; T.RangeCm = 4200.0f; T.RoundsPerMinute = 85.0f;
     T.HipSpreadDegrees = 2.60f; T.ADSSpreadDegrees = 1.10f; T.MovingSpreadMultiplier = 1.35f;
@@ -83,7 +80,7 @@ AOCWeapon_Shotgun::AOCWeapon_Shotgun()
 
 AOCWeapon_LMG::AOCWeapon_LMG()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_LMG1"), TEXT("OC-LMG1"), EOCWeaponClass::LMG,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_LMG1"), TEXT("LMG"), EOCWeaponClass::LMG,
         EOCInventorySlot::Primary, EOCAmmoType::Rifle);
     T.Damage = 31.0f; T.RangeCm = 15000.0f; T.RoundsPerMinute = 720.0f;
     T.HipSpreadDegrees = 1.85f; T.ADSSpreadDegrees = 0.30f; T.MovingSpreadMultiplier = 1.95f;
