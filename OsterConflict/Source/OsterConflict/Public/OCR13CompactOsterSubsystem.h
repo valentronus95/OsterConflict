@@ -15,6 +15,7 @@ public:
 
 private:
     int32 ApplyAttemptCount = 0;
+    bool bWorldCropped = false;
     bool bApplied = false;
 
     void ScheduleApply(UWorld& World, float DelaySeconds);
