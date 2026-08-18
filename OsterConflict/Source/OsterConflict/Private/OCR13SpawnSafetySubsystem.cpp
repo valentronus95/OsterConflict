@@ -5,6 +5,7 @@
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
 
+#include "Engine/URL.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -119,6 +120,8 @@ void UOCR13SpawnSafetySubsystem::Tick(float DeltaTime)
     UWorld* World = GetWorld();
     if (!World || World->GetNetMode() == NM_Client) return;
 
+    const bool bAutomationAutoDeploy = World->URL.HasOption(TEXT("AutoDeploy=1"));
+
     for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
     {
         AOCPlayerController* PC = Cast<AOCPlayerController>(It->Get());
@@ -132,8 +135,31 @@ void UOCR13SpawnSafetySubsystem::Tick(float DeltaTime)
             if (Last->Get() == Character) continue;
         }
 
+        // Only the initial human deployment is gated. Once a player has legitimately entered gameplay, normal death/
+        // round respawns keep using the existing game flow. AutoDeploy=1 remains an explicit automation/smoke exception.
+        if (!PC->HasCompletedR13InitialDeployment())
+        {
+            const bool bStagedCommitAuthorized = PC->ConsumeR13DeploymentCommitAuthorization();
+            if (!bStagedCommitAuthorized && !bAutomationAutoDeploy)
+            {
+                if (AOCPlayerState* State = PC->GetPlayerState<AOCPlayerState>())
+                {
+                    State->SetLobbyReadyServer(false);
+                }
+                PC->UnPossess();
+                Character->Destroy();
+                LastValidatedPawn.Remove(PCKey);
+                PC->ClientCompleteDeployment(false);
+                UE_LOG(LogTemp, Warning,
+                    TEXT("R13 spawn safety rejected initial pawn without staged deployment commit: player=%s"),
+                    *PC->GetName());
+                continue;
+            }
+        }
+
         if (ValidateNewPawn(PC, Character))
         {
+            PC->MarkR13InitialDeploymentCompleted();
             LastValidatedPawn.Add(PCKey, TWeakObjectPtr<AOCCharacter>(Character));
             PC->ClientCompleteDeployment(true);
             continue;
