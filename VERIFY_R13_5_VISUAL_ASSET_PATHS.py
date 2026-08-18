@@ -25,13 +25,17 @@ required_assets = [
 
     # Rural foliage species/detail.
     "Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.uasset",
+    "Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_02.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.uasset",
+    "Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_04.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_05.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/Shrubs_1.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/Shrubs_1_Single.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/Bush_1.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/Cat_Tail.uasset",
     "Modular_Rural_Cabin/Meshes/Foliage/Cat_Tail_2.uasset",
+    "Modular_Rural_Cabin/Meshes/Foliage/Flower_Patch_1.uasset",
+    "Modular_Rural_Cabin/Meshes/Foliage/Grass_Patch_Long.uasset",
 
     # Rural props / utilities / seating.
     "Modular_Rural_Cabin/Meshes/Props/Side_Shed.uasset",
@@ -44,6 +48,14 @@ required_assets = [
     "Modular_Rural_Cabin/Meshes/Props/Power_Pole_Addons.uasset",
     "Modular_Rural_Cabin/Meshes/Props/Power_Pole_Light.uasset",
     "Modular_Rural_Cabin/Meshes/Props/Old_Planks.uasset",
+
+    # Residential fence families.
+    "Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.uasset",
+    "Modular_Rural_Cabin/Meshes/Props/Fence_Old_2_2m.uasset",
+    "Modular_Rural_Cabin/Meshes/Props/Fence_Old_3_2m.uasset",
+    "Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_01/SM_Urb_Roa_Sheet_Metal_Rusty_01.uasset",
+    "Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_02/SM_Urb_Roa_Sheet_Metal_Rusty_02.uasset",
+    "Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_03/SM_Urb_Roa_Sheet_Metal_Rusty_03.uasset",
 
     # Enterable-house roof + environment materials.
     "Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.uasset",
@@ -84,6 +96,14 @@ source_markers = {
         "Side_Shed.Side_Shed",
         "Outhouse_House.Outhouse_House",
         "Wheel_Barrow.Wheel_Barrow",
+    ],
+    "OCR13ResidentialInfillFenceSubsystem.cpp": [
+        "Fence_Old_1_2m.Fence_Old_1_2m",
+        "Fence_Old_2_2m.Fence_Old_2_2m",
+        "Fence_Old_3_2m.Fence_Old_3_2m",
+        "SM_Urb_Roa_Sheet_Metal_Rusty_01",
+        "SM_Urb_Roa_Sheet_Metal_Rusty_02",
+        "SM_Urb_Roa_Sheet_Metal_Rusty_03",
     ],
     "OCR13KrushelnytskaInfrastructureSubsystem.cpp": [
         "Power_Pole_1.Power_Pole_1",
