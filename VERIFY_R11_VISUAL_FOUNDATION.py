@@ -30,7 +30,7 @@ validation = read(ROOT/'PC_TEST/RUN_UE58_PC_VALIDATION.ps1')
 preflight = read(P/'Scripts/S18C/WINDOWS_TOOLCHAIN_PREFLIGHT.ps1')
 prelaunch = read(ROOT/'PC_TEST/PRELAUNCH_CHECK.ps1')
 start = read(ROOT/'START_HERE.cmd')
-quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
+quick = read(ROOT/'RUN_R13_LISTEN_TEST.cmd')
 
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
 req('bReplicates = true' in env_cpp and 'bAlwaysRelevant = true' in env_cpp, 'daylight rig reaches network clients')
@@ -67,8 +67,9 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-req(any(token in start for token in ['R13 CONTENT + GAMEPLAY PASS','R11 VISUAL FOUNDATION','R11.1 LAUNCHER FIXED']) and 'RUN_R11_LISTEN_TEST.cmd' in start, 'START_HERE exposes the retained R11 visual smoke path in current kit')
-req('-Frontend' in quick and '-NoFrontend' not in quick and '?listen?Mode=Conquest' in quick and '-game' in quick,
+req('R13 CONTENT + GAMEPLAY PASS' in start and 'RUN_R13_LISTEN_TEST.cmd' in start and 'RUN_R11_LISTEN_TEST.cmd' not in start,
+    'START_HERE exposes the current R13 listen-server gameplay path')
+req('-Frontend' in quick and '-NoFrontend' not in quick and '?listen?Mode=Conquest' in quick and '-game' in quick and 'R13Gameplay=1' in quick,
     'quick launch enters the current player-facing R13 listen-server frontend')
 req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh quick launch bootstraps generated runtime map')
 
