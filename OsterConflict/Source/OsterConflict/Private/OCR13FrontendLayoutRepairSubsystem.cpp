@@ -71,7 +71,7 @@ void UOCR13FrontendLayoutRepairSubsystem::Tick(float DeltaTime)
 
     const FVector2D RootSize = Root->GetCachedGeometry().GetLocalSize();
     if (RootSize.X < 320.0f || RootSize.Y < 180.0f) return;
-    if (!LastRootSize.IsNearlyZero() && FVector2D::Distance(RootSize, LastRootSize) > 4.0f)
+    if (LastRootSize.SizeSquared() > KINDA_SMALL_NUMBER && FVector2D::Distance(RootSize, LastRootSize) > 4.0f)
     {
         RepairFrontendGeometry();
     }
