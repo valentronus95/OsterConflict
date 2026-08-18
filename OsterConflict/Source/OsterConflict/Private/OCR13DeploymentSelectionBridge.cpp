@@ -37,6 +37,8 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
 {
     UWorld* World = GetWorld();
     AOCPlayerState* State = GetPlayerState<AOCPlayerState>();
+    bR13DeploymentCommitAuthorized = false;
+
     if (!World || !State || State->IsBotPlayer() || State->GetTeamId() == EOCTeam::None || State->GetSquadId() < 0)
     {
         if (State) State->SetLobbyReadyServer(false);
@@ -59,6 +61,9 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
         }
     }
 
+    // This token is consumed by OCR13SpawnSafetySubsystem on the first new human pawn. Legacy F4/ReadyAction may
+    // still exist for compatibility, but it cannot make an accepted gameplay pawn because it never grants this token.
+    bR13DeploymentCommitAuthorized = true;
     ServerSetLobbyReady_Implementation(true);
 }
 
