@@ -14,6 +14,8 @@
 
 namespace
 {
+    constexpr int32 ExpectedCentralParkBenchCount = 14;
+
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
         if (!Actor) return nullptr;
@@ -103,18 +105,38 @@ namespace
     {
         if (!Proxy || PlankFamilies.Num() == 0 || !Supports || !CollisionProxy) return 0;
 
-        int32 Replaced = 0;
+        TArray<int32> BenchIndices;
+        TArray<FTransform> BenchTransforms;
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
         {
             FTransform ProxyTransform;
-            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true) ||
-                !IsBenchProxyTransform(ProxyTransform, ParkAnchor))
-            {
-                continue;
-            }
+            if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
+            if (!IsBenchProxyTransform(ProxyTransform, ParkAnchor)) continue;
+            BenchIndices.Add(Index);
+            BenchTransforms.Add(ProxyTransform);
+        }
 
-            UInstancedStaticMeshComponent* Wood = PlankFamilies[Replaced % PlankFamilies.Num()];
-            if (!Wood || !Wood->GetStaticMesh()) continue;
+        // BuildCentralPark currently owns exactly seven benches on each side of the main alley. If that topology
+        // changes, preserve every proxy until this bridge is deliberately updated instead of guessing by shape.
+        if (BenchTransforms.Num() != ExpectedCentralParkBenchCount)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 park furniture: expected %d central-park bench proxies, found %d; preserving ParkDetails."),
+                ExpectedCentralParkBenchCount, BenchTransforms.Num());
+            return 0;
+        }
+
+        for (int32 BenchIndex = 0; BenchIndex < BenchTransforms.Num(); ++BenchIndex)
+        {
+            const FTransform& ProxyTransform = BenchTransforms[BenchIndex];
+            UInstancedStaticMeshComponent* Wood = PlankFamilies[BenchIndex % PlankFamilies.Num()];
+            if (!Wood || !Wood->GetStaticMesh())
+            {
+                for (UInstancedStaticMeshComponent* Family : PlankFamilies) if (Family) Family->ClearInstances();
+                Supports->ClearInstances();
+                CollisionProxy->ClearInstances();
+                return 0;
+            }
 
             const float Yaw = ProxyTransform.Rotator().Yaw;
             const FQuat SeatRotation = FRotator(0.0f, Yaw, 0.0f).Quaternion();
@@ -123,9 +145,7 @@ namespace
             const FVector Right = SeatRotation.RotateVector(FVector::RightVector);
             const FVector Forward = SeatRotation.RotateVector(FVector::ForwardVector);
 
-            // Preserve one cheap collision body per bench before moving the source cube proxy out of sight.
             CollisionProxy->AddInstance(ProxyTransform, true);
-
             AddFittedInstance(Wood, Base + FVector(0.0f, 0.0f, 48.0f),
                 FVector(180.0f, 42.0f, 7.0f), SeatRotation);
             AddFittedInstance(Wood, Base + Right * 22.0f + FVector(0.0f, 0.0f, 82.0f),
@@ -136,14 +156,32 @@ namespace
                 const FVector LegCenter = Base + Forward * Along + FVector(0.0f, 0.0f, 23.0f);
                 AddFittedInstance(Supports, LegCenter, FVector(8.0f, 34.0f, 46.0f), SeatRotation);
             }
-
-            FTransform HiddenTransform = ProxyTransform;
-            HiddenTransform.SetLocation(ProxyTransform.GetLocation() + FVector(0.0f, 0.0f, -100000.0f));
-            HiddenTransform.SetScale3D(FVector(0.001f));
-            Proxy->UpdateInstanceTransform(Index, HiddenTransform, true, true, true);
-            ++Replaced;
         }
-        return Replaced;
+
+        int32 HiddenCount = 0;
+        for (int32 BenchIndex = 0; BenchIndex < BenchIndices.Num(); ++BenchIndex)
+        {
+            FTransform HiddenTransform = BenchTransforms[BenchIndex];
+            HiddenTransform.SetScale3D(FVector(0.001f));
+            if (!Proxy->UpdateInstanceTransform(BenchIndices[BenchIndex], HiddenTransform, true, true, true))
+            {
+                for (int32 RestoreIndex = 0; RestoreIndex < HiddenCount; ++RestoreIndex)
+                {
+                    Proxy->UpdateInstanceTransform(BenchIndices[RestoreIndex],
+                        BenchTransforms[RestoreIndex], true, true, true);
+                }
+                for (UInstancedStaticMeshComponent* Family : PlankFamilies) if (Family) Family->ClearInstances();
+                Supports->ClearInstances();
+                CollisionProxy->ClearInstances();
+                UE_LOG(LogTemp, Warning,
+                    TEXT("R13 park furniture: proxy suppression failed; rolled back %d benches and cleared replacement art."),
+                    HiddenCount);
+                return 0;
+            }
+            ++HiddenCount;
+        }
+
+        return HiddenCount;
     }
 }
 
@@ -206,7 +244,12 @@ void UOCR13ParkFurnitureSubsystem::BuildParkFurnitureBridge(UWorld& World)
     ArtRoot->SetReplicates(false);
 
     USceneComponent* Root = NewObject<USceneComponent>(ArtRoot, TEXT("R13_ParkFurnitureRoot"));
-    if (!Root) return;
+    if (!Root)
+    {
+        ArtRoot->Destroy();
+        return;
+    }
+    Root->SetMobility(EComponentMobility::Static);
     ArtRoot->SetRootComponent(Root);
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
@@ -223,6 +266,11 @@ void UOCR13ParkFurnitureSubsystem::BuildParkFurnitureBridge(UWorld& World)
 
     const int32 Replaced = ReplaceBenchProxies(ParkDetailsProxy, AOCWorldSectorOster::ParkAnchor(),
         PlankFamilies, Supports, BenchCollision);
+    if (Replaced != ExpectedCentralParkBenchCount)
+    {
+        ArtRoot->Destroy();
+        return;
+    }
 
     UE_LOG(LogTemp, Display,
         TEXT("R13 park furniture: replaced %d semantic central-park bench proxies with bundled old-plank art; unrelated ParkDetails untouched."),
