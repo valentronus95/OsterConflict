@@ -27,11 +27,11 @@ void AOCPlayerController::UIRequestSquad(const int32 SquadId)
     else ServerRequestSquad(SquadId);
 }
 
-void AOCPlayerController::UIRequestRole(const EOCPlayerRole Role)
+void AOCPlayerController::UIRequestRole(const EOCPlayerRole RequestedRole)
 {
     if (!bDeploymentPanelVisible) return;
-    if (HasAuthority()) ServerRequestRole_Implementation(Role);
-    else ServerRequestRole(Role);
+    if (HasAuthority()) ServerRequestRole_Implementation(RequestedRole);
+    else ServerRequestRole(RequestedRole);
 }
 
 void AOCPlayerController::UICommitDeployment()
