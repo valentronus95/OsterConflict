@@ -41,6 +41,8 @@ namespace
         Component->SetMobility(EComponentMobility::Static);
         Component->SetCollisionProfileName(TEXT("NoCollision"));
         Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(true);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
@@ -49,9 +51,9 @@ namespace
 
     bool IsReservedArea(const FVector& Location)
     {
-        if (Location.Size2D() <= 10500.0f) return true; // museum reference garden
+        if (Location.Size2D() <= 10500.0f) return true;
         return FMath::Abs(Location.X + 3400.0f) < 7200.0f &&
-            Location.Y > -15000.0f && Location.Y < 18000.0f; // dedicated Krushelnytska slice
+            Location.Y > -15000.0f && Location.Y < 18000.0f;
     }
 
     void AddGrounded(const FYardFamily& Family, FVector Location, const float Scale, const float Yaw)
@@ -123,16 +125,14 @@ void UOCR13ResidentialYardSubsystem::BuildResidentialYards(UWorld& World)
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
+    // EnvironmentDressing already owns logs/crates/barrels/carts/wells/stone paths. This pass is deliberately
+    // limited to rural props that do not exist in that owner, avoiding duplicate piles and doubled clutter.
     const FYardFamily SideShed = MakeFamily(ArtRoot, Root,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Side_Shed.Side_Shed"), TEXT("R13_YardSideShed"));
     const FYardFamily Outhouse = MakeFamily(ArtRoot, Root,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Outhouse_House.Outhouse_House"), TEXT("R13_YardOuthouse"));
-    const FYardFamily LogPile = MakeFamily(ArtRoot, Root,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Log_Pile_1.Log_Pile_1"), TEXT("R13_YardLogPile"));
     const FYardFamily Wheelbarrow = MakeFamily(ArtRoot, Root,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Wheel_Barrow.Wheel_Barrow"), TEXT("R13_YardWheelbarrow"));
-    const FYardFamily Barrel = MakeFamily(ArtRoot, Root,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Metal_Barrel.Metal_Barrel"), TEXT("R13_YardBarrel"));
     const FYardFamily Pallet = MakeFamily(ArtRoot, Root,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Pallet.Pallet"), TEXT("R13_YardPallet"));
     const FYardFamily Tire = MakeFamily(ArtRoot, Root,
@@ -156,8 +156,6 @@ void UOCR13ResidentialYardSubsystem::BuildResidentialYards(UWorld& World)
             return HouseLocation + Rotation.RotateVector(FVector(BackCm, SideCm, 0.0f));
         };
 
-        // Larger outbuildings are intentionally rare. They are visual-only until their collision footprint can be
-        // validated in the finished map, so they cannot alter bot or vehicle paths during this art batch.
         if ((Index % 7) == 1 && SideShed.Component)
         {
             AddGrounded(SideShed, YardLocation(1450.0f, -1750.0f), 0.92f, HouseYaw + 88.0f);
@@ -169,19 +167,9 @@ void UOCR13ResidentialYardSubsystem::BuildResidentialYards(UWorld& World)
             ++PropCount;
         }
 
-        if ((Index % 3) == 0 && LogPile.Component)
-        {
-            AddGrounded(LogPile, YardLocation(-1050.0f, -1180.0f), 0.92f + 0.04f * (Index % 3), HouseYaw + 15.0f);
-            ++PropCount;
-        }
         if ((Index % 5) == 2 && Wheelbarrow.Component)
         {
             AddGrounded(Wheelbarrow, YardLocation(950.0f, -900.0f), 0.92f, HouseYaw + 33.0f);
-            ++PropCount;
-        }
-        if ((Index % 6) == 3 && Barrel.Component)
-        {
-            AddGrounded(Barrel, YardLocation(-750.0f, -720.0f), 0.94f, HouseYaw + 11.0f);
             ++PropCount;
         }
         if ((Index % 8) == 5 && Pallet.Component)
@@ -202,6 +190,6 @@ void UOCR13ResidentialYardSubsystem::BuildResidentialYards(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 residential yards: %d restrained non-blocking rural props placed from authored house topology."),
+        TEXT("R13.4 residential yards: %d unique non-blocking rural props placed; base yard clutter remains owned by EnvironmentDressing."),
         PropCount);
 }
