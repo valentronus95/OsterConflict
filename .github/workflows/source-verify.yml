@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - r13-content-gameplay-pass
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: source-verify-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify-source:
