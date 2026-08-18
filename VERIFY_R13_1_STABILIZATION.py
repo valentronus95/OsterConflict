@@ -38,10 +38,23 @@ compact_required = [
     "Component->RemoveInstance(Index)",
     "Mesh->SetRelativeScale3D(FVector(CompactWidthCm / 100.0f, CompactHeightCm / 100.0f, 2.0f))",
     "IsFrontendOnlySession()",
+    "bool bWorldCropped = false",
+    "TSet<FName> ObjectivesMoved",
+    "ObjectivesMoved.Add(Point->GetPointId())",
+    "if (ObjectivesMoved.Num() < ObjectiveLocations.Num())",
+    "ScheduleApply(World, RetryDelaySeconds)",
 ]
 for token in compact_required:
-    if token not in text["compact_cpp"]:
+    source = text["compact_h"] if token == "bool bWorldCropped = false" else text["compact_cpp"]
+    if token not in source:
         fail(f"compact Oster guard missing: {token}")
+
+# Capture-point movement is intentionally non-replicated, so deterministic objective relocation must not live only
+# inside the server-only block. This coarse ordering check prevents a future refactor from reintroducing stale clients.
+objective_loop = text["compact_cpp"].find("TSet<FName> ObjectivesMoved")
+server_only = text["compact_cpp"].find("if (World.GetNetMode() != NM_Client)")
+if objective_loop < 0 or server_only < 0 or objective_loop >= server_only:
+    fail("capture-point relocation must execute on clients before server-only team-spawn relocation")
 
 ui_required = [
     "DeploymentPanel->SetClipping(EWidgetClipping::ClipToBounds)",
@@ -58,6 +71,8 @@ ui_required = [
 for token in ui_required:
     if token not in text["ui_cpp"]:
         fail(f"UI viewport stabilization guard missing: {token}")
+if '#include "Components/SlateWrapperTypes.h"' not in text["ui_h"]:
+    fail("UI stabilizer must include ESlateVisibility definition explicitly")
 
 bot_required = [
     "const int32 LaneIndex = static_cast<int32>(StableHash % 7u) - 3",
@@ -97,4 +112,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map, UI isolation/deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
+print("Checks compact map/client objective sync, UI isolation/deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
