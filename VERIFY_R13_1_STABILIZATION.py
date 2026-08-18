@@ -54,8 +54,6 @@ for token in compact_required:
     if token not in source:
         fail(f"compact Oster guard missing: {token}")
 
-# Capture-point movement is intentionally non-replicated, so deterministic objective relocation must not live only
-# inside the server-only block. This coarse ordering check prevents a future refactor from reintroducing stale clients.
 objective_loop = text["compact_cpp"].find("TSet<FName> ObjectivesMoved")
 server_only = text["compact_cpp"].find("if (World.GetNetMode() != NM_Client)")
 if objective_loop < 0 or server_only < 0 or objective_loop >= server_only:
@@ -73,7 +71,10 @@ ui_required = [
     "Slot->SetSize(FVector2D(470.0f, 780.0f))",
     "RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13UIViewportStabilizerSubsystem",
     "GEngine->GameViewport->bDisableWorldRendering = bSuppress",
-    "SetWorldRenderingSuppressed(bStartupMenuVisible)",
+    "const bool bPreGamePresentationVisible = PC->GetPawn() == nullptr",
+    "PC->IsSettingsVisible()",
+    "PC->IsDeploymentPanelVisible()",
+    "SetWorldRenderingSuppressed(bPreGamePresentationVisible)",
     "SetWorldRenderingSuppressed(false)",
     "Super::Deinitialize()",
 ]
@@ -86,7 +87,6 @@ for token in ["virtual void Deinitialize() override", "bool bWorldRenderingSuppr
     if token not in text["ui_h"]:
         fail(f"UI world-render lifecycle declaration missing: {token}")
 
-# Suppression must be reversed before the subsystem/world disappears. GameViewportClient survives world travel.
 deinit_pos = text["ui_cpp"].find("void UOCR13UIViewportStabilizerSubsystem::Deinitialize()")
 restore_pos = text["ui_cpp"].find("SetWorldRenderingSuppressed(false)", deinit_pos)
 super_pos = text["ui_cpp"].find("Super::Deinitialize()", deinit_pos)
@@ -131,4 +131,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, hard startup world-render suppression, deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, hard pre-game world-render suppression, deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
