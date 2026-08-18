@@ -43,6 +43,11 @@ compact_required = [
     "ObjectivesMoved.Add(Point->GetPointId())",
     "if (ObjectivesMoved.Num() < ObjectiveLocations.Num())",
     "ScheduleApply(World, RetryDelaySeconds)",
+    "const FCompactVehicleSlot CompactVehicleSlots[]",
+    "TActorIterator<AOCVehicleSpawnPoint>",
+    "IsInsideCompactBounds(SpawnPoint->GetActorLocation())",
+    "SpawnPoint->SetActorLocationAndRotation",
+    "SpawnPoint->ResetForRoundServer()",
 ]
 for token in compact_required:
     source = text["compact_h"] if token == "bool bWorldCropped = false" else text["compact_cpp"]
@@ -112,4 +117,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective sync, UI isolation/deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, UI isolation/deployment sizing, bot separation, vehicle grounding and BoxTruck suspension.")
