@@ -3,6 +3,7 @@ import re
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT / "OsterConflict"
+CONTENT = PROJECT / "Content"
 SOURCE = PROJECT / "Source" / "OsterConflict"
 CONFIG = PROJECT / "Config" / "DefaultGame.ini"
 
@@ -11,6 +12,8 @@ def fail(message: str) -> None:
     raise SystemExit(f"R13 DYNAMIC COOK PATHS VERIFY FAIL: {message}")
 
 
+if not CONTENT.is_dir():
+    fail(f"missing content directory: {CONTENT.relative_to(ROOT)}")
 if not SOURCE.is_dir():
     fail(f"missing source directory: {SOURCE.relative_to(ROOT)}")
 if not CONFIG.is_file():
@@ -61,8 +64,34 @@ def covered_by_map(package_path: str) -> bool:
     return False
 
 
+def game_directory_to_local(game_path: str) -> Path:
+    relative = game_path.removeprefix("/Game/").strip("/")
+    return CONTENT / Path(relative)
+
+
+def dynamic_asset_to_local(package_path: str) -> Path:
+    relative = package_path.removeprefix("/Game/")
+    pieces = relative.split("/")
+    leaf = pieces[-1]
+    # Object/class references use /Game/Folder/Package.Object or Package.Blueprint_C. The .uasset filename is
+    # always the package part before the first dot in the final path segment.
+    package_leaf = leaf.split(".", 1)[0]
+    pieces[-1] = package_leaf + ".uasset"
+    return CONTENT.joinpath(*pieces)
+
+
 missing: list[str] = []
 seen_roots: set[str] = set()
+
+for cook_path in sorted(always_cook_paths):
+    if not cook_path.startswith("/Game/"):
+        continue
+    local_dir = game_directory_to_local(cook_path)
+    if not local_dir.is_dir():
+        missing.append(
+            f"{cook_path}: DirectoriesToAlwaysCook points to missing directory {local_dir.relative_to(ROOT)}"
+        )
+
 for package_path, files in sorted(dynamic_paths.items()):
     parts = package_path.split("/")
     if len(parts) >= 3:
@@ -80,6 +109,14 @@ for package_path, files in sorted(dynamic_paths.items()):
             f"{package_path}: dynamic string asset path is not covered by DirectoriesToAlwaysCook "
             f"({', '.join(sorted(files))})"
         )
+        continue
+
+    local_asset = dynamic_asset_to_local(package_path)
+    if not local_asset.is_file():
+        missing.append(
+            f"{package_path}: dynamic asset does not resolve to committed {local_asset.relative_to(ROOT)} "
+            f"({', '.join(sorted(files))})"
+        )
 
 if missing:
     print("R13 dynamic cook path verification: FAIL")
@@ -89,4 +126,5 @@ if missing:
 
 print("R13 DYNAMIC COOK PATHS VERIFY: PASS")
 print("Dynamic /Game roots covered:", ", ".join(sorted(seen_roots)))
-print(f"Dynamic package literals covered: {len(dynamic_paths)}")
+print(f"Dynamic package literals covered and present: {len(dynamic_paths)}")
+print(f"DirectoriesToAlwaysCook verified on disk: {len(always_cook_paths)}")
