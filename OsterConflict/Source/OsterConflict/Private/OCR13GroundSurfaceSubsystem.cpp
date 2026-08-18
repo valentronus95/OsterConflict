@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
 
@@ -25,8 +26,9 @@ void UOCR13GroundSurfaceSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Source BeginPlay assigns the temporary solid-green debug tint. Apply the real surface immediately after
-    // the source actor is expected to exist, without changing the ground transform, collision or compact bounds.
+    // Source BeginPlay assigns a temporary debug tint. Apply a deliberately matte city-ground surface after the
+    // source actor exists. The previous Diorama_Ground material reads as broad wet/reflection patches when stretched
+    // across the compact city floor, which made dry streets and yards look flooded in the R13 playtest.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
     InWorld.GetTimerManager().SetTimer(Timer,
@@ -49,17 +51,22 @@ void UOCR13GroundSurfaceSubsystem::ApplyGroundSurface(UWorld& World)
     UStaticMeshComponent* Ground = FindObjectFast<UStaticMeshComponent>(WorldSector, TEXT("Ground"));
     if (!Ground) return;
 
-    // This material is already bundled with the rural environment content and is authored for a regular mesh,
-    // unlike a Landscape-only material that may depend on Landscape coordinates/layers.
-    UMaterialInterface* GroundMaterial = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Diorama_Ground.Diorama_Ground"));
-
-    if (!GroundMaterial)
+    UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    if (!BaseMaterial)
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("R13.4 ground surface: Diorama_Ground material unavailable; preserving source ground tint."));
+            TEXT("R13.6 ground surface: matte engine material unavailable; preserving source ground tint."));
         return;
     }
+
+    UMaterialInstanceDynamic* GroundMaterial = UMaterialInstanceDynamic::Create(
+        BaseMaterial, Ground, TEXT("R13_MatteOsterGround"));
+    if (!GroundMaterial) return;
+
+    // Neutral muted grass/soil base. Dense grass, roads, sidewalks and later district materials provide the detail;
+    // the broad authoritative floor should never impersonate a lake or glossy wetland.
+    GroundMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.19f, 0.24f, 0.13f, 1.0f));
 
     // Material-only replacement. Do not touch Ground collision, scale, location or visibility because the same
     // component is the authoritative broad walkable floor used by spawn-safety traces and vehicle grounding.
@@ -67,5 +74,5 @@ void UOCR13GroundSurfaceSubsystem::ApplyGroundSurface(UWorld& World)
     Ground->SetCastShadow(false);
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 ground surface: committed terrain material applied; source collision and map bounds preserved."));
+        TEXT("R13.6 ground surface: matte non-water city floor applied; source collision and compact-map bounds preserved."));
 }
