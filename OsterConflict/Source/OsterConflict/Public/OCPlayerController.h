@@ -90,6 +90,8 @@ protected:
     UFUNCTION(Server, Reliable) void ServerRequestRole(EOCPlayerRole RequestedRole);
     UFUNCTION(Server, Reliable) void ServerRequestSquad(int32 SquadId);
     UFUNCTION(Server, Reliable) void ServerSetLobbyReady(bool bReady);
+    /** Prevent the old out-of-bounds base spawn from winning the race against compact-map relocation. */
+    UFUNCTION(Server, Reliable) void ServerCommitDeployment();
     UFUNCTION(Server, Reliable) void ServerSubmitSquadOrder(EOCSquadOrderType Type, FName ObjectiveId, FVector Location);
     UFUNCTION(Server, Reliable) void ServerRequestTeam(EOCTeam RequestedTeam);
     UFUNCTION(Server, Reliable) void ServerSetDeploymentSpawn(FName SpawnId);
