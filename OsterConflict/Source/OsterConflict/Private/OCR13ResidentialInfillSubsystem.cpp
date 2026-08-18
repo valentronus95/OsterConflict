@@ -123,6 +123,16 @@ namespace
         Location.Z = -LocalBottom * Scale;
         Family.Component->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), Location, FVector(Scale)), true);
     }
+
+    void AddFamilyIfValid(TArray<FHouseFamily>& Families, AActor* Owner, USceneComponent* Root,
+        UStaticMesh* Mesh, const FName ComponentName)
+    {
+        if (!Mesh) return;
+        FHouseFamily Family;
+        Family.Component = MakeHouseISM(Owner, Root, Mesh, ComponentName);
+        Family.Mesh = Mesh;
+        if (Family.Component) Families.Add(Family);
+    }
 }
 
 bool UOCR13ResidentialInfillSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -189,15 +199,10 @@ void UOCR13ResidentialInfillSubsystem::BuildResidentialInfill(UWorld& World)
     Root->RegisterComponent();
 
     TArray<FHouseFamily> Families;
-    if (House01)
-    {
-        Families.Add({ MakeHouseISM(ArtRoot, Root, House01, TEXT("R13_InfillHouse01")), House01 });
-    }
-    if (House02)
-    {
-        Families.Add({ MakeHouseISM(ArtRoot, Root, House02, TEXT("R13_InfillHouse02")), House02 });
-    }
-    Families.RemoveAll([](const FHouseFamily& Family) { return !Family.Component || !Family.Mesh; });
+    // Canonical component names intentionally match WholeOster. EnvironmentDressing scans those names at 1.60 s,
+    // so infill houses automatically receive the same companion house modules and base yard dressing as source houses.
+    AddFamilyIfValid(Families, ArtRoot, Root, House01, TEXT("R13_House01"));
+    AddFamilyIfValid(Families, ArtRoot, Root, House02, TEXT("R13_House02"));
     if (Families.IsEmpty())
     {
         ArtRoot->Destroy();
@@ -212,7 +217,8 @@ void UOCR13ResidentialInfillSubsystem::BuildResidentialInfill(UWorld& World)
         FTransform RoadTransform;
         if (!Roads->GetInstanceTransform(RoadIndex, RoadTransform, true)) continue;
 
-        const FVector Scale = RoadTransform.GetScale3D().GetAbs();
+        const FVector RawScale = RoadTransform.GetScale3D();
+        const FVector Scale(FMath::Abs(RawScale.X), FMath::Abs(RawScale.Y), FMath::Abs(RawScale.Z));
         const float RoadLengthCm = Scale.X * 100.0f;
         const float RoadWidthCm = Scale.Y * 100.0f;
         if (RoadLengthCm < 16000.0f || RoadWidthCm > 1800.0f) continue;
@@ -226,7 +232,7 @@ void UOCR13ResidentialInfillSubsystem::BuildResidentialInfill(UWorld& World)
             const float Alpha = (static_cast<float>(Sample) + 0.5f) / static_cast<float>(Samples);
             const float Along = FMath::Lerp(-RoadLengthCm * 0.44f, RoadLengthCm * 0.44f, Alpha);
             const float SideSign = ((RoadIndex + Sample) % 2 == 0) ? 1.0f : -1.0f;
-            FVector Candidate = RoadTransform.GetLocation() +
+            const FVector Candidate = RoadTransform.GetLocation() +
                 RoadRotation.RotateVector(FVector(Along, SideSign * SideOffsetCm, 0.0f));
             ++ConsideredCandidates;
 
@@ -236,7 +242,6 @@ void UOCR13ResidentialInfillSubsystem::BuildResidentialInfill(UWorld& World)
             if (HasNearbySourceBuilding(Buildings, Candidate)) continue;
             if (HasNearbyNewBuilding(AcceptedLocations, Candidate)) continue;
 
-            // House fronts broadly follow the road, with a small deterministic imperfection typical of the source blocks.
             const int32 Variant = AcceptedLocations.Num();
             const float HouseYaw = RoadTransform.Rotator().Yaw +
                 (SideSign > 0.0f ? 0.0f : 180.0f) + static_cast<float>((Variant % 5) - 2) * 1.7f;
@@ -248,6 +253,6 @@ void UOCR13ResidentialInfillSubsystem::BuildResidentialInfill(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 residential infill: accepted=%d/%d candidates, cap=%d; road-derived placement kept clear of source houses, landmarks and Krushelnytska."),
+        TEXT("R13.4 residential infill: accepted=%d/%d candidates, cap=%d; canonical house families feed EnvironmentDressing while placement stays clear of source houses, landmarks and Krushelnytska."),
         AcceptedLocations.Num(), ConsideredCandidates, MaxInfillHouses);
 }
