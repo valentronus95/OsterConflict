@@ -11,6 +11,12 @@
 
 namespace
 {
+    struct FHouseArtFamily
+    {
+        UInstancedStaticMeshComponent* Component = nullptr;
+        UStaticMesh* Mesh = nullptr;
+    };
+
     UStaticMesh* LoadArtMesh(const TCHAR* Path, bool bWarn = true)
     {
         UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, Path);
@@ -25,6 +31,14 @@ namespace
     {
         if (UStaticMesh* Mesh = LoadArtMesh(Preferred, false)) return Mesh;
         return LoadArtMesh(Fallback, true);
+    }
+
+    bool IsUsableHouseMesh(UStaticMesh* Mesh)
+    {
+        if (!Mesh) return false;
+        const FVector Size = Mesh->GetBounds().BoxExtent * 2.0f;
+        return Size.X >= 300.0f && Size.Y >= 300.0f && Size.Z >= 220.0f &&
+            Size.X <= 5000.0f && Size.Y <= 5000.0f && Size.Z <= 2200.0f;
     }
 
     UInstancedStaticMeshComponent* MakeISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh,
@@ -70,6 +84,12 @@ namespace
             Location.Y > -14500.0f && Location.Y < 17500.0f;
     }
 
+    bool IsMuseumGarden(const FVector& Location)
+    {
+        // Museum is the local georeference origin. Keep a distinct mature-tree character around the landmark.
+        return Location.Size2D() <= 10500.0f;
+    }
+
     float HouseScaleForProxy(const FTransform& ProxyTransform, UStaticMesh* HouseMesh)
     {
         if (!HouseMesh) return 1.0f;
@@ -82,14 +102,14 @@ namespace
         return FMath::Clamp(DesiredFootprint / MeshFootprint, 0.65f, 2.25f);
     }
 
-    float GrassScaleForPatch(UInstancedStaticMeshComponent* Target, float Width, float Depth, int32 Variant)
+    float GrassScaleForCell(UInstancedStaticMeshComponent* Target, float CellSize, int32 Variant)
     {
         if (!Target || !Target->GetStaticMesh()) return 1.0f;
         const FVector MeshSize = Target->GetStaticMesh()->GetBounds().BoxExtent * 2.0f;
         const float MeshFootprint = FMath::Max(1.0f, FMath::Max(MeshSize.X, MeshSize.Y));
-        const float DesiredFootprint = FMath::Clamp(FMath::Min(Width, Depth) * 0.18f, 120.0f, 320.0f);
-        const float Variation = 0.88f + 0.06f * static_cast<float>(Variant % 5);
-        return FMath::Clamp((DesiredFootprint / MeshFootprint) * Variation, 0.35f, 8.0f);
+        const float DesiredFootprint = FMath::Clamp(CellSize * 0.84f, 105.0f, 285.0f);
+        const float Variation = 0.88f + 0.045f * static_cast<float>(Variant % 6);
+        return FMath::Clamp((DesiredFootprint / MeshFootprint) * Variation, 0.30f, 7.0f);
     }
 
     void AddFlatProxyReplacements(UInstancedStaticMeshComponent* Proxy,
@@ -124,26 +144,33 @@ namespace
         }
     }
 
-    void AddHouseReplacements(UInstancedStaticMeshComponent* Proxy, UInstancedStaticMeshComponent* HouseA,
-        UInstancedStaticMeshComponent* HouseB, UStaticMesh* MeshA, UStaticMesh* MeshB, int32& OutCount)
+    void AddHouseReplacements(UInstancedStaticMeshComponent* Proxy,
+        const TArray<FHouseArtFamily>& HouseFamilies, int32& OutCount)
     {
-        if (!Proxy || (!HouseA && !HouseB)) return;
+        if (!Proxy || HouseFamilies.Num() == 0) return;
+
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
         {
             FTransform ProxyTransform;
             if (!Proxy->GetInstanceTransform(Index, ProxyTransform, true)) continue;
             FVector Location = ProxyTransform.GetLocation();
             if (IsInsideR12KrushelnytskaSlice(Location)) continue;
-            Location.Z = 0.0f;
 
-            const bool bUseA = (Index % 3) != 1;
-            UInstancedStaticMeshComponent* Target = bUseA ? HouseA : HouseB;
-            UStaticMesh* Mesh = bUseA ? MeshA : MeshB;
-            if (!Target || !Mesh) continue;
+            const FHouseArtFamily& Family = HouseFamilies[(Index * 5 + Index / 3) % HouseFamilies.Num()];
+            if (!Family.Component || !Family.Mesh) continue;
 
-            const float Scale = HouseScaleForProxy(ProxyTransform, Mesh);
-            const float Yaw = ProxyTransform.Rotator().Yaw + ((Index % 5) - 2) * 1.5f;
-            Target->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), Location, FVector(Scale)), true);
+            const float BaseScale = HouseScaleForProxy(ProxyTransform, Family.Mesh);
+            const float Variation = 0.96f + 0.02f * static_cast<float>(Index % 5);
+            const float Scale = BaseScale * Variation;
+            const float Yaw = ProxyTransform.Rotator().Yaw + static_cast<float>((Index % 7) - 3) * 1.35f;
+
+            // Ground by actual mesh bounds instead of assuming every house author used the same pivot.
+            const FBoxSphereBounds Bounds = Family.Mesh->GetBounds();
+            const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+            Location.Z = -LocalBottom * Scale;
+
+            Family.Component->AddInstance(
+                FTransform(FRotator(0.0f, Yaw, 0.0f), Location, FVector(Scale)), true);
             ++OutCount;
         }
     }
@@ -160,12 +187,23 @@ namespace
             if (IsInsideR12KrushelnytskaSlice(Location)) continue;
             Location.Z = 0.0f;
 
-            UInstancedStaticMeshComponent* Target = TreeFamilies[Index % TreeFamilies.Num()];
+            int32 FamilyIndex = Index % TreeFamilies.Num();
+            float LocalBaseScale = BaseScale;
+            if (IsMuseumGarden(Location))
+            {
+                // The photo reference around the museum is dominated by mature conifers/tall established trees.
+                // Bias the landmark garden toward the later tree variants and slightly larger scale without
+                // inventing new collision points outside the source-authored tree topology.
+                FamilyIndex = FMath::Max(0, TreeFamilies.Num() - 1 - (Index % FMath::Min(2, TreeFamilies.Num())));
+                LocalBaseScale *= 1.10f;
+            }
+
+            UInstancedStaticMeshComponent* Target = TreeFamilies[FamilyIndex];
             if (!Target) continue;
-            const float Variation = 0.90f + 0.06f * static_cast<float>(Index % 5);
-            const float Scale = BaseScale * Variation;
-            Target->AddInstance(FTransform(FRotator(0.0f, static_cast<float>((Index * 37) % 360), 0.0f),
-                Location, FVector(Scale)), true);
+            const float Variation = 0.90f + 0.055f * static_cast<float>(Index % 5);
+            const float Scale = LocalBaseScale * Variation;
+            Target->AddInstance(FTransform(
+                FRotator(0.0f, static_cast<float>((Index * 37) % 360), 0.0f), Location, FVector(Scale)), true);
             ++OutCount;
         }
     }
@@ -174,8 +212,6 @@ namespace
         const TArray<UInstancedStaticMeshComponent*>& GrassFamilies, int32& OutCount)
     {
         if (!Proxy || GrassFamilies.Num() == 0) return;
-
-        constexpr float Fractions[] = { -0.42f, -0.21f, 0.0f, 0.21f, 0.42f };
 
         for (int32 Index = 0; Index < Proxy->GetInstanceCount(); ++Index)
         {
@@ -186,19 +222,33 @@ namespace
             const float Width = FMath::Max(500.0f, FMath::Abs(ProxyScale.X) * 100.0f);
             const float Depth = FMath::Max(500.0f, FMath::Abs(ProxyScale.Y) * 100.0f);
 
+            // R13.4 density pass: scale the foliage grid with the authored lawn/rough patch size instead of
+            // painting every patch with the same sparse 5x5 stamp. Bounds keep instance counts predictable.
+            const int32 CellsX = FMath::Clamp(FMath::CeilToInt(Width / 850.0f), 5, 9);
+            const int32 CellsY = FMath::Clamp(FMath::CeilToInt(Depth / 850.0f), 5, 9);
+            const float CellWidth = Width / static_cast<float>(CellsX);
+            const float CellDepth = Depth / static_cast<float>(CellsY);
+            const float CellSize = FMath::Min(CellWidth, CellDepth);
+            const FQuat PatchRotation = FQuat(FRotator(0.0f, ProxyTransform.Rotator().Yaw, 0.0f));
+
             int32 Local = 0;
-            for (float FX : Fractions)
+            for (int32 X = 0; X < CellsX; ++X)
             {
-                for (float FY : Fractions)
+                for (int32 Y = 0; Y < CellsY; ++Y)
                 {
                     UInstancedStaticMeshComponent* Target = GrassFamilies[(Index + Local) % GrassFamilies.Num()];
                     ++Local;
                     if (!Target) continue;
 
-                    const float JitterX = static_cast<float>(((Index * 17 + Local * 7) % 9) - 4) * Width * 0.010f;
-                    const float JitterY = static_cast<float>(((Index * 11 + Local * 13) % 9) - 4) * Depth * 0.010f;
-                    const FVector Location = Center + FVector(FX * Width + JitterX, FY * Depth + JitterY, 3.0f - Center.Z);
-                    const float Scale = GrassScaleForPatch(Target, Width, Depth, Index + Local);
+                    const float FX = ((static_cast<float>(X) + 0.5f) / static_cast<float>(CellsX)) - 0.5f;
+                    const float FY = ((static_cast<float>(Y) + 0.5f) / static_cast<float>(CellsY)) - 0.5f;
+                    const float JitterX = static_cast<float>(((Index * 17 + Local * 7) % 11) - 5) * CellWidth * 0.035f;
+                    const float JitterY = static_cast<float>(((Index * 11 + Local * 13) % 11) - 5) * CellDepth * 0.035f;
+                    const FVector LocalOffset(FX * Width * 0.94f + JitterX, FY * Depth * 0.94f + JitterY, 0.0f);
+                    FVector Location = Center + PatchRotation.RotateVector(LocalOffset);
+                    Location.Z = 3.0f;
+
+                    const float Scale = GrassScaleForCell(Target, CellSize, Index + Local);
                     Target->AddInstance(FTransform(
                         FRotator(0.0f, static_cast<float>(((Index * 29) + Local * 47) % 360), 0.0f),
                         Location, FVector(Scale)), true);
@@ -252,6 +302,18 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
 
     UStaticMesh* House01 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01.SM_House_Var01"));
     UStaticMesh* House02 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var02.SM_House_Var02"));
+
+    // AdvancedVillage includes several optional full-house/extension meshes. Only accept candidates whose bounds
+    // are genuinely building-sized; small attachment meshes are ignored instead of being scaled into absurdity.
+    UStaticMesh* House01Extra03 = LoadArtMesh(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra03.SM_House_Var01_Extra03"), false);
+    UStaticMesh* House01Extra05 = LoadArtMesh(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra05.SM_House_Var01_Extra05"), false);
+    UStaticMesh* House01Extra07 = LoadArtMesh(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra07.SM_House_Var01_Extra07"), false);
+    UStaticMesh* House02Extra = LoadArtMesh(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var02_Extra.SM_House_Var02_Extra"), false);
+
     UStaticMesh* Tree01 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
     UStaticMesh* Tree02 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var02.SM_Tree_Var02"));
     UStaticMesh* Tree03 = LoadArtMesh(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var03.SM_Tree_Var03"));
@@ -291,8 +353,25 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
-    UInstancedStaticMeshComponent* House01ISM = MakeISM(ArtRoot, Root, House01, TEXT("R13_House01"), true);
-    UInstancedStaticMeshComponent* House02ISM = MakeISM(ArtRoot, Root, House02, TEXT("R13_House02"), true);
+    TArray<FHouseArtFamily> HouseFamilies;
+    auto AddHouseFamily = [&](UStaticMesh* Mesh, const FName Name)
+    {
+        if (!IsUsableHouseMesh(Mesh)) return;
+        if (UInstancedStaticMeshComponent* Component = MakeISM(ArtRoot, Root, Mesh, Name, true))
+        {
+            FHouseArtFamily Family;
+            Family.Component = Component;
+            Family.Mesh = Mesh;
+            HouseFamilies.Add(Family);
+        }
+    };
+    AddHouseFamily(House01, TEXT("R13_House01"));
+    AddHouseFamily(House02, TEXT("R13_House02"));
+    AddHouseFamily(House01Extra03, TEXT("R13_House01Extra03"));
+    AddHouseFamily(House01Extra05, TEXT("R13_House01Extra05"));
+    AddHouseFamily(House01Extra07, TEXT("R13_House01Extra07"));
+    AddHouseFamily(House02Extra, TEXT("R13_House02Extra"));
+
     UInstancedStaticMeshComponent* RoadsISM = MakeISM(ArtRoot, Root, RoadMesh, TEXT("R13_Roads"), true);
     UInstancedStaticMeshComponent* SidewalksISM = MakeISM(ArtRoot, Root, SidewalkMesh, TEXT("R13_Sidewalks"), true);
     if (RoadsISM) RoadsISM->SetCastShadow(false);
@@ -326,8 +405,7 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
 
     AddFlatProxyReplacements(FindISM(WorldSector, TEXT("Roads")), RoadsISM, RoadMesh, 1.0f, RoadCount);
     AddFlatProxyReplacements(FindISM(WorldSector, TEXT("Sidewalks")), SidewalksISM, SidewalkMesh, 1.0f, SidewalkCount);
-    AddHouseReplacements(FindISM(WorldSector, TEXT("Buildings")), House01ISM, House02ISM,
-        House01, House02, HouseCount);
+    AddHouseReplacements(FindISM(WorldSector, TEXT("Buildings")), HouseFamilies, HouseCount);
     AddTreeReplacements(FindISM(WorldSector, TEXT("TreeTrunks")), TreeFamilies, 1.00f, TreeCount);
     AddTreeReplacements(FindISM(WorldSector, TEXT("SovietPoplarTrunks")), TreeFamilies, 1.18f, TreeCount);
     AddTreeReplacements(FindISM(WorldSector, TEXT("BirchTrunks")), TreeFamilies, 1.02f, TreeCount);
@@ -376,6 +454,6 @@ void UOCR13WholeOsterArtSubsystem::ApplyWholeOsterBridge(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 whole-Oster art: roads=%d sidewalks=%d houses=%d trees=%d grass patches=%d; hidden rejected fantasy families=%d."),
-        RoadCount, SidewalkCount, HouseCount, TreeCount, GrassCount, HiddenFantasyFamilies);
+        TEXT("R13.4 whole-Oster art: roads=%d sidewalks=%d houses=%d (%d viable house families) trees=%d grass instances=%d; hidden rejected fantasy families=%d."),
+        RoadCount, SidewalkCount, HouseCount, HouseFamilies.Num(), TreeCount, GrassCount, HiddenFantasyFamilies);
 }
