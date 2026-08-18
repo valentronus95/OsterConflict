@@ -71,9 +71,9 @@ ui_required = [
     "Slot->SetSize(FVector2D(470.0f, 780.0f))",
     "RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13UIViewportStabilizerSubsystem",
     "GEngine->GameViewport->bDisableWorldRendering = bSuppress",
-    "const bool bPreGamePresentationVisible = PC->GetPawn() == nullptr",
-    "PC->IsSettingsVisible()",
-    "PC->IsDeploymentPanelVisible()",
+    "const bool bPreGamePresentationVisible =",
+    "(PC->GetPawn() == nullptr && (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible()))",
+    "PC->IsDeploymentPanelVisible();",
     "SetWorldRenderingSuppressed(bPreGamePresentationVisible)",
     "SetWorldRenderingSuppressed(false)",
     "Super::Deinitialize()",
@@ -135,4 +135,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, hard pre-game world-render suppression, deployment sizing, bot navigation fallback/separation, vehicle grounding, camera recovery and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, stable pre-game/deployment world suppression, deployment sizing, bot navigation fallback/separation, vehicle grounding, camera recovery and BoxTruck suspension.")
