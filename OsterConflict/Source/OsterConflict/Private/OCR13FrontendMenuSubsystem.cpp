@@ -55,22 +55,20 @@ namespace
         UTextBlock* Text = R13FrontendMakeMenuText(Outer, Label, 16, true);
         if (!Size || !Button || !Text) return nullptr;
 
-        Size->SetHeightOverride(52.0f);
-        Size->SetWidthOverride(430.0f);
+        Size->SetHeightOverride(50.0f);
+        Size->SetWidthOverride(420.0f);
         Text->SetJustification(ETextJustify::Center);
         R13FrontendApplyTypeface(Text, FName(TEXT("Regular")), 45);
-        // UButton has no public SetIsFocusable() in UE 5.8. IsFocusable is the public interaction property.
         Button->IsFocusable = true;
         Button->AddChild(Text);
         Size->SetContent(Button);
 
-        // Reference direction: almost transparent normal state, restrained warm khaki hover and pressed feedback.
-        // The existing Slate button brush keeps the thin outline while these low-alpha tints prevent a heavy panel look.
+        // Approved direction: neutral almost-transparent controls. No khaki/green wash and no opaque tiles.
         FButtonStyle Style = Button->GetStyle();
-        Style.Normal.TintColor = FSlateColor(FLinearColor(0.05f, 0.05f, 0.045f, 0.10f));
-        Style.Hovered.TintColor = FSlateColor(FLinearColor(0.42f, 0.34f, 0.20f, 0.24f));
-        Style.Pressed.TintColor = FSlateColor(FLinearColor(0.47f, 0.37f, 0.20f, 0.34f));
-        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.04f, 0.04f, 0.035f, 0.07f));
+        Style.Normal.TintColor = FSlateColor(FLinearColor(0.04f, 0.04f, 0.04f, 0.08f));
+        Style.Hovered.TintColor = FSlateColor(FLinearColor(0.16f, 0.16f, 0.16f, 0.20f));
+        Style.Pressed.TintColor = FSlateColor(FLinearColor(0.20f, 0.20f, 0.20f, 0.28f));
+        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.03f, 0.03f, 0.03f, 0.05f));
         Style.NormalPadding = FMargin(1.0f);
         Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
         Button->SetStyle(Style);
@@ -239,7 +237,8 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UVerticalBox* Box = NewObject<UVerticalBox>(Root, TEXT("R13_PlayerFrontend"));
     if (!Blocker || !Background || !Shade || !Panel || !Box) return;
 
-    Blocker->SetBrushColor(FLinearColor(0.004f, 0.005f, 0.004f, 1.0f));
+    // Pure black fallback exists only behind the approved Oster image, preventing live-world bleed if texture streaming is late.
+    Blocker->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     Blocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     Blocker->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Blocker), 70);
@@ -253,9 +252,8 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Background->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Background), 71);
 
-    // Keep the approved background intact. Shade is reserved for the in-game pause state only; the main menu uses
-    // a local left-side feather instead of globally darkening or recolouring the artwork.
-    Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.54f));
+    // Never tint the main-menu background. Full-frame dimming is reserved for pause only.
+    Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.40f));
     Shade->SetVisibility(ESlateVisibility::Collapsed);
     Shade->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Shade), 72);
@@ -266,12 +264,13 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
         float Width;
         float Alpha;
     };
+    // Compact local feather: strong only behind the menu and effectively gone before the middle of a 16:9 frame.
     const FGradientStrip GradientStrips[] = {
-        { 460.0f, 0.25f },
-        { 590.0f, 0.17f },
-        { 730.0f, 0.11f },
-        { 890.0f, 0.065f },
-        { 1080.0f, 0.030f },
+        { 420.0f, 0.23f },
+        { 520.0f, 0.15f },
+        { 620.0f, 0.09f },
+        { 730.0f, 0.05f },
+        { 850.0f, 0.02f },
     };
     for (int32 Index = UE_ARRAY_COUNT(GradientStrips) - 1; Index >= 0; --Index)
     {
@@ -293,8 +292,8 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     {
         PanelSlot->SetAnchors(FAnchors(0.0f, 0.0f));
         PanelSlot->SetAlignment(FVector2D::ZeroVector);
-        PanelSlot->SetPosition(FVector2D(118.0f, 92.0f));
-        PanelSlot->SetSize(FVector2D(470.0f, 760.0f));
+        PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));
+        PanelSlot->SetSize(FVector2D(440.0f, 760.0f));
         PanelSlot->SetZOrder(810);
     }
 
@@ -376,11 +375,11 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         const bool bMainPage = Page == 0;
         MenuPanel->SetBrushColor(bMainPage
             ? FLinearColor(0.0f, 0.0f, 0.0f, 0.0f)
-            : FLinearColor(0.008f, 0.009f, 0.008f, 0.38f));
-        MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(24.0f));
+            : FLinearColor(0.0f, 0.0f, 0.0f, 0.30f));
+        MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(22.0f));
         R13FrontendSetPanelGeometry(MenuPanel.Get(),
-            bMainPage ? FVector2D(118.0f, 92.0f) : FVector2D(118.0f, 126.0f),
-            bMainPage ? FVector2D(470.0f, 760.0f) : FVector2D(500.0f, 560.0f));
+            bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 126.0f),
+            bMainPage ? FVector2D(440.0f, 760.0f) : FVector2D(470.0f, 560.0f));
     }
 
     if (Page == 0)
@@ -451,9 +450,9 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 
     if (MenuPanel.IsValid())
     {
-        MenuPanel->SetBrushColor(FLinearColor(0.010f, 0.014f, 0.010f, 0.91f));
-        MenuPanel->SetPadding(FMargin(32.0f));
-        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(105.0f, 155.0f), FVector2D(560.0f, 365.0f));
+        MenuPanel->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.74f));
+        MenuPanel->SetPadding(FMargin(28.0f));
+        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(105.0f, 155.0f), FVector2D(520.0f, 365.0f));
     }
 
     if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
@@ -495,7 +494,7 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
     if (MenuBackground.IsValid()) MenuBackground->SetVisibility(BackdropVisibility);
     if (MenuShade.IsValid())
     {
-        MenuShade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.54f));
+        MenuShade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.40f));
         MenuShade->SetVisibility(ShadeVisibility);
     }
     for (const TWeakObjectPtr<UBorder>& Gradient : MenuGradientLayers)
@@ -655,8 +654,6 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC || !MenuBox.IsValid()) return;
 
-    // This function runs from Tick while the menu is visible. IgnoreMove/Look are stack based,
-    // so clear the prior state before applying the single menu lock instead of stacking every frame.
     PC->ResetIgnoreMoveInput();
     PC->ResetIgnoreLookInput();
     PC->SetIgnoreMoveInput(true);
@@ -667,7 +664,6 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
 
     FInputModeUIOnly Mode;
     Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-    // Never focus the VerticalBox. It is not focusable and was causing SVerticalBox focus spam.
     if (PrimaryButton.IsValid())
     {
         Mode.SetWidgetToFocus(PrimaryButton->TakeWidget());
