@@ -49,9 +49,11 @@ namespace
     {
         if (!Mesh) return false;
         const FVector Size = Mesh->GetBounds().BoxExtent * 2.0f;
-        const float LongAxis = FMath::Max(Size.X, Size.Y);
-        const float ShortAxis = FMath::Max(1.0f, FMath::Min(Size.X, Size.Y));
-        return LongAxis >= 70.0f && LongAxis >= ShortAxis * 2.0f && LongAxis >= FMath::Max(1.0f, Size.Z) * 2.0f;
+
+        // The fitting code intentionally assumes the authored plank length is local X. Reject a differently
+        // authored mesh instead of rotating/scaling it by guesswork and discovering a giant board in the park.
+        return Size.X >= 70.0f && Size.X >= FMath::Max(1.0f, Size.Y) * 2.0f &&
+            Size.X >= FMath::Max(1.0f, Size.Z) * 2.0f;
     }
 
     bool IsBenchProxyTransform(const FTransform& Transform, const FVector& ParkAnchor)
