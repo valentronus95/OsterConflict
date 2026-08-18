@@ -21,6 +21,16 @@ void AOCPlayerController::UIRequestRole(const EOCPlayerRole Role)
     else ServerRequestRole(Role);
 }
 
+void AOCPlayerController::UICommitDeployment()
+{
+    if (!bDeploymentPanelVisible || bFrontendMenuVisible || bSettingsVisible) return;
+
+    // Unlike the legacy UIReadyDeploy path, keep the deployment UI visible while the authoritative server
+    // creates and ground-validates the pawn. ClientCompleteDeployment is the only thing allowed to close it.
+    if (HasAuthority()) ServerSetLobbyReady_Implementation(true);
+    else ServerSetLobbyReady(true);
+}
+
 void AOCPlayerController::ServerRequestRole_Implementation(const EOCPlayerRole RequestedRole)
 {
     AOCGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AOCGameMode>() : nullptr;
