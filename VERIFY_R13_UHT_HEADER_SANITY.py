@@ -11,6 +11,64 @@ def fail(message: str) -> None:
     raise SystemExit("R13 UHT HEADER SANITY VERIFY FAIL: " + message)
 
 
+def uclass_macro_end(text: str, start: int, header_name: str) -> int:
+    """Return the first character after a UCLASS(...) invocation.
+
+    UCLASS metadata can contain nested parentheses, e.g.
+    UCLASS(ClassGroup=(Audio), meta=(BlueprintSpawnableComponent)). A flat regex that stops at the first ')'
+    mis-parses valid Unreal headers, so walk balanced parentheses and quoted strings instead.
+    """
+    pos = start
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+
+    if pos >= len(text) or text[pos] != "(":
+        return pos
+
+    depth = 0
+    quote = None
+    escaped = False
+    while pos < len(text):
+        ch = text[pos]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == quote:
+                quote = None
+        else:
+            if ch in ('"', "'"):
+                quote = ch
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return pos + 1
+                if depth < 0:
+                    break
+        pos += 1
+
+    fail(f"{header_name}: unbalanced UCLASS metadata parentheses")
+    return pos
+
+
+def exported_uclass_names(text: str, header_name: str) -> list[str]:
+    names: list[str] = []
+    for macro in re.finditer(r"\bUCLASS\b", text):
+        declaration_start = uclass_macro_end(text, macro.end(), header_name)
+        declaration = re.match(
+            r"\s*class\s+OSTERCONFLICT_API\s+([A-Za-z_]\w*)\b",
+            text[declaration_start:],
+            re.MULTILINE,
+        )
+        if not declaration:
+            fail(f"{header_name}: could not identify exported reflected class after UCLASS")
+        names.append(declaration.group(1))
+    return names
+
+
 if not PUBLIC.is_dir() or not PRIVATE.is_dir():
     fail("missing OsterConflict Public/Private source directories")
 
@@ -34,17 +92,9 @@ for header in sorted(PUBLIC.glob("*.h")):
     if "UCLASS" in text and "GENERATED_BODY()" not in text:
         fail(f"{header.name}: UCLASS header lacks GENERATED_BODY()")
 
-    # Catch a common copy/paste failure where a reflected class accidentally uses another class's API macro/body name.
-    class_matches = re.findall(
-        r'UCLASS\s*\([^)]*\)?\s*\n\s*class\s+OSTERCONFLICT_API\s+(\w+)', text, re.MULTILINE
-    )
-    if "UCLASS" in text and not class_matches:
-        # UCLASS() with no arguments is the dominant form in this project; allow whitespace but still require exported class.
-        class_matches = re.findall(
-            r'UCLASS\s*\(\s*\)\s*\n\s*class\s+OSTERCONFLICT_API\s+(\w+)', text, re.MULTILINE
-        )
-    if "UCLASS" in text and not class_matches:
-        fail(f"{header.name}: could not identify exported reflected class after UCLASS")
+    # Catch copy/paste failures in reflected exported classes without mis-parsing nested UCLASS metadata.
+    if "UCLASS" in text:
+        exported_uclass_names(text, header.name)
 
 for cpp in sorted(PRIVATE.glob("*.cpp")):
     text = cpp.read_text(encoding="utf-8", errors="replace")
