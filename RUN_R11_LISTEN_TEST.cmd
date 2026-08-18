@@ -76,12 +76,13 @@ if not exist "%MAP_FILE%" (
   )
 )
 
-echo Starting R13 player-facing listen-server test...
-echo The normal Oster museum main menu is shown first; Start continues to deployment.
+echo Starting R13.1 player-facing listen-server test...
+echo The Oster museum main menu is shown first; Start continues to deployment.
+echo Engine preparation/debug screen messages are suppressed in this player-facing path.
 echo.
 echo VEHICLE QUICK CONTROLS:
 echo   Driver: W/S drive, A/D steer, RMB free look, C camera, E exit when slow.
 echo   Turret control belongs to the dedicated gunner seat; driver mouse no longer steals the turret.
 echo.
-start "Oster Conflict R13" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -Frontend -R12VisualSlice -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start "Oster Conflict R13.1" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -Frontend -R12VisualSlice -NoScreenMessages -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 exit /b 0
