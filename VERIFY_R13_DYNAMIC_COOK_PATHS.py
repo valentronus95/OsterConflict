@@ -24,8 +24,8 @@ always_cook_paths = set(re.findall(r'DirectoriesToAlwaysCook=\(Path="([^"]+)"\)'
 map_paths = set(re.findall(r'MapsToCook=\(FilePath="([^"]+)"\)', config_text))
 
 # Inspect only files that participate in runtime/object-path loading. Extract every literal /Game/... portion from
-# those files. A literal ending in '/' is a directory prefix used to assemble an object path at runtime, e.g.
-# FString::Printf(TEXT("/Game/R13/Audio/%s.%s"), ...). Other literals are treated as concrete package/object paths.
+# those files. A literal ending in '/' is a directory prefix. A literal immediately followed by a printf-style '%'
+# is also a dynamic prefix, e.g. SM_House_Var01_Extra%02d: the concrete package name is assembled at runtime.
 loader_markers = (
     "LoadObject<",
     "LoadClass<",
@@ -36,17 +36,21 @@ loader_markers = (
 )
 path_pattern = re.compile(r'/Game/[A-Za-z0-9_./\-]+')
 
-dynamic_paths: dict[str, set[str]] = {}
+dynamic_paths: dict[str, dict[str, object]] = {}
 for source_file in sorted(list(SOURCE.rglob("*.cpp")) + list(SOURCE.rglob("*.h"))):
     text = source_file.read_text(encoding="utf-8", errors="replace")
     if not any(marker in text for marker in loader_markers):
         continue
     relative_file = str(source_file.relative_to(ROOT)).replace("\\", "/")
-    for raw_path in path_pattern.findall(text):
-        package_path = raw_path.rstrip(".)")
+    for match in path_pattern.finditer(text):
+        package_path = match.group(0).rstrip(".)")
         if not package_path.startswith("/Game/"):
             continue
-        dynamic_paths.setdefault(package_path, set()).add(relative_file)
+        next_char = text[match.end():match.end() + 1]
+        b_format_prefix = next_char == "%"
+        entry = dynamic_paths.setdefault(package_path, {"files": set(), "format_prefix": False})
+        entry["files"].add(relative_file)
+        entry["format_prefix"] = bool(entry["format_prefix"]) or b_format_prefix
 
 
 def covered_by_directory(package_path: str) -> bool:
@@ -81,9 +85,18 @@ def dynamic_asset_to_local(package_path: str) -> Path:
     return CONTENT.joinpath(*pieces)
 
 
+def prefix_parent_to_local(package_path: str) -> Path:
+    # A formatted package prefix may end in part of a filename rather than '/'. The containing directory is what
+    # DirectoriesToAlwaysCook guarantees; exact generated assets are checked by dedicated asset-family verifiers.
+    relative = package_path.removeprefix("/Game/")
+    parent = Path(relative).parent
+    return CONTENT / parent
+
+
 missing: list[str] = []
 seen_roots: set[str] = set()
 directory_prefix_count = 0
+format_prefix_count = 0
 asset_literal_count = 0
 
 for cook_path in sorted(always_cook_paths):
@@ -95,7 +108,9 @@ for cook_path in sorted(always_cook_paths):
             f"{cook_path}: DirectoriesToAlwaysCook points to missing directory {local_dir.relative_to(ROOT)}"
         )
 
-for package_path, files in sorted(dynamic_paths.items()):
+for package_path, info in sorted(dynamic_paths.items()):
+    files = info["files"]
+    b_format_prefix = bool(info["format_prefix"])
     parts = package_path.split("/")
     if len(parts) >= 3:
         seen_roots.add(f"/Game/{parts[2]}")
@@ -115,13 +130,21 @@ for package_path, files in sorted(dynamic_paths.items()):
         continue
 
     if package_path.endswith("/"):
-        # Runtime format-string prefix. The concrete asset name is assembled later, so validate the directory
-        # itself instead of pretending '/Game/Foo/' should resolve to '/Game/Foo/.uasset'.
         directory_prefix_count += 1
         local_dir = game_directory_to_local(package_path)
         if not local_dir.is_dir():
             missing.append(
                 f"{package_path}: dynamic directory prefix does not resolve to committed directory "
+                f"{local_dir.relative_to(ROOT)} ({', '.join(sorted(files))})"
+            )
+        continue
+
+    if b_format_prefix:
+        format_prefix_count += 1
+        local_dir = prefix_parent_to_local(package_path)
+        if not local_dir.is_dir():
+            missing.append(
+                f"{package_path}%...: formatted dynamic asset prefix does not resolve inside committed directory "
                 f"{local_dir.relative_to(ROOT)} ({', '.join(sorted(files))})"
             )
         continue
@@ -144,4 +167,5 @@ print("R13 DYNAMIC COOK PATHS VERIFY: PASS")
 print("Dynamic /Game roots covered:", ", ".join(sorted(seen_roots)))
 print(f"Concrete dynamic package literals covered and present: {asset_literal_count}")
 print(f"Dynamic directory prefixes covered and present: {directory_prefix_count}")
+print(f"Formatted dynamic package prefixes covered: {format_prefix_count}")
 print(f"DirectoriesToAlwaysCook verified on disk: {len(always_cook_paths)}")
