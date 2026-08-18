@@ -7,7 +7,7 @@ PROJECT = ROOT / "OsterConflict"
 required = [
     ROOT / ".gitignore",
     ROOT / "R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd",
-    ROOT / "RUN_R11_LISTEN_TEST.cmd",
+    ROOT / "RUN_R13_LISTEN_TEST.cmd",
     ROOT / "PC_TEST" / "CHECK_R13_LAUNCH_READY.ps1",
     PROJECT / "Scripts" / "R13" / "IMPORT_R13_CONTENT.py",
     PROJECT / "Config" / "DefaultGame.ini",
@@ -37,7 +37,7 @@ if missing:
 
 ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 download = (ROOT / "R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd").read_text(encoding="utf-8")
-listen_test = (ROOT / "RUN_R11_LISTEN_TEST.cmd").read_text(encoding="utf-8")
+listen_test = (ROOT / "RUN_R13_LISTEN_TEST.cmd").read_text(encoding="utf-8")
 launch_ready = (ROOT / "PC_TEST" / "CHECK_R13_LAUNCH_READY.ps1").read_text(encoding="utf-8")
 import_script = (PROJECT / "Scripts" / "R13" / "IMPORT_R13_CONTENT.py").read_text(encoding="utf-8")
 packaging = (PROJECT / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
@@ -94,7 +94,7 @@ checks = [
     ("frontend uses opaque full-screen Oster backdrop", "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG" in frontend_cpp and "R13_MenuWorldBlocker" in frontend_cpp and "SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f))" in frontend_cpp and "SetOffsets(FMargin(0.0f))" in frontend_cpp),
     ("custom menu art is normalized to opaque RGB before import", "Format24bppRgb" in download and "Normalizing custom artwork to an opaque PNG" in download),
     ("importer prefers normalized opaque menu source", "NORMALIZED_MENU_SOURCE" in import_script and "if NORMALIZED_MENU_SOURCE.exists()" in import_script),
-    ("listen gameplay test starts through frontend", " -Frontend " in listen_test and "-NoFrontend" not in listen_test),
+    ("listen gameplay test starts through current R13 frontend", " -Frontend " in listen_test and "-NoFrontend" not in listen_test and "R13Gameplay=1" in listen_test),
     ("driver turret mapping no longer steals free-look", 'ContextName == TEXT("IMC_DriverTurretRuntime")' in ui_cpp and "RemoveMappingContext(Context)" in ui_cpp),
     ("primitive first-person proxy hands are hidden", "for (UStaticMeshComponent* Part : FirstPersonProxyParts)" in character_visual and "if (Part) Part->SetVisibility(false, true);" in character_visual and "Arms->SetVisibility(bHasProductionArms, true);" in character_visual),
     ("civilian road speed is capped near 90 km/h", "MaxForwardSpeedKmh = 90.0f;" in civilian and "DriveForce = 1200000.0f;" in civilian),
