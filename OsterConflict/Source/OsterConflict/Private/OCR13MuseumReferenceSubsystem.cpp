@@ -123,6 +123,8 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_05.SM_Pine_Tree_05"));
     UMaterialInterface* GlassMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Glass_Window.Glass_Window"));
+    UMaterialInterface* PaintedBlueWood = LoadObject<UMaterialInterface>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Wood_Planks_Painted_Blue.Wood_Planks_Painted_Blue"));
 
     AActor* ArtRoot = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!ArtRoot) return;
@@ -144,8 +146,9 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
         TEXT("R13_MuseumPlinthMat"), FLinearColor(0.045f, 0.042f, 0.038f, 1.0f));
     UMaterialInstanceDynamic* BrickMaterial = MakeColorMaterial(ArtRoot, BaseMaterial,
         TEXT("R13_MuseumBrickMat"), FLinearColor(0.43f, 0.17f, 0.095f, 1.0f));
-    UMaterialInstanceDynamic* UpperMaterial = MakeColorMaterial(ArtRoot, BaseMaterial,
-        TEXT("R13_MuseumUpperMat"), FLinearColor(0.28f, 0.34f, 0.36f, 1.0f));
+    UMaterialInstanceDynamic* UpperFallbackMaterial = MakeColorMaterial(ArtRoot, BaseMaterial,
+        TEXT("R13_MuseumUpperFallbackMat"), FLinearColor(0.28f, 0.34f, 0.36f, 1.0f));
+    UMaterialInterface* UpperSurfaceMaterial = PaintedBlueWood ? PaintedBlueWood : UpperFallbackMaterial;
     UMaterialInstanceDynamic* TrimMaterial = MakeColorMaterial(ArtRoot, BaseMaterial,
         TEXT("R13_MuseumTrimMat"), FLinearColor(0.78f, 0.76f, 0.68f, 1.0f));
     UMaterialInstanceDynamic* DoorMaterial = MakeColorMaterial(ArtRoot, BaseMaterial,
@@ -157,7 +160,7 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
         TEXT("R13_MuseumDarkPlinth"), false, true);
     UInstancedStaticMeshComponent* BrickAccents = MakeISM(ArtRoot, Root, CubeMesh, BrickMaterial,
         TEXT("R13_MuseumBrickAccents"), false, true);
-    UInstancedStaticMeshComponent* UpperCladding = MakeISM(ArtRoot, Root, CubeMesh, UpperMaterial,
+    UInstancedStaticMeshComponent* UpperCladding = MakeISM(ArtRoot, Root, CubeMesh, UpperSurfaceMaterial,
         TEXT("R13_MuseumBlueGreyUpper"), false, true);
     UInstancedStaticMeshComponent* Trim = MakeISM(ArtRoot, Root, CubeMesh, TrimMaterial,
         TEXT("R13_MuseumPaleTrim"), false, true);
@@ -178,6 +181,7 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
     AddBox(BrickAccents, Museum + FVector(-2050.0f, -644.0f, 500.0f), FVector(1100.0f, 22.0f, 48.0f));
     AddBox(BrickAccents, Museum + FVector(2050.0f, -644.0f, 500.0f), FVector(1100.0f, 22.0f, 48.0f));
 
+    // The raised upper volume is painted blue-grey timber in the supplied museum reference photos.
     AddBox(UpperCladding, Museum + FVector(50.0f, -566.0f, 720.0f), FVector(1540.0f, 20.0f, 410.0f));
     AddBox(UpperCladding, Museum + FVector(-728.0f, 80.0f, 720.0f), FVector(18.0f, 1260.0f, 410.0f));
     AddBox(UpperCladding, Museum + FVector(828.0f, 80.0f, 720.0f), FVector(18.0f, 1260.0f, 410.0f));
@@ -248,6 +252,6 @@ void UOCR13MuseumReferenceSubsystem::BuildMuseumReferenceLayer(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.4 museum reference: unique photo-driven plinth/cornice/upper gable/entrance steps/side glazing applied; long approach remains owned by LandmarkSiteDressing; mature pines=%d."),
+        TEXT("R13.4 museum reference: unique photo-driven plinth/cornice/textured blue-grey timber upper gable/entrance steps/side glazing applied; long approach remains owned by LandmarkSiteDressing; mature pines=%d."),
         PineCount);
 }
