@@ -54,7 +54,12 @@ req('DrawDebugLine(GetWorld(), TraceStart' not in weapon and 'DrawDebugPoint(Get
 req('SetLifeSpan' in fx and 'UPointLightComponent' in fx_h and 'BasicShapeMaterial' in fx, 'transient FX self-clean and use lit material geometry')
 
 req('FPProxyArmL"), Cylinder' in char and 'FPProxyHandL"), Sphere' in char, 'first-person proxy arm fallback remains structurally defined')
-req('Part->SetVisibility(false, true);' in char and 'Never expose primitive debug arms/hands in first person' in char, 'first-person primitive arm fallback is hidden from gameplay')
+primitive_arms_hidden = (
+    'for (UStaticMeshComponent* Part : FirstPersonProxyParts)' in char and
+    'if (Part) Part->SetVisibility(false, true);' in char and
+    'Arms->SetVisibility(bHasProductionArms, true);' in char
+)
+req(primitive_arms_hidden, 'first-person primitive arm fallback is hidden while authored FPS arms are visibility-gated')
 req('GetComponents<UStaticMeshComponent>(MeshComponents)' in vehicle and 'CivilianPalette' in vehicle and 'MilitaryBody' in vehicle, 'vehicle source proxies receive readable palettes')
 
 req("$BuildBat=Resolve-Required" in validation and 'RunUBT.bat' not in validation, 'validation no longer requires missing RunUBT.bat')
