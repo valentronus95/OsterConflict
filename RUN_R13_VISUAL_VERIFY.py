@@ -14,6 +14,7 @@ CHECKS = [
     "VERIFY_R13_4_VISUAL_BATCH_CONSOLIDATION.py",
     "VERIFY_R13_4_RESIDENTIAL_INFILL.py",
     "VERIFY_R13_4_RESIDENTIAL_INFILL_FENCES.py",
+    "VERIFY_R13_4_ENTERABLE_HOUSE_POPULATION.py",
     "VERIFY_R13_5_LANDMARK_SITE_DRESSING.py",
     "VERIFY_R13_5_CENTRAL_PARK_DRESSING.py",
     "VERIFY_R13_5_CENTRAL_PARK_CANOPY.py",
@@ -38,4 +39,4 @@ for name in CHECKS:
         raise SystemExit(result.returncode)
 
 print("R13 CONSOLIDATED VISUAL VERIFICATION: PASS")
-print(f"Executed {len(CHECKS)} environment / landmark / fence / protection / asset-path visual source gates.")
+print(f"Executed {len(CHECKS)} environment / houses / landmark / fence / protection / asset-path visual source gates.")
