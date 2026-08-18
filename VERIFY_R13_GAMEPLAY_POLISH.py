@@ -27,6 +27,7 @@ required = [
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13VehicleArtSubsystem.cpp",
     PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13WholeOsterArtSubsystem.h",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13WholeOsterArtSubsystem.cpp",
+    PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13EnvironmentDressingSubsystem.cpp",
     PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp",
 ]
 missing = [str(p.relative_to(ROOT)) for p in required if not p.exists()]
@@ -53,6 +54,7 @@ btr = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCBTR.cpp").read_text
 environment = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCVisualEnvironment.cpp").read_text(encoding="utf-8")
 vehicle_art = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13VehicleArtSubsystem.cpp").read_text(encoding="utf-8")
 whole_oster_art = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13WholeOsterArtSubsystem.cpp").read_text(encoding="utf-8")
+environment_dressing = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13EnvironmentDressingSubsystem.cpp").read_text(encoding="utf-8")
 access_h = (PROJECT / "Source" / "OsterConflict" / "Public" / "OCR13AccessibilitySubsystem.h").read_text(encoding="utf-8")
 access_cpp = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCR13AccessibilitySubsystem.cpp").read_text(encoding="utf-8")
 weapon_variants = (PROJECT / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp").read_text(encoding="utf-8")
@@ -105,7 +107,13 @@ checks = [
     ("BTR is not disguised with a civilian placeholder", "if (Cast<AOCBTR>(Vehicle))" in vehicle_art and "A real BTR/APC asset has not been selected yet" in vehicle_art and "ProcessedVehicles.Add(Vehicle);" in vehicle_art),
     ("whole Oster uses real house meshes", "SM_House_Var01.SM_House_Var01" in whole_oster_art and "AddHouseReplacements" in whole_oster_art),
     ("whole Oster uses real tree meshes", "SM_Tree_Var01.SM_Tree_Var01" in whole_oster_art and "AddTreeReplacements" in whole_oster_art),
-    ("whole Oster uses dense real grass meshes", "SM_GrassPatch_Var01.SM_GrassPatch_Var01" in whole_oster_art and "grass_01_01_mesh.grass_01_01_mesh" in whole_oster_art and "constexpr float Fractions[] = { -0.42f, -0.21f, 0.0f, 0.21f, 0.42f }" in whole_oster_art and "GrassCount > 0" in whole_oster_art),
+    ("whole Oster delegates dense real grass to environment dressing", all(marker in environment_dressing for marker in [
+        "grass_01_01_mesh.grass_01_01_mesh",
+        "SM_GrassPatch_Var01.SM_GrassPatch_Var01",
+        "AddAdaptiveGrass",
+        "MaxCellsPerZone = 2200",
+        "R13_DenseGrass%02d",
+    ]) and "adaptive grass delegated to EnvironmentDressing" in whole_oster_art and "AddAdaptiveGrass" not in whole_oster_art),
     ("whole Oster hides replaced primitive families", 'TEXT("Buildings")' in whole_oster_art and 'TEXT("TreeCrowns")' in whole_oster_art and 'TEXT("GrassMown")' in whole_oster_art),
     ("daylight atmosphere uses explicit Earth-like scattering", all(marker in environment for marker in ["SetRayleighScatteringScale(1.0f)", "SetRayleighScattering(FLinearColor(0.005802f, 0.013558f, 0.033100f))", "SetMieScatteringScale(1.0f)", "SetMieScattering(FLinearColor(0.003996f, 0.003996f, 0.003996f))", "SetLightColor(FLinearColor::White)"])),
     ("Oster museum fallback source remains documented", "Будинок Солонини, Остер.JPG" in download),
