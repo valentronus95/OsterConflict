@@ -43,6 +43,20 @@ namespace
         return Component;
     }
 
+    bool IsUsableVerticalFencePanel(UStaticMesh* Mesh)
+    {
+        if (!Mesh) return false;
+
+        const FVector Size = Mesh->GetBounds().BoxExtent * 2.0f;
+        const float LongXY = FMath::Max(Size.X, Size.Y);
+        const float ThinXY = FMath::Max(1.0f, FMath::Min(Size.X, Size.Y));
+
+        // The roadside pack contains loose sheet-metal props as well as usable upright pieces.
+        // Only accept a mesh whose authored Z dimension behaves like a vertical fence panel.
+        // A sheet authored flat on the ground has a tiny Z extent and must never become a fence.
+        return LongXY >= 50.0f && Size.Z >= 50.0f && Size.Z >= ThinXY * 1.25f;
+    }
+
     int32 AddFenceModules(UInstancedStaticMeshComponent* Proxy,
         const TArray<UInstancedStaticMeshComponent*>& Families)
     {
@@ -109,6 +123,13 @@ namespace
         }
         return Added;
     }
+
+    void HideProxyIfReplaced(UInstancedStaticMeshComponent* Proxy, const int32 Added)
+    {
+        if (!Proxy || Added <= 0) return;
+        Proxy->SetVisibility(false, true);
+        Proxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
 }
 
 bool UOCR13OsterPropArtSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -143,7 +164,10 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     if (!WorldSector) return;
 
     UInstancedStaticMeshComponent* WoodProxy = FindISM(WorldSector, TEXT("WoodFences"));
-    if (!WoodProxy || WoodProxy->GetInstanceCount() == 0) return;
+    UInstancedStaticMeshComponent* LightSheetProxy = FindISM(WorldSector, TEXT("LightSheetFences"));
+    const bool bHasWoodProxy = WoodProxy && WoodProxy->GetInstanceCount() > 0;
+    const bool bHasLightSheetProxy = LightSheetProxy && LightSheetProxy->GetInstanceCount() > 0;
+    if (!bHasWoodProxy && !bHasLightSheetProxy) return;
 
     UStaticMesh* Fence01 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"));
@@ -152,9 +176,21 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     UStaticMesh* Fence03 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_3_2m.Fence_Old_3_2m"));
 
-    if (!Fence01 && !Fence02 && !Fence03)
+    UStaticMesh* Sheet01 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_01/SM_Urb_Roa_Sheet_Metal_Rusty_01.SM_Urb_Roa_Sheet_Metal_Rusty_01"));
+    UStaticMesh* Sheet02 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_02/SM_Urb_Roa_Sheet_Metal_Rusty_02.SM_Urb_Roa_Sheet_Metal_Rusty_02"));
+    UStaticMesh* Sheet03 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_03/SM_Urb_Roa_Sheet_Metal_Rusty_03.SM_Urb_Roa_Sheet_Metal_Rusty_03"));
+
+    if (!IsUsableVerticalFencePanel(Sheet01)) Sheet01 = nullptr;
+    if (!IsUsableVerticalFencePanel(Sheet02)) Sheet02 = nullptr;
+    if (!IsUsableVerticalFencePanel(Sheet03)) Sheet03 = nullptr;
+
+    if (!Fence01 && !Fence02 && !Fence03 && !Sheet01 && !Sheet02 && !Sheet03)
     {
-        UE_LOG(LogTemp, Warning, TEXT("R13 Oster props: bundled rural-cabin fence meshes unavailable; keeping WoodFences proxies."));
+        UE_LOG(LogTemp, Warning,
+            TEXT("R13 Oster props: bundled fence meshes unavailable or unsuitable; preserving fence proxies."));
         return;
     }
 
@@ -173,13 +209,17 @@ void UOCR13OsterPropArtSubsystem::ApplyPropBridge(UWorld& World)
     if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Fence02, TEXT("R13_WoodFence02"))) FenceFamilies.Add(Family);
     if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Fence03, TEXT("R13_WoodFence03"))) FenceFamilies.Add(Family);
 
-    const int32 Added = AddFenceModules(WoodProxy, FenceFamilies);
-    if (Added > 0)
-    {
-        WoodProxy->SetVisibility(false, true);
-        WoodProxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    }
+    TArray<UInstancedStaticMeshComponent*> LightSheetFamilies;
+    if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Sheet01, TEXT("R13_LightSheetFence01"))) LightSheetFamilies.Add(Family);
+    if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Sheet02, TEXT("R13_LightSheetFence02"))) LightSheetFamilies.Add(Family);
+    if (UInstancedStaticMeshComponent* Family = MakeISM(ArtRoot, Root, Sheet03, TEXT("R13_LightSheetFence03"))) LightSheetFamilies.Add(Family);
 
-    UE_LOG(LogTemp, Display, TEXT("R13 Oster props: wood fence modules=%d; source proxies %s."),
-        Added, Added > 0 ? TEXT("hidden") : TEXT("preserved"));
+    const int32 WoodAdded = AddFenceModules(WoodProxy, FenceFamilies);
+    const int32 LightSheetAdded = AddFenceModules(LightSheetProxy, LightSheetFamilies);
+    HideProxyIfReplaced(WoodProxy, WoodAdded);
+    HideProxyIfReplaced(LightSheetProxy, LightSheetAdded);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("R13 Oster props: wood fence modules=%d, light-sheet fence modules=%d; proxies hidden only after successful replacement."),
+        WoodAdded, LightSheetAdded);
 }
