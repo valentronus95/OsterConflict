@@ -119,6 +119,18 @@ namespace
         return nullptr;
     }
 
+    float VisualRoadContactZ(const UBoxComponent* PhysicsBody)
+    {
+        // FitMeshToPhysicsBody uses this same plane for the imported mesh/wheel bottom. Camera heights expressed
+        // from here therefore remain stable when Sedan/Hatchback/Wagon/BoxTruck change physics-body height.
+        return PhysicsBody ? -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f : -108.0f;
+    }
+
+    float CockpitZFromRoadEye(const UBoxComponent* PhysicsBody, const float DesiredEyeHeightAboveRoadCm)
+    {
+        return VisualRoadContactZ(PhysicsBody) + DesiredEyeHeightAboveRoadCm;
+    }
+
     void FitMeshToPhysicsBody(UStaticMeshComponent* Chassis, UStaticMesh* Mesh, UBoxComponent* PhysicsBody)
     {
         if (!Chassis || !Mesh || !PhysicsBody) return;
@@ -135,7 +147,7 @@ namespace
         // Imported meshes already contain visible wheels. Align their visual bottom with the road-contact plane instead
         // of centering the mesh inside the suspended physics body, which made cars appear to hover.
         const float ScaledMeshBottom = (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
-        const float DesiredVisualBottom = -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f;
+        const float DesiredVisualBottom = VisualRoadContactZ(PhysicsBody);
         const FVector GroundedLocation(
             -Bounds.Origin.X * UniformScale,
             -Bounds.Origin.Y * UniformScale,
@@ -156,35 +168,43 @@ namespace
 
         UCameraComponent* InteriorCamera = FindCameraComponent(Vehicle, TEXT("InteriorCamera"));
         if (!InteriorCamera) return;
+        UBoxComponent* PhysicsBody = FindPhysicsBody(Vehicle);
 
-        // R13.2: camera positions are style-specific. The sports-car driver used the generic X=66 cm position,
-        // which landed around the hood after the imported mesh was fitted to the physics body.
+        // X/Y remain style-specific because the imported cabin positions differ. Z is not an arbitrary offset from
+        // the suspended physics-body centre anymore: it is a human eye height measured from the same road-contact
+        // plane used to ground the visible mesh. This prevents SportsCar/BoxTruck cameras from sitting on the roof.
         if (const AOCCivilianVehicle* Civilian = Cast<AOCCivilianVehicle>(Vehicle))
         {
             switch (Civilian->GetVehicleStyle())
             {
             case EOCCivilianVehicleStyle::Sedan:
-                InteriorCamera->SetRelativeLocation(FVector(-48.0f, -42.0f, 84.0f));
+                InteriorCamera->SetRelativeLocation(FVector(
+                    -48.0f, -42.0f, CockpitZFromRoadEye(PhysicsBody, 122.0f)));
                 break;
             case EOCCivilianVehicleStyle::Hatchback:
-                InteriorCamera->SetRelativeLocation(FVector(18.0f, -41.0f, 88.0f));
+                InteriorCamera->SetRelativeLocation(FVector(
+                    18.0f, -41.0f, CockpitZFromRoadEye(PhysicsBody, 128.0f)));
                 break;
             case EOCCivilianVehicleStyle::BoxTruck:
-                InteriorCamera->SetRelativeLocation(FVector(105.0f, -48.0f, 126.0f));
+                InteriorCamera->SetRelativeLocation(FVector(
+                    105.0f, -48.0f, CockpitZFromRoadEye(PhysicsBody, 218.0f)));
                 break;
             case EOCCivilianVehicleStyle::Wagon:
             default:
-                InteriorCamera->SetRelativeLocation(FVector(22.0f, -43.0f, 91.0f));
+                InteriorCamera->SetRelativeLocation(FVector(
+                    22.0f, -43.0f, CockpitZFromRoadEye(PhysicsBody, 134.0f)));
                 break;
             }
         }
         else if (Cast<AOCPickupGunTruck>(Vehicle))
         {
-            InteriorCamera->SetRelativeLocation(FVector(24.0f, -43.0f, 91.0f));
+            InteriorCamera->SetRelativeLocation(FVector(
+                24.0f, -43.0f, CockpitZFromRoadEye(PhysicsBody, 138.0f)));
         }
         else
         {
-            InteriorCamera->SetRelativeLocation(FVector(30.0f, -43.0f, 88.0f));
+            InteriorCamera->SetRelativeLocation(FVector(
+                30.0f, -43.0f, CockpitZFromRoadEye(PhysicsBody, 130.0f)));
         }
         InteriorCamera->SetFieldOfView(82.0f);
         InteriorCamera->SetRelativeRotation(FRotator::ZeroRotator);
