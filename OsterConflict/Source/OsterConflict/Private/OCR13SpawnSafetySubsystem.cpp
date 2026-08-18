@@ -87,28 +87,59 @@ bool UOCR13SpawnSafetySubsystem::ResolveSafeTeamFallback(
 
 bool UOCR13SpawnSafetySubsystem::ValidateNewPawn(AOCPlayerController* PC, AOCCharacter* Character)
 {
-    if (!PC || !Character) return false;
+    UWorld* World = GetWorld();
+    if (!PC || !Character || !World) return false;
 
-    FVector SafeLocation;
     const FVector Original = Character->GetActorLocation();
-    if (!ResolveGroundAt(Original, Character, SafeLocation))
+    FVector GroundCandidate;
+    bool bUsedTeamFallback = false;
+
+    if (!ResolveGroundAt(Original, Character, GroundCandidate))
     {
-        if (!ResolveSafeTeamFallback(PC, Character, SafeLocation))
+        if (!ResolveSafeTeamFallback(PC, Character, GroundCandidate))
         {
             UE_LOG(LogTemp, Error,
                 TEXT("R13 spawn safety rejected player spawn: no walkable collision under requested or fallback locations. player=%s location=%s"),
                 *PC->GetName(), *Original.ToCompactString());
             return false;
         }
+        bUsedTeamFallback = true;
     }
 
-    const float VerticalError = FMath::Abs(Original.Z - SafeLocation.Z);
-    if (VerticalError > 8.0f)
+    // A downward trace proves there is ground, not that the full character capsule is clear. Ask UWorld for the
+    // nearest non-overlapping placement before accepting the candidate so a spawn beside fences/props/buildings does
+    // not exchange the old void-fall bug for a pawn born inside blocking geometry.
+    FVector CollisionSafeLocation = GroundCandidate;
+    if (!World->FindTeleportSpot(Character, CollisionSafeLocation, Character->GetActorRotation()))
     {
-        Character->SetActorLocation(SafeLocation, false, nullptr, ETeleportType::TeleportPhysics);
+        FVector FallbackGround;
+        if (bUsedTeamFallback || !ResolveSafeTeamFallback(PC, Character, FallbackGround))
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("R13 spawn safety rejected player spawn: ground exists but no collision-clear capsule placement was found. player=%s candidate=%s"),
+                *PC->GetName(), *GroundCandidate.ToCompactString());
+            return false;
+        }
+
+        CollisionSafeLocation = FallbackGround;
+        if (!World->FindTeleportSpot(Character, CollisionSafeLocation, Character->GetActorRotation()))
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("R13 spawn safety rejected fallback spawn: team fallback also overlaps blocking geometry. player=%s fallback=%s"),
+                *PC->GetName(), *FallbackGround.ToCompactString());
+            return false;
+        }
+        bUsedTeamFallback = true;
+    }
+
+    const FVector PlacementDelta = Original - CollisionSafeLocation;
+    if (PlacementDelta.SizeSquared() > FMath::Square(8.0f))
+    {
+        Character->SetActorLocation(CollisionSafeLocation, false, nullptr, ETeleportType::TeleportPhysics);
         UE_LOG(LogTemp, Display,
-            TEXT("R13 spawn safety grounded %s: %s -> %s"),
-            *PC->GetName(), *Original.ToCompactString(), *SafeLocation.ToCompactString());
+            TEXT("R13 spawn safety grounded/cleared %s: %s -> %s fallback=%s"),
+            *PC->GetName(), *Original.ToCompactString(), *CollisionSafeLocation.ToCompactString(),
+            bUsedTeamFallback ? TEXT("yes") : TEXT("no"));
     }
     return true;
 }
