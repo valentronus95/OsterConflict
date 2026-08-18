@@ -103,6 +103,8 @@ namespace
                 return LoadObject<UStaticMesh>(nullptr,
                     TEXT("/Game/VehicleVarietyPack/Meshes/SM_Hatchback.SM_Hatchback"));
             case EOCCivilianVehicleStyle::Sedan:
+                // The pack has no dedicated sedan mesh; SM_SportsCar is the remaining low passenger-car body and
+                // gives Sedan a distinct silhouette instead of duplicating the Wagon/SUV art.
                 return LoadObject<UStaticMesh>(nullptr,
                     TEXT("/Game/VehicleVarietyPack/Meshes/SM_SportsCar.SM_SportsCar"));
             case EOCCivilianVehicleStyle::Wagon:
@@ -112,6 +114,8 @@ namespace
             }
         }
 
+        // VehicleVarietyPack also contains SM_Truck_Box. It intentionally stays unused until a box-truck gameplay
+        // class/style exists with its own mass, collision body and wheelbase instead of forcing truck art onto a car.
         return nullptr;
     }
 
@@ -144,6 +148,8 @@ namespace
         UCameraComponent* InteriorCamera = FindCameraComponent(Vehicle, TEXT("InteriorCamera"));
         if (!InteriorCamera) return;
 
+        // Driver head position. The previous X=34 position sat on the rear face of the 75 cm
+        // placeholder dashboard and only ~28 cm behind the primitive steering cylinder.
         InteriorCamera->SetRelativeLocation(FVector(66.0f, -43.0f, 86.0f));
         InteriorCamera->SetRelativeRotation(FRotator::ZeroRotator);
         InteriorCamera->SetFieldOfView(82.0f);
@@ -158,6 +164,9 @@ namespace
         {
             if (UStaticMeshComponent* Component = FindStaticMeshComponent(Vehicle, Name))
             {
+                // Never resurrect the source-only cube/cylinder cockpit over a real imported road mesh.
+                // Those primitives were the huge black dome/bar seen in first-person. Until a proper
+                // authored interior mesh exists, an unobstructed driver's view is preferable.
                 const bool bShowProxyCockpit = bCockpitView && !bUsesImportedRoadMesh && Name != TEXT("Windshield");
                 Component->SetHiddenInGame(!bShowProxyCockpit, true);
                 Component->SetVisibility(bShowProxyCockpit, true);
@@ -201,6 +210,8 @@ void UOCR13VehicleArtSubsystem::TryApplyVehicleArt(AOCVehicleBase* Vehicle)
 {
     if (!Vehicle) return;
 
+    // A real BTR/APC asset has not been selected yet. Do not disguise the APC as a civilian car just to make the
+    // cube disappear; keep the current gameplay proxy until a correctly licensed military vehicle is integrated.
     if (Cast<AOCBTR>(Vehicle))
     {
         ProcessedVehicles.Add(Vehicle);
