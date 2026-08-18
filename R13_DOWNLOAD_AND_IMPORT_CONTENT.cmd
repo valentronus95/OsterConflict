@@ -28,7 +28,7 @@ set "MUSEUM_URL_FALLBACK=https://upload.wikimedia.org/wikipedia/commons/7/71/%%D
  echo OSTER CONFLICT R13 - DOWNLOAD + IMPORT CONTENT
  echo ============================================================
  echo Downloads fallback CC0 content and imports the committed
- echo Stein Classic Weapons CC0 pack plus audio and menu art.
+ echo Stein Classic Weapons CC0 pack plus combat audio, menu music and menu art.
  echo.
 
 where git >nul 2>nul || (
@@ -81,7 +81,7 @@ for %%F in (machinegun pistol shotgun sniper uzi rocketlauncherModern grenade) d
 )
 copy /y "%CACHE%\3D\weapons\kenney-weapon-pack\License.txt" "%WEAPONS%\LICENSE_KENNEY_CC0.txt" >nul
 
- echo [3/5] Downloading CC0 combat audio...
+ echo [3/5] Downloading CC0 combat audio + pregame menu ambience...
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/gunfire_sfx.wav" -o "%AUDIO%\gunfire_sfx.wav" || goto :fail
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/gunreload1.wav" -o "%AUDIO%\gunreload1.wav" || goto :fail
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/assaultriflereload1_0.wav" -o "%AUDIO%\assaultriflereload1.wav" || goto :fail
@@ -90,7 +90,9 @@ curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/player
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/snd_bullethit.wav" -o "%AUDIO%\snd_bullethit.wav" || goto :fail
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/snd_throw1.wav" -o "%AUDIO%\snd_throw1.wav" || goto :fail
 curl.exe -L --fail --retry 2 "https://opengameart.org/sites/default/files/dull_explosion.wav" -o "%AUDIO%\dull_explosion.wav" || goto :fail
+curl.exe -L --fail --retry 2 "https://lpc.opengameart.org/sites/default/files/ambientmain_0.ogg" -o "%AUDIO%\menu_ambient.ogg" || goto :fail
 >"%AUDIO%\LICENSES.txt" echo Combat audio sources are CC0. Gunfire: iamoneabe / OpenGameArt. Reloads: SpringySpringo / OpenGameArt. Impact/throw/explosion: Spring Spring / OpenGameArt.
+>>"%AUDIO%\LICENSES.txt" echo Menu ambience: ambientmain_0.ogg by brandon75689, OpenGameArt; available under CC0 / OGA-BY 3.0. Project uses the CC0 grant.
 
  echo [4/5] Preparing player-facing menu background...
 set "MENU_IMPORT_SOURCE="
@@ -122,7 +124,7 @@ for %%I in ("%MENU_IMPORT_SOURCE%") do if %%~zI LSS 50000 (
   goto :fail
 )
 
- echo [5/5] Importing R13 assets into Unreal, including Stein Classic Weapons...
+ echo [5/5] Importing R13 assets into Unreal, including Stein Classic Weapons and menu music...
 echo [5/5] Detailed Unreal import log: %IMPORT_LOG%
 "%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -NullRHI -NoSplash -UTF8Output >"%IMPORT_LOG%" 2>&1
 set "IMPORT_RC=%ERRORLEVEL%"
@@ -136,6 +138,7 @@ echo ============================================================
 echo R13 CONTENT IMPORT: PASS
 echo Assets: /Game/R13/Weapons  /Game/R13/Audio  /Game/R13/UI
 echo Stein 1911, AK47, LeverAction, M14, M700, MP5, Mac10 and Tec9 verified.
+echo CC0 menu_ambient imported for pregame frontend only.
 echo ============================================================
 if exist "%CACHE%" rmdir /s /q "%CACHE%"
 pause
