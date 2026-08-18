@@ -6,6 +6,7 @@ SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
 files = {
     "theme": SRC / "Private" / "OCR13UIThemeSubsystem.cpp",
     "frontend": SRC / "Private" / "OCR13FrontendMenuSubsystem.cpp",
+    "viewport": SRC / "Private" / "OCR13UIViewportStabilizerSubsystem.cpp",
     "flow_h": SRC / "Public" / "OCR13DeploymentFlowSubsystem.h",
     "flow_cpp": SRC / "Private" / "OCR13DeploymentFlowSubsystem.cpp",
     "bridge": SRC / "Private" / "OCR13DeploymentSelectionBridge.cpp",
@@ -13,6 +14,7 @@ files = {
     "spawn_h": SRC / "Public" / "OCR13SpawnSafetySubsystem.h",
     "spawn_cpp": SRC / "Private" / "OCR13SpawnSafetySubsystem.cpp",
     "world": SRC / "Private" / "OCWorldSectorOster.cpp",
+    "geo_h": SRC / "Public" / "OCGeoReference.h",
 }
 
 
@@ -35,6 +37,15 @@ if "OCR13FrontendMenuSubsystem is the sole owner" not in text["theme"]:
 for token in ["R13_MenuBackground", "R13_MenuWorldBlocker", "/Game/R13/UI/Oster_Menu_BG.Oster_Menu_BG"]:
     if token not in text["frontend"]:
         fail(f"frontend menu ownership marker missing: {token}")
+
+# The deployment handoff must keep the static presentation stable until the safe-spawn confirmation closes it.
+for token in [
+    "PC->IsDeploymentPanelVisible();",
+    "SetWorldRenderingSuppressed(bPreGamePresentationVisible)",
+    "if (bWorldRenderingSuppressed == bSuppress) return;",
+]:
+    if token not in text["viewport"]:
+        fail(f"stable deployment presentation marker missing: {token}")
 
 flow_required = [
     "R13_DeploymentFlowPanel",
@@ -61,6 +72,8 @@ flow_required = [
 for token in flow_required:
     if token not in text["flow_cpp"]:
         fail(f"staged deployment marker missing: {token}")
+if '#include "OCGameplayMode.h"' not in text["flow_h"]:
+    fail("deployment flow must include the role enum definition explicitly")
 
 for token in [
     "UIRequestSquad(int32 SquadId)",
@@ -78,9 +91,12 @@ for token in [
     "AOCPlayerController::ClientCompleteDeployment_Implementation",
     "AOCGameMode::RequestRoleChange",
     "RequestedRole != EOCPlayerRole::Rifleman",
+    "Other->GetPlayerRole() == RequestedRole",
 ]:
     if token not in text["bridge"]:
         fail(f"authoritative selection bridge marker missing: {token}")
+if "State->GetPlayerRole() == RequestedRole) return true" in text["bridge"]:
+    fail("legacy default role can still bypass specialist uniqueness validation")
 
 spawn_required = [
     "LineTraceSingleByChannel",
@@ -93,6 +109,7 @@ spawn_required = [
     "ClientCompleteDeployment(false)",
     "State->SetLobbyReadyServer(false)",
     "Character->Destroy()",
+    "TWeakObjectPtr<AOCPlayerController> PCKey(PC)",
 ]
 for token in spawn_required:
     if token not in text["spawn_cpp"]:
@@ -101,7 +118,7 @@ for token in spawn_required:
 if "UTickableWorldSubsystem" not in text["flow_h"] or "UTickableWorldSubsystem" not in text["spawn_h"]:
     fail("deployment/spawn safety subsystems are not world-tickable")
 
-# The museum is a protected Oster landmark. UI/spawn work must never silently remove it.
+# The museum is a protected Oster landmark and remains the local geographic origin.
 for token in [
     "BuildMuseumAndStadium();",
     "MuseumAnchor()",
@@ -109,9 +126,17 @@ for token in [
     "LandmarkBlocks",
     "LandmarkRoofs",
     "LandmarkWindows",
+    'Ground->SetCollisionProfileName(TEXT("BlockAll"))',
 ]:
     if token not in text["world"]:
-        fail(f"museum preservation marker missing: {token}")
+        fail(f"museum/world preservation marker missing: {token}")
+for token in [
+    "Museum/Solonyna estate is the local origin",
+    "OriginLatitude = 50.948239",
+    "OriginLongitude = 30.883865",
+]:
+    if token not in text["geo_h"]:
+        fail(f"museum origin marker missing: {token}")
 
 print("R13.3 DEPLOYMENT/SPAWN VERIFY: PASS")
-print("Checks single menu backdrop ownership, staged team->squad->role->spawn UX, authoritative role selection, collision-grounded spawning and museum preservation.")
+print("Checks single menu backdrop ownership, stable staged team->squad->role->spawn UX, authoritative role selection, collision-grounded spawning and museum preservation/origin.")
