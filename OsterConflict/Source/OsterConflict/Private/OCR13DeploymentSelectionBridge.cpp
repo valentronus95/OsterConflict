@@ -27,7 +27,8 @@ void AOCPlayerController::UICommitDeployment()
     if (!bDeploymentPanelVisible || bFrontendMenuVisible || bSettingsVisible) return;
 
     // Keep the deployment UI visible while the authoritative server checks that compact Oster has already
-    // relocated the old source PlayerStarts and then creates/ground-validates the pawn.
+    // relocated the old source PlayerStarts and then creates a pawn. OCR13SpawnSafetySubsystem owns the
+    // collision-grounding/fallback decision and closes this panel only after validating the resulting pawn.
     if (HasAuthority()) ServerCommitDeployment_Implementation();
     else ServerCommitDeployment();
 }
@@ -35,7 +36,13 @@ void AOCPlayerController::UICommitDeployment()
 void AOCPlayerController::ServerCommitDeployment_Implementation()
 {
     UWorld* World = GetWorld();
-    if (!World) return;
+    AOCPlayerState* State = GetPlayerState<AOCPlayerState>();
+    if (!World || !State || State->IsBotPlayer() || State->GetTeamId() == EOCTeam::None || State->GetSquadId() < 0)
+    {
+        if (State) State->SetLobbyReadyServer(false);
+        ClientCompleteDeployment(false);
+        return;
+    }
 
     // The source world still authors legacy bases far outside the R13 compact crop. Never let a human become ready
     // until OCR13CompactOsterSubsystem has cropped the world, moved objectives and relocated TeamSpawn actors.
@@ -44,6 +51,7 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
         UOCR13CompactOsterSubsystem* Compact = World->GetSubsystem<UOCR13CompactOsterSubsystem>();
         if (!Compact || !Compact->IsCompactLayoutReady())
         {
+            State->SetLobbyReadyServer(false);
             UE_LOG(LogTemp, Warning,
                 TEXT("R13 deployment held: compact Oster layout is not ready for %s."), *GetName());
             ClientCompleteDeployment(false);
@@ -96,6 +104,10 @@ bool AOCGameMode::RequestRoleChange(AOCPlayerState* State, const EOCPlayerRole R
                     Other->GetSquadId() == State->GetSquadId() &&
                     Other->GetPlayerRole() == RequestedRole)
                 {
+                    // A newly selected squad can conflict with the player's old/default specialist role. Force a
+                    // neutral flexible role so replicated state cannot accidentally masquerade as an accepted choice.
+                    State->SetRoleServer(EOCPlayerRole::Rifleman);
+                    State->SetLobbyReadyServer(false);
                     return false;
                 }
             }
