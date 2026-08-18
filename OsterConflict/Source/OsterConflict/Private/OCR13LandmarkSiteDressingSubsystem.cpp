@@ -1,5 +1,6 @@
 #include "OCR13LandmarkSiteDressingSubsystem.h"
 
+#include "OCGameMode.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -98,7 +99,7 @@ namespace
             {
                 AddFittedInstance(Path,
                     Museum + FVector(1180.0f, -3500.0f - Segment * 1550.0f, 2.0f),
-                    FVector(720.0f, 1680.0f, 12.0f), 90.0f);
+                    FVector(720.0f, 1680.0f, 12.0f), 0.0f);
             }
         }
 
@@ -118,7 +119,6 @@ namespace
             }
         }
 
-        // One discreet bin is placed at the side of the approach rather than against the historic facade.
         AddHeightFittedInstance(Bin, Museum + FVector(2400, -3050, 0), 95.0f, 14.0f);
     }
 
@@ -200,6 +200,10 @@ void UOCR13LandmarkSiteDressingSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
