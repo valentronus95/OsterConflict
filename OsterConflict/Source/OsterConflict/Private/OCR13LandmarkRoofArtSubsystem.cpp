@@ -148,18 +148,27 @@ void UOCR13LandmarkRoofArtSubsystem::BuildMuseumRoofBridge(UWorld& World)
         return;
     }
 
-    // Suppress only the eight matched source instances. Keeping them in-place at negligible scale avoids
-    // disturbing the flat college roof instances that share this ISM and avoids expanding bounds below the map.
-    for (const int32 Index : MuseumRoofIndices)
+    // Suppress only the eight matched source instances. Keep their original transforms so a failed update can
+    // be rolled back immediately; flat college roof instances sharing this ISM are never modified.
+    int32 HiddenCount = 0;
+    for (int32 ArrayIndex = 0; ArrayIndex < MuseumRoofIndices.Num(); ++ArrayIndex)
     {
-        FTransform HiddenTransform;
-        if (!Proxy->GetInstanceTransform(Index, HiddenTransform, true))
+        FTransform HiddenTransform = MuseumRoofTransforms[ArrayIndex];
+        HiddenTransform.SetScale3D(FVector(0.001f));
+        if (!Proxy->UpdateInstanceTransform(MuseumRoofIndices[ArrayIndex], HiddenTransform, true, true, true))
         {
+            for (int32 RestoreIndex = 0; RestoreIndex < HiddenCount; ++RestoreIndex)
+            {
+                Proxy->UpdateInstanceTransform(MuseumRoofIndices[RestoreIndex],
+                    MuseumRoofTransforms[RestoreIndex], true, true, true);
+            }
             ArtRoot->Destroy();
+            UE_LOG(LogTemp, Warning,
+                TEXT("R13 museum roof: source-instance suppression failed; rolled back %d modified panels."),
+                HiddenCount);
             return;
         }
-        HiddenTransform.SetScale3D(FVector(0.001f));
-        Proxy->UpdateInstanceTransform(Index, HiddenTransform, true, true, true);
+        ++HiddenCount;
     }
 
     UE_LOG(LogTemp, Display,
