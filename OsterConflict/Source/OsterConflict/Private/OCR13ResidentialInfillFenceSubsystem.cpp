@@ -109,7 +109,7 @@ namespace
     {
         if (Families.IsEmpty() || LengthCm <= 1.0f || HeightCm <= 1.0f) return;
 
-        FFenceFamily Sample = Families[Seed % Families.Num()];
+        const FFenceFamily& Sample = Families[Seed % Families.Num()];
         if (!Sample.Component || !Sample.Mesh) return;
         const FVector SampleSize = Sample.Mesh->GetBounds().BoxExtent * 2.0f;
         const bool bSampleLongX = SampleSize.X >= SampleSize.Y;
@@ -167,7 +167,8 @@ namespace
                 FVector(0.055f, 0.055f, HeightCm / 100.0f)), true);
         }
 
-        for (const float Fraction : { 0.26f, 0.56f, 0.84f })
+        constexpr float RailFractions[] = { 0.26f, 0.56f, 0.84f };
+        for (const float Fraction : RailFractions)
         {
             FVector Location = GroundCenter;
             Location.Z = HeightCm * Fraction;
@@ -231,26 +232,40 @@ void UOCR13ResidentialInfillFenceSubsystem::BuildInfillFences(UWorld& World)
     ArtRoot->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
-    TArray<FFenceFamily> WoodFamilies;
-    for (const auto& Spec : {
-        TPair<const TCHAR*, FName>(TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"), TEXT("R13_InfillWoodFence01")),
-        TPair<const TCHAR*, FName>(TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_2_2m.Fence_Old_2_2m"), TEXT("R13_InfillWoodFence02")),
-        TPair<const TCHAR*, FName>(TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_3_2m.Fence_Old_3_2m"), TEXT("R13_InfillWoodFence03")) })
+    auto AddFamily = [ArtRoot, Root](TArray<FFenceFamily>& Families, const TCHAR* AssetPath,
+        const FName ComponentName, const bool bRequireVerticalPanel)
     {
-        FFenceFamily Family = MakeFamily(ArtRoot, Root, Spec.Key, Spec.Value);
-        if (Family.Component && Family.Mesh) WoodFamilies.Add(Family);
-    }
+        FFenceFamily Family = MakeFamily(ArtRoot, Root, AssetPath, ComponentName);
+        if (!Family.Component || !Family.Mesh) return;
+        if (bRequireVerticalPanel && !IsUsableVerticalPanel(Family.Mesh))
+        {
+            Family.Component->DestroyComponent();
+            return;
+        }
+        Families.Add(Family);
+    };
+
+    TArray<FFenceFamily> WoodFamilies;
+    AddFamily(WoodFamilies,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"),
+        TEXT("R13_InfillWoodFence01"), false);
+    AddFamily(WoodFamilies,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_2_2m.Fence_Old_2_2m"),
+        TEXT("R13_InfillWoodFence02"), false);
+    AddFamily(WoodFamilies,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_3_2m.Fence_Old_3_2m"),
+        TEXT("R13_InfillWoodFence03"), false);
 
     TArray<FFenceFamily> SheetFamilies;
-    for (const auto& Spec : {
-        TPair<const TCHAR*, FName>(TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_01/SM_Urb_Roa_Sheet_Metal_Rusty_01.SM_Urb_Roa_Sheet_Metal_Rusty_01"), TEXT("R13_InfillSheetFence01")),
-        TPair<const TCHAR*, FName>(TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_02/SM_Urb_Roa_Sheet_Metal_Rusty_02.SM_Urb_Roa_Sheet_Metal_Rusty_02"), TEXT("R13_InfillSheetFence02")),
-        TPair<const TCHAR*, FName>(TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_03/SM_Urb_Roa_Sheet_Metal_Rusty_03.SM_Urb_Roa_Sheet_Metal_Rusty_03"), TEXT("R13_InfillSheetFence03")) })
-    {
-        FFenceFamily Family = MakeFamily(ArtRoot, Root, Spec.Key, Spec.Value);
-        if (Family.Component && Family.Mesh && IsUsableVerticalPanel(Family.Mesh)) SheetFamilies.Add(Family);
-        else if (Family.Component) Family.Component->DestroyComponent();
-    }
+    AddFamily(SheetFamilies,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_01/SM_Urb_Roa_Sheet_Metal_Rusty_01.SM_Urb_Roa_Sheet_Metal_Rusty_01"),
+        TEXT("R13_InfillSheetFence01"), true);
+    AddFamily(SheetFamilies,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_02/SM_Urb_Roa_Sheet_Metal_Rusty_02.SM_Urb_Roa_Sheet_Metal_Rusty_02"),
+        TEXT("R13_InfillSheetFence02"), true);
+    AddFamily(SheetFamilies,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Sheet_Metal_Rusty_03/SM_Urb_Roa_Sheet_Metal_Rusty_03.SM_Urb_Roa_Sheet_Metal_Rusty_03"),
+        TEXT("R13_InfillSheetFence03"), true);
 
     UInstancedStaticMeshComponent* MetalPickets = MakeISM(
         ArtRoot, Root, Cube, nullptr, TEXT("R13_InfillMetalPickets"), false);
