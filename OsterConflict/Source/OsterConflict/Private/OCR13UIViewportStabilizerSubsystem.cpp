@@ -29,10 +29,11 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     if (!PC || !PC->IsLocalController()) return;
 
-    // Before a gameplay pawn exists, frontend/settings/deployment are a UI-only presentation. Keep the approved
-    // static background instead of suddenly exposing the 3D world while switching between pre-game pages.
-    const bool bPreGamePresentationVisible = PC->GetPawn() == nullptr &&
-        (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible() || PC->IsDeploymentPanelVisible());
+    // Frontend/settings are pre-game presentation while no pawn exists. Deployment stays presentation-owned until
+    // ClientCompleteDeployment confirms a collision-grounded pawn, even if server possession happened a frame earlier.
+    const bool bPreGamePresentationVisible =
+        (PC->GetPawn() == nullptr && (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible())) ||
+        PC->IsDeploymentPanelVisible();
     SetWorldRenderingSuppressed(bPreGamePresentationVisible);
 
     // Only the startup main menu gets hard widget-layer isolation. Deployment/settings need their own root widgets.
