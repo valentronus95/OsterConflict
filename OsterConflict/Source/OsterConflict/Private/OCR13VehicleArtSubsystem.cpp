@@ -11,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -131,9 +132,8 @@ namespace
         const float ScaleY = TargetSize.Y / MeshSize.Y;
         const float UniformScale = FMath::Clamp(FMath::Min(ScaleX, ScaleY), 0.20f, 5.0f);
 
-        // PhysicsBody is intentionally suspended well above the road by raycast springs. Imported vehicle meshes
-        // already contain visible wheels, so centering their bounds on the body made the whole car appear to hover.
-        // Keep X/Y centered, but place the mesh bottom near the wheel/contact plane below the collision body.
+        // Imported meshes already contain visible wheels. Align their visual bottom with the road-contact plane instead
+        // of centering the mesh inside the suspended physics body, which made cars appear to hover.
         const float ScaledMeshBottom = (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
         const float DesiredVisualBottom = -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f;
         const FVector GroundedLocation(
@@ -157,17 +157,36 @@ namespace
         UCameraComponent* InteriorCamera = FindCameraComponent(Vehicle, TEXT("InteriorCamera"));
         if (!InteriorCamera) return;
 
-        if (const AOCCivilianVehicle* Civilian = Cast<AOCCivilianVehicle>(Vehicle);
-            Civilian && Civilian->GetVehicleStyle() == EOCCivilianVehicleStyle::BoxTruck)
+        // R13.2: camera positions are style-specific. The sports-car driver used the generic X=66 cm position,
+        // which landed around the hood after the imported mesh was fitted to the physics body.
+        if (const AOCCivilianVehicle* Civilian = Cast<AOCCivilianVehicle>(Vehicle))
         {
-            InteriorCamera->SetRelativeLocation(FVector(105.0f, -48.0f, 126.0f));
-            InteriorCamera->SetFieldOfView(82.0f);
+            switch (Civilian->GetVehicleStyle())
+            {
+            case EOCCivilianVehicleStyle::Sedan:
+                InteriorCamera->SetRelativeLocation(FVector(-48.0f, -42.0f, 84.0f));
+                break;
+            case EOCCivilianVehicleStyle::Hatchback:
+                InteriorCamera->SetRelativeLocation(FVector(18.0f, -41.0f, 88.0f));
+                break;
+            case EOCCivilianVehicleStyle::BoxTruck:
+                InteriorCamera->SetRelativeLocation(FVector(105.0f, -48.0f, 126.0f));
+                break;
+            case EOCCivilianVehicleStyle::Wagon:
+            default:
+                InteriorCamera->SetRelativeLocation(FVector(22.0f, -43.0f, 91.0f));
+                break;
+            }
+        }
+        else if (Cast<AOCPickupGunTruck>(Vehicle))
+        {
+            InteriorCamera->SetRelativeLocation(FVector(24.0f, -43.0f, 91.0f));
         }
         else
         {
-            InteriorCamera->SetRelativeLocation(FVector(66.0f, -43.0f, 86.0f));
-            InteriorCamera->SetFieldOfView(82.0f);
+            InteriorCamera->SetRelativeLocation(FVector(30.0f, -43.0f, 88.0f));
         }
+        InteriorCamera->SetFieldOfView(82.0f);
         InteriorCamera->SetRelativeRotation(FRotator::ZeroRotator);
 
         UStaticMeshComponent* Chassis = FindStaticMeshComponent(Vehicle, TEXT("Chassis"));
@@ -187,6 +206,23 @@ namespace
             }
         }
     }
+
+    void RepairStaleVehicleView(UWorld* World)
+    {
+        if (!World) return;
+        APlayerController* PC = World->GetFirstPlayerController();
+        if (!PC || !PC->IsLocalController()) return;
+
+        APawn* ControlledPawn = PC->GetPawn();
+        if (!ControlledPawn || Cast<AOCVehicleBase>(ControlledPawn)) return;
+
+        // Possession should normally retarget the camera automatically. Source listen-server testing exposed a case
+        // where the BoxTruck interior camera remained the view target after the character had already been possessed.
+        if (Cast<AOCVehicleBase>(PC->GetViewTarget()))
+        {
+            PC->SetViewTarget(ControlledPawn);
+        }
+    }
 }
 
 bool UOCR13VehicleArtSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -200,6 +236,9 @@ void UOCR13VehicleArtSubsystem::Tick(float DeltaTime)
 {
     UWorld* World = GetWorld();
     if (!World) return;
+
+    // Camera ownership is cheap to validate every frame and avoids a visible one-scan delay after leaving a vehicle.
+    RepairStaleVehicleView(World);
 
     ScanAccumulator += DeltaTime;
     if (ScanAccumulator < 0.20f) return;
