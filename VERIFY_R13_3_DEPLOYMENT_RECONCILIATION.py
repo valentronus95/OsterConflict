@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
 FILES = {
+    "controller_h": SRC / "Public" / "OCPlayerController.h",
     "flow_h": SRC / "Public" / "OCR13DeploymentFlowSubsystem.h",
     "flow_reconcile": SRC / "Private" / "OCR13DeploymentFlowReconcile.cpp",
     "watch_h": SRC / "Public" / "OCR13DeploymentReconciliationSubsystem.h",
@@ -22,7 +23,7 @@ for label, path in FILES.items():
 
 text = {label: path.read_text(encoding="utf-8", errors="replace") for label, path in FILES.items()}
 
-for header in ("flow_h", "watch_h"):
+for header in ("controller_h", "flow_h", "watch_h"):
     includes = [line.strip() for line in text[header].splitlines() if line.strip().startswith("#include")]
     if not includes or "generated.h" not in includes[-1]:
         fail(f"{header} generated.h must remain the final include")
@@ -63,28 +64,49 @@ for token in [
         fail(f"reconciliation watcher marker missing: {token}")
 
 for token in [
+    "ConsumeR13DeploymentCommitAuthorization()",
+    "HasCompletedR13InitialDeployment()",
+    "MarkR13InitialDeploymentCompleted()",
+    "bR13DeploymentCommitAuthorized = false",
+    "bR13InitialDeploymentCompleted = false",
+    "R13DeploymentCommitAuthorizationExpiresAt = -1.0",
+]:
+    if token not in text["controller_h"]:
+        fail(f"initial staged-deployment token state missing: {token}")
+
+for token in [
     "RequestedRole != EOCPlayerRole::Rifleman",
     "Other->GetPlayerRole() == RequestedRole",
     "State->SetRoleServer(EOCPlayerRole::Rifleman)",
     "State->SetLobbyReadyServer(false)",
     "Compact->IsCompactLayoutReady()",
+    "AOCPlayerController::ConsumeR13DeploymentCommitAuthorization()",
+    "R13DeploymentCommitAuthorizationExpiresAt >= Now",
+    "R13DeploymentCommitAuthorizationExpiresAt = World->GetTimeSeconds() + 2.0",
+    "bR13DeploymentCommitAuthorized = true",
     "ServerSetLobbyReady_Implementation(true)",
 ]:
     if token not in text["bridge"]:
-        fail(f"server selection/readiness marker missing: {token}")
+        fail(f"server selection/readiness/token marker missing: {token}")
 
 for token in [
     "LineTraceSingleByChannel",
     "ResolveSafeTeamFallback",
+    'World->URL.HasOption(TEXT("AutoDeploy=1"))',
+    "!PC->HasCompletedR13InitialDeployment()",
+    "PC->ConsumeR13DeploymentCommitAuthorization()",
+    "PC->MarkR13InitialDeploymentCompleted()",
+    "R13 spawn safety rejected initial pawn without staged deployment commit",
     "ClientCompleteDeployment(true)",
     "ClientCompleteDeployment(false)",
 ]:
     if token not in text["spawn"]:
-        fail(f"grounded spawn confirmation marker missing: {token}")
+        fail(f"grounded/authorized spawn confirmation marker missing: {token}")
 
 # Duplicate definitions here would produce linker errors after a long UE build, precisely what this gate is meant to prevent.
 private_dir = SRC / "Private"
 for method in [
+    "AOCPlayerController::ConsumeR13DeploymentCommitAuthorization",
     "AOCPlayerController::UIRequestSquad",
     "AOCPlayerController::UIRequestRole",
     "AOCPlayerController::UICommitDeployment",
@@ -101,4 +123,4 @@ for method in [
         fail(f"{method} must have exactly one implementation owner, found: {owners}")
 
 print("R13.3 DEPLOYMENT RECONCILIATION VERIFY: PASS")
-print("Checks server specialist uniqueness, compact readiness, grounded spawn confirmation, replicated-selection reconciliation and single implementation ownership.")
+print("Checks specialist uniqueness, compact readiness, short-lived staged initial-spawn authorization, AutoDeploy smoke exception, grounded spawn, replicated-selection reconciliation and single implementation ownership.")
