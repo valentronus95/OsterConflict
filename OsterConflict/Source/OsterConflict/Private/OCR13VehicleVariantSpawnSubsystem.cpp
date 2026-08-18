@@ -120,7 +120,10 @@ void UOCR13VehicleVariantSpawnSubsystem::TrySpawnBundledVehicleVariants(UWorld& 
 
         // Configure before BeginPlay so the spawn point never emits a default-style vehicle for one frame.
         SpawnPoint->ConfigureRuntime(EOCCivilianVehicleStyle::BoxTruck, Seed.RespawnDelay);
-        Pending.Add({ SpawnPoint, SpawnTransform });
+        FPendingTruckSpawn PendingItem;
+        PendingItem.SpawnPoint = SpawnPoint;
+        PendingItem.Transform = SpawnTransform;
+        Pending.Add(PendingItem);
     }
 
     if (!bPreparedAll || Pending.Num() != UE_ARRAY_COUNT(Seeds))
