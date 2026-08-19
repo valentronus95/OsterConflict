@@ -6,13 +6,14 @@ COLLEGE_H = SRC / "Public" / "OCR13CollegeFacadeSubsystem.h"
 COLLEGE_CPP = SRC / "Private" / "OCR13CollegeFacadeSubsystem.cpp"
 STADIUM_H = SRC / "Public" / "OCR13StadiumSurfaceSubsystem.h"
 STADIUM_CPP = SRC / "Private" / "OCR13StadiumSurfaceSubsystem.cpp"
+WORLD_CPP = SRC / "Private" / "OCWorldSectorOster.cpp"
 
 
 def fail(message: str) -> None:
     raise SystemExit("R13.5 COLLEGE/STADIUM VISUAL VERIFY FAIL: " + message)
 
 
-for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP):
+for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP, WORLD_CPP):
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
 
@@ -20,11 +21,32 @@ college_h = COLLEGE_H.read_text(encoding="utf-8", errors="replace")
 college = COLLEGE_CPP.read_text(encoding="utf-8", errors="replace")
 stadium_h = STADIUM_H.read_text(encoding="utf-8", errors="replace")
 stadium = STADIUM_CPP.read_text(encoding="utf-8", errors="replace")
+world = WORLD_CPP.read_text(encoding="utf-8", errors="replace")
 
 for name, text in (("college", college_h), ("stadium", stadium_h)):
     includes = [line.strip() for line in text.splitlines() if line.strip().startswith("#include")]
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h must remain final include in {name} header")
+
+# Source-of-truth topology owned by BuildCollegeSector(). The visual overlay must continue to match this,
+# rather than merely matching its own constants after both sides drift independently.
+for token in [
+    "void AOCWorldSectorOster::BuildCollegeSector()",
+    "const float Yaw = 1.0f;",
+    "AddBox(LandmarkBlocks, MainCenter, FVector(6500, 1900, 1440), Yaw);",
+    "AddBox(LandmarkRoofs, College + FVector(0, 0, 1460), FVector(6650, 2020, 70), Yaw);",
+    "AddBox(LandmarkDetails, College + FVector(900, -1230, 230), FVector(2450, 600, 460), Yaw);",
+    "AddBox(LandmarkDetails, College + FVector(900, -1590, 505), FVector(2650, 920, 70), Yaw);",
+    "College + FVector(900, -1940 - Step * 115.0f, 22 + Step * 22.0f)",
+    "constexpr int32 Columns = 9;",
+    "constexpr int32 Rows = 4;",
+    "const float X = -2800.0f + Col * 700.0f;",
+    "const float Z = 255.0f + Row * 340.0f;",
+    "if (Row == 0 && (Col == 5 || Col == 6)) continue;",
+    "AddFacadeWindow(LandmarkWindows, College, FVector(X, -965, Z), FVector(430, 24, 220), Yaw, true);",
+]:
+    if token not in world:
+        fail(f"BuildCollegeSector source topology marker missing: {token}")
 
 for token in [
     "AOCWorldSectorOster::CollegeAnchor()",
@@ -60,8 +82,18 @@ for token in [
     if token not in college:
         fail(f"college facade marker missing: {token}")
 
-# The old visual pass was authored around an obsolete 48 m facade and a fake centered entrance.
-# Those dimensions must not quietly return after being aligned to BuildCollegeSector topology.
+source_to_overlay_pairs = [
+    ("FVector(6500, 1900, 1440)", "MainWidthCm = 6500.0f", "main mass width"),
+    ("FVector(6500, 1900, 1440)", "MainDepthCm = 1900.0f", "main mass depth"),
+    ("FVector(6500, 1900, 1440)", "MainHeightCm = 1440.0f", "main mass height"),
+    ("FVector(900, -1230, 230)", "EntranceCenterX = 900.0f", "entrance X"),
+    ("FVector(900, -1230, 230)", "EntranceBlockCenterY = -1230.0f", "entrance block Y"),
+    ("FVector(900, -1590, 505)", "EntranceCanopyCenterY = -1590.0f", "canopy Y"),
+]
+for source_marker, overlay_marker, label in source_to_overlay_pairs:
+    if source_marker not in world or overlay_marker not in college:
+        fail(f"college source/overlay mismatch guard failed for {label}")
+
 for forbidden in [
     "FVector(4740.0f, 18.0f, 140.0f)",
     "FVector(4720.0f, 20.0f, 26.0f)",
@@ -100,4 +132,4 @@ for label, text in (("college", college), ("stadium", stadium)):
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks college 65x19x14.4m facade alignment/X+900 entrance plus stadium turf/track/markings/goals/real-plank seating; all frontend-guarded and gameplay-collision neutral.")
+print("Checks BuildCollegeSector source topology against the aligned 65x19x14.4m/X+900 facade overlay, plus stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
