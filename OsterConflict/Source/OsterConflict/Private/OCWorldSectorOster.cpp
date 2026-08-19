@@ -386,7 +386,10 @@ void AOCWorldSectorOster::BuildRoadNetwork()
     };
 
     AddRoadWithWalks(FVector(-5000, -9000, RoadZ), FVector(138000, 1050, 16), 0.0f);
-    AddRoadWithWalks(FVector(-18000, 17000, RoadZ), FVector(61000, 820, 16), 0.0f);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::EastWest02Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
     for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments())
     {
         AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
