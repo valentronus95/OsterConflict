@@ -5,93 +5,100 @@ Strategy: `OSTER_LOCATION_STRATEGY_R13.md`
 
 ## Purpose
 
-S01 is the first location-first reconstruction sector. It is the proving ground for the workflow that will later be repeated across Oster.
+S01 is the first location-first reconstruction sector and the template for later Oster sectors. Its bounds are a development ownership boundary, not an administrative or cadastral claim.
 
-The sector is a development ownership boundary, not an administrative or cadastral claim. Its runtime bounds are derived from the canonical college and central-park geo anchors through `FOCLocationSectorPlan`.
+The sector is derived from canonical College and Central Park geo anchors through `FOCLocationSectorPlan`.
 
 ## Canonical anchors
 
-The sector currently depends on these `FOCGeoReference` anchors:
+Current project reference anchors used directly by S01:
 
-- Oster College / Solomii Krushelnytskoi 7A — confidence A in the project reference model.
-- Central City Park — confidence A in the project reference model.
+- Oster College / Solomii Krushelnytskoi 7A — confidence A;
+- Central City Park — confidence A;
+- CultureParkNorth — confidence B for the north civic/park connection.
 
-All additional residential and migrated vegetation placements currently remain provisional unless individually backed by a reference. Provisional placement is confidence C and must never be silently promoted to A/B.
+Explicit placement does not automatically mean factual placement. Migrated blockout geometry remains confidence C until a map/photo/reference supports promotion or correction.
 
-## Current technical state
+## Structural ownership state
 
-Completed location-first protections and migrations:
+### Residential / frontage
 
-- generic `OCR13ResidentialInfillSubsystem` no longer invents new houses beside roads;
+Completed:
+
+- procedural `OCR13ResidentialInfillSubsystem` is a migration stub and no longer invents houses from road geometry;
 - generic `BuildResidentialBlocks()` is excluded from S01;
-- generic `OCR13EnvironmentDressingSubsystem` does not generate adaptive grass, plants, house extras, yard props, companion trees or stumps inside S01;
-- obsolete near-spawn R12/R13 Krushelnytska visual-slice content is migration-only cleanup;
-- stadium geography no longer depends on a late relocation pass and is owned by `FOCGeoReference` / `AOCWorldSectorOster`;
-- the old arithmetic Krushelnytska house row has been migrated to 16 individually addressable `FOCS01ResidentialPlotSeed` records;
-- the eight old repeated frontage slots are now 8 individually addressable `FOCS01FrontageSeed` records;
-- the two old hard-coded side/service road strips are now explicit `FOCS01RoadSeed` records;
-- all 26 migrated residential/frontage/service-road records remain confidence C because migration into explicit data does not make their old blockout coordinates factual;
-- `BuildSolomiiKrushelnytskoiStreet()` consumes the explicit S01 registry rather than deriving house, frontage or service-road coordinates from slot arithmetic;
-- city-wide rough-grass and generic-tree loops reject generated points inside S01;
-- the retained central-park canopy is frozen into 54 individually addressable `FOCS01TreeSeed` records;
-- the four retained college trees are frozen into 4 individually addressable `FOCS01TreeSeed` records;
-- the retained central-park and college mown-grass areas are 2 explicit `FOCS01GrassPatchSeed` records;
-- all 60 vegetation records remain confidence C; explicit ownership is not evidence of real-world accuracy;
-- `BuildVegetation()` now renders the S01 park/college grass and trees from `ProvisionalGrassPatches()` and `ProvisionalVegetationTrees()`;
-- the legacy central-park Row/Col/Jitter placement loop and four direct college tree calls have been removed;
-- the direct park/college mown-grass calls have been removed;
-- stadium vegetation and non-S01 city vegetation remain independent and were not migrated into S01;
-- the vegetation-data verifier mathematically reconstructs the former C++ park algorithm and rejects any migration drift;
-- the runtime verifier rejects reintroduction of legacy S01 vegetation placement formulas;
-- S01 has its own GitHub Actions workflow independent from unrelated frontend/audio verification failures.
+- 16 residential plot slots are explicit `FOCS01ResidentialPlotSeed` records;
+- 8 frontage records are independently addressable;
+- 2 Krushelnytska service-road records are explicit;
+- `BuildSolomiiKrushelnytskoiStreet()` consumes the S01 registry instead of row/slot arithmetic.
 
-Still provisional or unresolved inside S01:
+All 26 retained residential/frontage/service records are still confidence C.
 
-- exact residential house footprints and real plot boundaries;
-- exact frontage fence/gate positions and fence families;
-- several road widths, side-road alignments and sidewalk/path details;
-- the 60 migrated vegetation placements still represent the retained blockout layout and need reference-by-reference replacement where evidence exists;
-- park secondary geometry beyond directly supported reference cues;
-- college campus secondary blocks beyond the strongly referenced main facade/site cues;
-- the existing enterable-house anchor is still a gameplay/blockout placement rather than a verified real plot assignment.
+### Generic environment exclusion
 
-## Reconstruction order
+Completed:
 
-### S01.1 — topology lock
+- generic `OCR13EnvironmentDressingSubsystem` does not generate S01 grass, plants, house extras, yard props, companion trees or stumps;
+- generic city rough-grass/tree loops reject S01 points;
+- obsolete near-spawn visual-slice content is cleanup-only and may not become an alternate topology owner.
 
-1. Audit the Krushelnytska road spine and approach roads.
-2. Keep College and Central Park fixed to canonical geo anchors.
-3. Express every S01 road/path as an explicit authored segment.
-4. Label each segment A/B/C confidence.
-5. Remove duplicate or overlapping source road strips.
+### Vegetation ownership
 
-Gate: no S01 road may be created by a city-wide procedural generator.
+Completed:
 
-Current progress: residential frontage/service roads are explicit C-confidence records; the larger road network still needs reference-by-reference audit before topology lock.
+- 54 Central Park trees are explicit S01 records;
+- 4 College trees are explicit S01 records;
+- 2 mown-grass areas are explicit S01 records;
+- `BuildVegetation()` consumes the explicit registry;
+- the old park Row/Col/Jitter algorithm and direct College tree calls are removed;
+- data/runtime verifiers prevent migration drift and procedural reintroduction.
+
+All 60 vegetation placements are still confidence C retained blockout positions. Fidelity work remains.
+
+### Road/path ownership
+
+**Structural ownership migration is complete.**
+
+- College approach is explicit;
+- every audited `BuildRoadNetwork()` corridor that intersects S01 is either an explicit S01 piece or explicit adjacent/shared piece;
+- all seven former crossing corridors have continuity-preserving split manifests;
+- `SharedCrossingCorridors()` is empty;
+- four Central Park internal paths and the College campus path are explicit;
+- the former derived Central Park → CultureParkNorth sidewalk is split into `S01_PATH_PARK_NORTH_CIVIC_INSIDE` and `S01_PATH_PARK_NORTH_CIVIC_SHARED`;
+- `BuildCentralPark()` consumes that split registry instead of recomputing `Mid`, `Delta` and `LinkYaw`;
+- permanent road and dedicated Park→north-civic verifiers guard continuity, endpoints, profiles and ownership.
+
+See `OSTER_S01_ROAD_TOPOLOGY_AUDIT.md`.
+
+This closes the **ownership-plumbing** part of S01.1. It does not mean the physical street network is factually locked.
+
+## Reconstruction stages
+
+### S01.1 — topology ownership and reference correction
+
+Ownership phase: **complete**.
+
+Reference-correction phase: **active**.
+
+Next evidence-driven targets:
+
+1. Solomii Krushelnytskoi street alignment and practical carriageway width;
+2. College approach/junction relationships;
+3. Central Park secondary path geometry;
+4. College campus secondary blocks;
+5. residential frontage/driveway/fence alignment.
+
+Gate: no coordinate changes merely for visual neatness. C-confidence geometry moves only when supported by evidence.
 
 ### S01.2 — plot registry
 
-The repeated arithmetic house loop has been replaced by an explicit plot registry.
+Status: **architectural migration complete; factual correction pending**.
 
-Each plot records:
-
-- stable plot ID;
-- placement/orientation;
-- approximate footprint;
-- reference confidence;
-- source/reference note;
-- whether the primary house and outbuilding exist in the retained blockout;
-- presentation variant needed to preserve current visuals during migration.
-
-Gate: moving one house must not shift every later house in a loop.
-
-Current progress: **architectural migration complete**. All 16 residential plot slots are individually addressable. Their coordinates remain provisional C until better references replace them.
+Each of the 16 residential plots is independently addressable, so correcting one plot no longer shifts an entire procedural row.
 
 ### S01.3 — exterior architecture
 
-For verified/referenced plots, replace generic house presentation with local archetypes while preserving explicit footprint ownership.
-
-Archetype library:
+For reference-backed plots, replace generic presentation with controlled Oster-compatible archetypes:
 
 - brick one-storey;
 - plaster one-storey;
@@ -100,71 +107,55 @@ Archetype library:
 - garage/outbuilding/shed;
 - controlled roof, porch and window variants.
 
-Gate: architecture may change appearance but not secretly move a plot.
+Architecture may change appearance but not secretly move plot ownership.
 
 ### S01.4 — yards and boundaries
 
-Author plot boundaries explicitly:
+Reference-backed authoring targets:
 
 - tall wood fences;
 - metal fences;
 - light sheet/slate-like fences;
 - gates and pedestrian entrances;
-- driveways and worn yard surfaces;
+- driveways and worn surfaces;
 - outbuildings.
 
-Gate: no random yard prop generator inside S01.
+No random yard generator is allowed inside S01.
 
-Current progress: frontage positions are independently addressable but still represent old C-confidence blockout strips, not final real plot boundaries.
+### S01.5 — vegetation fidelity
 
-### S01.5 — vegetation
+Ownership phase: **complete**.
 
-Separate source-wide vegetation from S01-owned vegetation.
-
-- park canopy and campus vegetation become explicit S01 data;
-- residential trees are attached to plot/site data;
-- USSR-era planted tree rows are explicit where supported;
-- generic city vegetation may not leak into locked S01 bounds.
-
-Gate: whole-Oster art may render S01 vegetation, but it may not decide its placement.
-
-Current progress: **ownership migration complete**.
-
-- generic rough-grass and generic tree points are rejected inside S01;
-- 54 central-park trees, 4 college trees and 2 mown-grass areas are explicit anchor-relative C-confidence records;
-- runtime consumes those records directly;
-- the data verifier proves zero layout drift from the former C++ park algorithm and direct college placements;
-- the runtime verifier prevents the old formula/direct calls from returning.
-
-This does not mean vegetation fidelity is complete. The next vegetation work is evidence-driven replacement of C records, not another procedural pass.
+Next work is evidence-driven replacement/correction of C records, especially planted rows, park canopy spacing and residential trees. Whole-Oster art may render S01 vegetation but may not choose its placement.
 
 ### S01.6 — enterable buildings
 
-Only after exterior topology is locked:
+Only after exterior topology for the chosen plot is stable:
 
-- keep the existing enterable-house gameplay path operational;
-- align the selected enterable shell with a stable S01 plot;
-- then migrate doors, windows and interior layout to that plot.
+- keep the current enterable-house gameplay path operational;
+- align the shell to a stable S01 plot;
+- then migrate doors, windows and interior layout.
 
-Gate: interior work never changes the street or neighboring plot topology.
+Interior work must not modify surrounding street/plot topology.
 
 ### S01.7 — validation and lock
 
 Required before `S01 LOCKED`:
 
-- source verification green for location-related checks;
-- no generic residential infill inside S01;
-- no generic environment dressing inside S01;
-- no generic source vegetation leaking into S01;
-- no duplicated landmark ownership;
+- location-specific CI green;
+- no generic residential/environment/vegetation ownership leakage;
+- no duplicated landmark owner;
+- reference-backed road/plot corrections completed to the chosen fidelity threshold;
 - stable collision/access routes;
 - packaged-build visual check;
-- performance check after final vegetation pass.
+- performance check after vegetation/art passes.
 
 ## Immediate next implementation
 
-1. Return to S01.1 topology audit: inventory every road/path segment that intersects the S01 ownership bounds.
-2. Separate canonical/verified approach roads from C-confidence retained blockout strips.
-3. Move remaining S01-owned road/path geometry into explicit records where it is still embedded directly in `BuildRoadNetwork()` or landmark builders.
-4. Do not alter real-world placement merely to make the registry look cleaner; unresolved geometry stays C until reference evidence supports a change.
-5. After topology ownership is complete, proceed to reference-backed yard boundaries and exterior architecture one plot at a time.
+The next implementation pass is no longer another registry migration.
+
+1. Audit real Krushelnytska alignment/width against public map/reference evidence.
+2. Keep College and Central Park canonical anchors fixed unless stronger evidence changes the source reference itself.
+3. Correct only supported S01 road/path segments and record why each correction is justified.
+4. Then move to plot-frontage/fence corrections one addressable record at a time.
+5. Bots/AI remain outside this phase.
