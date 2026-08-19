@@ -32,8 +32,6 @@ for name, text in (("college", college_h), ("stadium", stadium_h)):
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h must remain final include in {name} header")
 
-# Source-of-truth topology owned by BuildCollegeSector(). The visual overlay must continue to match this,
-# rather than merely matching its own constants after both sides drift independently.
 for token in [
     "void AOCWorldSectorOster::BuildCollegeSector()",
     "const float Yaw = 1.0f;",
@@ -72,6 +70,8 @@ for token in [
     "constexpr float MainDepthCm = 1900.0f;",
     "constexpr float MainHeightCm = 1440.0f;",
     "constexpr float MainFrontY = -950.0f;",
+    "constexpr float MainSkinPlinthY = MainFrontY - 9.0f;",
+    "constexpr float MainSkinBandY = MainFrontY - 10.0f;",
     "constexpr float EntranceCenterX = 900.0f;",
     "constexpr float EntranceBlockCenterY = -1230.0f;",
     "constexpr float EntranceFrontY = -1530.0f;",
@@ -89,6 +89,7 @@ for token in [
     "EntranceCenterX, EntranceFrontY - 8.0f",
     "EntranceCenterX, EntranceCanopyCenterY, 505.0f",
     "same rotated local frame",
+    "flush facade trim",
     "framed 9x4 window topology",
     "GameMode->IsFrontendOnlySession()",
     "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
@@ -120,12 +121,12 @@ for forbidden in [
     "const float FacadeY = College.Y + MainFrontY",
     "const FVector EntranceFront = College + FVector",
     "const FVector CanopyCenter = College + FVector",
+    "MainFrontY - 16.0f",
+    "MainFrontY - 18.0f",
 ]:
     if forbidden in college:
-        fail(f"obsolete/unrotated college facade topology returned: {forbidden}")
+        fail(f"obsolete/unrotated/floating college facade topology returned: {forbidden}")
 
-# The college-campus connection is a pedestrian path, not the old 80x59 m plaza-like slab.
-# Preserve its center/length/yaw while guarding the corrected human-scale width.
 for token in [
     'TEXT("S01_PATH_COLLEGE_CAMPUS")',
     "FVector(900, 5200, 12)",
@@ -138,8 +139,6 @@ for token in [
 if "FVector(8000, 5900, 18)" in road:
     fail("legacy 80x59 m college sidewalk slab returned; campus path must remain pedestrian-scale")
 
-# The final two college-campus trees previously sat on the Y~5200 centerline. Keep the corrected pair on opposite
-# sides of the path and keep all civic vegetation visual-only/navigation-neutral.
 for token in [
     "void AddCollegeCampusPlanting(const FVector& College",
     "The S01 college path is centered near Y=5200 and only 2.8 m wide",
@@ -183,4 +182,4 @@ for label, text in (("college", college), ("stadium", stadium), ("civic", civic)
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks BuildCollegeSector rotated source topology against the aligned 65x19x14.4m/X+900 facade overlay, guards framed 9x4 windows plus the 2.8m pedestrian campus path/tree clearance, and retains stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
+print("Checks BuildCollegeSector rotated source topology against the aligned 65x19x14.4m/X+900 facade overlay, flush trim, framed 9x4 windows, 2.8m pedestrian campus path/tree clearance, plus stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
