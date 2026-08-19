@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   migrate:
+    # Deterministic one-shot migration; delete this workflow after the bot commit lands.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
