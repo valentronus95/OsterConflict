@@ -139,8 +139,9 @@ const TArray<FOCS01PathSeed>& FOCLocationSectorS01RoadData::OwnedCentralParkPath
 const TArray<FOCS01PathSeed>& FOCLocationSectorS01RoadData::OwnedCollegePaths()
 {
     static const TArray<FOCS01PathSeed> Paths = {
-        { TEXT("S01_PATH_COLLEGE_CAMPUS"), EOCS01RoadAnchor::College, FVector(900, 5200, 12), FVector(8000, 5900, 18), 1.0f,
-            EOCS01RoadRelation::Inside, Provisional, TEXT("College campus sidewalk surface") },
+        { TEXT("S01_PATH_COLLEGE_CAMPUS"), EOCS01RoadAnchor::College, FVector(900, 5200, 12), FVector(8000, 280, 18), 1.0f,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Pedestrian-only college campus path; narrowed from the legacy plaza-sized sidewalk proxy") },
     };
     return Paths;
 }
