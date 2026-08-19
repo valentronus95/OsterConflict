@@ -257,7 +257,7 @@ for needle in [
     'TEXT("R13SilpoCart_BasketWire")',
     'TEXT("R13SilpoCart_Handle")',
     'TEXT("R13SilpoCart_Wheels")',
-    'constexpr FVector CartOrigin(250.0f, -1515.0f, 0.0f);',
+    'const FVector CartOrigin(250.0f, -1515.0f, 0.0f);',
     'constexpr float CartYawDegrees = -7.0f;',
     'Component->SetCollisionEnabled(ECollisionEnabled::NoCollision)',
     'Component->SetCanEverAffectNavigation(false)',
