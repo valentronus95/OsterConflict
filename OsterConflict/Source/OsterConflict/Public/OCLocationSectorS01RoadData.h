@@ -63,4 +63,7 @@ public:
 
     static const TArray<FOCS01PathSeed>& OwnedCentralParkPaths();
     static const TArray<FOCS01PathSeed>& OwnedCollegePaths();
+
+    /** Two contiguous path pieces replacing the CentralPark -> CultureParkNorth derived sidewalk strip. */
+    static const TArray<FOCS01PathSeed>& ParkNorthCivicPathSegments();
 };
