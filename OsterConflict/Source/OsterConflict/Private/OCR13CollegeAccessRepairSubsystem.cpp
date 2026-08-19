@@ -7,6 +7,8 @@
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/Actor.h"
+#include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
 
 namespace
@@ -36,7 +38,7 @@ namespace
     {
         if (!Sector) return nullptr;
         TArray<UInstancedStaticMeshComponent*> Components;
-        Sector->GetComponents<UInstancedStaticMeshComponent>(Components);
+        Sector->GetComponents<UInstancedStaticMeshComponent>(Components, false);
         const FName FencesName(TEXT("Fences"));
         for (UInstancedStaticMeshComponent* Component : Components)
         {
@@ -80,6 +82,7 @@ namespace
         Sector->AddInstanceComponent(Split);
         Split->RegisterComponent();
 
+        // Local-space instances match the source Fences component convention exactly.
         Split->AddInstance(FTransform(FRotator(0.0f, CollegeYawDegrees, 0.0f),
             College + FVector(LeftFenceCenterX, FrontFenceY, FrontFenceZ),
             FVector(LeftFenceLengthCm / 100.0f, 0.45f, 2.20f)), false);
