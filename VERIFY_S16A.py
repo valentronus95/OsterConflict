@@ -7,6 +7,7 @@ required = [
     'Source/OsterConflict/Private/OCGeoReference.cpp',
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
     'Source/OsterConflict/Private/OCWorldSectorOster.cpp',
+    'Source/OsterConflict/Private/OCLocationSectorS01RoadData.cpp',
     'Source/OsterConflict/Private/OCGameMode.cpp',
     'Docs/SESSION_16A_README_UA.md',
     'Docs/OSTER_REFERENCE_MANIFEST_S16A.md',
@@ -62,13 +63,25 @@ for name,needles in markers.items():
             print(f'Missing marker {needle!r} in {name}'); sys.exit(1)
 
 world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
-road_spine = re.search(
+road_data=(root/'Source/OsterConflict/Private/OCLocationSectorS01RoadData.cpp').read_text(errors='ignore')
+
+# S16A originally authored the Krushelnytska spine as one direct 112000 cm corridor. Location-first S01 later split
+# that exact corridor at workflow ownership boundaries. Accept either the historical direct representation or the
+# current explicit split manifest, but never accept the spine disappearing entirely.
+legacy_road_spine = re.search(
     r'AddRoadWithWalks\s*\(\s*FVector\s*\(\s*-33500\s*,\s*25000\s*,\s*RoadZ\s*\)\s*,\s*'
     r'FVector\s*\(\s*112000\s*,\s*920\s*,\s*16\s*\)\s*,\s*91\.5f\s*\)',
     world,
 )
-if not road_spine:
-    print('Missing S16A Krushelnytska road-spine structure'); sys.exit(1)
+split_road_spine = (
+    'FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments()' in world and
+    'S01_KR_SPINE_SOUTH_SHARED' in road_data and
+    'S01_KR_SPINE_INSIDE' in road_data and
+    'S01_KR_SPINE_NORTH_SHARED' in road_data and
+    road_data.count('91.5f, true') >= 3
+)
+if not legacy_road_spine and not split_road_spine:
+    print('Missing S16A Krushelnytska road-spine structure (legacy direct or S01 ownership split)'); sys.exit(1)
 
 # Museum origin should be deterministic and coordinates separated from layout code.
 gh=(root/'Source/OsterConflict/Public/OCGeoReference.h').read_text(errors='ignore')
@@ -116,4 +129,4 @@ for cpp_name,class_name in [('OCGeoReference.cpp','FOCGeoReference'),('OCWorldSe
         print('Duplicate method definitions',cpp_name,dup); sys.exit(1)
 
 print('S16A structural verification: PASS')
-print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers plus formatting-independent road spine.')
+print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers plus legacy-or-split Krushelnytska road spine.')
