@@ -86,11 +86,12 @@ namespace
         const TArray<UInstancedStaticMeshComponent*>& Trees,
         const TArray<UInstancedStaticMeshComponent*>& Shrubs)
     {
-        // Main entrance/broad stairs stay clear. Planting frames the side/back campus edges only.
+        // Main entrance/broad stairs stay clear. The S01 college path is centered near Y=5200 and only 2.8 m wide;
+        // keep the final two trees on opposite sides of that pedestrian strip instead of on its centerline.
         const FVector TreeOffsets[] = {
             FVector(-5400, -2500, 0), FVector(-5650, 650, 0), FVector(-5200, 3800, 0),
             FVector(5200, 3900, 0), FVector(5550, 900, 0), FVector(5350, -2450, 0),
-            FVector(-1800, 5200, 0), FVector(2100, 5250, 0),
+            FVector(-1800, 5700, 0), FVector(2100, 4700, 0),
         };
         for (int32 Index = 0; Index < UE_ARRAY_COUNT(TreeOffsets); ++Index)
         {
@@ -228,5 +229,5 @@ void UOCR13CivicLandscapingSubsystem::ApplyCivicLandscaping(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.5 civic landscaping: museum garden + college campus edge + stadium perimeter planted; entrances/pitch/navigation remain clear."));
+        TEXT("R13.5 civic landscaping: museum garden + college campus edge + stadium perimeter planted; entrances/pitch/pedestrian college path/navigation remain clear."));
 }
