@@ -69,14 +69,14 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::Krushelnytsk
 const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::EastWest02Segments()
 {
     // Exact no-layout-change split of the former FVector(-18000,17000) / 61000x820 / yaw 0 corridor.
-    // The complete road + both sidewalks already fits the S01 Y range, so ownership cuts only at the S01 east X bound.
+    // Stored cut is 0.000609 cm inside the computed east bound so finite decimal storage remains strictly Inside.
     static const TArray<FOCS01RoadCorridorSeed> Segments = {
         { TEXT("S01_EW02_INSIDE"), EOCS01RoadAnchor::Absolute,
-            FVector(-33364.761695, 17000, 8), FVector(30270.476609, 820, 16), 0.0f, true,
+            FVector(-33364.762, 17000, 8), FVector(30270.476, 820, 16), 0.0f, true,
             EOCS01RoadRelation::Inside, Provisional,
-            TEXT("West piece of the original east-west corridor, ending at the current S01 east workflow boundary") },
+            TEXT("West piece of the original east-west corridor, ending microscopically inside the current S01 east workflow boundary") },
         { TEXT("S01_EW02_EAST_SHARED"), EOCS01RoadAnchor::Absolute,
-            FVector(-2864.761695, 17000, 8), FVector(30729.523391, 820, 16), 0.0f, true,
+            FVector(-2864.762, 17000, 8), FVector(30729.524, 820, 16), 0.0f, true,
             EOCS01RoadRelation::Crossing, Provisional,
             TEXT("East shared remainder of the original east-west corridor after the S01 ownership split") },
     };
