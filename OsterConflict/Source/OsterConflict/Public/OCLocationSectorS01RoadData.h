@@ -51,27 +51,26 @@ struct FOCS01PathSeed
 class OSTERCONFLICT_API FOCLocationSectorS01RoadData
 {
 public:
-    /** Corridors completely inside S01 and safe to move out of the generic city road builder one-for-one. */
     static const TArray<FOCS01RoadCorridorSeed>& OwnedInsideCorridors();
 
-    /** Current unsplit BuildRoadNetwork corridors that intersect S01 and still remain audit-only. */
+    /** Only one-sided sidewalk corridors remain unsplit here after symmetric-corridor ownership migration. */
     static const TArray<FOCS01RoadCorridorSeed>& SharedCrossingCorridors();
 
-    /**
-     * Three contiguous pieces replacing the former single 112000 cm Krushelnytska spine corridor.
-     * South/North remain Crossing/shared; the middle piece is fully Inside including both sidewalk envelopes.
-     */
+    /** Three contiguous pieces replacing the former 112000 cm Krushelnytska spine. */
     static const TArray<FOCS01RoadCorridorSeed>& KrushelnytskaSpineSegments();
 
-    /**
-     * Two contiguous pieces replacing the former 61000 cm east-west corridor at Y=17000.
-     * West piece is fully Inside; east remainder stays shared/Crossing.
-     */
+    /** Two contiguous pieces replacing the former 61000 cm east-west corridor at Y=17000. */
     static const TArray<FOCS01RoadCorridorSeed>& EastWest02Segments();
 
-    /** Four current Central Park internal sidewalk strips, all fully inside S01. */
-    static const TArray<FOCS01PathSeed>& OwnedCentralParkPaths();
+    /** Two contiguous pieces replacing the former 51000 cm / yaw 18 diagonal crossing. */
+    static const TArray<FOCS01RoadCorridorSeed>& WorldDiag01Segments();
 
-    /** Current College campus sidewalk surface, fully inside S01. */
+    /** Two contiguous pieces replacing the former 49000 cm / yaw -34 diagonal crossing. */
+    static const TArray<FOCS01RoadCorridorSeed>& WorldDiag02Segments();
+
+    /** Two contiguous pieces replacing the former CentralPark south approach crossing. */
+    static const TArray<FOCS01RoadCorridorSeed>& ParkSouthSegments();
+
+    static const TArray<FOCS01PathSeed>& OwnedCentralParkPaths();
     static const TArray<FOCS01PathSeed>& OwnedCollegePaths();
 };
