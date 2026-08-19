@@ -39,6 +39,10 @@ for token in [
     "Review-only uncertainty gate",
     "not runtime road geometry",
     "must never render the gates themselves",
+    "FOCS01CenterlineAuthoringRegion",
+    "CollegeTransitionRegion()",
+    "EvidencePaddingCm",
+    "not a road footprint",
     "FOCS01ReferenceConflictRecord",
     "ReferenceConflictedRuntimeSegments()",
     "MaximumAllowedConfidence",
@@ -96,6 +100,7 @@ ymax = max(college[1], park[1]) + 16000.0
 
 p8 = parse_address("S01_KR_REF_08")
 p14 = parse_address("S01_KR_REF_14")
+p7a = parse_address("S01_KR_REF_7A_COLLEGE")
 p28 = parse_address("S01_KR_REF_28")
 p40 = parse_address("S01_KR_REF_40")
 
@@ -162,6 +167,49 @@ if not (xmin <= south[0] <= xmax and ymin <= south[1] <= ymax):
 if not (xmin <= east[0] <= xmax and ymin <= east[1] <= ymax):
     fail("east gate left S01 bounds")
 
+# College transition region: envelope of 14/7A/28, padded 40 m, then clipped to S01. This deliberately broad region
+# is the next authoring constraint between the two boundary gates; it still does not claim a precise centerline.
+region_pattern = re.compile(
+    r'TEXT\("S01_KR_REGION_COLLEGE_TRANSITION"\),\s*'
+    r'FVector2D\((-?[0-9.]+)f,\s*(-?[0-9.]+)f\),\s*'
+    r'FVector2D\(([0-9.]+)f,\s*([0-9.]+)f\),\s*'
+    r'([0-9.]+)f,\s*EOCReferenceConfidence::C,',
+    flags=re.S,
+)
+region_match = region_pattern.search(author_cpp)
+if not region_match:
+    fail("cannot parse review-only College transition region")
+region_x, region_y, region_hx, region_hy, evidence_padding = map(float, region_match.groups())
+if abs(evidence_padding - 4000.0) > TOL:
+    fail(f"College transition evidence padding drifted: {evidence_padding}")
+
+source_points = (p14, p7a, p28)
+expected_region_min_x = max(xmin, min(point[0] for point in source_points) - evidence_padding)
+expected_region_max_x = min(xmax, max(point[0] for point in source_points) + evidence_padding)
+expected_region_min_y = max(ymin, min(point[1] for point in source_points) - evidence_padding)
+expected_region_max_y = min(ymax, max(point[1] for point in source_points) + evidence_padding)
+expected_region = (
+    (expected_region_min_x + expected_region_max_x) * 0.5,
+    (expected_region_min_y + expected_region_max_y) * 0.5,
+    (expected_region_max_x - expected_region_min_x) * 0.5,
+    (expected_region_max_y - expected_region_min_y) * 0.5,
+)
+for name, actual, expected_value in zip(
+    ("region x", "region y", "region half-x", "region half-y"),
+    (region_x, region_y, region_hx, region_hy),
+    expected_region,
+):
+    if abs(actual - expected_value) > TOL:
+        fail(f"College transition region drift for {name}: stored={actual:.6f}, expected={expected_value:.6f}")
+
+region_min_x, region_max_x = region_x - region_hx, region_x + region_hx
+region_min_y, region_max_y = region_y - region_hy, region_y + region_hy
+for label, point in (("14", p14), ("7A", p7a), ("28", p28), ("south gate", south[:2]), ("east gate", east[:2])):
+    if not (region_min_x - TOL <= point[0] <= region_max_x + TOL and region_min_y - TOL <= point[1] <= region_max_y + TOL):
+        fail(f"College transition region no longer contains {label}")
+if abs(region_min_y - ymin) > TOL or abs(region_max_x - xmax) > TOL:
+    fail("College transition region no longer links the south-entry and east-exit S01 edges")
+
 # The three retained Krushelnytska spine pieces are traversable migration geometry, not verified geography.
 # The road registry intentionally spells confidence through its shared Provisional alias, so verify the alias itself is
 # exactly C and then verify every conflicted record uses that alias. This checks semantics without depending on style.
@@ -198,11 +246,12 @@ for runtime_id, maximum_confidence, reason in conflicts:
     if not re.search(r'EOCS01RoadRelation::(?:Inside|Crossing),\s*Provisional,\s*TEXT\(', snippet, flags=re.S):
         fail(f"reference-conflicted road {runtime_id} does not use the C-locked Provisional alias")
 
-# The authoring gates/conflict metadata are deliberately forbidden from runtime until a separately reviewed
-# carriageway skeleton exists. Conflict records explain the old geometry; they do not become a new runtime owner.
+# The authoring gates/region/conflict metadata are deliberately forbidden from runtime until a separately reviewed
+# carriageway skeleton exists. They constrain/explain authoring; they do not become a new runtime owner.
 for forbidden in [
     '#include "OCLocationSectorS01KrushelnytskaAuthoringData.h"',
     "FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()",
+    "FOCLocationSectorS01KrushelnytskaAuthoringData::CollegeTransitionRegion()",
     "FOCLocationSectorS01KrushelnytskaAuthoringData::ReferenceConflictedRuntimeSegments()",
 ]:
     if forbidden in world:
@@ -211,6 +260,6 @@ for forbidden in [
 print("R13 S01 KRUSHELNYTSKA GATE VERIFY: PASS")
 print(
     f"Derived review-only S01 gates from source evidence: south entry ({south[0]:.1f},{south[1]:.1f}) cm, "
-    f"east exit ({east[0]:.1f},{east[1]:.1f}) cm. Both remain C-confidence uncertainty windows; the three retained "
-    "Krushelnytska spine pieces are explicitly reference-conflicted and verified through the C-locked Provisional alias."
+    f"east exit ({east[0]:.1f},{east[1]:.1f}) cm; College transition region center ({region_x:.1f},{region_y:.1f}) cm. "
+    "The three retained Krushelnytska spine pieces remain explicitly reference-conflicted through the C-locked Provisional alias."
 )
