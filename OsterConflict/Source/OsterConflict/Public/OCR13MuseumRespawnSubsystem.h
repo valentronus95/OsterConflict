@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13MuseumRespawnSubsystem.generated.h"
 
+class AActor;
 class AOCCharacter;
 class AOCPlayerController;
 
