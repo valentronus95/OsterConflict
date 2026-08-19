@@ -20,5 +20,6 @@ public:
 private:
     void AttachToOsterSector(UWorld* World);
 
+    int32 AttachAttempts = 0;
     TWeakObjectPtr<AActor> DecoratorActor;
 };
