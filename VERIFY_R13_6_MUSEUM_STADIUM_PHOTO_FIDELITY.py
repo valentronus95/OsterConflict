@@ -31,6 +31,8 @@ includes = [line.strip() for line in h.splitlines() if line.strip().startswith("
 if not includes or "generated.h" not in includes[-1]:
     fail("generated.h must remain the final header include")
 
+# R13.6 still retains the earlier photo-derived museum implementation as historical source, but R13.7 is now the
+# sole runtime museum owner. R13.6 runtime ownership is intentionally narrowed to the adjacent stadium.
 required = [
     "PhotoFidelityDelaySeconds = 4.15f",
     "UOCR13VerifiedOsterGeographySubsystem::VerifiedStadiumAnchor()",
@@ -60,6 +62,19 @@ required = [
 for token in required:
     if token not in cpp:
         fail(f"photo-fidelity marker missing: {token}")
+
+apply_start = cpp.find("void UOCR13MuseumStadiumPhotoFidelitySubsystem::ApplyPhotoFidelity")
+apply_end = cpp.find("void UOCR13MuseumStadiumPhotoFidelitySubsystem::SuppressLegacyMuseumPresentation", apply_start)
+if apply_start < 0 or apply_end <= apply_start:
+    fail("cannot isolate ApplyPhotoFidelity runtime ownership block")
+apply_block = cpp[apply_start:apply_end]
+if "SuppressLegacyStadiumPresentation(World);" not in apply_block or "BuildStadium(World);" not in apply_block:
+    fail("R13.6 runtime pass must still suppress and rebuild the stadium")
+for forbidden_museum_runtime in ["SuppressLegacyMuseumPresentation(World);", "BuildMuseum(World);"]:
+    if forbidden_museum_runtime in apply_block:
+        fail(f"R13.6 must not own MuseumAnchor at runtime after R13.7 handoff: {forbidden_museum_runtime}")
+if apply_block.index("SuppressLegacyStadiumPresentation(World);") > apply_block.index("BuildStadium(World);"):
+    fail("legacy stadium presentation must be removed before stadium rebuild")
 
 if "static FVector VerifiedStadiumAnchor();" not in geo_h:
     fail("read-only stadium compatibility accessor missing")
@@ -97,11 +112,6 @@ if not (110.0 <= north_m <= 140.0):
 if not (125.0 <= distance_m <= 150.0):
     fail(f"museum-stadium adjacency drifted: {distance_m:.1f} m")
 
-if cpp.index("SuppressLegacyMuseumPresentation(World);") > cpp.index("BuildMuseum(World);"):
-    fail("legacy museum presentation must be removed before final museum build")
-if cpp.index("SuppressLegacyStadiumPresentation(World);") > cpp.index("BuildStadium(World);"):
-    fail("legacy stadium presentation must be removed before final stadium build")
-
 for forbidden in [
     "SM_Forest_Path.SM_Forest_Path",
     "R13_StadiumTrack",
@@ -113,4 +123,4 @@ for forbidden in [
         fail(f"old/duplicated site presentation leaked into photo fidelity pass: {forbidden}")
 
 print("R13.6 MUSEUM/STADIUM PHOTO FIDELITY VERIFY: PASS")
-print(f"Checks photo-driven museum/stadium presentation and canonical adjacency: stadium {east_m:.1f} m east, {north_m:.1f} m north, {distance_m:.1f} m from museum.")
+print(f"Checks R13.6 stadium-only runtime ownership, retained photo-reference source and canonical adjacency: stadium {east_m:.1f} m east, {north_m:.1f} m north, {distance_m:.1f} m from museum. R13.7 owns the live museum.")
