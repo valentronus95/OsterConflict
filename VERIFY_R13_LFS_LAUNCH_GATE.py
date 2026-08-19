@@ -54,7 +54,13 @@ for token in LAUNCH_REQUIRED:
         fail(f"listen launcher R13 gate missing: {token}")
 
 lfs_call = launcher.find('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%"')
-editor_start = launcher.find('start "Oster Conflict R13.2"')
+launch_markers = [
+    'start "Oster Conflict R13.2"',
+    'start /wait "Oster Conflict R13 Playtest"',
+]
+launch_positions = [launcher.find(marker) for marker in launch_markers]
+launch_positions = [position for position in launch_positions if position >= 0]
+editor_start = min(launch_positions) if launch_positions else -1
 if lfs_call < 0 or editor_start < 0 or lfs_call >= editor_start:
     fail("LFS payload check must execute before starting the current R13 UnrealEditor player-facing path")
 
