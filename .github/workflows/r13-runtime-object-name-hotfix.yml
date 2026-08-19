@@ -1,0 +1,46 @@
+name: R13 runtime object-name hotfix
+
+on:
+  push:
+    branches:
+      - r13-content-gameplay-pass
+
+permissions:
+  contents: write
+
+jobs:
+  patch-runtime-object-names:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: r13-content-gameplay-pass
+          fetch-depth: 0
+
+      - name: Apply deterministic hotfix
+        run: python .github/scripts/fix_r13_runtime_object_names.py
+
+      - name: Verify hotfix markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE='OsterConflict/Source/OsterConflict/Private/OCR13MuseumStadiumPhotoFidelitySubsystem.cpp'
+          grep -F 'UObject/UObjectGlobals.h' "$FILE"
+          grep -F 'MaterialObjectName = MakeUniqueObjectName' "$FILE"
+          grep -F 'ComponentObjectName = MakeUniqueObjectName' "$FILE"
+          ! grep -F 'UMaterialInstanceDynamic::Create(Base, Owner, Name)' "$FILE"
+          ! grep -F 'NewObject<UInstancedStaticMeshComponent>(Owner, Name)' "$FILE"
+
+      - name: Commit source hotfix and remove one-shot tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/scripts/fix_r13_runtime_object_names.py
+          git rm .github/workflows/r13-runtime-object-name-hotfix.yml
+          git add OsterConflict/Source/OsterConflict/Private/OCR13MuseumStadiumPhotoFidelitySubsystem.cpp
+          git commit -m 'Fix museum runtime UObject name collisions'
+          git push origin HEAD:r13-content-gameplay-pass
