@@ -6,20 +6,25 @@ cls
 echo ============================================================
 echo OSTER CONFLICT - UE 5.8 - R13 CONTENT + GAMEPLAY PASS
 echo ============================================================
-echo 1. UPDATE + BUILD + OPEN Unreal Editor  [RECOMMENDED]
+echo 1. UPDATE + BUILD only  [RECOMMENDED BEFORE TEST]
 echo 2. Compile Editor/Game only
 echo 3. Full validation (Launcher-aware)
 echo 4. Clean full validation
-echo 5. Launch R13 local listen-server gameplay test
+echo 5. Launch R13 local gameplay test + persistent log
 echo 6. Launch latest packaged dedicated-server session (source UE only)
 echo 7. Stop remembered local server
 echo 8. Open Ukrainian first-run README
 echo 9. Download + import R13 CC0 models, audio and Oster menu photo
 echo A. Open selected FREE Fab weapon/animation/vehicle packs
+echo B. Open Unreal Editor manually
 echo 0. Exit
 echo.
-choice /C 123456789A0 /N /M "Select: "
-if errorlevel 11 goto end
+choice /C 123456789AB0 /N /M "Select: "
+if errorlevel 12 goto end
+if errorlevel 11 (
+  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject"
+  goto menu
+)
 if errorlevel 10 (
   call "%~dp0R13_OPEN_FREE_FAB_PACKS.cmd"
   goto menu
