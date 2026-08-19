@@ -20,6 +20,8 @@ namespace
     constexpr float MainDepthCm = 1900.0f;
     constexpr float MainHeightCm = 1440.0f;
     constexpr float MainFrontY = -950.0f;
+    constexpr float MainSkinPlinthY = MainFrontY - 9.0f;
+    constexpr float MainSkinBandY = MainFrontY - 10.0f;
     constexpr float EntranceCenterX = 900.0f;
     constexpr float EntranceBlockCenterY = -1230.0f;
     constexpr float EntranceFrontY = -1530.0f;
@@ -150,17 +152,19 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
 
     // BuildCollegeSector rotates local offsets by the authored 1-degree building yaw. Apply the same transform to
     // every overlay center; rotating only the cubes themselves leaves edge/entrance details tens of centimetres off.
-    AddBox(Plinth, CollegeLocalToWorld(College, FVector(0.0f, MainFrontY - 16.0f, 70.0f)),
+    // The 18 cm plinth and 20 cm bands are centered exactly half their depth beyond Y=-950 so their back faces
+    // touch the source wall instead of floating several centimetres in front of it.
+    AddBox(Plinth, CollegeLocalToWorld(College, FVector(0.0f, MainSkinPlinthY, 70.0f)),
         FVector(MainWidthCm - 80.0f, 18.0f, 140.0f));
     const float FloorBandZ[] = { 385.0f, 735.0f, 1085.0f, 1430.0f };
     for (const float Z : FloorBandZ)
     {
-        AddBox(Bands, CollegeLocalToWorld(College, FVector(0.0f, MainFrontY - 18.0f, Z)),
+        AddBox(Bands, CollegeLocalToWorld(College, FVector(0.0f, MainSkinBandY, Z)),
             FVector(MainWidthCm - 100.0f, 20.0f, 26.0f));
     }
-    AddBox(Bands, CollegeLocalToWorld(College, FVector(-3190.0f, MainFrontY - 18.0f, MainHeightCm * 0.5f)),
+    AddBox(Bands, CollegeLocalToWorld(College, FVector(-3190.0f, MainSkinBandY, MainHeightCm * 0.5f)),
         FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
-    AddBox(Bands, CollegeLocalToWorld(College, FVector(3190.0f, MainFrontY - 18.0f, MainHeightCm * 0.5f)),
+    AddBox(Bands, CollegeLocalToWorld(College, FVector(3190.0f, MainSkinBandY, MainHeightCm * 0.5f)),
         FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
 
     // Preserve the source 9x4 window topology, including the two ground-floor slots omitted for the entrance.
@@ -226,5 +230,5 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.5 college facade: aligned to authored 65x19x14.4m main mass/X+900 entrance using the same rotated local frame; full-width bands, framed 9x4 window topology, glazed vestibule and canopy fascia added; stairs/footprint preserved."));
+        TEXT("R13.5 college facade: aligned to authored 65x19x14.4m main mass/X+900 entrance using the same rotated local frame; flush facade trim, framed 9x4 window topology, glazed vestibule and canopy fascia added; stairs/footprint preserved."));
 }
