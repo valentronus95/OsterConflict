@@ -24,7 +24,9 @@ markers = {
         'SOLONYNA HOUSE', 'const FVector Stadium = StadiumAnchor();',
         'SOLOMII KRUSHELNYTSKOI 7A',
         'FVector(3400, 1750, 540)', '10500, 6800', 'Columns = 9', 'Rows = 4',
-        'Park + FVector(6100, -4100, 18)', 'WestHouseX - 1700.0f',
+        'Park + FVector(6100, -4100, 18)',
+        'FOCLocationSectorS01Data::ProvisionalResidentialPlots()',
+        'Plot.OutbuildingCenter', 'Plot.bOutbuildingHasRoof',
         'AddGableRoof(ResidentialRoofs', 'College + FVector(-3800, -1100, 0)'
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
