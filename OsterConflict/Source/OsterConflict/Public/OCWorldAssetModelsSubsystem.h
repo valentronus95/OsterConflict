@@ -5,6 +5,7 @@
 #include "OCWorldAssetModelsSubsystem.generated.h"
 
 class AActor;
+class UWorld;
 
 /** Automatically attaches the imported model layer to Oster gameplay worlds. */
 UCLASS()
@@ -17,5 +18,7 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
 private:
+    void AttachToOsterSector(UWorld* World);
+
     TWeakObjectPtr<AActor> DecoratorActor;
 };
