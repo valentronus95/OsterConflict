@@ -39,9 +39,51 @@ The verifier uses oriented-rectangle vs sector-AABB SAT tests rather than classi
 
 The direct `BuildRoadNetwork()` call has been removed. Runtime resolves the College anchor and consumes the explicit record.
 
+## Krushelnytska spine ownership split
+
+The former single corridor:
+
+- center `(-33500, 25000, 8)`
+- size `(112000, 920, 16)`
+- yaw `91.5`
+- two generated sidewalks
+
+has been replaced one-for-one by three contiguous records in `KrushelnytskaSpineSegments()`.
+
+### S01_KR_SPINE_SOUTH_SHARED
+
+- center `(-32459.619, -14730.542, 8)`
+- length `32511.678`
+- width `920`
+- yaw `91.5`
+- relation `Crossing`
+- ownership: shared
+
+### S01_KR_SPINE_INSIDE
+
+- center `(-33570.873, 27706.534, 8)`
+- length `52391.568`
+- width `920`
+- yaw `91.5`
+- relation `Inside`
+- ownership: S01
+
+### S01_KR_SPINE_NORTH_SHARED
+
+- center `(-34611.254, 67437.076, 8)`
+- length `27096.754`
+- width `920`
+- yaw `91.5`
+- relation `Crossing`
+- ownership: shared
+
+The three lengths sum to exactly `112000.000 cm` at stored precision. They retain the original width, yaw and two-sidewalk configuration. The geometric verifier recomputes the split from the current S01 bounds using the complete lateral envelope of the road plus both sidewalks: `850 cm` from the centerline on each side. It verifies continuity and rejects gaps, overlap, profile drift or ownership drift.
+
+The old direct `112000 cm` runtime call and the old unsplit audit ID `S01_CROSS_KRUSHELNYTSKA_SPINE` are removed.
+
 ## Fully inside / migrated paths
 
-The following five path rectangles are now explicit `FOCS01PathSeed` records and are rendered from `FOCLocationSectorS01RoadData`.
+The following five path rectangles are explicit `FOCS01PathSeed` records and are rendered from `FOCLocationSectorS01RoadData`.
 
 ### Central Park
 
@@ -60,9 +102,9 @@ Runtime owner: `FOCLocationSectorS01RoadData::OwnedCollegePaths()`.
 
 All five remain confidence C. Moving them into explicit data changes ownership architecture, not real-world confidence.
 
-## Shared crossing road corridors / audit-only
+## Still-unsplit shared crossing road corridors / audit-only
 
-These records exist in `SharedCrossingCorridors()` but are deliberately not rendered from the S01 registry yet.
+These six records remain in `SharedCrossingCorridors()` and are deliberately not rendered from that registry yet.
 
 1. `S01_CROSS_WORLD_EW_02`
    - absolute center `(-18000, 17000)`
@@ -70,38 +112,32 @@ These records exist in `SharedCrossingCorridors()` but are deliberately not rend
    - yaw `0`
    - crosses S01 east side
 
-2. `S01_CROSS_KRUSHELNYTSKA_SPINE`
-   - absolute center `(-33500, 25000)`
-   - size `(112000, 920)`
-   - yaw `91.5`
-   - long north/south crossing; cannot become S01-owned as one unsplit segment
-
-3. `S01_CROSS_WORLD_DIAG_01`
+2. `S01_CROSS_WORLD_DIAG_01`
    - absolute center `(-23500, 40500)`
    - size `(51000, 760)`
    - yaw `18`
    - shared diagonal corridor
 
-4. `S01_CROSS_WORLD_NW_01`
+3. `S01_CROSS_WORLD_NW_01`
    - absolute center `(-48000, 51000)`
    - size `(52000, 720)`
    - yaw `63`
    - one-sided walk configuration retained
 
-5. `S01_CROSS_WORLD_DIAG_02`
+4. `S01_CROSS_WORLD_DIAG_02`
    - absolute center `(-5000, 33500)`
    - size `(49000, 760)`
    - yaw `-34`
    - mostly outside S01; only intersecting portion belongs to future split work
 
-6. `S01_CROSS_PARK_SOUTH`
+5. `S01_CROSS_PARK_SOUTH`
    - anchor: Central Park
    - offset `(0, -8500)`
    - size `(43000, 720)`
    - yaw `2`
    - crosses the west workflow bound
 
-7. `S01_CROSS_PARK_NORTH_LINK`
+6. `S01_CROSS_PARK_NORTH_LINK`
    - anchor: Central Park
    - offset `(-9000, 13500)`
    - size `(37000, 700)`
@@ -126,13 +162,14 @@ The geometric verifier classifies it as `Crossing`. It remains in `BuildCentralP
 
 ## Current ownership count
 
-- S01-owned road corridors: **1**
+- S01-owned road pieces: **2** (`College approach` + middle Krushelnytska spine segment)
 - S01-owned internal park/campus paths: **5**
-- shared crossing road corridors: **7**
+- still-unsplit shared crossing road corridors: **6**
+- split shared Krushelnytska spine remainders: **2**
 - shared crossing derived park path: **1**
 
 ## Gate for the next road step
 
-No `Crossing` corridor/path may be moved wholesale into S01 runtime ownership.
+No unsplit `Crossing` corridor/path may be moved wholesale into S01 runtime ownership.
 
-The next legal operation on shared geometry is an exact no-visual-change split at sector ownership boundaries, followed by separate IDs for the S01-owned and neighboring/shared pieces. Reference-backed coordinate correction happens only after that ownership split is stable.
+The next legal operation is another exact no-visual-change split at S01 ownership boundaries. Reference-backed coordinate correction happens only after ownership splitting is stable; C-confidence geometry remains explicitly provisional until then.
