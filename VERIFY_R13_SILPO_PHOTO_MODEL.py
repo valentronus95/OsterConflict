@@ -17,6 +17,8 @@ GLYPH_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoLogoFal
 GLYPH_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoLogoFallbackSubsystem.h"
 CART_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoCartDetailSubsystem.cpp"
 CART_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoCartDetailSubsystem.h"
+ENVELOPE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoEnvelopeDetailSubsystem.cpp"
+ENVELOPE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoEnvelopeDetailSubsystem.h"
 
 
 def fail(message: str) -> None:
@@ -55,6 +57,8 @@ glyph_cpp = read(GLYPH_CPP)
 glyph_header = read(GLYPH_HEADER)
 cart_cpp = read(CART_CPP)
 cart_header = read(CART_HEADER)
+envelope_cpp = read(ENVELOPE_CPP)
+envelope_header = read(ENVELOPE_HEADER)
 
 for needle in [
     "class OSTERCONFLICT_API UOCR13SilpoPhotoModelSubsystem",
@@ -267,6 +271,29 @@ for needle in [
 ]:
     require(cart_cpp, needle, "shopping-cart detail")
 
+for needle in [
+    "class OSTERCONFLICT_API UOCR13SilpoEnvelopeDetailSubsystem",
+    "void ApplyEnvelopeDetails(UWorld& World);",
+]:
+    require(envelope_header, needle, "envelope detail header")
+
+for needle in [
+    'TEXT("R13_SilpoEnvelopeDetailApplied")',
+    'TEXT("R13SilpoEnvelope_FrontParapetCoping")',
+    'TEXT("R13SilpoEnvelope_SidePierCoping")',
+    'TEXT("R13SilpoEnvelope_RoofEdgeFlashing")',
+    'TEXT("R13SilpoEnvelope_EntranceCanopyFascia")',
+    'TEXT("R13SilpoEnvelope_PlinthReveal")',
+    'Component->SetCollisionEnabled(ECollisionEnabled::NoCollision)',
+    'Component->SetCanEverAffectNavigation(false)',
+    'FVector(0.0f, -870.0f, 781.0f)',
+    'FVector(-1565.0f, Y, 671.0f)',
+    'FVector(1565.0f, Y, 671.0f)',
+    'without inventing rooftop equipment absent from the reference set',
+    'visual-only and reference-constrained',
+]:
+    require(envelope_cpp, needle, "envelope detail pass")
+
 base_delay = delay(cpp, "SilpoPhotoModelDelaySeconds", "base model")
 detail_delay = delay(detail_cpp, "SilpoFacadeDetailDelaySeconds", "detail pass")
 site_delay = delay(site_cpp, "SilpoSiteDetailDelaySeconds", "site detail pass")
@@ -274,11 +301,12 @@ foliage_delay = delay(foliage_cpp, "SilpoFoliageUpgradeDelaySeconds", "foliage u
 parking_delay = delay(parking_cpp, "SilpoParkingDetailDelaySeconds", "parking detail")
 glyph_delay = delay(glyph_cpp, "SilpoLogoFallbackDelaySeconds", "glyph fallback")
 cart_delay = delay(cart_cpp, "SilpoCartDetailDelaySeconds", "shopping-cart detail")
-if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay < glyph_delay < cart_delay:
+envelope_delay = delay(envelope_cpp, "SilpoEnvelopeDetailDelaySeconds", "envelope detail")
+if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay < glyph_delay < cart_delay < envelope_delay:
     fail(
-        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking -> glyph guard -> cart: "
+        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking -> glyph guard -> cart -> envelope: "
         f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}, "
-        f"parking={parking_delay}, glyph={glyph_delay}, cart={cart_delay}"
+        f"parking={parking_delay}, glyph={glyph_delay}, cart={cart_delay}, envelope={envelope_delay}"
     )
 
 origin_lat = 50.948239
@@ -293,7 +321,7 @@ if not (-70000.0 <= x_cm <= 25000.0 and -25000.0 <= y_cm <= 50000.0):
 
 combined = (
     cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp + "\n" +
-    parking_cpp + "\n" + glyph_cpp + "\n" + cart_cpp
+    parking_cpp + "\n" + glyph_cpp + "\n" + cart_cpp + "\n" + envelope_cpp
 )
 for forbidden in [".jpeg", ".jpg", ".png", "764B665D", "2CDEA871", "DBF2A257", "91665653", "5B464C76", "67E3F35C"]:
     if forbidden.lower() in combined.lower():
@@ -306,8 +334,9 @@ print(
     "R13 SILPO PHOTO MODEL VERIFY: PASS "
     f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> "
     f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s -> parking {parking_delay:.2f}s -> "
-    f"glyph {glyph_delay:.2f}s -> cart {cart_delay:.2f}s; photo shell + cloud Сільпо sign + Ukrainian promo posters + "
-    "entrance/parking signage + poster rails + entrance bin + planted strip + PN foliage upgrade/fallback + "
-    "grounded visual-only VehicleVarietyPack parking row + Cyrillic logo guard + visual-only shopping trolley; "
+    f"glyph {glyph_delay:.2f}s -> cart {cart_delay:.2f}s -> envelope {envelope_delay:.2f}s; "
+    "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage + poster rails + "
+    "entrance bin + planted strip + PN foliage upgrade/fallback + grounded visual-only VehicleVarietyPack parking row + "
+    "Cyrillic logo guard + visual-only shopping trolley + reference-constrained parapet/roof-edge/entrance/plinth refinement; "
     "source building footprint replacement without road deletion)"
 )
