@@ -1,0 +1,51 @@
+name: R13 S01 park north path migration
+
+on:
+  push:
+    branches:
+      - r13-content-gameplay-pass
+    paths:
+      - 'MIGRATE_R13_S01_PARK_NORTH_PATH_RUNTIME.py'
+      - '.github/workflows/r13-s01-park-north-path-migration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout location branch
+        uses: actions/checkout@v4
+        with:
+          ref: r13-content-gameplay-pass
+          fetch-depth: 1
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply deterministic runtime migration
+        run: python MIGRATE_R13_S01_PARK_NORTH_PATH_RUNTIME.py
+
+      - name: Verify final S01 path ownership
+        run: |
+          python VERIFY_R13_LOCATION_FIRST_S01_PARK_NORTH_PATH.py
+          python VERIFY_R13_LOCATION_FIRST_S01_ROAD_TOPOLOGY.py
+          python VERIFY_R13_LOCATION_FIRST_S01.py
+
+      - name: Commit migrated runtime source
+        shell: bash
+        run: |
+          if git diff --quiet -- OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp; then
+            echo "Migration produced no world-source change"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp
+          git commit -m "Own S01 park north path explicitly"
+          git push origin HEAD:r13-content-gameplay-pass
