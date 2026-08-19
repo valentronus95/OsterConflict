@@ -25,14 +25,22 @@ includes = [line.strip() for line in h.splitlines() if line.strip().startswith("
 if not includes or "generated.h" not in includes[-1]:
     fail("generated.h must remain the final vehicle-repair header include")
 
+# Lifecycle/type declarations belong in the reflected header; implementation markers belong in the .cpp.
 for token in [
     "UTickableWorldSubsystem",
-    "VehicleRepairScanIntervalSeconds = 0.15f",
-    "ImportedWheelContactBelowBodyCm = 32.0f",
-    "MountedMachineGunLengthCm = 190.0f",
+    "virtual void Tick(float DeltaTime) override",
+    "virtual TStatId GetStatId() const override",
     "LastDriverByVehicle",
     "GroundingRepairedVehicles",
     "MountedGunRepairedVehicles",
+]:
+    if token not in h:
+        fail(f"vehicle repair header marker missing: {token}")
+
+for token in [
+    "VehicleRepairScanIntervalSeconds = 0.15f",
+    "ImportedWheelContactBelowBodyCm = 32.0f",
+    "MountedMachineGunLengthCm = 190.0f",
     "Vehicle->SetAIDriveInputsServer(0.0f, 0.0f, false)",
     "PhysicsBody->WakeAllRigidBodies()",
     "PC->FlushPressedKeys()",
@@ -45,7 +53,7 @@ for token in [
     "RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13VehicleGameplayRepairSubsystem",
 ]:
     if token not in cpp:
-        fail(f"vehicle repair marker missing: {token}")
+        fail(f"vehicle repair implementation marker missing: {token}")
 
 for token in [
     "ImportedWheelContactBelowBodyCm = 32.0f",
@@ -67,4 +75,4 @@ for forbidden in [
         fail(f"unsafe/obsolete vehicle repair marker present: {forbidden}")
 
 print("R13.6 VEHICLE GAMEPLAY REPAIR VERIFY: PASS")
-print("Checks shared 32 cm imported-wheel contact plane for chassis/cockpit, neutral released-handbrake state on every new driver possession and real mounted-machine-gun pickup art.")
+print("Checks tickable subsystem lifecycle in its reflected header, shared 32 cm imported-wheel contact plane for chassis/cockpit, neutral released-handbrake state on every new driver possession and real mounted-machine-gun pickup art.")
