@@ -7,13 +7,14 @@ COLLEGE_CPP = SRC / "Private" / "OCR13CollegeFacadeSubsystem.cpp"
 STADIUM_H = SRC / "Public" / "OCR13StadiumSurfaceSubsystem.h"
 STADIUM_CPP = SRC / "Private" / "OCR13StadiumSurfaceSubsystem.cpp"
 WORLD_CPP = SRC / "Private" / "OCWorldSectorOster.cpp"
+ROAD_CPP = SRC / "Private" / "OCLocationSectorS01RoadData.cpp"
 
 
 def fail(message: str) -> None:
     raise SystemExit("R13.5 COLLEGE/STADIUM VISUAL VERIFY FAIL: " + message)
 
 
-for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP, WORLD_CPP):
+for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP, WORLD_CPP, ROAD_CPP):
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
 
@@ -22,6 +23,7 @@ college = COLLEGE_CPP.read_text(encoding="utf-8", errors="replace")
 stadium_h = STADIUM_H.read_text(encoding="utf-8", errors="replace")
 stadium = STADIUM_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD_CPP.read_text(encoding="utf-8", errors="replace")
+road = ROAD_CPP.read_text(encoding="utf-8", errors="replace")
 
 for name, text in (("college", college_h), ("stadium", stadium_h)):
     includes = [line.strip() for line in text.splitlines() if line.strip().startswith("#include")]
@@ -104,6 +106,20 @@ for forbidden in [
     if forbidden in college:
         fail(f"obsolete college facade topology returned: {forbidden}")
 
+# The college-campus connection is a pedestrian path, not the old 80x59 m plaza-like slab.
+# Preserve its center/length/yaw while guarding the corrected human-scale width.
+for token in [
+    'TEXT("S01_PATH_COLLEGE_CAMPUS")',
+    "FVector(900, 5200, 12)",
+    "FVector(8000, 280, 18)",
+    "1.0f",
+    "Pedestrian-only college campus path; narrowed from the legacy plaza-sized sidewalk proxy",
+]:
+    if token not in road:
+        fail(f"college pedestrian-path marker missing: {token}")
+if "FVector(8000, 5900, 18)" in road:
+    fail("legacy 80x59 m college sidewalk slab returned; campus path must remain pedestrian-scale")
+
 for token in [
     "AOCWorldSectorOster::StadiumAnchor()",
     "R13_StadiumSurfaceRoot",
@@ -132,4 +148,4 @@ for label, text in (("college", college), ("stadium", stadium)):
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks BuildCollegeSector source topology against the aligned 65x19x14.4m/X+900 facade overlay, plus stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
+print("Checks BuildCollegeSector source topology against the aligned 65x19x14.4m/X+900 facade overlay, guards the 2.8m pedestrian campus path, and retains stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
