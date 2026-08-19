@@ -46,6 +46,15 @@ namespace
             Delta.Y <= -900.0f && Delta.Y >= -9200.0f;
     }
 
+    bool IsInsidePhotoStadiumProtection(const FVector& Location)
+    {
+        const FVector Delta = Location - AOCWorldSectorOster::StadiumAnchor();
+        // Supplied stadium photos show an open community grass field. Keep random city dressing outside the field
+        // and immediate goal/exercise-bar perimeter; dedicated final stadium photo art is a different component family.
+        const float Ellipse = FMath::Square(Delta.X / 7200.0f) + FMath::Square(Delta.Y / 5200.0f);
+        return Ellipse <= 1.0f;
+    }
+
     bool IsInsideLegacyMuseumWindowZone(const FVector& Location)
     {
         return FVector::DistSquared2D(Location, AOCWorldSectorOster::MuseumAnchor()) <=
@@ -84,6 +93,7 @@ void UOCR13MuseumProtectionSubsystem::ApplyMuseumProtection(UWorld& World)
 
     int32 RemovedInstances = 0;
     int32 RemovedLegacyWindowInstances = 0;
+    int32 RemovedStadiumDressingInstances = 0;
     int32 TouchedComponents = 0;
 
     for (TActorIterator<AActor> It(&World); It; ++It)
@@ -107,9 +117,21 @@ void UOCR13MuseumProtectionSubsystem::ApplyMuseumProtection(UWorld& World)
                 FTransform Transform;
                 if (!Component->GetInstanceTransform(Index, Transform, true)) continue;
 
-                const bool bRemove = bGenericDressing
-                    ? IsInsideMuseumProtection(Transform.GetLocation())
-                    : IsInsideLegacyMuseumWindowZone(Transform.GetLocation());
+                bool bRemove = false;
+                bool bStadiumRemoval = false;
+                if (bGenericDressing)
+                {
+                    bRemove = IsInsideMuseumProtection(Transform.GetLocation());
+                    if (!bRemove)
+                    {
+                        bStadiumRemoval = IsInsidePhotoStadiumProtection(Transform.GetLocation());
+                        bRemove = bStadiumRemoval;
+                    }
+                }
+                else
+                {
+                    bRemove = IsInsideLegacyMuseumWindowZone(Transform.GetLocation());
+                }
                 if (!bRemove) continue;
 
                 if (Component->RemoveInstance(Index))
@@ -117,6 +139,7 @@ void UOCR13MuseumProtectionSubsystem::ApplyMuseumProtection(UWorld& World)
                     ++RemovedFromComponent;
                     ++RemovedInstances;
                     if (bLegacySharedWindow) ++RemovedLegacyWindowInstances;
+                    if (bStadiumRemoval) ++RemovedStadiumDressingInstances;
                 }
             }
             if (RemovedFromComponent > 0)
@@ -129,6 +152,6 @@ void UOCR13MuseumProtectionSubsystem::ApplyMuseumProtection(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.6 museum protection: removed %d instances across %d components from the historic-garden/entrance corridor, including %d legacy shared museum window instances; college landmark windows and dedicated final museum/civic art untouched."),
-        RemovedInstances, TouchedComponents, RemovedLegacyWindowInstances);
+        TEXT("R13.6 museum/stadium protection: removed %d instances across %d generic/shared components; museum legacy windows=%d, random dressing inside adjacent photo stadium=%d; college windows and dedicated final museum/stadium/civic art untouched."),
+        RemovedInstances, TouchedComponents, RemovedLegacyWindowInstances, RemovedStadiumDressingInstances);
 }
