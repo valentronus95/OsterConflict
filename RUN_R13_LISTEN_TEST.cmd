@@ -76,13 +76,15 @@ if not exist "%MAP_FILE%" (
   )
 )
 
-echo Starting R13.2 player-facing listen-server gameplay test...
-echo Test order: menu ^> deployment ^> map size ^> bots ^> red sports car ^> BoxTruck.
-echo Audio is intentionally outside this test pass.
+echo Starting Oster Conflict frontend shell...
+echo No match, bots, vehicles or gameplay audio are started behind the main menu.
+echo Choose START or LOCAL GAME in the menu to create the listen-server match.
 echo.
-echo VEHICLE QUICK CONTROLS:
+echo VEHICLE QUICK CONTROLS AFTER MATCH START:
 echo   Driver: W/S drive, A/D steer, RMB free look, C camera, E exit when slow.
 echo   Turret control belongs to the dedicated gunner seat; driver mouse does not steal the turret.
 echo.
-start "Oster Conflict R13.2" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16?R13Gameplay=1" -game -Frontend -NoScreenMessages -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+rem IMPORTANT: launch the runtime map as a standalone frontend shell first.
+rem StartLocalGameplay() performs the explicit travel to the listen-server URL with R13Gameplay=1.
+start "Oster Conflict R13.2" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 exit /b 0
