@@ -93,10 +93,8 @@ void UOCR13MuseumRespawnSubsystem::Tick(float DeltaTime)
     if (!World || World->GetNetMode() == NM_Client) return;
     if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
-    {
-        if (GameMode->IsFrontendOnlySession()) return;
-    }
+    const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
+    if (!GameMode || GameMode->IsFrontendOnlySession() || !GameMode->IsLocationTestMode()) return;
 
     for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
     {
