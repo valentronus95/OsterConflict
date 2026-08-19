@@ -1,6 +1,7 @@
 #include "OCR13EnvironmentDressingSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCLocationSectorPlan.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -64,11 +65,16 @@ namespace
         return static_cast<float>(Seed & 0x00ffffffu) / static_cast<float>(0x00ffffffu);
     }
 
-    bool IsInsideKrushelnytskaSlice(const FVector& Location)
+    bool IsInsideLegacyKrushelnytskaSlice(const FVector& Location)
     {
-        // Keep the dedicated R12 street slice as its own visual owner. Whole-Oster art uses the same contract.
         return FMath::Abs(Location.X + 3400.0f) < 7000.0f &&
             Location.Y > -14500.0f && Location.Y < 17500.0f;
+    }
+
+    bool IsProtectedFromGenericDressing(const FVector& Location)
+    {
+        return IsInsideLegacyKrushelnytskaSlice(Location) ||
+            FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Location);
     }
 
     UInstancedStaticMeshComponent* MakeVisualISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh,
@@ -225,7 +231,7 @@ namespace
                     FVector Location = Center + ZoneRotation.RotateVector(Local);
                     Location.Z = FMath::Max(3.0f, Center.Z + 1.0f);
 
-                    if (IsInsideKrushelnytskaSlice(Location)) continue;
+                    if (IsProtectedFromGenericDressing(Location)) continue;
                     if (IsExcluded(Location, Exclusions, PaddingCm)) continue;
 
                     UInstancedStaticMeshComponent* Grass = GrassTargets[Seed % GrassTargets.Num()];
@@ -247,6 +253,7 @@ namespace
                                 (HashUnit(Seed ^ 0x7f4a7c15u) - 0.5f) * 120.0f,
                                 (HashUnit(Seed ^ 0x94d049bbu) - 0.5f) * 120.0f,
                                 0.0f);
+                            if (IsProtectedFromGenericDressing(PlantLocation)) continue;
                             Plant->AddInstance(FTransform(
                                 FRotator(0.0f, static_cast<float>((Seed >> 3) % 360u), 0.0f),
                                 PlantLocation, FVector(PlantScale)), true);
@@ -291,6 +298,7 @@ namespace
                 UE_ARRAY_COUNT(CandidateOffsets);
             FVector Candidate = OffsetFromTransform(HouseTransform, CandidateOffsets[Index]);
             Candidate.Z = FMath::Max(4.0f, HouseTransform.GetLocation().Z + 4.0f);
+            if (IsProtectedFromGenericDressing(Candidate)) continue;
             if (!IsExcluded(Candidate, Exclusions, 30.0f))
             {
                 OutLocation = Candidate;
@@ -496,6 +504,8 @@ void UOCR13EnvironmentDressingSubsystem::ApplyEnvironmentDressing(UWorld& World)
         {
             const FTransform& House = Houses[Index];
             const FVector HouseLocation = House.GetLocation();
+            if (IsProtectedFromGenericDressing(HouseLocation)) continue;
+
             const uint32 Seed = StableSeed(HouseLocation, Index, bHouse01 ? 401 : 509);
 
             if (bHouse01 && !House01Extras.IsEmpty() && Seed % 5u != 0u)
@@ -553,6 +563,8 @@ void UOCR13EnvironmentDressingSubsystem::ApplyEnvironmentDressing(UWorld& World)
     {
         const FTransform& Primary = PrimaryTrees[Index];
         const FVector BaseLocation = Primary.GetLocation();
+        if (IsProtectedFromGenericDressing(BaseLocation)) continue;
+
         const uint32 Seed = StableSeed(BaseLocation, Index, 733);
 
         if (!CompanionTrees.IsEmpty() && Seed % 3u == 0u)
@@ -561,7 +573,7 @@ void UOCR13EnvironmentDressingSubsystem::ApplyEnvironmentDressing(UWorld& World)
             const float Angle = FMath::DegreesToRadians(static_cast<float>((Seed >> 7) % 360u));
             FVector Location = BaseLocation + FVector(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius, 0.0f);
             Location.Z = FMath::Max(0.0f, BaseLocation.Z);
-            if (!IsExcluded(Location, Exclusions, 90.0f))
+            if (!IsProtectedFromGenericDressing(Location) && !IsExcluded(Location, Exclusions, 90.0f))
             {
                 UInstancedStaticMeshComponent* Target = CompanionTrees[(Seed >> 13) % CompanionTrees.Num()];
                 const float Scale = 0.55f + HashUnit(Seed ^ 0x1b56c4e9u) * 0.22f;
@@ -577,7 +589,7 @@ void UOCR13EnvironmentDressingSubsystem::ApplyEnvironmentDressing(UWorld& World)
             const float Angle = FMath::DegreesToRadians(static_cast<float>((Seed >> 10) % 360u));
             FVector Location = BaseLocation + FVector(FMath::Cos(Angle) * 330.0f, FMath::Sin(Angle) * 330.0f, 0.0f);
             Location.Z = FMath::Max(0.0f, BaseLocation.Z);
-            if (!IsExcluded(Location, Exclusions, 40.0f))
+            if (!IsProtectedFromGenericDressing(Location) && !IsExcluded(Location, Exclusions, 40.0f))
             {
                 UInstancedStaticMeshComponent* Target = Stumps[(Seed >> 18) % Stumps.Num()];
                 Target->AddInstance(FTransform(
@@ -590,6 +602,6 @@ void UOCR13EnvironmentDressingSubsystem::ApplyEnvironmentDressing(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13 environment dressing: grass=%d plants=%d house extras=%d yard props=%d companion trees=%d stumps=%d."),
+        TEXT("R13 environment dressing: grass=%d plants=%d house extras=%d yard props=%d companion trees=%d stumps=%d; S01 protected from generic dressing."),
         GrassCount, PlantCount, HouseExtraCount, YardPropCount, CompanionTreeCount, StumpCount);
 }
