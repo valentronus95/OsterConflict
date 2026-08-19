@@ -1,6 +1,7 @@
 from pathlib import Path
 
-# One-shot deterministic migration. The workflow deletes this helper after the runtime patch lands.
+# One-shot deterministic migration. The helper is intentionally idempotent because the push that commits the
+# migrated world source starts verification again before this temporary helper is removed.
 ROOT = Path(__file__).resolve().parent
 WORLD = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWorldSectorOster.cpp"
 
@@ -22,10 +23,16 @@ new = '''    const FVector NorthCivic = CultureParkNorthAnchor();
 '''
 
 text = WORLD.read_text(encoding="utf-8")
-count = text.count(old)
-if count != 1:
-    raise SystemExit(f"S01 PARK-NORTH MIGRATION FAIL: expected legacy derived path block exactly once, found {count}")
+old_count = text.count(old)
+new_count = text.count(new)
 
-WORLD.write_text(text.replace(old, new, 1), encoding="utf-8")
-print("S01 PARK-NORTH MIGRATION: PASS")
-print("Replaced the final derived CentralPark -> CultureParkNorth sidewalk with explicit split ownership records.")
+if old_count == 1 and new_count == 0:
+    WORLD.write_text(text.replace(old, new, 1), encoding="utf-8")
+    print("S01 PARK-NORTH MIGRATION: PASS")
+    print("Replaced the final derived CentralPark -> CultureParkNorth sidewalk with explicit split ownership records.")
+elif old_count == 0 and new_count == 1:
+    print("S01 PARK-NORTH MIGRATION: ALREADY APPLIED")
+else:
+    raise SystemExit(
+        f"S01 PARK-NORTH MIGRATION FAIL: unexpected source state old={old_count}, new={new_count}"
+    )
