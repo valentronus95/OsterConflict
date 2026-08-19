@@ -14,12 +14,14 @@ struct FOCS01ResidentialPlotSeed
     FVector HouseCenter = FVector::ZeroVector;
     FVector HouseSizeCm = FVector::ZeroVector;
     float HouseYaw = 0.0f;
+    int32 VisualVariant = 0;
     bool bHasPrimaryHouse = true;
 
     FVector OutbuildingCenter = FVector::ZeroVector;
     FVector OutbuildingSizeCm = FVector::ZeroVector;
     float OutbuildingYaw = 0.0f;
     bool bHasOutbuilding = false;
+    bool bOutbuildingHasRoof = false;
 
     EOCReferenceConfidence Confidence = EOCReferenceConfidence::C;
     const TCHAR* Note = TEXT("");
