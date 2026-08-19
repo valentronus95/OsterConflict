@@ -32,7 +32,6 @@ includes = [line.strip() for line in header.splitlines() if line.strip().startsw
 if not includes or "generated.h" not in includes[-1]:
     fail("generated.h must remain the last include in the UHT header")
 
-# The pass must run after the compact/R12/R13 art bridges, not race them at BeginPlay.
 for token in [
     "DressingDelaySeconds = 1.60f",
     "CreateWeakLambda",
@@ -42,7 +41,6 @@ for token in [
     if token not in cpp:
         fail(f"delayed runtime ownership marker missing: {token}")
 
-# Grass density must adapt to the authored area size. A fixed 5x5 carpet is the regression we are replacing.
 for token in [
     "MownSpacingCm = 450.0f",
     "RoughSpacingCm = 600.0f",
@@ -72,7 +70,6 @@ for token in [
     if token not in cpp:
         fail(f"committed grass/plant asset bridge missing: {token}")
 
-# Existing complete houses stay the structural base; their matching companion meshes add visible variation.
 for token in [
     "SM_House_Var01_Extra%02d.SM_House_Var01_Extra%02d",
     "Index <= 8",
@@ -102,17 +99,29 @@ for token in [
     if token not in cpp:
         fail(f"yard/vegetation model marker missing: {token}")
 
-# Dressing is visual-only: do not let a density pass silently rewrite nav/collision gameplay.
+# Location-first S01 must be protected from generic city-wide dressing.
+for token in [
+    '#include "OCLocationSectorPlan.h"',
+    "IsInsideLegacyKrushelnytskaSlice",
+    "IsProtectedFromGenericDressing",
+    "FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Location)",
+    "IsProtectedFromGenericDressing(PlantLocation)",
+    "IsProtectedFromGenericDressing(HouseLocation)",
+    "IsProtectedFromGenericDressing(BaseLocation)",
+    "S01 protected from generic dressing",
+]:
+    if token not in cpp:
+        fail(f"location-first protection marker missing: {token}")
+
 for token in [
     "ECollisionEnabled::NoCollision",
     "SetCanEverAffectNavigation(false)",
     "DressingRoot->SetActorEnableCollision(false)",
-    "R13 environment dressing: grass=%d plants=%d house extras=%d yard props=%d companion trees=%d stumps=%d.",
+    "R13 environment dressing: grass=%d plants=%d house extras=%d yard props=%d companion trees=%d stumps=%d; S01 protected from generic dressing.",
 ]:
     if token not in cpp:
         fail(f"visual-only safety/logging marker missing: {token}")
 
-# Protected landmark/world contracts must survive the density pass.
 for token in [
     "BuildMuseumAndStadium();",
     "BuildCentralPark();",
@@ -123,4 +132,4 @@ for token in [
         fail(f"Oster source-world landmark/vegetation marker missing: {token}")
 
 print("R13.4 ENVIRONMENT DRESSING VERIFY: PASS")
-print("Checks adaptive grass density, bundled ground plants, house companion variation, restrained yard props/secondary trees, no gameplay collision and Oster landmark preservation.")
+print("Checks adaptive grass/props/secondary trees, visual-only safety and explicit protection of the location-first Krushelnytska-college-park sector from generic city-wide dressing.")
