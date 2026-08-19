@@ -72,14 +72,39 @@ This is a planning correction, not a cadastral statement. The continuation after
 
 ## Review-only authoring gates
 
-`FOCLocationSectorS01KrushelnytskaAuthoringData` now defines two confidence-C uncertainty windows for later centerline authoring:
+`FOCLocationSectorS01KrushelnytskaAuthoringData` defines two confidence-C uncertainty windows for later centerline authoring:
 
 - `S01_KR_GATE_SOUTH_ENTRY` centered near `(-36952, 1497) cm`, derived from the address-evidence progression 8 → 14 intersecting the S01 south boundary, with ±75 m lateral uncertainty;
 - `S01_KR_GATE_EAST_EXIT` centered near `(-18230, 13462) cm`, derived from the address-evidence progression 28 → 40 intersecting the S01 east boundary, with ±80 m longitudinal uncertainty.
 
 These are **not road points**. They are wide review gates saying, roughly, “a credible future S01 centerline should enter/exit through this evidence-supported boundary region.” Their centers are deterministically recomputed by `VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GATES.py`, and `OCWorldSectorOster.cpp` is forbidden from consuming them.
 
-This gives the future carriageway skeleton useful entry/exit constraints without granting false precision to property markers.
+## College transition region
+
+`S01_KR_REGION_COLLEGE_TRANSITION` is a second review-only constraint. It is built from the envelope of addresses 14, 7A and 28, padded by `40 m`, then clipped to S01.
+
+Approximate local values:
+
+- center `(-28989, 8809) cm`;
+- half-size `(10760, 7312) cm`.
+
+The region deliberately touches the S01 south and east edges and contains both authoring gates. It does **not** describe a road footprint. Its job is to constrain the future College-side centerline to an evidence-supported transition area without inventing an exact bend point.
+
+The verifier recomputes the region from the B-confidence source points and S01 margins, checks the 40 m padding/clipping, confirms addresses 14/7A/28 and both gates remain inside it, and forbids runtime use.
+
+## Reference-conflicted runtime geometry
+
+The current playtest still renders the migrated Krushelnytska spine because replacing it partially would create continuity/collision regressions. However newer reference evidence now explicitly conflicts with its near-vertical alignment.
+
+The following runtime pieces are therefore recorded by `ReferenceConflictedRuntimeSegments()` and hard-limited to confidence C:
+
+- `S01_KR_SPINE_SOUTH_SHARED`;
+- `S01_KR_SPINE_INSIDE`;
+- `S01_KR_SPINE_NORTH_SHARED`.
+
+`VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GATES.py` checks that the shared `Provisional` road confidence alias remains exactly `EOCReferenceConfidence::C` and that all three conflicted road records actually use it. A tidy registry is no longer enough to accidentally promote these segments to “verified” geography.
+
+Replacement must be atomic across the affected S01/shared continuity once a reviewed carriageway skeleton exists.
 
 ## Runtime safety rule
 
@@ -87,7 +112,9 @@ These sources are evidence/authoring-only:
 
 - `FOCLocationSectorS01ReferenceData::KrushelnytskaAddressReferences()`;
 - `FOCLocationSectorS01ReferenceData::KrushelnytskaStreetExtentReference()`;
-- `FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()`.
+- `FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()`;
+- `FOCLocationSectorS01KrushelnytskaAuthoringData::CollegeTransitionRegion()`;
+- `FOCLocationSectorS01KrushelnytskaAuthoringData::ReferenceConflictedRuntimeSegments()`.
 
 `OCWorldSectorOster.cpp` must not consume any of them directly.
 
