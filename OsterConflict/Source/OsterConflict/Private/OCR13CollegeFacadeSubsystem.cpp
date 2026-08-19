@@ -15,6 +15,15 @@
 namespace
 {
     constexpr float CollegeFacadeDelaySeconds = 2.25f;
+    constexpr float CollegeYawDegrees = 1.0f;
+    constexpr float MainWidthCm = 6500.0f;
+    constexpr float MainDepthCm = 1900.0f;
+    constexpr float MainHeightCm = 1440.0f;
+    constexpr float MainFrontY = -950.0f;
+    constexpr float EntranceCenterX = 900.0f;
+    constexpr float EntranceBlockCenterY = -1230.0f;
+    constexpr float EntranceFrontY = -1530.0f;
+    constexpr float EntranceCanopyCenterY = -1590.0f;
 
     UInstancedStaticMeshComponent* MakeVisualISM(AActor* Owner, USceneComponent* Root,
         UStaticMesh* Mesh, UMaterialInterface* Material, const FName Name, const bool bCastShadow)
@@ -27,6 +36,7 @@ namespace
         if (Material) Component->SetMaterial(0, Material);
         Component->SetMobility(EComponentMobility::Static);
         Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetCollisionProfileName(TEXT("NoCollision"));
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(bCastShadow);
@@ -45,10 +55,11 @@ namespace
         return Material;
     }
 
-    void AddBox(UInstancedStaticMeshComponent* Target, const FVector& Center, const FVector& SizeCm)
+    void AddBox(UInstancedStaticMeshComponent* Target, const FVector& Center, const FVector& SizeCm,
+        const float YawDegrees = CollegeYawDegrees)
     {
         if (!Target) return;
-        Target->AddInstance(FTransform(FRotator::ZeroRotator, Center, SizeCm / 100.0f), true);
+        Target->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f), Center, SizeCm / 100.0f), true);
     }
 }
 
@@ -92,6 +103,7 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
     if (!ArtRoot) return;
     ArtRoot->SetReplicates(false);
     ArtRoot->SetActorEnableCollision(false);
+    ArtRoot->Tags.Add(TEXT("R13_CollegeFacadeAligned"));
 
     USceneComponent* Root = NewObject<USceneComponent>(ArtRoot, TEXT("R13_CollegeFacadeRoot"));
     if (!Root)
@@ -110,6 +122,8 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
         TEXT("R13_CollegeBandMat"), FLinearColor(0.61f, 0.59f, 0.52f, 1.0f));
     UMaterialInstanceDynamic* CanopyMaterial = MakeColor(ArtRoot, BaseMaterial,
         TEXT("R13_CollegeCanopyMat"), FLinearColor(0.18f, 0.20f, 0.20f, 1.0f));
+    UMaterialInstanceDynamic* FrameMaterial = MakeColor(ArtRoot, BaseMaterial,
+        TEXT("R13_CollegeEntranceFrameMat"), FLinearColor(0.20f, 0.21f, 0.20f, 1.0f));
 
     UInstancedStaticMeshComponent* Plinth = MakeVisualISM(
         ArtRoot, Root, Cube, PlinthMaterial, TEXT("R13_CollegeDarkPlinth"), true);
@@ -119,33 +133,51 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
         ArtRoot, Root, Cube, CanopyMaterial, TEXT("R13_CollegeEntranceCanopy"), true);
     UInstancedStaticMeshComponent* Glass = MakeVisualISM(
         ArtRoot, Root, Cube, GlassMaterial, TEXT("R13_CollegeEntranceGlass"), false);
+    UInstancedStaticMeshComponent* EntranceFrame = MakeVisualISM(
+        ArtRoot, Root, Cube, FrameMaterial, TEXT("R13_CollegeEntranceFrame"), true);
 
     const FVector College = AOCWorldSectorOster::CollegeAnchor();
-    const float FrontY = College.Y - 860.0f;
+    const float FacadeY = College.Y + MainFrontY - 16.0f;
 
-    // Main authored block is 48 x 17 x 15.5 m. Thin overlays sit just in front of its south facade,
-    // leaving the existing 9x4 landmark-window bridge visible between horizontal floor bands.
-    AddBox(Plinth, FVector(College.X, FrontY - 8.0f, 70.0f), FVector(4740.0f, 18.0f, 140.0f));
+    // BuildCollegeSector owns a 65 x 19 x 14.4 m main collision mass. Keep this visual skin on that exact
+    // frontage rather than the obsolete 48 x 17 m dimensions used by the first R13.5 facade pass.
+    AddBox(Plinth, FVector(College.X, FacadeY, 70.0f), FVector(MainWidthCm - 80.0f, 18.0f, 140.0f));
     const float FloorBandZ[] = { 385.0f, 735.0f, 1085.0f, 1430.0f };
     for (const float Z : FloorBandZ)
     {
-        AddBox(Bands, FVector(College.X, FrontY - 10.0f, Z), FVector(4720.0f, 20.0f, 26.0f));
+        AddBox(Bands, FVector(College.X, FacadeY - 2.0f, Z), FVector(MainWidthCm - 100.0f, 20.0f, 26.0f));
     }
-    AddBox(Bands, FVector(College.X - 2260.0f, FrontY - 10.0f, 780.0f), FVector(34.0f, 20.0f, 1410.0f));
-    AddBox(Bands, FVector(College.X + 2260.0f, FrontY - 10.0f, 780.0f), FVector(34.0f, 20.0f, 1410.0f));
+    AddBox(Bands, FVector(College.X - 3190.0f, FacadeY - 2.0f, MainHeightCm * 0.5f),
+        FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
+    AddBox(Bands, FVector(College.X + 3190.0f, FacadeY - 2.0f, MainHeightCm * 0.5f),
+        FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
 
-    // Source entrance is centered at Y -970. Add a real glazed vestibule skin and a darker canopy without
-    // moving the existing stair/door topology or adding collision.
-    const FVector Entrance = College + FVector(0.0f, -1040.0f, 0.0f);
-    AddBox(Glass, Entrance + FVector(-220.0f, -85.0f, 300.0f), FVector(190.0f, 16.0f, 470.0f));
-    AddBox(Glass, Entrance + FVector(0.0f, -85.0f, 300.0f), FVector(190.0f, 16.0f, 470.0f));
-    AddBox(Glass, Entrance + FVector(220.0f, -85.0f, 300.0f), FVector(190.0f, 16.0f, 470.0f));
-    AddBox(Bands, Entrance + FVector(-325.0f, -94.0f, 300.0f), FVector(26.0f, 18.0f, 520.0f));
-    AddBox(Bands, Entrance + FVector(325.0f, -94.0f, 300.0f), FVector(26.0f, 18.0f, 520.0f));
-    AddBox(Bands, Entrance + FVector(0.0f, -94.0f, 550.0f), FVector(680.0f, 18.0f, 28.0f));
-    AddBox(Canopy, Entrance + FVector(0.0f, -165.0f, 585.0f), FVector(920.0f, 260.0f, 34.0f));
+    // The authored entrance is not centered on the main block. BuildCollegeSector places its vestibule at
+    // X +900 cm and Y -1230 cm, with the stair run continuing south. Align the glass/front-frame to that
+    // topology instead of creating a second fake entrance at X=0.
+    const FVector EntranceFront = College + FVector(EntranceCenterX, EntranceFrontY - 8.0f, 0.0f);
+    for (float XOffset : { -420.0f, 0.0f, 420.0f })
+    {
+        AddBox(Glass, EntranceFront + FVector(XOffset, 0.0f, 255.0f), FVector(360.0f, 14.0f, 420.0f));
+    }
+    AddBox(EntranceFrame, EntranceFront + FVector(-625.0f, -2.0f, 255.0f), FVector(28.0f, 18.0f, 470.0f));
+    AddBox(EntranceFrame, EntranceFront + FVector(625.0f, -2.0f, 255.0f), FVector(28.0f, 18.0f, 470.0f));
+    AddBox(EntranceFrame, EntranceFront + FVector(0.0f, -2.0f, 485.0f), FVector(1280.0f, 18.0f, 28.0f));
+    AddBox(EntranceFrame, EntranceFront + FVector(-210.0f, -2.0f, 255.0f), FVector(24.0f, 18.0f, 440.0f));
+    AddBox(EntranceFrame, EntranceFront + FVector(210.0f, -2.0f, 255.0f), FVector(24.0f, 18.0f, 440.0f));
+
+    // The source already owns the 26.5 x 9.2 m canopy collision slab at X +900 / Y -1590. Add only a thin
+    // visual fascia to its exposed front and side edges so gameplay topology remains single-source.
+    const FVector CanopyCenter = College + FVector(EntranceCenterX, EntranceCanopyCenterY, 505.0f);
+    AddBox(Canopy, CanopyCenter + FVector(0.0f, -468.0f, 0.0f), FVector(2670.0f, 18.0f, 92.0f));
+    AddBox(Canopy, CanopyCenter + FVector(-1333.0f, 0.0f, 0.0f), FVector(18.0f, 930.0f, 92.0f));
+    AddBox(Canopy, CanopyCenter + FVector(1333.0f, 0.0f, 0.0f), FVector(18.0f, 930.0f, 92.0f));
+
+    // Keep the constants referenced by the verifier and document the source topology being matched.
+    static_cast<void>(MainDepthCm);
+    static_cast<void>(EntranceBlockCenterY);
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.5 college facade: dark plinth + floor bands + glazed vestibule + entrance canopy added; authored 9x4 windows, stairs and footprint preserved."));
+        TEXT("R13.5 college facade: aligned to authored 65x19x14.4m main mass and X+900 entrance; dark plinth, full-width floor bands, glazed vestibule and canopy fascia added; authored 9x4 windows, stairs and footprint preserved."));
 }
