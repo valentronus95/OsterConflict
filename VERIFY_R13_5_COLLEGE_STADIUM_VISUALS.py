@@ -40,6 +40,7 @@ for token in [
     "AddBox(LandmarkDetails, College + FVector(900, -1230, 230), FVector(2450, 600, 460), Yaw);",
     "AddBox(LandmarkDetails, College + FVector(900, -1590, 505), FVector(2650, 920, 70), Yaw);",
     "College + FVector(900, -1940 - Step * 115.0f, 22 + Step * 22.0f)",
+    "FVector(2750 - Step * 100.0f, 220, 40)",
     "constexpr int32 Columns = 9;",
     "constexpr int32 Rows = 4;",
     "const float X = -2800.0f + Col * 700.0f;",
@@ -63,6 +64,9 @@ for token in [
     "R13_CollegeEntranceFrame",
     "R13_CollegeWindowGlass",
     "R13_CollegeWindowFrames",
+    "R13_CollegeStairTreads",
+    "R13_CollegeStairNosings",
+    "R13_CollegeStepMat",
     "Glass_Window.Glass_Window",
     "FloorBandZ[]",
     "constexpr float CollegeYawDegrees = 1.0f;",
@@ -88,13 +92,21 @@ for token in [
     "FVector(18.0f, 12.0f, 240.0f)",
     "EntranceCenterX, EntranceFrontY - 8.0f",
     "EntranceCenterX, EntranceCanopyCenterY, 505.0f",
+    "for (int32 Step = 0; Step < 5; ++Step)",
+    "const float StepCenterY = -1940.0f - Step * 115.0f;",
+    "const float StepCenterZ = 22.0f + Step * 22.0f;",
+    "const float StepWidth = 2750.0f - Step * 100.0f;",
+    "FVector(StepWidth - 24.0f, 204.0f, 6.0f)",
+    "FVector(StepWidth - 18.0f, 8.0f, 8.0f)",
+    "sole gameplay owner",
     "same rotated local frame",
     "flush facade trim",
     "framed 9x4 window topology",
+    "source-matched five-step visual finish",
     "GameMode->IsFrontendOnlySession()",
     "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
     "SetCanEverAffectNavigation(false)",
-    "stairs/footprint preserved",
+    "source collision/footprint preserved",
 ]:
     if token not in college:
         fail(f"college facade marker missing: {token}")
@@ -107,6 +119,9 @@ source_to_overlay_pairs = [
     ("FVector(900, -1230, 230)", "EntranceBlockCenterY = -1230.0f", "entrance block Y"),
     ("FVector(900, -1590, 505)", "EntranceCanopyCenterY = -1590.0f", "canopy Y"),
     ("FVector(X, -965, Z)", "WindowFrontY = -981.0f", "front-window visual offset"),
+    ("-1940 - Step * 115.0f", "StepCenterY = -1940.0f - Step * 115.0f", "stair center progression"),
+    ("22 + Step * 22.0f", "StepCenterZ = 22.0f + Step * 22.0f", "stair height progression"),
+    ("2750 - Step * 100.0f", "StepWidth = 2750.0f - Step * 100.0f", "stair width progression"),
 ]
 for source_marker, overlay_marker, label in source_to_overlay_pairs:
     if source_marker not in world or overlay_marker not in college:
@@ -182,4 +197,4 @@ for label, text in (("college", college), ("stadium", stadium), ("civic", civic)
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks BuildCollegeSector rotated source topology against the aligned 65x19x14.4m/X+900 facade overlay, flush trim, framed 9x4 windows, 2.8m pedestrian campus path/tree clearance, plus stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
+print("Checks BuildCollegeSector rotated source topology against the aligned 65x19x14.4m/X+900 facade overlay, flush trim, framed 9x4 windows, source-matched five-step finish, 2.8m pedestrian campus path/tree clearance, plus stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
