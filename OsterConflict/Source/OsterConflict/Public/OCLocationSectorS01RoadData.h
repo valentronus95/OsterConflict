@@ -63,6 +63,12 @@ public:
      */
     static const TArray<FOCS01RoadCorridorSeed>& KrushelnytskaSpineSegments();
 
+    /**
+     * Two contiguous pieces replacing the former 61000 cm east-west corridor at Y=17000.
+     * West piece is fully Inside; east remainder stays shared/Crossing.
+     */
+    static const TArray<FOCS01RoadCorridorSeed>& EastWest02Segments();
+
     /** Four current Central Park internal sidewalk strips, all fully inside S01. */
     static const TArray<FOCS01PathSeed>& OwnedCentralParkPaths();
 
