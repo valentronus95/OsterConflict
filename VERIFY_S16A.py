@@ -34,7 +34,6 @@ markers={
         'BuildHydrography();', 'BuildVerifiedReferenceMarkers();',
         'Waterways', 'Bridges', 'ReferenceMarkers',
         'void AOCWorldSectorOster::BuildRoadNetwork()',
-        'AddRoadWithWalks(FVector(-33500, 25000, RoadZ), FVector(112000, 920, 16), 91.5f)',
         'const FVector Park = ParkAnchor();', 'const FVector College = CollegeAnchor();',
         'FOCGeoReference::CentralPark()', 'FOCGeoReference::CultureParkNorth()',
         'S16A VERIFIED ANCHOR', '10500, 6800',
@@ -61,6 +60,15 @@ for name,needles in markers.items():
     for needle in needles:
         if needle not in text:
             print(f'Missing marker {needle!r} in {name}'); sys.exit(1)
+
+world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
+road_spine = re.search(
+    r'AddRoadWithWalks\s*\(\s*FVector\s*\(\s*-33500\s*,\s*25000\s*,\s*RoadZ\s*\)\s*,\s*'
+    r'FVector\s*\(\s*112000\s*,\s*920\s*,\s*16\s*\)\s*,\s*91\.5f\s*\)',
+    world,
+)
+if not road_spine:
+    print('Missing S16A Krushelnytska road-spine structure'); sys.exit(1)
 
 # Museum origin should be deterministic and coordinates separated from layout code.
 gh=(root/'Source/OsterConflict/Public/OCGeoReference.h').read_text(errors='ignore')
@@ -108,4 +116,4 @@ for cpp_name,class_name in [('OCGeoReference.cpp','FOCGeoReference'),('OCWorldSe
         print('Duplicate method definitions',cpp_name,dup); sys.exit(1)
 
 print('S16A structural verification: PASS')
-print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers.')
+print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers plus formatting-independent road spine.')
