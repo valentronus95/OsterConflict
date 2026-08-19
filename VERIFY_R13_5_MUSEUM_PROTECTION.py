@@ -22,6 +22,7 @@ if not includes or "generated.h" not in includes[-1]:
 
 required = [
     "ProtectionDelaySeconds = 2.65f",
+    "LegacyMuseumWindowRadiusCm = 7200.0f",
     "AOCWorldSectorOster::MuseumAnchor()",
     "Delta.X / 6500.0f",
     "Delta.Y / 5200.0f",
@@ -33,25 +34,33 @@ required = [
     'Text.StartsWith(TEXT("R13_ExplicitPine"))',
     'Text.StartsWith(TEXT("R13_Shrub"))',
     'Text.StartsWith(TEXT("R13_Yard"))',
+    'Name == TEXT("R13_LandmarkWindowGlass")',
+    'Name == TEXT("R13_LandmarkWindowFrames")',
+    "IsInsideLegacyMuseumWindowZone",
+    "bLegacySharedWindow",
+    "RemovedLegacyWindowInstances",
     "for (int32 Index = Component->GetInstanceCount() - 1; Index >= 0; --Index)",
     "Component->RemoveInstance(Index)",
+    "Component->MarkRenderStateDirty()",
     "GameMode->IsFrontendOnlySession()",
-    "dedicated museum/civic art untouched",
+    "college landmark windows and dedicated final museum/civic art untouched",
 ]
 for token in required:
     if token not in cpp:
         fail(f"missing museum cleanup marker: {token}")
 
-# This pass is allowed to remove only generic dressing. Curated photo/civic art must never become a prune target.
+# This pass may prune the legacy shared landmark-window bridge only by museum radius. Dedicated final museum/civic
+# component families must never become a generic prefix target.
 for forbidden in [
     'Text.StartsWith(TEXT("R13_MuseumPine"))',
     'Text.StartsWith(TEXT("R13_Museum"))',
     'Text.StartsWith(TEXT("R13_Civic"))',
+    'Name == TEXT("R13_LandmarkWindowGlass") || Name == TEXT("R13_LandmarkWindowFrames") || Name == TEXT("R13_LandmarkWindow',
     "DestroyComponent()",
     "DestroyActor",
 ]:
     if forbidden in cpp:
-        fail(f"museum protection could remove curated landmark art: {forbidden}")
+        fail(f"museum protection could remove curated/non-museum landmark art too broadly: {forbidden}")
 
-print("R13.5 MUSEUM PROTECTION VERIFY: PASS")
-print("Checks final generic-dressing cleanup around the museum garden/entrance corridor while preserving dedicated photo/civic art.")
+print("R13.6 MUSEUM PROTECTION VERIFY: PASS")
+print("Checks generic-dressing cleanup plus museum-radius-only pruning of the old shared landmark-window bridge while preserving college windows and dedicated final photo/civic art.")
