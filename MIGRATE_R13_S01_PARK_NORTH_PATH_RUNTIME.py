@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot deterministic migration. The workflow deletes this helper after the runtime patch lands.
 ROOT = Path(__file__).resolve().parent
 WORLD = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWorldSectorOster.cpp"
 
