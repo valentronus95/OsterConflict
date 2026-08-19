@@ -69,3 +69,47 @@ const TArray<FOCS01ResidentialPlotSeed>& FOCLocationSectorS01Data::ProvisionalRe
 
     return Plots;
 }
+
+const TArray<FOCS01FrontageSeed>& FOCLocationSectorS01Data::ProvisionalFrontages()
+{
+    static const FVector FenceSize(3200.0f, 35.0f, 170.0f);
+    static const FVector WalkSize(2100.0f, 160.0f, 18.0f);
+    static const TArray<FOCS01FrontageSeed> Frontages = {
+        { TEXT("S01_KR_FRONT_01"), FVector(-37100, 19300, 85), FVector(-29900, 19300, 85), FenceSize, 90.0f,
+            FVector(-36500, 20950, 18), FVector(-30500, 20150, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_02"), FVector(-37100, 24100, 85), FVector(-29900, 24100, 85), FenceSize, 90.0f,
+            FVector(-36500, 25750, 18), FVector(-30500, 24950, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_03"), FVector(-37100, 28900, 85), FVector(-29900, 28900, 85), FenceSize, 90.0f,
+            FVector(-36500, 30550, 18), FVector(-30500, 29750, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_04"), FVector(-37100, 33700, 85), FVector(-29900, 33700, 85), FenceSize, 90.0f,
+            FVector(-36500, 35350, 18), FVector(-30500, 34550, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_05"), FVector(-37100, 38500, 85), FVector(-29900, 38500, 85), FenceSize, 90.0f,
+            FVector(-36500, 40150, 18), FVector(-30500, 39350, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_06"), FVector(-37100, 43300, 85), FVector(-29900, 43300, 85), FenceSize, 90.0f,
+            FVector(-36500, 44950, 18), FVector(-30500, 44150, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_07"), FVector(-37100, 48100, 85), FVector(-29900, 48100, 85), FenceSize, 90.0f,
+            FVector(-36500, 49750, 18), FVector(-30500, 48950, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+        { TEXT("S01_KR_FRONT_08"), FVector(-37100, 52900, 85), FVector(-29900, 52900, 85), FenceSize, 90.0f,
+            FVector(-36500, 54550, 18), FVector(-30500, 53750, 18), WalkSize, 0.0f, Provisional,
+            TEXT("Migrated frontage from legacy 4.8 m arithmetic slot; replace with reference-backed plot boundary") },
+    };
+    return Frontages;
+}
+
+const TArray<FOCS01RoadSeed>& FOCLocationSectorS01Data::ProvisionalServiceRoads()
+{
+    static const TArray<FOCS01RoadSeed> Roads = {
+        { TEXT("S01_KR_SERVICE_W"), FVector(-43000, 36000, 8), FVector(560, 42000, 14), 0.0f, Provisional,
+            TEXT("Legacy service-road blockout retained as explicit C-confidence S01 segment") },
+        { TEXT("S01_KR_SERVICE_E"), FVector(-24200, 37000, 8), FVector(560, 39000, 14), 0.0f, Provisional,
+            TEXT("Legacy service-road blockout retained as explicit C-confidence S01 segment") },
+    };
+    return Roads;
+}
