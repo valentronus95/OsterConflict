@@ -51,8 +51,10 @@ for token in [
     if token not in text["widget"]:
         fail(f"tactical-map rendering marker missing: {token}")
 
+# The tickable base class belongs to the reflected declaration; runtime toggle behavior belongs to the .cpp.
+if "UTickableWorldSubsystem" not in text["sub_h"]:
+    fail("tactical-map subsystem is no longer declared as UTickableWorldSubsystem")
 for token in [
-    "UTickableWorldSubsystem",
     "PC->IsInputKeyDown(EKeys::M)",
     "PC->IsFrontendMenuVisible()",
     "PC->IsDeploymentPanelVisible()",
@@ -101,4 +103,4 @@ for forbidden in [
         fail(f"local tactical map must not own server/gameplay spawning: {forbidden}")
 
 print("R13.6 TACTICAL MAP VERIFY: PASS")
-print("Checks physical M/Ь local toggle, compact-road schematic, A/B/C, canonical museum/park/college/stadium bounds and live player position/orientation without gameplay mutation.")
+print("Checks tickable lifecycle in the reflected header, physical M/Ь local toggle, compact-road schematic, A/B/C, canonical museum/park/college/stadium bounds and live player position/orientation without gameplay mutation.")
