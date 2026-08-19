@@ -13,7 +13,9 @@
 
 namespace
 {
-    constexpr float CollegeAccessRepairDelaySeconds = 2.40f;
+    constexpr float CollegeAccessInitialDelaySeconds = 0.10f;
+    constexpr float CollegeAccessRetryDelaySeconds = 0.25f;
+    constexpr int32 CollegeAccessMaxAttempts = 40;
     constexpr float CollegeYawDegrees = 1.0f;
     constexpr float FrontFenceY = -2450.0f;
     constexpr float FrontFenceZ = 110.0f;
@@ -109,42 +111,66 @@ void UOCR13CollegeAccessRepairSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    FTimerHandle Timer;
-    InWorld.GetTimerManager().SetTimer(Timer,
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-        {
-            if (UWorld* World = WeakWorld.Get()) RepairCollegeEntrance(*World);
-        }), CollegeAccessRepairDelaySeconds, false);
+    // UWorldSubsystem::OnWorldBeginPlay is earlier than Actor::BeginPlay. Start quickly, then retry until the
+    // sector actor has completed BeginPlay so the split segments inherit its final tinted fence material.
+    ScheduleRepair(InWorld, 0);
 }
 
-void UOCR13CollegeAccessRepairSubsystem::RepairCollegeEntrance(UWorld& World)
+void UOCR13CollegeAccessRepairSubsystem::ScheduleRepair(UWorld& World, const int32 AttemptIndex)
+{
+    if (AttemptIndex >= CollegeAccessMaxAttempts)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("R13 college access repair: gave up after %d startup attempts; legacy fence left unchanged."),
+            CollegeAccessMaxAttempts);
+        return;
+    }
+
+    const float DelaySeconds = AttemptIndex == 0
+        ? CollegeAccessInitialDelaySeconds
+        : CollegeAccessRetryDelaySeconds;
+    TWeakObjectPtr<UWorld> WeakWorld(&World);
+    FTimerHandle Timer;
+    World.GetTimerManager().SetTimer(Timer,
+        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld, AttemptIndex]()
+        {
+            if (UWorld* RetryWorld = WeakWorld.Get())
+            {
+                if (!RepairCollegeEntrance(*RetryWorld))
+                {
+                    ScheduleRepair(*RetryWorld, AttemptIndex + 1);
+                }
+            }
+        }), DelaySeconds, false);
+}
+
+bool UOCR13CollegeAccessRepairSubsystem::RepairCollegeEntrance(UWorld& World)
 {
     AOCWorldSectorOster* Sector = FindOsterSector(World);
-    if (!Sector || Sector->ActorHasTag(TEXT("R13_CollegeAccessRepairApplied"))) return;
+    if (!Sector) return false;
+    if (Sector->ActorHasTag(TEXT("R13_CollegeAccessRepairApplied"))) return true;
+    if (!Sector->HasActorBegunPlay()) return false;
 
     UInstancedStaticMeshComponent* SourceFences = FindFenceComponent(Sector);
-    if (!SourceFences) return;
+    if (!SourceFences) return false;
 
     const FVector College = AOCWorldSectorOster::CollegeAnchor();
     const FVector LegacyFenceCenter = College + FVector(0.0f, FrontFenceY, FrontFenceZ);
     const int32 LegacyIndex = FindLegacyFrontFenceInstance(SourceFences, LegacyFenceCenter);
     if (LegacyIndex == INDEX_NONE)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("R13 college access repair: legacy 104m front fence instance not found; no replacement applied."));
-        return;
+        return false;
     }
 
     UInstancedStaticMeshComponent* SplitFence = BuildSplitFence(Sector, SourceFences, College);
-    if (!SplitFence) return;
+    if (!SplitFence) return false;
 
     if (!SourceFences->RemoveInstance(LegacyIndex))
     {
         SplitFence->DestroyComponent();
         UE_LOG(LogTemp, Warning,
             TEXT("R13 college access repair: failed to remove legacy front fence; split replacement rolled back."));
-        return;
+        return false;
     }
 
     Sector->Tags.Add(TEXT("R13_CollegeAccessRepairApplied"));
@@ -153,4 +179,5 @@ void UOCR13CollegeAccessRepairSubsystem::RepairCollegeEntrance(UWorld& World)
 
     static_cast<void>(FrontFenceGapCenterX);
     static_cast<void>(FrontFenceGapWidthCm);
+    return true;
 }
