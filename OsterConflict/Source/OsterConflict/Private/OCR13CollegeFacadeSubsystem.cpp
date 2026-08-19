@@ -132,6 +132,8 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
         TEXT("R13_CollegeCanopyMat"), FLinearColor(0.18f, 0.20f, 0.20f, 1.0f));
     UMaterialInstanceDynamic* FrameMaterial = MakeColor(ArtRoot, BaseMaterial,
         TEXT("R13_CollegeEntranceFrameMat"), FLinearColor(0.20f, 0.21f, 0.20f, 1.0f));
+    UMaterialInstanceDynamic* StepMaterial = MakeColor(ArtRoot, BaseMaterial,
+        TEXT("R13_CollegeStepMat"), FLinearColor(0.42f, 0.41f, 0.38f, 1.0f));
 
     UInstancedStaticMeshComponent* Plinth = MakeVisualISM(
         ArtRoot, Root, Cube, PlinthMaterial, TEXT("R13_CollegeDarkPlinth"), true);
@@ -147,6 +149,10 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
         ArtRoot, Root, Cube, GlassMaterial, TEXT("R13_CollegeWindowGlass"), false);
     UInstancedStaticMeshComponent* WindowFrames = MakeVisualISM(
         ArtRoot, Root, Cube, FrameMaterial, TEXT("R13_CollegeWindowFrames"), true);
+    UInstancedStaticMeshComponent* StairTreads = MakeVisualISM(
+        ArtRoot, Root, Cube, StepMaterial, TEXT("R13_CollegeStairTreads"), true);
+    UInstancedStaticMeshComponent* StairNosings = MakeVisualISM(
+        ArtRoot, Root, Cube, FrameMaterial, TEXT("R13_CollegeStairNosings"), true);
 
     const FVector College = AOCWorldSectorOster::CollegeAnchor();
 
@@ -211,6 +217,19 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
     AddBox(EntranceFrame, CollegeLocalToWorld(College,
         FVector(EntranceCenterX + 210.0f, EntranceFrontY - 10.0f, 255.0f)), FVector(24.0f, 18.0f, 440.0f));
 
+    // Reuse the exact five collision-step centers and shrinking widths from BuildCollegeSector. These are only
+    // 6 cm visual caps plus an 8 cm front nosing, so the original stair collision remains the sole gameplay owner.
+    for (int32 Step = 0; Step < 5; ++Step)
+    {
+        const float StepCenterY = -1940.0f - Step * 115.0f;
+        const float StepCenterZ = 22.0f + Step * 22.0f;
+        const float StepWidth = 2750.0f - Step * 100.0f;
+        AddBox(StairTreads, CollegeLocalToWorld(College,
+            FVector(EntranceCenterX, StepCenterY, StepCenterZ + 23.0f)), FVector(StepWidth - 24.0f, 204.0f, 6.0f));
+        AddBox(StairNosings, CollegeLocalToWorld(College,
+            FVector(EntranceCenterX, StepCenterY - 114.0f, StepCenterZ + 16.0f)), FVector(StepWidth - 18.0f, 8.0f, 8.0f));
+    }
+
     // The source already owns the 26.5 x 9.2 m canopy collision slab at X +900 / Y -1590. Add only a thin
     // visual fascia to its exposed front and side edges so gameplay topology remains single-source.
     const FVector CanopyCenter = CollegeLocalToWorld(College,
@@ -222,7 +241,6 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
     AddBox(Canopy, CollegeLocalToWorld(College,
         FVector(EntranceCenterX + 1333.0f, EntranceCanopyCenterY, 505.0f)), FVector(18.0f, 930.0f, 92.0f));
 
-    // Retain explicit topology constants and intermediate anchors for verifier/documentation visibility.
     static_cast<void>(MainDepthCm);
     static_cast<void>(EntranceBlockCenterY);
     static_cast<void>(EntranceFront);
@@ -230,5 +248,5 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.5 college facade: aligned to authored 65x19x14.4m main mass/X+900 entrance using the same rotated local frame; flush facade trim, framed 9x4 window topology, glazed vestibule and canopy fascia added; stairs/footprint preserved."));
+        TEXT("R13.5 college facade: aligned to authored 65x19x14.4m main mass/X+900 entrance using the same rotated local frame; flush facade trim, framed 9x4 window topology, glazed vestibule, source-matched five-step visual finish and canopy fascia added; source collision/footprint preserved."));
 }
