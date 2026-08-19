@@ -44,8 +44,10 @@ for token in [
     "FOCS01ResidentialPlotSeed",
     "ProvisionalResidentialPlots()",
     "EOCReferenceConfidence::C",
+    "VisualVariant",
     "bHasPrimaryHouse",
     "bHasOutbuilding",
+    "bOutbuildingHasRoof",
 ]:
     if token not in data_h + data_cpp:
         fail(f"plot-registry contract missing: {token}")
@@ -61,8 +63,18 @@ for side in ("W", "E"):
     if actual != expected:
         fail(f"{side}-side plot IDs do not cover 01..08")
 
-if 'TEXT("S01_KR_E_03")' not in data_cpp or "-88.0f, false" not in data_cpp:
-    fail("legacy east-side slot 03 absence was not preserved explicitly")
+# East slot 03 existed only as a plot/outbuilding in the old blockout. Preserve that fact explicitly.
+e03 = re.search(
+    r'TEXT\("S01_KR_E_03"\).*?-88\.0f,\s*2,\s*false,\s*\n\s*FVector\(-26200,\s*31850,\s*140\).*?-88\.0f,\s*true,\s*false,',
+    data_cpp,
+    flags=re.S,
+)
+if not e03:
+    fail("legacy east-side slot 03 primary-house absence/outbuilding state was not preserved explicitly")
+
+# All current S01 residential entries must remain honest C-confidence migration data.
+if data_cpp.count("Provisional,") != 16:
+    fail("all 16 migrated plots must remain explicitly provisional C-confidence")
 
 # Location-first guardrails: no city-wide generator is allowed to fill or dress S01.
 if "procedural residential infill disabled" not in infill:
@@ -89,4 +101,4 @@ for token in [
         fail(f"S01 execution document missing: {token}")
 
 print("R13 LOCATION-FIRST S01 VERIFY: PASS")
-print("Checks canonical sector ownership, 16 explicit C-confidence plot slots and exclusion from generic infill/dressing.")
+print("Checks canonical sector ownership, 16 explicit C-confidence plot slots, presentation metadata and exclusion from generic infill/dressing.")
