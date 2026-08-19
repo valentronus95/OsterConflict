@@ -3,6 +3,7 @@
 #include "OCGameMode.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SceneComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -14,7 +15,7 @@
 namespace
 {
     constexpr float SilpoCartDetailDelaySeconds = 7.05f;
-    constexpr FVector CartOrigin(250.0f, -1515.0f, 0.0f);
+    const FVector CartOrigin(250.0f, -1515.0f, 0.0f);
     constexpr float CartYawDegrees = -7.0f;
 
     AActor* FindSilpoModel(UWorld& World)
@@ -134,14 +135,12 @@ void UOCR13SilpoCartDetailSubsystem::ApplyCartDetail(UWorld& World)
     UInstancedStaticMeshComponent* Wheels = MakeISM(Model, Root, Cylinder, DarkMat,
         TEXT("R13SilpoCart_Wheels"), true);
 
-    // Lower chassis and uprights.
     AddBar(Frame, FVector(0.0f, 0.0f, 29.0f), FVector(92.0f, 48.0f, 4.0f));
     AddBar(Frame, FVector(-37.0f, -20.0f, 53.0f), FVector(4.0f, 4.0f, 50.0f));
     AddBar(Frame, FVector(-37.0f, 20.0f, 53.0f), FVector(4.0f, 4.0f, 50.0f));
     AddBar(Frame, FVector(38.0f, -20.0f, 46.0f), FVector(4.0f, 4.0f, 36.0f));
     AddBar(Frame, FVector(38.0f, 20.0f, 46.0f), FVector(4.0f, 4.0f, 36.0f));
 
-    // Open supermarket basket, wider at the handle end and slightly shallower toward the front.
     AddBar(BasketWire, FVector(-3.0f, -25.0f, 75.0f), FVector(86.0f, 3.0f, 3.0f));
     AddBar(BasketWire, FVector(-3.0f, 25.0f, 75.0f), FVector(86.0f, 3.0f, 3.0f));
     AddBar(BasketWire, FVector(-3.0f, -21.0f, 47.0f), FVector(78.0f, 3.0f, 3.0f));
@@ -160,12 +159,10 @@ void UOCR13SilpoCartDetailSubsystem::ApplyCartDetail(UWorld& World)
         AddBar(BasketWire, FVector(38.0f, Y, 59.0f), FVector(2.0f, 2.0f, 24.0f));
     }
 
-    // Red/orange push handle visible as the strongest non-metal accent on the trolley in the supplied photo.
     AddBar(Handle, FVector(-49.0f, 0.0f, 91.0f), FVector(5.0f, 62.0f, 5.0f));
     AddBar(Frame, FVector(-44.0f, -27.0f, 79.0f), FVector(4.0f, 4.0f, 28.0f));
     AddBar(Frame, FVector(-44.0f, 27.0f, 79.0f), FVector(4.0f, 4.0f, 28.0f));
 
-    // Four small caster wheels. Visual only, so they cannot trap the player or bots.
     AddWheel(Wheels, FVector(-34.0f, -21.0f, 12.0f), 18.0f, 7.0f);
     AddWheel(Wheels, FVector(-34.0f, 21.0f, 12.0f), 18.0f, 7.0f);
     AddWheel(Wheels, FVector(34.0f, -21.0f, 12.0f), 18.0f, 7.0f);
