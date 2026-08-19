@@ -24,8 +24,11 @@ void UOCWorldAssetModelsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     // Dedicated servers do not need any of the visual-only imported meshes.
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
 
-    // AOCGameMode creates AOCWorldSectorOster from BeginPlay. Waiting one tick
-    // guarantees the sector exists before the visual layer tries to attach.
+    AttachAttempts = 0;
+
+    // UWorldSubsystem::OnWorldBeginPlay runs before actor BeginPlay. The game mode
+    // creates the Oster sector from BeginPlay, and network clients can receive that
+    // replicated actor later still, so start on the next tick and retry briefly.
     InWorld.GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateUObject(this, &UOCWorldAssetModelsSubsystem::AttachToOsterSector, &InWorld));
 }
@@ -40,7 +43,21 @@ void UOCWorldAssetModelsSubsystem::AttachToOsterSector(UWorld* World)
         OsterSector = *It;
         break;
     }
-    if (!OsterSector) return;
+
+    if (!OsterSector)
+    {
+        ++AttachAttempts;
+        if (AttachAttempts < 40)
+        {
+            FTimerHandle RetryHandle;
+            World->GetTimerManager().SetTimer(
+                RetryHandle,
+                FTimerDelegate::CreateUObject(this, &UOCWorldAssetModelsSubsystem::AttachToOsterSector, World),
+                0.25f,
+                false);
+        }
+        return;
+    }
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
