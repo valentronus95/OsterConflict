@@ -321,7 +321,7 @@ for pid, anchor, sx0, sy0, _sz0, ssx, ssy, _ssz, syaw in path_records:
     if classify_oriented_rect(px, py, float(ssx), float(ssy), float(syaw)) != "Inside":
         fail(f"owned path no longer fits wholly inside S01: {pid}")
 
-# Park -> CultureParkNorth is the only remaining unsplit path crossing.
+# Preserve the original Park -> CultureParkNorth crossing classification; runtime ownership is split separately.
 mid = ((park[0] + north_civic[0]) * 0.5, (park[1] + north_civic[1]) * 0.5)
 delta = (north_civic[0] - park[0], north_civic[1] - park[1])
 link_size = math.hypot(delta[0], delta[1])
@@ -353,12 +353,14 @@ for forbidden in [
     if forbidden in world:
         fail(f"legacy unsplit S01 road call survived: {forbidden}")
 
-if "AddBox(Sidewalks, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);" not in world:
-    fail("remaining Park->NorthCivic shared path changed before its path split audit")
+if "AddBox(Sidewalks, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);" in world:
+    fail("legacy derived Park->NorthCivic sidewalk returned after explicit ownership split")
+if "FOCLocationSectorS01RoadData::ParkNorthCivicPathSegments()" not in world:
+    fail("runtime no longer consumes the explicit Park->NorthCivic path split manifest")
 
 print("R13 LOCATION-FIRST S01 ROAD TOPOLOGY VERIFY: PASS")
 print(
     f"S01 bounds approx X[{xmin:.1f},{xmax:.1f}] Y[{ymin:.1f},{ymax:.1f}] cm; "
     "all 7 audited BuildRoadNetwork crossings are explicit continuity-preserving ownership splits; "
-    "Park->NorthCivic is the only remaining unsplit crossing path."
+    "Park->NorthCivic runtime ownership is explicitly split and validated by the dedicated path verifier."
 )
