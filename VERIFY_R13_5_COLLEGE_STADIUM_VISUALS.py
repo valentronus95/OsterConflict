@@ -29,12 +29,29 @@ for name, text in (("college", college_h), ("stadium", stadium_h)):
 for token in [
     "AOCWorldSectorOster::CollegeAnchor()",
     "R13_CollegeFacadeRoot",
+    "R13_CollegeFacadeAligned",
     "R13_CollegeDarkPlinth",
     "R13_CollegeFacadeBands",
     "R13_CollegeEntranceCanopy",
     "R13_CollegeEntranceGlass",
+    "R13_CollegeEntranceFrame",
     "Glass_Window.Glass_Window",
     "FloorBandZ[]",
+    "constexpr float CollegeYawDegrees = 1.0f;",
+    "constexpr float MainWidthCm = 6500.0f;",
+    "constexpr float MainDepthCm = 1900.0f;",
+    "constexpr float MainHeightCm = 1440.0f;",
+    "constexpr float MainFrontY = -950.0f;",
+    "constexpr float EntranceCenterX = 900.0f;",
+    "constexpr float EntranceBlockCenterY = -1230.0f;",
+    "constexpr float EntranceFrontY = -1530.0f;",
+    "constexpr float EntranceCanopyCenterY = -1590.0f;",
+    "MainWidthCm - 100.0f",
+    "EntranceCenterX, EntranceFrontY - 8.0f",
+    "EntranceCenterX, EntranceCanopyCenterY, 505.0f",
+    "second fake entrance at X=0",
+    "source already owns the 26.5 x 9.2 m canopy collision slab",
+    "aligned to authored 65x19x14.4m main mass and X+900 entrance",
     "GameMode->IsFrontendOnlySession()",
     "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
     "SetCanEverAffectNavigation(false)",
@@ -42,6 +59,18 @@ for token in [
 ]:
     if token not in college:
         fail(f"college facade marker missing: {token}")
+
+# The old visual pass was authored around an obsolete 48 m facade and a fake centered entrance.
+# Those dimensions must not quietly return after being aligned to BuildCollegeSector topology.
+for forbidden in [
+    "FVector(4740.0f, 18.0f, 140.0f)",
+    "FVector(4720.0f, 20.0f, 26.0f)",
+    "College + FVector(0.0f, -1040.0f, 0.0f)",
+    "const float FrontY = College.Y - 860.0f;",
+    "Main authored block is 48 x 17 x 15.5 m",
+]:
+    if forbidden in college:
+        fail(f"obsolete college facade topology returned: {forbidden}")
 
 for token in [
     "AOCWorldSectorOster::StadiumAnchor()",
@@ -71,4 +100,4 @@ for label, text in (("college", college), ("stadium", stadium)):
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks college plinth/facade/glazed entrance and stadium turf/track/markings/goals/real-plank seating, all frontend-guarded and gameplay-collision neutral.")
+print("Checks college 65x19x14.4m facade alignment/X+900 entrance plus stadium turf/track/markings/goals/real-plank seating; all frontend-guarded and gameplay-collision neutral.")
