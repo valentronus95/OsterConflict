@@ -45,3 +45,6 @@ jobs:
 
       - name: Verify Krushelnytska review-only authoring gates
         run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GATES.py
+
+      - name: Verify Krushelnytska feature acquisition contract
+        run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GEOMETRY_FETCH.py
