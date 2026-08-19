@@ -149,7 +149,7 @@ void UOCR13CollegeAccessRepairSubsystem::RepairCollegeEntrance(UWorld& World)
 
     Sector->Tags.Add(TEXT("R13_CollegeAccessRepairApplied"));
     UE_LOG(LogTemp, Display,
-        TEXT("R13 college access repair: removed the stair-crossing 104m front fence and installed two BlockAll segments with a 3.4m opening centered on X+900; side/rear fences untouched."));
+        TEXT("R13 college access repair: removed the stair-crossing 104m front fence and installed two BlockAll segments with a 34m opening centered on X+900cm; 27.5m maximum stair width clears the opening; side/rear fences untouched."));
 
     static_cast<void>(FrontFenceGapCenterX);
     static_cast<void>(FrontFenceGapWidthCm);
