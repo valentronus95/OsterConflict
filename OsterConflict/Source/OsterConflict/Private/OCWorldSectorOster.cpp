@@ -808,7 +808,10 @@ void AOCWorldSectorOster::BuildVegetation()
         FVector(42000,-35000,0), FVector(-15000,70000,0), FVector(16000,-65000,0)
     };
     for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
+    {
+        if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(RoughPatches[I])) continue;
         AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
+    }
 
     AddGrassPatch(GrassWetland, FVector(-93000, 35000, 0), FVector(33000, 102000, 4), 12.0f);
     AddGrassPatch(GrassWetland, FVector(43000,-93000, 0), FVector(98000, 21000, 4), 8.0f);
@@ -861,6 +864,8 @@ void AOCWorldSectorOster::BuildVegetation()
     {
         const float X = -62000.0f + (I%8)*15000.0f;
         const float Y = -48000.0f + (I/8)*42000.0f + ((I%3)-1)*1800.0f;
-        AddTreeFamily(FVector(X,Y,0), 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
+        const FVector TreeLocation(X,Y,0);
+        if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(TreeLocation)) continue;
+        AddTreeFamily(TreeLocation, 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
     }
 }
