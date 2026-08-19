@@ -68,6 +68,11 @@ for token in [
     "const FVector WorldOffset = Rotate2D(LocalOffset, BuildingYawDegrees);",
     "BuildingCenter + WorldOffset",
     "AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);",
+    "AddBox(Fences, College + FVector(-5600, 3400, 110), FVector(45, 11700, 220), Yaw);",
+    "AddBox(Fences, College + FVector(0, 9300, 110), FVector(11200, 45, 220), Yaw);",
+    "const float HalfWidth = Size.Y * 0.5f;",
+    "HalfWidth + 260.0f",
+    "FVector(Size.X, 260.0f, 18.0f)",
 ]:
     require(world, token, "BuildCollegeSector/source topology")
 
@@ -120,6 +125,7 @@ for forbidden in [
     if forbidden in college:
         fail(f"obsolete/unified-coordinate/floating college facade topology returned: {forbidden}")
 
+# Legacy front fence physically intersects the lowest stair.
 legacy_fence_min_y = -2450.0 - 45.0 / 2.0
 legacy_fence_max_y = -2450.0 + 45.0 / 2.0
 lowest_step_y = -1940.0 - 4.0 * 115.0
@@ -141,40 +147,41 @@ for token in [
     "constexpr int32 CollegeAccessMaxAttempts = 40;",
     "constexpr float FrontFenceGapCenterX = 900.0f;",
     "constexpr float FrontFenceGapWidthCm = 3400.0f;",
-    "constexpr float LeftFenceCenterX = -3000.0f;",
-    "constexpr float LeftFenceLengthCm = 4400.0f;",
-    "constexpr float RightFenceCenterX = 3900.0f;",
-    "constexpr float RightFenceLengthCm = 2600.0f;",
+    "constexpr float FrontLeftSegmentCenterX = -3000.0f;",
+    "constexpr float FrontLeftSegmentLengthCm = 4400.0f;",
+    "constexpr float FrontRightSegmentCenterX = 3900.0f;",
+    "constexpr float FrontRightSegmentLengthCm = 2600.0f;",
     "const FVector LegacyFrontFenceScale(104.0f, 0.45f, 2.20f);",
-    "Sector->GetComponents<UInstancedStaticMeshComponent>(Components, false);",
-    'const FName FencesName(TEXT("Fences"));',
-    "Fences->GetInstanceTransform(Index, Transform, false)",
-    "Transform.GetLocation().Equals(ExpectedCenter, 4.0f)",
-    "Transform.GetScale3D().Equals(LegacyFrontFenceScale, 0.02f)",
-    'TEXT("R13_CollegeFrontFenceSplit")',
-    "Split->SetStaticMesh(SourceFences->GetStaticMesh());",
-    "SourceFences->GetMaterial(0)",
+    "constexpr float LeftFenceX = -5600.0f;",
+    "constexpr float LeftFenceCenterY = 3400.0f;",
+    "constexpr float LeftFenceGapCenterY = 0.0f;",
+    "constexpr float LeftFenceGapWidthCm = 1800.0f;",
+    "constexpr float LeftLowerSegmentCenterY = -1675.0f;",
+    "constexpr float LeftLowerSegmentLengthCm = 1550.0f;",
+    "constexpr float LeftUpperSegmentCenterY = 5075.0f;",
+    "constexpr float LeftUpperSegmentLengthCm = 8350.0f;",
+    "const FVector LegacyLeftFenceScale(0.45f, 117.0f, 2.20f);",
+    "FindLegacyFenceInstance(UInstancedStaticMeshComponent* Fences, const FVector& ExpectedCenter",
+    'TEXT("R13_CollegeAccessFenceSplits")',
     "Split->SetCollisionProfileName(SourceFences->GetCollisionProfileName());",
     "Split->SetCollisionEnabled(SourceFences->GetCollisionEnabled());",
     "Split->SetCanEverAffectNavigation(true);",
     "ScheduleRepair(InWorld, 0);",
-    "void UOCR13CollegeAccessRepairSubsystem::ScheduleRepair(UWorld& World, const int32 AttemptIndex)",
     "if (AttemptIndex >= CollegeAccessMaxAttempts)",
-    "AttemptIndex == 0",
-    "CollegeAccessInitialDelaySeconds",
-    "CollegeAccessRetryDelaySeconds",
-    "FTimerDelegate::CreateWeakLambda(this",
-    "if (!RepairCollegeEntrance(*RetryWorld))",
-    "ScheduleRepair(*RetryWorld, AttemptIndex + 1);",
     "if (!Sector->HasActorBegunPlay()) return false;",
-    "SourceFences->RemoveInstance(LegacyIndex)",
-    "SplitFence->DestroyComponent();",
+    "const int32 FrontIndex = FindLegacyFenceInstance(SourceFences, LegacyFrontCenter, LegacyFrontFenceScale);",
+    "const int32 LeftIndex = FindLegacyFenceInstance(SourceFences, LegacyLeftCenter, LegacyLeftFenceScale);",
+    "FrontIndex == INDEX_NONE || LeftIndex == INDEX_NONE || FrontIndex == LeftIndex",
+    "const bool bFrontRemovedFirst = FrontIndex > LeftIndex;",
+    "SourceFences->RemoveInstance(FirstIndex)",
+    "SourceFences->RemoveInstance(SecondIndex)",
+    "SourceFences->AddInstance(FirstTransform, false);",
+    "first removal restored and split replacement rolled back",
     'TEXT("R13_CollegeAccessRepairApplied")',
-    "34m opening centered on X+900cm",
-    "27.5m maximum stair width clears the opening",
-    "side/rear fences untouched",
-    "GameMode->IsFrontendOnlySession()",
-    "return true;",
+    "34m stair opening at X+900cm",
+    "18m vehicle+sidewalk gate at Y=0 with 1.8m side clearance",
+    "blocking/navigation preserved",
+    "north boundary untouched",
 ]:
     require(access, token, "college access repair")
 
@@ -182,30 +189,61 @@ for forbidden in [
     "constexpr float CollegeAccessRepairDelaySeconds = 2.40f;",
     'TEXT("NoCollision")',
     "SetCanEverAffectNavigation(false)",
+    'TEXT("R13_CollegeFrontFenceSplit")',
 ]:
     if forbidden in access:
         fail(f"obsolete/nonblocking college access repair marker returned: {forbidden}")
 
-gap_center = const_float(access, "FrontFenceGapCenterX")
-gap_width = const_float(access, "FrontFenceGapWidthCm")
-left_center = const_float(access, "LeftFenceCenterX")
-left_length = const_float(access, "LeftFenceLengthCm")
-right_center = const_float(access, "RightFenceCenterX")
-right_length = const_float(access, "RightFenceLengthCm")
-left_outer = left_center - left_length / 2.0
-left_inner = left_center + left_length / 2.0
-right_inner = right_center - right_length / 2.0
-right_outer = right_center + right_length / 2.0
-actual_gap_width = right_inner - left_inner
-actual_gap_center = (left_inner + right_inner) / 2.0
-if abs(left_outer + 5200.0) > 0.01 or abs(right_outer - 5200.0) > 0.01:
-    fail(f"split front fence no longer preserves original 104m outer span: {left_outer=} {right_outer=}")
-if abs(actual_gap_width - gap_width) > 0.01 or abs(actual_gap_center - gap_center) > 0.01:
-    fail(f"split gap constants disagree with segment geometry: width={actual_gap_width}, center={actual_gap_center}")
-if abs((left_length + gap_width + right_length) - 10400.0) > 0.01:
-    fail("split segments + opening must exactly cover the original 104m front-fence span")
-if gap_width <= 2750.0:
-    fail("college entrance opening must remain wider than the maximum 27.5m authored stair width")
+# Front fence: original span [-5200,+5200], exact 34 m opening centered on X=+900.
+front_gap_center = const_float(access, "FrontFenceGapCenterX")
+front_gap_width = const_float(access, "FrontFenceGapWidthCm")
+front_left_center = const_float(access, "FrontLeftSegmentCenterX")
+front_left_length = const_float(access, "FrontLeftSegmentLengthCm")
+front_right_center = const_float(access, "FrontRightSegmentCenterX")
+front_right_length = const_float(access, "FrontRightSegmentLengthCm")
+front_left_outer = front_left_center - front_left_length / 2.0
+front_left_inner = front_left_center + front_left_length / 2.0
+front_right_inner = front_right_center - front_right_length / 2.0
+front_right_outer = front_right_center + front_right_length / 2.0
+if abs(front_left_outer + 5200.0) > 0.01 or abs(front_right_outer - 5200.0) > 0.01:
+    fail("front split fence no longer preserves original 104m outer span")
+if abs((front_right_inner - front_left_inner) - front_gap_width) > 0.01:
+    fail("front split fence segment geometry disagrees with gap width")
+if abs(((front_left_inner + front_right_inner) / 2.0) - front_gap_center) > 0.01:
+    fail("front split fence opening is no longer centered on authored entrance X=+900")
+if abs((front_left_length + front_gap_width + front_right_length) - 10400.0) > 0.01:
+    fail("front split segments + opening must exactly cover original 104m span")
+if front_gap_width <= 2750.0:
+    fail("front opening must remain wider than maximum 27.5m stair width")
+
+# West fence: original span Y=-2450..9250, exact 18 m road/sidewalk gate centered at Y=0.
+left_gap_center = const_float(access, "LeftFenceGapCenterY")
+left_gap_width = const_float(access, "LeftFenceGapWidthCm")
+left_lower_center = const_float(access, "LeftLowerSegmentCenterY")
+left_lower_length = const_float(access, "LeftLowerSegmentLengthCm")
+left_upper_center = const_float(access, "LeftUpperSegmentCenterY")
+left_upper_length = const_float(access, "LeftUpperSegmentLengthCm")
+left_lower_outer = left_lower_center - left_lower_length / 2.0
+left_lower_inner = left_lower_center + left_lower_length / 2.0
+left_upper_inner = left_upper_center - left_upper_length / 2.0
+left_upper_outer = left_upper_center + left_upper_length / 2.0
+if abs(left_lower_outer - (-2450.0)) > 0.01 or abs(left_upper_outer - 9250.0) > 0.01:
+    fail("west split fence no longer preserves original 117m outer span")
+if abs((left_upper_inner - left_lower_inner) - left_gap_width) > 0.01:
+    fail("west split fence segment geometry disagrees with gate width")
+if abs(((left_lower_inner + left_upper_inner) / 2.0) - left_gap_center) > 0.01:
+    fail("west vehicle gate is no longer centered on approach Y=0")
+if abs((left_lower_length + left_gap_width + left_upper_length) - 11700.0) > 0.01:
+    fail("west split segments + gate must exactly cover original 117m span")
+road_width_cm = 660.0
+sidewalk_width_cm = 260.0
+sidewalk_center_from_road_cm = road_width_cm / 2.0 + 260.0
+road_with_walks_half_envelope_cm = sidewalk_center_from_road_cm + sidewalk_width_cm / 2.0
+road_with_walks_envelope_cm = road_with_walks_half_envelope_cm * 2.0
+if abs(road_with_walks_envelope_cm - 1440.0) > 0.01:
+    fail("college road+two-sidewalk envelope assumption changed")
+if left_gap_width < road_with_walks_envelope_cm + 360.0:
+    fail("west gate must retain >=180cm clearance on each side of road+sidewalk envelope")
 
 for token in [
     'TEXT("S01_ROAD_COLLEGE_APPROACH")',
@@ -219,10 +257,7 @@ if "FVector(-13500, 0, 8), FVector(30000, 660, 14)" in road:
 
 approach_match = re.search(
     r'TEXT\("S01_ROAD_COLLEGE_APPROACH"\).*?FVector\((-?[0-9.]+),\s*0,\s*8\),\s*'
-    r'FVector\(([0-9.]+),\s*660,\s*14\),\s*0\.0f',
-    road,
-    flags=re.S,
-)
+    r'FVector\(([0-9.]+),\s*660,\s*14\),\s*0\.0f', road, flags=re.S)
 if not approach_match:
     fail("cannot parse college vehicle approach center/length")
 approach_center_x = float(approach_match.group(1))
@@ -231,10 +266,8 @@ approach_start_x = approach_center_x - approach_length / 2.0
 approach_end_x = approach_center_x + approach_length / 2.0
 if abs(approach_start_x + 28500.0) > 0.01:
     fail(f"college approach remote start moved unexpectedly: {approach_start_x}")
-main_half_x = 6500.0 / 2.0
-main_half_y = 1900.0 / 2.0
 yaw_rad = math.radians(1.0)
-rotated_main_half_extent_x = main_half_x * math.cos(yaw_rad) + main_half_y * math.sin(yaw_rad)
+rotated_main_half_extent_x = (6500.0 / 2.0) * math.cos(yaw_rad) + (1900.0 / 2.0) * math.sin(yaw_rad)
 rotated_main_west_x = -rotated_main_half_extent_x
 approach_clearance_cm = rotated_main_west_x - approach_end_x
 if approach_clearance_cm < 300.0:
@@ -286,6 +319,6 @@ for label, text in (("college", college), ("access", access), ("stadium", stadiu
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
 print(
-    "Checks mixed college source coordinates, aligned facade/windows/stairs, lifecycle-safe exact 34m fence opening repair, "
+    "Checks mixed college coordinates, facade/windows/stairs, lifecycle-safe transactional fence repairs (34m stair opening + 18m road gate), "
     "vehicle-approach/building clearance, 2.8m campus path/tree clearance, plus stadium visuals."
 )
