@@ -32,6 +32,7 @@ public:
     static FVector ToLocalCm(double Latitude, double Longitude, double ZCm = 0.0);
 
     static FOCGeoReferencePoint Museum();
+    static FOCGeoReferencePoint Stadium();
     static FOCGeoReferencePoint College();
     static FOCGeoReferencePoint CentralPark();
     static FOCGeoReferencePoint CultureParkNorth();
