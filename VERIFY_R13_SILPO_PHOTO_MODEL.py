@@ -9,6 +9,8 @@ DETAIL_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoFacade
 DETAIL_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoFacadeDetailSubsystem.h"
 SITE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoSiteDetailSubsystem.cpp"
 SITE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoSiteDetailSubsystem.h"
+FOLIAGE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoFoliageUpgradeSubsystem.cpp"
+FOLIAGE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoFoliageUpgradeSubsystem.h"
 
 
 def fail(message: str) -> None:
@@ -39,6 +41,8 @@ detail_cpp = read(DETAIL_CPP)
 detail_header = read(DETAIL_HEADER)
 site_cpp = read(SITE_CPP)
 site_header = read(SITE_HEADER)
+foliage_cpp = read(FOLIAGE_CPP)
+foliage_header = read(FOLIAGE_HEADER)
 
 for needle in [
     "class OSTERCONFLICT_API UOCR13SilpoPhotoModelSubsystem",
@@ -152,13 +156,36 @@ for needle in [
 ]:
     require(site_cpp, needle, "site detail pass")
 
+for needle in [
+    "class OSTERCONFLICT_API UOCR13SilpoFoliageUpgradeSubsystem",
+    "void UpgradeFoliage(UWorld& World);",
+]:
+    require(foliage_header, needle, "foliage upgrade header")
+
+for needle in [
+    'TEXT("R13_SilpoFoliageUpgradeApplied")',
+    '/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_01_01.flower_01_01',
+    '/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_02_03.flower_02_03',
+    '/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_03_02.flower_03_02',
+    '/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_03.ground_01_03',
+    '/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_02_02.ground_02_02',
+    'TEXT("R13SilpoFoliage_FlowerA")',
+    'TEXT("R13SilpoFoliage_GroundA")',
+    'Name == TEXT("R13SilpoSite_FlowerStems")',
+    'Component->SetHiddenInGame(true, true)',
+    "if (LoadedMeshCount < 2)",
+    "procedural fallback kept",
+]:
+    require(foliage_cpp, needle, "PN foliage upgrade")
+
 base_delay = delay(cpp, "SilpoPhotoModelDelaySeconds", "base model")
 detail_delay = delay(detail_cpp, "SilpoFacadeDetailDelaySeconds", "detail pass")
 site_delay = delay(site_cpp, "SilpoSiteDetailDelaySeconds", "site detail pass")
-if not base_delay < detail_delay < site_delay:
+foliage_delay = delay(foliage_cpp, "SilpoFoliageUpgradeDelaySeconds", "foliage upgrade")
+if not base_delay < detail_delay < site_delay < foliage_delay:
     fail(
-        "Silpo passes must stay ordered base -> facade -> site: "
-        f"base={base_delay}, facade={detail_delay}, site={site_delay}"
+        "Silpo passes must stay ordered base -> facade -> site -> foliage: "
+        f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}"
     )
 
 origin_lat = 50.948239
@@ -171,7 +198,7 @@ y_cm = (lat - origin_lat) * 111320.0 * 100.0
 if not (-70000.0 <= x_cm <= 25000.0 and -25000.0 <= y_cm <= 50000.0):
     fail(f"Silpo anchor escaped compact Oster bounds: ({x_cm:.1f}, {y_cm:.1f})")
 
-combined = cpp + "\n" + detail_cpp + "\n" + site_cpp
+combined = cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp
 for forbidden in [".jpeg", ".jpg", ".png", "764B665D", "2CDEA871", "DBF2A257", "91665653", "5B464C76", "67E3F35C"]:
     if forbidden.lower() in combined.lower():
         fail(f"raw reference image leaked into runtime source: {forbidden}")
@@ -181,7 +208,8 @@ if base_delay < 5.2:
 
 print(
     "R13 SILPO PHOTO MODEL VERIFY: PASS "
-    f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> site {site_delay:.2f}s; "
-    "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage + poster rails + entrance bin + planted strip; "
+    f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> "
+    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s; photo shell + cloud Сільпо sign + Ukrainian promo posters + "
+    "entrance/parking signage + poster rails + entrance bin + planted strip + PN foliage upgrade/fallback; "
     "source building footprint replacement without road deletion)"
 )
