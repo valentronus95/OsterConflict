@@ -33,10 +33,12 @@ markers={
         'MapWidthCm = 240000.0f', 'MapHeightCm = 240000.0f',
         'BuildHydrography();', 'BuildVerifiedReferenceMarkers();',
         'Waterways', 'Bridges', 'ReferenceMarkers',
-        'S16A topology pass', 'official general plan',
+        'void AOCWorldSectorOster::BuildRoadNetwork()',
+        'AddRoadWithWalks(FVector(-33500, 25000, RoadZ), FVector(112000, 920, 16), 91.5f)',
+        'const FVector Park = ParkAnchor();', 'const FVector College = CollegeAnchor();',
         'FOCGeoReference::CentralPark()', 'FOCGeoReference::CultureParkNorth()',
         'S16A VERIFIED ANCHOR', '10500, 6800',
-        'S16A variation: houses/lots are intentionally imperfect'
+        'FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Block.Origin)'
     ],
     'OCGameMode.cpp': [
         'SpawnActor<AOCWorldSectorOster>', 'AOCWorldSectorOster::ParkAnchor()',
@@ -66,7 +68,7 @@ gc=(root/'Source/OsterConflict/Private/OCGeoReference.cpp').read_text(errors='ig
 if 'ToLocalCm' not in gh or 'EastMeters' not in gc or 'NorthMeters' not in gc:
     print('Georeference transform missing'); sys.exit(1)
 
-# S16A must not accidentally bundle the 74MB public planning reference PDF.
+# S16A must not accidentally bundle the large public planning reference PDF.
 for p in root.rglob('*'):
     if p.is_file() and p.suffix.lower()=='.pdf':
         print('Unexpected external PDF bundled in game project:',p); sys.exit(1)
