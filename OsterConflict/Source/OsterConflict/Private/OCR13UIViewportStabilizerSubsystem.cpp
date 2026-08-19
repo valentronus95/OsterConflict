@@ -151,6 +151,19 @@ void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWid
             else if (ZOrder >= 73 && ZOrder <= 77) Slot->SetZOrder(9003 + (ZOrder - 73));
         }
 
+        // StartLocalGameplay initiates map travel from the frontend world. Its presentation layer can be collapsed
+        // during the same input event before UE tears the old world down, which exposed one empty/grey frame.
+        // As long as the authoritative frontend state still says this is the startup shell, keep the opaque fallback
+        // and approved menu image alive. The new gameplay world destroys these widgets naturally during travel.
+        if (UWidget* MenuBlocker = Root->GetWidgetFromName(TEXT("R13_MenuWorldBlocker")))
+        {
+            MenuBlocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+        if (UWidget* MenuBackground = Root->GetWidgetFromName(TEXT("R13_MenuBackground")))
+        {
+            MenuBackground->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+
         if (UBorder* MenuPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("R13_MenuPanel"))))
         {
             MenuPanel->SetClipping(EWidgetClipping::ClipToBounds);
