@@ -4,7 +4,7 @@ cd /d "%~dp0"
 :menu
 cls
 echo ============================================================
-echo OSTER CONFLICT - UE 5.8 - R13
+echo OSTER CONFLICT - UE 5.8 - R13 CONTENT + GAMEPLAY PASS
 echo ============================================================
 echo 1. UPDATE + BUILD + OPEN Unreal Editor  [RECOMMENDED]
 echo 2. Compile Editor/Game only
