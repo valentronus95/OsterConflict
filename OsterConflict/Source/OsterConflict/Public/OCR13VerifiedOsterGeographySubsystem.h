@@ -5,8 +5,8 @@
 #include "OCR13VerifiedOsterGeographySubsystem.generated.h"
 
 /**
- * Temporary R13 migration cleanup. Its only remaining job is deleting obsolete near-spawn Krushelnytska
- * presentation components before residential styling runs. Permanent geography now belongs to FOCGeoReference
+ * Temporary R13 migration cleanup. Its only mutating job is deleting obsolete near-spawn Krushelnytska
+ * presentation components before residential styling runs. Permanent geography belongs to FOCGeoReference
  * and AOCWorldSectorOster and must not be relocated after BeginPlay.
  */
 UCLASS()
@@ -17,6 +17,10 @@ class OSTERCONFLICT_API UOCR13VerifiedOsterGeographySubsystem : public UWorldSub
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    // Read-only compatibility accessor for late R13 presentation passes. This delegates to the canonical
+    // AOCWorldSectorOster/FOCGeoReference anchor and never authors or relocates geography.
+    static FVector VerifiedStadiumAnchor();
 
 private:
     void SuppressLegacyNearSpawnSlice(UWorld& World);
