@@ -10,7 +10,7 @@ def fail(message: str) -> None:
 
 
 if not PUB.is_file() or not CPP.is_file():
-    fail("residential infill header/source missing")
+    fail("residential infill migration-stub header/source missing")
 
 h = PUB.read_text(encoding="utf-8", errors="replace")
 cpp = CPP.read_text(encoding="utf-8", errors="replace")
@@ -19,58 +19,46 @@ includes = [line.strip() for line in h.splitlines() if line.strip().startswith("
 if not includes or "generated.h" not in includes[-1]:
     fail("generated.h must remain the final header include")
 
+# Location-first R13 deliberately retired the old road-derived house generator. The class remains only so older
+# maps/build references do not break while explicit Oster street/block registries become authoritative.
 required = [
+    "UOCR13ResidentialInfillSubsystem::ShouldCreateSubsystem",
+    "WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE",
+    "GameMode->IsFrontendOnlySession()",
+    "BuildResidentialInfill(InWorld);",
+    "if (bApplied) return;",
+    "bApplied = true;",
+    "procedural residential infill disabled",
+    "houses must come from explicit Oster street/block placement",
+    "(void)World;",
+]
+for token in required:
+    if token not in cpp:
+        fail(f"missing location-first infill migration marker: {token}")
+
+# These markers belonged to the retired synthetic road-sampling generator. Their return would mean the project is
+# inventing up to 18 Oster houses again instead of consuming explicit location data.
+for forbidden in [
     "MaxInfillHouses = 18",
     "CandidateSpacingCm = 8200.0f",
     "ExistingHouseClearanceCm = 3900.0f",
     "NewHouseClearanceCm = 5600.0f",
-    "IsInsideCompactBounds",
-    "IsInsideKrushelnytskaReserved",
-    "IsNearLandmark",
+    "AcceptedLocations",
     "HasNearbySourceBuilding",
     "HasNearbyNewBuilding",
-    "AddHiddenSourceFootprint",
-    "AOCWorldSectorOster::MuseumAnchor()",
-    "AOCWorldSectorOster::StadiumAnchor()",
-    "AOCWorldSectorOster::ParkAnchor()",
-    "AOCWorldSectorOster::CollegeAnchor()",
-    'FindISM(WorldSector, TEXT("Roads"))',
-    'FindISM(WorldSector, TEXT("Buildings"))',
+    "RoadLengthCm < 16000.0f",
     "SM_House_Var01.SM_House_Var01",
     "SM_House_Var02.SM_House_Var02",
-    'TEXT("R13_House01")',
-    'TEXT("R13_House02")',
-    "SetCollisionProfileName(TEXT(\"BlockAll\"))",
-    "SetCanEverAffectNavigation(true)",
-    "Buildings->SetVisibility(false, true)",
-    "Buildings->SetCollisionEnabled(ECollisionEnabled::NoCollision)",
-    "MeshSize.X * HouseScale / 100.0f",
-    "MeshSize.Y * HouseScale / 100.0f",
-    "GameMode->IsFrontendOnlySession()",
-    "RoadLengthCm < 16000.0f",
-    "RoadWidthCm > 1800.0f",
-    "AcceptedLocations.Num() < MaxInfillHouses",
-    "canonical house families feed EnvironmentDressing",
-    "hidden source footprints reserve grass/yard space",
-]
-for token in required:
-    if token not in cpp:
-        fail(f"missing bounded-infill marker: {token}")
-
-for forbidden in [
     "FMath::Rand",
     "FRand",
     "while (true)",
-    "MaxInfillHouses = 50",
-    'TEXT("R13_InfillHouse01")',
-    'TEXT("R13_InfillHouse02")',
 ]:
     if forbidden in cpp:
-        fail(f"unsafe/stale infill marker present: {forbidden}")
+        fail(f"retired procedural infill logic returned: {forbidden}")
 
 for left, right in (("(", ")"), ("{", "}"), ("[", "]")):
     if cpp.count(left) != cpp.count(right):
         fail(f"delimiter mismatch {left}{right}")
 
 print("R13.4 RESIDENTIAL INFILL VERIFY: PASS")
-print("Checks deterministic road-derived placement, hard 18-house cap, compact/landmark/Krushelnytska exclusions, existing/new-house spacing, canonical EnvironmentDressing integration, hidden grass/yard footprints, gameplay collision/navigation and frontend guard.")
+print("Checks that the historical subsystem is a safe migration stub and cannot invent road-derived houses while explicit location-first Oster topology owns residential placement.")
