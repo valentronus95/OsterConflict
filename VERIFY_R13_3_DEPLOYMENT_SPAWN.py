@@ -126,7 +126,7 @@ for token in [
         fail(f"compact relocation/readiness marker missing: {token}")
 for token in [
     "FVector(-104000.0f, -92000.0f, 0.0f)",
-    "FVector( 104000.0f,  92000.0f, 0.0f)",
+    "FVector(104000.0f, 92000.0f, 0.0f)",
 ]:
     if token not in text["world"]:
         fail(f"legacy source-base regression marker unexpectedly changed: {token}")
