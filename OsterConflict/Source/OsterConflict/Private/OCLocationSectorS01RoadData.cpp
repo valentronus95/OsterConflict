@@ -21,10 +21,6 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::SharedCrossi
     // These are intentionally NOT consumed by S01 runtime yet. Each intersects S01 but extends beyond its
     // workflow bounds. Moving the whole segment into S01 ownership would silently claim/change neighboring map space.
     static const TArray<FOCS01RoadCorridorSeed> Corridors = {
-        { TEXT("S01_CROSS_WORLD_EW_02"), EOCS01RoadAnchor::Absolute,
-            FVector(-18000, 17000, 8), FVector(61000, 820, 16), 0.0f, true,
-            EOCS01RoadRelation::Crossing, Provisional,
-            TEXT("Generic east-west corridor crossing the S01 east boundary; split before ownership migration") },
         { TEXT("S01_CROSS_WORLD_DIAG_01"), EOCS01RoadAnchor::Absolute,
             FVector(-23500, 40500, 8), FVector(51000, 760, 16), 18.0f, true,
             EOCS01RoadRelation::Crossing, Provisional,
@@ -66,6 +62,23 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::Krushelnytsk
             FVector(-34611.254, 67437.076, 8), FVector(27096.754, 920, 16), 91.5f, true,
             EOCS01RoadRelation::Crossing, Provisional,
             TEXT("North shared remainder of the original Krushelnytska spine after S01 ownership split") },
+    };
+    return Segments;
+}
+
+const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::EastWest02Segments()
+{
+    // Exact no-layout-change split of the former FVector(-18000,17000) / 61000x820 / yaw 0 corridor.
+    // The complete road + both sidewalks already fits the S01 Y range, so ownership cuts only at the S01 east X bound.
+    static const TArray<FOCS01RoadCorridorSeed> Segments = {
+        { TEXT("S01_EW02_INSIDE"), EOCS01RoadAnchor::Absolute,
+            FVector(-33364.761695, 17000, 8), FVector(30270.476609, 820, 16), 0.0f, true,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("West piece of the original east-west corridor, ending at the current S01 east workflow boundary") },
+        { TEXT("S01_EW02_EAST_SHARED"), EOCS01RoadAnchor::Absolute,
+            FVector(-2864.761695, 17000, 8), FVector(30729.523391, 820, 16), 0.0f, true,
+            EOCS01RoadRelation::Crossing, Provisional,
+            TEXT("East shared remainder of the original east-west corridor after the S01 ownership split") },
     };
     return Segments;
 }
