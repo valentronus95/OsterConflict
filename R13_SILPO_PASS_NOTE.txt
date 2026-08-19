@@ -1,0 +1,2 @@
+R13 Silpo photo-model facade detail checkpoint.
+Base shell replacement, layered Silpo sign, Ukrainian promo posters, entrance/parking signage, and full-verifier integration are present on this branch.
