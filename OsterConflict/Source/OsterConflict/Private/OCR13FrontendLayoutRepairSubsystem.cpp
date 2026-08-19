@@ -39,8 +39,13 @@ void UOCR13FrontendLayoutRepairSubsystem::Tick(float DeltaTime)
     if (!World || DeltaTime <= 0.0f) return;
 
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    const bool bFrontendVisible = PC && PC->IsLocalController() && PC->IsFrontendMenuVisible();
-    if (!bFrontendVisible)
+
+    // Geometry repair exists only for the pawn-less startup shell. Running these forced prepasses every time ESC
+    // opens the in-game pause page was both unnecessary and actively wrong: it overwrote ApplyPausePage geometry
+    // with startup-menu dimensions and could produce a visible hitch/jump on each pause transition.
+    const bool bStartupFrontendVisible = PC && PC->IsLocalController() &&
+        PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr;
+    if (!bStartupFrontendVisible)
     {
         FrontendVisibleAge = 0.0f;
         RepairPass = 0;
@@ -82,7 +87,7 @@ bool UOCR13FrontendLayoutRepairSubsystem::RepairFrontendGeometry()
 {
     UWorld* World = GetWorld();
     AOCPlayerController* PC = World ? Cast<AOCPlayerController>(World->GetFirstPlayerController()) : nullptr;
-    if (!World || !PC) return false;
+    if (!World || !PC || PC->GetPawn() != nullptr || PC->IsSettingsVisible()) return false;
 
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
