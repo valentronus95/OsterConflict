@@ -75,4 +75,5 @@ private:
     int32 Page = 0; // 0 main, 1 local, 2 network
     bool bGameplayStarted = false;
     bool bPauseMenuActive = false;
+    bool bLocalTravelPending = false; // keep the frontend frame intact until the gameplay world actually replaces it
 };
