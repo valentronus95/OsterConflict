@@ -72,6 +72,19 @@ See `OSTER_S01_ROAD_TOPOLOGY_AUDIT.md`.
 
 This closes the **ownership-plumbing** part of S01.1. It does not mean the physical street network is factually locked.
 
+### Krushelnytska reference evidence
+
+Reference correction has started with a separate evidence registry rather than moving the road directly from address pins.
+
+- `FOCLocationSectorS01ReferenceData::KrushelnytskaAddressReferences()` stores Oster-specific public address markers as confidence B evidence;
+- the current registry samples addresses 8, 14, 7A, 28, 40, 42, 74, 78 and 98 from the south to the north end;
+- the official College address independently confirms `Solomii Krushelnytskoi 7A`;
+- public address-list evidence also confirms house number 24 exists on the street, but no Oster-specific precise coordinate has yet been accepted for it;
+- the evidence demonstrates a substantial east/north-east street progression and rejects the old almost-vertical blockout as a factual full-street model;
+- address pins are explicitly forbidden from direct runtime road placement because they identify properties/buildings, not carriageway centers.
+
+See `OSTER_S01_KRUSHELNYTSKA_REFERENCE_AUDIT.md`.
+
 ## Reconstruction stages
 
 ### S01.1 — topology ownership and reference correction
@@ -80,13 +93,16 @@ Ownership phase: **complete**.
 
 Reference-correction phase: **active**.
 
+Current evidence milestone: **Krushelnytska macro-alignment evidence locked; road centerline still pending**.
+
 Next evidence-driven targets:
 
-1. Solomii Krushelnytskoi street alignment and practical carriageway width;
-2. College approach/junction relationships;
-3. Central Park secondary path geometry;
-4. College campus secondary blocks;
-5. residential frontage/driveway/fence alignment.
+1. derive a reviewed B-confidence Krushelnytska carriageway skeleton from map/satellite street shape rather than address-marker coordinates;
+2. determine practical carriageway width per supported segment instead of retaining the old uniform blockout width by inertia;
+3. verify College approach/junction relationships;
+4. correct Central Park secondary path geometry;
+5. correct College campus secondary blocks;
+6. move to residential frontage/driveway/fence alignment.
 
 Gate: no coordinate changes merely for visual neatness. C-confidence geometry moves only when supported by evidence.
 
@@ -152,9 +168,7 @@ Required before `S01 LOCKED`:
 
 ## Immediate next implementation
 
-The next implementation pass is no longer another registry migration.
-
-1. Audit real Krushelnytska alignment/width against public map/reference evidence.
+1. Convert the locked Krushelnytska evidence into a separately reviewed road-centerline skeleton only where road shape itself is supported.
 2. Keep College and Central Park canonical anchors fixed unless stronger evidence changes the source reference itself.
 3. Correct only supported S01 road/path segments and record why each correction is justified.
 4. Then move to plot-frontage/fence corrections one addressable record at a time.
