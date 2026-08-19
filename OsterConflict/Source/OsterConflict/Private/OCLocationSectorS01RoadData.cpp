@@ -9,9 +9,9 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::OwnedInsideC
 {
     static const TArray<FOCS01RoadCorridorSeed> Corridors = {
         { TEXT("S01_ROAD_COLLEGE_APPROACH"), EOCS01RoadAnchor::College,
-            FVector(-16050, 0, 8), FVector(24900, 660, 14), 0.0f, true,
+            FVector(-16200, 0, 8), FVector(24600, 660, 14), 0.0f, true,
             EOCS01RoadRelation::Inside, Provisional,
-            TEXT("College vehicle approach retains its original X=-28500 outer start but now terminates at X=-3600 before the rotated 65x19m main building envelope") },
+            TEXT("College vehicle approach retains its original X=-28500 outer start but now terminates at X=-3900, keeping over 3m clearance from both the rotated main mass and the south-west edge of the left college wing") },
     };
     return Corridors;
 }
