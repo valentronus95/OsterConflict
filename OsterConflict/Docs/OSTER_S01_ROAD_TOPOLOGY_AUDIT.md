@@ -41,45 +41,26 @@ The direct `BuildRoadNetwork()` call has been removed. Runtime resolves the Coll
 
 ## Krushelnytska spine ownership split
 
-The former single corridor:
+The former single corridor `(-33500, 25000) / 112000×920 / yaw 91.5` has been replaced one-for-one by three contiguous records in `KrushelnytskaSpineSegments()`:
 
-- center `(-33500, 25000, 8)`
-- size `(112000, 920, 16)`
-- yaw `91.5`
-- two generated sidewalks
+- `S01_KR_SPINE_SOUTH_SHARED` — center `(-32459.619, -14730.542)`, length `32511.678`, `Crossing/shared`;
+- `S01_KR_SPINE_INSIDE` — center `(-33570.873, 27706.534)`, length `52391.568`, `Inside/S01`;
+- `S01_KR_SPINE_NORTH_SHARED` — center `(-34611.254, 67437.076)`, length `27096.754`, `Crossing/shared`.
 
-has been replaced one-for-one by three contiguous records in `KrushelnytskaSpineSegments()`.
+The three lengths sum to exactly `112000.000 cm` at stored precision. They retain width `920`, yaw `91.5` and the two-sidewalk configuration. The verifier recomputes the split using the complete road + two-sidewalk lateral envelope of `850 cm` on each side and rejects gaps, overlaps, profile drift or ownership drift.
 
-### S01_KR_SPINE_SOUTH_SHARED
+The old direct `112000 cm` runtime call and old audit ID `S01_CROSS_KRUSHELNYTSKA_SPINE` are removed.
 
-- center `(-32459.619, -14730.542, 8)`
-- length `32511.678`
-- width `920`
-- yaw `91.5`
-- relation `Crossing`
-- ownership: shared
+## East-west corridor ownership split
 
-### S01_KR_SPINE_INSIDE
+The former single corridor `(-18000, 17000) / 61000×820 / yaw 0` has been replaced by `EastWest02Segments()`:
 
-- center `(-33570.873, 27706.534, 8)`
-- length `52391.568`
-- width `920`
-- yaw `91.5`
-- relation `Inside`
-- ownership: S01
+- `S01_EW02_INSIDE` — center `(-33364.762, 17000)`, length `30270.476`, `Inside/S01`;
+- `S01_EW02_EAST_SHARED` — center `(-2864.762, 17000)`, length `30729.524`, `Crossing/shared`.
 
-### S01_KR_SPINE_NORTH_SHARED
+The lengths sum to exactly `61000.000 cm`. Width `820`, yaw `0` and both generated sidewalks are preserved. The ownership cut is stored `0.000609 cm` inside the mathematically computed S01 east boundary so finite decimal storage remains strictly `Inside`; the total visible corridor remains exactly contiguous from its original west endpoint to its original east endpoint.
 
-- center `(-34611.254, 67437.076, 8)`
-- length `27096.754`
-- width `920`
-- yaw `91.5`
-- relation `Crossing`
-- ownership: shared
-
-The three lengths sum to exactly `112000.000 cm` at stored precision. They retain the original width, yaw and two-sidewalk configuration. The geometric verifier recomputes the split from the current S01 bounds using the complete lateral envelope of the road plus both sidewalks: `850 cm` from the centerline on each side. It verifies continuity and rejects gaps, overlap, profile drift or ownership drift.
-
-The old direct `112000 cm` runtime call and the old unsplit audit ID `S01_CROSS_KRUSHELNYTSKA_SPINE` are removed.
+The old direct `61000 cm` call and audit ID `S01_CROSS_WORLD_EW_02` are removed.
 
 ## Fully inside / migrated paths
 
@@ -104,57 +85,38 @@ All five remain confidence C. Moving them into explicit data changes ownership a
 
 ## Still-unsplit shared crossing road corridors / audit-only
 
-These six records remain in `SharedCrossingCorridors()` and are deliberately not rendered from that registry yet.
+Five records remain in `SharedCrossingCorridors()` and are deliberately not rendered from that registry yet.
 
-1. `S01_CROSS_WORLD_EW_02`
-   - absolute center `(-18000, 17000)`
-   - size `(61000, 820)`
-   - yaw `0`
-   - crosses S01 east side
-
-2. `S01_CROSS_WORLD_DIAG_01`
+1. `S01_CROSS_WORLD_DIAG_01`
    - absolute center `(-23500, 40500)`
    - size `(51000, 760)`
    - yaw `18`
-   - shared diagonal corridor
 
-3. `S01_CROSS_WORLD_NW_01`
+2. `S01_CROSS_WORLD_NW_01`
    - absolute center `(-48000, 51000)`
    - size `(52000, 720)`
    - yaw `63`
-   - one-sided walk configuration retained
+   - one-sided walks
 
-4. `S01_CROSS_WORLD_DIAG_02`
+3. `S01_CROSS_WORLD_DIAG_02`
    - absolute center `(-5000, 33500)`
    - size `(49000, 760)`
    - yaw `-34`
-   - mostly outside S01; only intersecting portion belongs to future split work
 
-5. `S01_CROSS_PARK_SOUTH`
-   - anchor: Central Park
-   - offset `(0, -8500)`
+4. `S01_CROSS_PARK_SOUTH`
+   - anchor Central Park, offset `(0, -8500)`
    - size `(43000, 720)`
    - yaw `2`
-   - crosses the west workflow bound
 
-6. `S01_CROSS_PARK_NORTH_LINK`
-   - anchor: Central Park
-   - offset `(-9000, 13500)`
+5. `S01_CROSS_PARK_NORTH_LINK`
+   - anchor Central Park, offset `(-9000, 13500)`
    - size `(37000, 700)`
    - yaw `79`
-   - one-sided walk configuration retained
-   - crosses north/west workflow bounds
+   - one-sided walks
 
 ## Shared crossing derived path
 
-The Central Park → CultureParkNorth path is built from both canonical anchors:
-
-- center: `(CentralPark + CultureParkNorth) / 2`
-- length: distance between both anchors
-- yaw: direction from Central Park to CultureParkNorth
-- width: `260 cm`
-
-The geometric verifier classifies it as `Crossing`. It remains in `BuildCentralPark()` and is not duplicated in the S01-owned path registry.
+The Central Park → CultureParkNorth path is built from both canonical anchors. The geometric verifier classifies it as `Crossing`, so it remains in `BuildCentralPark()` and is not duplicated in the S01-owned path registry.
 
 ## Existing S01 service/frontage paths
 
@@ -162,10 +124,11 @@ The geometric verifier classifies it as `Crossing`. It remains in `BuildCentralP
 
 ## Current ownership count
 
-- S01-owned road pieces: **2** (`College approach` + middle Krushelnytska spine segment)
+- S01-owned road pieces: **3** (`College approach`, middle Krushelnytska spine, west EW02 piece)
 - S01-owned internal park/campus paths: **5**
-- still-unsplit shared crossing road corridors: **6**
+- still-unsplit shared crossing road corridors: **5**
 - split shared Krushelnytska spine remainders: **2**
+- split shared EW02 remainder: **1**
 - shared crossing derived park path: **1**
 
 ## Gate for the next road step
