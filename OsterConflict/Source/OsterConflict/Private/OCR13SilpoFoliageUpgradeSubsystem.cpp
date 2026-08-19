@@ -121,11 +121,14 @@ void UOCR13SilpoFoliageUpgradeSubsystem::UpgradeFoliage(UWorld& World)
     {
         if (Mesh) ++LoadedMeshCount;
     }
-    if (LoadedMeshCount < 2)
+
+    const bool bHasFlowerMesh = FlowerA || FlowerB || FlowerC;
+    const bool bHasGroundMesh = GroundA || GroundB;
+    if (!bHasFlowerMesh || !bHasGroundMesh)
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("R13 Silpo foliage upgrade: PN foliage payload unavailable (%d/5 meshes); procedural fallback kept."),
-            LoadedMeshCount);
+            TEXT("R13 Silpo foliage upgrade: incomplete PN foliage payload (%d/5 meshes, flower=%d ground=%d); procedural fallback kept."),
+            LoadedMeshCount, bHasFlowerMesh ? 1 : 0, bHasGroundMesh ? 1 : 0);
         return;
     }
 
@@ -151,14 +154,16 @@ void UOCR13SilpoFoliageUpgradeSubsystem::UpgradeFoliage(UWorld& World)
         UInstancedStaticMeshComponent* Flower = nullptr;
         switch (Index % 3)
         {
-        case 0: Flower = FlowerCompA; break;
-        case 1: Flower = FlowerCompB; break;
-        default: Flower = FlowerCompC; break;
+        case 0: Flower = FlowerCompA ? FlowerCompA : (FlowerCompB ? FlowerCompB : FlowerCompC); break;
+        case 1: Flower = FlowerCompB ? FlowerCompB : (FlowerCompC ? FlowerCompC : FlowerCompA); break;
+        default: Flower = FlowerCompC ? FlowerCompC : (FlowerCompA ? FlowerCompA : FlowerCompB); break;
         }
-        if (Flower) AddPlant(Flower, Xs[Index], Y, 18.0f, Scale, Yaw);
+        AddPlant(Flower, Xs[Index], Y, 18.0f, Scale, Yaw);
 
-        UInstancedStaticMeshComponent* Ground = (Index % 2 == 0) ? GroundCompA : GroundCompB;
-        if (Ground) AddPlant(Ground, Xs[Index] + 34.0f, Y + 9.0f, 16.0f, 0.55f + Scale * 0.28f, Yaw + 71.0f);
+        UInstancedStaticMeshComponent* Ground = (Index % 2 == 0)
+            ? (GroundCompA ? GroundCompA : GroundCompB)
+            : (GroundCompB ? GroundCompB : GroundCompA);
+        AddPlant(Ground, Xs[Index] + 34.0f, Y + 9.0f, 16.0f, 0.55f + Scale * 0.28f, Yaw + 71.0f);
     }
 
     HideProceduralPlantFallback(Model);
