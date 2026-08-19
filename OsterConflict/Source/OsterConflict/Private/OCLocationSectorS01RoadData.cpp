@@ -25,10 +25,6 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::SharedCrossi
             FVector(-18000, 17000, 8), FVector(61000, 820, 16), 0.0f, true,
             EOCS01RoadRelation::Crossing, Provisional,
             TEXT("Generic east-west corridor crossing the S01 east boundary; split before ownership migration") },
-        { TEXT("S01_CROSS_KRUSHELNYTSKA_SPINE"), EOCS01RoadAnchor::Absolute,
-            FVector(-33500, 25000, 8), FVector(112000, 920, 16), 91.5f, true,
-            EOCS01RoadRelation::Crossing, Provisional,
-            TEXT("Long Krushelnytska-oriented spine crosses both S01 north/south workflow bounds; split before migration") },
         { TEXT("S01_CROSS_WORLD_DIAG_01"), EOCS01RoadAnchor::Absolute,
             FVector(-23500, 40500, 8), FVector(51000, 760, 16), 18.0f, true,
             EOCS01RoadRelation::Crossing, Provisional,
@@ -51,6 +47,27 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::SharedCrossi
             TEXT("Park north approach crosses the S01 north/west workflow bounds; split before ownership migration") },
     };
     return Corridors;
+}
+
+const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments()
+{
+    // Exact no-layout-change split of the former single FVector(-33500,25000) / 112000x920 / yaw 91.5 corridor.
+    // Cut positions reserve the full road + two sidewalk lateral envelope inside S01 for the middle segment.
+    static const TArray<FOCS01RoadCorridorSeed> Segments = {
+        { TEXT("S01_KR_SPINE_SOUTH_SHARED"), EOCS01RoadAnchor::Absolute,
+            FVector(-32459.619, -14730.542, 8), FVector(32511.678, 920, 16), 91.5f, true,
+            EOCS01RoadRelation::Crossing, Provisional,
+            TEXT("South shared remainder of the original Krushelnytska spine after S01 ownership split") },
+        { TEXT("S01_KR_SPINE_INSIDE"), EOCS01RoadAnchor::Absolute,
+            FVector(-33570.873, 27706.534, 8), FVector(52391.568, 920, 16), 91.5f, true,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Middle Krushelnytska spine segment fully inside S01 including both generated sidewalk envelopes") },
+        { TEXT("S01_KR_SPINE_NORTH_SHARED"), EOCS01RoadAnchor::Absolute,
+            FVector(-34611.254, 67437.076, 8), FVector(27096.754, 920, 16), 91.5f, true,
+            EOCS01RoadRelation::Crossing, Provisional,
+            TEXT("North shared remainder of the original Krushelnytska spine after S01 ownership split") },
+    };
+    return Segments;
 }
 
 const TArray<FOCS01PathSeed>& FOCLocationSectorS01RoadData::OwnedCentralParkPaths()
