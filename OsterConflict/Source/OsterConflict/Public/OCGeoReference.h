@@ -33,6 +33,7 @@ public:
 
     static FOCGeoReferencePoint Museum();
     static FOCGeoReferencePoint Stadium();
+    static FOCGeoReferencePoint SolonynaEstatePark();
     static FOCGeoReferencePoint College();
     static FOCGeoReferencePoint CentralPark();
     static FOCGeoReferencePoint CultureParkNorth();
