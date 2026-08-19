@@ -7,6 +7,8 @@ CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoPhotoModelSub
 HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoPhotoModelSubsystem.h"
 DETAIL_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoFacadeDetailSubsystem.cpp"
 DETAIL_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoFacadeDetailSubsystem.h"
+SITE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoSiteDetailSubsystem.cpp"
+SITE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoSiteDetailSubsystem.h"
 
 
 def fail(message: str) -> None:
@@ -35,6 +37,8 @@ cpp = read(CPP)
 header = read(HEADER)
 detail_cpp = read(DETAIL_CPP)
 detail_header = read(DETAIL_HEADER)
+site_cpp = read(SITE_CPP)
+site_header = read(SITE_HEADER)
 
 for needle in [
     "class OSTERCONFLICT_API UOCR13SilpoPhotoModelSubsystem",
@@ -120,10 +124,42 @@ for needle in [
 ]:
     require(detail_cpp, needle, "facade detail pass")
 
+for needle in [
+    "class OSTERCONFLICT_API UOCR13SilpoSiteDetailSubsystem",
+    "void ApplySiteDetails(UWorld& World);",
+]:
+    require(site_header, needle, "site detail header")
+
+for needle in [
+    'ActorHasTag(TEXT("R13_SilpoPhotoModel"))',
+    'TEXT("R13_SilpoSiteDetailApplied")',
+    'TEXT("R13SilpoSite_PosterMountingRails")',
+    'TEXT("R13SilpoSite_FacadeSeams")',
+    'TEXT("R13SilpoSite_EntranceHardware")',
+    'TEXT("R13SilpoSite_BlueEntranceBin")',
+    'TEXT("R13SilpoSite_FlowerBedSoil")',
+    'TEXT("R13SilpoSite_FlowerStems")',
+    'TEXT("R13SilpoSite_Shrubs")',
+    'TEXT("ТЕЛЕФОНИ")',
+    'TEXT("СМАРТ-ПРИСТРОЇ")',
+    'TEXT("АКСЕСУАРИ")',
+    'TEXT("СЕРВІС")',
+    'TEXT("ЩОЧЕТВЕРГА ДІЮТЬ ЗНИЖКИ")',
+    'TEXT("НА ПРОДУКЦІЮ РИБНОГО ВІДДІЛУ")',
+    'TEXT("У СУПЕРМАРКЕТАХ СІЛЬПО")',
+    'TEXT("ЩОСЕРЕДИ ДІЮТЬ ЗНИЖКИ")',
+    'TEXT("< 100 м >")',
+]:
+    require(site_cpp, needle, "site detail pass")
+
 base_delay = delay(cpp, "SilpoPhotoModelDelaySeconds", "base model")
 detail_delay = delay(detail_cpp, "SilpoFacadeDetailDelaySeconds", "detail pass")
-if not base_delay < detail_delay:
-    fail(f"facade detail pass must run after base shell: base={base_delay}, detail={detail_delay}")
+site_delay = delay(site_cpp, "SilpoSiteDetailDelaySeconds", "site detail pass")
+if not base_delay < detail_delay < site_delay:
+    fail(
+        "Silpo passes must stay ordered base -> facade -> site: "
+        f"base={base_delay}, facade={detail_delay}, site={site_delay}"
+    )
 
 origin_lat = 50.948239
 origin_lon = 30.883865
@@ -135,7 +171,7 @@ y_cm = (lat - origin_lat) * 111320.0 * 100.0
 if not (-70000.0 <= x_cm <= 25000.0 and -25000.0 <= y_cm <= 50000.0):
     fail(f"Silpo anchor escaped compact Oster bounds: ({x_cm:.1f}, {y_cm:.1f})")
 
-combined = cpp + "\n" + detail_cpp
+combined = cpp + "\n" + detail_cpp + "\n" + site_cpp
 for forbidden in [".jpeg", ".jpg", ".png", "764B665D", "2CDEA871", "DBF2A257", "91665653", "5B464C76", "67E3F35C"]:
     if forbidden.lower() in combined.lower():
         fail(f"raw reference image leaked into runtime source: {forbidden}")
@@ -145,7 +181,7 @@ if base_delay < 5.2:
 
 print(
     "R13 SILPO PHOTO MODEL VERIFY: PASS "
-    f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s; "
-    "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage; "
+    f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> site {site_delay:.2f}s; "
+    "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage + poster rails + entrance bin + planted strip; "
     "source building footprint replacement without road deletion)"
 )
