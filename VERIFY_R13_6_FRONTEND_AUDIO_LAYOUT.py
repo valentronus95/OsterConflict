@@ -5,6 +5,7 @@ SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
 FILES = {
     "audio_h": SRC / "Public" / "OCR13FrontendAudioSubsystem.h",
     "audio": SRC / "Private" / "OCR13FrontendAudioSubsystem.cpp",
+    "weapon_audio": SRC / "Private" / "OCWeaponAudioComponent.cpp",
     "layout_h": SRC / "Public" / "OCR13FrontendLayoutRepairSubsystem.h",
     "layout": SRC / "Private" / "OCR13FrontendLayoutRepairSubsystem.cpp",
     "settings_h": SRC / "Public" / "OCAudioUserSettings.h",
@@ -43,6 +44,19 @@ for token in [
     if token not in text["audio"]:
         fail(f"frontend-audio marker missing: {token}")
 
+# Muting the persistent value only works if each local weapon event consults that bus live. Keep both spatial and
+# local 2D weapon paths tied to the current Weapons bus so listen-server combat cannot leak into the pregame menu.
+for token in [
+    "void UOCWeaponAudioComponent::PlayAt",
+    "void UOCWeaponAudioComponent::Play2D",
+    "UOCAudioUserSettings::Get()->GetBusVolume(EOCAudioBus::Weapons)",
+    "if (Bus > 0.0f)",
+]:
+    if token not in text["weapon_audio"]:
+        fail(f"weapon audio no longer consults live Weapons bus: {token}")
+if text["weapon_audio"].count("GetBusVolume(EOCAudioBus::Weapons)") < 2:
+    fail("both spatial PlayAt and local Play2D weapon paths must consult the live Weapons bus")
+
 if "float MusicVolume" not in text["settings_h"] or "bool bMenuMusicEnabled" not in text["settings_h"]:
     fail("frontend music must honor existing persistent music/menu toggles")
 
@@ -74,4 +88,4 @@ for forbidden in [
         fail(f"frontend layout repair contains unsafe/unnecessary marker: {forbidden}")
 
 print("R13.6 FRONTEND AUDIO/LAYOUT VERIFY: PASS")
-print("Checks pregame-only combat-audio suppression, menu-music ownership/restore and bounded startup/resize Slate geometry repair without gameplay mutation.")
+print("Checks live pregame weapon-bus suppression, menu-music ownership/restore and bounded startup/resize Slate geometry repair without gameplay mutation.")
