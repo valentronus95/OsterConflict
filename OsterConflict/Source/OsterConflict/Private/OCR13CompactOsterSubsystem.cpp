@@ -24,6 +24,12 @@ namespace
     constexpr float CompactMinY = -25000.0f;
     constexpr float CompactMaxY =  50000.0f;
 
+    // Any retained road/sidewalk/water/bridge must have authoritative collision ground beneath it. The previous
+    // compact pass kept linear infrastructure 180 m outside the compact core but shrank Ground to the core itself,
+    // leaving valid-looking roads suspended over the void. Keep one constant for both retention and ground support.
+    constexpr float LinearInfrastructurePaddingCm = 18000.0f;
+    constexpr float NonLinearPaddingCm = 8000.0f;
+
     bool IsInsideCompactBounds(const FVector& Location, const float Padding = 0.0f)
     {
         return Location.X >= CompactMinX - Padding && Location.X <= CompactMaxX + Padding &&
@@ -136,6 +142,13 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
     const float CompactWidthCm = CompactMaxX - CompactMinX;
     const float CompactHeightCm = CompactMaxY - CompactMinY;
 
+    // Symmetric support apron keeps the same center while extending solid ground underneath every linear element
+    // that the crop policy deliberately retains. This removes the road-over-void mismatch without restoring the old
+    // 2.4 x 2.4 km world floor.
+    const FVector SupportedGroundCenter = CompactCenter;
+    const float SupportedGroundWidthCm = CompactWidthCm + 2.0f * LinearInfrastructurePaddingCm;
+    const float SupportedGroundHeightCm = CompactHeightCm + 2.0f * LinearInfrastructurePaddingCm;
+
     int32 RemovedInstances = 0;
     if (!bWorldCropped)
     {
@@ -144,8 +157,12 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
         for (UStaticMeshComponent* Mesh : StaticMeshes)
         {
             if (!Mesh || Mesh->GetFName() != TEXT("Ground")) continue;
-            Mesh->SetRelativeLocation(CompactCenter);
-            Mesh->SetRelativeScale3D(FVector(CompactWidthCm / 100.0f, CompactHeightCm / 100.0f, 2.0f));
+            Mesh->SetRelativeLocation(SupportedGroundCenter);
+            Mesh->SetRelativeScale3D(FVector(SupportedGroundWidthCm / 100.0f, SupportedGroundHeightCm / 100.0f, 2.0f));
+            Mesh->SetCollisionProfileName(TEXT("BlockAll"));
+            Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            Mesh->SetVisibility(true, true);
+            Mesh->SetHiddenInGame(false, true);
             break;
         }
 
@@ -158,7 +175,7 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
             const bool bLinearInfrastructure = ComponentName.Contains(TEXT("Road")) ||
                 ComponentName.Contains(TEXT("Sidewalk")) || ComponentName.Contains(TEXT("Water")) ||
                 ComponentName.Contains(TEXT("Bridge"));
-            const float Padding = bLinearInfrastructure ? 18000.0f : 8000.0f;
+            const float Padding = bLinearInfrastructure ? LinearInfrastructurePaddingCm : NonLinearPaddingCm;
 
             for (int32 Index = Component->GetInstanceCount() - 1; Index >= 0; --Index)
             {
@@ -255,7 +272,8 @@ void UOCR13CompactOsterSubsystem::TryApplyCompactLayout(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.1 compact Oster applied: %.0f x %.0f m, center=(%.0f, %.0f), objectives=%d, vehicles relocated=%d, removed source instances=%d."),
+        TEXT("R13.1 compact Oster applied: core %.0f x %.0f m, supported ground %.0f x %.0f m, center=(%.0f, %.0f), objectives=%d, vehicles relocated=%d, removed source instances=%d."),
         CompactWidthCm / 100.0f, CompactHeightCm / 100.0f,
+        SupportedGroundWidthCm / 100.0f, SupportedGroundHeightCm / 100.0f,
         CompactCenter.X, CompactCenter.Y, ObjectivesMoved.Num(), RelocatedVehicleSpawns, RemovedInstances);
 }
