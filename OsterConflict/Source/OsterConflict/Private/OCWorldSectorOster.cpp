@@ -1,5 +1,6 @@
 #include "OCWorldSectorOster.h"
 #include "OCGeoReference.h"
+#include "OCLocationSectorPlan.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -201,7 +202,6 @@ void AOCWorldSectorOster::BeginPlay()
     Tint(Waterways,           FLinearColor(0.055f, 0.22f, 0.36f));
     Tint(Bridges,             FLinearColor(0.32f, 0.31f, 0.29f));
 
-    // Authoring/reference markers are useful to developers and terrible as scenery.
     if (ReferenceMarkers) ReferenceMarkers->SetVisibility(false, true);
     UTextRenderComponent* Labels[] = { MuseumLabel, StadiumLabel, ParkLabel, CollegeLabel, KrushelnytskaStreetLabel };
     for (UTextRenderComponent* Label : Labels)
@@ -209,7 +209,6 @@ void AOCWorldSectorOster::BeginPlay()
         if (Label) Label->SetVisibility(false, true);
     }
 
-    // Large numbers of grass proxy tiles should not waste shadow budget.
     if (GrassMown) GrassMown->SetCastShadow(false);
     if (GrassRough) GrassRough->SetCastShadow(false);
     if (GrassWetland) GrassWetland->SetCastShadow(false);
@@ -230,7 +229,6 @@ FVector AOCWorldSectorOster::CollegeAnchor()
 
 FVector AOCWorldSectorOster::ParkAnchor()
 {
-    // S16A correction: use the published coordinate explicitly identified as CENTRAL CITY PARK.
     const FOCGeoReferencePoint Ref = FOCGeoReference::CentralPark();
     return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, GroundTopZ);
 }
@@ -325,7 +323,6 @@ void AOCWorldSectorOster::AddFacadeWindow(UInstancedStaticMeshComponent* Compone
     const float WindowYaw = BuildingYawDegrees + (bFrontFacade ? 0.0f : 90.0f);
     AddBox(Component, BuildingCenter + WorldOffset, SizeCm, WindowYaw);
 }
-
 
 void AOCWorldSectorOster::BuildGameplayBases()
 {
@@ -684,6 +681,10 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
     int32 HouseCounter = 0;
     for (const FBlockSeed& Block : Blocks)
     {
+        // The first location-first sector owns its own residential placement. Generic grid blocks must not
+        // leak into it, even temporarily, otherwise later art passes end up styling invented houses as real ones.
+        if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Block.Origin)) continue;
+
         for (int32 Row = 0; Row < Block.Rows; ++Row)
         {
             for (int32 Col = 0; Col < Block.Columns; ++Col)
