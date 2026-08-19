@@ -152,13 +152,10 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         FVector(-33500.0f, 32000.0f, 720.0f));
 }
 
-
 void AOCWorldSectorOster::BeginPlay()
 {
     Super::BeginPlay();
 
-    // R11 visual foundation: the source-only world already has a useful layout, but R10 left every
-    // primitive on the engine default material. Give each semantic family a readable outdoor palette.
     UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
@@ -331,7 +328,7 @@ void AOCWorldSectorOster::BuildGameplayBases()
     const FBaseSeed Bases[] =
     {
         { FVector(-104000.0f, -92000.0f, 0.0f), 35.0f },
-        { FVector( 104000.0f,  92000.0f, 0.0f), 215.0f }
+        { FVector(104000.0f, 92000.0f, 0.0f), 215.0f }
     };
 
     for (const FBaseSeed& Base : Bases)
@@ -415,15 +412,15 @@ void AOCWorldSectorOster::BuildHydrography()
     const FWaterSeed DesnaSeeds[] =
     {
         { FVector(-112000, -25000, -18), FVector(17000, 72000, 20), 3.0f },
-        { FVector(-104000,  38000, -18), FVector(19000, 72000, 20), 13.0f },
-        { FVector(-83000,   92000, -18), FVector(22000, 60000, 20), 36.0f }
+        { FVector(-104000, 38000, -18), FVector(19000, 72000, 20), 13.0f },
+        { FVector(-83000, 92000, -18), FVector(22000, 60000, 20), 36.0f }
     };
     for (const FWaterSeed& Seed : DesnaSeeds) AddBox(Waterways, Seed.Center, Seed.Size, Seed.Yaw);
 
     const FWaterSeed OsterSeeds[] =
     {
         { FVector(-52000, -98000, -16), FVector(62000, 9000, 18), -7.0f },
-        { FVector( 3000, -101000, -16), FVector(57000, 8200, 18), 3.0f },
+        { FVector(3000, -101000, -16), FVector(57000, 8200, 18), 3.0f },
         { FVector(52000, -87000, -16), FVector(56000, 8000, 18), 26.0f },
         { FVector(82000, -52000, -16), FVector(51000, 7600, 18), 67.0f }
     };
@@ -641,19 +638,18 @@ void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()
         }
     }
 
-    // Yard-front boundary strips remain a separate provisional layer for the next S01 migration step.
-    constexpr float BoundaryStartY = 20500.0f;
-    for (int32 Slot = 0; Slot < 8; ++Slot)
+    for (const FOCS01FrontageSeed& Frontage : FOCLocationSectorS01Data::ProvisionalFrontages())
     {
-        const float Y = BoundaryStartY + static_cast<float>(Slot) * 4800.0f;
-        AddBox(Fences, FVector(-37100.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
-        AddBox(Fences, FVector(-29900.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
-        AddBox(Sidewalks, FVector(-36500.0f, Y + 450.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
-        AddBox(Sidewalks, FVector(-30500.0f, Y - 350.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
+        AddBox(Fences, Frontage.WestFenceCenter, Frontage.FenceSizeCm, Frontage.FenceYaw);
+        AddBox(Fences, Frontage.EastFenceCenter, Frontage.FenceSizeCm, Frontage.FenceYaw);
+        AddBox(Sidewalks, Frontage.WestWalkCenter, Frontage.WalkSizeCm, Frontage.WalkYaw);
+        AddBox(Sidewalks, Frontage.EastWalkCenter, Frontage.WalkSizeCm, Frontage.WalkYaw);
     }
 
-    AddBox(Roads, FVector(-43000.0f, 36000.0f, RoadZ), FVector(560.0f, 42000.0f, 14.0f), 0.0f);
-    AddBox(Roads, FVector(-24200.0f, 37000.0f, RoadZ), FVector(560.0f, 39000.0f, 14.0f), 0.0f);
+    for (const FOCS01RoadSeed& Road : FOCLocationSectorS01Data::ProvisionalServiceRoads())
+    {
+        AddBox(Roads, Road.Center, Road.SizeCm, Road.Yaw);
+    }
 }
 
 void AOCWorldSectorOster::BuildResidentialBlocks()
@@ -868,4 +864,3 @@ void AOCWorldSectorOster::BuildVegetation()
         AddTreeFamily(FVector(X,Y,0), 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
     }
 }
-
