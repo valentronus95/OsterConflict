@@ -1,4 +1,6 @@
 from pathlib import Path
+import math
+import re
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
@@ -7,13 +9,14 @@ CPP = SRC / "Private" / "OCR13MuseumStadiumPhotoFidelitySubsystem.cpp"
 GEO_H = SRC / "Public" / "OCR13VerifiedOsterGeographySubsystem.h"
 GEO_CPP = SRC / "Private" / "OCR13VerifiedOsterGeographySubsystem.cpp"
 WORLD = SRC / "Private" / "OCWorldSectorOster.cpp"
+REF_CPP = SRC / "Private" / "OCGeoReference.cpp"
 
 
 def fail(message: str) -> None:
     raise SystemExit("R13.6 MUSEUM/STADIUM PHOTO FIDELITY VERIFY FAIL: " + message)
 
 
-for path in (H, CPP, GEO_H, GEO_CPP, WORLD):
+for path in (H, CPP, GEO_H, GEO_CPP, WORLD, REF_CPP):
     if not path.is_file():
         fail(f"missing source: {path.relative_to(ROOT)}")
 
@@ -22,6 +25,7 @@ cpp = CPP.read_text(encoding="utf-8", errors="replace")
 geo_h = GEO_H.read_text(encoding="utf-8", errors="replace")
 geo_cpp = GEO_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD.read_text(encoding="utf-8", errors="replace")
+ref_cpp = REF_CPP.read_text(encoding="utf-8", errors="replace")
 
 includes = [line.strip() for line in h.splitlines() if line.strip().startswith("#include")]
 if not includes or "generated.h" not in includes[-1]:
@@ -69,6 +73,31 @@ for token in [
     if token not in world:
         fail(f"canonical stadium source marker missing: {token}")
 
+# Lock the supplied-photo topology: stadium must remain the adjacent north-east sports field, not drift to the
+# old hardcoded position. Parse canonical WGS84 points and verify both distance and direction from the museum.
+def parse_ref(identifier: str) -> tuple[float, float]:
+    pattern = re.compile(
+        rf'TEXT\("{re.escape(identifier)}"\)\s*,\s*([-0-9.]+)\s*,\s*([-0-9.]+)'
+    )
+    match = pattern.search(ref_cpp)
+    if not match:
+        fail(f"cannot parse canonical reference: {identifier}")
+    return float(match.group(1)), float(match.group(2))
+
+museum_lat, museum_lon = parse_ref("MuseumSolonyna")
+stadium_lat, stadium_lon = parse_ref("StadionOster")
+meters_per_degree_lat = 111320.0
+meters_per_degree_lon = 111320.0 * math.cos(math.radians(museum_lat))
+east_m = (stadium_lon - museum_lon) * meters_per_degree_lon
+north_m = (stadium_lat - museum_lat) * meters_per_degree_lat
+distance_m = math.hypot(east_m, north_m)
+if not (45.0 <= east_m <= 70.0):
+    fail(f"stadium east offset drifted: {east_m:.1f} m")
+if not (110.0 <= north_m <= 140.0):
+    fail(f"stadium north offset drifted: {north_m:.1f} m")
+if not (125.0 <= distance_m <= 150.0):
+    fail(f"museum-stadium adjacency drifted: {distance_m:.1f} m")
+
 if cpp.index("SuppressLegacyMuseumPresentation(World);") > cpp.index("BuildMuseum(World);"):
     fail("legacy museum presentation must be removed before final museum build")
 if cpp.index("SuppressLegacyStadiumPresentation(World);") > cpp.index("BuildStadium(World);"):
@@ -85,4 +114,4 @@ for forbidden in [
         fail(f"old/duplicated site presentation leaked into photo fidelity pass: {forbidden}")
 
 print("R13.6 MUSEUM/STADIUM PHOTO FIDELITY VERIFY: PASS")
-print("Checks final museum presentation from supplied photos, simplified adjacent stadium, cleanup-before-build ordering and canonical location-first stadium ownership.")
+print(f"Checks photo-driven museum/stadium presentation and canonical adjacency: stadium {east_m:.1f} m east, {north_m:.1f} m north, {distance_m:.1f} m from museum.")
