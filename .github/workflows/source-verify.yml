@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - r13-content-gameplay-pass
+      - r13-museum-fidelity-staging
   pull_request:
   workflow_dispatch:
 
