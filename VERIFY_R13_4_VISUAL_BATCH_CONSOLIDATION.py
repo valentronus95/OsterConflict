@@ -74,10 +74,17 @@ for token in [
     "/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh",
     "SM_House_Var01_Extra%02d.SM_House_Var01_Extra%02d",
     "GameMode->IsFrontendOnlySession()",
-    "R13 environment dressing: grass=%d plants=%d house extras=%d yard props=%d companion trees=%d stumps=%d.",
+    '#include "OCLocationSectorPlan.h"',
+    "IsInsideLegacyKrushelnytskaSlice",
+    "IsProtectedFromGenericDressing",
+    "FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Location)",
+    "IsProtectedFromGenericDressing(PlantLocation)",
+    "IsProtectedFromGenericDressing(HouseLocation)",
+    "IsProtectedFromGenericDressing(BaseLocation)",
+    "S01 protected from generic dressing",
 ]:
     if token not in environment:
-        fail(f"EnvironmentDressing ownership marker missing: {token}")
+        fail(f"EnvironmentDressing ownership/location-first marker missing: {token}")
 
 foliage = texts["foliage"]
 for token in [
@@ -257,4 +264,4 @@ for name in (
             fail(f"delimiter mismatch {left}{right} in {FILES[name].name}")
 
 print("R13.4 VISUAL BATCH CONSOLIDATION VERIFY: PASS")
-print("Checks single-owner grass/foliage/path/pole responsibilities, frontend-only guards, dedicated Krushelnytska infrastructure, real conifers, textured museum upper timber, museum photo-reference facade details, matte broad terrain safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
+print("Checks single-owner grass/foliage/path/pole responsibilities, location-first S01 protection, frontend-only guards, dedicated Krushelnytska infrastructure, real conifers, textured museum upper timber, museum reference facade details, matte broad terrain safety, unique rural-yard props, civic landmark planting, enterable-house exterior art and Krushelnytska foliage consistency.")
