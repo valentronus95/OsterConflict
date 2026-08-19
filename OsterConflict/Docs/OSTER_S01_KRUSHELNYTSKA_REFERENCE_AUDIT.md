@@ -22,7 +22,7 @@ The Visicom whole-street object is also retained separately as B-confidence macr
 - south-west extent: `50.947336834596960, 30.874850176800106`;
 - north-east extent: `50.958347034213716, 30.886361188850810`.
 
-That center is metadata for the mapped street object, **not** a point to place asphalt on. The bounds are a macro sanity envelope only.
+That center is metadata for the mapped street object, **not** a point to place asphalt on. The bbox is also metadata rather than a surveyed envelope: the independently geocoded address 98 sits about `15.6 m` east of its returned east edge. The verifier therefore allows only a small `25 m` metadata tolerance instead of treating the bbox as physical truth.
 
 ## B-confidence address evidence
 
@@ -70,14 +70,26 @@ Therefore S01 should own the **middle College-side slice** of Krushelnytska, not
 
 This is a planning correction, not a cadastral statement. The continuation after the east bend belongs to adjacent-sector/shared-road work once its road shape is referenced.
 
+## Review-only authoring gates
+
+`FOCLocationSectorS01KrushelnytskaAuthoringData` now defines two confidence-C uncertainty windows for later centerline authoring:
+
+- `S01_KR_GATE_SOUTH_ENTRY` centered near `(-36952, 1497) cm`, derived from the address-evidence progression 8 → 14 intersecting the S01 south boundary, with ±75 m lateral uncertainty;
+- `S01_KR_GATE_EAST_EXIT` centered near `(-18230, 13462) cm`, derived from the address-evidence progression 28 → 40 intersecting the S01 east boundary, with ±80 m longitudinal uncertainty.
+
+These are **not road points**. They are wide review gates saying, roughly, “a credible future S01 centerline should enter/exit through this evidence-supported boundary region.” Their centers are deterministically recomputed by `VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GATES.py`, and `OCWorldSectorOster.cpp` is forbidden from consuming them.
+
+This gives the future carriageway skeleton useful entry/exit constraints without granting false precision to property markers.
+
 ## Runtime safety rule
 
-Both of these sources are evidence-only:
+These sources are evidence/authoring-only:
 
 - `FOCLocationSectorS01ReferenceData::KrushelnytskaAddressReferences()`;
-- `FOCLocationSectorS01ReferenceData::KrushelnytskaStreetExtentReference()`.
+- `FOCLocationSectorS01ReferenceData::KrushelnytskaStreetExtentReference()`;
+- `FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()`.
 
-`OCWorldSectorOster.cpp` must not consume either source directly.
+`OCWorldSectorOster.cpp` must not consume any of them directly.
 
 The next runtime correction needs a separately authored B-confidence centerline/skeleton derived from:
 
