@@ -62,6 +62,9 @@ if "float MusicVolume" not in text["settings_h"] or "bool bMenuMusicEnabled" not
 
 for token in [
     "RepairTimesSeconds[] = { 0.08f, 0.30f, 0.72f }",
+    "bStartupFrontendVisible",
+    "PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr",
+    "if (!World || !PC || PC->GetPawn() != nullptr || PC->IsSettingsVisible()) return false;",
     "R13_MenuWorldBlocker",
     "R13_MenuBackground",
     "R13_MenuShade",
@@ -88,4 +91,4 @@ for forbidden in [
         fail(f"frontend layout repair contains unsafe/unnecessary marker: {forbidden}")
 
 print("R13.6 FRONTEND AUDIO/LAYOUT VERIFY: PASS")
-print("Checks live pregame weapon-bus suppression, menu-music ownership/restore and bounded startup/resize Slate geometry repair without gameplay mutation.")
+print("Checks live pregame weapon-bus suppression, menu-music ownership/restore and startup-only Slate geometry repair that cannot overwrite the in-game ESC pause page.")
