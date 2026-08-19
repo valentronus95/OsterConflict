@@ -15,6 +15,8 @@ PARKING_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoParki
 PARKING_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoParkingDetailSubsystem.h"
 GLYPH_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoLogoFallbackSubsystem.cpp"
 GLYPH_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoLogoFallbackSubsystem.h"
+CART_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoCartDetailSubsystem.cpp"
+CART_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoCartDetailSubsystem.h"
 
 
 def fail(message: str) -> None:
@@ -51,6 +53,8 @@ parking_cpp = read(PARKING_CPP)
 parking_header = read(PARKING_HEADER)
 glyph_cpp = read(GLYPH_CPP)
 glyph_header = read(GLYPH_HEADER)
+cart_cpp = read(CART_CPP)
+cart_header = read(CART_HEADER)
 
 for needle in [
     "class OSTERCONFLICT_API UOCR13SilpoPhotoModelSubsystem",
@@ -241,17 +245,40 @@ for needle in [
 ]:
     require(glyph_cpp, needle, "Cyrillic logo guard")
 
+for needle in [
+    "class OSTERCONFLICT_API UOCR13SilpoCartDetailSubsystem",
+    "void ApplyCartDetail(UWorld& World);",
+]:
+    require(cart_header, needle, "shopping-cart header")
+
+for needle in [
+    'TEXT("R13_SilpoCartDetailApplied")',
+    'TEXT("R13SilpoCart_Frame")',
+    'TEXT("R13SilpoCart_BasketWire")',
+    'TEXT("R13SilpoCart_Handle")',
+    'TEXT("R13SilpoCart_Wheels")',
+    'constexpr FVector CartOrigin(250.0f, -1515.0f, 0.0f);',
+    'constexpr float CartYawDegrees = -7.0f;',
+    'Component->SetCollisionEnabled(ECollisionEnabled::NoCollision)',
+    'Component->SetCanEverAffectNavigation(false)',
+    'AddWheel(Wheels, FVector(-34.0f, -21.0f, 12.0f), 18.0f, 7.0f);',
+    'AddWheel(Wheels, FVector(34.0f, 21.0f, 12.0f), 18.0f, 7.0f);',
+    'procedural supermarket trolley added at photographed frontage position',
+]:
+    require(cart_cpp, needle, "shopping-cart detail")
+
 base_delay = delay(cpp, "SilpoPhotoModelDelaySeconds", "base model")
 detail_delay = delay(detail_cpp, "SilpoFacadeDetailDelaySeconds", "detail pass")
 site_delay = delay(site_cpp, "SilpoSiteDetailDelaySeconds", "site detail pass")
 foliage_delay = delay(foliage_cpp, "SilpoFoliageUpgradeDelaySeconds", "foliage upgrade")
 parking_delay = delay(parking_cpp, "SilpoParkingDetailDelaySeconds", "parking detail")
 glyph_delay = delay(glyph_cpp, "SilpoLogoFallbackDelaySeconds", "glyph fallback")
-if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay < glyph_delay:
+cart_delay = delay(cart_cpp, "SilpoCartDetailDelaySeconds", "shopping-cart detail")
+if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay < glyph_delay < cart_delay:
     fail(
-        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking -> glyph guard: "
+        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking -> glyph guard -> cart: "
         f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}, "
-        f"parking={parking_delay}, glyph={glyph_delay}"
+        f"parking={parking_delay}, glyph={glyph_delay}, cart={cart_delay}"
     )
 
 origin_lat = 50.948239
@@ -266,7 +293,7 @@ if not (-70000.0 <= x_cm <= 25000.0 and -25000.0 <= y_cm <= 50000.0):
 
 combined = (
     cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp + "\n" +
-    parking_cpp + "\n" + glyph_cpp
+    parking_cpp + "\n" + glyph_cpp + "\n" + cart_cpp
 )
 for forbidden in [".jpeg", ".jpg", ".png", "764B665D", "2CDEA871", "DBF2A257", "91665653", "5B464C76", "67E3F35C"]:
     if forbidden.lower() in combined.lower():
@@ -278,8 +305,9 @@ if base_delay < 5.2:
 print(
     "R13 SILPO PHOTO MODEL VERIFY: PASS "
     f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> "
-    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s -> parking {parking_delay:.2f}s -> glyph {glyph_delay:.2f}s; "
-    "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage + poster rails + entrance bin + "
-    "planted strip + PN foliage upgrade/fallback + grounded visual-only VehicleVarietyPack parking row + Cyrillic logo guard; "
+    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s -> parking {parking_delay:.2f}s -> "
+    f"glyph {glyph_delay:.2f}s -> cart {cart_delay:.2f}s; photo shell + cloud Сільпо sign + Ukrainian promo posters + "
+    "entrance/parking signage + poster rails + entrance bin + planted strip + PN foliage upgrade/fallback + "
+    "grounded visual-only VehicleVarietyPack parking row + Cyrillic logo guard + visual-only shopping trolley; "
     "source building footprint replacement without road deletion)"
 )
