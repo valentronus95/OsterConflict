@@ -27,6 +27,7 @@ namespace
     constexpr float EntranceFrontY = -1530.0f;
     constexpr float EntranceCanopyCenterY = -1590.0f;
     constexpr float WindowFrontY = -981.0f;
+    constexpr float EntranceFrontLocalY = EntranceFrontY - EntranceBlockCenterY;
 
     UInstancedStaticMeshComponent* MakeVisualISM(AActor* Owner, USceneComponent* Root,
         UStaticMesh* Mesh, UMaterialInterface* Material, const FName Name, const bool bCastShadow)
@@ -58,9 +59,29 @@ namespace
         return Material;
     }
 
-    FVector CollegeLocalToWorld(const FVector& College, const FVector& LocalOffset)
+    FVector RotateCollegeVector(const FVector& LocalOffset)
     {
-        return College + FRotator(0.0f, CollegeYawDegrees, 0.0f).RotateVector(LocalOffset);
+        return FRotator(0.0f, CollegeYawDegrees, 0.0f).RotateVector(LocalOffset);
+    }
+
+    // Mirrors AddFacadeWindow(), whose source offsets are explicitly rotated around CollegeAnchor().
+    FVector CollegeRotatedLocalToWorld(const FVector& College, const FVector& LocalOffset)
+    {
+        return College + RotateCollegeVector(LocalOffset);
+    }
+
+    // Mirrors BuildCollegeSector AddBox() calls such as College + FVector(900,-1230,...):
+    // AddBox rotates the mesh itself but does not rotate the supplied center around CollegeAnchor().
+    FVector CollegeAuthoredCenterToWorld(const FVector& College, const FVector& SourceCenterOffset)
+    {
+        return College + SourceCenterOffset;
+    }
+
+    // Starts from one of those direct source centers, then follows the mesh's 1-degree local axes to a face/detail.
+    FVector CollegeFaceOffsetFromAuthoredCenter(const FVector& College, const FVector& SourceCenterOffset,
+        const FVector& LocalFaceOffset)
+    {
+        return CollegeAuthoredCenterToWorld(College, SourceCenterOffset) + RotateCollegeVector(LocalFaceOffset);
     }
 
     void AddBox(UInstancedStaticMeshComponent* Target, const FVector& Center, const FVector& SizeCm,
@@ -156,25 +177,24 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
 
     const FVector College = AOCWorldSectorOster::CollegeAnchor();
 
-    // BuildCollegeSector rotates local offsets by the authored 1-degree building yaw. Apply the same transform to
-    // every overlay center; rotating only the cubes themselves leaves edge/entrance details tens of centimetres off.
-    // The 18 cm plinth and 20 cm bands are centered exactly half their depth beyond Y=-950 so their back faces
-    // touch the source wall instead of floating several centimetres in front of it.
-    AddBox(Plinth, CollegeLocalToWorld(College, FVector(0.0f, MainSkinPlinthY, 70.0f)),
+    // Mixed source-coordinate contract:
+    // - the main facade/window offsets follow AddFacadeWindow and are rotated around CollegeAnchor;
+    // - entrance/canopy/stair centers are direct College + FVector(...) source centers, with only their face offsets
+    //   rotated along each mesh's 1-degree axes. Keeping these modes explicit prevents 20-40 cm overlay drift.
+    AddBox(Plinth, CollegeRotatedLocalToWorld(College, FVector(0.0f, MainSkinPlinthY, 70.0f)),
         FVector(MainWidthCm - 80.0f, 18.0f, 140.0f));
     const float FloorBandZ[] = { 385.0f, 735.0f, 1085.0f, 1430.0f };
     for (const float Z : FloorBandZ)
     {
-        AddBox(Bands, CollegeLocalToWorld(College, FVector(0.0f, MainSkinBandY, Z)),
+        AddBox(Bands, CollegeRotatedLocalToWorld(College, FVector(0.0f, MainSkinBandY, Z)),
             FVector(MainWidthCm - 100.0f, 20.0f, 26.0f));
     }
-    AddBox(Bands, CollegeLocalToWorld(College, FVector(-3190.0f, MainSkinBandY, MainHeightCm * 0.5f)),
-        FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
-    AddBox(Bands, CollegeLocalToWorld(College, FVector(3190.0f, MainSkinBandY, MainHeightCm * 0.5f)),
-        FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
+    AddBox(Bands, CollegeRotatedLocalToWorld(College,
+        FVector(-3190.0f, MainSkinBandY, MainHeightCm * 0.5f)), FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
+    AddBox(Bands, CollegeRotatedLocalToWorld(College,
+        FVector(3190.0f, MainSkinBandY, MainHeightCm * 0.5f)), FVector(34.0f, 20.0f, MainHeightCm - 30.0f));
 
-    // Preserve the source 9x4 window topology, including the two ground-floor slots omitted for the entrance.
-    // A thin glass/front-frame layer replaces the flat proxy look without changing source collision or navigation.
+    // Preserve the source 9x4 AddFacadeWindow topology, including the two ground-floor slots omitted for entrance.
     constexpr int32 WindowColumns = 9;
     constexpr int32 WindowRows = 4;
     for (int32 Row = 0; Row < WindowRows; ++Row)
@@ -184,69 +204,70 @@ void UOCR13CollegeFacadeSubsystem::ApplyCollegeFacade(UWorld& World)
             if (Row == 0 && (Col == 5 || Col == 6)) continue;
             const float X = -2800.0f + Col * 700.0f;
             const float Z = 255.0f + Row * 340.0f;
-            AddBox(WindowGlass, CollegeLocalToWorld(College, FVector(X, WindowFrontY, Z)),
+            AddBox(WindowGlass, CollegeRotatedLocalToWorld(College, FVector(X, WindowFrontY, Z)),
                 FVector(408.0f, 8.0f, 198.0f));
-            AddBox(WindowFrames, CollegeLocalToWorld(College, FVector(X, WindowFrontY - 6.0f, Z - 111.0f)),
-                FVector(446.0f, 12.0f, 18.0f));
-            AddBox(WindowFrames, CollegeLocalToWorld(College, FVector(X, WindowFrontY - 6.0f, Z + 111.0f)),
-                FVector(446.0f, 12.0f, 18.0f));
-            AddBox(WindowFrames, CollegeLocalToWorld(College, FVector(X - 220.0f, WindowFrontY - 6.0f, Z)),
-                FVector(18.0f, 12.0f, 240.0f));
-            AddBox(WindowFrames, CollegeLocalToWorld(College, FVector(X + 220.0f, WindowFrontY - 6.0f, Z)),
-                FVector(18.0f, 12.0f, 240.0f));
+            AddBox(WindowFrames, CollegeRotatedLocalToWorld(College,
+                FVector(X, WindowFrontY - 6.0f, Z - 111.0f)), FVector(446.0f, 12.0f, 18.0f));
+            AddBox(WindowFrames, CollegeRotatedLocalToWorld(College,
+                FVector(X, WindowFrontY - 6.0f, Z + 111.0f)), FVector(446.0f, 12.0f, 18.0f));
+            AddBox(WindowFrames, CollegeRotatedLocalToWorld(College,
+                FVector(X - 220.0f, WindowFrontY - 6.0f, Z)), FVector(18.0f, 12.0f, 240.0f));
+            AddBox(WindowFrames, CollegeRotatedLocalToWorld(College,
+                FVector(X + 220.0f, WindowFrontY - 6.0f, Z)), FVector(18.0f, 12.0f, 240.0f));
         }
     }
 
-    // The authored entrance is not centered on the main block. BuildCollegeSector places its vestibule at
-    // X +900 cm and Y -1230 cm, with the stair run continuing south. Keep all entrance offsets in the same local frame.
-    const FVector EntranceFront = CollegeLocalToWorld(College,
-        FVector(EntranceCenterX, EntranceFrontY - 8.0f, 0.0f));
+    // BuildCollegeSector authors this vestibule at the direct center College + FVector(900,-1230,230).
+    // We retain its plan center exactly and rotate only offsets to the yawed front face.
+    const FVector EntranceSourcePlanCenter(EntranceCenterX, EntranceBlockCenterY, 0.0f);
+    const FVector EntranceFront = CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+        FVector(0.0f, EntranceFrontLocalY - 7.0f, 0.0f));
     for (float XOffset : { -420.0f, 0.0f, 420.0f })
     {
-        AddBox(Glass, CollegeLocalToWorld(College,
-            FVector(EntranceCenterX + XOffset, EntranceFrontY - 8.0f, 255.0f)), FVector(360.0f, 14.0f, 420.0f));
+        AddBox(Glass, CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+            FVector(XOffset, EntranceFrontLocalY - 7.0f, 255.0f)), FVector(360.0f, 14.0f, 420.0f));
     }
-    AddBox(EntranceFrame, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX - 625.0f, EntranceFrontY - 10.0f, 255.0f)), FVector(28.0f, 18.0f, 470.0f));
-    AddBox(EntranceFrame, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX + 625.0f, EntranceFrontY - 10.0f, 255.0f)), FVector(28.0f, 18.0f, 470.0f));
-    AddBox(EntranceFrame, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX, EntranceFrontY - 10.0f, 485.0f)), FVector(1280.0f, 18.0f, 28.0f));
-    AddBox(EntranceFrame, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX - 210.0f, EntranceFrontY - 10.0f, 255.0f)), FVector(24.0f, 18.0f, 440.0f));
-    AddBox(EntranceFrame, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX + 210.0f, EntranceFrontY - 10.0f, 255.0f)), FVector(24.0f, 18.0f, 440.0f));
+    AddBox(EntranceFrame, CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+        FVector(-625.0f, EntranceFrontLocalY - 9.0f, 255.0f)), FVector(28.0f, 18.0f, 470.0f));
+    AddBox(EntranceFrame, CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+        FVector(625.0f, EntranceFrontLocalY - 9.0f, 255.0f)), FVector(28.0f, 18.0f, 470.0f));
+    AddBox(EntranceFrame, CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+        FVector(0.0f, EntranceFrontLocalY - 9.0f, 485.0f)), FVector(1280.0f, 18.0f, 28.0f));
+    AddBox(EntranceFrame, CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+        FVector(-210.0f, EntranceFrontLocalY - 9.0f, 255.0f)), FVector(24.0f, 18.0f, 440.0f));
+    AddBox(EntranceFrame, CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter,
+        FVector(210.0f, EntranceFrontLocalY - 9.0f, 255.0f)), FVector(24.0f, 18.0f, 440.0f));
 
-    // Reuse the exact five collision-step centers and shrinking widths from BuildCollegeSector. These are only
-    // 6 cm visual caps plus an 8 cm front nosing, so the original stair collision remains the sole gameplay owner.
+    // Reuse exact direct source centers for the five collision steps. Tread caps move only in Z; front nosings
+    // follow each yawed step's local -Y face. The original LandmarkDetails geometry remains the sole collision owner.
     for (int32 Step = 0; Step < 5; ++Step)
     {
         const float StepCenterY = -1940.0f - Step * 115.0f;
         const float StepCenterZ = 22.0f + Step * 22.0f;
         const float StepWidth = 2750.0f - Step * 100.0f;
-        AddBox(StairTreads, CollegeLocalToWorld(College,
+        const FVector StepSourceCenter(EntranceCenterX, StepCenterY, StepCenterZ);
+        AddBox(StairTreads, CollegeAuthoredCenterToWorld(College,
             FVector(EntranceCenterX, StepCenterY, StepCenterZ + 23.0f)), FVector(StepWidth - 24.0f, 204.0f, 6.0f));
-        AddBox(StairNosings, CollegeLocalToWorld(College,
-            FVector(EntranceCenterX, StepCenterY - 114.0f, StepCenterZ + 16.0f)), FVector(StepWidth - 18.0f, 8.0f, 8.0f));
+        AddBox(StairNosings, CollegeFaceOffsetFromAuthoredCenter(College, StepSourceCenter,
+            FVector(0.0f, -114.0f, 16.0f)), FVector(StepWidth - 18.0f, 8.0f, 8.0f));
     }
 
-    // The source already owns the 26.5 x 9.2 m canopy collision slab at X +900 / Y -1590. Add only a thin
-    // visual fascia to its exposed front and side edges so gameplay topology remains single-source.
-    const FVector CanopyCenter = CollegeLocalToWorld(College,
-        FVector(EntranceCenterX, EntranceCanopyCenterY, 505.0f));
-    AddBox(Canopy, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX, EntranceCanopyCenterY - 468.0f, 505.0f)), FVector(2670.0f, 18.0f, 92.0f));
-    AddBox(Canopy, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX - 1333.0f, EntranceCanopyCenterY, 505.0f)), FVector(18.0f, 930.0f, 92.0f));
-    AddBox(Canopy, CollegeLocalToWorld(College,
-        FVector(EntranceCenterX + 1333.0f, EntranceCanopyCenterY, 505.0f)), FVector(18.0f, 930.0f, 92.0f));
+    // Source canopy center is direct College + FVector(900,-1590,505), size 2650x920x70 at yaw 1 degree.
+    // Its fascia touches the actual yawed box edges: 460+9 cm front, 1325+9 cm on the sides.
+    const FVector CanopySourceCenter(EntranceCenterX, EntranceCanopyCenterY, 505.0f);
+    const FVector CanopyCenter = CollegeAuthoredCenterToWorld(College, CanopySourceCenter);
+    AddBox(Canopy, CollegeFaceOffsetFromAuthoredCenter(College, CanopySourceCenter,
+        FVector(0.0f, -469.0f, 0.0f)), FVector(2670.0f, 18.0f, 92.0f));
+    AddBox(Canopy, CollegeFaceOffsetFromAuthoredCenter(College, CanopySourceCenter,
+        FVector(-1334.0f, 0.0f, 0.0f)), FVector(18.0f, 920.0f, 92.0f));
+    AddBox(Canopy, CollegeFaceOffsetFromAuthoredCenter(College, CanopySourceCenter,
+        FVector(1334.0f, 0.0f, 0.0f)), FVector(18.0f, 920.0f, 92.0f));
 
     static_cast<void>(MainDepthCm);
-    static_cast<void>(EntranceBlockCenterY);
     static_cast<void>(EntranceFront);
     static_cast<void>(CanopyCenter);
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.5 college facade: aligned to authored 65x19x14.4m main mass/X+900 entrance using the same rotated local frame; flush facade trim, framed 9x4 window topology, glazed vestibule, source-matched five-step visual finish and canopy fascia added; source collision/footprint preserved."));
+        TEXT("R13.5 college facade: source-coordinate contract aligned: rotated main/window offsets plus direct authored entrance/canopy/stair centers; flush trim, framed 9x4 windows and source-matched five-step finish remain visual-only; source collision/footprint preserved."));
 }
