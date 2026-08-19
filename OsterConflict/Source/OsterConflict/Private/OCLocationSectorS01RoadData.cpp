@@ -52,3 +52,37 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::SharedCrossi
     };
     return Corridors;
 }
+
+const TArray<FOCS01PathSeed>& FOCLocationSectorS01RoadData::OwnedCentralParkPaths()
+{
+    static const TArray<FOCS01PathSeed> Paths = {
+        { TEXT("S01_PATH_PARK_EW"), EOCS01RoadAnchor::CentralPark,
+            FVector(0, 0, 14), FVector(17800, 360, 18), 0.0f,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Migrated direct Central Park east-west sidewalk strip; C-confidence retained blockout") },
+        { TEXT("S01_PATH_PARK_NS"), EOCS01RoadAnchor::CentralPark,
+            FVector(0, -300, 14), FVector(360, 13200, 18), 0.0f,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Migrated direct Central Park north-south sidewalk strip; C-confidence retained blockout") },
+        { TEXT("S01_PATH_PARK_DIAG_E"), EOCS01RoadAnchor::CentralPark,
+            FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Migrated direct Central Park diagonal sidewalk strip; C-confidence retained blockout") },
+        { TEXT("S01_PATH_PARK_DIAG_W"), EOCS01RoadAnchor::CentralPark,
+            FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Migrated direct Central Park diagonal sidewalk strip; C-confidence retained blockout") },
+    };
+    return Paths;
+}
+
+const TArray<FOCS01PathSeed>& FOCLocationSectorS01RoadData::OwnedCollegePaths()
+{
+    static const TArray<FOCS01PathSeed> Paths = {
+        { TEXT("S01_PATH_COLLEGE_CAMPUS"), EOCS01RoadAnchor::College,
+            FVector(900, 5200, 12), FVector(8000, 5900, 18), 1.0f,
+            EOCS01RoadRelation::Inside, Provisional,
+            TEXT("Migrated College campus sidewalk surface; whole oriented rectangle fits inside S01") },
+    };
+    return Paths;
+}
