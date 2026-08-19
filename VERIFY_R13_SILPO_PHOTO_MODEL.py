@@ -173,7 +173,9 @@ for needle in [
     'TEXT("R13SilpoFoliage_GroundA")',
     'Name == TEXT("R13SilpoSite_FlowerStems")',
     'Component->SetHiddenInGame(true, true)',
-    "if (LoadedMeshCount < 2)",
+    "const bool bHasFlowerMesh = FlowerA || FlowerB || FlowerC;",
+    "const bool bHasGroundMesh = GroundA || GroundB;",
+    "if (!bHasFlowerMesh || !bHasGroundMesh)",
     "procedural fallback kept",
 ]:
     require(foliage_cpp, needle, "PN foliage upgrade")
