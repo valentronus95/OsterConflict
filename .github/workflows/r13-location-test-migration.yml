@@ -7,6 +7,10 @@ on:
     paths:
       - 'MIGRATE_R13_LOCATION_TEST_AND_MUSEUM_OWNERSHIP.py'
       - '.github/workflows/r13-location-test-migration.yml'
+  pull_request:
+    paths:
+      - 'MIGRATE_R13_LOCATION_TEST_AND_MUSEUM_OWNERSHIP.py'
+      - '.github/workflows/r13-location-test-migration.yml'
   workflow_dispatch:
 
 permissions:
