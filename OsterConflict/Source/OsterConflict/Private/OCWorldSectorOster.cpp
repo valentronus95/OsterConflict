@@ -531,10 +531,10 @@ void AOCWorldSectorOster::BuildCentralPark()
     const FVector Park = ParkAnchor();
 
     AddBox(ParkGeometry, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));
-    AddBox(Sidewalks, Park + FVector(0, 0, 14), FVector(17800, 360, 18));
-    AddBox(Sidewalks, Park + FVector(0, -300, 14), FVector(360, 13200, 18));
-    AddBox(Sidewalks, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);
-    AddBox(Sidewalks, Park + FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f);
+    for (const FOCS01PathSeed& Path : FOCLocationSectorS01RoadData::OwnedCentralParkPaths())
+    {
+        AddBox(Sidewalks, Park + Path.LocalOffset, Path.SizeCm, Path.Yaw);
+    }
 
     AddBox(ParkDetails, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
     AddBox(ParkDetails, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
@@ -603,7 +603,10 @@ void AOCWorldSectorOster::BuildCollegeSector()
     AddBox(LandmarkRoofs, College + FVector(4800, 6000, 1045), FVector(2220, 4420, 55), Yaw - 1.0f);
     AddBox(LandmarkBlocks, College + FVector(9000, 2600, 340), FVector(2600, 1500, 680), Yaw);
 
-    AddBox(Sidewalks, College + FVector(900, 5200, 12), FVector(8000, 5900, 18), Yaw);
+    for (const FOCS01PathSeed& Path : FOCLocationSectorS01RoadData::OwnedCollegePaths())
+    {
+        AddBox(Sidewalks, College + Path.LocalOffset, Path.SizeCm, Path.Yaw);
+    }
     AddBox(ParkGeometry, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);
     AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);
     AddBox(Fences, College + FVector(0, 9300, 110), FVector(11200, 45, 220), Yaw);
