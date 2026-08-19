@@ -54,13 +54,10 @@ for token in [
     if token not in cpp:
         fail(f"verified geography marker missing: {token}")
 
+if "static FOCGeoReferencePoint Stadium();" not in geo_h:
+    fail("canonical stadium geo declaration missing")
 for token in [
-    "static FOCGeoReferencePoint Stadium();",
-]:
-    if token not in geo_h:
-        fail(f"canonical stadium geo declaration missing: {token}")
-for token in [
-    'TEXT("OsterStadium")',
+    'TEXT("StadionOster")',
     "50.94936",
     "30.88466",
 ]:
