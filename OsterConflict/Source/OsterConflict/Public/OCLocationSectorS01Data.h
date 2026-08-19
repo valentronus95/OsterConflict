@@ -57,9 +57,52 @@ struct FOCS01RoadSeed
     const TCHAR* Note = TEXT("");
 };
 
+/** Canonical anchor used by an S01 vegetation record. */
+enum class EOCS01VegetationAnchor : uint8
+{
+    CentralPark,
+    College
+};
+
+/** Source-only tree silhouette family. Placement still belongs to the S01 data record. */
+enum class EOCS01TreeFamily : uint8
+{
+    Broadleaf,
+    Poplar,
+    Birch,
+    Pine
+};
+
+/**
+ * Explicit tree record relative to a canonical S01 anchor.
+ * Current migrated records remain confidence C: making them explicit does not make their old placement factual.
+ */
+struct FOCS01TreeSeed
+{
+    FName Id = NAME_None;
+    EOCS01VegetationAnchor Anchor = EOCS01VegetationAnchor::CentralPark;
+    FVector LocalOffset = FVector::ZeroVector;
+    float Scale = 1.0f;
+    EOCS01TreeFamily Family = EOCS01TreeFamily::Broadleaf;
+    EOCReferenceConfidence Confidence = EOCReferenceConfidence::C;
+    const TCHAR* Note = TEXT("");
+};
+
+/** Explicit mown-grass area relative to a canonical S01 anchor. */
+struct FOCS01GrassPatchSeed
+{
+    FName Id = NAME_None;
+    EOCS01VegetationAnchor Anchor = EOCS01VegetationAnchor::CentralPark;
+    FVector LocalOffset = FVector::ZeroVector;
+    FVector SizeCm = FVector::ZeroVector;
+    float Yaw = 0.0f;
+    EOCReferenceConfidence Confidence = EOCReferenceConfidence::C;
+    const TCHAR* Note = TEXT("");
+};
+
 /**
  * Explicit S01 authored-data registry. Current entries intentionally reproduce the old blockout one-for-one,
- * but remove arithmetic placement coupling so every plot/frontage/road can be corrected independently.
+ * but remove arithmetic placement coupling so every plot/frontage/road/tree/grass patch can be corrected independently.
  */
 class OSTERCONFLICT_API FOCLocationSectorS01Data
 {
@@ -67,4 +110,6 @@ public:
     static const TArray<FOCS01ResidentialPlotSeed>& ProvisionalResidentialPlots();
     static const TArray<FOCS01FrontageSeed>& ProvisionalFrontages();
     static const TArray<FOCS01RoadSeed>& ProvisionalServiceRoads();
+    static const TArray<FOCS01TreeSeed>& ProvisionalVegetationTrees();
+    static const TArray<FOCS01GrassPatchSeed>& ProvisionalGrassPatches();
 };
