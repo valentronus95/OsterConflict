@@ -19,6 +19,12 @@ FOCGeoReferencePoint FOCGeoReference::Museum()
         TEXT("Public heritage/museum coordinates; Tatarivska 30; facade photo references available") };
 }
 
+FOCGeoReferencePoint FOCGeoReference::Stadium()
+{
+    return { TEXT("StadionOster"), 50.94936, 30.88466, EOCReferenceConfidence::B,
+        TEXT("Public-map stadium coordinate; placement verified, exact site/facade detail remains incomplete") };
+}
+
 FOCGeoReferencePoint FOCGeoReference::College()
 {
     return { TEXT("OsterCollege"), 50.949182, 30.879127, EOCReferenceConfidence::A,
