@@ -26,6 +26,24 @@ FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()
     return Gates;
 }
 
+const FOCS01CenterlineAuthoringRegion&
+FOCLocationSectorS01KrushelnytskaAuthoringData::CollegeTransitionRegion()
+{
+    // Envelope = addresses 14, 7A and 28, padded by 40 m, then clipped to the current S01 workflow rectangle.
+    // It intentionally reaches the south/east S01 edges and contains both review gates. This region constrains where
+    // the future College-side centerline may be authored without claiming that any address pin is a road-center point.
+    static const FOCS01CenterlineAuthoringRegion Region =
+    {
+        TEXT("S01_KR_REGION_COLLEGE_TRANSITION"),
+        FVector2D(-28989.377658f, 8809.404434f),
+        FVector2D(10759.854267f, 7311.928434f),
+        4000.0f,
+        EOCReferenceConfidence::C,
+        TEXT("Review-only padded/clipped envelope of address evidence 14, 7A and 28; contains south-entry/east-exit gates but is not road geometry")
+    };
+    return Region;
+}
+
 const TArray<FOCS01ReferenceConflictRecord>&
 FOCLocationSectorS01KrushelnytskaAuthoringData::ReferenceConflictedRuntimeSegments()
 {
