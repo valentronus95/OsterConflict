@@ -39,6 +39,11 @@ if not exist "%PROJECT%" (
   exit /b 13
 )
 
+rem Building C++ while Unreal Editor has Live Coding active will fail.
+rem Never kill the editor automatically because unsaved work may exist.
+tasklist /FI "IMAGENAME eq UnrealEditor.exe" 2>nul | find /I "UnrealEditor.exe" >nul
+if not errorlevel 1 goto :editor_running
+
 for /f "delims=" %%I in ('git status --porcelain --untracked-files=no') do (
   echo [STOP] Tracked local changes were found.
   echo Nothing was reset, deleted or overwritten.
@@ -75,6 +80,14 @@ start "" "%EDITOR%" "%PROJECT%"
 echo.
 echo SUCCESS: repository updated, editor build succeeded, project opened.
 exit /b 0
+
+:editor_running
+echo.
+echo [STOP] Unreal Editor is currently running.
+echo Close Unreal Editor first so Live Coding releases the build files.
+echo Nothing was changed or terminated automatically.
+pause
+exit /b 21
 
 :git_fail
 echo.
