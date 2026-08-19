@@ -76,13 +76,18 @@ start_body = menu[start_pos:]
 open_pos = start_body.find('PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime')
 if open_pos < 0:
     fail("local gameplay travel command missing")
-before_open = start_body[:open_pos]
-if 'SetPresentationVisibility(false, false, false)' in before_open:
-    fail("local standalone travel hides the approved frontend before world replacement and can expose a gray frame")
-if 'ReleaseMenuInput();' in before_open.split('if (PC->GetNetMode() != NM_Standalone)')[0]:
-    fail("local standalone travel releases frontend input before world replacement")
-if 'bGameplayStarted = true;' in before_open.split('if (PC->GetNetMode() != NM_Standalone)')[0]:
-    fail("local standalone travel marks gameplay started before world replacement")
+standalone_marker = '// Keep the current approved menu/background completely intact until `open` actually replaces this world.'
+standalone_pos = start_body.find(standalone_marker)
+if standalone_pos < 0 or standalone_pos >= open_pos:
+    fail("cannot isolate the local standalone travel section")
+standalone_before_open = start_body[standalone_pos:open_pos]
+for forbidden in [
+    'SetPresentationVisibility(false, false, false)',
+    'ReleaseMenuInput();',
+    'bGameplayStarted = true;',
+]:
+    if forbidden in standalone_before_open:
+        fail(f"local standalone travel performs forbidden pre-travel state change: {forbidden}")
 
 background_tint_calls = menu.count('Background->SetColorAndOpacity(')
 if background_tint_calls != 1:
