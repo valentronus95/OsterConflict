@@ -11,15 +11,17 @@ This checkpoint records the runtime reconstruction currently integrated into `r1
 5. `UOCR13SilpoParkingDetailSubsystem` — adds a visual-only row of existing VehicleVarietyPack civilian cars with collision/navigation disabled.
 6. `UOCR13SilpoLogoFallbackSubsystem` — verifies Cyrillic glyph support of the active TextRender font and falls back to a geometric `СІЛЬПО` word if required glyphs are unavailable.
 7. `UOCR13SilpoCartDetailSubsystem` — adds the shopping trolley visible in the frontage reference using lightweight procedural geometry, with collision/navigation disabled.
+8. `UOCR13SilpoEnvelopeDetailSubsystem` — refines only already-established exterior geometry: stepped-parapet coping, side-pier caps, roof-edge flashing, entrance-canopy fascia and a continuous plinth reveal. It deliberately does not add unreferenced rooftop equipment, service-yard objects or interior geometry.
 
 ## Safety constraints
 
 - Existing road and sidewalk source families are not removed by the Silpo footprint replacement.
-- Decorative parked vehicles and shopping cart do not affect navigation or collision.
+- Decorative parked vehicles, shopping cart and envelope trim do not affect navigation or collision.
 - Raw supplied photographs are not copied into runtime content.
 - The reconstruction does not invent an interior because the supplied reference set is exterior-only.
-- `VERIFY_R13_SILPO_PHOTO_MODEL.py` is included in `RUN_ALL_VERIFY.py` and covers the ordered runtime passes and the critical replacement/detail invariants.
+- Unseen rooftop/service-yard equipment is not invented from generic supermarket assumptions.
+- `VERIFY_R13_SILPO_PHOTO_MODEL.py` is included in `RUN_ALL_VERIFY.py` and covers the ordered runtime passes and the critical replacement/detail invariants through the envelope-detail layer.
 
 ## Remaining validation
 
-A fresh UE 5.8 local compile and runtime visual pass is still required for final scale/orientation tuning, font result verification, parked-car spacing, and final facade alignment against the live road geometry.
+A fresh UE 5.8 local compile and runtime visual pass is still required for final scale/orientation tuning, font result verification, parked-car spacing, cart placement, envelope-trim depth and final facade alignment against the live road geometry.
