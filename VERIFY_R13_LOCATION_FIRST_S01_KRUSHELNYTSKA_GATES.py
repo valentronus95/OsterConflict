@@ -23,6 +23,10 @@ for path in (REF_CPP, AUTHOR_H, AUTHOR_CPP, GEO_H, GEO_CPP, PLAN_CPP, WORLD):
     if not path.is_file():
         fail(f"missing source: {path.relative_to(ROOT)}")
 
+road_sources = sorted((SRC / "Private").glob("OCLocationSectorS01Road*.cpp"))
+if not road_sources:
+    fail("no S01 road source files found")
+
 ref_cpp = REF_CPP.read_text(encoding="utf-8", errors="replace")
 author_h = AUTHOR_H.read_text(encoding="utf-8", errors="replace")
 author_cpp = AUTHOR_CPP.read_text(encoding="utf-8", errors="replace")
@@ -30,6 +34,7 @@ geo_h = GEO_H.read_text(encoding="utf-8", errors="replace")
 geo_cpp = GEO_CPP.read_text(encoding="utf-8", errors="replace")
 plan_cpp = PLAN_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD.read_text(encoding="utf-8", errors="replace")
+road_text = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in road_sources)
 
 for token in [
     "FOCS01CenterlineAuthoringGate",
@@ -37,9 +42,13 @@ for token in [
     "Review-only uncertainty gate",
     "not runtime road geometry",
     "must never render the gates themselves",
+    "FOCS01ReferenceConflictRecord",
+    "ReferenceConflictedRuntimeSegments()",
+    "MaximumAllowedConfidence",
+    "must not be promoted before replacement",
 ]:
     if token not in author_h + author_cpp:
-        fail(f"review-only authoring contract missing: {token}")
+        fail(f"review-only authoring/conflict contract missing: {token}")
 
 origin_lat_match = re.search(r"OriginLatitude\s*=\s*([0-9.]+)", geo_h)
 origin_lon_match = re.search(r"OriginLongitude\s*=\s*([0-9.]+)", geo_h)
@@ -110,14 +119,14 @@ def interpolate_at_x(a, b, target_x):
 south_expected = interpolate_at_y(p8, p14, ymin)
 east_expected = interpolate_at_x(p28, p40, xmax)
 
-pattern = re.compile(
+gate_pattern = re.compile(
     r'TEXT\("(S01_KR_GATE_[A-Z_]+)"\),\s*'
     r'FVector2D\((-?[0-9.]+)f,\s*(-?[0-9.]+)f\),\s*'
     r'FVector2D\(([0-9.]+)f,\s*([0-9.]+)f\),\s*'
     r'EOCReferenceConfidence::C,',
     flags=re.S,
 )
-records = pattern.findall(author_cpp)
+records = gate_pattern.findall(author_cpp)
 if len(records) != 2:
     fail(f"expected exactly two review-only S01 gates, parsed {len(records)}")
 by_id = {record[0]: record for record in records}
@@ -156,16 +165,52 @@ if not (xmin <= south[0] <= xmax and ymin <= south[1] <= ymax):
 if not (xmin <= east[0] <= xmax and ymin <= east[1] <= ymax):
     fail("east gate left S01 bounds")
 
-# The authoring gates are deliberately forbidden from runtime until a separately reviewed carriageway skeleton exists.
+# The three retained Krushelnytska spine pieces are traversable migration geometry, not verified geography.
+# Public evidence now contradicts promotion of their near-vertical alignment, so both the conflict registry and the
+# actual road records must remain explicitly C-confidence until an atomic reviewed replacement is ready.
+conflict_pattern = re.compile(
+    r'TEXT\("(S01_KR_SPINE_(?:SOUTH_SHARED|INSIDE|NORTH_SHARED))"\),\s*'
+    r'EOCReferenceConfidence::([ABC]),\s*TEXT\("([^"]+)"\)',
+    flags=re.S,
+)
+conflicts = conflict_pattern.findall(author_cpp)
+expected_conflicts = {
+    "S01_KR_SPINE_SOUTH_SHARED",
+    "S01_KR_SPINE_INSIDE",
+    "S01_KR_SPINE_NORTH_SHARED",
+}
+if len(conflicts) != 3 or {item[0] for item in conflicts} != expected_conflicts:
+    fail(f"expected exactly three reference-conflicted Krushelnytska spine records, found {[item[0] for item in conflicts]}")
+for runtime_id, maximum_confidence, reason in conflicts:
+    if maximum_confidence != "C":
+        fail(f"reference-conflicted segment {runtime_id} was allowed above C confidence")
+    if len(reason.strip()) < 30:
+        fail(f"reference conflict reason is too weak for {runtime_id}")
+    if road_text.count(f'TEXT("{runtime_id}")') != 1:
+        fail(f"expected one actual road record for reference-conflicted segment {runtime_id}")
+    road_match = re.search(
+        rf'TEXT\("{re.escape(runtime_id)}"\).{{0,1200}}?EOCReferenceConfidence::([ABC])',
+        road_text,
+        flags=re.S,
+    )
+    if not road_match:
+        fail(f"cannot parse actual road confidence for {runtime_id}")
+    if road_match.group(1) != "C":
+        fail(f"reference-conflicted runtime road {runtime_id} was promoted to {road_match.group(1)}")
+
+# The authoring gates/conflict metadata are deliberately forbidden from runtime until a separately reviewed
+# carriageway skeleton exists. Conflict records explain the old geometry; they do not become a new runtime owner.
 for forbidden in [
     '#include "OCLocationSectorS01KrushelnytskaAuthoringData.h"',
     "FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()",
+    "FOCLocationSectorS01KrushelnytskaAuthoringData::ReferenceConflictedRuntimeSegments()",
 ]:
     if forbidden in world:
-        fail(f"review-only centerline gate leaked into runtime world construction: {forbidden}")
+        fail(f"review-only Krushelnytska authoring data leaked into runtime world construction: {forbidden}")
 
 print("R13 S01 KRUSHELNYTSKA GATE VERIFY: PASS")
 print(
     f"Derived review-only S01 gates from source evidence: south entry ({south[0]:.1f},{south[1]:.1f}) cm, "
-    f"east exit ({east[0]:.1f},{east[1]:.1f}) cm. Both remain C-confidence uncertainty windows and are not runtime geometry."
+    f"east exit ({east[0]:.1f},{east[1]:.1f}) cm. Both remain C-confidence uncertainty windows; the three retained "
+    "Krushelnytska spine pieces are explicitly reference-conflicted and locked at C confidence until atomic replacement."
 )
