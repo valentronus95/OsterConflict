@@ -32,6 +32,8 @@ for name, text in (("college", college_h), ("stadium", stadium_h)):
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h must remain final include in {name} header")
 
+# BuildCollegeSector itself uses two placement contracts. AddBox rotates the mesh but keeps the supplied center,
+# while AddFacadeWindow explicitly rotates its local offset around CollegeAnchor before calling AddBox.
 for token in [
     "void AOCWorldSectorOster::BuildCollegeSector()",
     "const float Yaw = 1.0f;",
@@ -47,11 +49,13 @@ for token in [
     "const float Z = 255.0f + Row * 340.0f;",
     "if (Row == 0 && (Col == 5 || Col == 6)) continue;",
     "AddFacadeWindow(LandmarkWindows, College, FVector(X, -965, Z), FVector(430, 24, 220), Yaw, true);",
+    "AddBoxRotated(Component, Center, SizeCm, FRotator(0.0f, YawDegrees, 0.0f));",
+    "Transform.SetLocation(Center);",
     "const FVector WorldOffset = Rotate2D(LocalOffset, BuildingYawDegrees);",
     "BuildingCenter + WorldOffset",
 ]:
     if token not in world:
-        fail(f"BuildCollegeSector source topology marker missing: {token}")
+        fail(f"BuildCollegeSector/source placement marker missing: {token}")
 
 for token in [
     "AOCWorldSectorOster::CollegeAnchor()",
@@ -81,8 +85,16 @@ for token in [
     "constexpr float EntranceFrontY = -1530.0f;",
     "constexpr float EntranceCanopyCenterY = -1590.0f;",
     "constexpr float WindowFrontY = -981.0f;",
-    "FVector CollegeLocalToWorld(const FVector& College, const FVector& LocalOffset)",
-    "FRotator(0.0f, CollegeYawDegrees, 0.0f).RotateVector(LocalOffset)",
+    "constexpr float EntranceFrontLocalY = EntranceFrontY - EntranceBlockCenterY;",
+    "FVector RotateCollegeVector(const FVector& LocalOffset)",
+    "FVector CollegeRotatedLocalToWorld(const FVector& College, const FVector& LocalOffset)",
+    "FVector CollegeAuthoredCenterToWorld(const FVector& College, const FVector& SourceCenterOffset)",
+    "FVector CollegeFaceOffsetFromAuthoredCenter(const FVector& College, const FVector& SourceCenterOffset",
+    "return College + SourceCenterOffset;",
+    "return CollegeAuthoredCenterToWorld(College, SourceCenterOffset) + RotateCollegeVector(LocalFaceOffset);",
+    "Mixed source-coordinate contract",
+    "main facade/window offsets follow AddFacadeWindow",
+    "entrance/canopy/stair centers are direct College + FVector(...) source centers",
     "MainWidthCm - 100.0f",
     "constexpr int32 WindowColumns = 9;",
     "constexpr int32 WindowRows = 4;",
@@ -90,20 +102,25 @@ for token in [
     "FVector(408.0f, 8.0f, 198.0f)",
     "FVector(446.0f, 12.0f, 18.0f)",
     "FVector(18.0f, 12.0f, 240.0f)",
-    "EntranceCenterX, EntranceFrontY - 8.0f",
-    "EntranceCenterX, EntranceCanopyCenterY, 505.0f",
+    "const FVector EntranceSourcePlanCenter(EntranceCenterX, EntranceBlockCenterY, 0.0f);",
+    "CollegeFaceOffsetFromAuthoredCenter(College, EntranceSourcePlanCenter",
+    "EntranceFrontLocalY - 7.0f",
+    "EntranceFrontLocalY - 9.0f",
     "for (int32 Step = 0; Step < 5; ++Step)",
     "const float StepCenterY = -1940.0f - Step * 115.0f;",
     "const float StepCenterZ = 22.0f + Step * 22.0f;",
     "const float StepWidth = 2750.0f - Step * 100.0f;",
-    "FVector(StepWidth - 24.0f, 204.0f, 6.0f)",
-    "FVector(StepWidth - 18.0f, 8.0f, 8.0f)",
-    "sole gameplay owner",
-    "same rotated local frame",
-    "flush facade trim",
-    "framed 9x4 window topology",
-    "source-matched five-step visual finish",
-    "GameMode->IsFrontendOnlySession()",
+    "const FVector StepSourceCenter(EntranceCenterX, StepCenterY, StepCenterZ);",
+    "CollegeAuthoredCenterToWorld(College",
+    "CollegeFaceOffsetFromAuthoredCenter(College, StepSourceCenter",
+    "FVector(0.0f, -114.0f, 16.0f)",
+    "const FVector CanopySourceCenter(EntranceCenterX, EntranceCanopyCenterY, 505.0f);",
+    "const FVector CanopyCenter = CollegeAuthoredCenterToWorld(College, CanopySourceCenter);",
+    "FVector(0.0f, -469.0f, 0.0f)",
+    "FVector(-1334.0f, 0.0f, 0.0f)",
+    "FVector(1334.0f, 0.0f, 0.0f)",
+    "source-coordinate contract aligned",
+    "rotated main/window offsets plus direct authored entrance/canopy/stair centers",
     "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
     "SetCanEverAffectNavigation(false)",
     "source collision/footprint preserved",
@@ -133,14 +150,15 @@ for forbidden in [
     "College + FVector(0.0f, -1040.0f, 0.0f)",
     "const float FrontY = College.Y - 860.0f;",
     "Main authored block is 48 x 17 x 15.5 m",
-    "const float FacadeY = College.Y + MainFrontY",
-    "const FVector EntranceFront = College + FVector",
-    "const FVector CanopyCenter = College + FVector",
+    "FVector CollegeLocalToWorld(const FVector& College, const FVector& LocalOffset)",
+    "const FVector EntranceFront = CollegeRotatedLocalToWorld",
+    "const FVector CanopyCenter = CollegeRotatedLocalToWorld",
+    "AddBox(StairTreads, CollegeRotatedLocalToWorld",
     "MainFrontY - 16.0f",
     "MainFrontY - 18.0f",
 ]:
     if forbidden in college:
-        fail(f"obsolete/unrotated/floating college facade topology returned: {forbidden}")
+        fail(f"obsolete/unified-coordinate/floating college facade topology returned: {forbidden}")
 
 for token in [
     'TEXT("S01_PATH_COLLEGE_CAMPUS")',
@@ -197,4 +215,4 @@ for label, text in (("college", college), ("stadium", stadium), ("civic", civic)
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks BuildCollegeSector rotated source topology against the aligned 65x19x14.4m/X+900 facade overlay, flush trim, framed 9x4 windows, source-matched five-step finish, 2.8m pedestrian campus path/tree clearance, plus stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
+print("Checks the mixed BuildCollegeSector source-coordinate contract against the aligned 65x19x14.4m/X+900 facade overlay, flush trim, framed 9x4 windows, source-matched five-step finish, 2.8m pedestrian campus path/tree clearance, plus stadium visuals; visual overlays remain gameplay-collision neutral.")
