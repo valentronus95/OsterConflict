@@ -25,3 +25,30 @@ FOCLocationSectorS01KrushelnytskaAuthoringData::ReviewOnlyCenterlineGates()
     };
     return Gates;
 }
+
+const TArray<FOCS01ReferenceConflictRecord>&
+FOCLocationSectorS01KrushelnytskaAuthoringData::ReferenceConflictedRuntimeSegments()
+{
+    // These are intentionally still rendered so the current playtest remains traversable, but public Oster-specific
+    // evidence now contradicts treating their near-vertical alignment as verified street geography. Replacement must
+    // be atomic: keep the safe C blockout until a reviewed centerline can replace the complete S01/shared continuity.
+    static const TArray<FOCS01ReferenceConflictRecord> Conflicts =
+    {
+        {
+            TEXT("S01_KR_SPINE_SOUTH_SHARED"),
+            EOCReferenceConfidence::C,
+            TEXT("Retained migration blockout; south approach is only bounded by review gate, not a verified road centerline")
+        },
+        {
+            TEXT("S01_KR_SPINE_INSIDE"),
+            EOCReferenceConfidence::C,
+            TEXT("Retained migration blockout; address evidence shows the College-side street progresses east rather than remaining near-vertical")
+        },
+        {
+            TEXT("S01_KR_SPINE_NORTH_SHARED"),
+            EOCReferenceConfidence::C,
+            TEXT("Retained migration blockout conflicts with evidence that Krushelnytska exits S01 to the east; do not promote or lock")
+        },
+    };
+    return Conflicts;
+}
