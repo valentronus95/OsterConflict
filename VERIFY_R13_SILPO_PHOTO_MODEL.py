@@ -13,6 +13,8 @@ FOLIAGE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoFolia
 FOLIAGE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoFoliageUpgradeSubsystem.h"
 PARKING_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoParkingDetailSubsystem.cpp"
 PARKING_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoParkingDetailSubsystem.h"
+GLYPH_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoLogoFallbackSubsystem.cpp"
+GLYPH_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoLogoFallbackSubsystem.h"
 
 
 def fail(message: str) -> None:
@@ -47,6 +49,8 @@ foliage_cpp = read(FOLIAGE_CPP)
 foliage_header = read(FOLIAGE_HEADER)
 parking_cpp = read(PARKING_CPP)
 parking_header = read(PARKING_HEADER)
+glyph_cpp = read(GLYPH_CPP)
+glyph_header = read(GLYPH_HEADER)
 
 for needle in [
     "class OSTERCONFLICT_API UOCR13SilpoPhotoModelSubsystem",
@@ -210,15 +214,44 @@ for needle in [
 ]:
     require(parking_cpp, needle, "parking detail pass")
 
+for needle in [
+    "class OSTERCONFLICT_API UOCR13SilpoLogoFallbackSubsystem",
+    "void ValidateLogo(UWorld& World);",
+]:
+    require(glyph_header, needle, "glyph fallback header")
+
+for needle in [
+    '#include "Engine/Font.h"',
+    'TEXT("R13_SilpoLogoGlyphChecked")',
+    'TEXT("R13_SilpoLogoGeometryFallback")',
+    'FindText(Model, TEXT("R13SilpoDetail_LogoText"))',
+    'FindText(Model, TEXT("R13SilpoDetail_LogoWhiteOutline"))',
+    'const FString RequiredWord = TEXT("Сільпо");',
+    'Font->RemapChar(Character) == TCHAR(0)',
+    'TEXT("R13SilpoGlyph_WhiteOutline")',
+    'TEXT("R13SilpoGlyph_BlueFace")',
+    'BuildWord(WhiteWord, -978.0f, 1.04f, 6.0f);',
+    'BuildWord(BlueWord, -988.0f, 1.0f, 0.0f);',
+    'AddGlyphC(Component',
+    'AddGlyphI(Component',
+    'AddGlyphL(Component',
+    'AddGlyphSoft(Component',
+    'AddGlyphP(Component',
+    'AddGlyphO(Component',
+]:
+    require(glyph_cpp, needle, "Cyrillic logo guard")
+
 base_delay = delay(cpp, "SilpoPhotoModelDelaySeconds", "base model")
 detail_delay = delay(detail_cpp, "SilpoFacadeDetailDelaySeconds", "detail pass")
 site_delay = delay(site_cpp, "SilpoSiteDetailDelaySeconds", "site detail pass")
 foliage_delay = delay(foliage_cpp, "SilpoFoliageUpgradeDelaySeconds", "foliage upgrade")
 parking_delay = delay(parking_cpp, "SilpoParkingDetailDelaySeconds", "parking detail")
-if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay:
+glyph_delay = delay(glyph_cpp, "SilpoLogoFallbackDelaySeconds", "glyph fallback")
+if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay < glyph_delay:
     fail(
-        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking: "
-        f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}, parking={parking_delay}"
+        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking -> glyph guard: "
+        f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}, "
+        f"parking={parking_delay}, glyph={glyph_delay}"
     )
 
 origin_lat = 50.948239
@@ -231,7 +264,10 @@ y_cm = (lat - origin_lat) * 111320.0 * 100.0
 if not (-70000.0 <= x_cm <= 25000.0 and -25000.0 <= y_cm <= 50000.0):
     fail(f"Silpo anchor escaped compact Oster bounds: ({x_cm:.1f}, {y_cm:.1f})")
 
-combined = cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp + "\n" + parking_cpp
+combined = (
+    cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp + "\n" +
+    parking_cpp + "\n" + glyph_cpp
+)
 for forbidden in [".jpeg", ".jpg", ".png", "764B665D", "2CDEA871", "DBF2A257", "91665653", "5B464C76", "67E3F35C"]:
     if forbidden.lower() in combined.lower():
         fail(f"raw reference image leaked into runtime source: {forbidden}")
@@ -242,8 +278,8 @@ if base_delay < 5.2:
 print(
     "R13 SILPO PHOTO MODEL VERIFY: PASS "
     f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> "
-    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s -> parking {parking_delay:.2f}s; "
+    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s -> parking {parking_delay:.2f}s -> glyph {glyph_delay:.2f}s; "
     "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage + poster rails + entrance bin + "
-    "planted strip + PN foliage upgrade/fallback + grounded visual-only VehicleVarietyPack parking row; "
+    "planted strip + PN foliage upgrade/fallback + grounded visual-only VehicleVarietyPack parking row + Cyrillic logo guard; "
     "source building footprint replacement without road deletion)"
 )
