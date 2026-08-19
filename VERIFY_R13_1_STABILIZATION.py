@@ -32,13 +32,20 @@ compact_required = [
     "CompactMaxX =  25000.0f",
     "CompactMinY = -25000.0f",
     "CompactMaxY =  50000.0f",
+    "LinearInfrastructurePaddingCm = 18000.0f",
+    "NonLinearPaddingCm = 8000.0f",
     "ParkAnchor() + FVector(10000.0f, -7000.0f, 120.0f)",
     "CollegeAnchor() + FVector(5000.0f, -2500.0f, 120.0f)",
     "StadiumAnchor() + FVector(-5000.0f, 2500.0f, 120.0f)",
     "TeamOneBase(-64000.0f, 44000.0f, 160.0f)",
     "TeamTwoBase( 20000.0f,-19000.0f, 160.0f)",
     "Component->RemoveInstance(Index)",
-    "Mesh->SetRelativeScale3D(FVector(CompactWidthCm / 100.0f, CompactHeightCm / 100.0f, 2.0f))",
+    "SupportedGroundWidthCm = CompactWidthCm + 2.0f * LinearInfrastructurePaddingCm",
+    "SupportedGroundHeightCm = CompactHeightCm + 2.0f * LinearInfrastructurePaddingCm",
+    "Mesh->SetRelativeScale3D(FVector(SupportedGroundWidthCm / 100.0f, SupportedGroundHeightCm / 100.0f, 2.0f))",
+    "Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)",
+    "Mesh->SetHiddenInGame(false, true)",
+    "bLinearInfrastructure ? LinearInfrastructurePaddingCm : NonLinearPaddingCm",
     "IsFrontendOnlySession()",
     "bool bWorldCropped = false",
     "TSet<FName> ObjectivesMoved",
@@ -170,4 +177,4 @@ if "UTickableWorldSubsystem" not in text["ui_h"] or "UWorldSubsystem" not in tex
     fail("R13.1 subsystem base classes changed unexpectedly")
 
 print("R13.1 STABILIZATION VERIFY: PASS")
-print("Checks compact map/client objective and vehicle-spawn sync, stable pre-game/deployment world suppression, staged deployment sizing, complete-path-aware bot fallback/separation, shared 32 cm imported-wheel road-contact cockpit/grounding contract, camera recovery and BoxTruck suspension.")
+print("Checks compact map/client objective and vehicle-spawn sync, supported solid-ground apron under retained roads, stable pre-game/deployment world suppression, staged deployment sizing, complete-path-aware bot fallback/separation, shared 32 cm imported-wheel road-contact cockpit/grounding contract, camera recovery and BoxTruck suspension.")
