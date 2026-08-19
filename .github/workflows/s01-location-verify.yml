@@ -30,3 +30,6 @@ jobs:
 
       - name: Verify S01 vegetation registry
         run: python VERIFY_R13_LOCATION_FIRST_S01_VEGETATION_DATA.py
+
+      - name: Verify S01 vegetation runtime ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01_VEGETATION_RUNTIME.py
