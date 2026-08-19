@@ -26,8 +26,10 @@ for header in ("audio_h", "layout_h"):
     if not includes or "generated.h" not in includes[-1]:
         fail(f"{header} generated.h must remain final include")
 
+if "UTickableWorldSubsystem" not in text["audio_h"]:
+    fail("frontend audio subsystem must remain tickable")
+
 for token in [
-    "UTickableWorldSubsystem",
     "PC->IsFrontendMenuVisible() && PC->GetPawn() == nullptr",
     "SavedWeaponsVolume = AudioSettings->WeaponsVolume",
     "AudioSettings->WeaponsVolume = 0.0f",
