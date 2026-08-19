@@ -52,7 +52,6 @@ for name, text in (("college", college_h), ("access", access_h), ("stadium", sta
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h must remain final include in {name} header")
 
-# Source topology and its intentionally mixed center/rotation conventions.
 for token in [
     "void AOCWorldSectorOster::BuildCollegeSector()",
     "const float Yaw = 1.0f;",
@@ -72,7 +71,6 @@ for token in [
 ]:
     require(world, token, "BuildCollegeSector/source topology")
 
-# Visual facade must mirror those two source placement modes instead of forcing one transform convention on all parts.
 for token in [
     "class OSTERCONFLICT_API UOCR13CollegeFacadeSubsystem",
     "R13_CollegeFacadeAligned",
@@ -122,7 +120,6 @@ for forbidden in [
     if forbidden in college:
         fail(f"obsolete/unified-coordinate/floating college facade topology returned: {forbidden}")
 
-# Prove why the access repair is currently necessary: the 45 cm-deep front fence overlaps the lowest 220 cm-deep step.
 legacy_fence_min_y = -2450.0 - 45.0 / 2.0
 legacy_fence_max_y = -2450.0 + 45.0 / 2.0
 lowest_step_y = -1940.0 - 4.0 * 115.0
@@ -133,12 +130,15 @@ if max(legacy_fence_min_y, lowest_step_min_y) > min(legacy_fence_max_y, lowest_s
 
 for token in [
     "class OSTERCONFLICT_API UOCR13CollegeAccessRepairSubsystem",
-    "void RepairCollegeEntrance(UWorld& World);",
+    "void ScheduleRepair(UWorld& World, int32 AttemptIndex);",
+    "bool RepairCollegeEntrance(UWorld& World);",
 ]:
     require(access_h, token, "college access header")
 
 for token in [
-    "constexpr float CollegeAccessRepairDelaySeconds = 2.40f;",
+    "constexpr float CollegeAccessInitialDelaySeconds = 0.10f;",
+    "constexpr float CollegeAccessRetryDelaySeconds = 0.25f;",
+    "constexpr int32 CollegeAccessMaxAttempts = 40;",
     "constexpr float FrontFenceGapCenterX = 900.0f;",
     "constexpr float FrontFenceGapWidthCm = 3400.0f;",
     "constexpr float LeftFenceCenterX = -3000.0f;",
@@ -157,6 +157,16 @@ for token in [
     "Split->SetCollisionProfileName(SourceFences->GetCollisionProfileName());",
     "Split->SetCollisionEnabled(SourceFences->GetCollisionEnabled());",
     "Split->SetCanEverAffectNavigation(true);",
+    "ScheduleRepair(InWorld, 0);",
+    "void UOCR13CollegeAccessRepairSubsystem::ScheduleRepair(UWorld& World, const int32 AttemptIndex)",
+    "if (AttemptIndex >= CollegeAccessMaxAttempts)",
+    "AttemptIndex == 0",
+    "CollegeAccessInitialDelaySeconds",
+    "CollegeAccessRetryDelaySeconds",
+    "FTimerDelegate::CreateWeakLambda(this",
+    "if (!RepairCollegeEntrance(*RetryWorld))",
+    "ScheduleRepair(*RetryWorld, AttemptIndex + 1);",
+    "if (!Sector->HasActorBegunPlay()) return false;",
     "SourceFences->RemoveInstance(LegacyIndex)",
     "SplitFence->DestroyComponent();",
     'TEXT("R13_CollegeAccessRepairApplied")',
@@ -164,13 +174,18 @@ for token in [
     "27.5m maximum stair width clears the opening",
     "side/rear fences untouched",
     "GameMode->IsFrontendOnlySession()",
+    "return true;",
 ]:
     require(access, token, "college access repair")
 
-if 'TEXT("NoCollision")' in access or "SetCanEverAffectNavigation(false)" in access:
-    fail("college split front fence must preserve blocking/navigation behavior")
+for forbidden in [
+    "constexpr float CollegeAccessRepairDelaySeconds = 2.40f;",
+    'TEXT("NoCollision")',
+    "SetCanEverAffectNavigation(false)",
+]:
+    if forbidden in access:
+        fail(f"obsolete/nonblocking college access repair marker returned: {forbidden}")
 
-# 3400 cm = 34 m. Verify the two replacement segments exactly preserve the 104 m outer fence span and opening.
 gap_center = const_float(access, "FrontFenceGapCenterX")
 gap_width = const_float(access, "FrontFenceGapWidthCm")
 left_center = const_float(access, "LeftFenceCenterX")
@@ -192,7 +207,6 @@ if abs((left_length + gap_width + right_length) - 10400.0) > 0.01:
 if gap_width <= 2750.0:
     fail("college entrance opening must remain wider than the maximum 27.5m authored stair width")
 
-# Vehicle approach must stop before the rotated 65x19m main building instead of extending 47.5m through it.
 for token in [
     'TEXT("S01_ROAD_COLLEGE_APPROACH")',
     "FVector(-16050, 0, 8), FVector(24900, 660, 14), 0.0f, true",
@@ -226,7 +240,6 @@ approach_clearance_cm = rotated_main_west_x - approach_end_x
 if approach_clearance_cm < 300.0:
     fail(f"college vehicle approach must keep >=300cm from rotated main envelope; got {approach_clearance_cm:.2f}cm")
 
-# The campus connection remains pedestrian-scale and the two trees formerly on its centerline remain displaced.
 for token in [
     'TEXT("S01_PATH_COLLEGE_CAMPUS")',
     "FVector(900, 5200, 12)",
@@ -248,7 +261,6 @@ for forbidden in ["FVector(-1800, 5200, 0)", "FVector(2100, 5250, 0)"]:
     if forbidden in civic:
         fail(f"tree returned to college pedestrian path centerline: {forbidden}")
 
-# Stadium invariants retained by the shared verifier.
 for token in [
     "AOCWorldSectorOster::StadiumAnchor()",
     "R13_StadiumSurfaceRoot",
@@ -274,6 +286,6 @@ for label, text in (("college", college), ("access", access), ("stadium", stadiu
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
 print(
-    "Checks mixed college source coordinates, aligned facade/windows/stairs, exact 34m blocking-fence opening, "
+    "Checks mixed college source coordinates, aligned facade/windows/stairs, lifecycle-safe exact 34m fence opening repair, "
     "vehicle-approach/building clearance, 2.8m campus path/tree clearance, plus stadium visuals."
 )
