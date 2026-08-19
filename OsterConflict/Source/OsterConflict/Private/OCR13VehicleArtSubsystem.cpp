@@ -15,6 +15,8 @@
 
 namespace
 {
+    constexpr float ImportedWheelContactBelowBodyCm = 32.0f;
+
     UStaticMeshComponent* FindStaticMeshComponent(AActor* Actor, const FName Name)
     {
         if (!Actor) return nullptr;
@@ -121,9 +123,11 @@ namespace
 
     float VisualRoadContactZ(const UBoxComponent* PhysicsBody)
     {
-        // FitMeshToPhysicsBody uses this same plane for the imported mesh/wheel bottom. Camera heights expressed
-        // from here therefore remain stable when Sedan/Hatchback/Wagon/BoxTruck change physics-body height.
-        return PhysicsBody ? -PhysicsBody->GetUnscaledBoxExtent().Z - 60.0f : -108.0f;
+        // R13.6 shares the exact same contact plane as VehicleGameplayRepair. Keeping cockpit eye height and visual
+        // chassis grounding on one contract prevents the repaired pickup from being raised while its camera stays low.
+        return PhysicsBody
+            ? -PhysicsBody->GetUnscaledBoxExtent().Z - ImportedWheelContactBelowBodyCm
+            : -80.0f;
     }
 
     float CockpitZFromRoadEye(const UBoxComponent* PhysicsBody, const float DesiredEyeHeightAboveRoadCm)
@@ -145,7 +149,7 @@ namespace
         const float UniformScale = FMath::Clamp(FMath::Min(ScaleX, ScaleY), 0.20f, 5.0f);
 
         // Imported meshes already contain visible wheels. Align their visual bottom with the road-contact plane instead
-        // of centering the mesh inside the suspended physics body, which made cars appear to hover.
+        // of centering the mesh inside the suspended physics body, which made cars appear to hover or sink.
         const float ScaledMeshBottom = (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
         const float DesiredVisualBottom = VisualRoadContactZ(PhysicsBody);
         const FVector GroundedLocation(
@@ -170,9 +174,8 @@ namespace
         if (!InteriorCamera) return;
         UBoxComponent* PhysicsBody = FindPhysicsBody(Vehicle);
 
-        // X/Y remain style-specific because the imported cabin positions differ. Z is not an arbitrary offset from
-        // the suspended physics-body centre anymore: it is a human eye height measured from the same road-contact
-        // plane used to ground the visible mesh. This prevents SportsCar/BoxTruck cameras from sitting on the roof.
+        // X/Y remain style-specific because imported cabin positions differ. Z is a human eye height measured from
+        // the same repaired road-contact plane used to ground the visible chassis.
         if (const AOCCivilianVehicle* Civilian = Cast<AOCCivilianVehicle>(Vehicle))
         {
             switch (Civilian->GetVehicleStyle())
