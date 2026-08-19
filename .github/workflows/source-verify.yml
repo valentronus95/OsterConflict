@@ -32,4 +32,6 @@ jobs:
 
       - name: Run structural and regression verifiers
         shell: pwsh
-        run: python .\RUN_ALL_VERIFY.py
+        run: |
+          python .\RUN_ALL_VERIFY.py
+          python .\VERIFY_R13_SILPO_PHOTO_MODEL.py
