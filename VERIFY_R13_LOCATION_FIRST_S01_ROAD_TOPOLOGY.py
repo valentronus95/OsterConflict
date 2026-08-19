@@ -30,7 +30,7 @@ world = WORLD.read_text(encoding="utf-8", errors="replace")
 for token in [
     "EOCS01RoadAnchor", "EOCS01RoadRelation", "FOCS01RoadCorridorSeed", "FOCS01PathSeed",
     "OwnedInsideCorridors()", "SharedCrossingCorridors()", "KrushelnytskaSpineSegments()",
-    "OwnedCentralParkPaths()", "OwnedCollegePaths()",
+    "EastWest02Segments()", "OwnedCentralParkPaths()", "OwnedCollegePaths()",
 ]:
     if token not in road_h + road_cpp:
         fail(f"road/path ownership contract missing: {token}")
@@ -119,8 +119,8 @@ road_pattern = re.compile(
     flags=re.S,
 )
 road_records = road_pattern.findall(road_cpp)
-if len(road_records) != 10:
-    fail(f"expected 10 road records after spine split, parsed {len(road_records)}")
+if len(road_records) != 11:
+    fail(f"expected 11 road records after two ownership splits, parsed {len(road_records)}")
 
 records_by_id = {record[0]: record for record in road_records}
 if len(records_by_id) != len(road_records):
@@ -128,7 +128,6 @@ if len(records_by_id) != len(road_records):
 
 expected_unsplit_ids = {
     "S01_ROAD_COLLEGE_APPROACH",
-    "S01_CROSS_WORLD_EW_02",
     "S01_CROSS_WORLD_DIAG_01",
     "S01_CROSS_WORLD_NW_01",
     "S01_CROSS_WORLD_DIAG_02",
@@ -140,12 +139,17 @@ expected_spine_ids = {
     "S01_KR_SPINE_INSIDE",
     "S01_KR_SPINE_NORTH_SHARED",
 }
-if set(records_by_id) != expected_unsplit_ids | expected_spine_ids:
+expected_ew02_ids = {
+    "S01_EW02_INSIDE",
+    "S01_EW02_EAST_SHARED",
+}
+if set(records_by_id) != expected_unsplit_ids | expected_spine_ids | expected_ew02_ids:
     fail(f"audited road ID set changed: {sorted(records_by_id)}")
-if "S01_CROSS_KRUSHELNYTSKA_SPINE" in road_cpp:
-    fail("obsolete unsplit Krushelnytska audit record returned")
+for obsolete in ["S01_CROSS_KRUSHELNYTSKA_SPINE", "S01_CROSS_WORLD_EW_02"]:
+    if obsolete in road_cpp:
+        fail(f"obsolete unsplit audit record returned: {obsolete}")
 
-# The six still-unsplit shared corridors remain Crossing; College approach remains wholly Inside.
+# Five still-unsplit shared corridors remain Crossing; College approach remains wholly Inside.
 for rid in expected_unsplit_ids:
     record = records_by_id[rid]
     _rid, anchor, sx0, sy0, _sz0, ssx, ssy, _ssz, syaw, _two_walks, declared = record
@@ -155,7 +159,7 @@ for rid in expected_unsplit_ids:
     if declared != expected_relation or actual != expected_relation:
         fail(f"geometry classification drift for {rid}: declared={declared}, actual={actual}, expected={expected_relation}")
 
-# Prove the three explicit spine pieces are an exact longitudinal partition of the former corridor.
+# ---- Krushelnytska spine continuity / ownership proof ----
 original_center = (-33500.0, 25000.0)
 original_length = 112000.0
 original_width = 920.0
@@ -169,15 +173,16 @@ angle = math.radians(original_yaw)
 ux, uy = math.cos(angle), math.sin(angle)
 vx, vy = -uy, ux
 
-# Compute the exact t interval along the original centerline where road + both generated sidewalks fit in S01.
+
 def t_interval_for_axis(c0: float, u_component: float, low: float, high: float) -> tuple[float, float]:
     if abs(u_component) < 1e-12:
         if low <= c0 <= high:
             return -math.inf, math.inf
-        fail("spine centerline cannot enter shrunken S01 bounds")
+        fail("corridor centerline cannot enter shrunken S01 bounds")
     a = (low - c0) / u_component
     b = (high - c0) / u_component
     return min(a, b), max(a, b)
+
 
 shrunk_xmin = xmin + full_lateral_envelope * abs(vx)
 shrunk_xmax = xmax - full_lateral_envelope * abs(vx)
@@ -190,16 +195,15 @@ inside_hi = min(original_length * 0.5, xt[1], yt[1])
 if inside_lo >= inside_hi:
     fail("computed Krushelnytska inside interval is empty")
 
-expected_intervals = {
+expected_spine_intervals = {
     "S01_KR_SPINE_SOUTH_SHARED": (-original_length * 0.5, inside_lo, "Crossing"),
     "S01_KR_SPINE_INSIDE": (inside_lo, inside_hi, "Inside"),
     "S01_KR_SPINE_NORTH_SHARED": (inside_hi, original_length * 0.5, "Crossing"),
 }
-
-parsed_intervals = {}
-for rid, (expected_start, expected_end, expected_relation) in expected_intervals.items():
+parsed_spine_intervals = {}
+for rid, (expected_start, expected_end, expected_relation) in expected_spine_intervals.items():
     record = records_by_id[rid]
-    _rid, anchor, sx0, sy0, sz0, ssx, ssy, ssz, syaw, two_walks, declared = record
+    _rid, anchor, sx0, sy0, _sz0, ssx, ssy, ssz, syaw, two_walks, declared = record
     if anchor != "Absolute":
         fail(f"spine segment {rid} must remain absolute while preserving original world contour")
     cx, cy = float(sx0), float(sy0)
@@ -207,35 +211,75 @@ for rid, (expected_start, expected_end, expected_relation) in expected_intervals
     yaw = float(syaw)
     if abs(width - original_width) > 1e-6 or abs(height - 16.0) > 1e-6 or abs(yaw - original_yaw) > 1e-6:
         fail(f"spine section/profile drift for {rid}: size=({length},{width},{height}), yaw={yaw}")
-    if two_walks != "true":
-        fail(f"spine sidewalk configuration drift for {rid}")
-    if declared != expected_relation:
-        fail(f"spine relation drift for {rid}: {declared} != {expected_relation}")
+    if two_walks != "true" or declared != expected_relation:
+        fail(f"spine configuration/ownership drift for {rid}")
 
     center_t = (cx - original_center[0]) * ux + (cy - original_center[1]) * uy
     start_t = center_t - length * 0.5
     end_t = center_t + length * 0.5
-    parsed_intervals[rid] = (start_t, end_t)
-
+    parsed_spine_intervals[rid] = (start_t, end_t)
     if abs(start_t - expected_start) > 0.02 or abs(end_t - expected_end) > 0.02:
-        fail(
-            f"spine split drift for {rid}: [{start_t:.6f},{end_t:.6f}] "
-            f"!= expected [{expected_start:.6f},{expected_end:.6f}]"
-        )
+        fail(f"spine split drift for {rid}: [{start_t:.6f},{end_t:.6f}] != [{expected_start:.6f},{expected_end:.6f}]")
 
-    # The middle segment must fit with the complete road + two-sidewalk envelope; shared remainders must cross.
     envelope_relation = classify_oriented_rect(cx, cy, length, full_lateral_envelope * 2.0, yaw)
     if envelope_relation != expected_relation:
         fail(f"spine sidewalk-envelope ownership drift for {rid}: {envelope_relation} != {expected_relation}")
 
 if abs(sum(float(records_by_id[rid][5]) for rid in expected_spine_ids) - original_length) > 0.002:
     fail("spine split lengths no longer sum to the original 112000 cm")
+if abs(parsed_spine_intervals["S01_KR_SPINE_SOUTH_SHARED"][1] - parsed_spine_intervals["S01_KR_SPINE_INSIDE"][0]) > 0.002:
+    fail("south/shared -> inside spine boundary developed a gap/overlap")
+if abs(parsed_spine_intervals["S01_KR_SPINE_INSIDE"][1] - parsed_spine_intervals["S01_KR_SPINE_NORTH_SHARED"][0]) > 0.002:
+    fail("inside -> north/shared spine boundary developed a gap/overlap")
 
-south_end = parsed_intervals["S01_KR_SPINE_SOUTH_SHARED"][1]
-inside_start, inside_end = parsed_intervals["S01_KR_SPINE_INSIDE"]
-north_start = parsed_intervals["S01_KR_SPINE_NORTH_SHARED"][0]
-if abs(south_end - inside_start) > 0.002 or abs(inside_end - north_start) > 0.002:
-    fail("spine split developed a longitudinal gap/overlap")
+# ---- East-west corridor continuity / ownership proof ----
+ew_center = (-18000.0, 17000.0)
+ew_length = 61000.0
+ew_width = 820.0
+ew_yaw = 0.0
+ew_half_width = ew_width * 0.5
+ew_lateral_envelope = ew_half_width + 260.0 + 130.0  # 800 cm each side including sidewalks
+original_west = ew_center[0] - ew_length * 0.5
+original_east = ew_center[0] + ew_length * 0.5
+if not (ymin <= ew_center[1] - ew_lateral_envelope and ew_center[1] + ew_lateral_envelope <= ymax):
+    fail("EW02 road + sidewalk envelope no longer fits S01 Y bounds; split requires re-audit")
+inside_west = max(original_west, xmin)
+inside_east = min(original_east, xmax)
+if inside_west >= inside_east:
+    fail("EW02 has no inside interval")
+
+expected_ew_intervals = {
+    "S01_EW02_INSIDE": (inside_west, inside_east, "Inside"),
+    "S01_EW02_EAST_SHARED": (inside_east, original_east, "Crossing"),
+}
+parsed_ew_intervals = {}
+for rid, (expected_start_x, expected_end_x, expected_relation) in expected_ew_intervals.items():
+    record = records_by_id[rid]
+    _rid, anchor, sx0, sy0, _sz0, ssx, ssy, ssz, syaw, two_walks, declared = record
+    cx, cy = float(sx0), float(sy0)
+    length, width, height = float(ssx), float(ssy), float(ssz)
+    yaw = float(syaw)
+    if anchor != "Absolute" or abs(cy - ew_center[1]) > 1e-6:
+        fail(f"EW02 anchor/centerline drift for {rid}")
+    if abs(width - ew_width) > 1e-6 or abs(height - 16.0) > 1e-6 or abs(yaw - ew_yaw) > 1e-6:
+        fail(f"EW02 section/profile drift for {rid}: size=({length},{width},{height}), yaw={yaw}")
+    if two_walks != "true" or declared != expected_relation:
+        fail(f"EW02 configuration/ownership drift for {rid}")
+
+    start_x = cx - length * 0.5
+    end_x = cx + length * 0.5
+    parsed_ew_intervals[rid] = (start_x, end_x)
+    if abs(start_x - expected_start_x) > 0.002 or abs(end_x - expected_end_x) > 0.002:
+        fail(f"EW02 split drift for {rid}: [{start_x:.6f},{end_x:.6f}] != [{expected_start_x:.6f},{expected_end_x:.6f}]")
+
+    envelope_relation = classify_oriented_rect(cx, cy, length, ew_lateral_envelope * 2.0, yaw)
+    if envelope_relation != expected_relation:
+        fail(f"EW02 sidewalk-envelope ownership drift for {rid}: {envelope_relation} != {expected_relation}")
+
+if abs(sum(float(records_by_id[rid][5]) for rid in expected_ew02_ids) - ew_length) > 0.002:
+    fail("EW02 split lengths no longer sum to the original 61000 cm")
+if abs(parsed_ew_intervals["S01_EW02_INSIDE"][1] - parsed_ew_intervals["S01_EW02_EAST_SHARED"][0]) > 0.002:
+    fail("EW02 split developed a longitudinal gap/overlap")
 
 # Five explicit park/college paths remain wholly inside S01.
 path_pattern = re.compile(
@@ -264,7 +308,7 @@ for record in path_records:
     if actual != "Inside":
         fail(f"owned path no longer fits wholly inside S01: {pid} => {actual}")
 
-# The Park -> CultureParkNorth path is derived from two anchors and remains shared/crossing.
+# Park -> CultureParkNorth derived path remains shared/crossing.
 mid = ((park[0] + north_civic[0]) * 0.5, (park[1] + north_civic[1]) * 0.5)
 delta = (north_civic[0] - park[0], north_civic[1] - park[1])
 link_size = math.hypot(delta[0], delta[1])
@@ -279,6 +323,7 @@ for token in [
     "ResolveS01RoadAnchor(Road.Anchor) + Road.LocalOffset",
     "Road.SizeCm, Road.Yaw, Road.bTwoWalks",
     "FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments()",
+    "FOCLocationSectorS01RoadData::EastWest02Segments()",
     "AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks)",
     "FOCLocationSectorS01RoadData::OwnedCentralParkPaths()",
     "AddBox(Sidewalks, Park + Path.LocalOffset, Path.SizeCm, Path.Yaw)",
@@ -293,6 +338,7 @@ if "FOCLocationSectorS01RoadData::SharedCrossingCorridors()" in world:
 for forbidden in [
     "AddRoadWithWalks(College + FVector(-13500, 0, RoadZ), FVector(30000, 660, 14), 0.0f);",
     "AddRoadWithWalks(FVector(-33500, 25000, RoadZ), FVector(112000, 920, 16), 91.5f);",
+    "AddRoadWithWalks(FVector(-18000, 17000, RoadZ), FVector(61000, 820, 16), 0.0f);",
     "AddBox(Sidewalks, Park + FVector(0, 0, 14), FVector(17800, 360, 18));",
     "AddBox(Sidewalks, Park + FVector(0, -300, 14), FVector(360, 13200, 18));",
     "AddBox(Sidewalks, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);",
@@ -302,9 +348,8 @@ for forbidden in [
     if forbidden in world:
         fail(f"legacy direct S01 road/path call survived ownership migration: {forbidden}")
 
-# Six still-unsplit shared roads and one derived shared path remain untouched until their own split pass.
+# Five still-unsplit shared roads and one derived shared path remain untouched until their own split pass.
 for token in [
-    "AddRoadWithWalks(FVector(-18000, 17000, RoadZ), FVector(61000, 820, 16), 0.0f);",
     "AddRoadWithWalks(FVector(-23500, 40500, RoadZ), FVector(51000, 760, 16), 18.0f);",
     "AddRoadWithWalks(FVector(-48000, 51000, RoadZ), FVector(52000, 720, 16), 63.0f, false);",
     "AddRoadWithWalks(FVector(-5000, 33500, RoadZ), FVector(49000, 760, 16), -34.0f);",
@@ -318,6 +363,6 @@ for token in [
 print("R13 LOCATION-FIRST S01 ROAD TOPOLOGY VERIFY: PASS")
 print(
     f"S01 bounds approx X[{xmin:.1f},{xmax:.1f}] Y[{ymin:.1f},{ymax:.1f}] cm; "
-    "College approach + Krushelnytska middle segment + 5 internal paths are Inside; "
-    "6 unsplit road crossings + 2 shared spine remainders + Park->NorthCivic path remain shared."
+    "College approach + Krushelnytska middle + EW02 west + 5 internal paths are Inside; "
+    "5 unsplit road crossings + 2 shared spine remainders + EW02 east remainder + Park->NorthCivic path remain shared."
 )
