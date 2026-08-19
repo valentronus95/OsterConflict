@@ -8,13 +8,14 @@ STADIUM_H = SRC / "Public" / "OCR13StadiumSurfaceSubsystem.h"
 STADIUM_CPP = SRC / "Private" / "OCR13StadiumSurfaceSubsystem.cpp"
 WORLD_CPP = SRC / "Private" / "OCWorldSectorOster.cpp"
 ROAD_CPP = SRC / "Private" / "OCLocationSectorS01RoadData.cpp"
+CIVIC_CPP = SRC / "Private" / "OCR13CivicLandscapingSubsystem.cpp"
 
 
 def fail(message: str) -> None:
     raise SystemExit("R13.5 COLLEGE/STADIUM VISUAL VERIFY FAIL: " + message)
 
 
-for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP, WORLD_CPP, ROAD_CPP):
+for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP, WORLD_CPP, ROAD_CPP, CIVIC_CPP):
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
 
@@ -24,6 +25,7 @@ stadium_h = STADIUM_H.read_text(encoding="utf-8", errors="replace")
 stadium = STADIUM_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD_CPP.read_text(encoding="utf-8", errors="replace")
 road = ROAD_CPP.read_text(encoding="utf-8", errors="replace")
+civic = CIVIC_CPP.read_text(encoding="utf-8", errors="replace")
 
 for name, text in (("college", college_h), ("stadium", stadium_h)):
     includes = [line.strip() for line in text.splitlines() if line.strip().startswith("#include")]
@@ -120,6 +122,23 @@ for token in [
 if "FVector(8000, 5900, 18)" in road:
     fail("legacy 80x59 m college sidewalk slab returned; campus path must remain pedestrian-scale")
 
+# The final two college-campus trees previously sat on the Y~5200 centerline. Keep the corrected pair on opposite
+# sides of the path and keep all civic vegetation visual-only/navigation-neutral.
+for token in [
+    "void AddCollegeCampusPlanting(const FVector& College",
+    "The S01 college path is centered near Y=5200 and only 2.8 m wide",
+    "FVector(-1800, 5700, 0)",
+    "FVector(2100, 4700, 0)",
+    "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+    "SetCanEverAffectNavigation(false)",
+    "pedestrian college path/navigation remain clear",
+]:
+    if token not in civic:
+        fail(f"college campus planting/path-clearance marker missing: {token}")
+for forbidden in ["FVector(-1800, 5200, 0)", "FVector(2100, 5250, 0)"]:
+    if forbidden in civic:
+        fail(f"tree returned to college pedestrian path centerline: {forbidden}")
+
 for token in [
     "AOCWorldSectorOster::StadiumAnchor()",
     "R13_StadiumSurfaceRoot",
@@ -139,7 +158,7 @@ for token in [
     if token not in stadium:
         fail(f"stadium visual marker missing: {token}")
 
-for label, text in (("college", college), ("stadium", stadium)):
+for label, text in (("college", college), ("stadium", stadium), ("civic", civic)):
     for forbidden in ["FMath::Rand", "FRand", "SetCollisionProfileName(TEXT(\"BlockAll\"))"]:
         if forbidden in text:
             fail(f"{label} contains unsafe visual-only marker: {forbidden}")
@@ -148,4 +167,4 @@ for label, text in (("college", college), ("stadium", stadium)):
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks BuildCollegeSector source topology against the aligned 65x19x14.4m/X+900 facade overlay, guards the 2.8m pedestrian campus path, and retains stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
+print("Checks BuildCollegeSector source topology against the aligned 65x19x14.4m/X+900 facade overlay, guards the 2.8m pedestrian campus path and its tree clearance, and retains stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
