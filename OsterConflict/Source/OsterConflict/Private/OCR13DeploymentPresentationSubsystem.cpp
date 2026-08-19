@@ -52,6 +52,15 @@ namespace
                 Border->SetBrushColor(FLinearColor(0.030f, 0.036f, 0.041f, 0.76f));
             }
         }
+        else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
+        {
+            // "Появитися" is a Russian calque and reads badly in the Ukrainian game UI.
+            // Keep the action concise and consistent with the main entry action.
+            if (Text->GetText().ToString().Equals(TEXT("ПОЯВИТИСЯ"), ESearchCase::CaseSensitive))
+            {
+                Text->SetText(NSLOCTEXT("OCR13DeploymentPresentation", "DeployStart", "СТАРТ"));
+            }
+        }
 
         if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
         {
@@ -125,13 +134,13 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
         UBackgroundBlur* Blur = NewObject<UBackgroundBlur>(Root, TEXT("R13_DeploymentBackdropBlur"));
         if (Blur)
         {
-            // Mild blur only. UE's BackgroundBlur cost grows with strength/radius, so this is intentionally restrained
-            // for the user's laptop while still separating the four-step UI from the menu artwork underneath.
-            Blur->SetBlurStrength(3.5f);
+            // Keep the legacy widget object for layout compatibility, but never blur the full viewport.
+            // It was both visually destructive and needlessly expensive on the current playtest machine.
+            Blur->SetBlurStrength(0.0f);
             Blur->SetOverrideAutoRadiusCalculation(true);
-            Blur->SetBlurRadius(4);
-            Blur->SetApplyAlphaToBlur(true);
-            Blur->SetRenderOpacity(0.72f);
+            Blur->SetBlurRadius(0);
+            Blur->SetApplyAlphaToBlur(false);
+            Blur->SetRenderOpacity(0.0f);
             Blur->SetVisibility(ESlateVisibility::Collapsed);
             FillCanvas(Canvas->AddChildToCanvas(Blur), 9188);
             BackdropBlur = Blur;
@@ -143,7 +152,7 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
         UBorder* Shade = NewObject<UBorder>(Root, TEXT("R13_DeploymentBackdropShade"));
         if (Shade)
         {
-            Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.22f));
+            Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.16f));
             Shade->SetIsEnabled(false);
             Shade->SetVisibility(ESlateVisibility::Collapsed);
             FillCanvas(Canvas->AddChildToCanvas(Shade), 9189);
@@ -172,7 +181,10 @@ void UOCR13DeploymentPresentationSubsystem::SetPresentationVisible(const bool bV
     const ESlateVisibility Visibility = bVisible
         ? ESlateVisibility::SelfHitTestInvisible
         : ESlateVisibility::Collapsed;
-    if (BackdropBlur.IsValid()) BackdropBlur->SetVisibility(Visibility);
+
+    // Full-screen blur is deliberately disabled. A flat translucent shade is enough to separate the UI
+    // and cannot leak a blurred frame back into the main menu during travel/visibility transitions.
+    if (BackdropBlur.IsValid()) BackdropBlur->SetVisibility(ESlateVisibility::Collapsed);
     if (BackdropShade.IsValid()) BackdropShade->SetVisibility(Visibility);
 }
 
