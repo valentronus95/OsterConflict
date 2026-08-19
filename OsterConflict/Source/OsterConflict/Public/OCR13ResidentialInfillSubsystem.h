@@ -5,8 +5,8 @@
 #include "OCR13ResidentialInfillSubsystem.generated.h"
 
 /**
- * Adds a bounded number of collision-backed houses beside authored compact-Oster roads.
- * Candidates are rejected near existing buildings, landmarks and the dedicated Krushelnytska slice.
+ * Migration stub retained while R13 moves from procedural roadside housing to explicit,
+ * reference-driven Oster street/block placement. Procedural infill is intentionally disabled.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13ResidentialInfillSubsystem : public UWorldSubsystem
