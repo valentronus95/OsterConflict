@@ -1,6 +1,7 @@
 #include "OCR13VerifiedOsterGeographySubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/World.h"
@@ -54,6 +55,11 @@ void UOCR13VerifiedOsterGeographySubsystem::OnWorldBeginPlay(UWorld& InWorld)
         {
             if (UWorld* World = WeakWorld.Get()) SuppressLegacyNearSpawnSlice(*World);
         }), LegacySlicePurgeDelaySeconds, false);
+}
+
+FVector UOCR13VerifiedOsterGeographySubsystem::VerifiedStadiumAnchor()
+{
+    return AOCWorldSectorOster::StadiumAnchor();
 }
 
 void UOCR13VerifiedOsterGeographySubsystem::SuppressLegacyNearSpawnSlice(UWorld& World)
