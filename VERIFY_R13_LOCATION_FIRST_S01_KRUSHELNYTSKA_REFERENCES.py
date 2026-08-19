@@ -8,6 +8,7 @@ H = SRC / "Public" / "OCLocationSectorS01ReferenceData.h"
 CPP = SRC / "Private" / "OCLocationSectorS01ReferenceData.cpp"
 GEO_H = SRC / "Public" / "OCGeoReference.h"
 GEO_CPP = SRC / "Private" / "OCGeoReference.cpp"
+PLAN_CPP = SRC / "Private" / "OCLocationSectorPlan.cpp"
 WORLD = SRC / "Private" / "OCWorldSectorOster.cpp"
 
 
@@ -15,7 +16,7 @@ def fail(message: str) -> None:
     raise SystemExit("R13 S01 KRUSHELNYTSKA REFERENCE VERIFY FAIL: " + message)
 
 
-for path in (H, CPP, GEO_H, GEO_CPP, WORLD):
+for path in (H, CPP, GEO_H, GEO_CPP, PLAN_CPP, WORLD):
     if not path.is_file():
         fail(f"missing source: {path.relative_to(ROOT)}")
 
@@ -23,6 +24,7 @@ h = H.read_text(encoding="utf-8", errors="replace")
 cpp = CPP.read_text(encoding="utf-8", errors="replace")
 geo_h = GEO_H.read_text(encoding="utf-8", errors="replace")
 geo_cpp = GEO_CPP.read_text(encoding="utf-8", errors="replace")
+plan_cpp = PLAN_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD.read_text(encoding="utf-8", errors="replace")
 
 for token in [
@@ -134,15 +136,19 @@ if x_78 - x_42 < 20000.0 or y_78 - y_42 < 40000.0:
     fail("42 -> 78 no longer demonstrates the verified north-east street progression")
 
 # The official College identity/address and the public-map 7A marker should remain essentially co-located.
-college_match = re.search(
-    r'FOCGeoReferencePoint FOCGeoReference::College\(\).*?return \{ TEXT\("OsterCollege"\),\s*'
-    r'([0-9.]+),\s*([0-9.]+),\s*EOCReferenceConfidence::A,',
-    geo_cpp,
-    flags=re.S,
-)
-if not college_match:
-    fail("cannot parse canonical College anchor")
-college = local_cm(float(college_match.group(1)), float(college_match.group(2)))
+def parse_geo_point(function_name: str, identifier: str):
+    match = re.search(
+        rf'FOCGeoReferencePoint FOCGeoReference::{function_name}\(\).*?return \{{ TEXT\("{identifier}"\),\s*'
+        r'([0-9.]+),\s*([0-9.]+),',
+        geo_cpp,
+        flags=re.S,
+    )
+    if not match:
+        fail(f"cannot parse canonical {function_name} anchor")
+    return local_cm(float(match.group(1)), float(match.group(2)))
+
+college = parse_geo_point("College", "OsterCollege")
+park = parse_geo_point("CentralPark", "CentralCityPark")
 college_marker_distance = math.hypot(x_7a - college[0], y_7a - college[1])
 if college_marker_distance > 1000.0:
     fail(f"College anchor and public-map 7A marker diverged by {college_marker_distance / 100.0:.1f} m")
@@ -153,6 +159,36 @@ street_span_x_m = abs(street_max[0] - street_min[0]) / 100.0
 street_span_y_m = abs(street_max[1] - street_min[1]) / 100.0
 if street_span_x_m < 750.0 or street_span_y_m < 1100.0:
     fail("recorded whole-street extent became implausibly small for the locked public-map object")
+
+# S01 is intentionally a workflow rectangle around College + Central Park, not the complete Krushelnytska street.
+# Reference evidence now proves the street enters from the south, crosses the College slice, then bends east out of S01.
+for token in ["- 12000.0f", "- 9000.0f", "+ 15000.0f", "+ 16000.0f"]:
+    if token not in plan_cpp:
+        fail(f"S01 workflow margin changed without Krushelnytska reference re-audit: {token}")
+xmin = min(college[0], park[0]) - 12000.0
+ymin = min(college[1], park[1]) - 9000.0
+xmax = max(college[0], park[0]) + 15000.0
+ymax = max(college[1], park[1]) + 16000.0
+
+
+def inside_s01(point):
+    return xmin <= point[0] <= xmax and ymin <= point[1] <= ymax
+
+if not points["S01_KR_REF_08"][1] < ymin:
+    fail("address 8 no longer demonstrates the south-side approach outside S01")
+for rid in ("S01_KR_REF_14", "S01_KR_REF_7A_COLLEGE", "S01_KR_REF_28"):
+    if not inside_s01(points[rid]):
+        fail(f"expected College-slice evidence {rid} to remain inside S01")
+for rid in ("S01_KR_REF_40", "S01_KR_REF_42"):
+    if not points[rid][0] > xmax:
+        fail(f"expected east-bend evidence {rid} to remain east of S01")
+
+address28_east_margin_m = (xmax - points["S01_KR_REF_28"][0]) / 100.0
+address40_east_overrun_m = (points["S01_KR_REF_40"][0] - xmax) / 100.0
+if not (0.0 < address28_east_margin_m < 30.0):
+    fail(f"address 28 is no longer a useful near-east-edge S01 marker: margin={address28_east_margin_m:.1f} m")
+if address40_east_overrun_m < 75.0:
+    fail(f"address 40 no longer provides strong east-exit evidence: overrun={address40_east_overrun_m:.1f} m")
 
 # Critical safety rule: public reference evidence is not allowed to become runtime road placement by accidental use.
 for forbidden in [
@@ -167,5 +203,6 @@ print("R13 S01 KRUSHELNYTSKA REFERENCE VERIFY: PASS")
 print(
     f"Locks 9 Oster-specific address markers plus the whole-street B-confidence extent; College/7A delta "
     f"{college_marker_distance / 100.0:.1f} m, extent about {street_span_x_m:.0f} x {street_span_y_m:.0f} m. "
-    "Runtime road centerline remains deliberately separate."
+    f"Evidence enters S01 from south, address 28 sits ~{address28_east_margin_m:.1f} m inside the east workflow edge, "
+    f"and address 40 is ~{address40_east_overrun_m:.1f} m east of it. Runtime road centerline remains separate."
 )
