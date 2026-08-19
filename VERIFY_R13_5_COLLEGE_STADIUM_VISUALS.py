@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 import re
 
 ROOT = Path(__file__).resolve().parent
@@ -156,7 +157,6 @@ for token in [
     "Split->SetCollisionProfileName(SourceFences->GetCollisionProfileName());",
     "Split->SetCollisionEnabled(SourceFences->GetCollisionEnabled());",
     "Split->SetCanEverAffectNavigation(true);",
-    "Local-space instances match the source Fences component convention exactly",
     "SourceFences->RemoveInstance(LegacyIndex)",
     "SplitFence->DestroyComponent();",
     'TEXT("R13_CollegeAccessRepairApplied")',
@@ -183,7 +183,6 @@ right_inner = right_center - right_length / 2.0
 right_outer = right_center + right_length / 2.0
 actual_gap_width = right_inner - left_inner
 actual_gap_center = (left_inner + right_inner) / 2.0
-
 if abs(left_outer + 5200.0) > 0.01 or abs(right_outer - 5200.0) > 0.01:
     fail(f"split front fence no longer preserves original 104m outer span: {left_outer=} {right_outer=}")
 if abs(actual_gap_width - gap_width) > 0.01 or abs(actual_gap_center - gap_center) > 0.01:
@@ -192,6 +191,40 @@ if abs((left_length + gap_width + right_length) - 10400.0) > 0.01:
     fail("split segments + opening must exactly cover the original 104m front-fence span")
 if gap_width <= 2750.0:
     fail("college entrance opening must remain wider than the maximum 27.5m authored stair width")
+
+# Vehicle approach must stop before the rotated 65x19m main building instead of extending 47.5m through it.
+for token in [
+    'TEXT("S01_ROAD_COLLEGE_APPROACH")',
+    "FVector(-16050, 0, 8), FVector(24900, 660, 14), 0.0f, true",
+    "retains its original X=-28500 outer start but now terminates at X=-3600",
+    "before the rotated 65x19m main building envelope",
+]:
+    require(road, token, "college vehicle approach")
+if "FVector(-13500, 0, 8), FVector(30000, 660, 14)" in road:
+    fail("legacy college approach still extends through the main building")
+
+approach_match = re.search(
+    r'TEXT\("S01_ROAD_COLLEGE_APPROACH"\).*?FVector\((-?[0-9.]+),\s*0,\s*8\),\s*'
+    r'FVector\(([0-9.]+),\s*660,\s*14\),\s*0\.0f',
+    road,
+    flags=re.S,
+)
+if not approach_match:
+    fail("cannot parse college vehicle approach center/length")
+approach_center_x = float(approach_match.group(1))
+approach_length = float(approach_match.group(2))
+approach_start_x = approach_center_x - approach_length / 2.0
+approach_end_x = approach_center_x + approach_length / 2.0
+if abs(approach_start_x + 28500.0) > 0.01:
+    fail(f"college approach remote start moved unexpectedly: {approach_start_x}")
+main_half_x = 6500.0 / 2.0
+main_half_y = 1900.0 / 2.0
+yaw_rad = math.radians(1.0)
+rotated_main_half_extent_x = main_half_x * math.cos(yaw_rad) + main_half_y * math.sin(yaw_rad)
+rotated_main_west_x = -rotated_main_half_extent_x
+approach_clearance_cm = rotated_main_west_x - approach_end_x
+if approach_clearance_cm < 300.0:
+    fail(f"college vehicle approach must keep >=300cm from rotated main envelope; got {approach_clearance_cm:.2f}cm")
 
 # The campus connection remains pedestrian-scale and the two trees formerly on its centerline remain displaced.
 for token in [
@@ -242,5 +275,5 @@ for label, text in (("college", college), ("access", access), ("stadium", stadiu
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
 print(
     "Checks mixed college source coordinates, aligned facade/windows/stairs, exact 34m blocking-fence opening, "
-    "2.8m campus path/tree clearance, plus stadium visuals; visual overlays remain collision-neutral while the split fence preserves gameplay blocking."
+    "vehicle-approach/building clearance, 2.8m campus path/tree clearance, plus stadium visuals."
 )
