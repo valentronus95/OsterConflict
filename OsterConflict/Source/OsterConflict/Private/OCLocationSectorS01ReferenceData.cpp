@@ -27,3 +27,22 @@ const TArray<FOCS01StreetAddressReference>& FOCLocationSectorS01ReferenceData::K
     };
     return References;
 }
+
+const FOCS01StreetExtentReference& FOCLocationSectorS01ReferenceData::KrushelnytskaStreetExtentReference()
+{
+    // Visicom's whole-street object provides a label center and object bounds. The label center is not interpreted as
+    // any physical point on the carriageway; the extent is only a macro sanity constraint for later centerline authoring.
+    static const FOCS01StreetExtentReference Reference =
+    {
+        TEXT("S01_KR_STREET_EXTENT_VISICOM"),
+        50.951601785552164,
+        30.883556648533790,
+        50.947336834596960,
+        30.874850176800106,
+        50.958347034213716,
+        30.886361188850810,
+        EOCReferenceConfidence::B,
+        TEXT("Visicom Oster whole-street object center/bounds; macro extent only, never a road-center waypoint")
+    };
+    return Reference;
+}
