@@ -33,3 +33,6 @@ jobs:
 
       - name: Verify S01 vegetation runtime ownership
         run: python VERIFY_R13_LOCATION_FIRST_S01_VEGETATION_RUNTIME.py
+
+      - name: Verify S01 road topology ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01_ROAD_TOPOLOGY.py
