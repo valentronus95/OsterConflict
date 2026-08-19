@@ -25,4 +25,7 @@ class OSTERCONFLICT_API FOCLocationSectorPlan
 public:
     static FOCLocationSectorBounds KrushelnytskaCollegePark();
     static bool IsInsideKrushelnytskaCollegePark(const FVector& Location);
+
+    static FOCLocationSectorBounds MuseumSolonynaParkStadium();
+    static bool IsInsideMuseumSolonynaParkStadium(const FVector& Location);
 };
