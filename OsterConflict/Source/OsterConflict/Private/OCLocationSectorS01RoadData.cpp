@@ -9,9 +9,9 @@ const TArray<FOCS01RoadCorridorSeed>& FOCLocationSectorS01RoadData::OwnedInsideC
 {
     static const TArray<FOCS01RoadCorridorSeed> Corridors = {
         { TEXT("S01_ROAD_COLLEGE_APPROACH"), EOCS01RoadAnchor::College,
-            FVector(-13500, 0, 8), FVector(30000, 660, 14), 0.0f, true,
+            FVector(-16050, 0, 8), FVector(24900, 660, 14), 0.0f, true,
             EOCS01RoadRelation::Inside, Provisional,
-            TEXT("Former direct BuildRoadNetwork college approach; whole oriented corridor fits inside S01 workflow bounds") },
+            TEXT("College vehicle approach retains its original X=-28500 outer start but now terminates at X=-3600 before the rotated 65x19m main building envelope") },
     };
     return Corridors;
 }
