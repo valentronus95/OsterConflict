@@ -36,3 +36,6 @@ jobs:
 
       - name: Verify S01 road topology ownership
         run: python VERIFY_R13_LOCATION_FIRST_S01_ROAD_TOPOLOGY.py
+
+      - name: Verify S01 park-to-north path ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01_PARK_NORTH_PATH.py
