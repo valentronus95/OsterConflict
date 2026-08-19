@@ -41,27 +41,30 @@ for token in [
         fail(f"sector-plan contract missing: {token}")
 
 for token in [
-    "FOCS01ResidentialPlotSeed",
-    "ProvisionalResidentialPlots()",
-    "EOCReferenceConfidence::C",
-    "VisualVariant",
-    "bHasPrimaryHouse",
-    "bHasOutbuilding",
-    "bOutbuildingHasRoof",
+    "FOCS01ResidentialPlotSeed", "FOCS01FrontageSeed", "FOCS01RoadSeed",
+    "ProvisionalResidentialPlots()", "ProvisionalFrontages()", "ProvisionalServiceRoads()",
+    "EOCReferenceConfidence::C", "VisualVariant", "bHasPrimaryHouse",
+    "bHasOutbuilding", "bOutbuildingHasRoof",
 ]:
     if token not in data_h + data_cpp:
-        fail(f"plot-registry contract missing: {token}")
+        fail(f"S01 data-registry contract missing: {token}")
 
-ids = re.findall(r'TEXT\("(S01_KR_[WE]_\d\d)"\)', data_cpp)
-if len(ids) != 16:
-    fail(f"expected 16 individually addressable migrated plots, found {len(ids)}")
-if len(set(ids)) != len(ids):
-    fail("duplicate S01 plot IDs")
+plot_ids = re.findall(r'TEXT\("(S01_KR_[WE]_\d\d)"\)', data_cpp)
+if len(plot_ids) != 16 or len(set(plot_ids)) != 16:
+    fail(f"expected 16 unique individually addressable migrated plots, found {len(plot_ids)}")
 for side in ("W", "E"):
     expected = {f"S01_KR_{side}_{i:02d}" for i in range(1, 9)}
-    actual = {value for value in ids if f"_{side}_" in value}
+    actual = {value for value in plot_ids if f"_{side}_" in value}
     if actual != expected:
         fail(f"{side}-side plot IDs do not cover 01..08")
+
+frontage_ids = re.findall(r'TEXT\("(S01_KR_FRONT_\d\d)"\)', data_cpp)
+if frontage_ids != [f"S01_KR_FRONT_{i:02d}" for i in range(1, 9)]:
+    fail(f"expected ordered frontage IDs 01..08, found {frontage_ids}")
+
+service_ids = re.findall(r'TEXT\("(S01_KR_SERVICE_[WE])"\)', data_cpp)
+if set(service_ids) != {"S01_KR_SERVICE_W", "S01_KR_SERVICE_E"} or len(service_ids) != 2:
+    fail(f"expected two explicit S01 service roads, found {service_ids}")
 
 # East slot 03 existed only as a plot/outbuilding in the old blockout. Preserve that fact explicitly.
 e03 = re.search(
@@ -72,24 +75,31 @@ e03 = re.search(
 if not e03:
     fail("legacy east-side slot 03 primary-house absence/outbuilding state was not preserved explicitly")
 
-if data_cpp.count("Provisional,") != 16:
-    fail("all 16 migrated plots must remain explicitly provisional C-confidence")
+# Current registry contains 16 plots + 8 frontages + 2 service roads, all deliberately C-confidence.
+if data_cpp.count("Provisional,") != 26:
+    fail("all 26 migrated S01 records must remain explicitly provisional C-confidence")
 
-# The authoritative world builder must consume explicit plots, not regenerate house coordinates from a slot loop.
+# The authoritative world builder must consume explicit records, not regenerate coordinates from slot arithmetic.
 for token in [
     '#include "OCLocationSectorS01Data.h"',
     "FOCLocationSectorS01Data::ProvisionalResidentialPlots()",
-    "Plot.HouseCenter",
-    "Plot.HouseSizeCm",
-    "Plot.VisualVariant",
-    "Plot.OutbuildingCenter",
-    "Plot.bOutbuildingHasRoof",
+    "Plot.HouseCenter", "Plot.HouseSizeCm", "Plot.VisualVariant",
+    "Plot.OutbuildingCenter", "Plot.bOutbuildingHasRoof",
+    "FOCLocationSectorS01Data::ProvisionalFrontages()",
+    "Frontage.WestFenceCenter", "Frontage.EastFenceCenter",
+    "Frontage.WestWalkCenter", "Frontage.EastWalkCenter",
+    "FOCLocationSectorS01Data::ProvisionalServiceRoads()",
+    "AddBox(Roads, Road.Center, Road.SizeCm, Road.Yaw)",
 ]:
     if token not in world:
-        fail(f"world builder does not consume explicit S01 plot data: {token}")
-for forbidden in ["WestHouseX", "EastHouseX", "const float StartY = 20500.0f"]:
+        fail(f"world builder does not consume explicit S01 data: {token}")
+for forbidden in [
+    "WestHouseX", "EastHouseX", "const float StartY = 20500.0f",
+    "BoundaryStartY", "static_cast<float>(Slot) * 4800.0f",
+    "FVector(-43000.0f, 36000.0f, RoadZ)", "FVector(-24200.0f, 37000.0f, RoadZ)",
+]:
     if forbidden in world:
-        fail(f"legacy arithmetic house placement survived S01 registry migration: {forbidden}")
+        fail(f"legacy arithmetic/direct S01 placement survived registry migration: {forbidden}")
 
 # Location-first guardrails: no city-wide generator is allowed to fill or dress S01.
 if "procedural residential infill disabled" not in infill:
@@ -116,4 +126,4 @@ for token in [
         fail(f"S01 execution document missing: {token}")
 
 print("R13 LOCATION-FIRST S01 VERIFY: PASS")
-print("Checks canonical sector ownership, 16 explicit C-confidence plots, direct world-builder consumption and exclusion from generic infill/dressing.")
+print("Checks canonical sector ownership, 26 explicit C-confidence S01 records, direct world-builder consumption and exclusion from generic infill/dressing.")
