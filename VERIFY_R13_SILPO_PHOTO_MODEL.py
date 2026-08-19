@@ -11,6 +11,8 @@ SITE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoSiteDeta
 SITE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoSiteDetailSubsystem.h"
 FOLIAGE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoFoliageUpgradeSubsystem.cpp"
 FOLIAGE_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoFoliageUpgradeSubsystem.h"
+PARKING_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoParkingDetailSubsystem.cpp"
+PARKING_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoParkingDetailSubsystem.h"
 
 
 def fail(message: str) -> None:
@@ -43,6 +45,8 @@ site_cpp = read(SITE_CPP)
 site_header = read(SITE_HEADER)
 foliage_cpp = read(FOLIAGE_CPP)
 foliage_header = read(FOLIAGE_HEADER)
+parking_cpp = read(PARKING_CPP)
+parking_header = read(PARKING_HEADER)
 
 for needle in [
     "class OSTERCONFLICT_API UOCR13SilpoPhotoModelSubsystem",
@@ -180,14 +184,41 @@ for needle in [
 ]:
     require(foliage_cpp, needle, "PN foliage upgrade")
 
+for needle in [
+    "class OSTERCONFLICT_API UOCR13SilpoParkingDetailSubsystem",
+    "void ApplyParkingDetails(UWorld& World);",
+]:
+    require(parking_header, needle, "parking detail header")
+
+for needle in [
+    'TEXT("R13_SilpoParkingDetailApplied")',
+    '/Game/VehicleVarietyPack/Meshes/SM_Hatchback.SM_Hatchback',
+    '/Game/VehicleVarietyPack/Meshes/SM_SportsCar.SM_SportsCar',
+    '/Game/VehicleVarietyPack/Meshes/SM_SUV.SM_SUV',
+    '/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup',
+    'TEXT("R13SilpoParking_Hatchbacks")',
+    'TEXT("R13SilpoParking_Sedans")',
+    'TEXT("R13SilpoParking_SUVs")',
+    'TEXT("R13SilpoParking_Pickups")',
+    'Component->SetCollisionEnabled(ECollisionEnabled::NoCollision)',
+    'Component->SetCanEverAffectNavigation(false)',
+    'const FBoxSphereBounds Bounds = Mesh->GetBounds();',
+    'const float GroundedZ = ParkingSurfaceZ - MeshBottom;',
+    'AddParkedCar(HatchbackCars, Hatchback, -880.0f, -1975.0f, 90.0f, 0.94f);',
+    'AddParkedCar(PickupCars, Pickup, 1490.0f, -2360.0f, 88.0f, 0.90f);',
+    'parking remains unobstructed',
+]:
+    require(parking_cpp, needle, "parking detail pass")
+
 base_delay = delay(cpp, "SilpoPhotoModelDelaySeconds", "base model")
 detail_delay = delay(detail_cpp, "SilpoFacadeDetailDelaySeconds", "detail pass")
 site_delay = delay(site_cpp, "SilpoSiteDetailDelaySeconds", "site detail pass")
 foliage_delay = delay(foliage_cpp, "SilpoFoliageUpgradeDelaySeconds", "foliage upgrade")
-if not base_delay < detail_delay < site_delay < foliage_delay:
+parking_delay = delay(parking_cpp, "SilpoParkingDetailDelaySeconds", "parking detail")
+if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay:
     fail(
-        "Silpo passes must stay ordered base -> facade -> site -> foliage: "
-        f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}"
+        "Silpo passes must stay ordered base -> facade -> site -> foliage -> parking: "
+        f"base={base_delay}, facade={detail_delay}, site={site_delay}, foliage={foliage_delay}, parking={parking_delay}"
     )
 
 origin_lat = 50.948239
@@ -200,7 +231,7 @@ y_cm = (lat - origin_lat) * 111320.0 * 100.0
 if not (-70000.0 <= x_cm <= 25000.0 and -25000.0 <= y_cm <= 50000.0):
     fail(f"Silpo anchor escaped compact Oster bounds: ({x_cm:.1f}, {y_cm:.1f})")
 
-combined = cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp
+combined = cpp + "\n" + detail_cpp + "\n" + site_cpp + "\n" + foliage_cpp + "\n" + parking_cpp
 for forbidden in [".jpeg", ".jpg", ".png", "764B665D", "2CDEA871", "DBF2A257", "91665653", "5B464C76", "67E3F35C"]:
     if forbidden.lower() in combined.lower():
         fail(f"raw reference image leaked into runtime source: {forbidden}")
@@ -211,7 +242,8 @@ if base_delay < 5.2:
 print(
     "R13 SILPO PHOTO MODEL VERIFY: PASS "
     f"(anchor {x_cm:.1f},{y_cm:.1f} cm; base {base_delay:.2f}s -> facade {detail_delay:.2f}s -> "
-    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s; photo shell + cloud Сільпо sign + Ukrainian promo posters + "
-    "entrance/parking signage + poster rails + entrance bin + planted strip + PN foliage upgrade/fallback; "
+    f"site {site_delay:.2f}s -> foliage {foliage_delay:.2f}s -> parking {parking_delay:.2f}s; "
+    "photo shell + cloud Сільпо sign + Ukrainian promo posters + entrance/parking signage + poster rails + entrance bin + "
+    "planted strip + PN foliage upgrade/fallback + grounded visual-only VehicleVarietyPack parking row; "
     "source building footprint replacement without road deletion)"
 )
