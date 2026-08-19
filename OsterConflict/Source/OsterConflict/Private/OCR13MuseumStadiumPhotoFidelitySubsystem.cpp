@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace
 {
@@ -25,7 +26,9 @@ namespace
         const FName Name, const FLinearColor& Color)
     {
         if (!Owner || !Base) return nullptr;
-        UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(Base, Owner, Name);
+        const FName MaterialObjectName = MakeUniqueObjectName(
+            Owner, UMaterialInstanceDynamic::StaticClass(), FName(*(Name.ToString() + TEXT("_MID"))));
+        UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(Base, Owner, MaterialObjectName);
         if (Material) Material->SetVectorParameterValue(TEXT("Color"), Color);
         return Material;
     }
@@ -35,7 +38,9 @@ namespace
         const int32 CullEndCm = 100000)
     {
         if (!Owner || !Root || !Mesh) return nullptr;
-        UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(Owner, Name);
+        const FName ComponentObjectName = MakeUniqueObjectName(
+            Owner, UInstancedStaticMeshComponent::StaticClass(), Name);
+        UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(Owner, ComponentObjectName);
         if (!Component) return nullptr;
         Component->SetupAttachment(Root);
         Component->SetStaticMesh(Mesh);
