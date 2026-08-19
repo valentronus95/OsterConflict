@@ -41,12 +41,12 @@ namespace
     void PlaceCanvasWidget(UWidget* Widget, const FVector2D& Position, const FVector2D& Size, const int32 ZOrder)
     {
         if (!Widget) return;
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Widget->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Widget->Slot))
         {
-            Slot->SetAutoSize(false);
-            Slot->SetPosition(Position);
-            Slot->SetSize(Size);
-            Slot->SetZOrder(ZOrder);
+            CanvasSlot->SetAutoSize(false);
+            CanvasSlot->SetPosition(Position);
+            CanvasSlot->SetSize(Size);
+            CanvasSlot->SetZOrder(ZOrder);
         }
     }
 }
@@ -65,11 +65,11 @@ void UOCR13TacticalMapWidget::BuildWidgetTree()
     Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_TacticalMapBackdrop"));
     Backdrop->SetBrushColor(FLinearColor(0.018f, 0.024f, 0.030f, 0.965f));
     RootCanvas->AddChild(Backdrop);
-    if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Backdrop->Slot))
+    if (UCanvasPanelSlot* BackdropCanvasSlot = Cast<UCanvasPanelSlot>(Backdrop->Slot))
     {
-        Slot->SetAnchors(FAnchors(0.055f, 0.045f, 0.945f, 0.955f));
-        Slot->SetOffsets(FMargin(0.0f));
-        Slot->SetZOrder(0);
+        BackdropCanvasSlot->SetAnchors(FAnchors(0.055f, 0.045f, 0.945f, 0.955f));
+        BackdropCanvasSlot->SetOffsets(FMargin(0.0f));
+        BackdropCanvasSlot->SetZOrder(0);
     }
 
     MapCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("R13_TacticalMapCanvas"));
@@ -82,25 +82,25 @@ void UOCR13TacticalMapWidget::BuildWidgetTree()
     UTextBlock* Help = MakeMarkerText(TEXT("M / Ь  ЗАКРИТИ     ▲  ВИ     A/B/C  ТОЧКИ"), 14);
     Help->SetColorAndOpacity(FSlateColor(FLinearColor(0.68f, 0.71f, 0.72f, 1.0f)));
     MapCanvas->AddChild(Help);
-    if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Help->Slot))
+    if (UCanvasPanelSlot* HelpCanvasSlot = Cast<UCanvasPanelSlot>(Help->Slot))
     {
-        Slot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));
-        Slot->SetAlignment(FVector2D(0.0f, 1.0f));
-        Slot->SetPosition(FVector2D(34.0f, -18.0f));
-        Slot->SetSize(FVector2D(560.0f, 28.0f));
-        Slot->SetZOrder(20);
+        HelpCanvasSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));
+        HelpCanvasSlot->SetAlignment(FVector2D(0.0f, 1.0f));
+        HelpCanvasSlot->SetPosition(FVector2D(34.0f, -18.0f));
+        HelpCanvasSlot->SetSize(FVector2D(560.0f, 28.0f));
+        HelpCanvasSlot->SetZOrder(20);
     }
 
     PositionText = MakeMarkerText(TEXT("ПОЗИЦІЯ"), 14);
     PositionText->SetJustification(ETextJustify::Right);
     MapCanvas->AddChild(PositionText);
-    if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(PositionText->Slot))
+    if (UCanvasPanelSlot* PositionCanvasSlot = Cast<UCanvasPanelSlot>(PositionText->Slot))
     {
-        Slot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));
-        Slot->SetAlignment(FVector2D(1.0f, 0.0f));
-        Slot->SetPosition(FVector2D(-34.0f, 24.0f));
-        Slot->SetSize(FVector2D(480.0f, 34.0f));
-        Slot->SetZOrder(20);
+        PositionCanvasSlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));
+        PositionCanvasSlot->SetAlignment(FVector2D(1.0f, 0.0f));
+        PositionCanvasSlot->SetPosition(FVector2D(-34.0f, 24.0f));
+        PositionCanvasSlot->SetSize(FVector2D(480.0f, 34.0f));
+        PositionCanvasSlot->SetZOrder(20);
     }
 
     PlayerMarker = MakeMarkerText(TEXT("▲"), 25);
