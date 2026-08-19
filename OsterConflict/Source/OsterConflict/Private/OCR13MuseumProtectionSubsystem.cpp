@@ -12,6 +12,7 @@
 namespace
 {
     constexpr float ProtectionDelaySeconds = 2.65f;
+    constexpr float LegacyMuseumWindowRadiusCm = 7200.0f;
 
     bool IsGenericDressingComponent(const FName Name)
     {
@@ -26,6 +27,11 @@ namespace
             Text.StartsWith(TEXT("R13_Yard"));
     }
 
+    bool IsSharedLandmarkWindowBridge(const FName Name)
+    {
+        return Name == TEXT("R13_LandmarkWindowGlass") || Name == TEXT("R13_LandmarkWindowFrames");
+    }
+
     bool IsInsideMuseumProtection(const FVector& Location)
     {
         const FVector Delta = Location - AOCWorldSectorOster::MuseumAnchor();
@@ -38,6 +44,12 @@ namespace
         // Preserve the photo-driven visual corridor toward the main entrance and long museum approach.
         return FMath::Abs(Delta.X - 1180.0f) <= 1750.0f &&
             Delta.Y <= -900.0f && Delta.Y >= -9200.0f;
+    }
+
+    bool IsInsideLegacyMuseumWindowZone(const FVector& Location)
+    {
+        return FVector::DistSquared2D(Location, AOCWorldSectorOster::MuseumAnchor()) <=
+            FMath::Square(LegacyMuseumWindowRadiusCm);
     }
 }
 
@@ -71,6 +83,7 @@ void UOCR13MuseumProtectionSubsystem::ApplyMuseumProtection(UWorld& World)
     if (bApplied) return;
 
     int32 RemovedInstances = 0;
+    int32 RemovedLegacyWindowInstances = 0;
     int32 TouchedComponents = 0;
 
     for (TActorIterator<AActor> It(&World); It; ++It)
@@ -82,26 +95,40 @@ void UOCR13MuseumProtectionSubsystem::ApplyMuseumProtection(UWorld& World)
         Actor->GetComponents(Components);
         for (UInstancedStaticMeshComponent* Component : Components)
         {
-            if (!Component || !IsGenericDressingComponent(Component->GetFName())) continue;
+            if (!Component) continue;
+
+            const bool bGenericDressing = IsGenericDressingComponent(Component->GetFName());
+            const bool bLegacySharedWindow = IsSharedLandmarkWindowBridge(Component->GetFName());
+            if (!bGenericDressing && !bLegacySharedWindow) continue;
 
             int32 RemovedFromComponent = 0;
             for (int32 Index = Component->GetInstanceCount() - 1; Index >= 0; --Index)
             {
                 FTransform Transform;
                 if (!Component->GetInstanceTransform(Index, Transform, true)) continue;
-                if (!IsInsideMuseumProtection(Transform.GetLocation())) continue;
+
+                const bool bRemove = bGenericDressing
+                    ? IsInsideMuseumProtection(Transform.GetLocation())
+                    : IsInsideLegacyMuseumWindowZone(Transform.GetLocation());
+                if (!bRemove) continue;
+
                 if (Component->RemoveInstance(Index))
                 {
                     ++RemovedFromComponent;
                     ++RemovedInstances;
+                    if (bLegacySharedWindow) ++RemovedLegacyWindowInstances;
                 }
             }
-            if (RemovedFromComponent > 0) ++TouchedComponents;
+            if (RemovedFromComponent > 0)
+            {
+                Component->MarkRenderStateDirty();
+                ++TouchedComponents;
+            }
         }
     }
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13.5 museum protection: removed %d generic dressing instances across %d components from the historic-garden / entrance-view corridor; dedicated museum/civic art untouched."),
-        RemovedInstances, TouchedComponents);
+        TEXT("R13.6 museum protection: removed %d instances across %d components from the historic-garden/entrance corridor, including %d legacy shared museum window instances; college landmark windows and dedicated final museum/civic art untouched."),
+        RemovedInstances, TouchedComponents, RemovedLegacyWindowInstances);
 }
