@@ -7,6 +7,8 @@
 
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
+#include "HAL/PlatformTime.h"
+#include "TimerManager.h"
 
 bool AOCPlayerController::ConsumeR13DeploymentCommitAuthorization()
 {
@@ -49,15 +51,25 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
 {
     UWorld* World = GetWorld();
     AOCPlayerState* State = GetPlayerState<AOCPlayerState>();
-    bR13DeploymentCommitAuthorized = false;
-    R13DeploymentCommitAuthorizationExpiresAt = -1.0;
 
     if (!World || !State || State->IsBotPlayer() || State->GetTeamId() == EOCTeam::None || State->GetSquadId() < 0)
     {
+        bR13DeploymentCommitAuthorized = false;
+        R13DeploymentCommitAuthorizationExpiresAt = -1.0;
         if (State) State->SetLobbyReadyServer(false);
         ClientCompleteDeployment(false);
         return;
     }
+
+    // Ignore a second click while the one-shot spawn request is already queued. The old synchronous path could
+    // re-enter RestartPlayer from the UI click stack and made a slow spawn look exactly like a frozen game.
+    if (bR13DeploymentCommitAuthorized && R13DeploymentCommitAuthorizationExpiresAt >= World->GetTimeSeconds())
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("R13 deployment ignored duplicate commit while spawn is pending: %s."), *GetName());
+        return;
+    }
+    bR13DeploymentCommitAuthorized = false;
+    R13DeploymentCommitAuthorizationExpiresAt = -1.0;
 
     // The source world still authors legacy bases far outside the R13 compact crop. Never let a human become ready
     // until OCR13CompactOsterSubsystem has cropped the world, moved objectives and relocated TeamSpawn actors.
@@ -74,12 +86,46 @@ void AOCPlayerController::ServerCommitDeployment_Implementation()
         }
     }
 
-    // This token is consumed by OCR13SpawnSafetySubsystem on the first new human pawn. Legacy F4/ReadyAction may
-    // still exist for compatibility, but it cannot make an accepted gameplay pawn because it never grants this token.
-    // A two-second expiry prevents a failed/aborted RestartPlayer from leaving a stale authorization behind.
+    // Grant the one-shot token now, but perform RestartPlayer on the next game tick instead of inside the button/RPC
+    // call stack. That lets Slate finish the click and gives us a persistent timing marker around the expensive spawn.
     bR13DeploymentCommitAuthorized = true;
     R13DeploymentCommitAuthorizationExpiresAt = World->GetTimeSeconds() + 2.0;
-    ServerSetLobbyReady_Implementation(true);
+
+    TWeakObjectPtr<AOCPlayerController> WeakController(this);
+    World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [WeakController]()
+    {
+        AOCPlayerController* PC = WeakController.Get();
+        UWorld* SpawnWorld = PC ? PC->GetWorld() : nullptr;
+        AOCPlayerState* SpawnState = PC ? PC->GetPlayerState<AOCPlayerState>() : nullptr;
+        if (!PC || !SpawnWorld || !SpawnState)
+        {
+            return;
+        }
+
+        UE_LOG(LogTemp, Display,
+            TEXT("R13 deployment spawn BEGIN player=%s worldTime=%.3f requested=%s."),
+            *PC->GetName(), SpawnWorld->GetTimeSeconds(), *PC->GetRequestedDeploymentSpawn().ToString());
+
+        const double SpawnBeginSeconds = FPlatformTime::Seconds();
+        PC->ServerSetLobbyReady_Implementation(true);
+        const double SpawnDurationMs = (FPlatformTime::Seconds() - SpawnBeginSeconds) * 1000.0;
+
+        UE_LOG(LogTemp, Display,
+            TEXT("R13 deployment spawn END player=%s durationMs=%.1f pawn=%s."),
+            *PC->GetName(), SpawnDurationMs, PC->GetPawn() ? *PC->GetPawn()->GetName() : TEXT("none"));
+
+        // RestartPlayer is synchronous. If it returned without a pawn there is nothing for SpawnSafety to validate,
+        // so fail back to deployment instead of leaving the user on a dead, apparently frozen screen forever.
+        if (!PC->GetPawn())
+        {
+            PC->bR13DeploymentCommitAuthorized = false;
+            PC->R13DeploymentCommitAuthorizationExpiresAt = -1.0;
+            SpawnState->SetLobbyReadyServer(false);
+            UE_LOG(LogTemp, Error,
+                TEXT("R13 deployment spawn FAILED: RestartPlayer returned without a pawn for %s."), *PC->GetName());
+            PC->ClientCompleteDeployment(false);
+        }
+    }));
 }
 
 void AOCPlayerController::ServerRequestRole_Implementation(const EOCPlayerRole RequestedRole)
