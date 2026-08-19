@@ -4,20 +4,24 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
 H = SRC / "Public" / "OCR13MuseumStadiumPhotoFidelitySubsystem.h"
 CPP = SRC / "Private" / "OCR13MuseumStadiumPhotoFidelitySubsystem.cpp"
-GEO = SRC / "Private" / "OCR13VerifiedOsterGeographySubsystem.cpp"
+GEO_H = SRC / "Public" / "OCR13VerifiedOsterGeographySubsystem.h"
+GEO_CPP = SRC / "Private" / "OCR13VerifiedOsterGeographySubsystem.cpp"
+WORLD = SRC / "Private" / "OCWorldSectorOster.cpp"
 
 
 def fail(message: str) -> None:
     raise SystemExit("R13.6 MUSEUM/STADIUM PHOTO FIDELITY VERIFY FAIL: " + message)
 
 
-for path in (H, CPP, GEO):
+for path in (H, CPP, GEO_H, GEO_CPP, WORLD):
     if not path.is_file():
         fail(f"missing source: {path.relative_to(ROOT)}")
 
 h = H.read_text(encoding="utf-8", errors="replace")
 cpp = CPP.read_text(encoding="utf-8", errors="replace")
-geo = GEO.read_text(encoding="utf-8", errors="replace")
+geo_h = GEO_H.read_text(encoding="utf-8", errors="replace")
+geo_cpp = GEO_CPP.read_text(encoding="utf-8", errors="replace")
+world = WORLD.read_text(encoding="utf-8", errors="replace")
 
 includes = [line.strip() for line in h.splitlines() if line.strip().startswith("#include")]
 if not includes or "generated.h" not in includes[-1]:
@@ -53,8 +57,17 @@ for token in required:
     if token not in cpp:
         fail(f"photo-fidelity marker missing: {token}")
 
-if "GeographyDelaySeconds = 3.35f" not in geo:
-    fail("verified geography timing marker missing")
+# Compatibility accessor is read-only and must delegate to the canonical source-world anchor.
+if "static FVector VerifiedStadiumAnchor();" not in geo_h:
+    fail("read-only stadium compatibility accessor missing")
+if "return AOCWorldSectorOster::StadiumAnchor();" not in geo_cpp:
+    fail("stadium compatibility accessor does not delegate to canonical source-world anchor")
+for token in [
+    "FVector AOCWorldSectorOster::StadiumAnchor()",
+    "FOCGeoReference::Stadium()",
+]:
+    if token not in world:
+        fail(f"canonical stadium source marker missing: {token}")
 
 if cpp.index("SuppressLegacyMuseumPresentation(World);") > cpp.index("BuildMuseum(World);"):
     fail("legacy museum presentation must be removed before final museum build")
@@ -65,9 +78,11 @@ for forbidden in [
     "SM_Forest_Path.SM_Forest_Path",
     "R13_StadiumTrack",
     "R13_StadiumStand",
+    "LegacyStadiumAnchor",
+    "FOCGeoReference::ToLocalCm(50.94936",
 ]:
     if forbidden in cpp:
-        fail(f"old generic site presentation leaked into photo fidelity pass: {forbidden}")
+        fail(f"old/duplicated site presentation leaked into photo fidelity pass: {forbidden}")
 
 print("R13.6 MUSEUM/STADIUM PHOTO FIDELITY VERIFY: PASS")
-print("Checks final single-owner museum presentation, central entrance + timber upper room + side veranda + slab approach, and simplified adjacent stadium from supplied photos.")
+print("Checks final museum presentation from supplied photos, simplified adjacent stadium, cleanup-before-build ordering and canonical location-first stadium ownership.")
