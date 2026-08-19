@@ -5,8 +5,9 @@
 #include "OCR13VerifiedOsterGeographySubsystem.generated.h"
 
 /**
- * R13.6 map-first cleanup: suppresses the old near-spawn fake Krushelnytska art slice and relocates the stadium
- * presentation from its legacy gameplay approximation to a public-map coordinate relative to the museum origin.
+ * R13 migration cleanup. Suppresses the obsolete near-spawn Krushelnytska art slice and, until the legacy
+ * world-sector stadium placement is migrated, relocates its presentation to the canonical FOCGeoReference anchor.
+ * No coordinate is authored in this subsystem.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13VerifiedOsterGeographySubsystem : public UWorldSubsystem
