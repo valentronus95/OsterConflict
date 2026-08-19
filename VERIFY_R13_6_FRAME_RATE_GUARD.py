@@ -21,8 +21,11 @@ includes = [line.strip() for line in h.splitlines() if line.strip().startswith("
 if not includes or "generated.h" not in includes[-1]:
     fail("generated.h must remain final frame-rate guard header include")
 
+# Tickable lifecycle is declared in the reflected header; runtime thermal-cap behavior is implemented in the .cpp.
+if "UTickableWorldSubsystem" not in h:
+    fail("frame-rate guard is no longer declared as UTickableWorldSubsystem")
+
 for token in [
-    "UTickableWorldSubsystem",
     "FrontendCap = 45.0f",
     "MaximumGameplayCap = 60.0f",
     "PreviousEngineCap = GEngine->GetMaxFPS()",
@@ -35,7 +38,7 @@ for token in [
     "RETURN_QUICK_DECLARE_CYCLE_STAT(UOCR13FrameRateGuardSubsystem",
 ]:
     if token not in cpp:
-        fail(f"thermal/FPS contract missing: {token}")
+        fail(f"thermal/FPS runtime contract missing: {token}")
 
 for token in [
     "float PreviousEngineCap = 0.0f",
@@ -57,4 +60,4 @@ for forbidden in [
         fail(f"playtest thermal guard must not mutate saved settings or restore a high hardcoded cap: {forbidden}")
 
 print("R13.6 FRAME RATE GUARD VERIFY: PASS")
-print("Checks 45 FPS pregame / max 60 FPS gameplay runtime cap, respect for an existing lower cap and restoration of the previous engine cap without saving settings.")
+print("Checks tickable lifecycle in the reflected header, 45 FPS pregame / max 60 FPS gameplay runtime cap, respect for an existing lower cap and restoration of the previous engine cap without saving settings.")
