@@ -799,9 +799,20 @@ void AOCWorldSectorOster::BuildVegetation()
     const FVector Park = ParkAnchor();
     const FVector College = CollegeAnchor();
     const FVector Stadium = StadiumAnchor();
-    AddGrassPatch(GrassMown, Park + FVector(0, 0, 0), FVector(19000, 14500, 4), 6.0f);
+
+    auto ResolveS01VegetationAnchor = [&Park, &College](EOCS01VegetationAnchor Anchor)
+    {
+        return Anchor == EOCS01VegetationAnchor::College ? College : Park;
+    };
+
+    for (const FOCS01GrassPatchSeed& Patch : FOCLocationSectorS01Data::ProvisionalGrassPatches())
+    {
+        AddGrassPatch(GrassMown,
+            ResolveS01VegetationAnchor(Patch.Anchor) + Patch.LocalOffset,
+            Patch.SizeCm, Patch.Yaw);
+    }
+
     AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
-    AddGrassPatch(GrassMown, College + FVector(0, 5200, 0), FVector(12500, 7600, 4), 2.0f);
 
     const FVector RoughPatches[] = {
         FVector(-52000, 30000, 0), FVector(-52000,-25000,0), FVector(45000,30000,0),
@@ -830,27 +841,19 @@ void AOCWorldSectorOster::BuildVegetation()
         AddTreeFamily(Stadium + FVector(I * 1500.0f, 5700.0f + (I % 2) * 350.0f, 0), 0.9f, Family);
     }
 
-    for (int32 Row = -3; Row <= 3; ++Row)
+    for (const FOCS01TreeSeed& Tree : FOCLocationSectorS01Data::ProvisionalVegetationTrees())
     {
-        for (int32 Col = -4; Col <= 4; ++Col)
+        ETreeProxy Family = ETreeProxy::Broadleaf;
+        switch (Tree.Family)
         {
-            if (FMath::Abs(Row) <= 1 && FMath::Abs(Col) <= 1) continue;
-            const float JitterX = static_cast<float>(((Row * 7 + Col * 3) % 5) - 2) * 180.0f;
-            const float JitterY = static_cast<float>(((Row * 5 + Col * 11) % 5) - 2) * 160.0f;
-            const int32 Roll = FMath::Abs(Row * 9 + Col * 5) % 12;
-            ETreeProxy Family = ETreeProxy::Broadleaf;
-            if (Roll <= 2) Family = ETreeProxy::Poplar;
-            else if (Roll == 3 || Roll == 4) Family = ETreeProxy::Birch;
-            else if (Roll == 5) Family = ETreeProxy::Pine;
-            AddTreeFamily(Park + FVector(Col * 1850.0f + JitterX, Row * 1700.0f + JitterY, 0),
-                0.85f + 0.05f * static_cast<float>((Row + Col + 8) % 4), Family);
+            case EOCS01TreeFamily::Poplar: Family = ETreeProxy::Poplar; break;
+            case EOCS01TreeFamily::Birch:  Family = ETreeProxy::Birch; break;
+            case EOCS01TreeFamily::Pine:   Family = ETreeProxy::Pine; break;
+            default: break;
         }
-    }
 
-    AddTreeFamily(College + FVector(-3800, -1100, 0), 1.2f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(3900, -950, 0), 1.15f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(-4600, 1500, 0), 1.0f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(4700, 2100, 0), 0.9f, ETreeProxy::Birch);
+        AddTreeFamily(ResolveS01VegetationAnchor(Tree.Anchor) + Tree.LocalOffset, Tree.Scale, Family);
+    }
 
     for (int32 Index = -7; Index <= 7; ++Index)
     {
