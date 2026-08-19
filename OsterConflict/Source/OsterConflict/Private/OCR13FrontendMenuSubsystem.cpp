@@ -164,6 +164,16 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     const bool bDeploymentVisible = !bSettingsVisible && PC->IsDeploymentPanelVisible();
     const bool bLiveGameplay = bGameplayStarted || PC->GetPawn() != nullptr;
 
+    // A local `open` command does not replace the current world synchronously. Keep the approved frontend frame
+    // untouched during that short gap instead of marking gameplay started and briefly exposing the gray pause shell.
+    if (bLocalTravelPending && PC->GetPawn() == nullptr && !bSettingsVisible && !bDeploymentVisible)
+    {
+        bPauseMenuActive = false;
+        SetPresentationVisibility(true, true, false);
+        ForceMenuInput();
+        return;
+    }
+
     if (bDeploymentVisible && !bFrontendVisible)
     {
         bPauseMenuActive = false;
@@ -213,6 +223,7 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     Page = 0;
     bGameplayStarted = false;
     bPauseMenuActive = false;
+    bLocalTravelPending = false;
     BuildFrontend(Root, PC);
 }
 
@@ -547,6 +558,12 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 {
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: primary pressed, page=%d pause=%d"), Page, bPauseMenuActive ? 1 : 0);
 
+    if (bLocalTravelPending)
+    {
+        UE_LOG(LogTemp, Display, TEXT("R13 frontend: local travel already pending; duplicate primary press ignored"));
+        return;
+    }
+
     if (bPauseMenuActive)
     {
         if (AOCPlayerController* PC = ActiveController.Get())
@@ -583,7 +600,7 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
-    if (bPauseMenuActive) return;
+    if (bPauseMenuActive || bLocalTravelPending) return;
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: secondary pressed, page=%d"), Page);
     Page = (Page == 0) ? 1 : 0;
     ApplyPage();
@@ -592,7 +609,7 @@ void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
-    if (bPauseMenuActive) return;
+    if (bPauseMenuActive || bLocalTravelPending) return;
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: network pressed"));
     Page = 2;
     ApplyPage();
@@ -601,6 +618,7 @@ void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 
 void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
 {
+    if (bLocalTravelPending) return;
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: settings pressed"));
     if (AOCPlayerController* PC = ActiveController.Get())
     {
@@ -611,6 +629,7 @@ void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
 
 void UOCR13FrontendMenuSubsystem::OnQuitClicked()
 {
+    if (bLocalTravelPending) return;
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: quit/leave pressed"));
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC) return;
@@ -632,19 +651,28 @@ void UOCR13FrontendMenuSubsystem::OnQuitClicked()
 void UOCR13FrontendMenuSubsystem::StartLocalGameplay()
 {
     AOCPlayerController* PC = ActiveController.Get();
-    if (!PC) return;
+    if (!PC || bLocalTravelPending) return;
 
     if (UsernameEntry.IsValid()) PC->SetNickname(UsernameEntry->GetText().ToString());
-    bGameplayStarted = true;
     bPauseMenuActive = false;
-    ReleaseMenuInput();
-    SetPresentationVisibility(false, false, false);
 
     if (PC->GetNetMode() != NM_Standalone)
     {
+        bGameplayStarted = true;
+        ReleaseMenuInput();
+        SetPresentationVisibility(false, false, false);
         if (PC->IsFrontendMenuVisible()) PC->UIToggleFrontend();
         return;
     }
+
+    // Keep the current approved menu/background completely intact until `open` actually replaces this world.
+    // The old implementation set bGameplayStarted=true and collapsed the presentation first, which let one or more
+    // ticks render the gray pause/legacy shell before travel committed.
+    bLocalTravelPending = true;
+    bGameplayStarted = false;
+    SetPresentationVisibility(true, true, false);
+    ForceMenuInput();
+    UE_LOG(LogTemp, Display, TEXT("R13 frontend: local gameplay travel BEGIN; holding frontend frame until world replacement"));
 
     PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=0?Population=1?BotFill=0?MaxPlayers=16?R13Gameplay=1?LocationTest=1"));
 }
