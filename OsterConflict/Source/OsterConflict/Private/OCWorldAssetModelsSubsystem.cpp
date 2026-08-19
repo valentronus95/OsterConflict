@@ -5,6 +5,7 @@
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "TimerManager.h"
 
 bool UOCWorldAssetModelsSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -23,8 +24,18 @@ void UOCWorldAssetModelsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     // Dedicated servers do not need any of the visual-only imported meshes.
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
 
+    // AOCGameMode creates AOCWorldSectorOster from BeginPlay. Waiting one tick
+    // guarantees the sector exists before the visual layer tries to attach.
+    InWorld.GetTimerManager().SetTimerForNextTick(
+        FTimerDelegate::CreateUObject(this, &UOCWorldAssetModelsSubsystem::AttachToOsterSector, &InWorld));
+}
+
+void UOCWorldAssetModelsSubsystem::AttachToOsterSector(UWorld* World)
+{
+    if (!World || DecoratorActor.IsValid()) return;
+
     AOCWorldSectorOster* OsterSector = nullptr;
-    for (TActorIterator<AOCWorldSectorOster> It(&InWorld); It; ++It)
+    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         OsterSector = *It;
         break;
@@ -35,7 +46,7 @@ void UOCWorldAssetModelsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     SpawnParams.ObjectFlags |= RF_Transient;
 
-    AOCAssetModelDecorator* Decorator = InWorld.SpawnActor<AOCAssetModelDecorator>(
+    AOCAssetModelDecorator* Decorator = World->SpawnActor<AOCAssetModelDecorator>(
         OsterSector->GetActorLocation(), OsterSector->GetActorRotation(), SpawnParams);
     if (!Decorator) return;
 
