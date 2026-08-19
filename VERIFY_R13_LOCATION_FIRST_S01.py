@@ -72,9 +72,24 @@ e03 = re.search(
 if not e03:
     fail("legacy east-side slot 03 primary-house absence/outbuilding state was not preserved explicitly")
 
-# All current S01 residential entries must remain honest C-confidence migration data.
 if data_cpp.count("Provisional,") != 16:
     fail("all 16 migrated plots must remain explicitly provisional C-confidence")
+
+# The authoritative world builder must consume explicit plots, not regenerate house coordinates from a slot loop.
+for token in [
+    '#include "OCLocationSectorS01Data.h"',
+    "FOCLocationSectorS01Data::ProvisionalResidentialPlots()",
+    "Plot.HouseCenter",
+    "Plot.HouseSizeCm",
+    "Plot.VisualVariant",
+    "Plot.OutbuildingCenter",
+    "Plot.bOutbuildingHasRoof",
+]:
+    if token not in world:
+        fail(f"world builder does not consume explicit S01 plot data: {token}")
+for forbidden in ["WestHouseX", "EastHouseX", "const float StartY = 20500.0f"]:
+    if forbidden in world:
+        fail(f"legacy arithmetic house placement survived S01 registry migration: {forbidden}")
 
 # Location-first guardrails: no city-wide generator is allowed to fill or dress S01.
 if "procedural residential infill disabled" not in infill:
@@ -101,4 +116,4 @@ for token in [
         fail(f"S01 execution document missing: {token}")
 
 print("R13 LOCATION-FIRST S01 VERIFY: PASS")
-print("Checks canonical sector ownership, 16 explicit C-confidence plot slots, presentation metadata and exclusion from generic infill/dressing.")
+print("Checks canonical sector ownership, 16 explicit C-confidence plots, direct world-builder consumption and exclusion from generic infill/dressing.")
