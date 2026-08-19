@@ -39,6 +39,7 @@ public:
     void HandleCapturePointOwnerChanged(AOCCapturePoint* Point, EOCTeam PreviousOwner, EOCTeam NewOwner);
     bool CanDealDamage(const AController* InstigatorController, const AActor* VictimActor) const;
     bool IsSandboxMode() const { return bSandboxMode; }
+    bool IsFrontendOnlySession() const { return bFrontendOnlySession; }
     /** Server-owned Sandbox admin policy. Sandbox mode by itself never grants admin rights. */
     bool CanUseSandboxAdmin(const AController* Controller) const;
 
