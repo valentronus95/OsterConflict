@@ -82,14 +82,15 @@ void UOCR13FrontendAudioSubsystem::StartMenuMusicIfAvailable()
     UWorld* World = GetWorld();
     if (!World || World->GetNetMode() == NM_DedicatedServer) return;
 
-    USoundBase* MenuSound = LoadObject<USoundBase>(nullptr,
-        TEXT("/Game/R13/Audio/menu_ambient.menu_ambient"));
+    // No menu-music .uasset is committed on the source/location branch yet. Do not keep a dangling /Game path:
+    // the frontend stays intentionally silent while combat remains isolated behind explicit match start.
+    USoundBase* MenuSound = nullptr;
     if (!MenuSound)
     {
         if (!bWarnedMissingMusic)
         {
-            UE_LOG(LogTemp, Warning,
-                TEXT("R13 frontend audio: /Game/R13/Audio/menu_ambient is not imported yet; menu remains silent instead of leaking combat audio."));
+            UE_LOG(LogTemp, Display,
+                TEXT("R13 frontend audio: source location branch has no bundled menu music; frontend remains intentionally silent."));
             bWarnedMissingMusic = true;
         }
         return;

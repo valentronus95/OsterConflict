@@ -205,9 +205,9 @@ void UOCR13MuseumStadiumPhotoFidelitySubsystem::OnWorldBeginPlay(UWorld& InWorld
 
 void UOCR13MuseumStadiumPhotoFidelitySubsystem::ApplyPhotoFidelity(UWorld& World)
 {
-    SuppressLegacyMuseumPresentation(World);
+    // R13.7 owns MuseumAnchor exclusively. This legacy pass now touches only the adjacent stadium,
+    // preventing an obsolete museum from being built and then replaced less than a second later.
     SuppressLegacyStadiumPresentation(World);
-    BuildMuseum(World);
     BuildStadium(World);
 }
 

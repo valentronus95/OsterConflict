@@ -75,9 +75,9 @@ req('R13 CONTENT + GAMEPLAY PASS' in start and 'RUN_R13_LISTEN_TEST.cmd' in star
 # explicit START/LOCAL GAME action so bots and combat cannot run invisibly behind the main menu.
 req('-Frontend' in quick and '-NoFrontend' not in quick and '-game' in quick and '/Game/Maps/OsterConflict_Runtime' in quick,
     'quick launch enters the current player-facing R13 frontend shell')
-req('?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16?R13Gameplay=1' in frontend and
+req('?listen?Mode=Conquest?Bots=0?Population=1?BotFill=0?MaxPlayers=16?R13Gameplay=1?LocationTest=1' in frontend and
     'StartLocalGameplay()' in frontend,
-    'frontend START action owns explicit local listen-server travel')
+    'frontend START action owns explicit bot-free location-test listen-server travel')
 req('?listen?Mode=Conquest' not in quick,
     'quick launcher does not start the match behind the frontend shell')
 req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh quick launch bootstraps generated runtime map')

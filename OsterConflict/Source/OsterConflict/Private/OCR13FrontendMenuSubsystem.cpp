@@ -412,7 +412,7 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         FieldsBox->SetVisibility(ESlateVisibility::Visible);
         UsernameEntry->SetVisibility(ESlateVisibility::Visible);
         AddressEntry->SetVisibility(ESlateVisibility::Collapsed);
-        StatusText->SetText(NSLOCTEXT("OCR13Frontend", "LocalStatus", "Conquest • 15 ботів • локальний сервер"));
+        StatusText->SetText(NSLOCTEXT("OCR13Frontend", "LocalStatus", "Огляд локації • без ботів і автотранспорту"));
         R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "StartLocal", "ПОЧАТИ ЛОКАЛЬНУ ГРУ"));
         R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackLocal", "НАЗАД"));
         R13FrontendSetButtonState(PrimaryButton.Get(), true);
@@ -646,7 +646,7 @@ void UOCR13FrontendMenuSubsystem::StartLocalGameplay()
         return;
     }
 
-    PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16?R13Gameplay=1"));
+    PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=0?Population=1?BotFill=0?MaxPlayers=16?R13Gameplay=1?LocationTest=1"));
 }
 
 void UOCR13FrontendMenuSubsystem::ForceMenuInput()

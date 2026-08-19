@@ -34,7 +34,7 @@ for token in [
     "SavedWeaponsVolume = AudioSettings->WeaponsVolume",
     "AudioSettings->WeaponsVolume = 0.0f",
     "AudioSettings->WeaponsVolume = SavedWeaponsVolume",
-    "/Game/R13/Audio/menu_ambient.menu_ambient",
+    "source location branch has no bundled menu music",
     "AudioSettings->bMenuMusicEnabled",
     "GetBusVolume(EOCAudioBus::Music)",
     "SpawnSound2D",
