@@ -394,15 +394,24 @@ void AOCWorldSectorOster::BuildRoadNetwork()
     {
         AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
     }
-    AddRoadWithWalks(FVector(-23500, 40500, RoadZ), FVector(51000, 760, 16), 18.0f);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::WorldDiag01Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
     AddRoadWithWalks(FVector(-48000, 51000, RoadZ), FVector(52000, 720, 16), 63.0f, false);
-    AddRoadWithWalks(FVector(-5000, 33500, RoadZ), FVector(49000, 760, 16), -34.0f);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::WorldDiag02Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
     AddRoadWithWalks(FVector(20500, 20500, RoadZ), FVector(52000, 780, 16), 73.0f, false);
     AddRoadWithWalks(FVector(31500, -23000, RoadZ), FVector(63000, 850, 16), 4.0f, false);
     AddRoadWithWalks(FVector(-33000, -25500, RoadZ), FVector(56000, 760, 16), -7.0f, false);
 
     const FVector Park = ParkAnchor();
-    AddRoadWithWalks(Park + FVector(0, -8500, RoadZ), FVector(43000, 720, 16), 2.0f);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::ParkSouthSegments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
     AddRoadWithWalks(Park + FVector(-9000, 13500, RoadZ), FVector(37000, 700, 16), 79.0f, false);
 
     const FVector College = CollegeAnchor();
