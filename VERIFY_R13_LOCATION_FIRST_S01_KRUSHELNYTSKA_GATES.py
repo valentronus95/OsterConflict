@@ -10,6 +10,7 @@ AUTHOR_CPP = SRC / "Private" / "OCLocationSectorS01KrushelnytskaAuthoringData.cp
 GEO_H = SRC / "Public" / "OCGeoReference.h"
 GEO_CPP = SRC / "Private" / "OCGeoReference.cpp"
 PLAN_CPP = SRC / "Private" / "OCLocationSectorPlan.cpp"
+ROAD_CPP = SRC / "Private" / "OCLocationSectorS01RoadData.cpp"
 WORLD = SRC / "Private" / "OCWorldSectorOster.cpp"
 
 TOL = 0.05
@@ -19,13 +20,9 @@ def fail(message: str) -> None:
     raise SystemExit("R13 S01 KRUSHELNYTSKA GATE VERIFY FAIL: " + message)
 
 
-for path in (REF_CPP, AUTHOR_H, AUTHOR_CPP, GEO_H, GEO_CPP, PLAN_CPP, WORLD):
+for path in (REF_CPP, AUTHOR_H, AUTHOR_CPP, GEO_H, GEO_CPP, PLAN_CPP, ROAD_CPP, WORLD):
     if not path.is_file():
         fail(f"missing source: {path.relative_to(ROOT)}")
-
-road_sources = sorted((SRC / "Private").glob("OCLocationSectorS01Road*.cpp"))
-if not road_sources:
-    fail("no S01 road source files found")
 
 ref_cpp = REF_CPP.read_text(encoding="utf-8", errors="replace")
 author_h = AUTHOR_H.read_text(encoding="utf-8", errors="replace")
@@ -33,8 +30,8 @@ author_cpp = AUTHOR_CPP.read_text(encoding="utf-8", errors="replace")
 geo_h = GEO_H.read_text(encoding="utf-8", errors="replace")
 geo_cpp = GEO_CPP.read_text(encoding="utf-8", errors="replace")
 plan_cpp = PLAN_CPP.read_text(encoding="utf-8", errors="replace")
+road_cpp = ROAD_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD.read_text(encoding="utf-8", errors="replace")
-road_text = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in road_sources)
 
 for token in [
     "FOCS01CenterlineAuthoringGate",
@@ -166,8 +163,11 @@ if not (xmin <= east[0] <= xmax and ymin <= east[1] <= ymax):
     fail("east gate left S01 bounds")
 
 # The three retained Krushelnytska spine pieces are traversable migration geometry, not verified geography.
-# Public evidence now contradicts promotion of their near-vertical alignment, so both the conflict registry and the
-# actual road records must remain explicitly C-confidence until an atomic reviewed replacement is ready.
+# The road registry intentionally spells confidence through its shared Provisional alias, so verify the alias itself is
+# exactly C and then verify every conflicted record uses that alias. This checks semantics without depending on style.
+if "constexpr EOCReferenceConfidence Provisional = EOCReferenceConfidence::C;" not in road_cpp:
+    fail("S01 road Provisional confidence alias is no longer locked to C")
+
 conflict_pattern = re.compile(
     r'TEXT\("(S01_KR_SPINE_(?:SOUTH_SHARED|INSIDE|NORTH_SHARED))"\),\s*'
     r'EOCReferenceConfidence::([ABC]),\s*TEXT\("([^"]+)"\)',
@@ -181,22 +181,22 @@ expected_conflicts = {
 }
 if len(conflicts) != 3 or {item[0] for item in conflicts} != expected_conflicts:
     fail(f"expected exactly three reference-conflicted Krushelnytska spine records, found {[item[0] for item in conflicts]}")
+
 for runtime_id, maximum_confidence, reason in conflicts:
     if maximum_confidence != "C":
         fail(f"reference-conflicted segment {runtime_id} was allowed above C confidence")
     if len(reason.strip()) < 30:
         fail(f"reference conflict reason is too weak for {runtime_id}")
-    if road_text.count(f'TEXT("{runtime_id}")') != 1:
+
+    marker = f'TEXT("{runtime_id}")'
+    if road_cpp.count(marker) != 1:
         fail(f"expected one actual road record for reference-conflicted segment {runtime_id}")
-    road_match = re.search(
-        rf'TEXT\("{re.escape(runtime_id)}"\).{{0,1200}}?EOCReferenceConfidence::([ABC])',
-        road_text,
-        flags=re.S,
-    )
-    if not road_match:
-        fail(f"cannot parse actual road confidence for {runtime_id}")
-    if road_match.group(1) != "C":
-        fail(f"reference-conflicted runtime road {runtime_id} was promoted to {road_match.group(1)}")
+    start = road_cpp.index(marker)
+    next_record = road_cpp.find('TEXT("S01_', start + len(marker))
+    end = next_record if next_record >= 0 else min(len(road_cpp), start + 3000)
+    snippet = road_cpp[start:end]
+    if not re.search(r'EOCS01RoadRelation::(?:Inside|Crossing),\s*Provisional,\s*TEXT\(', snippet, flags=re.S):
+        fail(f"reference-conflicted road {runtime_id} does not use the C-locked Provisional alias")
 
 # The authoring gates/conflict metadata are deliberately forbidden from runtime until a separately reviewed
 # carriageway skeleton exists. Conflict records explain the old geometry; they do not become a new runtime owner.
@@ -212,5 +212,5 @@ print("R13 S01 KRUSHELNYTSKA GATE VERIFY: PASS")
 print(
     f"Derived review-only S01 gates from source evidence: south entry ({south[0]:.1f},{south[1]:.1f}) cm, "
     f"east exit ({east[0]:.1f},{east[1]:.1f}) cm. Both remain C-confidence uncertainty windows; the three retained "
-    "Krushelnytska spine pieces are explicitly reference-conflicted and locked at C confidence until atomic replacement."
+    "Krushelnytska spine pieces are explicitly reference-conflicted and verified through the C-locked Provisional alias."
 )
