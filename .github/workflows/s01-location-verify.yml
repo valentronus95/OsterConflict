@@ -42,3 +42,6 @@ jobs:
 
       - name: Verify Krushelnytska reference evidence
         run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_REFERENCES.py
+
+      - name: Verify Krushelnytska review-only authoring gates
+        run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GATES.py
