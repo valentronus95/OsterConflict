@@ -387,7 +387,10 @@ void AOCWorldSectorOster::BuildRoadNetwork()
 
     AddRoadWithWalks(FVector(-5000, -9000, RoadZ), FVector(138000, 1050, 16), 0.0f);
     AddRoadWithWalks(FVector(-18000, 17000, RoadZ), FVector(61000, 820, 16), 0.0f);
-    AddRoadWithWalks(FVector(-33500, 25000, RoadZ), FVector(112000, 920, 16), 91.5f);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
     AddRoadWithWalks(FVector(-23500, 40500, RoadZ), FVector(51000, 760, 16), 18.0f);
     AddRoadWithWalks(FVector(-48000, 51000, RoadZ), FVector(52000, 720, 16), 63.0f, false);
     AddRoadWithWalks(FVector(-5000, 33500, RoadZ), FVector(49000, 760, 16), -34.0f);
