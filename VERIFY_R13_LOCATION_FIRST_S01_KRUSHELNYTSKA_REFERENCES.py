@@ -28,8 +28,12 @@ world = WORLD.read_text(encoding="utf-8", errors="replace")
 for token in [
     "FOCS01StreetAddressReference",
     "KrushelnytskaAddressReferences()",
+    "FOCS01StreetExtentReference",
+    "KrushelnytskaStreetExtentReference()",
     "reference evidence only",
     "not carriageway-center samples",
+    "never a runtime waypoint",
+    "never as a road centerline",
 ]:
     if token not in h + cpp:
         fail(f"reference-safety contract missing: {token}")
@@ -63,6 +67,38 @@ for actual, exp in zip(records, expected):
         fail(f"reference order/id drift: actual={aid}/{label}, expected={eid}/{elabel}")
     if abs(float(lat) - elat) > 1e-11 or abs(float(lon) - elon) > 1e-11:
         fail(f"public-map coordinate drift for {aid}")
+
+extent_pattern = re.compile(
+    r'TEXT\("S01_KR_STREET_EXTENT_VISICOM"\),\s*'
+    r'([0-9.]+),\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+),\s*'
+    r'([0-9.]+),\s*([0-9.]+),\s*EOCReferenceConfidence::B,',
+    flags=re.S,
+)
+extent_match = extent_pattern.search(cpp)
+if not extent_match:
+    fail("cannot parse B-confidence whole-street extent evidence")
+center_lat, center_lon, min_lat, min_lon, max_lat, max_lon = map(float, extent_match.groups())
+expected_extent = (
+    50.951601785552164,
+    30.883556648533790,
+    50.947336834596960,
+    30.874850176800106,
+    50.958347034213716,
+    30.886361188850810,
+)
+for name, actual, expected_value in zip(
+    ("center_lat", "center_lon", "min_lat", "min_lon", "max_lat", "max_lon"),
+    (center_lat, center_lon, min_lat, min_lon, max_lat, max_lon),
+    expected_extent,
+):
+    if abs(actual - expected_value) > 1e-11:
+        fail(f"whole-street extent drift for {name}: {actual} != {expected_value}")
+
+if not (min_lat < center_lat < max_lat and min_lon < center_lon < max_lon):
+    fail("whole-street label center is no longer inside its recorded public-map extent")
+for rid, _label, lat, lon in expected:
+    if not (min_lat <= lat <= max_lat and min_lon <= lon <= max_lon):
+        fail(f"address evidence {rid} fell outside the recorded whole-street extent")
 
 origin_lat_match = re.search(r"OriginLatitude\s*=\s*([0-9.]+)", geo_h)
 origin_lon_match = re.search(r"OriginLongitude\s*=\s*([0-9.]+)", geo_h)
@@ -111,16 +147,25 @@ college_marker_distance = math.hypot(x_7a - college[0], y_7a - college[1])
 if college_marker_distance > 1000.0:
     fail(f"College anchor and public-map 7A marker diverged by {college_marker_distance / 100.0:.1f} m")
 
-# Critical safety rule: address evidence is not allowed to become runtime road placement by accidental direct use.
+street_min = local_cm(min_lat, min_lon)
+street_max = local_cm(max_lat, max_lon)
+street_span_x_m = abs(street_max[0] - street_min[0]) / 100.0
+street_span_y_m = abs(street_max[1] - street_min[1]) / 100.0
+if street_span_x_m < 750.0 or street_span_y_m < 1100.0:
+    fail("recorded whole-street extent became implausibly small for the locked public-map object")
+
+# Critical safety rule: public reference evidence is not allowed to become runtime road placement by accidental use.
 for forbidden in [
     '#include "OCLocationSectorS01ReferenceData.h"',
     "FOCLocationSectorS01ReferenceData::KrushelnytskaAddressReferences()",
+    "FOCLocationSectorS01ReferenceData::KrushelnytskaStreetExtentReference()",
 ]:
     if forbidden in world:
-        fail(f"address evidence leaked directly into runtime road construction: {forbidden}")
+        fail(f"reference evidence leaked directly into runtime road construction: {forbidden}")
 
 print("R13 S01 KRUSHELNYTSKA REFERENCE VERIFY: PASS")
 print(
-    f"Locks 9 Oster-specific address markers as B-confidence alignment evidence; College/7A delta "
-    f"{college_marker_distance / 100.0:.1f} m. Runtime road centerline remains deliberately separate."
+    f"Locks 9 Oster-specific address markers plus the whole-street B-confidence extent; College/7A delta "
+    f"{college_marker_distance / 100.0:.1f} m, extent about {street_span_x_m:.0f} x {street_span_y_m:.0f} m. "
+    "Runtime road centerline remains deliberately separate."
 )
