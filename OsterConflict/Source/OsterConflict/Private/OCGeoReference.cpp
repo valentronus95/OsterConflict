@@ -25,6 +25,17 @@ FOCGeoReferencePoint FOCGeoReference::Stadium()
         TEXT("Public-map stadium coordinate; placement verified, exact site/facade detail remains incomplete") };
 }
 
+FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
+{
+    // Public map listings place the named V.K. Solonyna city/estate park about 140 m east of the museum and
+    // about 130 m south-east of Stadion Oster. The exact OSM park polygon centroid is not available in our source
+    // references yet, so this is deliberately confidence-B: a topology/site anchor, not a survey point.
+    // Circle-intersection topology from those two published relationships resolves to ~138 m east / ~24 m north
+    // of the museum origin, which keeps the park distinct from the much farther CentralCityPark anchor.
+    return { TEXT("SolonynaEstatePark"), 50.948455, 30.885832, EOCReferenceConfidence::B,
+        TEXT("Inferred site center from public museum/stadium adjacency: ~140 m east of museum and ~130 m SE of stadium; not an OSM polygon centroid") };
+}
+
 FOCGeoReferencePoint FOCGeoReference::College()
 {
     return { TEXT("OsterCollege"), 50.949182, 30.879127, EOCReferenceConfidence::A,
