@@ -19,8 +19,8 @@ enum class EOCS01RoadRelation : uint8
 };
 
 /**
- * S01 road-corridor record. Crossing records are audit-only until the shared corridor can be split without
- * changing visible geometry outside the sector. Inside records may be consumed directly by S01 runtime code.
+ * S01 road-corridor record. Relation controls ownership; a split manifest may contain Crossing pieces that remain
+ * shared even though all pieces are rendered from one explicit continuity-preserving record set.
  */
 struct FOCS01RoadCorridorSeed
 {
@@ -54,8 +54,14 @@ public:
     /** Corridors completely inside S01 and safe to move out of the generic city road builder one-for-one. */
     static const TArray<FOCS01RoadCorridorSeed>& OwnedInsideCorridors();
 
-    /** Current BuildRoadNetwork corridors that intersect S01 but extend outside it. Audit-only until split. */
+    /** Current unsplit BuildRoadNetwork corridors that intersect S01 and still remain audit-only. */
     static const TArray<FOCS01RoadCorridorSeed>& SharedCrossingCorridors();
+
+    /**
+     * Three contiguous pieces replacing the former single 112000 cm Krushelnytska spine corridor.
+     * South/North remain Crossing/shared; the middle piece is fully Inside including both sidewalk envelopes.
+     */
+    static const TArray<FOCS01RoadCorridorSeed>& KrushelnytskaSpineSegments();
 
     /** Four current Central Park internal sidewalk strips, all fully inside S01. */
     static const TArray<FOCS01PathSeed>& OwnedCentralParkPaths();
