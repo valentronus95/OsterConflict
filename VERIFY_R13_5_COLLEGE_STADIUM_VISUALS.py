@@ -1,9 +1,12 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
 COLLEGE_H = SRC / "Public" / "OCR13CollegeFacadeSubsystem.h"
 COLLEGE_CPP = SRC / "Private" / "OCR13CollegeFacadeSubsystem.cpp"
+ACCESS_H = SRC / "Public" / "OCR13CollegeAccessRepairSubsystem.h"
+ACCESS_CPP = SRC / "Private" / "OCR13CollegeAccessRepairSubsystem.cpp"
 STADIUM_H = SRC / "Public" / "OCR13StadiumSurfaceSubsystem.h"
 STADIUM_CPP = SRC / "Private" / "OCR13StadiumSurfaceSubsystem.cpp"
 WORLD_CPP = SRC / "Private" / "OCWorldSectorOster.cpp"
@@ -15,19 +18,31 @@ def fail(message: str) -> None:
     raise SystemExit("R13.5 COLLEGE/STADIUM VISUAL VERIFY FAIL: " + message)
 
 
-for path in (COLLEGE_H, COLLEGE_CPP, STADIUM_H, STADIUM_CPP, WORLD_CPP, ROAD_CPP, CIVIC_CPP):
+def const_float(text: str, name: str) -> float:
+    match = re.search(rf"constexpr\s+float\s+{re.escape(name)}\s*=\s*(-?[0-9.]+)f\s*;", text)
+    if not match:
+        fail(f"cannot parse constexpr float {name}")
+    return float(match.group(1))
+
+
+for path in (
+    COLLEGE_H, COLLEGE_CPP, ACCESS_H, ACCESS_CPP,
+    STADIUM_H, STADIUM_CPP, WORLD_CPP, ROAD_CPP, CIVIC_CPP,
+):
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
 
 college_h = COLLEGE_H.read_text(encoding="utf-8", errors="replace")
 college = COLLEGE_CPP.read_text(encoding="utf-8", errors="replace")
+access_h = ACCESS_H.read_text(encoding="utf-8", errors="replace")
+access = ACCESS_CPP.read_text(encoding="utf-8", errors="replace")
 stadium_h = STADIUM_H.read_text(encoding="utf-8", errors="replace")
 stadium = STADIUM_CPP.read_text(encoding="utf-8", errors="replace")
 world = WORLD_CPP.read_text(encoding="utf-8", errors="replace")
 road = ROAD_CPP.read_text(encoding="utf-8", errors="replace")
 civic = CIVIC_CPP.read_text(encoding="utf-8", errors="replace")
 
-for name, text in (("college", college_h), ("stadium", stadium_h)):
+for name, text in (("college", college_h), ("access", access_h), ("stadium", stadium_h)):
     includes = [line.strip() for line in text.splitlines() if line.strip().startswith("#include")]
     if not includes or "generated.h" not in includes[-1]:
         fail(f"generated.h must remain final include in {name} header")
@@ -53,6 +68,7 @@ for token in [
     "Transform.SetLocation(Center);",
     "const FVector WorldOffset = Rotate2D(LocalOffset, BuildingYawDegrees);",
     "BuildingCenter + WorldOffset",
+    "AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);",
 ]:
     if token not in world:
         fail(f"BuildCollegeSector/source placement marker missing: {token}")
@@ -160,6 +176,84 @@ for forbidden in [
     if forbidden in college:
         fail(f"obsolete/unified-coordinate/floating college facade topology returned: {forbidden}")
 
+# The authored continuous front fence intersects the lowest stair at Y=-2450. Keep the source marker explicit so
+# this runtime repair becomes deliberately obsolete if BuildCollegeSector is later corrected at the source.
+legacy_fence_min_y = -2450.0 - 45.0 / 2.0
+legacy_fence_max_y = -2450.0 + 45.0 / 2.0
+lowest_step_y = -1940.0 - 4.0 * 115.0
+lowest_step_min_y = lowest_step_y - 220.0 / 2.0
+lowest_step_max_y = lowest_step_y + 220.0 / 2.0
+if max(legacy_fence_min_y, lowest_step_min_y) > min(legacy_fence_max_y, lowest_step_max_y):
+    fail("legacy front fence no longer intersects the lowest stair; remove/update the runtime access repair")
+
+for token in [
+    "class OSTERCONFLICT_API UOCR13CollegeAccessRepairSubsystem",
+    "void RepairCollegeEntrance(UWorld& World);",
+]:
+    if token not in access_h:
+        fail(f"college access header marker missing: {token}")
+
+for token in [
+    "constexpr float CollegeAccessRepairDelaySeconds = 2.40f;",
+    "constexpr float CollegeYawDegrees = 1.0f;",
+    "constexpr float FrontFenceY = -2450.0f;",
+    "constexpr float FrontFenceZ = 110.0f;",
+    "constexpr float FrontFenceGapCenterX = 900.0f;",
+    "constexpr float FrontFenceGapWidthCm = 3400.0f;",
+    "constexpr float LeftFenceCenterX = -3000.0f;",
+    "constexpr float LeftFenceLengthCm = 4400.0f;",
+    "constexpr float RightFenceCenterX = 3900.0f;",
+    "constexpr float RightFenceLengthCm = 2600.0f;",
+    "const FVector LegacyFrontFenceScale(104.0f, 0.45f, 2.20f);",
+    "Sector->GetComponents<UInstancedStaticMeshComponent>(Components, false);",
+    'const FName FencesName(TEXT("Fences"));',
+    "Fences->GetInstanceTransform(Index, Transform, false)",
+    "Transform.GetLocation().Equals(ExpectedCenter, 4.0f)",
+    "Transform.GetScale3D().Equals(LegacyFrontFenceScale, 0.02f)",
+    'TEXT("R13_CollegeFrontFenceSplit")',
+    "Split->SetStaticMesh(SourceFences->GetStaticMesh());",
+    "SourceFences->GetMaterial(0)",
+    "Split->SetCollisionProfileName(SourceFences->GetCollisionProfileName());",
+    "Split->SetCollisionEnabled(SourceFences->GetCollisionEnabled());",
+    "Split->SetCanEverAffectNavigation(true);",
+    "Local-space instances match the source Fences component convention exactly",
+    "LeftFenceLengthCm / 100.0f",
+    "RightFenceLengthCm / 100.0f",
+    "SourceFences->RemoveInstance(LegacyIndex)",
+    "SplitFence->DestroyComponent();",
+    'TEXT("R13_CollegeAccessRepairApplied")',
+    "3.4m opening centered on X+900",
+    "side/rear fences untouched",
+    "GameMode->IsFrontendOnlySession()",
+]:
+    if token not in access:
+        fail(f"college access repair marker missing: {token}")
+
+if 'TEXT("NoCollision")' in access or "SetCanEverAffectNavigation(false)" in access:
+    fail("college split front fence must preserve blocking/navigation behavior")
+
+gap_center = const_float(access, "FrontFenceGapCenterX")
+gap_width = const_float(access, "FrontFenceGapWidthCm")
+left_center = const_float(access, "LeftFenceCenterX")
+left_length = const_float(access, "LeftFenceLengthCm")
+right_center = const_float(access, "RightFenceCenterX")
+right_length = const_float(access, "RightFenceLengthCm")
+left_outer = left_center - left_length / 2.0
+left_inner = left_center + left_length / 2.0
+right_inner = right_center - right_length / 2.0
+right_outer = right_center + right_length / 2.0
+actual_gap_width = right_inner - left_inner
+actual_gap_center = (left_inner + right_inner) / 2.0
+
+if abs(left_outer - (-5200.0)) > 0.01 or abs(right_outer - 5200.0) > 0.01:
+    fail(f"split front fence no longer preserves original 104m outer span: {left_outer=} {right_outer=}")
+if abs(actual_gap_width - gap_width) > 0.01 or abs(actual_gap_center - gap_center) > 0.01:
+    fail(f"split front fence gap constants disagree with segment geometry: width={actual_gap_width}, center={actual_gap_center}")
+if abs((left_length + gap_width + right_length) - 10400.0) > 0.01:
+    fail("split segments + opening must exactly cover the original 104m front-fence span")
+if gap_width <= 2750.0:
+    fail("college entrance opening must remain wider than the maximum 2.75m authored stair width")
+
 for token in [
     'TEXT("S01_PATH_COLLEGE_CAMPUS")',
     "FVector(900, 5200, 12)",
@@ -206,13 +300,16 @@ for token in [
     if token not in stadium:
         fail(f"stadium visual marker missing: {token}")
 
-for label, text in (("college", college), ("stadium", stadium), ("civic", civic)):
-    for forbidden in ["FMath::Rand", "FRand", "SetCollisionProfileName(TEXT(\"BlockAll\"))"]:
+for label, text in (("college", college), ("access", access), ("stadium", stadium), ("civic", civic)):
+    for forbidden in ["FMath::Rand", "FRand"]:
         if forbidden in text:
-            fail(f"{label} contains unsafe visual-only marker: {forbidden}")
+            fail(f"{label} contains nondeterministic marker: {forbidden}")
     for left, right in (("(", ")"), ("{", "}"), ("[", "]")):
         if text.count(left) != text.count(right):
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks the mixed BuildCollegeSector source-coordinate contract against the aligned 65x19x14.4m/X+900 facade overlay, flush trim, framed 9x4 windows, source-matched five-step finish, 2.8m pedestrian campus path/tree clearance, plus stadium visuals; visual overlays remain gameplay-collision neutral.")
+print(
+    "Checks mixed BuildCollegeSector coordinates, aligned college facade/windows/stairs, exact 3.4m blocking-fence entrance repair, "
+    "2.8m campus path/tree clearance, plus stadium visuals; visual overlays remain collision-neutral while the split fence preserves gameplay blocking."
+)
