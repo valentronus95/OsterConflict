@@ -75,11 +75,15 @@ e03 = re.search(
 if not e03:
     fail("legacy east-side slot 03 primary-house absence/outbuilding state was not preserved explicitly")
 
-# Current registry contains 16 plots + 8 frontages + 2 service roads, all deliberately C-confidence.
-if data_cpp.count("Provisional,") != 26:
-    fail("all 26 migrated S01 records must remain explicitly provisional C-confidence")
+# Topology records are counted separately from the later vegetation registry.
+vegetation_start = data_cpp.find("ProvisionalVegetationTrees()")
+if vegetation_start < 0:
+    fail("S01 vegetation registry boundary is missing")
+topology_section = data_cpp[:vegetation_start]
+if topology_section.count("Provisional,") != 26:
+    fail("all 26 migrated topology records must remain explicitly provisional C-confidence")
 
-# The authoritative world builder must consume explicit records, not regenerate coordinates from slot arithmetic.
+# The authoritative world builder must consume explicit topology records, not regenerate coordinates from slot arithmetic.
 for token in [
     '#include "OCLocationSectorS01Data.h"',
     "FOCLocationSectorS01Data::ProvisionalResidentialPlots()",
@@ -92,14 +96,14 @@ for token in [
     "AddBox(Roads, Road.Center, Road.SizeCm, Road.Yaw)",
 ]:
     if token not in world:
-        fail(f"world builder does not consume explicit S01 data: {token}")
+        fail(f"world builder does not consume explicit S01 topology data: {token}")
 for forbidden in [
     "WestHouseX", "EastHouseX", "const float StartY = 20500.0f",
     "BoundaryStartY", "static_cast<float>(Slot) * 4800.0f",
     "FVector(-43000.0f, 36000.0f, RoadZ)", "FVector(-24200.0f, 37000.0f, RoadZ)",
 ]:
     if forbidden in world:
-        fail(f"legacy arithmetic/direct S01 placement survived registry migration: {forbidden}")
+        fail(f"legacy arithmetic/direct S01 topology placement survived registry migration: {forbidden}")
 
 # Location-first guardrails: no city-wide generator is allowed to fill or dress S01.
 if "procedural residential infill disabled" not in infill:
@@ -114,6 +118,14 @@ for token in [
     if token not in dressing:
         fail(f"generic environment dressing is not guarded from S01: {token}")
 
+# Generic source vegetation points must be rejected before they are rendered inside S01.
+for token in [
+    "IsInsideKrushelnytskaCollegePark(RoughPatches[I])",
+    "IsInsideKrushelnytskaCollegePark(TreeLocation)",
+]:
+    if token not in world:
+        fail(f"generic source vegetation is not excluded from S01: {token}")
+
 for token in [
     "ACTIVE RECONSTRUCTION SECTOR",
     "confidence C",
@@ -126,4 +138,4 @@ for token in [
         fail(f"S01 execution document missing: {token}")
 
 print("R13 LOCATION-FIRST S01 VERIFY: PASS")
-print("Checks canonical sector ownership, 26 explicit C-confidence S01 records, direct world-builder consumption and exclusion from generic infill/dressing.")
+print("Checks canonical sector ownership, 26 explicit C-confidence topology records, direct topology consumption and generic infill/dressing/vegetation exclusion.")
