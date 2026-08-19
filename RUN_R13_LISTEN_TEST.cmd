@@ -11,6 +11,11 @@ set "MAP_FILE=%PROJECT_ROOT%\Content\Maps\OsterConflict_Runtime.umap"
 set "MAP_SCRIPT=%PROJECT_ROOT%\Scripts\S18B\CREATE_RELEASE_MAP.py"
 set "READY_CHECK=%~dp0PC_TEST\CHECK_R13_LAUNCH_READY.ps1"
 set "LFS_CHECK=%~dp0PC_TEST\CHECK_R13_LFS_PAYLOADS.ps1"
+set "LOG_DIR=%~dp0Logs"
+set "PLAYTEST_LOG=%LOG_DIR%\R13_LAST_PLAYTEST.log"
+
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
 
 if not exist "%EDITOR%" (
   echo UE 5.8 editor not found at:
@@ -50,6 +55,8 @@ if not exist "%LFS_CHECK%" (
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%READY_CHECK%" -ProjectRoot "%PROJECT_ROOT%"
 set "READY_RC=%ERRORLEVEL%"
 if not "%READY_RC%"=="0" (
+  echo.
+  echo [STOP] Launch readiness check failed.
   pause
   exit /b %READY_RC%
 )
@@ -57,6 +64,8 @@ if not "%READY_RC%"=="0" (
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%" -ProjectRoot "%PROJECT_ROOT%"
 set "LFS_RC=%ERRORLEVEL%"
 if not "%LFS_RC%"=="0" (
+  echo.
+  echo [STOP] Git LFS payload check failed.
   pause
   exit /b %LFS_RC%
 )
@@ -76,7 +85,13 @@ if not exist "%MAP_FILE%" (
   )
 )
 
-echo Starting Oster Conflict frontend shell...
+echo Starting Oster Conflict standalone gameplay test...
+echo The full Unreal Editor UI will NOT be opened.
+echo This development build still uses UnrealEditor.exe with -game until a packaged EXE is produced.
+echo.
+echo Persistent runtime log:
+echo   %PLAYTEST_LOG%
+echo.
 echo No match, bots, vehicles or gameplay audio are started behind the main menu.
 echo Choose START or LOCAL GAME in the menu to create the listen-server match.
 echo.
@@ -86,5 +101,16 @@ echo   Turret control belongs to the dedicated gunner seat; driver mouse does no
 echo.
 rem IMPORTANT: launch the runtime map as a standalone frontend shell first.
 rem StartLocalGameplay() performs the explicit travel to the listen-server URL with R13Gameplay=1.
-start "Oster Conflict R13.2" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
-exit /b 0
+rem /wait keeps this console alive and -abslog preserves the exact runtime diagnostics after a freeze/crash/exit.
+start /wait "Oster Conflict R13 Playtest" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+set "GAME_RC=%ERRORLEVEL%"
+
+echo.
+echo ============================================================
+echo PLAYTEST FINISHED - exit code %GAME_RC%
+echo Log preserved at:
+echo %PLAYTEST_LOG%
+echo ============================================================
+echo This window stays open so the result cannot disappear again.
+pause
+exit /b %GAME_RC%
