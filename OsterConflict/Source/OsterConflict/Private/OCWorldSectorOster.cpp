@@ -2,6 +2,7 @@
 #include "OCGeoReference.h"
 #include "OCLocationSectorPlan.h"
 #include "OCLocationSectorS01Data.h"
+#include "OCLocationSectorS01RoadData.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -399,7 +400,18 @@ void AOCWorldSectorOster::BuildRoadNetwork()
     AddRoadWithWalks(Park + FVector(-9000, 13500, RoadZ), FVector(37000, 700, 16), 79.0f, false);
 
     const FVector College = CollegeAnchor();
-    AddRoadWithWalks(College + FVector(-13500, 0, RoadZ), FVector(30000, 660, 14), 0.0f);
+    auto ResolveS01RoadAnchor = [&Park, &College](EOCS01RoadAnchor Anchor)
+    {
+        if (Anchor == EOCS01RoadAnchor::College) return College;
+        if (Anchor == EOCS01RoadAnchor::CentralPark) return Park;
+        return FVector::ZeroVector;
+    };
+
+    for (const FOCS01RoadCorridorSeed& Road : FOCLocationSectorS01RoadData::OwnedInsideCorridors())
+    {
+        AddRoadWithWalks(ResolveS01RoadAnchor(Road.Anchor) + Road.LocalOffset,
+            Road.SizeCm, Road.Yaw, Road.bTwoWalks);
+    }
 
     AddBox(Roads, FVector(-86500, 15000, RoadZ), FVector(780, 138000, 16), 7.0f);
     AddBox(Roads, FVector(65500, 15000, RoadZ), FVector(780, 120000, 16), -5.0f);
