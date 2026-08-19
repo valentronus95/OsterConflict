@@ -100,9 +100,8 @@ void UOCR13VerifiedOsterGeographySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 FVector UOCR13VerifiedOsterGeographySubsystem::VerifiedStadiumAnchor()
 {
-    // OpenStreetMap way 416516456 / public map coordinate for Stadion Oster.
-    // Museum remains the local WGS84 origin, so this is deterministic without a GIS plugin.
-    return FOCGeoReference::ToLocalCm(50.94936, 30.88466, 0.0);
+    const FOCGeoReferencePoint Ref = FOCGeoReference::Stadium();
+    return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, 0.0);
 }
 
 void UOCR13VerifiedOsterGeographySubsystem::ApplyVerifiedGeography(UWorld& World)
@@ -228,6 +227,6 @@ void UOCR13VerifiedOsterGeographySubsystem::RelocateStadiumPresentation(UWorld& 
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.6 verified geography: stadium presentation moved by X %.0f / Y %.0f cm to public-map anchor; instances=%d components=%d."),
+        TEXT("R13.6 verified geography: stadium presentation moved by X %.0f / Y %.0f cm to canonical geo anchor; instances=%d components=%d."),
         Delta.X, Delta.Y, MovedInstances, TouchedComponents);
 }
