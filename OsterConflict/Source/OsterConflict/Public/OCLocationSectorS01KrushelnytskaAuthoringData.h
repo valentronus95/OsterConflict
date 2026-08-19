@@ -16,6 +16,17 @@ struct FOCS01CenterlineAuthoringGate
     const TCHAR* DerivationNote = TEXT("");
 };
 
+/**
+ * Explicit record that a retained runtime blockout segment conflicts with newer public reference evidence.
+ * This prevents tidy migrated geometry from being mistaken for verified geography before replacement is ready.
+ */
+struct FOCS01ReferenceConflictRecord
+{
+    FName RuntimeGeometryId = NAME_None;
+    EOCReferenceConfidence MaximumAllowedConfidence = EOCReferenceConfidence::C;
+    const TCHAR* ConflictReason = TEXT("");
+};
+
 class OSTERCONFLICT_API FOCLocationSectorS01KrushelnytskaAuthoringData
 {
 public:
@@ -24,4 +35,7 @@ public:
      * but OCWorldSectorOster must never render the gates themselves.
      */
     static const TArray<FOCS01CenterlineAuthoringGate>& ReviewOnlyCenterlineGates();
+
+    /** Retained C-confidence Krushelnytska blockout pieces that must not be promoted before replacement. */
+    static const TArray<FOCS01ReferenceConflictRecord>& ReferenceConflictedRuntimeSegments();
 };
