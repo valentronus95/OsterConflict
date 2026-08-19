@@ -51,7 +51,8 @@ markers = {
     ],
     'OCWorldSectorOster.cpp': [
         'BuildSolomiiKrushelnytskoiStreet();', 'KrushelnytskaEnterableHouseAnchor',
-        'SOLOMII KRUSHELNYTSKOI STREET / S08', 'service alleys'
+        'SOLOMII KRUSHELNYTSKOI STREET / S08',
+        'FVector(-43000.0f, 36000.0f, RoadZ)', 'FVector(-24200.0f, 37000.0f, RoadZ)'
     ],
     'OCCharacter.cpp': [
         'FindFocusedWorldInteractable', 'OCWorldInteractionTrace', 'Interactable->CanInteractServer(this)',
