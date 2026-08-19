@@ -61,7 +61,6 @@ for token in required:
     if token not in cpp:
         fail(f"photo-fidelity marker missing: {token}")
 
-# Compatibility accessor is read-only and must delegate to the canonical source-world anchor.
 if "static FVector VerifiedStadiumAnchor();" not in geo_h:
     fail("read-only stadium compatibility accessor missing")
 if "return AOCWorldSectorOster::StadiumAnchor();" not in geo_cpp:
@@ -73,8 +72,8 @@ for token in [
     if token not in world:
         fail(f"canonical stadium source marker missing: {token}")
 
-# Lock the supplied-photo topology: stadium must remain the adjacent north-east sports field, not drift to the
-# old hardcoded position. Parse canonical WGS84 points and verify both distance and direction from the museum.
+# Lock supplied-photo topology: stadium remains the adjacent north-east sports field rather than drifting back to
+# the old hardcoded gameplay position.
 def parse_ref(identifier: str) -> tuple[float, float]:
     pattern = re.compile(
         rf'TEXT\("{re.escape(identifier)}"\)\s*,\s*([-0-9.]+)\s*,\s*([-0-9.]+)'
