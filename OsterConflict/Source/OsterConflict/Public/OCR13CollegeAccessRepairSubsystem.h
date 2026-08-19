@@ -18,5 +18,6 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
 private:
-    void RepairCollegeEntrance(UWorld& World);
+    void ScheduleRepair(UWorld& World, int32 AttemptIndex);
+    bool RepairCollegeEntrance(UWorld& World);
 };
