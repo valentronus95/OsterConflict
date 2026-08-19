@@ -48,6 +48,8 @@ for token in [
     "const float Z = 255.0f + Row * 340.0f;",
     "if (Row == 0 && (Col == 5 || Col == 6)) continue;",
     "AddFacadeWindow(LandmarkWindows, College, FVector(X, -965, Z), FVector(430, 24, 220), Yaw, true);",
+    "const FVector WorldOffset = Rotate2D(LocalOffset, BuildingYawDegrees);",
+    "BuildingCenter + WorldOffset",
 ]:
     if token not in world:
         fail(f"BuildCollegeSector source topology marker missing: {token}")
@@ -61,6 +63,8 @@ for token in [
     "R13_CollegeEntranceCanopy",
     "R13_CollegeEntranceGlass",
     "R13_CollegeEntranceFrame",
+    "R13_CollegeWindowGlass",
+    "R13_CollegeWindowFrames",
     "Glass_Window.Glass_Window",
     "FloorBandZ[]",
     "constexpr float CollegeYawDegrees = 1.0f;",
@@ -72,16 +76,24 @@ for token in [
     "constexpr float EntranceBlockCenterY = -1230.0f;",
     "constexpr float EntranceFrontY = -1530.0f;",
     "constexpr float EntranceCanopyCenterY = -1590.0f;",
+    "constexpr float WindowFrontY = -981.0f;",
+    "FVector CollegeLocalToWorld(const FVector& College, const FVector& LocalOffset)",
+    "FRotator(0.0f, CollegeYawDegrees, 0.0f).RotateVector(LocalOffset)",
     "MainWidthCm - 100.0f",
+    "constexpr int32 WindowColumns = 9;",
+    "constexpr int32 WindowRows = 4;",
+    "if (Row == 0 && (Col == 5 || Col == 6)) continue;",
+    "FVector(408.0f, 8.0f, 198.0f)",
+    "FVector(446.0f, 12.0f, 18.0f)",
+    "FVector(18.0f, 12.0f, 240.0f)",
     "EntranceCenterX, EntranceFrontY - 8.0f",
     "EntranceCenterX, EntranceCanopyCenterY, 505.0f",
-    "second fake entrance at X=0",
-    "source already owns the 26.5 x 9.2 m canopy collision slab",
-    "aligned to authored 65x19x14.4m main mass and X+900 entrance",
+    "same rotated local frame",
+    "framed 9x4 window topology",
     "GameMode->IsFrontendOnlySession()",
     "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
     "SetCanEverAffectNavigation(false)",
-    "authored 9x4 windows, stairs and footprint preserved",
+    "stairs/footprint preserved",
 ]:
     if token not in college:
         fail(f"college facade marker missing: {token}")
@@ -93,6 +105,7 @@ source_to_overlay_pairs = [
     ("FVector(900, -1230, 230)", "EntranceCenterX = 900.0f", "entrance X"),
     ("FVector(900, -1230, 230)", "EntranceBlockCenterY = -1230.0f", "entrance block Y"),
     ("FVector(900, -1590, 505)", "EntranceCanopyCenterY = -1590.0f", "canopy Y"),
+    ("FVector(X, -965, Z)", "WindowFrontY = -981.0f", "front-window visual offset"),
 ]
 for source_marker, overlay_marker, label in source_to_overlay_pairs:
     if source_marker not in world or overlay_marker not in college:
@@ -104,9 +117,12 @@ for forbidden in [
     "College + FVector(0.0f, -1040.0f, 0.0f)",
     "const float FrontY = College.Y - 860.0f;",
     "Main authored block is 48 x 17 x 15.5 m",
+    "const float FacadeY = College.Y + MainFrontY",
+    "const FVector EntranceFront = College + FVector",
+    "const FVector CanopyCenter = College + FVector",
 ]:
     if forbidden in college:
-        fail(f"obsolete college facade topology returned: {forbidden}")
+        fail(f"obsolete/unrotated college facade topology returned: {forbidden}")
 
 # The college-campus connection is a pedestrian path, not the old 80x59 m plaza-like slab.
 # Preserve its center/length/yaw while guarding the corrected human-scale width.
@@ -167,4 +183,4 @@ for label, text in (("college", college), ("stadium", stadium), ("civic", civic)
             fail(f"delimiter mismatch {left}{right} in {label}")
 
 print("R13.5 COLLEGE/STADIUM VISUAL VERIFY: PASS")
-print("Checks BuildCollegeSector source topology against the aligned 65x19x14.4m/X+900 facade overlay, guards the 2.8m pedestrian campus path and its tree clearance, and retains stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
+print("Checks BuildCollegeSector rotated source topology against the aligned 65x19x14.4m/X+900 facade overlay, guards framed 9x4 windows plus the 2.8m pedestrian campus path/tree clearance, and retains stadium turf/track/markings/goals/real-plank seating; visual layers remain gameplay-collision neutral.")
