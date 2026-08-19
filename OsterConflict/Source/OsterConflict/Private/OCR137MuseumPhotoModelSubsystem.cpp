@@ -237,16 +237,12 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"));
     UStaticMesh* Pine03 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
-    UStaticMesh* Tree01 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
     UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     UMaterialInterface* MetalRoof = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Metal_Roof.Metal_Roof"));
     UMaterialInterface* BlueWoodAsset = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Wood_Planks_Painted_Blue.Wood_Planks_Painted_Blue"));
-    UMaterialInterface* GlassAsset = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Glass_Window.Glass_Window"));
     if (!Cube || !Basic || !RoofMesh) return;
 
     AActor* Model = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
@@ -266,35 +262,39 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     Model->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
+    // Keep the temporary runtime materials subdued and close to the photographed facade. These are still placeholders
+    // for a later authored material pass, but they must not read as orange toy blocks or bright white concrete.
     UMaterialInstanceDynamic* Brick = MakeColorMaterial(Model, Basic, TEXT("R137_Brick"),
-        FLinearColor(0.46f, 0.18f, 0.075f, 1.0f));
+        FLinearColor(0.34f, 0.115f, 0.045f, 1.0f));
     UMaterialInstanceDynamic* BrickDark = MakeColorMaterial(Model, Basic, TEXT("R137_BrickDark"),
-        FLinearColor(0.31f, 0.105f, 0.045f, 1.0f));
+        FLinearColor(0.22f, 0.065f, 0.025f, 1.0f));
     UMaterialInstanceDynamic* PlinthMat = MakeColorMaterial(Model, Basic, TEXT("R137_Plinth"),
         FLinearColor(0.035f, 0.032f, 0.030f, 1.0f));
     UMaterialInstanceDynamic* PaleTrim = MakeColorMaterial(Model, Basic, TEXT("R137_PaleTrim"),
-        FLinearColor(0.78f, 0.74f, 0.63f, 1.0f));
+        FLinearColor(0.62f, 0.64f, 0.59f, 1.0f));
     UMaterialInstanceDynamic* BlueWoodFallback = MakeColorMaterial(Model, Basic, TEXT("R137_BlueWoodFallback"),
-        FLinearColor(0.27f, 0.34f, 0.36f, 1.0f));
+        FLinearColor(0.21f, 0.29f, 0.29f, 1.0f));
     UMaterialInstanceDynamic* RedGableWood = MakeColorMaterial(Model, Basic, TEXT("R137_RedGableWood"),
-        FLinearColor(0.43f, 0.16f, 0.095f, 1.0f));
+        FLinearColor(0.33f, 0.10f, 0.055f, 1.0f));
     UMaterialInstanceDynamic* DoorMat = MakeColorMaterial(Model, Basic, TEXT("R137_Door"),
         FLinearColor(0.25f, 0.28f, 0.29f, 1.0f));
     UMaterialInstanceDynamic* ConcreteMat = MakeColorMaterial(Model, Basic, TEXT("R137_Concrete"),
-        FLinearColor(0.42f, 0.43f, 0.40f, 1.0f));
+        FLinearColor(0.20f, 0.21f, 0.20f, 1.0f));
     UMaterialInstanceDynamic* RailMat = MakeColorMaterial(Model, Basic, TEXT("R137_Rail"),
-        FLinearColor(0.29f, 0.34f, 0.34f, 1.0f));
+        FLinearColor(0.24f, 0.28f, 0.28f, 1.0f));
     UMaterialInstanceDynamic* GrilleMat = MakeColorMaterial(Model, Basic, TEXT("R137_Grille"),
-        FLinearColor(0.42f, 0.46f, 0.44f, 1.0f));
+        FLinearColor(0.30f, 0.33f, 0.32f, 1.0f));
     UMaterialInstanceDynamic* GasMat = MakeColorMaterial(Model, Basic, TEXT("R137_Gas"),
-        FLinearColor(0.82f, 0.62f, 0.025f, 1.0f));
+        FLinearColor(0.62f, 0.46f, 0.015f, 1.0f));
     UMaterialInstanceDynamic* AnnexMat = MakeColorMaterial(Model, Basic, TEXT("R137_Annex"),
-        FLinearColor(0.56f, 0.36f, 0.28f, 1.0f));
+        FLinearColor(0.42f, 0.25f, 0.19f, 1.0f));
     UMaterialInstanceDynamic* GlassFallback = MakeColorMaterial(Model, Basic, TEXT("R137_GlassFallback"),
-        FLinearColor(0.20f, 0.31f, 0.34f, 1.0f));
+        FLinearColor(0.12f, 0.18f, 0.19f, 1.0f));
 
     UMaterialInterface* BlueWood = BlueWoodAsset ? BlueWoodAsset : BlueWoodFallback;
-    UMaterialInterface* GlassMaterial = GlassAsset ? GlassAsset : GlassFallback;
+    // The cabin glass material produces checker/near-black artifacts when stretched across the temporary cube window
+    // geometry. Use a controlled muted pane until the window modules themselves are authored.
+    UMaterialInterface* GlassMaterial = GlassFallback;
     UMaterialInterface* RoofMaterial = MetalRoof ? MetalRoof : Basic;
 
     UInstancedStaticMeshComponent* Plinth = MakeISM(Model, Root, Cube, PlinthMat,
@@ -331,10 +331,15 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     // Exterior dimensions are inferred from photo proportions only: roughly 17.6 m x 9.0 m, not survey data.
     AddBox(Plinth, Museum + FVector(0.0f, 0.0f, 35.0f), FVector(1760.0f, 900.0f, 70.0f));
     AddBox(BrickBody, Museum + FVector(0.0f, 0.0f, 230.0f), FVector(1700.0f, 840.0f, 320.0f));
-    AddFittedMesh(Roof, RoofMesh, Museum + FVector(0.0f, 0.0f, 505.0f),
-        FVector(1840.0f, 1010.0f, 270.0f));
 
-    // Central blue-grey timber upper room/dormer with its own gable roof.
+    // The real front silhouette has two low side roof wings with the raised timber center standing between them.
+    // A previous single 18.4 m roof mesh swallowed the upper room and made its trim look like floating V-shaped debris.
+    AddFittedMesh(Roof, RoofMesh, Museum + FVector(-595.0f, 0.0f, 500.0f),
+        FVector(650.0f, 1010.0f, 250.0f));
+    AddFittedMesh(Roof, RoofMesh, Museum + FVector( 595.0f, 0.0f, 500.0f),
+        FVector(650.0f, 1010.0f, 250.0f));
+
+    // Central blue-grey timber upper room with its own gable roof, now visible between the side roof wings.
     AddBox(Wood, Museum + FVector(0.0f, -35.0f, 510.0f), FVector(570.0f, 470.0f, 250.0f));
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(0.0f, -35.0f, 690.0f),
         FVector(660.0f, 570.0f, 190.0f));
@@ -382,7 +387,7 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         AddBox(Trim, Museum + FVector( 869.0f, Y, 370.0f), FVector(12.0f, 34.0f, 38.0f));
     }
 
-    // Long-facade windows, white/pale frames and exterior metal grilles.
+    // Long-facade windows, pale frames and exterior metal grilles.
     const float FrontY = -426.0f;
     const float RearY = 426.0f;
     for (const float X : { -650.0f, -355.0f, 355.0f, 650.0f })
@@ -400,7 +405,7 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f, -115.0f, 520.0f, 110.0f, 165.0f, false);
     AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f,  110.0f, 520.0f, 110.0f, 165.0f, false);
 
-    // Pale carved-looking gable outlines. Sloped bars use pitch/roll so they actually rise in Z.
+    // Pale carved-looking gable outlines on the raised timber center and opposite gable.
     AddBox(Trim, Museum + FVector(0.0f, -287.0f, 635.0f), FVector(590.0f, 16.0f, 16.0f));
     AddBox(Trim, Museum + FVector(-145.0f, -289.0f, 707.0f), FVector(330.0f, 16.0f, 18.0f), FRotator(-25.0f, 0.0f, 0.0f));
     AddBox(Trim, Museum + FVector( 145.0f, -289.0f, 707.0f), FVector(330.0f, 16.0f, 18.0f), FRotator( 25.0f, 0.0f, 0.0f));
@@ -446,24 +451,22 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         AddBox(Concrete, Museum + FVector(0.0f, Y, 4.0f), FVector(165.0f, 132.0f, 8.0f));
     }
 
-    // Rebuild the site's mature conifers at realistic photo-relative spacing after hiding the oversized legacy pass.
+    // Keep only the conifer families actually supported by the museum references. The previous generic broadleaf
+    // pair used a stylized AdvancedVillage tree and produced the bulbous, non-Oster trunks visible beside the walls.
     UInstancedStaticMeshComponent* Pine01ISM = MakeISM(Model, Root, Pine01, nullptr,
         TEXT("R137Museum_Pine01"), true, true, 100000);
     UInstancedStaticMeshComponent* Pine03ISM = MakeISM(Model, Root, Pine03, nullptr,
         TEXT("R137Museum_Pine03"), true, true, 100000);
-    UInstancedStaticMeshComponent* Tree01ISM = MakeISM(Model, Root, Tree01, nullptr,
-        TEXT("R137Museum_Deciduous01"), true, true, 90000);
 
     struct FTreeSeed { FVector Offset; float Height; float Yaw; int32 Family; };
     const FTreeSeed Trees[] = {
         { FVector(-720, -1450, 0), 1900,  10, 0 }, { FVector( 760, -1500, 0), 2050,  46, 1 },
         { FVector(-930, -2350, 0), 2200,  88, 1 }, { FVector( 960, -2400, 0), 2150, 142, 0 },
         { FVector(-1020,-3350, 0), 2300, 188, 0 }, { FVector( 1080,-3400, 0), 2250, 236, 1 },
-        { FVector(-1150,-4300, 0), 2350, 278, 1 }, { FVector( 1180,-4250, 0), 2400, 318, 0 },
-        { FVector(-1250,  550, 0), 1750,  62, 2 }, { FVector( 1250, 650, 0), 1850, 155, 2 }
+        { FVector(-1150,-4300, 0), 2350, 278, 1 }, { FVector( 1180,-4250, 0), 2400, 318, 0 }
     };
-    UInstancedStaticMeshComponent* Families[] = { Pine01ISM, Pine03ISM, Tree01ISM };
-    UStaticMesh* Meshes[] = { Pine01, Pine03, Tree01 };
+    UInstancedStaticMeshComponent* Families[] = { Pine01ISM, Pine03ISM };
+    UStaticMesh* Meshes[] = { Pine01, Pine03 };
     int32 TreeCount = 0;
     for (const FTreeSeed& Seed : Trees)
     {
@@ -474,6 +477,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.7 museum model: eight-angle exterior rebuilt at MuseumAnchor with brick body, black plinth, metal gables, blue-grey upper room, red timber gable, vestibule, side veranda/door, annex, chimney, barred windows, carved trim, gas line, steps and slab approach; site trees=%d."),
+        TEXT("R13.7 museum model: front silhouette corrected with split side roof wings around the visible blue-grey upper room; brick body, plinth, vestibule, veranda/door, annex, chimney, barred windows, carved trim, gas line, steps and slab approach retained; supported conifer site trees=%d."),
         TreeCount);
 }
