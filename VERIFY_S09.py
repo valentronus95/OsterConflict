@@ -5,6 +5,7 @@ root = Path(__file__).resolve().parent / 'OsterConflict'
 required = [
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
     'Source/OsterConflict/Private/OCWorldSectorOster.cpp',
+    'Source/OsterConflict/Private/OCLocationSectorS01RoadData.cpp',
     'Source/OsterConflict/Private/OCGameMode.cpp',
     'Docs/SESSION_09_README_UA.md',
     'Docs/OSTER_REFERENCE_MANIFEST_S09.md',
@@ -27,7 +28,14 @@ markers = {
         'Park + FVector(6100, -4100, 18)',
         'FOCLocationSectorS01Data::ProvisionalResidentialPlots()',
         'Plot.OutbuildingCenter', 'Plot.bOutbuildingHasRoof',
-        'AddGableRoof(ResidentialRoofs', 'College + FVector(-3800, -1100, 0)'
+        'AddGableRoof(ResidentialRoofs'
+    ],
+    'OCLocationSectorS01RoadData.cpp': [
+        'FOCLocationSectorS01RoadData::OwnedCollegePaths()',
+        'S01_PATH_COLLEGE_CAMPUS',
+        'EOCS01RoadAnchor::College',
+        'FVector(900, 5200, 12)',
+        'FVector(8000, 5900, 18)'
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
     'OSTER_REFERENCE_MANIFEST_S09.md': ['Travels in Ukraine', 'OTG.cn.ua', 'Матеріально-технічна база', 'Остер з висоти пташиного польоту'],
