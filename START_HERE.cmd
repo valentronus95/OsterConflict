@@ -4,55 +4,60 @@ cd /d "%~dp0"
 :menu
 cls
 echo ============================================================
-echo OSTER CONFLICT - UE 5.8 - R13 CONTENT + GAMEPLAY PASS
+echo OSTER CONFLICT - UE 5.8 - R13
 echo ============================================================
-echo 1. Compile Editor/Game with installed UE 5.8
-echo 2. Full validation (Launcher-aware)
-echo 3. Clean full validation
-echo 4. Launch R13 local listen-server gameplay test
-echo 5. Launch latest packaged dedicated-server session (source UE only)
-echo 6. Stop remembered local server
-echo 7. Open Ukrainian first-run README
-echo 8. Download + import R13 CC0 models, audio and Oster menu photo
-echo 9. Open selected FREE Fab weapon/animation/vehicle packs
+echo 1. UPDATE + BUILD + OPEN Unreal Editor  [RECOMMENDED]
+echo 2. Compile Editor/Game only
+echo 3. Full validation (Launcher-aware)
+echo 4. Clean full validation
+echo 5. Launch R13 local listen-server gameplay test
+echo 6. Launch latest packaged dedicated-server session (source UE only)
+echo 7. Stop remembered local server
+echo 8. Open Ukrainian first-run README
+echo 9. Download + import R13 CC0 models, audio and Oster menu photo
+echo A. Open selected FREE Fab weapon/animation/vehicle packs
 echo 0. Exit
 echo.
-choice /C 1234567890 /N /M "Select: "
-if errorlevel 10 goto end
-if errorlevel 9 (
+choice /C 123456789A0 /N /M "Select: "
+if errorlevel 11 goto end
+if errorlevel 10 (
   call "%~dp0R13_OPEN_FREE_FAB_PACKS.cmd"
   goto menu
 )
-if errorlevel 8 (
+if errorlevel 9 (
   call "%~dp0R13_DOWNLOAD_AND_IMPORT_CONTENT.cmd"
   goto menu
 )
-if errorlevel 7 (
+if errorlevel 8 (
   start "" notepad.exe "%~dp0FIRST_RUN_README_UA.txt"
   goto menu
 )
-if errorlevel 6 (
+if errorlevel 7 (
   call "%~dp0STOP_LOCAL_SERVER.cmd"
   goto menu
 )
-if errorlevel 5 (
+if errorlevel 6 (
   call "%~dp0RUN_LOCAL_GAME_AFTER_BUILD.cmd"
   goto menu
 )
-if errorlevel 4 (
+if errorlevel 5 (
   call "%~dp0RUN_R13_LISTEN_TEST.cmd"
   goto menu
 )
-if errorlevel 3 (
+if errorlevel 4 (
   call "%~dp0RUN_CLEAN_FULL_TEST.cmd"
   goto menu
 )
-if errorlevel 2 (
+if errorlevel 3 (
   call "%~dp0RUN_PC_TEST.cmd"
   goto menu
 )
-if errorlevel 1 (
+if errorlevel 2 (
   call "%~dp0RUN_COMPILE_ONLY.cmd"
+  goto menu
+)
+if errorlevel 1 (
+  call "%~dp0R13_UPDATE_BUILD_OPEN.cmd"
   goto menu
 )
 :end
