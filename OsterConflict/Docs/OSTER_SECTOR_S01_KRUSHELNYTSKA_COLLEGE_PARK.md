@@ -32,19 +32,25 @@ Completed location-first protections and migrations:
 - the two old hard-coded side/service road strips are now explicit `FOCS01RoadSeed` records;
 - all 26 migrated residential/frontage/service-road records remain confidence C because migration into explicit data does not make their old blockout coordinates factual;
 - `BuildSolomiiKrushelnytskoiStreet()` consumes the explicit S01 registry rather than deriving house, frontage or service-road coordinates from slot arithmetic;
-- city-wide rough-grass and generic-tree loops now reject placements whose generated point is inside S01;
-- the retained central-park canopy has been frozen into 54 individually addressable `FOCS01TreeSeed` records;
-- the four retained college trees have been frozen into 4 individually addressable `FOCS01TreeSeed` records;
-- the retained central-park and college mown-grass areas are now 2 explicit `FOCS01GrassPatchSeed` records;
+- city-wide rough-grass and generic-tree loops reject generated points inside S01;
+- the retained central-park canopy is frozen into 54 individually addressable `FOCS01TreeSeed` records;
+- the four retained college trees are frozen into 4 individually addressable `FOCS01TreeSeed` records;
+- the retained central-park and college mown-grass areas are 2 explicit `FOCS01GrassPatchSeed` records;
 - all 60 vegetation records remain confidence C; explicit ownership is not evidence of real-world accuracy;
-- `VERIFY_R13_LOCATION_FIRST_S01_VEGETATION_DATA.py` checks the vegetation registry independently in CI.
+- `BuildVegetation()` now renders the S01 park/college grass and trees from `ProvisionalGrassPatches()` and `ProvisionalVegetationTrees()`;
+- the legacy central-park Row/Col/Jitter placement loop and four direct college tree calls have been removed;
+- the direct park/college mown-grass calls have been removed;
+- stadium vegetation and non-S01 city vegetation remain independent and were not migrated into S01;
+- the vegetation-data verifier mathematically reconstructs the former C++ park algorithm and rejects any migration drift;
+- the runtime verifier rejects reintroduction of legacy S01 vegetation placement formulas;
+- S01 has its own GitHub Actions workflow independent from unrelated frontend/audio verification failures.
 
 Still provisional or unresolved inside S01:
 
 - exact residential house footprints and real plot boundaries;
 - exact frontage fence/gate positions and fence families;
 - several road widths, side-road alignments and sidewalk/path details;
-- runtime `BuildVegetation()` still renders the intentional central-park canopy and college trees from the legacy loop/direct calls; the explicit registry is prepared but runtime consumption is the next migration step;
+- the 60 migrated vegetation placements still represent the retained blockout layout and need reference-by-reference replacement where evidence exists;
 - park secondary geometry beyond directly supported reference cues;
 - college campus secondary blocks beyond the strongly referenced main facade/site cues;
 - the existing enterable-house anchor is still a gameplay/blockout placement rather than a verified real plot assignment.
@@ -122,12 +128,15 @@ Separate source-wide vegetation from S01-owned vegetation.
 
 Gate: whole-Oster art may render S01 vegetation, but it may not decide its placement.
 
-Current progress:
+Current progress: **ownership migration complete**.
 
 - generic rough-grass and generic tree points are rejected inside S01;
-- 54 current central-park trees, 4 college trees and 2 mown-grass areas are frozen as 60 explicit anchor-relative C-confidence records;
-- registry integrity is now checked in CI;
-- runtime rendering still needs to switch from the legacy park loop/direct college calls to these records one-for-one.
+- 54 central-park trees, 4 college trees and 2 mown-grass areas are explicit anchor-relative C-confidence records;
+- runtime consumes those records directly;
+- the data verifier proves zero layout drift from the former C++ park algorithm and direct college placements;
+- the runtime verifier prevents the old formula/direct calls from returning.
+
+This does not mean vegetation fidelity is complete. The next vegetation work is evidence-driven replacement of C records, not another procedural pass.
 
 ### S01.6 — enterable buildings
 
@@ -154,7 +163,8 @@ Required before `S01 LOCKED`:
 
 ## Immediate next implementation
 
-1. Make `BuildVegetation()` consume `ProvisionalVegetationTrees()` and `ProvisionalGrassPatches()` for S01-owned park/college vegetation.
-2. Remove the legacy central-park row/column placement loop and the four direct college tree calls only after one-for-one registry consumption exists.
-3. Add a runtime structural verifier that rejects reintroduction of those legacy S01 vegetation formulas.
-4. Only then replace C-confidence vegetation positions with reference-backed positions where evidence exists.
+1. Return to S01.1 topology audit: inventory every road/path segment that intersects the S01 ownership bounds.
+2. Separate canonical/verified approach roads from C-confidence retained blockout strips.
+3. Move remaining S01-owned road/path geometry into explicit records where it is still embedded directly in `BuildRoadNetwork()` or landmark builders.
+4. Do not alter real-world placement merely to make the registry look cleaner; unresolved geometry stays C until reference evidence supports a change.
+5. After topology ownership is complete, proceed to reference-backed yard boundaries and exterior architecture one plot at a time.
