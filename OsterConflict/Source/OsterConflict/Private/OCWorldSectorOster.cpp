@@ -1,6 +1,7 @@
 #include "OCWorldSectorOster.h"
 #include "OCGeoReference.h"
 #include "OCLocationSectorPlan.h"
+#include "OCLocationSectorS01Data.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -422,14 +423,14 @@ void AOCWorldSectorOster::BuildHydrography()
     const FWaterSeed OsterSeeds[] =
     {
         { FVector(-52000, -98000, -16), FVector(62000, 9000, 18), -7.0f },
-        { FVector(  3000, -101000, -16), FVector(57000, 8200, 18),  3.0f },
-        { FVector( 52000, -87000, -16), FVector(56000, 8000, 18), 26.0f },
-        { FVector( 82000, -52000, -16), FVector(51000, 7600, 18), 67.0f }
+        { FVector( 3000, -101000, -16), FVector(57000, 8200, 18), 3.0f },
+        { FVector(52000, -87000, -16), FVector(56000, 8000, 18), 26.0f },
+        { FVector(82000, -52000, -16), FVector(51000, 7600, 18), 67.0f }
     };
     for (const FWaterSeed& Seed : OsterSeeds) AddBox(Waterways, Seed.Center, Seed.Size, Seed.Yaw);
 
     AddBox(Bridges, FVector(-17000, -100000, 75), FVector(1200, 11800, 150), 87.0f);
-    AddBox(Bridges, FVector( 76000,  -65000, 75), FVector(1200, 10500, 150), 28.0f);
+    AddBox(Bridges, FVector(76000, -65000, 75), FVector(1200, 10500, 150), 28.0f);
 }
 
 void AOCWorldSectorOster::BuildVerifiedReferenceMarkers()
@@ -491,9 +492,9 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
     AddBox(StadiumGeometry, Stadium + FVector(0, 0, 12), FVector(10500, 6800, 12));
 
     AddBox(StadiumGeometry, Stadium + FVector(0, -3740, 18), FVector(11200, 520, 14));
-    AddBox(StadiumGeometry, Stadium + FVector(0,  3740, 18), FVector(11200, 520, 14));
+    AddBox(StadiumGeometry, Stadium + FVector(0, 3740, 18), FVector(11200, 520, 14));
     AddBox(StadiumGeometry, Stadium + FVector(-5600, 0, 18), FVector(520, 7400, 14));
-    AddBox(StadiumGeometry, Stadium + FVector( 5600, 0, 18), FVector(520, 7400, 14));
+    AddBox(StadiumGeometry, Stadium + FVector(5600, 0, 18), FVector(520, 7400, 14));
 
     AddBox(StadiumDetails, Stadium + FVector(0, 0, 25), FVector(10400, 18, 8));
     AddBox(StadiumDetails, Stadium + FVector(-5200, 0, 25), FVector(18, 6750, 8));
@@ -602,46 +603,49 @@ void AOCWorldSectorOster::BuildCollegeSector()
 
 void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()
 {
-    const float WestHouseX = -39200.0f;
-    const float EastHouseX = -27800.0f;
-    const float StartY = 20500.0f;
-
-    for (int32 Index = 0; Index < 8; ++Index)
+    auto AddHouseArchetype = [this](const FOCS01ResidentialPlotSeed& Plot)
     {
-        const float Y = StartY + static_cast<float>(Index) * 4800.0f;
-        const float WestYaw = 87.0f + static_cast<float>((Index % 3) - 1) * 2.0f;
-        const float EastYaw = -88.0f + static_cast<float>((Index % 2) * 3);
+        if (!Plot.bHasPrimaryHouse) return;
 
-        auto AddHouseArchetype = [this](const FVector& Center, float Width, float Depth, float Height, float Yaw, int32 Variant)
+        const FVector& Center = Plot.HouseCenter;
+        const FVector& Size = Plot.HouseSizeCm;
+        AddBox(Buildings, Center, Size, Plot.HouseYaw);
+        AddGableRoof(ResidentialRoofs, Center, Size.X + 120.0f, Size.Y + 160.0f,
+            Center.Z + Size.Z * 0.5f + 245.0f, Plot.HouseYaw,
+            24.0f + static_cast<float>((Plot.VisualVariant % 3) * 3));
+
+        const int32 WindowCount = Plot.VisualVariant % 2 == 0 ? 3 : 2;
+        for (int32 W = 0; W < WindowCount; ++W)
         {
-            AddBox(Buildings, Center, FVector(Width, Depth, Height), Yaw);
-            AddGableRoof(ResidentialRoofs, Center, Width + 120.0f, Depth + 160.0f,
-                Center.Z + Height * 0.5f + 245.0f, Yaw, 24.0f + static_cast<float>((Variant % 3) * 3));
-
-            const int32 WindowCount = Variant % 2 == 0 ? 3 : 2;
-            for (int32 W = 0; W < WindowCount; ++W)
-            {
-                const float X = (static_cast<float>(W) - (WindowCount - 1) * 0.5f) * (Width / (WindowCount + 0.8f));
-                AddFacadeWindow(ResidentialDetails, Center, FVector(X, -Depth * 0.505f, 40.0f),
-                    FVector(280, 18, 190), Yaw, true);
-            }
-            AddFacadeWindow(ResidentialDetails, Center, FVector(Width * 0.34f, -Depth * 0.51f, -25.0f),
-                FVector(220, 22, 310), Yaw, true);
-        };
-
-        if (Index != 2)
-        {
-            AddHouseArchetype(FVector(EastHouseX, Y, 270.0f),
-                1780.0f + static_cast<float>((Index % 3) * 170), 1180.0f, 540.0f, EastYaw, Index);
+            const float X = (static_cast<float>(W) - (WindowCount - 1) * 0.5f) *
+                (Size.X / (WindowCount + 0.8f));
+            AddFacadeWindow(ResidentialDetails, Center, FVector(X, -Size.Y * 0.505f, 40.0f),
+                FVector(280, 18, 190), Plot.HouseYaw, true);
         }
-        AddHouseArchetype(FVector(WestHouseX, Y + 700.0f, 260.0f),
-            1700.0f, 1120.0f + static_cast<float>((Index % 2) * 160), 520.0f, WestYaw, Index + 1);
+        AddFacadeWindow(ResidentialDetails, Center, FVector(Size.X * 0.34f, -Size.Y * 0.51f, -25.0f),
+            FVector(220, 22, 310), Plot.HouseYaw, true);
+    };
 
-        AddBox(Buildings, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 150.0f), FVector(700, 1100, 300), WestYaw);
-        AddGableRoof(ResidentialRoofs, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 150.0f),
-            780, 1200, 390, WestYaw, 24.0f);
-        AddBox(Buildings, FVector(EastHouseX + 1600.0f, Y + 1750.0f, 140.0f), FVector(650, 1000, 280), EastYaw);
+    for (const FOCS01ResidentialPlotSeed& Plot : FOCLocationSectorS01Data::ProvisionalResidentialPlots())
+    {
+        AddHouseArchetype(Plot);
 
+        if (!Plot.bHasOutbuilding) continue;
+        AddBox(Buildings, Plot.OutbuildingCenter, Plot.OutbuildingSizeCm, Plot.OutbuildingYaw);
+        if (Plot.bOutbuildingHasRoof)
+        {
+            AddGableRoof(ResidentialRoofs, Plot.OutbuildingCenter,
+                Plot.OutbuildingSizeCm.X + 80.0f, Plot.OutbuildingSizeCm.Y + 100.0f,
+                Plot.OutbuildingCenter.Z + Plot.OutbuildingSizeCm.Z * 0.5f + 90.0f,
+                Plot.OutbuildingYaw, 24.0f);
+        }
+    }
+
+    // Yard-front boundary strips remain a separate provisional layer for the next S01 migration step.
+    constexpr float BoundaryStartY = 20500.0f;
+    for (int32 Slot = 0; Slot < 8; ++Slot)
+    {
+        const float Y = BoundaryStartY + static_cast<float>(Slot) * 4800.0f;
         AddBox(Fences, FVector(-37100.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
         AddBox(Fences, FVector(-29900.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
         AddBox(Sidewalks, FVector(-36500.0f, Y + 450.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
@@ -671,18 +675,16 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
         { FVector(-52000, -21000, 0), 3, 4, FVector(4000, 4300, 0), 2.0f },
         { FVector(-50000, 28000, 0), 3, 4, FVector(4100, 4200, 0), -2.0f },
         { FVector(-12000, -33000, 0), 3, 5, FVector(3900, 4200, 0), 3.0f },
-        { FVector(-82000,  15000, 0), 3, 4, FVector(4100, 4300, 0), 8.0f },
+        { FVector(-82000, 15000, 0), 3, 4, FVector(4100, 4300, 0), 8.0f },
         { FVector(-76000, -41000, 0), 3, 4, FVector(4050, 4250, 0), -4.0f },
-        { FVector( 52000,  33000, 0), 3, 4, FVector(4200, 4400, 0), 5.0f },
-        { FVector( 47000, -50000, 0), 3, 4, FVector(4100, 4200, 0), -7.0f },
-        { FVector(-24000,  76000, 0), 2, 5, FVector(4200, 4100, 0), 12.0f }
+        { FVector(52000, 33000, 0), 3, 4, FVector(4200, 4400, 0), 5.0f },
+        { FVector(47000, -50000, 0), 3, 4, FVector(4100, 4200, 0), -7.0f },
+        { FVector(-24000, 76000, 0), 2, 5, FVector(4200, 4100, 0), 12.0f }
     };
 
     int32 HouseCounter = 0;
     for (const FBlockSeed& Block : Blocks)
     {
-        // The first location-first sector owns its own residential placement. Generic grid blocks must not
-        // leak into it, even temporarily, otherwise later art passes end up styling invented houses as real ones.
         if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Block.Origin)) continue;
 
         for (int32 Row = 0; Row < Block.Rows; ++Row)
@@ -813,7 +815,7 @@ void AOCWorldSectorOster::BuildVegetation()
         AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
 
     AddGrassPatch(GrassWetland, FVector(-93000, 35000, 0), FVector(33000, 102000, 4), 12.0f);
-    AddGrassPatch(GrassWetland, FVector( 43000,-93000, 0), FVector(98000, 21000, 4), 8.0f);
+    AddGrassPatch(GrassWetland, FVector(43000,-93000, 0), FVector(98000, 21000, 4), 8.0f);
 
     for (int32 Index = 0; Index < 16; ++Index)
     {
