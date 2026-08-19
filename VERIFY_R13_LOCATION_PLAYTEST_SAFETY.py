@@ -26,6 +26,7 @@ checks = {
     "museum respawn subsystem exists": "class OSTERCONFLICT_API UOCR13MuseumRespawnSubsystem" in respawn_h,
     "museum respawn uses canonical anchor": "AOCWorldSectorOster::MuseumAnchor()" in respawn_cpp,
     "museum respawn excludes frontend shell": "GameMode->IsFrontendOnlySession()" in respawn_cpp,
+    "museum respawn is scoped to location test": "!GameMode->IsLocationTestMode()" in respawn_cpp,
     "museum respawn waits for accepted deployment": "HasCompletedR13InitialDeployment()" in respawn_cpp,
     "museum respawn uses collision-safe teleport": "FindTeleportSpot" in respawn_cpp,
     "museum respawn faces museum": "const FVector ToMuseum = Museum - GroundedLocation;" in respawn_cpp,
@@ -50,4 +51,4 @@ for name, ok in checks.items():
 if failed:
     raise SystemExit("R13 location playtest safety verification failed: " + ", ".join(failed))
 
-print("PASS: location inspection is bot/vehicle-free, retained roads have solid support, humans respawn beside the museum, and R13.7 exclusively owns the museum presentation.")
+print("PASS: location inspection is bot/vehicle-free, retained roads have solid support, test humans respawn beside the museum, and R13.7 exclusively owns the museum presentation.")
