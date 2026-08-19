@@ -126,10 +126,14 @@ for token in [
     if token not in world:
         fail(f"generic source vegetation is not excluded from S01: {token}")
 
+# The execution document advances from ownership migration into evidence-driven correction; do not require an
+# obsolete heading that implied the provisional C-confidence geometry was already factually locked.
 for token in [
     "ACTIVE RECONSTRUCTION SECTOR",
     "confidence C",
-    "S01.1 — topology lock",
+    "S01.1 — topology ownership and reference correction",
+    "Ownership phase: **complete**",
+    "Reference-correction phase: **active**",
     "S01.2 — plot registry",
     "S01.5 — vegetation",
     "S01 LOCKED",
@@ -138,4 +142,4 @@ for token in [
         fail(f"S01 execution document missing: {token}")
 
 print("R13 LOCATION-FIRST S01 VERIFY: PASS")
-print("Checks canonical sector ownership, 26 explicit C-confidence topology records, direct topology consumption and generic infill/dressing/vegetation exclusion.")
+print("Checks canonical sector ownership, 26 explicit C-confidence topology records, direct topology consumption, generic infill/dressing/vegetation exclusion, and the active evidence-driven correction phase.")
