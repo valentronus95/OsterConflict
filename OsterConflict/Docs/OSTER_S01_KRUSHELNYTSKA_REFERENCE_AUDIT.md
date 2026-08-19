@@ -1,6 +1,6 @@
 # OSTER S01 — КРУШЕЛЬНИЦЬКА: REFERENCE ALIGNMENT AUDIT
 
-Status: REFERENCE EVIDENCE LOCKED / CENTERLINE NOT YET AUTHORED
+Status: REFERENCE EVIDENCE LOCKED / S01 SLICE IDENTIFIED / CENTERLINE NOT YET AUTHORED
 
 ## Why this exists
 
@@ -15,6 +15,14 @@ The official Oster College site states the College address as:
 `17044, Chernihiv region, Oster, vul. Solomii Krushelnytskoi, 7A`.
 
 The public Visicom Oster street/address index identifies the same street as `vul. Solomii Krushelnytskoi (8-ho Bereznia)` and provides Oster-specific address markers along its extent.
+
+The Visicom whole-street object is also retained separately as B-confidence macro evidence:
+
+- label/object center: `50.951601785552164, 30.883556648533790`;
+- south-west extent: `50.947336834596960, 30.874850176800106`;
+- north-east extent: `50.958347034213716, 30.886361188850810`.
+
+That center is metadata for the mapped street object, **not** a point to place asphalt on. The bounds are a macro sanity envelope only.
 
 ## B-confidence address evidence
 
@@ -43,16 +51,40 @@ Local values are explanatory conversions through the same tangent-plane approxim
 
 This is enough to reject the old macro alignment as factual. It is **not** enough to place the final asphalt centerline through the address markers.
 
+## Relationship to S01
+
+The current S01 workflow rectangle is approximately:
+
+- X `-68135 .. -18230 cm`;
+- Y `1497 .. 53916 cm`.
+
+The public evidence makes the intended ownership slice much clearer:
+
+- address 8 is south of S01;
+- addresses 14, 7A and 28 are inside S01;
+- address 28 is only about `12.9 m` inside the current east workflow edge;
+- address 40 is already about `100.8 m` east of that edge;
+- address 42 is farther east again.
+
+Therefore S01 should own the **middle College-side slice** of Krushelnytska, not pretend the whole street continues north inside the rectangle. The actual road centerline exit point still needs direct road-shape evidence, so no exact crossing coordinate is invented here.
+
+This is a planning correction, not a cadastral statement. The continuation after the east bend belongs to adjacent-sector/shared-road work once its road shape is referenced.
+
 ## Runtime safety rule
 
-`FOCLocationSectorS01ReferenceData::KrushelnytskaAddressReferences()` is evidence-only. `OCWorldSectorOster.cpp` must not consume those address markers directly.
+Both of these sources are evidence-only:
+
+- `FOCLocationSectorS01ReferenceData::KrushelnytskaAddressReferences()`;
+- `FOCLocationSectorS01ReferenceData::KrushelnytskaStreetExtentReference()`.
+
+`OCWorldSectorOster.cpp` must not consume either source directly.
 
 The next runtime correction needs a separately authored B-confidence centerline/skeleton derived from:
 
 1. the public street/address progression;
 2. road shape visible in map/satellite/photo references;
 3. College access/junction relationship;
-4. S01 ownership boundaries;
+4. S01 entry/exit ownership boundaries;
 5. explicit width/profile assumptions documented per segment.
 
-Only after that skeleton passes a no-discontinuity and landmark-clearance verifier should the current C-confidence Krushelnytska blockout be replaced.
+Only after that skeleton passes a no-discontinuity, sector-entry/exit and landmark-clearance verifier should the current C-confidence Krushelnytska blockout be replaced.
