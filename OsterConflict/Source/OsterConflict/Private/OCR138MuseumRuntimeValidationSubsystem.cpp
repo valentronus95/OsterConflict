@@ -3,6 +3,7 @@
 #include "OCBreakableWindow.h"
 #include "OCGameMode.h"
 #include "OCInteractableDoor.h"
+#include "OCMuseumBreakableWindow.h"
 #include "OCMuseumDoubleDoor.h"
 #include "OCMuseumServiceDoubleDoor.h"
 #include "OCWorldSectorOster.h"
@@ -15,7 +16,7 @@
 
 namespace
 {
-    constexpr float R138MuseumValidationDelaySeconds = 6.25f;
+    constexpr float R138MuseumValidationDelaySeconds = 6.35f;
     constexpr float MuseumInteractionRadiusCm = 2800.0f;
 }
 
@@ -58,6 +59,8 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     int32 ServiceDoorActors = 0;
     int32 PrototypeServiceDoors = 0;
     int32 BreakableWindows = 0;
+    int32 StyledMuseumWindows = 0;
+    int32 PrototypeMuseumWindows = 0;
     int32 UpperGableWindows = 0;
     int32 InitiallyBrokenWindows = 0;
 
@@ -115,7 +118,10 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
             {
                 continue;
             }
+
             ++BreakableWindows;
+            if (Cast<AOCMuseumBreakableWindow>(Window)) ++StyledMuseumWindows;
+            else ++PrototypeMuseumWindows;
             if (Window->ActorHasTag(TEXT("MuseumUpperGableWindow"))) ++UpperGableWindows;
             if (Window->IsBroken()) ++InitiallyBrokenWindows;
         }
@@ -128,20 +134,23 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
         ServiceDoorActors == 1 &&
         PrototypeServiceDoors == 0 &&
         BreakableWindows >= 21 &&
+        StyledMuseumWindows == BreakableWindows &&
+        PrototypeMuseumWindows == 0 &&
         UpperGableWindows == 1 &&
         InitiallyBrokenWindows == 0;
 
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("R14.0 museum validation PASS: architecture=%d facade=%d structural=%d mainDoor=%d serviceDoor=%d windows=%d upperGable=%d."),
+            TEXT("R14.1 museum validation PASS: architecture=%d facade=%d structural=%d mainDoor=%d serviceDoor=%d styledWindows=%d upperGable=%d."),
             ArchitectureActors, FacadeDetailActors, StructuralSections, MainDoorActors,
-            ServiceDoorActors, BreakableWindows, UpperGableWindows);
+            ServiceDoorActors, StyledMuseumWindows, UpperGableWindows);
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("R14.0 museum validation FAILED: architecture=%d facade=%d structural=%d mainDoor=%d serviceDoor=%d prototypeService=%d windows=%d upperGable=%d initiallyBroken=%d."),
+        TEXT("R14.1 museum validation FAILED: architecture=%d facade=%d structural=%d mainDoor=%d serviceDoor=%d prototypeService=%d windows=%d styled=%d prototypeWindows=%d upperGable=%d initiallyBroken=%d."),
         ArchitectureActors, FacadeDetailActors, StructuralSections, MainDoorActors,
-        ServiceDoorActors, PrototypeServiceDoors, BreakableWindows, UpperGableWindows, InitiallyBrokenWindows);
+        ServiceDoorActors, PrototypeServiceDoors, BreakableWindows, StyledMuseumWindows,
+        PrototypeMuseumWindows, UpperGableWindows, InitiallyBrokenWindows);
 }
