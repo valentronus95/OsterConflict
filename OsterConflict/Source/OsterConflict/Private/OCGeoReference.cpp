@@ -53,6 +53,15 @@ FOCGeoReferencePoint FOCGeoReference::CultureParkNorth()
         TEXT("Published monument coordinate: city park near culture house; used as north park/civic reference") };
 }
 
+FOCGeoReferencePoint FOCGeoReference::CultureHouse()
+{
+    // Address is independently verified as Oster City House of Culture, Hranovskoho 3. The public map point below
+    // is kept as confidence B because the parcel centroid/facade bearing is not a cadastral or survey measurement.
+    // It is intentionally a separate site from Museum, Silpo and CultureParkNorth.
+    return { TEXT("OsterCultureHouse"), 50.948694, 30.881435, EOCReferenceConfidence::B,
+        TEXT("Oster City House of Culture, Hranovskoho 3; verified official/public-record address and public map placement; exact parcel bearing remains non-survey") };
+}
+
 FOCGeoReferencePoint FOCGeoReference::FormerCityAdministration()
 {
     return { TEXT("FormerCityAdministration"), 50.949419, 30.877258, EOCReferenceConfidence::B,
