@@ -1,0 +1,165 @@
+name: Silpo Oster location contracts
+
+on:
+  push:
+    branches:
+      - silpo-oster
+    paths:
+      - '.github/workflows/silpo-location-contracts.yml'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGeoReference.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR140SilpoPhotoModelSubsystem.h'
+      - 'OsterConflict/Docs/Locations/SILPO_OSTER_*.md'
+      - 'OsterConflict/SourceReferences/Locations/Silpo_Oster/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/silpo-location-contracts.yml'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGeoReference.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR140SilpoPhotoModelSubsystem.h'
+      - 'OsterConflict/Docs/Locations/SILPO_OSTER_*.md'
+      - 'OsterConflict/SourceReferences/Locations/Silpo_Oster/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Validate Silpo branch contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import math
+          import re
+          import sys
+
+          failures = []
+
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          geo_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCGeoReference.h')
+          geo_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp')
+          silpo_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCR140SilpoPhotoModelSubsystem.h')
+          silpo_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp')
+          tz_path = Path('OsterConflict/Docs/Locations/SILPO_OSTER_TZ.md')
+          scope_path = Path('OsterConflict/Docs/Locations/SILPO_OSTER_BRANCH_SCOPE.md')
+          refs_path = Path('OsterConflict/SourceReferences/Locations/Silpo_Oster/README.md')
+
+          for path in (geo_h_path, geo_cpp_path, silpo_h_path, silpo_cpp_path, tz_path, scope_path, refs_path):
+              require(path.is_file(), f'missing required Silpo contract file: {path}')
+
+          if geo_h_path.is_file() and geo_cpp_path.is_file():
+              geo_h = geo_h_path.read_text(encoding='utf-8')
+              geo_cpp = geo_cpp_path.read_text(encoding='utf-8')
+              require('static FOCGeoReferencePoint Silpo();' in geo_h,
+                      'Silpo WGS84 contract is missing from OCGeoReference.h')
+              require('FOCGeoReferencePoint FOCGeoReference::Silpo()' in geo_cpp,
+                      'Silpo georeference implementation is missing')
+              require('50.948833799986254' in geo_cpp and '30.87572244094098' in geo_cpp,
+                      'verified Silpo address-center coordinates changed')
+              require('not cadastral survey' in geo_cpp,
+                      'Silpo coordinate confidence disclaimer was removed')
+
+              lat0 = 50.948239
+              lon0 = 30.883865
+              lat = 50.948833799986254
+              lon = 30.87572244094098
+              meters_per_degree_lon = 111320.0 * math.cos(math.radians(lat0))
+              x_cm = (lon - lon0) * meters_per_degree_lon * 100.0
+              y_cm = (lat - lat0) * 111320.0 * 100.0
+              require(abs(x_cm - (-57107.1)) < 10.0,
+                      f'unexpected Silpo X anchor calculation: {x_cm:.1f} cm')
+              require(abs(y_cm - 6621.3) < 10.0,
+                      f'unexpected Silpo Y anchor calculation: {y_cm:.1f} cm')
+
+          if silpo_cpp_path.is_file():
+              silpo_cpp = silpo_cpp_path.read_text(encoding='utf-8')
+              require('FOCGeoReference::Silpo()' in silpo_cpp,
+                      'Silpo model no longer derives placement from the geo contract')
+              require('OsterConflict_Runtime' in silpo_cpp,
+                      'Silpo model is no longer limited to the runtime map')
+              require('IsFrontendOnlySession()' in silpo_cpp,
+                      'Silpo model lost frontend-only guard')
+              require('R140_SilpoPhotoModel' in silpo_cpp,
+                      'Silpo model actor tag is missing')
+              require('SilpoOster_BohdanaKhmelnytskoho54' in silpo_cpp,
+                      'Silpo address identity tag is missing')
+              require('R140_SilpoEntranceDoor' in silpo_cpp,
+                      'Silpo interactive entrance contract is missing')
+              require('AOCInteractableDoor' in silpo_cpp,
+                      'Silpo no longer uses the existing replicated door implementation')
+              require('World.GetNetMode() != NM_Client' in silpo_cpp,
+                      'Silpo doors are not protected from client-side duplicate spawning')
+              require('R140Silpo_EmptyShelves' in silpo_cpp,
+                      'phase-one empty shelf geometry is missing')
+              require('R140Silpo_Checkouts' in silpo_cpp,
+                      'phase-one checkout geometry is missing')
+              require('R140Silpo_CeilingLight_' in silpo_cpp,
+                      'phase-one store lighting is missing')
+              require('Roads' not in silpo_cpp and 'Sidewalks' not in silpo_cpp,
+                      'Silpo replacement code must not modify road/sidewalk source families')
+              require('R137' not in silpo_cpp and 'MuseumPhoto' not in silpo_cpp,
+                      'Silpo implementation must not target museum replacement components')
+
+              for family in (
+                  'Buildings', 'ResidentialRoofs', 'ResidentialDetails',
+                  'LandmarkBlocks', 'LandmarkRoofs', 'LandmarkWindows', 'LandmarkDetails'
+              ):
+                  require(family in silpo_cpp,
+                          f'Silpo local cleanup no longer accounts for source proxy family {family}')
+
+              require(re.search(r'constexpr float SourceCleanupRadiusCm\s*=\s*2600\.0f', silpo_cpp) is not None,
+                      'Silpo cleanup radius changed without updating the location contract')
+              require(re.search(r'constexpr float BuildingLengthCm\s*=\s*3000\.0f', silpo_cpp) is not None,
+                      'Silpo phase-one length changed without documented refinement')
+              require(re.search(r'constexpr float BuildingDepthCm\s*=\s*1750\.0f', silpo_cpp) is not None,
+                      'Silpo phase-one depth changed without documented refinement')
+
+          if tz_path.is_file():
+              tz = tz_path.read_text(encoding='utf-8')
+              for required in (
+                  'silpo-oster',
+                  'Богдана Хмельницького, 54',
+                  '50.948833799986254',
+                  '30.87572244094098',
+                  'FOCGeoReference::Silpo()',
+                  'AOCInteractableDoor',
+                  'полиці пусті',
+                  'EXCLUDED',
+              ):
+                  require(required in tz, f'Silpo TZ lost required contract: {required}')
+
+          if scope_path.is_file():
+              scope = scope_path.read_text(encoding='utf-8')
+              require('Museum references' in scope and 'excluded' in scope.lower(),
+                      'branch scope no longer explicitly excludes museum reference contamination')
+              require('main' in scope and 'silpo-oster' in scope,
+                      'branch isolation contract is incomplete')
+
+          if refs_path.is_file():
+              refs = refs_path.read_text(encoding='utf-8')
+              require('museum' in refs.lower() and 'excluded' in refs.lower(),
+                      'Silpo reference folder no longer excludes museum images')
+              require('50.948833799986254, 30.87572244094098' in refs,
+                      'reference manifest lost the verified address-center coordinate')
+
+          if failures:
+              print('Silpo location contract failures:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('Silpo Oster static contracts: PASS')
