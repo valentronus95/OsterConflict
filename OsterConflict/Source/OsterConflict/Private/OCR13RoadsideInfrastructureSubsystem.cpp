@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace
 {
@@ -17,6 +18,8 @@ namespace
     constexpr float MinPoleSpacingCm = 5200.0f;
     constexpr float MaxPoleSpacingCm = 6400.0f;
     constexpr float PoleRoadsideOffsetCm = 430.0f;
+    constexpr float StreetLightExtraOffsetCm = 120.0f;
+    constexpr float StreetLightTargetHeightCm = 620.0f;
     constexpr int32 MaxPolesPerRoad = 28;
 
     UStaticMesh* LoadInfrastructureMesh(const TCHAR* Path)
@@ -29,6 +32,14 @@ namespace
         // The dedicated R12 Krushelnytska slice remains photo-driven and owns its own streetscape.
         return FMath::Abs(Location.X + 3400.0f) < 7000.0f &&
             Location.Y > -14500.0f && Location.Y < 17500.0f;
+    }
+
+    bool IsInsideMuseumRearTerrain(const FVector& Location)
+    {
+        // OCR13MuseumRearTerrainSubsystem owns this corridor and lowers it after infrastructure placement.
+        // Do not author zero-datum poles/lights that would become airborne over the descent/lower terrace.
+        return FMath::Abs(Location.X) <= 10150.0f &&
+            Location.Y >= 2650.0f && Location.Y <= 34150.0f;
     }
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
@@ -70,10 +81,31 @@ namespace
         return static_cast<float>(Value & 0x0000ffffu) / 65535.0f;
     }
 
+    void AddGroundedStreetLight(UInstancedStaticMeshComponent* Component, UStaticMesh* Mesh,
+        const FVector& GroundLocation, const float YawDegrees)
+    {
+        if (!Component || !Mesh) return;
+
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const float NativeHeight = FMath::Max(1.0f, Bounds.BoxExtent.Z * 2.0f);
+        const float Scale = FMath::Clamp(StreetLightTargetHeightCm / NativeHeight, 0.25f, 4.0f);
+        const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        const FRotator Rotation(0.0f, YawDegrees, 0.0f);
+
+        FVector Location = GroundLocation;
+        const FVector PivotXY = Rotation.RotateVector(FVector(-Bounds.Origin.X * Scale, -Bounds.Origin.Y * Scale, 0.0f));
+        Location.X += PivotXY.X;
+        Location.Y += PivotXY.Y;
+        Location.Z = GroundLocation.Z - LocalBottom * Scale;
+
+        Component->AddInstance(FTransform(Rotation, Location, FVector(Scale)), true);
+    }
+
     void AddRoadsidePoles(UInstancedStaticMeshComponent* Roads,
         UInstancedStaticMeshComponent* Poles,
         UInstancedStaticMeshComponent* Addons,
-        UInstancedStaticMeshComponent* Lights,
+        UInstancedStaticMeshComponent* StreetLights,
+        UStaticMesh* StreetLightMesh,
         int32& OutPoleCount, int32& OutAddonCount, int32& OutLightCount)
     {
         if (!Roads || !Poles) return;
@@ -90,7 +122,6 @@ namespace
             const float LengthCm = bLongAxisX ? SizeX : SizeY;
             const float WidthCm = bLongAxisX ? SizeY : SizeX;
 
-            // Skip tiny hardstands/connector pieces. This pass is meant for recognizable street runs.
             if (LengthCm < 12000.0f) continue;
 
             const float SpacingCm = FMath::Lerp(MinPoleSpacingCm, MaxPoleSpacingCm,
@@ -115,7 +146,7 @@ namespace
                 FVector Location = Center + RoadRotation.RotateVector(Local);
                 Location.Z = FMath::Max(3.0f, Center.Z + 3.0f);
 
-                if (IsInsideKrushelnytskaSlice(Location)) continue;
+                if (IsInsideKrushelnytskaSlice(Location) || IsInsideMuseumRearTerrain(Location)) continue;
 
                 const float NaturalYaw = RoadTransform.Rotator().Yaw + (bLongAxisX ? 0.0f : 90.0f);
                 const float PoleYaw = NaturalYaw + (SideSign > 0.0f ? 180.0f : 0.0f);
@@ -130,10 +161,17 @@ namespace
                     ++OutAddonCount;
                 }
 
-                // Street lamps are deliberately sparse. Location photos can later decide which runs actually have them.
-                if (Lights && ((RoadIndex * 3 + Slot) % 4 == 0))
+                // Use the complete AdvancedVillage street-light mesh as a separate streetscape object instead of
+                // attaching another partial pole mesh on top of the utility pole. Its position is offset farther
+                // from the carriageway so the two real assets do not occupy the same volume.
+                if (StreetLights && StreetLightMesh && ((RoadIndex * 3 + Slot) % 4 == 0))
                 {
-                    Lights->AddInstance(PoleTransform, true);
+                    const FVector ExtraLocal = bLongAxisX
+                        ? FVector(0.0f, SideSign * StreetLightExtraOffsetCm, 0.0f)
+                        : FVector(SideSign * StreetLightExtraOffsetCm, 0.0f, 0.0f);
+                    FVector StreetLightLocation = Location + RoadRotation.RotateVector(ExtraLocal);
+                    StreetLightLocation.Z = Location.Z;
+                    AddGroundedStreetLight(StreetLights, StreetLightMesh, StreetLightLocation, PoleYaw);
                     ++OutLightCount;
                 }
             }
@@ -185,8 +223,8 @@ void UOCR13RoadsideInfrastructureSubsystem::ApplyRoadsideInfrastructure(UWorld& 
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.Power_Pole_1"));
     UStaticMesh* AddonMesh = LoadInfrastructureMesh(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_Addons.Power_Pole_Addons"));
-    UStaticMesh* LightMesh = LoadInfrastructureMesh(
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_Light.Power_Pole_Light"));
+    UStaticMesh* StreetLightMesh = LoadInfrastructureMesh(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_StreetLight.SM_StreetLight"));
     if (!PoleMesh) return;
 
     AActor* InfrastructureRoot = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
@@ -195,7 +233,11 @@ void UOCR13RoadsideInfrastructureSubsystem::ApplyRoadsideInfrastructure(UWorld& 
     InfrastructureRoot->SetActorEnableCollision(false);
 
     USceneComponent* Root = NewObject<USceneComponent>(InfrastructureRoot, TEXT("R13_RoadsideInfrastructureRoot"));
-    if (!Root) return;
+    if (!Root)
+    {
+        InfrastructureRoot->Destroy();
+        return;
+    }
     InfrastructureRoot->SetRootComponent(Root);
     InfrastructureRoot->AddInstanceComponent(Root);
     Root->SetMobility(EComponentMobility::Static);
@@ -205,8 +247,8 @@ void UOCR13RoadsideInfrastructureSubsystem::ApplyRoadsideInfrastructure(UWorld& 
         InfrastructureRoot, Root, PoleMesh, TEXT("R13_UtilityPoles"), true, 90000);
     UInstancedStaticMeshComponent* Addons = MakeInfrastructureISM(
         InfrastructureRoot, Root, AddonMesh, TEXT("R13_UtilityPoleAddons"), true, 70000);
-    UInstancedStaticMeshComponent* Lights = MakeInfrastructureISM(
-        InfrastructureRoot, Root, LightMesh, TEXT("R13_UtilityPoleLights"), false, 60000);
+    UInstancedStaticMeshComponent* StreetLights = MakeInfrastructureISM(
+        InfrastructureRoot, Root, StreetLightMesh, TEXT("R13_AdvancedVillageStreetLights"), true, 70000);
     if (!Poles)
     {
         InfrastructureRoot->Destroy();
@@ -216,7 +258,8 @@ void UOCR13RoadsideInfrastructureSubsystem::ApplyRoadsideInfrastructure(UWorld& 
     int32 PoleCount = 0;
     int32 AddonCount = 0;
     int32 LightCount = 0;
-    AddRoadsidePoles(Roads, Poles, Addons, Lights, PoleCount, AddonCount, LightCount);
+    AddRoadsidePoles(Roads, Poles, Addons, StreetLights, StreetLightMesh,
+        PoleCount, AddonCount, LightCount);
 
     if (PoleCount <= 0)
     {
@@ -226,6 +269,6 @@ void UOCR13RoadsideInfrastructureSubsystem::ApplyRoadsideInfrastructure(UWorld& 
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13 roadside infrastructure: poles=%d addons=%d sparse lights=%d; roads/navigation unchanged."),
+        TEXT("R13 roadside infrastructure: utility poles=%d addons=%d real AdvancedVillage street lights=%d; museum rear valley and Krushelnytska slice excluded."),
         PoleCount, AddonCount, LightCount);
 }
