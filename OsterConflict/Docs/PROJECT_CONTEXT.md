@@ -8,38 +8,42 @@
 
 This repository is the source of truth. Future work should be applied directly here rather than delivered as a separate replacement archive unless the user explicitly asks for an archive.
 
-## Project direction
-`Oster Conflict` is a first-person multiplayer shooter prototype set in Остер, Чернігівська область. Current work is focused on making the existing project stable and progressively replacing placeholder visuals with believable assets and proportions without breaking existing gameplay systems.
+## Persistent project tracking
+The detailed project state is intentionally split so requirements and actual implementation status cannot drift together:
 
-## Current R13 acceptance direction
-### Main menu
+- `OSTER_CONFLICT_MASTER_TZ.md` — canonical requirements and acceptance criteria.
+- `OSTER_CONFLICT_WORK_LEDGER.md` — active issues, repeat counts, commits, remaining work and build/playtest status.
+- `AGENTS.md` — mandatory workflow that requires both files to be read and updated.
+
+This file stays concise. If there is a conflict, the latest explicit user requirement recorded in MASTER TZ and the actual tested state recorded in WORK LEDGER take precedence over old provisional notes here.
+
+## Project direction
+`Oster Conflict` is a first-person multiplayer shooter prototype set in Остер, Чернігівська область. Current work is focused on stabilizing the existing project, correcting location topology/geography, and progressively replacing placeholder visuals with already imported believable assets without breaking gameplay systems.
+
+## Current R13 priorities
+1. Separate and correctly place Museum / Silpo / Culture House / water tower.
+2. Refine these landmarks from user references and verified public photos/maps.
+3. Museum topology: stadium on the left when facing the entrance, descent behind the museum, lower residential area below.
+4. Eliminate late runtime replacement/rebuild flicker.
+5. Prefer existing imported houses, fences, street lights, weapons and vehicles over visible primitives.
+6. Validate the complete spawn-relative weapon test rack.
+
+Exact status and remaining blockers are maintained in `OSTER_CONFLICT_WORK_LEDGER.md`.
+
+## Main menu acceptance direction
 - Approved menu direction uses the committed `Oster_Menu_BG` artwork.
 - The gameplay world must not visibly bleed through the main-menu background.
 - No large opaque swamp/green panel behind the menu.
 - Only restrained local darkening/gradient on the left side is allowed for text readability.
 - Branding direction: thin `OSTER`, large bold `CONFLICT`, subtitle `ОСТЕР • ГОЛОВНЕ МЕНЮ`.
 - Main buttons: `СТАРТ`, `ЛОКАЛЬНА ГРА`, `МЕРЕЖЕВА ГРА`, `НАЛАШТУВАННЯ`, `ВИЙТИ З ГРИ`.
+- No grey-shell flash or visible layout jumping during initial load/hover.
 
-### Input / ESC regression
+## Input / ESC regression
 - Opening and closing ESC/pause UI must never leave movement or look input locked.
 - Returning to gameplay must restore WASD, run, jump and Mouse X/Y.
 - UI focus must target a focusable widget such as a button, never `SVerticalBox`.
 - Repeated ESC cycles must not stack `IgnoreMoveInput` / `IgnoreLookInput` state.
-
-### Current visual/gameplay defects reported in R13
-- Excessive yellow/orange outdoor cast.
-- Pickup first-person camera/geometry can block the view.
-- Strange visible debug/helper sphere or primitive near interactive geometry.
-- Existing source-built houses read as crude placeholder/blockout architecture and must not be treated as final Остер housing.
-- House doors must be genuinely interactive where intended, with collision and open/close behavior.
-
-## Changes already applied to `r13-content-gameplay-pass`
-- `b0c2f1d` — input, lighting and pickup camera fixes transferred into the R13 branch.
-- `0923866` — R13 menu focus and input restore repair:
-  - UE 5.8 `UButton` focusability compile fix.
-  - focus moved away from `SVerticalBox` to a real button.
-  - repeated UI input locking no longer stacks indefinitely.
-  - gameplay input is reset/restored when leaving menu UI.
 
 ## Development rules
 - Modify the existing project. Do not restart from zero.
@@ -48,6 +52,8 @@ This repository is the source of truth. Future work should be applied directly h
 - Do not commit generated folders: `Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`.
 - Large imported content belongs under Git LFS where configured.
 - Keep documentation concise so it does not bloat the repository or working context.
+- A committed change is `CODED_UNTESTED` until UE build/runtime/user playtest verifies it.
+- Old code coordinates are not proof of geography. User-confirmed local knowledge and verified photo/map evidence take precedence.
 
 ## Work reports
-Short milestone reports live in `OsterConflict/Docs/WorkReports/`. They record only the useful state: what changed, why, relevant commit(s), test result and remaining blockers. Full logs remain outside this folder unless a specific log is needed for a tracked bug.
+Short milestone reports live in `OsterConflict/Docs/WorkReports/`. They record only useful milestone state. Routine progress and unresolved user requirements belong in the root `OSTER_CONFLICT_WORK_LEDGER.md`, not in a proliferation of one-off reports.
