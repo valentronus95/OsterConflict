@@ -3,6 +3,7 @@ name: Silpo Oster location contracts
 on:
   push:
     branches:
+      - main
       - silpo-oster
     paths:
       - '.github/workflows/silpo-location-contracts.yml'
@@ -19,6 +20,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCR143SilpoFacadeIdentitySubsystem.h'
       - 'OsterConflict/Docs/Locations/SILPO_OSTER_*.md'
       - 'OsterConflict/SourceReferences/Locations/Silpo_Oster/**'
+      - 'REFERENCE_PHOTOS/silpo_oster/**'
   pull_request:
     branches:
       - main
@@ -37,6 +39,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCR143SilpoFacadeIdentitySubsystem.h'
       - 'OsterConflict/Docs/Locations/SILPO_OSTER_*.md'
       - 'OsterConflict/SourceReferences/Locations/Silpo_Oster/**'
+      - 'REFERENCE_PHOTOS/silpo_oster/**'
 
 permissions:
   contents: read
