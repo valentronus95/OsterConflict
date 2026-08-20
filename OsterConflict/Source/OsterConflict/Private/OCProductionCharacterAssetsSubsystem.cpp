@@ -5,12 +5,14 @@
 #include "OCCharacterVisualProfile.h"
 #include "OCGameMode.h"
 
+#include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "UObject/UObjectGlobals.h"
 #include "TimerManager.h"
 
@@ -95,7 +97,7 @@ void UOCProductionCharacterAssetsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     BuildProfiles();
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer, this, &UOCProductionCharacterAssetsSubsystem::ApplyToCharacters,
-        1.0f, true, 0.05f);
+        0.20f, true, 0.05f);
 }
 
 void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
@@ -126,6 +128,17 @@ void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
         TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Holster_Hard_Bege.SKM_Holster_Hard_Bege"));
     CapMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/QuantumCharacter/Mesh/Modules/SM_Cap_Bege.SM_Cap_Bege"));
+
+    // These sequences ship with QuantumCharacter itself, so unlike the separate sample animation
+    // pack they can be compatibility-checked against the production character skeleton at runtime.
+    IdleAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Idle.A_MM_Idle"));
+    WalkAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Walk_Fwd.A_MM_Walk_Fwd"));
+    RunAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Run_Fwd.A_MM_Run_Fwd"));
+    FallAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Fall_Loop.A_MM_Fall_Loop"));
 }
 
 void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
@@ -141,6 +154,12 @@ void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
 
         Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);
         ApplyGear(Character);
+        ApplyAnimation(Character);
+    }
+
+    for (auto It = AnimationStateByCharacter.CreateIterator(); It; ++It)
+    {
+        if (!It.Key().IsValid()) It.RemoveCurrent();
     }
 }
 
@@ -187,4 +206,50 @@ void UOCProductionCharacterAssetsSubsystem::ApplyGear(AOCCharacter& Character)
         AddSkeletalGear(Character, Body, HolsterMesh, FName(TEXT("OC_ProductionHolster")));
         break;
     }
+}
+
+void UOCProductionCharacterAssetsSubsystem::ApplyAnimation(AOCCharacter& Character)
+{
+    USkeletalMeshComponent* Body = Character.GetMesh();
+    USkeletalMesh* BodyMesh = Body ? Body->GetSkeletalMeshAsset() : nullptr;
+    if (!Body || !BodyMesh) return;
+
+    UAnimSequence* DesiredAnimation = IdleAnimation;
+    uint8 DesiredState = 0;
+
+    const UCharacterMovementComponent* Movement = Character.GetCharacterMovement();
+    if (Movement && Movement->IsFalling())
+    {
+        DesiredAnimation = FallAnimation;
+        DesiredState = 3;
+    }
+    else
+    {
+        const float Speed2D = Character.GetVelocity().Size2D();
+        if (Speed2D > 420.0f)
+        {
+            DesiredAnimation = RunAnimation;
+            DesiredState = 2;
+        }
+        else if (Speed2D > 10.0f)
+        {
+            DesiredAnimation = WalkAnimation;
+            DesiredState = 1;
+        }
+    }
+
+    if (!DesiredAnimation || !DesiredAnimation->GetSkeleton() ||
+        DesiredAnimation->GetSkeleton() != BodyMesh->GetSkeleton())
+    {
+        return;
+    }
+
+    const TWeakObjectPtr<AOCCharacter> Key(&Character);
+    if (const uint8* CurrentState = AnimationStateByCharacter.Find(Key))
+    {
+        if (*CurrentState == DesiredState) return;
+    }
+
+    Body->PlayAnimation(DesiredAnimation, true);
+    AnimationStateByCharacter.Add(Key, DesiredState);
 }
