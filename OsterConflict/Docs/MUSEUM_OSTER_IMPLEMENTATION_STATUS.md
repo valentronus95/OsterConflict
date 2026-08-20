@@ -3,6 +3,7 @@
 Оновлено: 2026-08-20
 
 Робоча гілка: `museum-oster`
+Draft PR: `#16`
 
 Цей файл фіксує фактичний стан реалізації музею. Він не замінює `MUSEUM_OSTER_TZ.md` і фото-індекс `MUSEUM_OSTER_PHOTO_REFERENCES_2026-08-20.md`.
 
@@ -50,8 +51,11 @@
 - плавне відкривання двох стулок;
 - door audio;
 - три яруси relief panels;
-- центральний raised spine;
+- додаткові raised perimeter rails навколо кожного ярусу REF-06;
+- зовнішні/внутрішні вертикальні стійки на обох стулках;
+- центральний raised spine з окремими relief nodes;
 - окремі ручки;
+- весь декор рухається разом із відповідною стулкою;
 - автоматична заміна двох generic R13.8 leaves.
 
 ### R14.0 — corrected service gable + facade details
@@ -107,12 +111,25 @@
 - radial/sunburst railing motif;
 - small dark base/access hatch under vestibule side.
 
+### R14.3 — територія і низька рослинність
+`UOCR143MuseumSiteVegetationSubsystem`
+
+Реалізовано за REF-04/05/07/10/13/14:
+- використовуються наявні `PN_FoliageCollection` grass/ground-plant meshes;
+- центральна бетонна алея лишається чистою;
+- зона входу та безпосередній периметр стін не заростають;
+- передній газон отримує низьку, навмисно нещільну траву;
+- бічна/задня зона має нерівномірні ground plants;
+- біля rear annex додана невелика асиметрична зелена група за REF-13;
+- placement deterministic, без випадкових змін між запусками.
+
 ## Runtime validation
 
-`UOCR138MuseumRuntimeValidationSubsystem` після R14.2 перевіряє:
+`UOCR138MuseumRuntimeValidationSubsystem` після R14.3 перевіряє:
 - рівно один segmented architecture actor;
 - рівно один R14.0 facade detail actor;
 - рівно один R14.2 entrance detail actor;
+- рівно один R14.3 site vegetation actor;
 - не менше 30 structural sections;
 - один final main double-door actor;
 - один final service double-door actor;
@@ -138,12 +155,11 @@
 - перевірка foliage/old geometry overlap.
 
 ### High-fidelity exterior, наступні проходи
-- точніше довести relief головних дверей REF-06;
-- додати texture/decal pass старої цегли, плям, тріщин та вицвілого історичного напису;
-- замінити remaining BasicShapes visual authoring parts на production/static assets там, де є відповідні mesh;
-- уточнити gutter/downspout details;
-- деталізувати rear annex;
-- фінально звірити tree positions/scale з REF-04/05/07/10/13/14.
+- texture/decal pass старої цегли, плям, тріщин та вицвілого історичного напису;
+- заміна remaining BasicShapes visual authoring parts на production/static assets там, де є відповідні mesh;
+- gutter/downspout details;
+- rear annex detail pass;
+- фінальне звірення tree positions/scale з REF-04/05/07/10/13/14 після першого runtime walkaround.
 
 ### Interior
 Точних фото/плану інтер'єру в поточному reference pack немає.
@@ -155,4 +171,5 @@ Structural IDs уже закладені, але RPG/grenade building destructio
 
 ## Merge policy
 
+PR #16 лишається Draft.
 Не зливати `museum-oster` у `main`, доки Windows compile/runtime validation не пройдені і музей не переглянуто в грі з близької дистанції.
