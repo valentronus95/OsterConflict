@@ -111,6 +111,7 @@ TArray<FOCCharacterProductionModule> OCGetDeclaredCharacterProductionModules()
 {
     return
     {
+        { FName(TEXT("BodyNoHead")), TEXT("/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter_NoHead.SKM_QuantumCharacter_NoHead"), EOCCharacterProductionModuleType::Skeletal, false },
         { FName(TEXT("Arms")), TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Arms.SKM_Arms"), EOCCharacterProductionModuleType::Skeletal, true },
         { FName(TEXT("Head")), TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Head.SKM_Head"), EOCCharacterProductionModuleType::Skeletal, false },
         { FName(TEXT("BulletproofBeige")), TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Bulletproof_Bege.SKM_Bulletproof_Bege"), EOCCharacterProductionModuleType::Skeletal, true },
