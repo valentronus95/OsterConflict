@@ -8,8 +8,10 @@
  * Silpo-only runtime replacement for the Oster supermarket at Bohdana Khmelnytskoho 54.
  *
  * The site is hard-anchored through FOCGeoReference. Exterior massing and facade rhythm are driven by
- * the dedicated Silpo photo reference set. Phase one is gameplay-ready: a working left-side entrance,
- * empty gondola shelving, basic checkout desks, an empty produce island and neutral store lighting.
+ * the dedicated Silpo reference set; the first interior pass is intentionally sparse and gameplay-ready:
+ * working entrance doors, empty gondola shelving, basic checkout desks and neutral store lighting.
+ *
+ * No museum/stadium geometry is authored or removed by this subsystem.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR140SilpoPhotoModelSubsystem : public UWorldSubsystem
