@@ -12,7 +12,8 @@
 
 namespace
 {
-    bool ApplyFittedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh, const FVector& DesiredSizeCm)
+    bool ApplyFittedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
+        const FVector& DesiredSizeCm, float GroundZCm)
     {
         if (!Component || !Mesh) return false;
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
@@ -23,10 +24,14 @@ namespace
             DesiredSizeCm.X / NativeSize.X,
             DesiredSizeCm.Y / NativeSize.Y,
             DesiredSizeCm.Z / NativeSize.Z);
+        FVector Location = -Bounds.Origin * Scale;
+        const float NativeBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        Location.Z = GroundZCm - NativeBottomZ * Scale.Z;
+
         Component->SetStaticMesh(Mesh);
         Component->SetRelativeRotation(FRotator::ZeroRotator);
         Component->SetRelativeScale3D(Scale);
-        Component->SetRelativeLocation(-Bounds.Origin * Scale);
+        Component->SetRelativeLocation(Location);
         // Remove fallback component overrides while retaining the BTR mesh's imported materials.
         Component->EmptyOverrideMaterials();
         return true;
@@ -151,8 +156,9 @@ void AOCBTR::ApplyVehicleStyle()
         if (UStaticMesh* ProductionBTR4 = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus")))
         {
-            // BTR-4E overall dimensions are roughly 7.76 m x 2.93 m x 3.0 m including turret.
-            bUsingBTR4 = ApplyFittedBTRMesh(Chassis, ProductionBTR4, FVector(776.0f, 293.0f, 300.0f));
+            // The source is already close to the real BTR-4E dimensions. Fit it lightly, then put
+            // the wheel bottoms on the same ground plane as the authoritative 8-wheel suspension.
+            bUsingBTR4 = ApplyFittedBTRMesh(Chassis, ProductionBTR4, FVector(776.0f, 293.0f, 300.0f), -98.0f);
         }
     }
 
