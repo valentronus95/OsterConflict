@@ -15,7 +15,9 @@
 
 namespace
 {
-    constexpr float CorrectionDelaySeconds = 7.10f;
+    // Silpo photo model starts at 5.60 s. Run the cleanup immediately after it instead of leaving overlapping
+    // logo/text layers shimmering for another 1.5 seconds in front of the player.
+    constexpr float CorrectionDelaySeconds = 5.85f;
 
     AActor* FindSilpoModel(UWorld& World)
     {
