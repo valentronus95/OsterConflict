@@ -52,7 +52,7 @@
 - `UOCFirstPersonWeaponPresentationSubsystem` тепер бере base grip, ADS, recoil і reload transforms із weapon profile.
 - Профілі навмисно стартують зі старого baseline і `bGripCalibrated=false`. Координати конкретної зброї не вигадуються без фактичного UE 5.8 visual check.
 - Runtime log явно попереджає `UNCALIBRATED` для weapon profile, доки exact mesh не пройшов visual approval.
-- Перевірено equip path у `AOCWeaponBase`: `ApplyInventoryPresentation` досі містить legacy `FVector(38,12,-14)`. Presentation subsystem уже замінює його profile-значенням, але перенесення profile безпосередньо в equip path залишено окремим follow-up після Windows UE compile gate, щоб не переписувати великий базовий weapon-файл без фактичної компіляції.
+- Перевірено equip path у `AOCWeaponBase`: `ApplyInventoryPresentation` досі містить legacy `FVector(38,12,-14)`. Presentation subsystem уже замінює його profile-значенням, але перенесення profile безпосередньо в equip path залишено окремим follow-up, щоб не переписувати великий базовий weapon-файл без фактичної компіляції.
 
 ## 2026-08-20 — anti-armor launcher production visual
 
@@ -61,6 +61,17 @@
 - `AOCAntiArmorLauncher` (`OC_RPG1`) отримав production visual `/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern` без зміни projectile/damage/network gameplay logic.
 - Старі source-only static proxy components ховаються тільки після успішного створення та реєстрації production visual, щоб failure path не робив launcher невидимим.
 - Launcher додано до canonical automation та runtime weapon validation. Попередній `OC_RPG1 = MISSING` gate прибрано.
+
+## 2026-08-20 — code-level animation coverage matrix
+
+- Додано `OCWeaponAnimationProfiles.h/.cpp` як одну кодову матрицю authored Fire/Reload coverage для всіх 11 реалізованих weapon ID.
+- `OC_AR1` містить перевірені canonical object paths `AK-47_Fire_W` і `AK-47_Reload_W`.
+- Інші weapon rows не отримали вигаданих generic paths: відсутні authored animations зберігаються як явні порожні paths і залишаються `MISSING` у R14 requirements.
+- Для `OC_SG1` (Remington 870) та `OC_LMG1` (M249) кодова матриця окремо фіксує `bRequiresArticulatedWeapon=true`, бо поточні production visuals static і не можуть чесно відтворювати pump/belt/magazine mechanics як цілісний mesh.
+- Додано `OCWeaponPresentationProfileTests.cpp`: UE automation перевіряє 11/11 grip/animation profile declarations, відсутність NaN у base transforms, loadability усіх оголошених animation paths, canonical AK Fire/Reload paths і skeleton compatibility з production AK mesh.
+- Додано `.github/workflows/r14-weapon-profile-contracts.yml`, щоб source-CI не дозволяв тихо втратити weapon row, AK path або articulated requirement.
+- `R14_WEAPON_ANIMATION_REQUIREMENTS.md` і `R14_MODEL_REGISTRY.md` синхронізовано з новою code-level матрицею.
+- На прохання користувача локальний Windows UE 5.8 прогін не запускається після кожної паралельної гілки/локації. Compile/runtime/visual/cook перевірку перенесено в один консолідований ноутбучний validation pass після подальшого доопрацювання.
 
 ## 2026-08-20 — ТЗ синхронізовано з реалізацією
 
@@ -72,10 +83,11 @@
 
 - Production model integration contracts: SUCCESS.
 - R14 weapon model contracts: SUCCESS після виправлення реєстру та launcher integration contracts.
+- Додано третій source gate `R14 weapon profile contracts`; його актуальний результат перевіряється після цього history/docs commit.
 - CI тут перевіряє source/contracts. Фактичний UE 5.8 Editor compile, headless runtime gate, grip visual validation і cook/package не позначаються PASS без Windows UE запуску.
 
 ## Поточна точка роботи
 
 `Stage 0 — inventory/contracts`: основний weapon/vehicle/content inventory сформований; environment/character detailed inventory ще продовжується.
 
-`Stage 1 — weapons`: canonical production visuals тепер оголошені для всіх 11 реалізованих weapon IDs; runtime/headless validation infrastructure та per-weapon grip architecture готові. Наступний підетап: Windows UE 5.8 compile/runtime/visual calibration + підбір/імпорт сумісних fire/reload animation assets для всіх weapon rows, де вони позначені `MISSING`; equip-path profile wiring виконується після першого зеленого compile gate.
+`Stage 1 — weapons`: canonical production visuals оголошені для всіх 11 реалізованих weapon IDs; runtime/headless validation infrastructure, per-weapon grip architecture та code-level animation coverage matrix готові. Без локального UE можна далі безпечно розширювати source contracts, інвентаризувати/підключати тільки реально наявні licensed animation assets і готувати articulated replacement strategy для Remington 870/M249. Windows UE 5.8 compile/runtime/visual calibration + cook виконується одним консолідованим прогоном пізніше; PR #15 до того часу залишається Draft.
