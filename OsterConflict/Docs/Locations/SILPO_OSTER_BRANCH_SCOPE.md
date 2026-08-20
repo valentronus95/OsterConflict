@@ -16,6 +16,7 @@ Allowed work:
 - phase-one interior with empty shelves, checkouts, produce island, refrigeration and neutral lighting;
 - R14.1 photo-detail geometry: suspended ceiling, facade trim, checkout markers, utility pole and immediate side-market edge;
 - R14.2 non-colliding interior detail: floor-tile grid, shelf end trim, cooler door structure, checkout belts, produce dividers and entrance mat;
+- R14.3 non-colliding facade identity: layered orange/blue sign approximation, dark parapet rails and the photographed parking sign;
 - immediate forecourt/site corrections required by the reference set;
 - Silpo-only validation scripts, CI contract and documentation.
 
