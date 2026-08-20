@@ -7,6 +7,7 @@ set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
+set "VERIFY=%~dp0VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_MAIN_LAST_PLAYTEST.log"
 
@@ -31,12 +32,43 @@ if not exist "%PROJECT%" (
   pause
   exit /b 4
 )
+if not exist "%VERIFY%" (
+  echo [ERROR] R14 location ownership verifier is missing:
+  echo   %VERIFY%
+  echo Pull current main before testing.
+  pause
+  exit /b 5
+)
+
+set "PY_CMD="
+where py >nul 2>nul
+if not errorlevel 1 set "PY_CMD=py -3"
+if not defined PY_CMD (
+  where python >nul 2>nul
+  if not errorlevel 1 set "PY_CMD=python"
+)
+if not defined PY_CMD (
+  echo [ERROR] Python 3 not found in PATH.
+  pause
+  exit /b 6
+)
 
 echo ============================================================
 echo OSTER CONFLICT - CURRENT MAIN R14 LOCATION PLAYTEST
- echo ============================================================
-echo This launcher builds the CURRENT main source and opens the runtime map directly.
+echo ============================================================
+echo This launcher verifies and builds the CURRENT main source, then opens the runtime map directly.
 echo Legacy R11/R13 frontend launchers are not used.
+echo.
+echo [0/2] Verifying R14 landmark ownership and blocking legacy mixed-location source...
+%PY_CMD% "%VERIFY%"
+if errorlevel 1 (
+  echo.
+  echo [STOP] Current working tree is not the expected R14 location integration.
+  echo Pull/reset to current origin/main before running this test.
+  pause
+  exit /b 7
+)
+
 echo.
 echo [1/2] Building OsterConflictEditor Win64 Development...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
