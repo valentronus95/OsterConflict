@@ -43,6 +43,44 @@ bool FOCR14CharacterProductionProfilesTest::RunTest(const FString& Parameters)
             Profile.bFactionUniqueArms);
     }
 
+    struct FExpectedRole
+    {
+        EOCPlayerRole Role;
+        EOCCharacterGearClass PrimaryGearClass;
+        bool bAllowsLightGearVariant;
+    };
+
+    const FExpectedRole ExpectedRoles[] =
+    {
+        { EOCPlayerRole::Rifleman, EOCCharacterGearClass::Standard, true },
+        { EOCPlayerRole::Medic, EOCCharacterGearClass::Standard, false },
+        { EOCPlayerRole::Engineer, EOCCharacterGearClass::Heavy, false },
+        { EOCPlayerRole::Support, EOCCharacterGearClass::Heavy, false },
+    };
+
+    for (const FExpectedRole& Expected : ExpectedRoles)
+    {
+        TestTrue(TEXT("Gameplay role has a declared R14 production profile"),
+            OCHasDeclaredCharacterRoleProductionProfile(Expected.Role));
+
+        const FOCCharacterRoleProductionProfile Profile = OCResolveCharacterRoleProductionProfile(Expected.Role);
+        TestTrue(TEXT("Resolved role profile keeps requested authoritative role"), Profile.Role == Expected.Role);
+        TestTrue(TEXT("Role profile preserves current runtime GearClass behavior"),
+            Profile.PrimaryGearClass == Expected.PrimaryGearClass);
+        TestTrue(TEXT("Role profile preserves current Rifleman-only light gear variation rule"),
+            Profile.bAllowsLightGearVariant == Expected.bAllowsLightGearVariant);
+        TestFalse(TEXT("Shared current gear is not falsely marked role-unique"), Profile.bRoleUniqueVisual);
+    }
+
+    TestTrue(TEXT("Engineer remains heavy gear in the R14 production contract"),
+        OCResolveCharacterRoleProductionProfile(EOCPlayerRole::Engineer).PrimaryGearClass == EOCCharacterGearClass::Heavy);
+    TestTrue(TEXT("Support remains heavy gear in the R14 production contract"),
+        OCResolveCharacterRoleProductionProfile(EOCPlayerRole::Support).PrimaryGearClass == EOCCharacterGearClass::Heavy);
+    TestFalse(TEXT("Engineer visual is not yet falsely declared role-unique"),
+        OCResolveCharacterRoleProductionProfile(EOCPlayerRole::Engineer).bRoleUniqueVisual);
+    TestFalse(TEXT("Support visual is not yet falsely declared role-unique"),
+        OCResolveCharacterRoleProductionProfile(EOCPlayerRole::Support).bRoleUniqueVisual);
+
     USkeletalMesh* Body = LoadObject<USkeletalMesh>(nullptr, *ExpectedBodyPath);
     USkeletalMesh* Arms = LoadObject<USkeletalMesh>(nullptr, *ExpectedArmsPath);
     TestNotNull(TEXT("QuantumCharacter production body loads"), Body);
