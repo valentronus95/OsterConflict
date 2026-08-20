@@ -1,0 +1,121 @@
+name: Production model integration contracts
+
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/production-model-contracts.yml'
+      - 'OsterConflict/SourceAssets/**'
+      - 'OsterConflict/Content/Production/**'
+      - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd'
+      - 'OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
+  push:
+    branches:
+      - feat/import-hmmwv-btr4-m2
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/production-model-contracts.yml'
+      - 'OsterConflict/SourceAssets/**'
+      - 'OsterConflict/Content/Production/**'
+      - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd'
+      - 'OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Validate Python syntax
+        run: python -m py_compile OsterConflict/Scripts/import_production_vehicle_assets.py
+
+      - name: Validate production integration contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import sys
+
+          failures = []
+
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          attrs = Path('.gitattributes').read_text(encoding='utf-8')
+          for extension in ('*.uasset', '*.umap', '*.fbx', '*.png', '*.glb', '*.gltf', '*.bin', '*.zip'):
+              require(
+                  f'{extension} filter=lfs diff=lfs merge=lfs -text' in attrs,
+                  f'missing Git LFS rule for {extension}',
+              )
+
+          importer = Path('OsterConflict/Scripts/import_production_vehicle_assets.py').read_text(encoding='utf-8')
+          require('InterchangeCombineStaticMeshesBehavior' in importer, 'UE 5.8 combine behavior enum is not used')
+          require('combine_behavior.ALL' in importer, 'GLB import is not configured to combine all static meshes')
+          require('InterchangeForceMeshType' in importer, 'force mesh type enum is not used')
+          require('force_mesh_type.IFMT_STATIC_MESH' in importer, 'GLB import is not forced to static mesh')
+          require(
+              'set_editor_property("combine_static_meshes", True)' not in importer,
+              'deprecated UE 5.8 combine_static_meshes bool was reintroduced',
+          )
+
+          ingest = Path('OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd').read_text(encoding='utf-8')
+          require('set "TARGET_BRANCH=feat/import-hmmwv-btr4-m2"' in ingest, 'ingest is not locked to the feature branch')
+          require('git pull --ff-only origin "%TARGET_BRANCH%"' in ingest, 'ingest lost its fast-forward safety check')
+          require('VERIFY_PRODUCTION_MODEL_INGEST.cmd' in ingest, 'post-import verification gate is not called')
+          require('HEAD:%TARGET_BRANCH%' in ingest, 'ingest push is not explicitly targeted to the feature branch')
+
+          verifier_path = Path('OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd')
+          require(verifier_path.is_file(), 'production model ingest verifier is missing')
+          if verifier_path.is_file():
+              verifier = verifier_path.read_text(encoding='utf-8')
+              for name in (
+                  'ukrainian_hmmwv_mk_19.glb',
+                  'm2_50cal_machinegun_cc0.glb',
+                  'BTR4_Bucephalus.fbx',
+                  'SM_HMMWV_UA.uasset',
+                  'SM_M2_Browning.uasset',
+                  'SM_BTR4_Bucephalus.uasset',
+              ):
+                  require(name in verifier, f'verifier no longer checks {name}')
+              require('git check-attr filter' in verifier, 'verifier no longer checks LFS attributes')
+              require('git show "HEAD:%CHECK_PATH%"' in verifier, 'verifier no longer checks committed LFS pointers')
+              require('git show ":%CHECK_PATH%"' in verifier, 'verifier no longer checks staged LFS pointers')
+
+          pickup = Path('OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp').read_text(encoding='utf-8')
+          btr = Path('OsterConflict/Source/OsterConflict/Private/OCBTR.cpp').read_text(encoding='utf-8')
+          runtime_validator = Path('OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp')
+          runtime_validator_h = Path('OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h')
+
+          require('/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA' in pickup, 'HMMWV canonical runtime path changed')
+          require('/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning' in pickup, 'M2 canonical runtime path changed')
+          require('/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus' in btr, 'BTR-4 canonical runtime path changed')
+          require('EmptyOverrideMaterials()' in pickup, 'HMMWV production visual no longer clears fallback material overrides safely')
+          require('EmptyOverrideMaterials()' in btr, 'BTR-4 production visual no longer clears fallback material overrides safely')
+          require(runtime_validator.is_file(), 'production vehicle runtime validator cpp is missing')
+          require(runtime_validator_h.is_file(), 'production vehicle runtime validator header is missing')
+
+          if failures:
+              print('Production model contract validation FAILED:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('Production model contract validation PASS')
