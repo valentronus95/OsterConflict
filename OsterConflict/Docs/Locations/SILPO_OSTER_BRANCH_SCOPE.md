@@ -14,7 +14,8 @@ Allowed work:
 - enterable supermarket shell and collision;
 - one working replicated public entrance door;
 - phase-one interior with empty shelves, checkouts, produce island, refrigeration and neutral lighting;
-- R14.1 photo-detail geometry such as suspended ceiling, facade trim, checkout markers, utility pole and immediate side-market edge;
+- R14.1 photo-detail geometry: suspended ceiling, facade trim, checkout markers, utility pole and immediate side-market edge;
+- R14.2 non-colliding interior detail: floor-tile grid, shelf end trim, cooler door structure, checkout belts, produce dividers and entrance mat;
 - immediate forecourt/site corrections required by the reference set;
 - Silpo-only validation scripts, CI contract and documentation.
 
