@@ -140,7 +140,7 @@ jobs:
                       'first-person weapon base transform is not routed through the weapon profile')
               require('Profile.ADSWeaponOffset' in fps and 'Profile.ReloadWeaponLocation' in fps,
                       'ADS/reload presentation is bypassing the per-weapon profile')
-              require('UN​CALIBRATED'.replace('\u200b', '') in fps,
+              require('UNCALIBRATED' in fps,
                       'uncalibrated weapon grip state is no longer visible in runtime diagnostics')
 
           if runtime_path.is_file():
