@@ -3,7 +3,6 @@
 Оновлено: 2026-08-20
 
 Робоча гілка: `museum-oster`
-Draft PR: `#16`
 
 Цей файл фіксує фактичний стан реалізації музею. Він не замінює `MUSEUM_OSTER_TZ.md` і фото-індекс `MUSEUM_OSTER_PHOTO_REFERENCES_2026-08-20.md`.
 
@@ -18,11 +17,12 @@ Draft PR: `#16`
 - цоколь;
 - частина карнизів;
 - chimney;
-- rear annex mass;
+- rear annex;
 - yellow gas pipe;
-- concrete approach/steps.
+- concrete approach/steps;
+- site trees.
 
-Суцільний brick body, prototype glass, prototype doors, старі ґрати, частина trim і старий симетричний tree pass замінюються новішими шарами.
+Суцільний brick body, prototype glass, prototype doors, старі ґрати та частина trim приховуються новішими шарами.
 
 ### R13.8 — segmented architecture + enterable shell
 `UOCR138MuseumInteractiveArchitectureSubsystem`
@@ -50,11 +50,8 @@ Draft PR: `#16`
 - плавне відкривання двох стулок;
 - door audio;
 - три яруси relief panels;
-- додаткові raised perimeter rails навколо кожного ярусу REF-06;
-- зовнішні/внутрішні вертикальні стійки на обох стулках;
-- центральний raised spine з окремими relief nodes;
+- центральний raised spine;
 - окремі ручки;
-- весь декор рухається разом із відповідною стулкою;
 - автоматична заміна двох generic R13.8 leaves.
 
 ### R14.0 — corrected service gable + facade details
@@ -110,13 +107,10 @@ Draft PR: `#16`
 - radial/sunburst railing motif;
 - small dark base/access hatch under vestibule side.
 
-### R14.3 — територія і низька рослинність
+### R14.3 — low site vegetation
 `UOCR143MuseumSiteVegetationSubsystem`
 
-Реалізовано за REF-04/05/07/10/13/14:
-- використовуються наявні `PN_FoliageCollection` grass/ground-plant meshes;
-- центральна бетонна алея лишається чистою;
-- зона входу та безпосередній периметр стін не заростають;
+Реалізовано:
 - передній газон отримує низьку, навмисно нещільну траву;
 - бічна/задня зона має нерівномірні ground plants;
 - біля rear annex додана невелика асиметрична зелена група за REF-13;
@@ -148,6 +142,26 @@ Draft PR: `#16`
 - side conifers не перекривають службовий вхід;
 - використовуються наявні project foliage meshes, без нових generic tree assets.
 
+## Windows compile attempt #1 — 2026-08-20
+
+Фактичний запуск через наявний R11.1 BAT launcher:
+- UE 5.8.1 prelaunch: PASS;
+- Visual Studio C++ toolchain: PASS;
+- UHT: PASS;
+- Compile Editor: FAILED.
+
+Знайдені root causes:
+1. `OCFirstPersonWeaponPresentationSubsystem` викликав відсутні в UE 5.8 `AActor::GetActorRelativeLocation/Rotation`.
+2. Unreal unity build склеїв кілька `.cpp` в один translation unit, через що anonymous-namespace helpers/константи (`AddBox`, `MakeMID`, `MakeISM`, `TotalWidthCm`, `RemoveInstancesNear` тощо) конфліктували між музейними й старими R13.7 файлами.
+
+Виправлення після attempt #1:
+- `AOCWeaponBase` отримав relative-transform getters на основі `WeaponRoot`;
+- у `OsterConflict.Build.cs` встановлено `bUseUnity = false`, щоб кожний `.cpp` компілювався окремо;
+- source-contract CI тепер перевіряє обидва ці compile contracts;
+- CI на новому HEAD пройшов `success`.
+
+Це ще не означає UE compile PASS: потрібен Windows compile attempt #2.
+
 ## Source-contract CI
 
 Додано:
@@ -164,9 +178,9 @@ CI перевіряє:
 - правильну орієнтацію gutter cylinders;
 - suppression старого симетричного tree pass;
 - заборону вигадувати нерозбірливий historical inscription;
-- збереження підтвердженого номера будинку `30`.
-
-Перший source-contract run після додавання workflow пройшов `success`. Після R14.5 workflow має повторно перевірити оновлений контракт.
+- збереження підтвердженого номера будинку `30`;
+- вимкнений Unity Build для модуля OsterConflict;
+- наявність relative-transform getters для weapon presentation.
 
 ## Runtime validation
 
@@ -189,7 +203,7 @@ CI перевіряє:
 ## Що ще НЕ вважається завершеним
 
 ### Обов'язково перед merge
-- UE 5.8 Windows compile;
+- UE 5.8 Windows compile attempt #2;
 - UHT/UBT validation усіх нових UCLASS;
 - runtime launch `OsterConflict_Runtime`;
 - перевірка відсутності `Cannot replace existing object of a different class`;
