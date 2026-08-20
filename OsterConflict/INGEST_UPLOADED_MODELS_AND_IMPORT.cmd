@@ -127,6 +127,17 @@ if errorlevel 1 (
 )
 
 git add "OsterConflict/Content/Production"
+
+rem A successful Unreal process exit is not enough. Verify the canonical products exist,
+rem are real local binaries and are represented by LFS pointers before we create the asset commit.
+call "OsterConflict\VERIFY_PRODUCTION_MODEL_INGEST.cmd"
+if errorlevel 1 (
+    echo ERROR: production model verification failed after Unreal import.
+    echo Source assets remain committed on %TARGET_BRANCH%, but generated assets were not committed.
+    popd
+    exit /b 12
+)
+
 git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "Import HMMWV M2 and BTR-4 production Unreal assets" || goto :git_error
@@ -137,7 +148,7 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo PASS: source + Unreal production assets are committed/pushed.
+echo PASS: source + Unreal production assets are verified, committed and pushed.
 echo Branch: %TARGET_BRANCH%
 echo ============================================================
 popd
