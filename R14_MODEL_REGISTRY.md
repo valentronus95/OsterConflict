@@ -24,9 +24,13 @@
 
 Current first-person presentation provides generic ADS, recoil and reload offsets. Explicit model animation sequences are currently wired for AK-47 only. R14 therefore treats all other rows as incomplete until their compatible animation coverage and hand alignment are validated.
 
+R14 now also has a code-level animation coverage registry in `OCWeaponAnimationProfiles.h/.cpp`. All 11 implemented weapon IDs are declared there. Only `OC_AR1` currently owns verified Fire/Reload object paths. Missing authored animations are represented by intentionally empty paths instead of invented or silent generic mappings. `OC_SG1` and `OC_LMG1` additionally carry an explicit articulated-weapon requirement because the current Remington 870 and M249 production visuals are static meshes.
+
+`OCWeaponPresentationProfileTests.cpp` validates declaration coverage for the same 11 weapon IDs, finite first-person profile transforms, loadability of any declared animation path, canonical AK Fire/Reload paths and AK weapon-skeleton compatibility. `.github/workflows/r14-weapon-profile-contracts.yml` protects the source-level profile matrix in GitHub CI. Actual UE 5.8 compile/runtime/visual validation remains pending and will be done in the consolidated laptop pass rather than blocking each location/model workstream separately.
+
 Current equipped-weapon attachment historically relied on one shared camera-space base transform for every weapon class (`X=38, Y=12, Z=-14`, zero rotation). R14 now routes each implemented weapon ID through its own explicit `FOCFirstPersonWeaponProfile` in `UOCFirstPersonWeaponPresentationSubsystem`. All profiles intentionally preserve the legacy baseline and remain `UNCALIBRATED` until the exact mesh is visually approved in UE 5.8; no fake per-weapon coordinates are being guessed.
 
-`AOCWeaponBase::ApplyInventoryPresentation` still contains the legacy equip-time transform. The profile subsystem corrects presentation afterward; direct equip-path profile wiring is tracked as a follow-up after the first Windows UE compile gate to avoid broad base-weapon rewrites without compilation.
+`AOCWeaponBase::ApplyInventoryPresentation` still contains the legacy equip-time transform. The profile subsystem corrects presentation afterward; direct equip-path profile wiring remains tracked for a later safe source pass or the consolidated Windows UE compile gate. This is explicit technical debt, not considered completed.
 
 ## Characters
 
@@ -79,9 +83,10 @@ Environment model acceptance fields to fill during stages 4–5: exact asset pat
 ## Animation sources
 
 - `SampleAnimationPack`: rifle idle and ADS idle currently used only as compatible fallback; checked Rifle directory contains no named Fire/Reload assets.
-- `AK-47/Animations`: explicit fire/reload sequences currently wired.
+- `AK-47/Animations`: explicit fire/reload sequences currently wired and registered in `OCWeaponAnimationProfiles.cpp`.
 - R13 Stein weapon directories: skeletal weapon meshes/accessories are present, but dedicated weapon Fire/Reload animation assets were not found in the checked weapon folders.
 - `QuantumCharacter/Demo/Animations`: current body idle/walk/run/fall source used by production character subsystem.
+- `OCWeaponAnimationProfiles`: authoritative R14 code matrix for declared per-weapon Fire/Reload coverage; empty path means coverage is still missing.
 
 ## Required final fields for every production row
 
