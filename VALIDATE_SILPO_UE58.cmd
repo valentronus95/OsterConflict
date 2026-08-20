@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo ============================================================
 echo OSTER CONFLICT - SILPO OSTER R14 VALIDATION
-echo Branch target: silpo-oster
+echo Branch target: current main R14 integration
 echo Static contracts + UE 5.8 Editor build
 echo ============================================================
 echo.
@@ -63,9 +63,10 @@ echo.
 if "%RC%"=="0" (
   echo ============================================================
   echo SILPO VALIDATION BUILD PASSED
-  echo Next runtime check: OsterConflict_Runtime in PIE.
+  echo Next runtime check: START_HERE option 5.
   echo Check R14.0 shell, R14.1 site details, R14.2 interior detail,
   echo R14.3 facade identity, the single entrance door and navigation.
+  echo Confirm Silpo is separate from Museum and no legacy civic composite appears.
   echo ============================================================
 ) else (
   echo ============================================================
