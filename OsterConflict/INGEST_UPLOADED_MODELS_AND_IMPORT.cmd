@@ -5,6 +5,7 @@ chcp 65001 >nul
 set "PROJECT_DIR=%~dp0"
 set "REPO_DIR=%PROJECT_DIR%.."
 set "ZIP_PATH=%~1"
+set "TARGET_BRANCH=feat/import-hmmwv-btr4-m2"
 
 if defined ZIP_PATH if not exist "%ZIP_PATH%" set "ZIP_PATH="
 
@@ -40,6 +41,42 @@ git lfs version >nul 2>nul || (
 )
 
 git lfs install >nul 2>nul
+
+rem Never let this ingest accidentally commit production binaries straight to main
+rem or carry unrelated tracked edits from an older local session into the asset branch.
+git diff --quiet
+if errorlevel 1 goto :dirty_tree
+git diff --cached --quiet
+if errorlevel 1 goto :dirty_tree
+
+git remote get-url origin >nul 2>nul || (
+    echo ERROR: git remote 'origin' is not configured.
+    popd
+    exit /b 9
+)
+
+git fetch origin "%TARGET_BRANCH%" || goto :git_error
+
+for /f "delims=" %%B in ('git branch --show-current') do set "CURRENT_BRANCH=%%B"
+if /I not "!CURRENT_BRANCH!"=="%TARGET_BRANCH%" (
+    git show-ref --verify --quiet "refs/heads/%TARGET_BRANCH%"
+    if errorlevel 1 (
+        git switch --track -c "%TARGET_BRANCH%" "origin/%TARGET_BRANCH%" || goto :git_error
+    ) else (
+        git switch "%TARGET_BRANCH%" || goto :git_error
+    )
+)
+
+git pull --ff-only origin "%TARGET_BRANCH%" || goto :git_error
+
+for /f "delims=" %%B in ('git branch --show-current') do set "CURRENT_BRANCH=%%B"
+if /I not "!CURRENT_BRANCH!"=="%TARGET_BRANCH%" (
+    echo ERROR: safety check failed. Current branch is !CURRENT_BRANCH!, expected %TARGET_BRANCH%.
+    popd
+    exit /b 10
+)
+
+echo PASS: ingest is locked to branch %TARGET_BRANCH%.
 
 set "OC_ZIP=%ZIP_PATH%"
 set "OC_PROJECT=%PROJECT_DIR%"
@@ -77,7 +114,7 @@ git add .gitattributes "OsterConflict/SourceAssets/Production"
 git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "Add HMMWV M2 and BTR-4 production source assets" || goto :git_error
-    git push origin HEAD || goto :git_error
+    git push origin "HEAD:%TARGET_BRANCH%" || goto :git_error
 ) else (
     echo Source assets already committed; continuing to Unreal import.
 )
@@ -93,7 +130,7 @@ git add "OsterConflict/Content/Production"
 git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "Import HMMWV M2 and BTR-4 production Unreal assets" || goto :git_error
-    git push origin HEAD || goto :git_error
+    git push origin "HEAD:%TARGET_BRANCH%" || goto :git_error
 ) else (
     echo Unreal production assets already committed.
 )
@@ -101,11 +138,18 @@ if errorlevel 1 (
 echo.
 echo ============================================================
 echo PASS: source + Unreal production assets are committed/pushed.
+echo Branch: %TARGET_BRANCH%
 echo ============================================================
 popd
 exit /b 0
 
+:dirty_tree
+echo ERROR: tracked local changes are present before ingest.
+echo Commit/revert the unrelated tracked changes first; ingest was not started.
+popd
+exit /b 11
+
 :git_error
-echo ERROR: git commit/push failed.
+echo ERROR: git branch/fetch/commit/push operation failed.
 popd
 exit /b 8
