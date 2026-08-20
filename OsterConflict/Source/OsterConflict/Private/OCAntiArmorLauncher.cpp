@@ -42,26 +42,17 @@ void AOCAntiArmorLauncher::BeginPlay()
         return;
     }
 
-    // The imported Kenney source is CC0 and already tracked in Raw/R13. Keep the gameplay actor,
-    // projectile and authoritative damage logic unchanged; only replace the source-only visual.
-    TArray<UStaticMeshComponent*> StaticComponents;
-    GetComponents<UStaticMeshComponent>(StaticComponents);
-    for (UStaticMeshComponent* Component : StaticComponents)
-    {
-        if (!Component) continue;
-        Component->SetVisibility(false, true);
-        Component->SetHiddenInGame(true, true);
-    }
-
     UStaticMeshComponent* ProductionVisual = NewObject<UStaticMeshComponent>(
         this,
         MakeUniqueObjectName(this, UStaticMeshComponent::StaticClass(), FName(TEXT("ProductionAntiArmorLauncher"))));
     if (!ProductionVisual)
     {
-        UE_LOG(LogTemp, Warning, TEXT("OC_RPG1 could not create production launcher component."));
+        UE_LOG(LogTemp, Warning, TEXT("OC_RPG1 could not create production launcher component; fallback remains visible."));
         return;
     }
 
+    // The imported Kenney source is CC0 and already tracked in Raw/R13. Keep the gameplay actor,
+    // projectile and authoritative damage logic unchanged; only replace the source-only visual.
     constexpr float DesiredLauncherLengthCm = 105.0f;
     const float UniformScale = DesiredLauncherLengthCm / NativeLength;
     ProductionVisual->SetupAttachment(WeaponRoot);
@@ -78,6 +69,16 @@ void AOCAntiArmorLauncher::BeginPlay()
     ProductionVisual->ComponentTags.Add(FName(TEXT("OC_ProductionWeaponVisual")));
     AddInstanceComponent(ProductionVisual);
     ProductionVisual->RegisterComponent();
+
+    // Hide old BasicShape/source components only after the replacement component exists and is registered.
+    TArray<UStaticMeshComponent*> StaticComponents;
+    GetComponents<UStaticMeshComponent>(StaticComponents);
+    for (UStaticMeshComponent* Component : StaticComponents)
+    {
+        if (!Component || Component == ProductionVisual) continue;
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
+    }
 
     UE_LOG(LogTemp, Display,
         TEXT("OC_RPG1 now uses Kenney CC0 rocketlauncherModern production visual; first-person grip remains R14 visual-calibration pending."));
