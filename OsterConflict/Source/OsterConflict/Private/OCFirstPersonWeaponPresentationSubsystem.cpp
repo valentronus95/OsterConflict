@@ -50,9 +50,19 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
     for (TActorIterator<AOCCharacter> It(World); It; ++It)
     {
         AOCCharacter& Character = **It;
-        if (Character.IsLocallyControlled() && !Character.IsInVehicle())
+        if (!Character.IsLocallyControlled()) continue;
+
+        const TWeakObjectPtr<AOCCharacter> CharacterKey(&Character);
+        if (!Character.IsInVehicle())
         {
             UpdateLocalCharacter(Character, DeltaTime);
+        }
+        else if (FOCFirstPersonWeaponState* ExistingState = StateByCharacter.Find(CharacterKey))
+        {
+            // Do not leave camera-space offsets or single-node animations parked on the character
+            // while vehicle presentation owns the local view.
+            RestorePresentationState(Character, *ExistingState);
+            StateByCharacter.Remove(CharacterKey);
         }
     }
 
@@ -76,6 +86,48 @@ USkeletalMeshComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductio
     return nullptr;
 }
 
+void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCCharacter& Character,
+    FOCFirstPersonWeaponState& State)
+{
+    if (AOCWeaponBase* PreviousWeapon = State.Weapon.Get())
+    {
+        if (State.bWeaponAnimationActive)
+        {
+            if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*PreviousWeapon))
+            {
+                // We only start single-node sequences when no AnimBlueprint is authoritative.
+                // If another system has since installed an AnimBlueprint, leave it alone.
+                if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
+                {
+                    Visual->SetAnimation(nullptr);
+                }
+            }
+        }
+
+        // A dropped weapon has already been detached and positioned in world space by gameplay code.
+        // Never reinterpret the old camera-relative base transform as a world transform.
+        if (!PreviousWeapon->IsWorldPickup())
+        {
+            PreviousWeapon->SetActorRelativeLocation(State.BaseWeaponLocation);
+            PreviousWeapon->SetActorRelativeRotation(State.BaseWeaponRotation);
+        }
+    }
+
+    if (USkeletalMeshComponent* Arms = Character.GetFirstPersonArms())
+    {
+        Arms->SetRelativeLocation(State.BaseArmsLocation);
+        Arms->SetRelativeRotation(State.BaseArmsRotation);
+        if (State.bRiflePoseApplied && Arms->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
+        {
+            Arms->SetAnimation(nullptr);
+        }
+    }
+
+    State.bWeaponAnimationActive = false;
+    State.bRiflePoseApplied = false;
+    State.RecoilAlpha = 0.0f;
+}
+
 void UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
     FOCFirstPersonWeaponState& State, double ResetDelaySeconds)
 {
@@ -83,6 +135,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBas
     USkeletalMeshComponent* Visual = FindProductionWeaponVisual(Weapon);
     USkeletalMesh* Mesh = Visual ? Visual->GetSkeletalMeshAsset() : nullptr;
     if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return;
+
+    // Production weapons may later gain their own animation blueprint. Do not replace an authored
+    // AnimInstance with this lightweight fallback sequence layer.
+    if (Visual->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Visual->GetAnimClass()) return;
 
     Visual->PlayAnimation(Sequence, false);
     State.bWeaponAnimationActive = true;
@@ -95,6 +151,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Char
     USkeletalMeshComponent* Arms = Character.GetFirstPersonArms();
     USkeletalMesh* ArmsMesh = Arms ? Arms->GetSkeletalMeshAsset() : nullptr;
     if (!Arms || !ArmsMesh) return;
+
+    // CharacterVisualComponent may install a real first-person AnimBlueprint from the active profile.
+    // SampleAnimationPack is only a fallback and must never knock that AnimInstance out of blueprint mode.
+    if (Arms->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Arms->GetAnimClass()) return;
 
     UAnimSequence* Desired = bADS ? RifleADSIdleAnimation.Get() : RifleIdleAnimation.Get();
     if (!Desired || !Desired->GetSkeleton() || Desired->GetSkeleton() != ArmsMesh->GetSkeleton())
@@ -114,12 +174,32 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 {
     AOCWeaponBase* Weapon = Character.GetCurrentWeapon();
     USkeletalMeshComponent* Arms = Character.GetFirstPersonArms();
-    if (!Weapon || Weapon->IsWorldPickup() || !Arms) return;
+    const TWeakObjectPtr<AOCCharacter> CharacterKey(&Character);
 
-    FOCFirstPersonWeaponState& State = StateByCharacter.FindOrAdd(TWeakObjectPtr<AOCCharacter>(&Character));
+    if (!Weapon || Weapon->IsWorldPickup() || !Arms)
+    {
+        if (FOCFirstPersonWeaponState* ExistingState = StateByCharacter.Find(CharacterKey))
+        {
+            RestorePresentationState(Character, *ExistingState);
+            StateByCharacter.Remove(CharacterKey);
+        }
+        return;
+    }
+
+    FOCFirstPersonWeaponState* ExistingState = StateByCharacter.Find(CharacterKey);
+    if (ExistingState && ExistingState->Weapon.Get() != Weapon)
+    {
+        // Weapon switches can happen while ADS/recoil/reload offsets are non-zero. Restore the old
+        // presentation before capturing the new weapon's base transform so offsets never accumulate.
+        RestorePresentationState(Character, *ExistingState);
+        StateByCharacter.Remove(CharacterKey);
+        ExistingState = nullptr;
+    }
+
+    FOCFirstPersonWeaponState& State = StateByCharacter.FindOrAdd(CharacterKey);
     const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 
-    if (State.Weapon.Get() != Weapon)
+    if (!ExistingState)
     {
         State = FOCFirstPersonWeaponState();
         State.Weapon = Weapon;
@@ -135,7 +215,16 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     const bool bADS = Character.IsAiming();
     const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
     const bool bLongGun = WeaponClass != EOCWeaponClass::Pistol;
-    if (bLongGun) ApplyArmsPose(Character, State, bADS);
+    if (bLongGun)
+    {
+        ApplyArmsPose(Character, State, bADS);
+    }
+    else if (State.bRiflePoseApplied && Arms->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
+    {
+        // Covers a same-weapon-class/presentation mutation without waiting for a full state reset.
+        Arms->SetAnimation(nullptr);
+        State.bRiflePoseApplied = false;
+    }
 
     const int32 CurrentAmmo = Weapon->GetAmmoInMagazine();
     if (State.LastAmmo != INDEX_NONE && CurrentAmmo < State.LastAmmo && !Weapon->IsReloading())
@@ -162,7 +251,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     {
         if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*Weapon))
         {
-            Visual->SetAnimation(nullptr);
+            if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
+            {
+                Visual->SetAnimation(nullptr);
+            }
         }
         State.bWeaponAnimationActive = false;
     }
@@ -172,7 +264,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     {
         if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*Weapon))
         {
-            Visual->SetAnimation(nullptr);
+            if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
+            {
+                Visual->SetAnimation(nullptr);
+            }
         }
         State.bWeaponAnimationActive = false;
     }
@@ -200,7 +295,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
     if (bReloading)
     {
-        const float Duration = Weapon->GetReloadDuration();
+        const float Duration = FMath::Max(0.05f, Weapon->GetReloadDuration());
         const float Alpha = FMath::Clamp(static_cast<float>((Now - State.ReloadStartTime) / Duration), 0.0f, 1.0f);
         const float Arc = FMath::Sin(Alpha * PI);
         WeaponLocation += FVector(-8.0f, 3.0f, -11.0f) * Arc;
