@@ -16,7 +16,7 @@
 
 namespace
 {
-    constexpr float R138MuseumValidationDelaySeconds = 6.65f;
+    constexpr float R138MuseumValidationDelaySeconds = 6.75f;
     constexpr float MuseumInteractionRadiusCm = 2800.0f;
 }
 
@@ -57,6 +57,7 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     int32 EntranceDetailActors = 0;
     int32 SiteVegetationActors = 0;
     int32 RearExteriorActors = 0;
+    int32 TreeLayoutActors = 0;
     int32 StructuralSections = 0;
     int32 MainDoorActors = 0;
     int32 ServiceDoorActors = 0;
@@ -90,6 +91,7 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
         if (Actor->ActorHasTag(TEXT("R142_MuseumEntranceDetail"))) ++EntranceDetailActors;
         if (Actor->ActorHasTag(TEXT("R143_MuseumSiteVegetation"))) ++SiteVegetationActors;
         if (Actor->ActorHasTag(TEXT("R144_MuseumRearExteriorDetail"))) ++RearExteriorActors;
+        if (Actor->ActorHasTag(TEXT("R145_MuseumPhotoTreeLayout"))) ++TreeLayoutActors;
 
         if (FVector::DistSquared2D(Actor->GetActorLocation(), Museum) > RadiusSq)
         {
@@ -135,6 +137,7 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
         EntranceDetailActors == 1 &&
         SiteVegetationActors == 1 &&
         RearExteriorActors == 1 &&
+        TreeLayoutActors == 1 &&
         StructuralSections >= 30 &&
         MainDoorActors == 1 &&
         ServiceDoorActors == 1 &&
@@ -148,16 +151,17 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("R14.4 museum validation PASS: architecture=%d facade=%d entrance=%d vegetation=%d rearExterior=%d structural=%d mainDoor=%d serviceDoor=%d styledWindows=%d upperGable=%d."),
+            TEXT("R14.5 museum validation PASS: architecture=%d facade=%d entrance=%d vegetation=%d rearExterior=%d trees=%d structural=%d mainDoor=%d serviceDoor=%d styledWindows=%d upperGable=%d."),
             ArchitectureActors, FacadeDetailActors, EntranceDetailActors, SiteVegetationActors,
-            RearExteriorActors, StructuralSections, MainDoorActors, ServiceDoorActors,
-            StyledMuseumWindows, UpperGableWindows);
+            RearExteriorActors, TreeLayoutActors, StructuralSections, MainDoorActors,
+            ServiceDoorActors, StyledMuseumWindows, UpperGableWindows);
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("R14.4 museum validation FAILED: architecture=%d facade=%d entrance=%d vegetation=%d rearExterior=%d structural=%d mainDoor=%d serviceDoor=%d prototypeService=%d windows=%d styled=%d prototypeWindows=%d upperGable=%d initiallyBroken=%d."),
+        TEXT("R14.5 museum validation FAILED: architecture=%d facade=%d entrance=%d vegetation=%d rearExterior=%d trees=%d structural=%d mainDoor=%d serviceDoor=%d prototypeService=%d windows=%d styled=%d prototypeWindows=%d upperGable=%d initiallyBroken=%d."),
         ArchitectureActors, FacadeDetailActors, EntranceDetailActors, SiteVegetationActors,
-        RearExteriorActors, StructuralSections, MainDoorActors, ServiceDoorActors, PrototypeServiceDoors,
-        BreakableWindows, StyledMuseumWindows, PrototypeMuseumWindows, UpperGableWindows, InitiallyBrokenWindows);
+        RearExteriorActors, TreeLayoutActors, StructuralSections, MainDoorActors, ServiceDoorActors,
+        PrototypeServiceDoors, BreakableWindows, StyledMuseumWindows, PrototypeMuseumWindows,
+        UpperGableWindows, InitiallyBrokenWindows);
 }
