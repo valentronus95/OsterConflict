@@ -1,0 +1,45 @@
+name: Museum source contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/museum-source-contracts.yml'
+      - 'OsterConflict/Docs/MUSEUM_OSTER_*.md'
+      - 'OsterConflict/Scripts/validate_museum_source_contracts.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseum*.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseum*.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13*Museum*.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13*Museum*.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR14*Museum*.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR14*Museum*.h'
+  push:
+    branches:
+      - museum-oster
+    paths:
+      - '.github/workflows/museum-source-contracts.yml'
+      - 'OsterConflict/Docs/MUSEUM_OSTER_*.md'
+      - 'OsterConflict/Scripts/validate_museum_source_contracts.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseum*.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseum*.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13*Museum*.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13*Museum*.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR14*Museum*.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR14*Museum*.h'
+
+permissions:
+  contents: read
+
+jobs:
+  museum-source-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Validate Python syntax
+        run: python -m py_compile OsterConflict/Scripts/validate_museum_source_contracts.py
+
+      - name: Validate museum source contracts
+        run: python OsterConflict/Scripts/validate_museum_source_contracts.py
