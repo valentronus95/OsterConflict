@@ -89,6 +89,7 @@ bool FOCProductionCanonicalAssetsTest::RunTest(const FString& Parameters)
         { TEXT("Armed pickup visual"), TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup"), 100.0f },
         { TEXT("Remington 870"), TEXT("/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"), 40.0f },
         { TEXT("M249"), TEXT("/Game/Production/Weapons/M249/SM_M249.SM_M249"), 40.0f },
+        { TEXT("Anti-Armor Launcher"), TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern"), 20.0f },
     };
 
     const FOCProductionSkeletalMeshExpectation SkeletalExpectations[] =
