@@ -4,7 +4,7 @@ cd /d "%~dp0"
 :menu
 cls
 echo ============================================================
-echo OSTER CONFLICT - UE 5.8 - R14 CURRENT MAIN
+echo OSTER CONFLICT - UE 5.8 - R14 CURRENT MAIN - R14.6 LANDMARK SEPARATION
 echo ============================================================
 echo 1. Compile Editor/Game with installed UE 5.8
 echo 2. Full validation (Launcher-aware)
