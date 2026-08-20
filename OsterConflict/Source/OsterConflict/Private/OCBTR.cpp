@@ -27,10 +27,8 @@ namespace
         Component->SetRelativeRotation(FRotator::ZeroRotator);
         Component->SetRelativeScale3D(Scale);
         Component->SetRelativeLocation(-Bounds.Origin * Scale);
-        for (int32 MaterialIndex = 0; MaterialIndex < Component->GetNumMaterials(); ++MaterialIndex)
-        {
-            Component->SetMaterial(MaterialIndex, nullptr);
-        }
+        // Remove fallback component overrides while retaining the BTR mesh's imported materials.
+        Component->EmptyOverrideMaterials();
         return true;
     }
 }
