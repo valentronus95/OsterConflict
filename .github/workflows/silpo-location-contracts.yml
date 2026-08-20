@@ -13,6 +13,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCR140SilpoPhotoModelSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR141SilpoDetailSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR142SilpoInteriorDetailSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR142SilpoInteriorDetailSubsystem.h'
       - 'OsterConflict/Docs/Locations/SILPO_OSTER_*.md'
       - 'OsterConflict/SourceReferences/Locations/Silpo_Oster/**'
   pull_request:
@@ -27,6 +29,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCR140SilpoPhotoModelSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR141SilpoDetailSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR142SilpoInteriorDetailSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR142SilpoInteriorDetailSubsystem.h'
       - 'OsterConflict/Docs/Locations/SILPO_OSTER_*.md'
       - 'OsterConflict/SourceReferences/Locations/Silpo_Oster/**'
 
