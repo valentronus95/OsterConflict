@@ -10,8 +10,8 @@
 - Active integration branch: `main`
 - UE target: 5.8.x Windows
 - Unreal project: `OsterConflict/OsterConflict.uproject`
-- Поточний branch HEAD на момент створення ledger: `401971b0efec020d81d02b263f8c8e4097da28e9`
 - Current location ТЗ: `STADION_OSTER_TZ.md` + `OsterConflict/Docs/Locations/SILPO_OSTER_TZ.md`
+- 2026-08-20 recovery: accidental R13 tree rollback on `main` was reversed without rewriting history; current source is again the R14 integration tree, with a current-main R14 launcher.
 - Точний repeat count починаємо вести системно з цього ledger. Для старих вимог, які явно повторювалися до створення файлу, використовується `≥N`, а не вигадане точне число.
 
 ## 2. Правила журналу
@@ -32,12 +32,12 @@
 
 | ID | Вимога | Repeat | Status | Фактичний стан / що залишилось |
 |---|---|---:|---|---|
-| LOC-MUSEUM-001 | Музей має бути окремим правильним landmark, не змішаним з Будинком культури/Сільпо | ≥2 | IN_PROGRESS | Старий змішаний вигляд playtest спростував. Будинок культури runtime біля музею вимкнений. Потрібен photo-driven refinement музею та перевірка сцени. |
-| LOC-STADIUM-001 | Стадіон Остер має бути окремим hard-georeferenced site, узгодженим із музеєм і реальними картами | ≥2 | CODED_UNTESTED | Реалізацію зі `stadion-oster` контрольовано перенесено в `main` за прямою вказівкою користувача: canonical WGS84 anchor `50.949360, 30.884660`, окремий authoritative owner, modern field/sport zones, вхідна стела, дерева, стежки, будинки й локальні паркани. Legacy source visuals приховуються синхронно; delayed civic/landmark passes більше не додають окремі stadium-шари. Structural stadium/ownership verifiers проходять. Потрібні UE 5.8 build/playtest, перевірка Z/collision/flicker і візуальне підтвердження; збережений `.zip` photo-pack не проходить ZIP integrity test і має бути відновлений з 17 оригіналів. |
+| LOC-MUSEUM-001 | Музей має бути окремим правильним landmark, не змішаним з Будинком культури/Сільпо | ≥3 | CODED_UNTESTED | Playtest на помилково відновленому R13 tree знову показав старий змішаний civic/Silpo вигляд. Цей тест не перевіряв актуальний R14 source. R14 integration tree відновлено на `main`; R14.5 museum source повернуто. Потрібен новий UE 5.8 build/playtest саме current `main`. |
+| LOC-STADIUM-001 | Стадіон Остер має бути окремим hard-georeferenced site, узгодженим із музеєм і реальними картами | ≥2 | CODED_UNTESTED | Реалізацію зі `stadion-oster` контрольовано перенесено в `main`: canonical WGS84 anchor `50.949360, 30.884660`, окремий authoritative owner, modern field/sport zones, вхідна стела, дерева, стежки, будинки й локальні паркани. Legacy source visuals приховуються синхронно; delayed civic/landmark passes більше не додають окремі stadium-шари. Structural stadium/ownership verifiers проходять. Потрібні UE 5.8 build/playtest, перевірка Z/collision/flicker і візуальне підтвердження; збережений `.zip` photo-pack не проходить ZIP integrity test і має бути відновлений з 17 оригіналів. |
 | LOC-TERRAIN-001 | За музеєм має бути спуск вниз, нижче хати | ≥2 | CODED_UNTESTED | Доданий окремий collision terrain + lower residential district; terrain swap зроблено fail-safe. Потрібен build/playtest і корекція форми/висоти за фото/місцевістю. |
-| LOC-SILPO-001 | Сільпо має бути на своїй локації, окремо від музею | ≥2 | CODED_UNTESTED | За прямою вказівкою користувача photo-driven Silpo pass контрольовано forward-port у `main` commit `ad689dff859bc65332669788cb94f727623ce7ab`, не затираючи новіші зміни `main`: canonical WGS84 `50.948833799986254, 30.87572244094098`; R14.0 shell/interior + один replicated interactive entrance; R14.1 site/detail; R14.2 interior detail; R14.3 facade identity; 20 reference photos, ТЗ, static validator і UE 5.8 validation launcher. Потрібні UE 5.8 build/PIE, перевірка collision/door/navigation/flicker та візуальна звірка з фото. |
+| LOC-SILPO-001 | Сільпо має бути на своїй локації, окремо від музею | ≥3 | CODED_UNTESTED | R13 rollback-playtest не є валідним тестом R14 Silpo. На актуальному `main` відновлено photo-driven Silpo R14.0–R14.3 з canonical WGS84 `50.948833799986254, 30.87572244094098`, окремим R14 owner і без legacy `OCR13SilpoPhotoModelSubsystem.cpp`. Потрібен новий UE 5.8 build/runtime test current `main`, collision/door/navigation/flicker та візуальна звірка з фото. |
 | LOC-WATERTOWER-001 | Водонапірна вежа біля Сільпо має бути окремим правильним landmark | 1 | TODO | Потрібно знайти/підтвердити фото та географічну прив'язку, перевірити наявні assets або створити/адаптувати модель. |
-| LOC-CULTURE-001 | Будинок культури має стояти на своїй локації, не в музеї | ≥2 | IN_PROGRESS | Неправильний runtime build на музейній ділянці вимкнений. Сам landmark ще не повернуто в підтверджене правильне місце. |
+| LOC-CULTURE-001 | Будинок культури має стояти на своїй локації, не в музеї | ≥3 | IN_PROGRESS | Старий R13 Culture House photo-model повернувся лише через помилковий tree rollback; у відновленому R14 `main` legacy `OCR13CultureHousePhotoModelSubsystem.cpp` відсутній. Сам правильний landmark ще не повернуто без підтвердженої ділянки. Потрібен current-main playtest, щоб підтвердити відсутність старого composite. |
 | LOC-COLLEGE-001 | Коледж/технікум не повинен стояти у вигаданій точці | ≥2 | IN_PROGRESS | Неправильні College Facade/Access runtime layers вимкнені. Потрібна правильна прив'язка перед поверненням. |
 | LOC-PARK-001 | Парк не повинен стояти у вигаданій точці | ≥2 | IN_PROGRESS | Неправильні park canopy/dressing/furniture layers вимкнені. Потрібна правильна прив'язка перед поверненням. |
 | VIS-FLICKER-001 | У грі не повинно все мерехтіти/перебудовуватись після входу | ≥2 | IN_PROGRESS | Вимкнений один whole-map late repair; loading overlay подовжений, Silpo cleanup пересунутий раніше. Потрібно прибрати/консолідувати інші late runtime passes та overlapping geometry. |
@@ -59,7 +59,8 @@
 | TERRAIN-FAILSAFE-001 | Старий Ground вимикається тільки після успішного створення нового segmented terrain | CODED_UNTESTED | Commit `a2948d098304f79f39fad89dc6077ef8647f08f3`. |
 | GAME-WEAPON-ALL-001 | Rack розширено до 11 реалізованих pickup classes з anti-armor launcher | CODED_UNTESTED | Commit `588feaf59d3da346689f3164d953b02cf54987c7`. |
 | ASSET-STREETLIGHT-001 | Реальний `SM_StreetLight` використовується road infrastructure | CODED_UNTESTED | Commit `401971b0efec020d81d02b263f8c8e4097da28e9`. |
-| LOC-SILPO-MAIN-001 | Photo-driven Silpo Oster R14.0–R14.3 forward-port у `main` | CODED_UNTESTED | Commit `ad689dff859bc65332669788cb94f727623ce7ab`; UE 5.8 build/PIE ще не підтверджені. |
+| LOC-SILPO-MAIN-001 | Photo-driven Silpo Oster R14.0–R14.3 forward-port у `main` | CODED_UNTESTED | Original integration commit `ad689dff859bc65332669788cb94f727623ce7ab`; restored after rollback by recovery commit `2db682b1acde8ac3b0ffb80abd5faedca87f35f0`. |
+| RECOVERY-R14-MAIN-001 | Повернуто сьогоднішнє R14 integration tree після помилкового R13 rollback | CODED_UNTESTED | Recovery commit `2db682b1acde8ac3b0ffb80abd5faedca87f35f0`; history не переписувалась. `START_HERE.cmd` переведено на current R14 (`a4184ff3...`), додано прямий R14 Sandbox launcher (`ba20e959...`). |
 
 ## 5. Відомі історичні проблеми процесу
 
@@ -88,41 +89,42 @@
 - replacement logic не повинна затирати real-mesh layer;
 - у ledger фіксувати asset path, який реально використовується.
 
+### PROCESS-004 — Launcher/tree mismatch
+Проблема: stale R11 `START_HERE.cmd` на актуальному R14 `main` був помилково трактований як доказ, що весь `main` старий. Через це tree `r13-content-gameplay-pass` був перенесений поверх актуального R14 source, і playtest закономірно повернув старі R13 location models.
+
+Рішення:
+- версію source визначати по HEAD/tree та наявних integration commits, не по одному launcher-файлу;
+- stale launcher ремонтувати окремо, не замінювати весь tree;
+- перед recovery створювати backup branch;
+- current-main launcher прямо маркує R14 і запускає current source.
+
 ## 6. Остання підтверджена робоча сесія
 
-### 2026-08-20 — Location structure + Silpo main integration
+### 2026-08-20 — R14 main recovery + location isolation retest preparation
 
 Зроблено:
-- створено collision slope/lower residential concept за музеєм;
-- додані real AdvancedVillage houses/fences/trees/well у нижню зону;
-- terrain swap зроблено fail-safe;
-- real houses повернуті поверх legacy residential blockout;
-- real fence art підключений, але потребує tiling refinement;
-- real street lights підключені;
-- weapon rack прив'язаний до actual pawn і розширений до 11 weapon classes;
-- неправильний Culture House build на музейній ділянці вимкнений;
-- неправильні college/park decorative layers вимкнені;
-- stadium hard-georeferenced pass перенесений у `main`;
-- Silpo photo-driven R14.0–R14.3 pass перенесений у `main` з 20 reference photos та validation tooling;
-- late runtime rebuild/flicker частково зменшено.
+- відновлено R14 integration tree, який існував у `main` до помилкового R13 rollback;
+- повернуто museum R14.5, Silpo R14.0–R14.3, stadium hard-georeferenced pass та інші сьогоднішні main integrations;
+- підтверджено, що в актуальному R14 tree немає legacy `OCR13SilpoPhotoModelSubsystem.cpp` і `OCR13CultureHousePhotoModelSubsystem.cpp`;
+- `START_HERE.cmd` більше не запускає R11/R13 і маркує `R14 CURRENT MAIN`;
+- додано `RUN_R14_MAIN_SANDBOX_TEST.cmd`, який спочатку компілює current main, потім напряму відкриває `OsterConflict_Runtime` у Sandbox;
+- museum R14.5 launcher дозволено запускати з `main`;
+- попередній помилковий стан збережено в backup branch `backup/accidental-r13-main-20260820-2340`.
 
 Незакрито:
-1. UE 5.8 build/PIE Silpo та візуальна звірка його фасаду/інтер'єру;
-2. остаточна правильна географія та photo-fidelity Музею;
-3. точна локація/вигляд Будинку культури;
-4. водонапірна вежа біля Сільпо;
-5. точна форма/висота рельєфу за музеєм;
-6. повернення коледжу/парку після верифікації;
-7. fence tiling;
-8. остаточне усунення runtime flicker;
-9. build + local playtest останньої серії C++ змін.
+1. локально підтягнути current `main`, UE 5.8 build і новий R14 Sandbox playtest;
+2. візуально підтвердити, що старий mixed civic/Culture House/Silpo blockout більше не повертається;
+3. остаточно підтвердити Museum/Silpo placement, collision та flicker;
+4. знайти підтверджену точку правильного Будинку культури перед його поверненням;
+5. водонапірна вежа біля Сільпо;
+6. topology/fence/flicker refinements.
 
 ## 7. Наступна черга робіт
 
-1. UE 5.8 build → PIE/playtest Silpo (`LOC-SILPO-001`) → оновити статус за фактом.
-2. `LOC-WATERTOWER-001`: photo/geography verification та окремий landmark.
-3. `LOC-CULTURE-001`: знайти верифіковану ділянку і повернути Будинок культури окремо.
-4. `LOC-MUSEUM-001`: photo-fidelity pass без чужих landmarks.
+1. UE 5.8 build → `START_HERE.cmd` option 5 → current-main R14 location playtest.
+2. За результатом playtest оновити `LOC-MUSEUM-001`, `LOC-SILPO-001`, `LOC-CULTURE-001` без передчасного `VERIFIED`.
+3. `LOC-WATERTOWER-001`: photo/geography verification та окремий landmark.
+4. `LOC-CULTURE-001`: знайти верифіковану ділянку і повернути Будинок культури окремо.
 5. `LOC-TERRAIN-001`: topology refinement за реальними орієнтирами.
 6. `VIS-FENCES-001`: tiled fence sections.
 7. `VIS-FLICKER-001`: аудит усіх timer-based late replacements.
