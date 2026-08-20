@@ -10,9 +10,34 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace
+{
+    bool ApplyFittedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh, const FVector& DesiredSizeCm)
+    {
+        if (!Component || !Mesh) return false;
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
+
+        const FVector Scale(
+            DesiredSizeCm.X / NativeSize.X,
+            DesiredSizeCm.Y / NativeSize.Y,
+            DesiredSizeCm.Z / NativeSize.Z);
+        Component->SetStaticMesh(Mesh);
+        Component->SetRelativeRotation(FRotator::ZeroRotator);
+        Component->SetRelativeScale3D(Scale);
+        Component->SetRelativeLocation(-Bounds.Origin * Scale);
+        for (int32 MaterialIndex = 0; MaterialIndex < Component->GetNumMaterials(); ++MaterialIndex)
+        {
+            Component->SetMaterial(MaterialIndex, nullptr);
+        }
+        return true;
+    }
+}
+
 AOCBTR::AOCBTR()
 {
-    TurretDisplayName = TEXT("APC TURRET");
+    TurretDisplayName = TEXT("BTR-4 TURRET");
     TurretDamage = 58.0f;
     TurretRoundsPerMinute = 340.0f;
     TurretRangeCm = 16500.0f;
@@ -122,8 +147,48 @@ float AOCBTR::ModifyHullDamage(float DamageAmount, const FDamageEvent&) const
 
 void AOCBTR::ApplyVehicleStyle()
 {
-    Chassis->SetRelativeScale3D(FVector(6.15f, 2.45f, 0.72f));
-    InteriorCamera->SetRelativeLocation(FVector(130.0f, -52.0f, 105.0f));
-    ThirdPersonSpringArm->TargetArmLength = 820.0f;
-    ThirdPersonSpringArm->SetRelativeLocation(FVector(-80.0f, 0.0f, 220.0f));
+    bool bUsingBTR4 = false;
+    if (Chassis)
+    {
+        if (UStaticMesh* ProductionBTR4 = LoadObject<UStaticMesh>(nullptr,
+            TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus")))
+        {
+            // BTR-4E overall dimensions are roughly 7.76 m x 2.93 m x 3.0 m including turret.
+            bUsingBTR4 = ApplyFittedBTRMesh(Chassis, ProductionBTR4, FVector(776.0f, 293.0f, 300.0f));
+        }
+    }
+
+    if (bUsingBTR4)
+    {
+        UStaticMeshComponent* ProxyParts[] =
+        {
+            UpperHull.Get(), NoseArmor.Get(), RearArmor.Get(),
+            WheelExtraFL.Get(), WheelExtraFR.Get(), WheelExtraRL.Get(), WheelExtraRR.Get(),
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+        };
+        for (UStaticMeshComponent* Component : ProxyParts)
+        {
+            if (Component) Component->SetVisibility(false, true);
+        }
+        for (UStaticMeshComponent* Wheel : WheelVisuals)
+        {
+            if (Wheel) Wheel->SetVisibility(false, true);
+        }
+
+        // The uploaded FBX currently arrives as one combined shell. Hide the old primitive turret
+        // so we do not render a cube/cylinder assembly through the authored BTR-4 model. Turret
+        // gameplay, aim limits, muzzle trace and damage remain authoritative on TurretPivot.
+        if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
+        if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+
+        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell."));
+    }
+    else if (Chassis)
+    {
+        Chassis->SetRelativeScale3D(FVector(6.15f, 2.45f, 0.72f));
+    }
+
+    InteriorCamera->SetRelativeLocation(bUsingBTR4 ? FVector(145.0f, -58.0f, 112.0f) : FVector(130.0f, -52.0f, 105.0f));
+    ThirdPersonSpringArm->TargetArmLength = bUsingBTR4 ? 900.0f : 820.0f;
+    ThirdPersonSpringArm->SetRelativeLocation(bUsingBTR4 ? FVector(-110.0f, 0.0f, 245.0f) : FVector(-80.0f, 0.0f, 220.0f));
 }
