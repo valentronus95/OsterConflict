@@ -5,6 +5,7 @@ on:
     paths:
       - '.gitattributes'
       - '.github/workflows/production-model-contracts.yml'
+      - 'OsterConflict/Docs/MODEL_INTEGRATION_STATUS.md'
       - 'OsterConflict/SourceAssets/**'
       - 'OsterConflict/Content/Production/**'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
@@ -18,6 +19,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h'
       - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
   push:
     branches:
@@ -25,6 +28,7 @@ on:
     paths:
       - '.gitattributes'
       - '.github/workflows/production-model-contracts.yml'
+      - 'OsterConflict/Docs/MODEL_INTEGRATION_STATUS.md'
       - 'OsterConflict/SourceAssets/**'
       - 'OsterConflict/Content/Production/**'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
@@ -38,6 +42,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h'
       - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
 
 permissions:
@@ -151,6 +157,25 @@ jobs:
                   'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane')
           require(runtime_validator.is_file(), 'production vehicle runtime validator cpp is missing')
           require(runtime_validator_h.is_file(), 'production vehicle runtime validator header is missing')
+
+          weapon_variants_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp')
+          weapon_variants_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h')
+          require(weapon_variants_cpp_path.is_file(), 'weapon variants cpp is missing')
+          require(weapon_variants_h_path.is_file(), 'weapon variants header is missing')
+          if weapon_variants_cpp_path.is_file() and weapon_variants_h_path.is_file():
+              weapon_variants_cpp = weapon_variants_cpp_path.read_text(encoding='utf-8')
+              weapon_variants_h = weapon_variants_h_path.read_text(encoding='utf-8')
+              require('ApplyStaticProductionWeapon' in weapon_variants_cpp,
+                      'static production weapon visual helper is missing')
+              require('/Game/Production/Weapons/M249/SM_M249.SM_M249' in weapon_variants_cpp,
+                      'M249 canonical runtime path changed')
+              require('/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870' in weapon_variants_cpp,
+                      'Remington 870 canonical runtime path changed')
+              require('void AOCWeapon_LMG::BeginPlay()' in weapon_variants_cpp and
+                      'void AOCWeapon_Shotgun::BeginPlay()' in weapon_variants_cpp,
+                      'LMG/shotgun production BeginPlay hooks are missing')
+              require(weapon_variants_h.count('virtual void BeginPlay() override;') >= 10,
+                      'weapon variant header lost one or more production BeginPlay hooks')
 
           fps_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp')
           fps_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h')
