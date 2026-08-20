@@ -35,3 +35,4 @@ jobs:
         run: |
           python .\RUN_ALL_VERIFY.py
           python .\VERIFY_R13_SILPO_PHOTO_MODEL.py
+          python .\VERIFY_R13_STADION_OSTER.py
