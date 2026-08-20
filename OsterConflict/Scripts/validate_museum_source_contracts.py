@@ -23,6 +23,8 @@ def read(path: Path) -> str:
 
 
 required_files = [
+    SOURCE / "OsterConflict.Build.cs",
+    PUBLIC / "OCWeaponBase.h",
     PUBLIC / "OCR138MuseumInteractiveArchitectureSubsystem.h",
     PRIVATE / "OCR138MuseumInteractiveArchitectureSubsystem.cpp",
     PUBLIC / "OCMuseumDoubleDoor.h",
@@ -53,6 +55,8 @@ required_files = [
 for path in required_files:
     read(path)
 
+build_rules = read(SOURCE / "OsterConflict.Build.cs")
+weapon_base = read(PUBLIC / "OCWeaponBase.h")
 architecture = read(PRIVATE / "OCR138MuseumInteractiveArchitectureSubsystem.cpp")
 main_door = read(PRIVATE / "OCMuseumDoubleDoor.cpp")
 main_door_replacement = read(PRIVATE / "OCR139MuseumMainDoorReplacementSubsystem.cpp")
@@ -66,6 +70,20 @@ rear = read(PRIVATE / "OCR144MuseumRearExteriorDetailSubsystem.cpp")
 trees = read(PRIVATE / "OCR145MuseumTreeLayoutSubsystem.cpp")
 validation = read(PRIVATE / "OCR138MuseumRuntimeValidationSubsystem.cpp")
 windows_launcher = read(ROOT / "VALIDATE_MUSEUM_UE58.cmd")
+
+# UE 5.8 compile contracts learned from the first real Windows build.
+# Several legacy/new museum .cpp files intentionally use common anonymous-namespace helper names.
+# Unity build concatenates those files and causes C2084/C2374/C2572 redefinitions, so keep it disabled.
+require("bUseUnity = false;" in build_rules,
+        "OsterConflict unity build must stay disabled until file-local helper symbols are uniquely namespaced")
+require("GetActorRelativeLocation() const" in weapon_base,
+        "weapon base lost UE 5.8 relative-location getter required by first-person presentation")
+require("GetActorRelativeRotation() const" in weapon_base,
+        "weapon base lost UE 5.8 relative-rotation getter required by first-person presentation")
+require("WeaponRoot->GetRelativeLocation()" in weapon_base,
+        "weapon relative-location getter no longer reads the authoritative weapon root")
+require("WeaponRoot->GetRelativeRotation()" in weapon_base,
+        "weapon relative-rotation getter no longer reads the authoritative weapon root")
 
 # Structural/gameplay contracts.
 require('TEXT("MuseumStructural")' in architecture, "segmented architecture lost MuseumStructural tags")
