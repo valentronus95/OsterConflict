@@ -6,6 +6,8 @@ set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "REPORT_DIR=%PROJECT_DIR%Saved\AutomationReports\ProductionModels"
 set "SUCCESS_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_automation_success.txt"
+set "WEAPON_RUNTIME_REPORT=%REPORT_DIR%\weapon_runtime_validation.txt"
+set "WEAPON_RUNTIME_SENTINEL=%REPORT_DIR%\production_weapon_runtime_success.txt"
 set "UE_ROOT="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat" (
@@ -56,7 +58,7 @@ if exist "%SUCCESS_SENTINEL%" del /q "%SUCCESS_SENTINEL%" >nul 2>nul
 mkdir "%REPORT_DIR%" >nul 2>nul
 
 echo ============================================================
-echo OSTER CONFLICT - PRODUCTION MODEL VALIDATION - UE 5.8
+echo OSTER CONFLICT - R14 PRODUCTION MODEL VALIDATION - UE 5.8
 echo ============================================================
 echo UE:      %UE_ROOT%
 echo Project: %UPROJECT%
@@ -89,7 +91,7 @@ if not "%TEST_RC%"=="0" (
 if not exist "%SUCCESS_SENTINEL%" (
     echo.
     echo ERROR: production automation success sentinel is missing.
-    echo The canonical HMMWV/M2/BTR-4 asset test did not fully pass.
+    echo The canonical production asset test did not fully pass.
     echo Report: %REPORT_DIR%
     exit /b 10
 )
@@ -102,15 +104,22 @@ echo.
 echo PASS: production asset automation checks passed.
 echo Report: %REPORT_DIR%
 echo.
-echo [3/3] Launching standalone Sandbox visual check...
+echo [3/3] Launching standalone Sandbox visual + weapon runtime validation...
 set "VISUAL_MAP=/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1"
-start "Oster Conflict - Production Model Visual Check" "%UE_EDITOR%" "%UPROJECT%" "%VISUAL_MAP%" -game -NoFrontend -log -windowed -ResX=1600 -ResY=900
+start "Oster Conflict - R14 Production Model Visual Check" "%UE_EDITOR%" "%UPROJECT%" "%VISUAL_MAP%" -game -NoFrontend -ValidateProductionWeapons -log -windowed -ResX=1600 -ResY=900
 
 echo.
 echo ============================================================
-echo AUTOMATION PASS. Visual Sandbox launched.
-echo Check HMMWV scale/materials, M2 pivot+muzzle, BTR-4 shell/materials,
-echo and first-person hands/ADS/reload before marking PR #12 ready.
+echo AUTOMATION PASS. R14 visual Sandbox launched.
+echo Weapon runtime validation will write:
+echo   %WEAPON_RUNTIME_REPORT%
+echo Full weapon success sentinel, once every weapon has a canonical production visual:
+echo   %WEAPON_RUNTIME_SENTINEL%
+echo.
+echo Check weapon hand placement, ADS, fire/reload presentation, HMMWV scale/materials,
+echo M2 pivot+muzzle and BTR-4 shell/materials before marking PR #15 ready.
+echo NOTE: OC_RPG1 currently has no canonical production mesh, so the weapon runtime
+echo       report must remain FAIL until that model is added. Do not fake this gate.
 echo ============================================================
 exit /b 0
 
