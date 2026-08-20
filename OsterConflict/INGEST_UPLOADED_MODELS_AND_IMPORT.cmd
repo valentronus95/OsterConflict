@@ -82,6 +82,9 @@ if /I not "!CURRENT_BRANCH!"=="%TARGET_BRANCH%" (
 
 echo PASS: ingest is locked to branch %TARGET_BRANCH%.
 
+echo NOTE: BTR-4 source and derived Unreal assets are local-development-only.
+echo NOTE: This public repository must not receive BTR FBX/textures/uasset until redistribution rights are verified.
+
 set "OC_ZIP=%ZIP_PATH%"
 set "OC_PROJECT=%PROJECT_DIR%"
 
@@ -110,7 +113,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "if(-not $fbx){throw 'BTR FBX not found'}; Copy-Item $fbx.FullName (Join-Path $bDst 'BTR4_Bucephalus.fbx') -Force;" ^
   "$wanted=@('Bahnya_low_albedo.png','Koleso_low_albedo.png','Korpus_low_albedo.png','Windows_low_albedo.png','interior.png','tire.png');" ^
   "foreach($name in $wanted){$tex=Get-ChildItem $sourceStage -Recurse -File -Filter $name ^| Sort-Object Length -Descending ^| Select-Object -First 1; if(-not $tex -and $bStage){$tex=Get-ChildItem $bStage -Recurse -File -Filter $name ^| Sort-Object Length -Descending ^| Select-Object -First 1}; if(-not $tex){$tex=Get-ChildItem $stage -Recurse -File -Filter $name ^| Sort-Object Length -Descending ^| Select-Object -First 1}; if(-not $tex){throw ('BTR texture missing: '+$name)}; Copy-Item $tex.FullName (Join-Path $tDst $name) -Force};" ^
-  "Write-Host 'PASS: source assets unpacked into SourceAssets/Production.'"
+  "Write-Host 'PASS: HMMWV/M2 sources prepared for LFS; BTR source prepared local-only.'"
 
 if errorlevel 1 (
     echo ERROR: failed to unpack/normalize uploaded model archive.
@@ -118,40 +121,44 @@ if errorlevel 1 (
     exit /b 6
 )
 
-git add .gitattributes "OsterConflict/SourceAssets/Production"
+rem Public Git history receives only the attributed HMMWV and M2 sources.
+rem BTR-4 source/texture paths are explicitly ignored and must remain local-only.
+git add .gitattributes "OsterConflict/SourceAssets/Production/Vehicles/HMMWV" "OsterConflict/SourceAssets/Production/Weapons/M2"
 git diff --cached --quiet
 if errorlevel 1 (
-    git commit -m "Add HMMWV M2 and BTR-4 production source assets" || goto :git_error
+    git commit -m "Add HMMWV and M2 production source assets" || goto :git_error
     git push origin "HEAD:%TARGET_BRANCH%" || goto :git_error
 ) else (
-    echo Source assets already committed; continuing to Unreal import.
+    echo HMMWV/M2 source assets already committed; continuing to Unreal import.
 )
 
 call "OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 if errorlevel 1 (
-    echo ERROR: Unreal production import failed. Source assets remain safely committed.
+    echo ERROR: Unreal production import failed. Any HMMWV/M2 source commit remains safely on the feature branch.
+    echo BTR-4 remains local-only.
     popd
     exit /b 7
 )
 
-git add "OsterConflict/Content/Production"
+rem Stage only redistributable production outputs. BTR-4 derived content is intentionally ignored.
+git add "OsterConflict/Content/Production/Vehicles/HMMWV" "OsterConflict/Content/Production/Weapons/M2"
 
-rem A successful Unreal process exit is not enough. Verify the canonical products exist,
-rem are real local binaries and are represented by LFS pointers before we create the asset commit.
+rem Verify HMMWV/M2 LFS pointers and simultaneously prove BTR source/derived assets remain ignored/untracked.
 call "OsterConflict\VERIFY_PRODUCTION_MODEL_INGEST.cmd"
 if errorlevel 1 (
     echo ERROR: production model verification failed after Unreal import.
-    echo Source assets remain committed on %TARGET_BRANCH%, but generated assets were not committed.
+    echo HMMWV/M2 source commit remains safe; generated public assets were not committed.
+    echo BTR-4 must remain local-only.
     popd
     exit /b 12
 )
 
 git diff --cached --quiet
 if errorlevel 1 (
-    git commit -m "Import HMMWV M2 and BTR-4 production Unreal assets" || goto :git_error
+    git commit -m "Import HMMWV and M2 production Unreal assets" || goto :git_error
     git push origin "HEAD:%TARGET_BRANCH%" || goto :git_error
 ) else (
-    echo Unreal production assets already committed.
+    echo HMMWV/M2 Unreal production assets already committed.
 )
 
 echo.
@@ -159,15 +166,16 @@ echo Running final UE 5.8 build + automation + Sandbox visual validation...
 call "OsterConflict\VALIDATE_PRODUCTION_MODELS_UE58.cmd"
 if errorlevel 1 (
     echo.
-    echo ERROR: source and Unreal assets were committed/pushed, but final UE validation failed.
-    echo Keep PR #12 in Draft and inspect the build/automation report before merge.
+    echo ERROR: public-safe HMMWV/M2 assets may be committed/pushed, but final UE validation failed.
+    echo BTR-4 remains local-only. Keep PR #12 in Draft and inspect the build/automation report.
     popd
     exit /b 13
 )
 
 echo.
 echo ============================================================
-echo PASS: source + Unreal production assets are verified, committed and pushed.
+echo PASS: HMMWV/M2 source + Unreal assets verified, committed and pushed.
+echo PASS: BTR-4 source + derived Unreal asset remained local-only and were validated locally.
 echo PASS: Editor build + production automation test passed.
 echo PASS: Sandbox visual validation session launched.
 echo Branch: %TARGET_BRANCH%
