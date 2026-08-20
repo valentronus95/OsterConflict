@@ -5,6 +5,7 @@
 #include "OCProductionCharacterAssetsSubsystem.generated.h"
 
 class AOCCharacter;
+class UAnimSequence;
 class UOCCharacterVisualProfile;
 class USkeletalMesh;
 class UStaticMesh;
@@ -26,6 +27,7 @@ private:
     void BuildProfiles();
     void ApplyToCharacters();
     void ApplyGear(AOCCharacter& Character);
+    void ApplyAnimation(AOCCharacter& Character);
 
     UPROPERTY(Transient) TObjectPtr<UOCCharacterVisualProfile> UAProfile;
     UPROPERTY(Transient) TObjectPtr<UOCCharacterVisualProfile> MaskedProfile;
@@ -37,5 +39,11 @@ private:
     UPROPERTY(Transient) TObjectPtr<USkeletalMesh> HolsterMesh;
     UPROPERTY(Transient) TObjectPtr<UStaticMesh> CapMesh;
 
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> IdleAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> WalkAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RunAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> FallAnimation;
+
+    TMap<TWeakObjectPtr<AOCCharacter>, uint8> AnimationStateByCharacter;
     FTimerHandle RefreshTimer;
 };
