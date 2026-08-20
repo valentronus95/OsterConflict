@@ -19,10 +19,10 @@ namespace
     // Run after the current R13.7 landmark passes so this site replacement owns the final Silpo footprint.
     constexpr float SilpoPhotoModelDelaySeconds = 5.60f;
 
-    // Public-map/OSM point for the Oster Silpo. The official store listing identifies the site as
-    // Bohdana Khmelnytskoho 54. This is a location anchor, not a cadastral building-centroid claim.
-    constexpr double SilpoLatitude = 50.94907;
-    constexpr double SilpoLongitude = 30.87621;
+    // Verified public-map point for the Oster Silpo at Bohdana Khmelnytskoho 54.
+    // The previous provisional point was about 43 m away and caused the store shell to overlap the wrong site.
+    constexpr double SilpoLatitude = 50.948833799986254;
+    constexpr double SilpoLongitude = 30.87572244094098;
 
     // The current road/source reconstruction is mostly cardinal in this block. Keep one explicit orientation
     // constant so a later surveyed footprint can be rotated without rewriting photo-model dimensions.
@@ -91,8 +91,6 @@ namespace
     {
         if (!Component) return;
 
-        // Engine cylinder is Z-axis aligned. Rotating 90 degrees about X turns the thin cylinder into an
-        // elliptical facade plaque in the local X/Z plane.
         const FVector Scale(WidthCm / 100.0f, HeightCm / 100.0f, DepthCm / 100.0f);
         Component->AddInstance(FTransform(FRotator(90.0f, 0.0f, 0.0f), Center, Scale), false);
     }
@@ -207,7 +205,7 @@ void UOCR13SilpoPhotoModelSubsystem::SuppressSourceBuilding(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 Silpo site replacement: source building instances removed=%d across %d families at %.5f, %.5f."),
+        TEXT("R13 Silpo site replacement: source building instances removed=%d across %d families at %.6f, %.6f."),
         RemovedInstances, TouchedFamilies, SilpoLatitude, SilpoLongitude);
 }
 
@@ -240,8 +238,6 @@ void UOCR13SilpoPhotoModelSubsystem::BuildSilpo(UWorld& World)
 
     Model->SetActorLocationAndRotation(SilpoAnchor(), FRotator(0.0f, SilpoYawDegrees, 0.0f));
 
-    // The reference set spans multiple facade paint states. The dominant supplied views show the warm,
-    // faded peach/beige exterior, so this model uses that state while preserving the photographed silhouette.
     UMaterialInstanceDynamic* WallMat = MakeColorMaterial(Model, Basic, TEXT("R13Silpo_WallMat"),
         FLinearColor(0.56f, 0.36f, 0.22f, 1.0f));
     UMaterialInstanceDynamic* WallLightMat = MakeColorMaterial(Model, Basic, TEXT("R13Silpo_WallLightMat"),
@@ -302,12 +298,10 @@ void UOCR13SilpoPhotoModelSubsystem::BuildSilpo(UWorld& World)
     UInstancedStaticMeshComponent* AdPurple = MakeISM(Model, Root, Cube, AdPurpleMat,
         TEXT("R13Silpo_AdvertisingPurple"), false, false);
 
-    // Main one-storey mass and concrete plinth.
     AddBox(Plinth, FVector(0.0f, 0.0f, 38.0f), FVector(3240.0f, 1840.0f, 76.0f));
     AddBox(Shell, FVector(0.0f, 0.0f, 280.0f), FVector(3200.0f, 1800.0f, 480.0f));
     AddBox(Roof, FVector(0.0f, 0.0f, 527.0f), FVector(3180.0f, 1780.0f, 34.0f));
 
-    // Stepped front silhouette visible in the frontal and oblique references.
     AddBox(Parapet, FVector(-1420.0f, -870.0f, 542.0f), FVector(360.0f, 70.0f, 124.0f));
     AddBox(Parapet, FVector(-1080.0f, -870.0f, 568.0f), FVector(340.0f, 70.0f, 176.0f));
     AddBox(Parapet, FVector(-680.0f, -870.0f, 598.0f), FVector(460.0f, 70.0f, 236.0f));
@@ -316,14 +310,12 @@ void UOCR13SilpoPhotoModelSubsystem::BuildSilpo(UWorld& World)
     AddBox(Parapet, FVector(1080.0f, -870.0f, 568.0f), FVector(340.0f, 70.0f, 176.0f));
     AddBox(Parapet, FVector(1420.0f, -870.0f, 542.0f), FVector(360.0f, 70.0f, 124.0f));
 
-    // Repeated raised side parapet piers visible along the long wall.
     for (float Y = -520.0f; Y <= 640.0f; Y += 290.0f)
     {
         AddBox(Parapet, FVector(-1565.0f, Y, 573.0f), FVector(70.0f, 86.0f, 186.0f));
         AddBox(Parapet, FVector(1565.0f, Y, 573.0f), FVector(70.0f, 86.0f, 186.0f));
     }
 
-    // Left-side entrance vestibule and tiled approach.
     AddBox(Entrance, FVector(-1350.0f, -1015.0f, 205.0f), FVector(500.0f, 300.0f, 410.0f));
     AddBox(Glass, FVector(-1350.0f, -1172.0f, 190.0f), FVector(170.0f, 8.0f, 300.0f));
     AddBox(Entrance, FVector(-1450.0f, -1178.0f, 190.0f), FVector(18.0f, 18.0f, 310.0f));
@@ -332,26 +324,20 @@ void UOCR13SilpoPhotoModelSubsystem::BuildSilpo(UWorld& World)
     AddBox(Entrance, FVector(-1350.0f, -1120.0f, 425.0f), FVector(600.0f, 360.0f, 34.0f));
     AddBox(Sidewalk, FVector(-1350.0f, -1260.0f, 18.0f), FVector(650.0f, 470.0f, 36.0f));
     AddBox(Sidewalk, FVector(-1350.0f, -1515.0f, 10.0f), FVector(650.0f, 90.0f, 20.0f));
-
-    // Long pavement strip against the advertising facade.
     AddBox(Sidewalk, FVector(310.0f, -1080.0f, 11.0f), FVector(2520.0f, 340.0f, 22.0f));
 
-    // Parking apron and photographed perpendicular bay rhythm. Existing road remains untouched.
     AddBox(Parking, FVector(150.0f, -2050.0f, 5.0f), FVector(3900.0f, 1700.0f, 10.0f));
     for (float X = -1450.0f; X <= 1550.0f; X += 500.0f)
     {
         AddBox(ParkingLines, FVector(X, -2020.0f, 12.0f), FVector(10.0f, 1350.0f, 4.0f));
     }
 
-    // Framed facade posters. Their artwork is intentionally abstracted: photos establish panel count/placement,
-    // while no photographed advertising bitmap is copied into the game.
     AddBillboard(AdFrame, AdPurple, -820.0f, 285.0f, 360.0f, 250.0f);
     AddBillboard(AdFrame, AdBlue, -390.0f, 285.0f, 390.0f, 250.0f);
     AddBillboard(AdFrame, AdGreen, 70.0f, 285.0f, 390.0f, 250.0f);
     AddBillboard(AdFrame, AdBlue, 530.0f, 285.0f, 390.0f, 250.0f);
     AddBillboard(AdFrame, AdGreen, 990.0f, 285.0f, 390.0f, 250.0f);
 
-    // Large raised Silpo facade plaque: blue edge, orange face, then actual store name as local TextRender.
     AddPlaque(LogoBlue, FVector(180.0f, -925.0f, 596.0f), 900.0f, 300.0f, 24.0f);
     AddPlaque(LogoOrange, FVector(180.0f, -941.0f, 596.0f), 840.0f, 250.0f, 18.0f);
 
@@ -370,13 +356,11 @@ void UOCR13SilpoPhotoModelSubsystem::BuildSilpo(UWorld& World)
         LogoText->RegisterComponent();
     }
 
-    // Wall-mounted shallow lamps, matching the repeated fixtures above the poster band.
     for (float X : { -950.0f, -500.0f, -40.0f, 480.0f, 930.0f, 1360.0f })
     {
         AddWallLamp(Metal, X, 455.0f);
     }
 
-    // Parking sign and post at the right side of the facade.
     AddBox(Metal, FVector(1180.0f, -1260.0f, 120.0f), FVector(16.0f, 16.0f, 240.0f));
     AddBox(AdBlue, FVector(1180.0f, -1260.0f, 255.0f), FVector(125.0f, 14.0f, 125.0f));
     AddBox(ParkingLines, FVector(1180.0f, -1270.0f, 255.0f), FVector(58.0f, 5.0f, 76.0f));
