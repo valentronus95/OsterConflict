@@ -61,6 +61,12 @@
 - Старі source-only static proxy components ховаються тільки після успішного створення та реєстрації production visual, щоб failure path не робив launcher невидимим.
 - Launcher додано до canonical automation та runtime weapon validation. Попередній `OC_RPG1 = MISSING` gate прибрано.
 
+## 2026-08-20 — ТЗ синхронізовано з реалізацією
+
+- `R14_PRODUCTION_MODELS_TZ.md` оновлено фактичними Stage 0/Stage 1 результатами.
+- У Definition of Done додано окрему вимогу: жоден weapon grip profile не може залишатися `UNCALIBRATED` перед merge.
+- ТЗ тепер прямо посилається на `R14_WEAPON_ANIMATION_REQUIREMENTS.md` і blocking headless weapon runtime gate.
+
 ## CI після Stage 1 infrastructure pass
 
 - Production model integration contracts: SUCCESS.
