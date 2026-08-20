@@ -4,7 +4,9 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parent
-PRIVATE = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private"
+SOURCE = ROOT / "OsterConflict" / "Source" / "OsterConflict"
+PRIVATE = SOURCE / "Private"
+PUBLIC = SOURCE / "Public"
 
 required_files = [
     PRIVATE / "OCR137MuseumPhotoModelSubsystem.cpp",
@@ -16,6 +18,9 @@ required_files = [
     PRIVATE / "OCR146CultureHousePhotoModelSubsystem.cpp",
     PRIVATE / "OCR146LandmarkSeparationSubsystem.cpp",
     PRIVATE / "OCGeoReference.cpp",
+    PUBLIC / "OCR146CultureHousePhotoModelSubsystem.h",
+    PUBLIC / "OCR146LandmarkSeparationSubsystem.h",
+    PUBLIC / "OCGeoReference.h",
     ROOT / "START_HERE.cmd",
     ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd",
 ]
@@ -49,6 +54,12 @@ if geo_path.is_file():
             errors.append(f"{label} missing or changed: {token}")
     if "FOCGeoReferencePoint FOCGeoReference::CultureHouse()" not in geo:
         errors.append("dedicated CultureHouse() geo owner is missing")
+
+geo_header_path = PUBLIC / "OCGeoReference.h"
+if geo_header_path.is_file():
+    geo_header = geo_header_path.read_text(encoding="utf-8")
+    if "static FOCGeoReferencePoint CultureHouse();" not in geo_header:
+        errors.append("CultureHouse() is missing from OCGeoReference public contract")
 
 silpo_path = PRIVATE / "OCR140SilpoPhotoModelSubsystem.cpp"
 if silpo_path.is_file():
@@ -97,6 +108,8 @@ if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
     if "R14 CURRENT MAIN" not in launcher:
         errors.append("START_HERE.cmd is not marked as R14 CURRENT MAIN")
+    if "R14.6 LANDMARK SEPARATION" not in launcher:
+        errors.append("START_HERE.cmd is not marked as the R14.6 landmark-separation build")
     if "Launch CURRENT R14 main Sandbox location test" not in launcher:
         errors.append("START_HERE.cmd does not route location playtest to current R14 main")
     if "Launch R11 local listen-server visual test" in launcher:
