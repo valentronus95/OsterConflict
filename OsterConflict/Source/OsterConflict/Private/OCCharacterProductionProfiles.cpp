@@ -18,6 +18,21 @@ namespace
         Profile.bFactionUniqueArms = false;
         return Profile;
     }
+
+    FOCCharacterRoleProductionProfile MakeRoleProfile(
+        const EOCPlayerRole Role,
+        const TCHAR* DisplayName,
+        const EOCCharacterGearClass PrimaryGearClass,
+        const bool bAllowsLightGearVariant)
+    {
+        FOCCharacterRoleProductionProfile Profile;
+        Profile.Role = Role;
+        Profile.DisplayName = DisplayName;
+        Profile.PrimaryGearClass = PrimaryGearClass;
+        Profile.bAllowsLightGearVariant = bAllowsLightGearVariant;
+        Profile.bRoleUniqueVisual = false;
+        return Profile;
+    }
 }
 
 TArray<FOCCharacterProductionProfile> OCGetDeclaredCharacterProductionProfiles()
@@ -54,6 +69,42 @@ FOCCharacterProductionProfile OCResolveCharacterProductionProfile(const EOCFacti
     }
 
     return MakeSharedQuantumProfile(Faction, TEXT("Unknown faction"));
+}
+
+TArray<FOCCharacterRoleProductionProfile> OCGetDeclaredCharacterRoleProductionProfiles()
+{
+    return
+    {
+        MakeRoleProfile(EOCPlayerRole::Rifleman, TEXT("Rifleman"), EOCCharacterGearClass::Standard, true),
+        MakeRoleProfile(EOCPlayerRole::Medic, TEXT("Medic"), EOCCharacterGearClass::Standard, false),
+        MakeRoleProfile(EOCPlayerRole::Engineer, TEXT("Engineer"), EOCCharacterGearClass::Heavy, false),
+        MakeRoleProfile(EOCPlayerRole::Support, TEXT("Support"), EOCCharacterGearClass::Heavy, false),
+    };
+}
+
+bool OCHasDeclaredCharacterRoleProductionProfile(const EOCPlayerRole Role)
+{
+    for (const FOCCharacterRoleProductionProfile& Profile : OCGetDeclaredCharacterRoleProductionProfiles())
+    {
+        if (Profile.Role == Role)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+FOCCharacterRoleProductionProfile OCResolveCharacterRoleProductionProfile(const EOCPlayerRole Role)
+{
+    for (const FOCCharacterRoleProductionProfile& Profile : OCGetDeclaredCharacterRoleProductionProfiles())
+    {
+        if (Profile.Role == Role)
+        {
+            return Profile;
+        }
+    }
+
+    return MakeRoleProfile(Role, TEXT("Unknown role"), EOCCharacterGearClass::Standard, false);
 }
 
 TArray<FOCCharacterProductionModule> OCGetDeclaredCharacterProductionModules()
