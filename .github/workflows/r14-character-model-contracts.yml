@@ -79,7 +79,12 @@ jobs:
               require(role in team_types, f'authoritative gameplay role enum missing {role}')
               require(f'EOCPlayerRole::{role}' in profiles, f'production role profile missing {role}')
               require(f'EOCPlayerRole::{role}' in tests, f'character automation missing role {role}')
-              require(f'EOCPlayerRole::{role}' in runtime_visual, f'runtime visual gear mapping missing role {role}')
+
+          for explicit_runtime_role in ('Medic', 'Engineer', 'Support'):
+              require(f'EOCPlayerRole::{explicit_runtime_role}' in runtime_visual,
+                      f'runtime visual gear mapping missing explicit role {explicit_runtime_role}')
+          require('default: Result.GearClass = Stream.FRand() < 0.35f ? EOCCharacterGearClass::Light : EOCCharacterGearClass::Standard' in runtime_visual,
+                  'Rifleman/default Light-or-Standard runtime gear rule changed')
 
           require('MakeRoleProfile(EOCPlayerRole::Rifleman, TEXT("Rifleman"), EOCCharacterGearClass::Standard, true)' in profiles,
                   'Rifleman Standard/optional-Light production contract changed')
