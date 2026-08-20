@@ -1,7 +1,9 @@
 # OSTER CONFLICT — ТЗ: СІЛЬПО, ОСТЕР
 
-Status: active implementation
-Branch: `silpo-oster`
+Status: `CODED_UNTESTED`
+Source branch: `silpo-oster`
+Integration branch: `main`
+Main forward-port: `ad689dff859bc65332669788cb94f727623ce7ab`
 Location: м. Остер, Чернігівська область, вул. Богдана Хмельницького, 54
 Scope owner: Silpo location only
 
@@ -9,7 +11,7 @@ Scope owner: Silpo location only
 
 Створити впізнавану, прохідну та географічно прив'язану 3D-реконструкцію остерського «Сільпо» з безпосередньою прилеглою територією. Модель має відповідати конкретному магазину з референсів, а не бути типовим супермаркетом.
 
-Поточна ціль гілки:
+Поточний реалізований scope:
 
 - правильний силует і фасад;
 - реальний вхід у будівлю;
@@ -20,15 +22,17 @@ Scope owner: Silpo location only
 - візуальні деталі підлоги, стелажів, холодильників і кас;
 - впізнавана фасадна вивіска та характерний ступінчастий парапет;
 - найближчий вуличний контекст;
-- фото-референси збережені в цій гілці поряд із ТЗ.
+- 20 фото-референсів збережені в репозиторії разом із цим ТЗ.
 
-## 2. Ізоляція гілки
+## 2. Стан інтеграції
 
-Уся робота цього ТЗ виконується тільки в `silpo-oster`.
+Початкова ізольована реалізація виконувалась у `silpo-oster`.
 
-У межах цієї гілки не змінювати незалежні локації, зброю, транспорт, ботів, меню/UI та глобальні gameplay-системи, якщо зміна не потрібна безпосередньо для роботи «Сільпо».
+2026-08-20 користувач прямо схвалив перенесення всього Silpo pass у `main`. Інтеграцію виконано контрольованим forward-port поверх актуального `main`, а не force-переміщенням гілки. Так збережені новіші зміни `main`, зокрема окремі геореференси інших локацій.
 
-До `main` цей location pass не переноситься до окремого етапу перевірки.
+Це не означає runtime verification. До UE 5.8 build/PIE і користувацького playtest статус залишається `CODED_UNTESTED`.
+
+У межах Silpo pass не змінювати незалежні локації, зброю, транспорт, ботів, меню/UI та глобальні gameplay-системи, якщо зміна не потрібна безпосередньо для роботи «Сільпо».
 
 ## 3. Джерела та рівні впевненості
 
@@ -249,7 +253,7 @@ R14.3 виправляє найбільш впізнавану частину б
 - найпростіший side-market edge як контекст масштабу;
 - зв'язок із наявною дорожньою мережею карти без її видалення або перебудови.
 
-Детальні сусідні будівлі не входять у цей branch без власного reference pass.
+Детальні сусідні будівлі не входять у цей Silpo pass без власного reference pass.
 
 ## 15. Публічні плани/схеми
 
@@ -266,7 +270,7 @@ R14.3 виправляє найбільш впізнавану частину б
 
 ## 16. Photo reference pack
 
-У гілці збережено 20 окремих review copies:
+У `main` збережено 20 окремих review copies:
 
 1. `Photos/01_exterior_facade_front.jpg`
 2. `Photos/02_interior_entry_vertical.jpg`
@@ -289,15 +293,19 @@ R14.3 виправляє найбільш впізнавану частину б
 19. `Photos/19_context_facade_street_wide.jpg`
 20. `Photos/20_context_bohdana_khmelnytskoho_street.jpg`
 
-Repository path:
+Review/reference path:
 
 `OsterConflict/SourceReferences/Locations/Silpo_Oster/Photos/`
+
+Canonical persistent location pack under the repository-wide retention convention:
+
+`REFERENCE_PHOTOS/silpo_oster/`
 
 Ці файли є reference/review assets і не імпортуються в Unreal `Content` як gameplay textures.
 
 ## 17. Static validation
 
-Branch validator:
+Repository validator:
 
 `python OsterConflict/Tools/validate_silpo_location.py`
 
@@ -316,7 +324,7 @@ Branch validator:
 - наявність усіх 20 photo files;
 - узгодженість ТЗ, scope і reference README.
 
-## 18. Acceptance criteria перед merge
+## 18. Acceptance criteria перед статусом VERIFIED
 
 Обов'язково перевірити в UE 5.8:
 
@@ -340,7 +348,7 @@ Branch validator:
 - basic lights працюють у runtime;
 - дорога біля site не зникає після cleanup;
 - generic proxy building не стирчить крізь Silpo shell;
-- 20 photo reference files присутні в гілці;
+- 20 photo reference files присутні в `main`;
 - `python OsterConflict/Tools/validate_silpo_location.py` повертає PASS.
 
 ## 19. Наступні art passes
