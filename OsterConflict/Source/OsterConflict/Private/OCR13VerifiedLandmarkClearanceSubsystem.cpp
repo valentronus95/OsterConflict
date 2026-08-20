@@ -75,13 +75,14 @@ bool UOCR13VerifiedLandmarkClearanceSubsystem::ShouldCreateSubsystem(UObject* Ou
 void UOCR13VerifiedLandmarkClearanceSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
-    if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    // The removed source structures can own blocking collision. Apply the same deterministic clearance on every
+    // authoritative world, including a headless dedicated server, to prevent invisible server-only blockers.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
     InWorld.GetTimerManager().SetTimer(Timer,
@@ -95,9 +96,7 @@ void UOCR13VerifiedLandmarkClearanceSubsystem::ApplyClearance(UWorld& World)
 {
     const FLandmarkZone Zones[] =
     {
-        // Silpo: broad enough to remove the generic/legacy shell that caused the two-buildings-in-one playtest bug.
         { Geo(FOCGeoReference::Silpo()), FVector2D(2200.0f, 1550.0f), true },
-        // Bus station: conservative low-building/forecourt footprint. Roads/sidewalks stay authoritative and untouched.
         { Geo(FOCGeoReference::BusStation()), FVector2D(1750.0f, 1300.0f), false },
     };
 
@@ -133,6 +132,6 @@ void UOCR13VerifiedLandmarkClearanceSubsystem::ApplyClearance(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 verified landmark clearance: generic=%d landmark=%d instances removed from Silpo/bus-station zones; roads/sidewalks preserved."),
+        TEXT("R13 verified landmark clearance: generic=%d landmark=%d instances removed from Silpo/bus-station zones; roads/sidewalks preserved and server collision kept deterministic."),
         RemovedGeneric, RemovedLandmark);
 }
