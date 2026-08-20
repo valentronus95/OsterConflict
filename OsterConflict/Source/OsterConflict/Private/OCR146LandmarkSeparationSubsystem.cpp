@@ -95,12 +95,17 @@ void UOCR146LandmarkSeparationSubsystem::EnforceSeparation(UWorld& World) const
     const FVector Museum = GeoToWorld(FOCGeoReference::Museum());
     const FVector Silpo = GeoToWorld(FOCGeoReference::Silpo());
     const FVector CultureHouse = GeoToWorld(FOCGeoReference::CultureHouse());
+    const FVector CentralPark = GeoToWorld(FOCGeoReference::CentralPark());
+    const FVector NorthCivicReference = GeoToWorld(FOCGeoReference::CultureParkNorth());
+    const FVector SyntheticParkLinkMid = (CentralPark + NorthCivicReference) * 0.5f;
 
     RemoveLegacyCompositeActors(World);
 
     int32 MuseumRemoved = 0;
     int32 SilpoRemoved = 0;
     int32 CultureRemoved = 0;
+    int32 SyntheticNorthCivicRemoved = 0;
+    int32 SyntheticParkLinkRemoved = 0;
     int32 FamiliesTouched = 0;
 
     for (TActorIterator<AActor> It(&World); It; ++It)
@@ -112,12 +117,31 @@ void UOCR146LandmarkSeparationSubsystem::EnforceSeparation(UWorld& World) const
         Actor->GetComponents(Components);
         for (UInstancedStaticMeshComponent* Component : Components)
         {
-            if (!Component || !IsGenericBuildingFamily(Component->GetFName())) continue;
-            const int32 Before = Component->GetInstanceCount();
-            MuseumRemoved += RemoveInstancesNear(Component, Museum, MuseumCleanupRadiusCm);
-            SilpoRemoved += RemoveInstancesNear(Component, Silpo, SilpoCleanupRadiusCm);
-            CultureRemoved += RemoveInstancesNear(Component, CultureHouse, CultureCleanupRadiusCm);
-            if (Component->GetInstanceCount() != Before) ++FamiliesTouched;
+            if (!Component) continue;
+            const FName Name = Component->GetFName();
+
+            if (IsGenericBuildingFamily(Name))
+            {
+                const int32 Before = Component->GetInstanceCount();
+                MuseumRemoved += RemoveInstancesNear(Component, Museum, MuseumCleanupRadiusCm);
+                SilpoRemoved += RemoveInstancesNear(Component, Silpo, SilpoCleanupRadiusCm);
+                CultureRemoved += RemoveInstancesNear(Component, CultureHouse, CultureCleanupRadiusCm);
+                if (Component->GetInstanceCount() != Before) ++FamiliesTouched;
+                continue;
+            }
+
+            // The source map used CultureParkNorth (a monument/park reference several hundred metres north) to
+            // fabricate an 85x72 m grove plus a perfectly straight 370 m sidewalk back to CentralPark. That was
+            // explicitly approximate source geometry, not a mapped street or the House of Culture parcel. Remove
+            // only those two synthetic instances; keep the verified reference point and surrounding real map owners.
+            if (Name == TEXT("ParkGeometry"))
+            {
+                SyntheticNorthCivicRemoved += RemoveInstancesNear(Component, NorthCivicReference, 1000.0f);
+            }
+            else if (Name == TEXT("Sidewalks"))
+            {
+                SyntheticParkLinkRemoved += RemoveInstancesNear(Component, SyntheticParkLinkMid, 1000.0f);
+            }
         }
     }
 
@@ -128,6 +152,9 @@ void UOCR146LandmarkSeparationSubsystem::EnforceSeparation(UWorld& World) const
     UE_LOG(LogTemp, Display,
         TEXT("R14.6 landmark separation: Museum removed=%d, Silpo removed=%d, CultureHouse removed=%d, sourceFamiliesTouched=%d."),
         MuseumRemoved, SilpoRemoved, CultureRemoved, FamiliesTouched);
+    UE_LOG(LogTemp, Display,
+        TEXT("R14.6 map cleanup: removed synthetic north-civic grove instances=%d and unmapped straight park-link sidewalks=%d; verified anchors remain."),
+        SyntheticNorthCivicRemoved, SyntheticParkLinkRemoved);
     UE_LOG(LogTemp, Display,
         TEXT("R14.6 canonical site distances: Museum-Silpo=%.1fm Museum-CultureHouse=%.1fm Silpo-CultureHouse=%.1fm. Each landmark remains on its own geo owner."),
         MuseumToSilpoM, MuseumToCultureM, SilpoToCultureM);
