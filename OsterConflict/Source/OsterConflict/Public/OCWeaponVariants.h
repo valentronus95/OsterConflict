@@ -10,6 +10,7 @@ class OSTERCONFLICT_API AOCWeapon_AssaultRifle : public AOCWeaponBase
     GENERATED_BODY()
 public:
     AOCWeapon_AssaultRifle();
+    virtual void BeginPlay() override;
 };
 
 UCLASS()
