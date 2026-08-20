@@ -9,6 +9,7 @@ GEO_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp"
 REFERENCE_INDEX = ROOT / "REFERENCE_PHOTOS/stadion_oster/INDEX.md"
 REFERENCE_ARCHIVE = ROOT / "REFERENCE_PHOTOS/stadion_oster/stadion_oster_reference_pack_2026-08-20.zip"
 TZ = ROOT / "STADION_OSTER_TZ.md"
+STATUS = ROOT / "STADION_OSTER_IMPLEMENTATION_STATUS.md"
 
 
 def fail(message: str) -> None:
@@ -33,6 +34,7 @@ legacy_header = read(LEGACY_HEADER)
 geo_cpp = read(GEO_CPP)
 reference_index = read(REFERENCE_INDEX)
 tz = read(TZ)
+status = read(STATUS)
 
 if not REFERENCE_ARCHIVE.exists():
     fail("missing canonical stadium reference archive")
@@ -121,9 +123,16 @@ for needle in [
     "50.94936",
     "30.88466",
     "exactly one placement owner",
-    "CODED_UNTESTED",
 ]:
     require(tz + reference_index, needle, "stadium reference/TZ contract")
+
+for needle in [
+    "Статус: `CODED_UNTESTED`",
+    "Draft PR: `#14`",
+    "UE 5.8 compile/build",
+    "PR #14 залишається Draft",
+]:
+    require(status, needle, "implementation status")
 
 print("R13 STADION OSTER VERIFY PASS")
 print("- canonical 17-frame reference set present")
