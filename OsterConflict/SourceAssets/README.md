@@ -1,15 +1,42 @@
-# Oster Conflict source asset intake
+# Oster Conflict production source assets
 
-Raw third-party source files live here before Unreal import. Keep authored source packages separate from `/Content` `.uasset` output.
+This directory stores original authoring/download source files separately from Unreal `.uasset` content.
+`Scripts/import_production_vehicle_assets.py` converts the source files below into stable production assets under `/Game/Production/...`.
 
-## Current intake folders
+## Required vehicle source layout
 
-- `Production/Weapons/M2/` - Browning M2 source model and license/source notes.
-- `Production/Vehicles/HMMWV/` - Ukrainian HMMWV source model and license/source notes.
-- `Incoming/Vehicles/BTR4/` - BTR-4 source files pending source/license verification before production integration.
+```text
+SourceAssets/
+  Production/
+    Vehicles/
+      HMMWV/
+        ukrainian_hmmwv_mk_19.glb
+      BTR4/
+        BTR4_Bucephalus.fbx
+        Textures/
+          Bahnya_low_albedo.png
+          Koleso_low_albedo.png
+          Korpus_low_albedo.png
+          Windows_low_albedo.png
+          interior.png
+          tire.png
+    Weapons/
+      M2/
+        m2_50cal_machinegun_cc0.glb
+```
 
-## Import rule
+## Canonical Unreal outputs
 
-Do not hand-place raw GLB/FBX files inside `/Content`. Import them through Unreal/Interchange into stable production content folders, then commit generated `.uasset` files through Git LFS.
+- `/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA`
+- `/Game/Production/Weapons/M2/SM_M2_Browning`
+- `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus`
 
-For archives, extract them locally before integration so mesh, texture and license files can be reviewed. Preserve the original archive only when it contains license/readme material that is not present in the extracted directory.
+The importer removes the `Mk19` scene subtree from the HMMWV source before import and combines/bakes the remaining vehicle hierarchy. The M2 is imported separately and mounted by `AOCPickupGunTruck` on its existing gameplay turret pivot. The BTR-4 is imported as a combined visual shell while `AOCBTR` keeps its existing physics, suspension, armor and weapon logic.
+
+## Source/license notes
+
+- Ukrainian HMMWV Mk19 upload metadata identifies the source as the Sketchfab model by `42manako` and carries CC-BY-4.0 metadata. Preserve attribution.
+- M2 upload metadata identifies the source as the Sketchfab model by `britdawgmasterfunk`. The model title mentions CC0, while downloaded GLB metadata was observed as CC-BY-4.0. Preserve attribution unless the source license is re-verified.
+- The user-selected BTR-4 upload did not include a license file. Its FBX contains an authoring/source path referring to a GTA San Andreas BTR-4E Bucephalus mod. Treat the asset as development-only until its redistribution license/source is verified.
+
+Do not hand-place raw GLB/FBX files inside `/Content`. Run `IMPORT_PRODUCTION_VEHICLES_UE58.cmd` after the source files are present. Generated `.uasset` files belong in `/Content/Production/...` and are tracked through Git LFS.
