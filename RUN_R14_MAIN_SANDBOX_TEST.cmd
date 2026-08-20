@@ -54,16 +54,16 @@ if not defined PY_CMD (
 )
 
 echo ============================================================
-echo OSTER CONFLICT - CURRENT MAIN R14 LOCATION PLAYTEST
+echo OSTER CONFLICT - CURRENT MAIN R14.6 LOCATION PLAYTEST
 echo ============================================================
 echo This launcher verifies and builds the CURRENT main source, then opens the runtime map directly.
-echo Legacy R11/R13 frontend launchers are not used.
+echo Legacy R11/R13 mixed-location launchers are not used.
 echo.
-echo [0/2] Verifying R14 landmark ownership and blocking legacy mixed-location source...
+echo [0/2] Verifying exclusive landmark ownership and map-separation guards...
 %PY_CMD% "%VERIFY%"
 if errorlevel 1 (
   echo.
-  echo [STOP] Current working tree is not the expected R14 location integration.
+  echo [STOP] Current working tree is not the expected R14.6 location integration.
   echo Pull/reset to current origin/main before running this test.
   pause
   exit /b 7
@@ -87,9 +87,13 @@ echo Persistent log:
 echo   %PLAYTEST_LOG%
 echo.
 echo Location check priority:
-echo   - Museum must exist only at the museum site.
-echo   - Silpo must exist only at Bohdana Khmelnytskoho 54.
-echo   - No legacy Culture House/Civic/Silpo composite may appear on either site.
+echo   - Museum exists only at the museum geo site.
+echo   - Silpo exists only at Bohdana Khmelnytskoho 54.
+echo   - Culture House exists only at Hranovskoho 3.
+echo   - No generic building shell is nested inside any of those three landmarks.
+echo   - No legacy Culture House/Civic/Silpo composite appears at the museum or Silpo site.
+echo   - The old synthetic straight CentralPark-to-north-civic sidewalk/grove is absent.
+echo   - Stadium remains on its separate hard-georeferenced site.
 echo.
 set "VISUAL_MAP=/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1"
 "%EDITOR%" "%PROJECT%" "%VISUAL_MAP%" -game -NoFrontend -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
@@ -97,7 +101,7 @@ set "GAME_RC=%ERRORLEVEL%"
 
 echo.
 echo ============================================================
-echo R14 MAIN PLAYTEST FINISHED - exit code %GAME_RC%
+echo R14.6 MAIN PLAYTEST FINISHED - exit code %GAME_RC%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================
 pause
