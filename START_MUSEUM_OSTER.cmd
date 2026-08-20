@@ -8,7 +8,7 @@ echo ============================================================
 echo OSTER CONFLICT - MUSEUM OSTER R14.5 TEST
 echo ============================================================
 echo.
-echo Dedicated launcher for branch: museum-oster
+echo Current-main compatible museum validation launcher.
 echo Legacy R11 frontend/listen-server flow is NOT used here.
 echo.
 
@@ -17,10 +17,9 @@ if "%ERRORLEVEL%"=="0" (
     for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
     if defined CURRENT_BRANCH (
         echo Current Git branch: !CURRENT_BRANCH!
-        if /I not "!CURRENT_BRANCH!"=="museum-oster" (
+        if /I not "!CURRENT_BRANCH!"=="main" if /I not "!CURRENT_BRANCH!"=="museum-oster" (
             echo.
-            echo ERROR: Wrong branch. This launcher requires museum-oster.
-            echo Switch to museum-oster in GitHub Desktop, pull updates, then run this BAT again.
+            echo ERROR: Wrong branch. Use main or museum-oster for this validator.
             pause
             exit /b 3
         )
@@ -31,14 +30,14 @@ if not exist "%~dp0OsterConflict\VALIDATE_MUSEUM_UE58.cmd" (
     echo ERROR: Museum validation launcher was not found:
     echo %~dp0OsterConflict\VALIDATE_MUSEUM_UE58.cmd
     echo.
-    echo Pull the museum-oster branch in GitHub Desktop and try again.
+    echo Pull current main and try again.
     pause
     exit /b 2
 )
 
 if not exist "%~dp0OsterConflict\Source\OsterConflict\Private\OCR145MuseumTreeLayoutSubsystem.cpp" (
     echo ERROR: R14.5 museum source is missing locally.
-    echo The working copy is stale. Pull museum-oster in GitHub Desktop first.
+    echo The working copy is stale. Pull current main first.
     pause
     exit /b 4
 )
