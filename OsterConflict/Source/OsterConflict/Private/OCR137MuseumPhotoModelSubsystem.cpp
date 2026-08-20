@@ -17,6 +17,7 @@ namespace
 {
     constexpr float MuseumPhotoModelDelaySeconds = 5.10f;
     constexpr float SourceMuseumCleanupRadiusCm = 3600.0f;
+    const FName FinalMuseumTag(TEXT("R137_MuseumPhotoModel"));
 
     UMaterialInstanceDynamic* MakeColorMaterial(AActor* Owner, UMaterialInterface* Base,
         const FName Name, const FLinearColor& Color)
@@ -117,6 +118,45 @@ namespace
         }
         AddBox(Grille, Origin + FVector(X + (bLeft ? 10.0f : -10.0f), Y, Z),
             FVector(5.0f, Width - 12.0f, 5.0f));
+    }
+
+    void AddDoorLeafDetail(UInstancedStaticMeshComponent* Detail, const FVector& Origin, const float X, const float Y)
+    {
+        // Shallow raised rails make the photographed grey double doors read as paneled timber rather than two slabs.
+        for (const float Z : { 125.0f, 205.0f, 285.0f })
+        {
+            AddBox(Detail, Origin + FVector(X, Y - 10.0f, Z), FVector(82.0f, 7.0f, 8.0f));
+        }
+        AddBox(Detail, Origin + FVector(X - 38.0f, Y - 10.0f, 205.0f), FVector(7.0f, 7.0f, 165.0f));
+        AddBox(Detail, Origin + FVector(X + 38.0f, Y - 10.0f, 205.0f), FVector(7.0f, 7.0f, 165.0f));
+    }
+
+    void AddFrontSill(UInstancedStaticMeshComponent* Trim, const FVector& Origin,
+        const float X, const float Y, const float Z, const float Width)
+    {
+        AddBox(Trim, Origin + FVector(X, Y - 4.0f, Z), FVector(Width + 34.0f, 32.0f, 10.0f));
+    }
+
+    void AddRailingRun(UInstancedStaticMeshComponent* Rails, const FVector& Origin, const float X)
+    {
+        // The real entrance uses light open metal railings, not solid rectangular barriers.
+        for (int32 Post = 0; Post < 6; ++Post)
+        {
+            const float Alpha = static_cast<float>(Post) / 5.0f;
+            const float Y = FMath::Lerp(-920.0f, -690.0f, Alpha);
+            const float BaseZ = FMath::Lerp(65.0f, 150.0f, Alpha);
+            AddBox(Rails, Origin + FVector(X, Y, BaseZ + 70.0f), FVector(8.0f, 8.0f, 140.0f));
+        }
+        AddBox(Rails, Origin + FVector(X, -805.0f, 205.0f), FVector(10.0f, 260.0f, 10.0f),
+            FRotator(0.0f, 0.0f, 20.0f));
+
+        for (int32 Panel = 0; Panel < 5; ++Panel)
+        {
+            const float Y = -895.0f + static_cast<float>(Panel) * 47.0f;
+            const float Z = 105.0f + static_cast<float>(Panel) * 17.0f;
+            AddBox(Rails, Origin + FVector(X, Y, Z), FVector(7.0f, 58.0f, 7.0f), FRotator(0.0f, 0.0f, 38.0f));
+            AddBox(Rails, Origin + FVector(X, Y, Z), FVector(7.0f, 58.0f, 7.0f), FRotator(0.0f, 0.0f, -38.0f));
+        }
     }
 
     bool RemoveInstancesNear(UInstancedStaticMeshComponent* Component, const FVector& Center, const float RadiusCm)
@@ -230,6 +270,12 @@ void UOCR137MuseumPhotoModelSubsystem::SuppressLegacyMuseum(UWorld& World)
 
 void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
 {
+    for (TActorIterator<AActor> It(&World); It; ++It)
+    {
+        AActor* Existing = *It;
+        if (Existing && Existing->ActorHasTag(FinalMuseumTag)) return;
+    }
+
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh* RoofMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m"));
@@ -249,7 +295,7 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     if (!Model) return;
     Model->SetReplicates(false);
     Model->SetActorEnableCollision(true);
-    Model->Tags.Add(TEXT("R137_MuseumPhotoModel"));
+    Model->Tags.Add(FinalMuseumTag);
 
     USceneComponent* Root = NewObject<USceneComponent>(Model, TEXT("R137_MuseumPhotoModelRoot"));
     if (!Root)
@@ -262,8 +308,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     Model->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
-    // Keep the temporary runtime materials subdued and close to the photographed facade. These are still placeholders
-    // for a later authored material pass, but they must not read as orange toy blocks or bright white concrete.
     UMaterialInstanceDynamic* Brick = MakeColorMaterial(Model, Basic, TEXT("R137_Brick"),
         FLinearColor(0.34f, 0.115f, 0.045f, 1.0f));
     UMaterialInstanceDynamic* BrickDark = MakeColorMaterial(Model, Basic, TEXT("R137_BrickDark"),
@@ -290,10 +334,10 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         FLinearColor(0.42f, 0.25f, 0.19f, 1.0f));
     UMaterialInstanceDynamic* GlassFallback = MakeColorMaterial(Model, Basic, TEXT("R137_GlassFallback"),
         FLinearColor(0.12f, 0.18f, 0.19f, 1.0f));
+    UMaterialInstanceDynamic* PlaqueMat = MakeColorMaterial(Model, Basic, TEXT("R137_Plaque"),
+        FLinearColor(0.075f, 0.070f, 0.060f, 1.0f));
 
     UMaterialInterface* BlueWood = BlueWoodAsset ? BlueWoodAsset : BlueWoodFallback;
-    // The cabin glass material produces checker/near-black artifacts when stretched across the temporary cube window
-    // geometry. Use a controlled muted pane until the window modules themselves are authored.
     UMaterialInterface* GlassMaterial = GlassFallback;
     UMaterialInterface* RoofMaterial = MetalRoof ? MetalRoof : Basic;
 
@@ -317,6 +361,8 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         TEXT("R137Museum_WindowGrilles"), false, false, 45000);
     UInstancedStaticMeshComponent* Doors = MakeISM(Model, Root, Cube, DoorMat,
         TEXT("R137Museum_GreyDoors"), false, true);
+    UInstancedStaticMeshComponent* DoorDetail = MakeISM(Model, Root, Cube, DoorMat,
+        TEXT("R137Museum_DoorPanelRelief"), false, true, 45000);
     UInstancedStaticMeshComponent* Concrete = MakeISM(Model, Root, Cube, ConcreteMat,
         TEXT("R137Museum_StepsAndSlabs"), true, false);
     UInstancedStaticMeshComponent* Rails = MakeISM(Model, Root, Cube, RailMat,
@@ -325,26 +371,24 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         TEXT("R137Museum_YellowGasPipe"), false, false, 50000);
     UInstancedStaticMeshComponent* Annex = MakeISM(Model, Root, Cube, AnnexMat,
         TEXT("R137Museum_RearAnnex"), true, true);
+    UInstancedStaticMeshComponent* Plaques = MakeISM(Model, Root, Cube, PlaqueMat,
+        TEXT("R137Museum_PlaquesAndVents"), false, true, 45000);
 
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
 
-    // Exterior dimensions are inferred from photo proportions only: roughly 17.6 m x 9.0 m, not survey data.
+    // Photo-proportioned exterior, not survey geometry.
     AddBox(Plinth, Museum + FVector(0.0f, 0.0f, 35.0f), FVector(1760.0f, 900.0f, 70.0f));
     AddBox(BrickBody, Museum + FVector(0.0f, 0.0f, 230.0f), FVector(1700.0f, 840.0f, 320.0f));
 
-    // The real front silhouette has two low side roof wings with the raised timber center standing between them.
-    // A previous single 18.4 m roof mesh swallowed the upper room and made its trim look like floating V-shaped debris.
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(-595.0f, 0.0f, 500.0f),
         FVector(650.0f, 1010.0f, 250.0f));
-    AddFittedMesh(Roof, RoofMesh, Museum + FVector( 595.0f, 0.0f, 500.0f),
+    AddFittedMesh(Roof, RoofMesh, Museum + FVector(595.0f, 0.0f, 500.0f),
         FVector(650.0f, 1010.0f, 250.0f));
 
-    // Central blue-grey timber upper room with its own gable roof, now visible between the side roof wings.
     AddBox(Wood, Museum + FVector(0.0f, -35.0f, 510.0f), FVector(570.0f, 470.0f, 250.0f));
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(0.0f, -35.0f, 690.0f),
         FVector(660.0f, 570.0f, 190.0f));
 
-    // Red/brown timber infill visible in the opposite gable: narrow courses form a triangular silhouette.
     for (int32 Course = 0; Course < 6; ++Course)
     {
         const float WidthY = 700.0f - static_cast<float>(Course) * 95.0f;
@@ -352,7 +396,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
             FVector(14.0f, WidthY, 30.0f));
     }
 
-    // Central enclosed entrance vestibule and the glazed side veranda from the alternate-angle photos.
     AddBox(Wood, Museum + FVector(0.0f, -535.0f, 220.0f), FVector(520.0f, 250.0f, 300.0f));
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(0.0f, -535.0f, 415.0f),
         FVector(610.0f, 340.0f, 145.0f));
@@ -360,63 +403,81 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(-975.0f, 125.0f, 405.0f),
         FVector(340.0f, 650.0f, 145.0f), 90.0f);
 
-    // Low rear annex visible beyond the brick wall.
     AddBox(Annex, Museum + FVector(1020.0f, 235.0f, 160.0f), FVector(430.0f, 470.0f, 250.0f));
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(1020.0f, 235.0f, 335.0f),
         FVector(500.0f, 560.0f, 130.0f), 90.0f);
 
-    // Brick chimney seen behind the roof in the long-side reference.
     AddBox(BrickDetail, Museum + FVector(-560.0f, 150.0f, 625.0f), FVector(105.0f, 105.0f, 330.0f));
     AddBox(BrickDetail, Museum + FVector(-560.0f, 150.0f, 798.0f), FVector(125.0f, 125.0f, 22.0f));
 
-    // Eave cornice plus the characteristic pale square/dentil rhythm.
     AddBox(BrickDetail, Museum + FVector(0.0f, -426.0f, 385.0f), FVector(1700.0f, 22.0f, 55.0f));
-    AddBox(BrickDetail, Museum + FVector(0.0f,  426.0f, 385.0f), FVector(1700.0f, 22.0f, 55.0f));
+    AddBox(BrickDetail, Museum + FVector(0.0f, 426.0f, 385.0f), FVector(1700.0f, 22.0f, 55.0f));
     AddBox(BrickDetail, Museum + FVector(-856.0f, 0.0f, 385.0f), FVector(22.0f, 840.0f, 55.0f));
-    AddBox(BrickDetail, Museum + FVector( 856.0f, 0.0f, 385.0f), FVector(22.0f, 840.0f, 55.0f));
+    AddBox(BrickDetail, Museum + FVector(856.0f, 0.0f, 385.0f), FVector(22.0f, 840.0f, 55.0f));
+
     for (int32 Index = -7; Index <= 7; ++Index)
     {
         const float X = static_cast<float>(Index) * 105.0f;
         AddBox(Trim, Museum + FVector(X, -439.0f, 370.0f), FVector(34.0f, 12.0f, 38.0f));
-        AddBox(Trim, Museum + FVector(X,  439.0f, 370.0f), FVector(34.0f, 12.0f, 38.0f));
+        AddBox(Trim, Museum + FVector(X, 439.0f, 370.0f), FVector(34.0f, 12.0f, 38.0f));
     }
     for (int32 Index = -3; Index <= 3; ++Index)
     {
         const float Y = static_cast<float>(Index) * 105.0f;
         AddBox(Trim, Museum + FVector(-869.0f, Y, 370.0f), FVector(12.0f, 34.0f, 38.0f));
-        AddBox(Trim, Museum + FVector( 869.0f, Y, 370.0f), FVector(12.0f, 34.0f, 38.0f));
+        AddBox(Trim, Museum + FVector(869.0f, Y, 370.0f), FVector(12.0f, 34.0f, 38.0f));
     }
 
-    // Long-facade windows, pale frames and exterior metal grilles.
     const float FrontY = -426.0f;
     const float RearY = 426.0f;
     for (const float X : { -650.0f, -355.0f, 355.0f, 650.0f })
+    {
         AddFrontWindow(Trim, Glass, Grilles, Museum, X, FrontY, 235.0f, 140.0f, 205.0f, false);
+        AddFrontSill(Trim, Museum, X, -444.0f, 125.0f, 140.0f);
+        AddBox(BrickDetail, Museum + FVector(X, -441.0f, 352.0f), FVector(190.0f, 18.0f, 22.0f));
+    }
     for (const float X : { -650.0f, -330.0f, 0.0f, 330.0f, 650.0f })
         AddFrontWindow(Trim, Glass, Grilles, Museum, X, RearY, 235.0f, 140.0f, 205.0f, true);
 
-    // Right gable/side wall window rhythm.
+    // The facade photos show pale relief blocks both below the eaves and near the lower brick band.
+    for (const float X : { -790.0f, -515.0f, -205.0f, 205.0f, 515.0f, 790.0f })
+    {
+        AddBox(Trim, Museum + FVector(X, -442.0f, 92.0f), FVector(38.0f, 12.0f, 34.0f));
+    }
+
     for (const float Y : { -270.0f, 20.0f, 300.0f })
         AddSideWindow(Trim, Glass, Grilles, Museum, 856.0f, Y, 235.0f, 135.0f, 205.0f, false);
 
-    // Three upper windows and two side windows on the blue-grey timber volume.
-    for (const float X : { -190.0f, 0.0f, 190.0f })
-        AddFrontWindow(Trim, Glass, Grilles, Museum, X, -277.0f, 520.0f, 115.0f, 165.0f, false);
+    // Raised timber center: two side windows plus the taller central glazed opening visible on the frontal reference.
+    AddFrontWindow(Trim, Glass, Grilles, Museum, -190.0f, -277.0f, 520.0f, 115.0f, 165.0f, false);
+    AddFrontWindow(Trim, Glass, Grilles, Museum, 0.0f, -277.0f, 520.0f, 130.0f, 178.0f, false);
+    AddFrontWindow(Trim, Glass, Grilles, Museum, 190.0f, -277.0f, 520.0f, 115.0f, 165.0f, false);
     AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f, -115.0f, 520.0f, 110.0f, 165.0f, false);
-    AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f,  110.0f, 520.0f, 110.0f, 165.0f, false);
+    AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f, 110.0f, 520.0f, 110.0f, 165.0f, false);
 
-    // Pale carved-looking gable outlines on the raised timber center and opposite gable.
+    // Carved timber gable. Add the main outline and the repeated diagonal braces seen around the upper windows.
     AddBox(Trim, Museum + FVector(0.0f, -287.0f, 635.0f), FVector(590.0f, 16.0f, 16.0f));
     AddBox(Trim, Museum + FVector(-145.0f, -289.0f, 707.0f), FVector(330.0f, 16.0f, 18.0f), FRotator(-25.0f, 0.0f, 0.0f));
-    AddBox(Trim, Museum + FVector( 145.0f, -289.0f, 707.0f), FVector(330.0f, 16.0f, 18.0f), FRotator( 25.0f, 0.0f, 0.0f));
+    AddBox(Trim, Museum + FVector(145.0f, -289.0f, 707.0f), FVector(330.0f, 16.0f, 18.0f), FRotator(25.0f, 0.0f, 0.0f));
+    AddBox(Trim, Museum + FVector(0.0f, -291.0f, 734.0f), FVector(15.0f, 12.0f, 105.0f));
+    AddBox(Trim, Museum + FVector(-255.0f, -291.0f, 648.0f), FVector(150.0f, 12.0f, 13.0f), FRotator(-30.0f, 0.0f, 0.0f));
+    AddBox(Trim, Museum + FVector(255.0f, -291.0f, 648.0f), FVector(150.0f, 12.0f, 13.0f), FRotator(30.0f, 0.0f, 0.0f));
     AddBox(Trim, Museum + FVector(-868.0f, -175.0f, 555.0f), FVector(16.0f, 390.0f, 18.0f), FRotator(0.0f, 0.0f, -27.0f));
-    AddBox(Trim, Museum + FVector(-868.0f,  175.0f, 555.0f), FVector(16.0f, 390.0f, 18.0f), FRotator(0.0f, 0.0f,  27.0f));
+    AddBox(Trim, Museum + FVector(-868.0f, 175.0f, 555.0f), FVector(16.0f, 390.0f, 18.0f), FRotator(0.0f, 0.0f, 27.0f));
 
-    // Glazed entrance front, grey double door, entrance steps and simple metal handrails.
+    // Entrance vestibule facade: framed glazing, paneled double doors and a decorated low gable fascia.
     AddFrontWindow(Trim, Glass, Grilles, Museum, -190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
-    AddFrontWindow(Trim, Glass, Grilles, Museum,  190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
+    AddFrontWindow(Trim, Glass, Grilles, Museum, 190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
     AddBox(Doors, Museum + FVector(-62.0f, -672.0f, 205.0f), FVector(116.0f, 16.0f, 270.0f));
-    AddBox(Doors, Museum + FVector( 62.0f, -672.0f, 205.0f), FVector(116.0f, 16.0f, 270.0f));
+    AddBox(Doors, Museum + FVector(62.0f, -672.0f, 205.0f), FVector(116.0f, 16.0f, 270.0f));
+    AddDoorLeafDetail(DoorDetail, Museum, -62.0f, -682.0f);
+    AddDoorLeafDetail(DoorDetail, Museum, 62.0f, -682.0f);
+    AddBox(Plaques, Museum + FVector(-12.0f, -689.0f, 213.0f), FVector(8.0f, 8.0f, 18.0f));
+    AddBox(Plaques, Museum + FVector(12.0f, -689.0f, 213.0f), FVector(8.0f, 8.0f, 18.0f));
+    AddBox(Trim, Museum + FVector(0.0f, -710.0f, 414.0f), FVector(565.0f, 15.0f, 14.0f));
+    AddBox(Trim, Museum + FVector(-142.0f, -712.0f, 468.0f), FVector(315.0f, 15.0f, 14.0f), FRotator(-21.0f, 0.0f, 0.0f));
+    AddBox(Trim, Museum + FVector(142.0f, -712.0f, 468.0f), FVector(315.0f, 15.0f, 14.0f), FRotator(21.0f, 0.0f, 0.0f));
+
     for (int32 Step = 0; Step < 6; ++Step)
     {
         const float Width = 520.0f - static_cast<float>(Step) * 32.0f;
@@ -424,35 +485,33 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         const float Height = 18.0f + static_cast<float>(Step) * 14.0f;
         AddBox(Concrete, Museum + FVector(0.0f, Y, Height * 0.5f), FVector(Width, 92.0f, Height));
     }
-    for (const float X : { -245.0f, 245.0f })
-    {
-        AddBox(Rails, Museum + FVector(X, -780.0f, 165.0f), FVector(15.0f, 340.0f, 300.0f));
-        AddBox(Rails, Museum + FVector(X, -780.0f, 315.0f), FVector(15.0f, 360.0f, 15.0f));
-    }
+    AddBox(Concrete, Museum + FVector(-300.0f, -775.0f, 92.0f), FVector(70.0f, 330.0f, 184.0f));
+    AddBox(Concrete, Museum + FVector(300.0f, -775.0f, 92.0f), FVector(70.0f, 330.0f, 184.0f));
+    AddRailingRun(Rails, Museum, -245.0f);
+    AddRailingRun(Rails, Museum, 245.0f);
 
-    // Side veranda glass bays.
     for (const float Y : { -55.0f, 85.0f, 225.0f, 365.0f })
         AddSideWindow(Trim, Glass, Grilles, Museum, -1105.0f, Y, 220.0f, 115.0f, 195.0f, true);
 
-    // Separate grey side door and small decorative canopy visible on the gable-side photo.
     AddBox(Doors, Museum + FVector(864.0f, -155.0f, 210.0f), FVector(16.0f, 145.0f, 275.0f));
     AddFittedMesh(Roof, RoofMesh, Museum + FVector(965.0f, -155.0f, 385.0f),
         FVector(250.0f, 290.0f, 105.0f), 90.0f);
     AddBox(Trim, Museum + FVector(870.0f, -155.0f, 365.0f), FVector(20.0f, 190.0f, 18.0f));
 
-    // Yellow exposed gas pipe from the photographed brick side.
     AddBox(GasPipe, Museum + FVector(870.0f, -330.0f, 240.0f), FVector(10.0f, 10.0f, 330.0f));
     AddBox(GasPipe, Museum + FVector(870.0f, 10.0f, 360.0f), FVector(10.0f, 690.0f, 10.0f));
 
-    // Concrete-slab approach visible through the mature trees. It is scenery, not a road.
+    // Dark museum plaque on the left front wing and subtle plinth vents are visible in frontal photography.
+    AddBox(Plaques, Museum + FVector(-505.0f, -444.0f, 245.0f), FVector(88.0f, 10.0f, 58.0f));
+    AddBox(Plaques, Museum + FVector(-590.0f, -454.0f, 52.0f), FVector(70.0f, 8.0f, 22.0f));
+    AddBox(Plaques, Museum + FVector(590.0f, -454.0f, 52.0f), FVector(70.0f, 8.0f, 22.0f));
+
     for (int32 Slab = 0; Slab < 30; ++Slab)
     {
         const float Y = -940.0f - static_cast<float>(Slab) * 145.0f;
         AddBox(Concrete, Museum + FVector(0.0f, Y, 4.0f), FVector(165.0f, 132.0f, 8.0f));
     }
 
-    // Keep only the conifer families actually supported by the museum references. The previous generic broadleaf
-    // pair used a stylized AdvancedVillage tree and produced the bulbous, non-Oster trunks visible beside the walls.
     UInstancedStaticMeshComponent* Pine01ISM = MakeISM(Model, Root, Pine01, nullptr,
         TEXT("R137Museum_Pine01"), true, true, 100000);
     UInstancedStaticMeshComponent* Pine03ISM = MakeISM(Model, Root, Pine03, nullptr,
@@ -460,10 +519,10 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
 
     struct FTreeSeed { FVector Offset; float Height; float Yaw; int32 Family; };
     const FTreeSeed Trees[] = {
-        { FVector(-720, -1450, 0), 1900,  10, 0 }, { FVector( 760, -1500, 0), 2050,  46, 1 },
-        { FVector(-930, -2350, 0), 2200,  88, 1 }, { FVector( 960, -2400, 0), 2150, 142, 0 },
-        { FVector(-1020,-3350, 0), 2300, 188, 0 }, { FVector( 1080,-3400, 0), 2250, 236, 1 },
-        { FVector(-1150,-4300, 0), 2350, 278, 1 }, { FVector( 1180,-4250, 0), 2400, 318, 0 }
+        { FVector(-720, -1450, 0), 1900, 10, 0 }, { FVector(760, -1500, 0), 2050, 46, 1 },
+        { FVector(-930, -2350, 0), 2200, 88, 1 }, { FVector(960, -2400, 0), 2150, 142, 0 },
+        { FVector(-1020, -3350, 0), 2300, 188, 0 }, { FVector(1080, -3400, 0), 2250, 236, 1 },
+        { FVector(-1150, -4300, 0), 2350, 278, 1 }, { FVector(1180, -4250, 0), 2400, 318, 0 }
     };
     UInstancedStaticMeshComponent* Families[] = { Pine01ISM, Pine03ISM };
     UStaticMesh* Meshes[] = { Pine01, Pine03 };
@@ -477,6 +536,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.7 museum model: front silhouette corrected with split side roof wings around the visible blue-grey upper room; brick body, plinth, vestibule, veranda/door, annex, chimney, barred windows, carved trim, gas line, steps and slab approach retained; supported conifer site trees=%d."),
+        TEXT("R13.7 museum detail pass: photo-driven facade now includes finer upper/porch gable carpentry, paneled double doors, window sills/lintels, lower brick relief blocks, open ornamental stair railings, stair cheeks, front plaque and plinth vents; existing veranda, annex, chimney, gas line, slab approach and supported conifer site trees=%d retained."),
         TreeCount);
 }
