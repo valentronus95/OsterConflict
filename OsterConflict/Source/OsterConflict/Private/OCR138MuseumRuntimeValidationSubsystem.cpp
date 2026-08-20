@@ -4,6 +4,7 @@
 #include "OCGameMode.h"
 #include "OCInteractableDoor.h"
 #include "OCMuseumDoubleDoor.h"
+#include "OCMuseumServiceDoubleDoor.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -14,8 +15,8 @@
 
 namespace
 {
-    constexpr float R138MuseumValidationDelaySeconds = 5.95f;
-    constexpr float MuseumInteractionRadiusCm = 2500.0f;
+    constexpr float R138MuseumValidationDelaySeconds = 6.25f;
+    constexpr float MuseumInteractionRadiusCm = 2800.0f;
 }
 
 bool UOCR138MuseumRuntimeValidationSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -51,10 +52,13 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     const float RadiusSq = FMath::Square(MuseumInteractionRadiusCm);
 
     int32 ArchitectureActors = 0;
+    int32 FacadeDetailActors = 0;
     int32 StructuralSections = 0;
     int32 MainDoorActors = 0;
-    int32 ServiceDoors = 0;
+    int32 ServiceDoorActors = 0;
+    int32 PrototypeServiceDoors = 0;
     int32 BreakableWindows = 0;
+    int32 UpperGableWindows = 0;
     int32 InitiallyBrokenWindows = 0;
 
     for (TActorIterator<AActor> It(&World); It; ++It)
@@ -76,8 +80,12 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
             }
         }
 
-        if (!Actor->ActorHasTag(TEXT("R138_MuseumInteractive")) ||
-            FVector::DistSquared2D(Actor->GetActorLocation(), Museum) > RadiusSq)
+        if (Actor->ActorHasTag(TEXT("R140_MuseumFacadeDetail")))
+        {
+            ++FacadeDetailActors;
+        }
+
+        if (FVector::DistSquared2D(Actor->GetActorLocation(), Museum) > RadiusSq)
         {
             continue;
         }
@@ -88,35 +96,52 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
             continue;
         }
 
+        if (AOCMuseumServiceDoubleDoor* ServiceDoor = Cast<AOCMuseumServiceDoubleDoor>(Actor))
+        {
+            if (ServiceDoor->ActorHasTag(TEXT("MuseumServiceDoubleDoor"))) ++ServiceDoorActors;
+            continue;
+        }
+
         if (AOCInteractableDoor* Door = Cast<AOCInteractableDoor>(Actor))
         {
-            if (Door->ActorHasTag(TEXT("MuseumServiceDoor"))) ++ServiceDoors;
+            if (Door->ActorHasTag(TEXT("MuseumServiceDoor"))) ++PrototypeServiceDoors;
             continue;
         }
 
         if (AOCBreakableWindow* Window = Cast<AOCBreakableWindow>(Actor))
         {
+            if (!Actor->ActorHasTag(TEXT("R138_MuseumInteractive")) &&
+                !Actor->ActorHasTag(TEXT("R140_MuseumInteractive")))
+            {
+                continue;
+            }
             ++BreakableWindows;
+            if (Window->ActorHasTag(TEXT("MuseumUpperGableWindow"))) ++UpperGableWindows;
             if (Window->IsBroken()) ++InitiallyBrokenWindows;
         }
     }
 
     const bool bPass = ArchitectureActors == 1 &&
+        FacadeDetailActors == 1 &&
         StructuralSections >= 30 &&
         MainDoorActors == 1 &&
-        ServiceDoors == 1 &&
-        BreakableWindows >= 20 &&
+        ServiceDoorActors == 1 &&
+        PrototypeServiceDoors == 0 &&
+        BreakableWindows >= 21 &&
+        UpperGableWindows == 1 &&
         InitiallyBrokenWindows == 0;
 
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("R13.8 museum validation PASS: architectureActors=%d structuralSections=%d mainDoorActors=%d serviceDoors=%d breakableWindows=%d."),
-            ArchitectureActors, StructuralSections, MainDoorActors, ServiceDoors, BreakableWindows);
+            TEXT("R14.0 museum validation PASS: architecture=%d facade=%d structural=%d mainDoor=%d serviceDoor=%d windows=%d upperGable=%d."),
+            ArchitectureActors, FacadeDetailActors, StructuralSections, MainDoorActors,
+            ServiceDoorActors, BreakableWindows, UpperGableWindows);
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("R13.8 museum validation FAILED: architectureActors=%d structuralSections=%d mainDoorActors=%d serviceDoors=%d breakableWindows=%d initiallyBrokenWindows=%d."),
-        ArchitectureActors, StructuralSections, MainDoorActors, ServiceDoors, BreakableWindows, InitiallyBrokenWindows);
+        TEXT("R14.0 museum validation FAILED: architecture=%d facade=%d structural=%d mainDoor=%d serviceDoor=%d prototypeService=%d windows=%d upperGable=%d initiallyBroken=%d."),
+        ArchitectureActors, FacadeDetailActors, StructuralSections, MainDoorActors,
+        ServiceDoorActors, PrototypeServiceDoors, BreakableWindows, UpperGableWindows, InitiallyBrokenWindows);
 }
