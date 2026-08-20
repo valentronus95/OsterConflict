@@ -2,10 +2,11 @@
 
 Updated: 2026-08-20
 
-This file separates three different states that were previously easy to confuse:
-1. an asset exists somewhere in repository history;
-2. an asset is present on `main`;
-3. an asset is actually loaded/used by the runtime game.
+This file separates four states that must not be confused:
+1. a source/download exists outside the repository;
+2. a source asset is present in repository history/current checkout;
+3. Unreal production `.uasset` content has been generated;
+4. the runtime actually loads/uses that production asset.
 
 ## Runtime-integrated production assets
 
@@ -13,17 +14,26 @@ This file separates three different states that were previously easy to confuse:
 - AdvancedVillagePack: houses, trees, street lights, bridge, well through `OCAssetModelDecorator`.
 - Modular_Rural_Cabin: pines, fences, power poles and rural props through `OCAssetModelDecorator`.
 - TileableForestRoad: `SM_Forest_Path` on rural outer routes.
-- PN_FoliageCollection: sparse landmark pass plus dense HISM ground-cover pass across the playable runtime sector with hard-surface filtering.
+- PN_FoliageCollection: landmark vegetation plus dense HISM ground-cover across the playable runtime sector with hard-surface filtering.
 - Scene_UnfinishedBuilding: wall/pillar shell plus floor, upper floor, stairs, alternate wall modules and authored windows at the recovered construction site.
 - Scene_RoadsideConstruction: wheelbarrow, gravel, cable wheel, shovel and toolbox, scoped to the unfinished-building site.
 - R13.7 Museum: photo-driven replacement model plus source cleanup/runtime validation.
 
 ### Weapons
-- Assault rifle: `AK-47/Mesh/SM_AK-47` replaces the source-only cube/cylinder proxy when loadable.
-- Pistol: `R13/Weapons/Stein/1911/SKM_1911` production skeletal visual.
-- SMG: `R13/Weapons/Stein/MP5/SKM_MP5` production skeletal visual.
-- Sniper rifle: `R13/Weapons/Stein/M700/SKM_M700` production skeletal visual.
-- Source-only weapon geometry remains as a fallback and/or pickup collision path if an imported asset cannot load.
+- Assault rifle: animated `AK-47/Mesh/SKM_AK-47` skeletal production visual.
+- Pistol: `R13/Weapons/Stein/1911/SKM_1911`.
+- SMG: `R13/Weapons/Stein/MP5/SKM_MP5`.
+- Sniper rifle: `R13/Weapons/Stein/M700/SKM_M700`.
+- Explicit restored variants: M14, MAC-10, TEC-9 and Lever Action, each with its own class/tuning and actual R13 skeletal mesh.
+- Sandbox automatically exposes a separate restored-weapon rack for M14, MAC-10, TEC-9 and Lever Action so they can be tested without mislabeling existing LMG/shotgun slots.
+- Source-only geometry remains only as a safe fallback/pickup collision path when an imported production mesh cannot load.
+
+### First-person weapon presentation
+- QuantumCharacter `SKM_Arms` is the first-person arms mesh.
+- A local presentation subsystem keeps hands and the active weapon together during recoil, ADS convergence and reload motion.
+- The AK uses its own imported `AK-47_Fire_W` and `AK-47_Reload_W` sequences when their skeleton matches the AK skeletal mesh.
+- SampleAnimationPack rifle idle/ADS poses are applied to first-person arms only when their skeleton matches the active arms skeleton; incompatible animation is skipped rather than forced.
+- This is a presentation layer only. Server fire rate, ammo, reload completion and damage remain authoritative in existing gameplay code.
 
 ### Characters
 - QuantumCharacter production third-person body.
@@ -34,21 +44,35 @@ This file separates three different states that were previously easy to confuse:
 
 ### Vehicles
 - VehicleVarietyPack Hatchback, SUV and SportsCar are used by civilian vehicle styles.
-- VehicleVarietyPack Pickup replaces the source-only pickup body for the mounted gun truck while existing turret/gameplay physics remain authoritative.
+- VehicleVarietyPack Pickup remains the fallback gun-truck visual.
+- `AOCPickupGunTruck` now prefers canonical `/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA` and mounts `/Game/Production/Weapons/M2/SM_M2_Browning` on the existing gameplay turret pivot when those assets exist.
+- `AOCBTR` now prefers canonical `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus` as a visual shell while retaining the existing 8-wheel suspension, physics, armor and turret gameplay.
+- `Scripts/import_production_vehicle_assets.py` provides deterministic UE 5.8 import paths/names and removes the HMMWV Mk19 scene subtree before importing the HMMWV. `IMPORT_PRODUCTION_VEHICLES_UE58.cmd` is the one-click Editor command-line launcher.
 
-## Restored to the active project but not blindly forced into runtime
+## Source files received in the current work session but not yet physically stored by the GitHub connector
 
-- SampleAnimationPack: imported and available. Rifle/ADS sequences are not forced onto QuantumCharacter until skeleton/retarget compatibility is verified in Unreal Editor.
-- R13 weapon meshes M14, Mac10, Tec9 and LeverAction are available, but no current gameplay weapon slot maps cleanly to all of them. They should be added as explicit weapon variants rather than mislabeled as LMG/shotgun/etc.
-- Slavic Medieval Town kit remains available for selective location work; non-semantic mesh names require visual Content Browser inspection before placement.
-- Remaining Scene_UnfinishedBuilding and RoadsideConstruction modules are available for future location-specific dressing.
+The conversation upload contains:
+- Ukrainian HMMWV Mk19 GLB;
+- separate M2 Browning GLB;
+- user-selected BTR-4E Bucephalus FBX plus six textures.
 
-## Assets still missing for requested production visuals
+The current GitHub connector can mutate repository text/code/branches/PRs but does not expose a local binary/LFS upload operation. Therefore runtime paths and import automation are integrated, but these new source bytes and the generated `/Game/Production/...` `.uasset` files must not be reported as present in GitHub until a real LFS push/import has occurred.
 
-- No HMMWV/Humvee production mesh is present in the restored VehicleVarietyPack. A civilian pickup is not treated as a Humvee.
-- No verified exact Silpo building production mesh is present. The exact Silpo replacement still requires a custom/photo-driven model from accessible references.
-- No verified dedicated production LMG or modern shotgun mesh is mapped to the current LMG/Shotgun classes yet.
+## Restored content intentionally not scattered blindly into runtime
+
+- Slavic Medieval Town Lite kit is available, but its asset folders are mostly generic `Cube`, `Cube_001`, etc. Without visual Content Browser inspection, blind placement would damage location fidelity rather than improve it.
+- Remaining Scene_UnfinishedBuilding and RoadsideConstruction modules are available for future location-specific dressing; they are not randomly scattered through photographed Oster locations.
+
+## Assets still genuinely missing
+
+- A verified dedicated modern production LMG mesh for the current LMG class.
+- A verified dedicated modern production shotgun mesh for the current Shotgun class.
+- A verified exact Silpo production building mesh/photo-driven final replacement.
+
+## Source/license caveat
+
+The uploaded BTR-4 FBX contains a source/authoring path referring to a GTA San Andreas BTR-4E Bucephalus mod and no license file was included in the upload. It can be used for development integration, but redistribution/public release should wait until the original source/license is verified.
 
 ## Validation boundary
 
-GitHub can verify repository state, asset paths and source integration. It cannot replace an Unreal Engine 5.8 compile/PIE visual run. Imported mesh orientation, authored sockets, material dependencies, animation retargeting and final placement scale must be visually checked in UE before declaring the art pass final.
+GitHub can verify repository state, asset paths and source integration. It cannot replace an Unreal Engine 5.8 compile/PIE visual run. Imported mesh orientation, authored sockets, material dependencies, animation retargeting, M2 muzzle alignment, hand placement and final vehicle scale must be visually checked in UE before declaring the art pass final.
