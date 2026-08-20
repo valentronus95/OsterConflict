@@ -47,8 +47,6 @@ namespace
                 return TEXT("/Game/R13/Weapons/machinegun.machinegun");
             case EOCWeaponClass::AssaultRifle:
             default:
-                // Keep the already-proven Fab AK presentation for the primary rifle. The Stein AK is imported and
-                // ready for a later explicit variant instead of replacing a working asset merely because it exists.
                 return TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47");
         }
     }
@@ -83,11 +81,20 @@ namespace
 
         if (IsSteinMesh(MainMesh))
         {
-            // Stein FBX meshes are imported through UE's static-mesh FBX pipeline in project units. Keep authored
-            // scale/orientation for equipped use; dropped copies are rolled onto their side.
-            MainMesh->SetRelativeRotation(bWorldPickup
-                ? FRotator(0.0f, 0.0f, 90.0f)
-                : FRotator::ZeroRotator);
+            // The Stein 1911 is authored with its long axis on Y, while the OC first-person attach convention is
+            // X-forward. The previous zero-rotation path therefore presented the pistol sideways in first person.
+            if (WeaponClass == EOCWeaponClass::Pistol)
+            {
+                MainMesh->SetRelativeRotation(bWorldPickup
+                    ? FRotator(0.0f, -90.0f, 90.0f)
+                    : FRotator(0.0f, -90.0f, 0.0f));
+            }
+            else
+            {
+                MainMesh->SetRelativeRotation(bWorldPickup
+                    ? FRotator(0.0f, 0.0f, 90.0f)
+                    : FRotator::ZeroRotator);
+            }
             MainMesh->SetRelativeScale3D(FVector(1.0f));
             return;
         }
@@ -102,7 +109,6 @@ namespace
             return;
         }
 
-        // Remaining Kenney fallback source geometry is metre-scale with Y-up.
         MainMesh->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
         MainMesh->SetRelativeScale3D(FVector(100.0f));
     }
@@ -150,7 +156,6 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
     UStaticMesh* ImportedMesh = MeshPath ? LoadObject<UStaticMesh>(nullptr, MeshPath) : nullptr;
     if (!ImportedMesh)
     {
-        // Do not mark it processed: hot-imported content can still be picked up on a later scan.
         return;
     }
 
@@ -174,6 +179,10 @@ void UOCR13WeaponArtSubsystem::ApplyArt(AOCWeaponBase* Weapon)
 
     if (!MainMesh) return;
     MainMesh->SetStaticMesh(ImportedMesh);
+
+    // The source-only weapon component can carry a grey procedural material override. SetStaticMesh does not clear
+    // component-level overrides, so the imported AK/1911 was rendered with the old grey fallback material.
+    MainMesh->EmptyOverrideMaterials();
     MainMesh->SetVisibility(true, true);
     MainMesh->SetHiddenInGame(false, true);
     ApplyImportedTransform(MainMesh, WeaponClass, Weapon->IsWorldPickup());
@@ -189,6 +198,12 @@ void UOCR13WeaponArtSubsystem::RepairPresentation(AOCWeaponBase* Weapon)
 
     UStaticMeshComponent* MainMesh = FindMainMesh(Weapon);
     if (!MainMesh || !MainMesh->GetStaticMesh()) return;
+
+    // Keep stale runtime/procedural overrides from repainting imported weapon assets grey after the initial swap.
+    if (MainMesh->GetNumOverrideMaterials() > 0)
+    {
+        MainMesh->EmptyOverrideMaterials();
+    }
 
     const bool bWorldPickup = Weapon->IsWorldPickup();
     ApplyImportedTransform(MainMesh, Weapon->GetWeaponClass(), bWorldPickup);
