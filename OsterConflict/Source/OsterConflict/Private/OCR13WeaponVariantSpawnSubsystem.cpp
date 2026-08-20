@@ -1,19 +1,20 @@
 #include "OCR13WeaponVariantSpawnSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCTeamSpawnPoint.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
-#include "OCWorldSectorOster.h"
 
 #include "Engine/World.h"
-#include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
 #include "TimerManager.h"
 
 namespace
 {
-    constexpr int32 MaxSpawnAttempts = 20;
-    constexpr float SpawnRetryDelaySeconds = 0.50f;
+    // Deployment can legitimately stay open for a while. Keep retrying for roughly one minute so the rack is
+    // derived from the player's real deployed pawn instead of a guessed team-base coordinate.
+    constexpr int32 MaxSpawnAttempts = 180;
+    constexpr float SpawnRetryDelaySeconds = 0.35f;
     constexpr int32 WeaponTestCount = 10;
 }
 
@@ -57,17 +58,12 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
     if (bSpawnComplete) return;
     ++SpawnAttemptCount;
 
-    bool bGameplayWorldReady = false;
-    for (TActorIterator<AOCWorldSectorOster> It(&World); It; ++It)
-    {
-        if (*It)
-        {
-            bGameplayWorldReady = true;
-            break;
-        }
-    }
-
-    if (!bGameplayWorldReady)
+    // A controller exists while the deployment panel is open, but the pawn exists only after the selected team /
+    // squad / role / spawn has actually deployed. Anchor the test rack to that real pawn. This guarantees that the
+    // weapons appear beside the place where the tester actually materializes, including forward-spawn selections.
+    APlayerController* PlayerController = World.GetFirstPlayerController();
+    APawn* PlayerPawn = PlayerController ? PlayerController->GetPawn() : nullptr;
+    if (!PlayerPawn)
     {
         if (SpawnAttemptCount < MaxSpawnAttempts)
         {
@@ -76,23 +72,9 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
         else
         {
             UE_LOG(LogTemp, Warning,
-                TEXT("R13 weapon test rack: Oster world sector was not ready after %d attempts."),
-                SpawnAttemptCount);
+                TEXT("R13 weapon test rack: no deployed player pawn after %d attempts."), SpawnAttemptCount);
         }
         return;
-    }
-
-    // Put the complete test rack beside the actual Team One base spawn. The compact layout can move that spawn,
-    // so derive the location from the live actor instead of scattering test weapons across unrelated landmarks.
-    FVector BaseSpawn(-64000.0f, 44000.0f, 160.0f);
-    for (TActorIterator<AOCTeamSpawnPoint> It(&World); It; ++It)
-    {
-        AOCTeamSpawnPoint* Spawn = *It;
-        if (Spawn && Spawn->IsBaseSpawn() && Spawn->GetTeamId() == EOCTeam::TeamOne)
-        {
-            BaseSpawn = Spawn->GetActorLocation();
-            break;
-        }
     }
 
     const TSubclassOf<AOCWeaponBase> Classes[WeaponTestCount] =
@@ -109,6 +91,11 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
         AOCWeapon_Tec9::StaticClass(),
     };
 
+    const FVector PawnLocation = PlayerPawn->GetActorLocation();
+    const FVector Forward = PlayerPawn->GetActorForwardVector().GetSafeNormal2D();
+    const FVector Right = PlayerPawn->GetActorRightVector().GetSafeNormal2D();
+    const FVector RackOrigin = PawnLocation + Forward * 360.0f;
+
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
@@ -118,23 +105,23 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
     bool bSpawnedAll = true;
     for (int32 Index = 0; Index < WeaponTestCount; ++Index)
     {
-        // Two clean rows of five, starting about 4 m to the side/front of the spawn point.
+        // Two rows of five, roughly 3.6 m in front of the deployed pawn and spread laterally so pickups do not overlap.
         const int32 Row = Index / 5;
         const int32 Column = Index % 5;
-        const FVector Location = BaseSpawn + FVector(
-            420.0f + static_cast<float>(Row) * 230.0f,
-            -480.0f + static_cast<float>(Column) * 240.0f,
-            120.0f);
+        const float LateralCm = (static_cast<float>(Column) - 2.0f) * 145.0f;
+        const float ForwardCm = static_cast<float>(Row) * 170.0f;
+        const FVector Location = RackOrigin + Right * LateralCm + Forward * ForwardCm + FVector(0.0f, 0.0f, 90.0f);
 
         AOCWeaponBase* Weapon = World.SpawnActor<AOCWeaponBase>(
-            Classes[Index], Location, FRotator::ZeroRotator, SpawnParams);
+            Classes[Index], Location, PlayerPawn->GetActorRotation(), SpawnParams);
         if (!Weapon)
         {
             bSpawnedAll = false;
             break;
         }
 
-        Weapon->DropToWorldServer(Location, FRotator::ZeroRotator);
+        Weapon->Tags.Add(FName(TEXT("R13_WeaponTestRack")));
+        Weapon->DropToWorldServer(Location, PlayerPawn->GetActorRotation());
         SpawnedWeapons.Add(Weapon);
     }
 
@@ -160,6 +147,6 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
 
     bSpawnComplete = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13 weapon test rack spawned beside Team One base: %d/%d weapons after %d attempt(s)."),
+        TEXT("R13 weapon test rack spawned beside deployed player: %d/%d weapons after %d attempt(s)."),
         SpawnedWeapons.Num(), WeaponTestCount, SpawnAttemptCount);
 }
