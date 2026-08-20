@@ -13,6 +13,8 @@ required_files = [
     PRIVATE / "OCR141SilpoDetailSubsystem.cpp",
     PRIVATE / "OCR142SilpoInteriorDetailSubsystem.cpp",
     PRIVATE / "OCR143SilpoFacadeIdentitySubsystem.cpp",
+    PRIVATE / "OCR146CultureHousePhotoModelSubsystem.cpp",
+    PRIVATE / "OCR146LandmarkSeparationSubsystem.cpp",
     PRIVATE / "OCGeoReference.cpp",
     ROOT / "START_HERE.cmd",
     ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd",
@@ -40,10 +42,13 @@ if geo_path.is_file():
         "Museum canonical anchor": "50.948239, 30.883865",
         "Silpo canonical anchor": "50.948833799986254, 30.87572244094098",
         "Stadium canonical anchor": "50.949360, 30.884660",
+        "Culture House Hranovskoho 3 map anchor": "50.948694, 30.881435",
     }
     for label, token in required_geo_tokens.items():
         if token not in geo:
             errors.append(f"{label} missing or changed: {token}")
+    if "FOCGeoReferencePoint FOCGeoReference::CultureHouse()" not in geo:
+        errors.append("dedicated CultureHouse() geo owner is missing")
 
 silpo_path = PRIVATE / "OCR140SilpoPhotoModelSubsystem.cpp"
 if silpo_path.is_file():
@@ -55,6 +60,37 @@ if silpo_path.is_file():
     ):
         if token not in silpo:
             errors.append(f"R14 Silpo ownership token missing: {token}")
+
+culture_path = PRIVATE / "OCR146CultureHousePhotoModelSubsystem.cpp"
+if culture_path.is_file():
+    culture = culture_path.read_text(encoding="utf-8")
+    for token in (
+        "FOCGeoReference::CultureHouse()",
+        'TEXT("R146_CultureHouseAuthoritative")',
+        'TEXT("CultureHouseOster_Hranovskoho3")',
+        "CultureHouseStartupDelaySeconds = 0.28f",
+    ):
+        if token not in culture:
+            errors.append(f"R14.6 Culture House ownership token missing: {token}")
+    if "FOCGeoReference::Museum()" in culture or "FOCGeoReference::Silpo()" in culture:
+        errors.append("Culture House owner references Museum/Silpo geo owners")
+
+separation_path = PRIVATE / "OCR146LandmarkSeparationSubsystem.cpp"
+if separation_path.is_file():
+    separation = separation_path.read_text(encoding="utf-8")
+    for token in (
+        "FOCGeoReference::Museum()",
+        "FOCGeoReference::Silpo()",
+        "FOCGeoReference::CultureHouse()",
+        'Name == TEXT("Buildings")',
+        'Name == TEXT("LandmarkBlocks")',
+        "FOCGeoReference::CultureParkNorth()",
+        "SyntheticParkLinkMid",
+        'ActorHasTag(TEXT("R13_CultureHousePhotoModel"))',
+        'ActorHasTag(TEXT("R13_SilpoPhotoModel"))',
+    ):
+        if token not in separation:
+            errors.append(f"R14.6 separation guard token missing: {token}")
 
 launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
@@ -73,5 +109,6 @@ if errors:
     sys.exit(1)
 
 print("R14 MAIN LOCATION OWNERSHIP: PASS")
-print("Museum, Silpo and Stadium use the current R14 integration tree.")
-print("Legacy R13 Silpo/Culture House photo-model owners are absent.")
+print("Museum, Silpo, Culture House and Stadium are bound to separate current-main site owners.")
+print("Culture House uses Hranovskoho 3 and cannot inherit Museum/Silpo coordinates.")
+print("Legacy R13 Silpo/Culture House photo-model owners are absent and synthetic north-civic map geometry is guarded.")
