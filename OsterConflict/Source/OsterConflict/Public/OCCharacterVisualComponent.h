@@ -31,6 +31,12 @@ public:
     void SetRuntimeProfiles(UOCCharacterVisualProfile* InUA, UOCCharacterVisualProfile* InMasked,
         UOCCharacterVisualProfile* InRangers, UOCCharacterVisualProfile* InInsurgents)
     {
+        if (UASpecialUnitProfile == InUA && MaskedFightersProfile == InMasked &&
+            USRangersProfile == InRangers && InsurgentsProfile == InInsurgents)
+        {
+            return;
+        }
+
         UASpecialUnitProfile = InUA;
         MaskedFightersProfile = InMasked;
         USRangersProfile = InRangers;
