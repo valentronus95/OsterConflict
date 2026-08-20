@@ -93,8 +93,8 @@ if not exist "%LOG_FILE%" (
 
 echo.
 echo [3/3] Inspecting runtime log...
-findstr /I /C:"Fatal error" "%LOG_FILE%" >nul && goto :fatal_runtime
 findstr /I /C:"Cannot replace existing object of a different class" "%LOG_FILE%" >nul && goto :object_collision
+findstr /I /C:"Fatal error" "%LOG_FILE%" >nul && goto :fatal_runtime
 findstr /I /C:"R14.5 museum validation FAILED" "%LOG_FILE%" >nul && goto :museum_failed
 findstr /L /C:"R14.5 museum validation PASS" "%LOG_FILE%" >nul || goto :museum_missing
 
@@ -106,15 +106,8 @@ echo ============================================================
 echo Log: %LOG_FILE%
 echo.
 echo NOTE: visual fidelity, door feel, bullet response and multiplayer behavior
-necho still require human inspection; this script only confirms build/runtime contracts.
+echo still require human inspection; this script only confirms build/runtime contracts.
 exit /b 0
-
-:fatal_runtime
-echo.
-echo ERROR: Fatal runtime error found in museum test log.
-findstr /I /C:"Fatal error" "%LOG_FILE%"
-echo Log: %LOG_FILE%
-exit /b 20
 
 :object_collision
 echo.
@@ -122,6 +115,13 @@ echo ERROR: UObject class/name replacement collision returned.
 findstr /I /C:"Cannot replace existing object of a different class" "%LOG_FILE%"
 echo Log: %LOG_FILE%
 exit /b 21
+
+:fatal_runtime
+echo.
+echo ERROR: Fatal runtime error found in museum test log.
+findstr /I /C:"Fatal error" "%LOG_FILE%"
+echo Log: %LOG_FILE%
+exit /b 20
 
 :museum_failed
 echo.
