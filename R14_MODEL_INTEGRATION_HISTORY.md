@@ -73,21 +73,48 @@
 - `R14_WEAPON_ANIMATION_REQUIREMENTS.md` і `R14_MODEL_REGISTRY.md` синхронізовано з новою code-level матрицею.
 - На прохання користувача локальний Windows UE 5.8 прогін не запускається після кожної паралельної гілки/локації. Compile/runtime/visual/cook перевірку перенесено в один консолідований ноутбучний validation pass після подальшого доопрацювання.
 
+## 2026-08-20 — Stage 2 character production audit
+
+- Підтверджено чотири runtime faction archetypes: `UASpecialUnit`, `MaskedFighters`, `USRangers`, `Insurgents`.
+- Підтверджено, що всі 4 faction-профілі зараз використовують одну production body `/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter` і ті самі FP arms `/Game/QuantumCharacter/Mesh/Modules/SKM_Arms`. Тому вони не позначаються production-distinct лише через різні назви.
+- Підтверджено authoritative gameplay roles у `EOCPlayerRole`: Rifleman, Medic, Engineer, Support.
+- Підтверджено фактичну role→GearClass логіку: Engineer/Support = Heavy, Medic = Standard, Rifleman = seeded 35% Light / 65% Standard.
+- Додано `OCCharacterProductionProfiles.h/.cpp` як code-level registry faction, role та modular production contracts. Усі faction unique flags і role unique flags за замовчуванням `false` до реальної visual approval.
+- Аудит `QuantumCharacter/Mesh` та `Mesh/Modules` виявив 10 корисних modular candidates: no-head body, arms, head, beige vest, drops, holster, jeans, back patch, rolled-up blue shirt, beige cap.
+- `SKM_QuantumCharacter_NoHead` зареєстровано тільки як audited candidate, не як runtime-active replacement.
+- Додано `OCCharacterProductionProfileTests.cpp`: UE automation перевіряє 4 factions, 4 authoritative roles, shared body/arms truth, role gear mapping і 10 audited modules з skeleton/material/LOD validation.
+- Додано `.github/workflows/r14-character-model-contracts.yml` та компактний додатковий `.github/workflows/r14-character-audit-extension.yml` для source-level character contracts.
+- Створено `R14_CHARACTER_MODEL_REQUIREMENTS.md` з окремим Definition of Done для faction/role differentiation.
+
+## 2026-08-20 — character material/texture audit
+
+- Перевірено `QuantumCharacter/Materials` і ключові texture folders.
+- Наявні матеріали включають `M_Bulletproof_Bege`, `M_Drops_Tactical_Bege`, `M_Holster_Hard_Bege`, `M_Cap_Bege`, `M_Shirt_RolledUp_Blue`, `M_Jeasn`, `M_Patches` та базові body/head/arms materials.
+- Bulletproof і Drops мають по одному beige base-color набору плюс normal/ORM; rolled-up shirt має один blue base-color плюс normal/ORM.
+- Отже, у поточному Content немає чесних готових material/camo variants для 4 production-distinct factions. Це не маскується через випадкові tint-и або назви профілів.
+- Для Stage 2 потрібні або нові ліцензовані material variants, або контрольовані material instances, або додаткові modular character assets. Конкретні faction colors/material assignments не затверджуються без UE visual pass.
+- Під час реєстрового оновлення короткочасно було змінено регістр exact path для MAC-10/TEC-9; до подальшої роботи одразу відновлено канонічні `/SKM_Mac10` і `/SKM_Tec9` відповідно до runtime source.
+
 ## 2026-08-20 — ТЗ синхронізовано з реалізацією
 
 - `R14_PRODUCTION_MODELS_TZ.md` оновлено фактичними Stage 0/Stage 1 результатами.
 - У Definition of Done додано окрему вимогу: жоден weapon grip profile не може залишатися `UNCALIBRATED` перед merge.
-- ТЗ тепер прямо посилається на `R14_WEAPON_ANIMATION_REQUIREMENTS.md` і blocking headless weapon runtime gate.
+- ТЗ прямо посилається на `R14_WEAPON_ANIMATION_REQUIREMENTS.md` і blocking headless weapon runtime gate.
+- Stage 2 має окремий `R14_CHARACTER_MODEL_REQUIREMENTS.md`; загальний реєстр тепер містить фактичний faction/role/module/material status.
 
-## CI після Stage 1 infrastructure pass
+## CI / validation policy
 
-- Production model integration contracts: SUCCESS.
-- R14 weapon model contracts: SUCCESS після виправлення реєстру та launcher integration contracts.
-- Додано третій source gate `R14 weapon profile contracts`; його актуальний результат перевіряється після цього history/docs commit.
-- CI тут перевіряє source/contracts. Фактичний UE 5.8 Editor compile, headless runtime gate, grip visual validation і cook/package не позначаються PASS без Windows UE запуску.
+- Stage 1 source gates були зелені після animation/profile infrastructure pass.
+- Stage 2 додав character-specific source gates; їхній актуальний стан перевіряється на новому HEAD після синхронізації history/docs.
+- Source CI не дорівнює UE runtime validation.
+- На прохання користувача фактичний Windows UE 5.8 Editor compile, headless runtime, visual calibration і cook/package не запускаються після кожної паралельної локації/гілки. Вони виконуються одним консолідованим ноутбучним validation pass пізніше.
 
 ## Поточна точка роботи
 
-`Stage 0 — inventory/contracts`: основний weapon/vehicle/content inventory сформований; environment/character detailed inventory ще продовжується.
+`Stage 0 — inventory/contracts`: weapon/vehicle/content inventory сформований значною мірою; character inventory тепер деталізований до faction/role/modules/materials; environment/interior audit ще попереду.
 
-`Stage 1 — weapons`: canonical production visuals оголошені для всіх 11 реалізованих weapon IDs; runtime/headless validation infrastructure, per-weapon grip architecture та code-level animation coverage matrix готові. Без локального UE можна далі безпечно розширювати source contracts, інвентаризувати/підключати тільки реально наявні licensed animation assets і готувати articulated replacement strategy для Remington 870/M249. Windows UE 5.8 compile/runtime/visual calibration + cook виконується одним консолідованим прогоном пізніше; PR #15 до того часу залишається Draft.
+`Stage 1 — weapons`: 11 canonical production visuals, runtime/headless validation infrastructure, per-weapon grip architecture та code-level animation coverage matrix готові на source-рівні. Відсутні authored animations і UE visual calibration залишаються відкритими.
+
+`Stage 2 — characters`: source architecture/inventory/automation стартували й зафіксували реальний стан без фальшивої готовності. Чотири faction-профілі та чотири gameplay-ролі описані в коді, 10 modular candidates проаудитовані, але фактична faction/role visual differentiation ще потребує material/module art pass та пізньої UE visual validation.
+
+PR #15 залишається Draft і не повинен merge-итись у `main` до завершення R14 verification gates.
