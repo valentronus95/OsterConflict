@@ -11,12 +11,14 @@ on:
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
       - 'OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd'
       - 'OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd'
+      - 'OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
   push:
     branches:
       - feat/import-hmmwv-btr4-m2
@@ -29,12 +31,14 @@ on:
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
       - 'OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd'
       - 'OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd'
+      - 'OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
 
 permissions:
   contents: read
@@ -151,6 +155,41 @@ jobs:
                       'FPS transition state is not cleared after restoration')
               require('FMath::Max(0.05f, Weapon->GetReloadDuration())' in fps_cpp,
                       'FPS reload presentation lost its zero-duration guard')
+
+          automation_test_path = Path('OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp')
+          local_validator_path = Path('OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd')
+          require(automation_test_path.is_file(), 'production model UE automation test is missing')
+          require(local_validator_path.is_file(), 'one-click UE 5.8 production validator is missing')
+          if automation_test_path.is_file():
+              automation_test = automation_test_path.read_text(encoding='utf-8')
+              require('OsterConflict.ProductionModels.CanonicalAssets' in automation_test,
+                      'production model automation test name changed unexpectedly')
+              require('production_automation_success.txt' in automation_test,
+                      'production model automation test no longer writes its success sentinel')
+              require('GetStaticMaterials().Num() > 0' in automation_test,
+                      'production model automation test no longer validates material slots')
+              require('GetNumLODs() > 0' in automation_test,
+                      'production model automation test no longer validates render LODs')
+              for canonical in (
+                  '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
+                  '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
+                  '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
+              ):
+                  require(canonical in automation_test, f'automation test no longer checks {canonical}')
+          if local_validator_path.is_file():
+              local_validator = local_validator_path.read_text(encoding='utf-8')
+              require('OsterConflictEditor Win64 Development' in local_validator,
+                      'one-click validator no longer compiles the Editor target')
+              require('Automation RunTest OsterConflict.ProductionModels;Quit' in local_validator,
+                      'one-click validator no longer runs production-model automation tests')
+              require('-ReportExportPath=' in local_validator,
+                      'one-click validator no longer exports the UE automation report')
+              require('production_automation_success.txt' in local_validator,
+                      'one-click validator no longer requires the automation success sentinel')
+              require('/Game/Maps/OsterConflict_Runtime?Mode=Sandbox' in local_validator,
+                      'one-click validator no longer launches the production visual Sandbox map')
+              require('-NoFrontend' in local_validator,
+                      'one-click visual validation can regress into frontend-only mode')
 
           if failures:
               print('Production model contract validation FAILED:')
