@@ -5,7 +5,7 @@ chcp 65001 >nul
 set "PROJECT_DIR=%~dp0"
 set "REPO_DIR=%PROJECT_DIR%.."
 set "ZIP_PATH=%~1"
-set "TARGET_BRANCH=feat/import-hmmwv-btr4-m2"
+set "TARGET_BRANCH=feat/r14-production-models"
 
 if defined ZIP_PATH if not exist "%ZIP_PATH%" set "ZIP_PATH="
 
@@ -134,7 +134,7 @@ if errorlevel 1 (
 
 call "OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 if errorlevel 1 (
-    echo ERROR: Unreal production import failed. Any HMMWV/M2 source commit remains safely on the feature branch.
+    echo ERROR: Unreal production import failed. Any HMMWV/M2 source commit remains safely on the R14 branch.
     echo BTR-4 remains local-only.
     popd
     exit /b 7
@@ -167,7 +167,7 @@ call "OsterConflict\VALIDATE_PRODUCTION_MODELS_UE58.cmd"
 if errorlevel 1 (
     echo.
     echo ERROR: public-safe HMMWV/M2 assets may be committed/pushed, but final UE validation failed.
-    echo BTR-4 remains local-only. Keep PR #12 in Draft and inspect the build/automation report.
+    echo BTR-4 remains local-only. Keep the R14 branch unmerged and inspect the build/automation report.
     popd
     exit /b 13
 )
