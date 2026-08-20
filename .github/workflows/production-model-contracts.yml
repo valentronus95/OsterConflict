@@ -15,6 +15,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
   push:
     branches:
       - feat/import-hmmwv-btr4-m2
@@ -31,6 +33,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
 
 permissions:
   contents: read
@@ -111,6 +115,22 @@ jobs:
           require('EmptyOverrideMaterials()' in btr, 'BTR-4 production visual no longer clears fallback material overrides safely')
           require(runtime_validator.is_file(), 'production vehicle runtime validator cpp is missing')
           require(runtime_validator_h.is_file(), 'production vehicle runtime validator header is missing')
+
+          fps_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp')
+          fps_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h')
+          require(fps_cpp_path.is_file(), 'FPS weapon presentation cpp is missing')
+          require(fps_h_path.is_file(), 'FPS weapon presentation header is missing')
+          if fps_cpp_path.is_file() and fps_h_path.is_file():
+              fps_cpp = fps_cpp_path.read_text(encoding='utf-8')
+              fps_h = fps_h_path.read_text(encoding='utf-8')
+              require('RestorePresentationState' in fps_cpp and 'RestorePresentationState' in fps_h,
+                      'FPS presentation no longer restores transient state on transitions')
+              require('EAnimationMode::AnimationBlueprint' in fps_cpp,
+                      'FPS fallback animation no longer guards authored AnimBlueprint state')
+              require('StateByCharacter.Remove(CharacterKey)' in fps_cpp,
+                      'FPS transition state is not cleared after restoration')
+              require('FMath::Max(0.05f, Weapon->GetReloadDuration())' in fps_cpp,
+                      'FPS reload presentation lost its zero-duration guard')
 
           if failures:
               print('Production model contract validation FAILED:')
