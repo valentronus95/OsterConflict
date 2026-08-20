@@ -122,7 +122,7 @@ for needle in [
     "CANONICAL_REFERENCE_SET",
     "50.94936",
     "30.88466",
-    "exactly one placement owner",
+    "власним placement owner",
 ]:
     require(tz + reference_index, needle, "stadium reference/TZ contract")
 
