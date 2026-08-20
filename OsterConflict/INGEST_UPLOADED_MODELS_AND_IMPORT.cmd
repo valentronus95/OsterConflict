@@ -155,8 +155,21 @@ if errorlevel 1 (
 )
 
 echo.
+echo Running final UE 5.8 build + automation + Sandbox visual validation...
+call "OsterConflict\VALIDATE_PRODUCTION_MODELS_UE58.cmd"
+if errorlevel 1 (
+    echo.
+    echo ERROR: source and Unreal assets were committed/pushed, but final UE validation failed.
+    echo Keep PR #12 in Draft and inspect the build/automation report before merge.
+    popd
+    exit /b 13
+)
+
+echo.
 echo ============================================================
 echo PASS: source + Unreal production assets are verified, committed and pushed.
+echo PASS: Editor build + production automation test passed.
+echo PASS: Sandbox visual validation session launched.
 echo Branch: %TARGET_BRANCH%
 echo ============================================================
 popd
