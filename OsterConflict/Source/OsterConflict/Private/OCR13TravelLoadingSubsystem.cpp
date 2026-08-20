@@ -3,7 +3,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
-#include "UObject/CoreUObjectDelegates.h"
+#include "UObject/UObjectGlobals.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 
