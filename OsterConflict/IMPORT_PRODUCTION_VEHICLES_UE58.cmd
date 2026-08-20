@@ -4,6 +4,7 @@ setlocal EnableExtensions
 set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "PY_SCRIPT=%PROJECT_DIR%Scripts\import_production_vehicle_assets.py"
+set "SUCCESS_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_import_success.txt"
 set "UE_CMD="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" (
@@ -42,6 +43,8 @@ if not exist "%PY_SCRIPT%" (
     exit /b 4
 )
 
+if exist "%SUCCESS_SENTINEL%" del /q "%SUCCESS_SENTINEL%" >nul 2>nul
+
 echo ============================================================
 echo OSTER CONFLICT - PRODUCTION VEHICLE IMPORT
 echo ============================================================
@@ -59,6 +62,25 @@ if not "%RESULT%"=="0" (
     exit /b %RESULT%
 )
 
+rem Do not trust the process exit code alone. Python writes this file only after all three import
+rem tasks report the canonical assets as created/updated and the assets are saved successfully.
+if not exist "%SUCCESS_SENTINEL%" (
+    echo.
+    echo ERROR: Unreal exited with code 0 but the production import success sentinel is missing.
+    echo Treat this as a failed import and inspect the Unreal log.
+    exit /b 5
+)
+
+findstr /L /C:"/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA" "%SUCCESS_SENTINEL%" >nul || goto :bad_sentinel
+findstr /L /C:"/Game/Production/Weapons/M2/SM_M2_Browning" "%SUCCESS_SENTINEL%" >nul || goto :bad_sentinel
+findstr /L /C:"/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" "%SUCCESS_SENTINEL%" >nul || goto :bad_sentinel
+
 echo.
-echo PASS: HMMWV, M2 Browning and BTR-4 production assets imported and saved.
+echo PASS: HMMWV, M2 Browning and BTR-4 production assets imported, verified and saved.
 exit /b 0
+
+:bad_sentinel
+echo.
+echo ERROR: production import success sentinel is incomplete or invalid.
+echo File: %SUCCESS_SENTINEL%
+exit /b 6
