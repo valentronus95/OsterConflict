@@ -1,5 +1,6 @@
 #include "OCR13WeaponVariantSpawnSubsystem.h"
 
+#include "OCAntiArmorLauncher.h"
 #include "OCGameMode.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
@@ -15,7 +16,8 @@ namespace
     // derived from the player's real deployed pawn instead of a guessed team-base coordinate.
     constexpr int32 MaxSpawnAttempts = 180;
     constexpr float SpawnRetryDelaySeconds = 0.35f;
-    constexpr int32 WeaponTestCount = 10;
+    constexpr int32 WeaponTestCount = 11;
+    constexpr int32 WeaponsPerRow = 6;
 }
 
 bool UOCR13WeaponVariantSpawnSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -89,6 +91,7 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
         AOCWeapon_LeverAction::StaticClass(),
         AOCWeapon_MAC10::StaticClass(),
         AOCWeapon_Tec9::StaticClass(),
+        AOCAntiArmorLauncher::StaticClass(),
     };
 
     const FVector PawnLocation = PlayerPawn->GetActorLocation();
@@ -105,11 +108,14 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
     bool bSpawnedAll = true;
     for (int32 Index = 0; Index < WeaponTestCount; ++Index)
     {
-        // Two rows of five, roughly 3.6 m in front of the deployed pawn and spread laterally so pickups do not overlap.
-        const int32 Row = Index / 5;
-        const int32 Column = Index % 5;
-        const float LateralCm = (static_cast<float>(Column) - 2.0f) * 145.0f;
-        const float ForwardCm = static_cast<float>(Row) * 170.0f;
+        // Two compact rows (6 + 5). Every implemented pickup weapon, including the anti-armor launcher, is visible
+        // immediately after deployment without overlapping another pickup or the player's capsule.
+        const int32 Row = Index / WeaponsPerRow;
+        const int32 Column = Index % WeaponsPerRow;
+        const int32 ItemsThisRow = FMath::Min(WeaponsPerRow, WeaponTestCount - Row * WeaponsPerRow);
+        const float RowCenter = (static_cast<float>(ItemsThisRow) - 1.0f) * 0.5f;
+        const float LateralCm = (static_cast<float>(Column) - RowCenter) * 145.0f;
+        const float ForwardCm = static_cast<float>(Row) * 180.0f;
         const FVector Location = RackOrigin + Right * LateralCm + Forward * ForwardCm + FVector(0.0f, 0.0f, 90.0f);
 
         AOCWeaponBase* Weapon = World.SpawnActor<AOCWeaponBase>(
