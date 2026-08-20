@@ -17,6 +17,7 @@ namespace
 {
     constexpr float FacadeEvidenceDelaySeconds = 5.34f;
     const FName FacadeEvidenceTag(TEXT("R13_MuseumFacadeEvidence"));
+    const FName CoarseWindowGrilleName(TEXT("R137Museum_WindowGrilles"));
 
     UMaterialInstanceDynamic* MakeColor(AActor* Owner, UMaterialInterface* Base,
         const FName Name, const FLinearColor& Color)
@@ -41,7 +42,7 @@ namespace
             for (int32 Slot = 0; Slot < Slots; ++Slot) Component->SetMaterial(Slot, Material);
         }
         Component->SetMobility(EComponentMobility::Static);
-        Component->SetCollisionProfileName(TEXT("NoCollision"));
+        Component->SetCollisionProfileName(FName(TEXT("NoCollision")));
         Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
@@ -70,7 +71,7 @@ namespace
             Actor->GetComponents(Components);
             for (UInstancedStaticMeshComponent* Component : Components)
             {
-                if (!Component || Component->GetFName() != TEXT("R137Museum_WindowGrilles")) continue;
+                if (!Component || Component->GetFName() != CoarseWindowGrilleName) continue;
                 Component->SetVisibility(false, true);
                 Component->SetHiddenInGame(true, true);
                 Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
