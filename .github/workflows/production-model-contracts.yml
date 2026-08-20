@@ -79,6 +79,26 @@ jobs:
               'set_editor_property("combine_static_meshes", True)' not in importer,
               'deprecated UE 5.8 combine_static_meshes bool was reintroduced',
           )
+          require('verify_import_task_updated_asset' in importer,
+                  'importer no longer rejects stale pre-existing assets after a failed task')
+          require('imported_object_paths' in importer,
+                  'importer no longer verifies the task actually created/updated the canonical object')
+          require('production_import_success.txt' in importer,
+                  'Python importer no longer writes the explicit success sentinel')
+          require('SUCCESS_SENTINEL.write_text' in importer,
+                  'Python importer no longer writes sentinel only after successful completion')
+
+          import_cmd = Path('OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd').read_text(encoding='utf-8')
+          require('production_import_success.txt' in import_cmd,
+                  'Unreal import launcher no longer checks the Python success sentinel')
+          require('if not exist "%SUCCESS_SENTINEL%"' in import_cmd,
+                  'Unreal import launcher trusts process exit code without sentinel validation')
+          for canonical in (
+              '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA',
+              '/Game/Production/Weapons/M2/SM_M2_Browning',
+              '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus',
+          ):
+              require(canonical in import_cmd, f'Unreal import sentinel no longer validates {canonical}')
 
           ingest = Path('OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd').read_text(encoding='utf-8')
           require('set "TARGET_BRANCH=feat/import-hmmwv-btr4-m2"' in ingest, 'ingest is not locked to the feature branch')
