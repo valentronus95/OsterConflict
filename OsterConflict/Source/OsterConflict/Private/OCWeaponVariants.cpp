@@ -1,5 +1,8 @@
 #include "OCWeaponVariants.h"
 
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+
 namespace
 {
 FOCWeaponTuning BasePreset(const TCHAR* Id, const TCHAR* Name, EOCWeaponClass WeaponClass,
@@ -24,6 +27,47 @@ AOCWeapon_AssaultRifle::AOCWeapon_AssaultRifle()
     T.InitialReserveAmmo = 120; T.MaxReserveAmmo = 240; T.ReloadDuration = 2.15f;
     T.AudioLoudnessScale = 1.00f;
     ConfigureBuiltInTuning(T);
+}
+
+void AOCWeapon_AssaultRifle::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UStaticMesh* ProductionAK = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
+    if (!ProductionAK || !WeaponMesh)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("AK-47 production mesh unavailable; keeping source-only assault-rifle proxy."));
+        return;
+    }
+
+    // The base class deliberately builds a source-only fallback so the weapon is never invisible.
+    // Once the production asset is available, hide those helper primitives and restore the real
+    // imported mesh with its authored material slots.
+    TArray<UStaticMeshComponent*> StaticMeshComponents;
+    GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+    for (UStaticMeshComponent* Component : StaticMeshComponents)
+    {
+        if (Component && Component != WeaponMesh)
+        {
+            Component->SetVisibility(false, true);
+            Component->SetHiddenInGame(true, true);
+        }
+    }
+
+    WeaponMesh->SetStaticMesh(ProductionAK);
+    WeaponMesh->SetRelativeLocation(FVector::ZeroVector);
+    WeaponMesh->SetRelativeRotation(FRotator::ZeroRotator);
+    WeaponMesh->SetRelativeScale3D(FVector(1.0f));
+    WeaponMesh->SetHiddenInGame(false, true);
+    WeaponMesh->SetVisibility(true, true);
+    for (int32 MaterialIndex = 0; MaterialIndex < WeaponMesh->GetNumMaterials(); ++MaterialIndex)
+    {
+        WeaponMesh->SetMaterial(MaterialIndex, nullptr);
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("Assault rifle now uses /Game/AK-47/Mesh/SM_AK-47."));
 }
 
 AOCWeapon_SMG::AOCWeapon_SMG()
