@@ -19,12 +19,12 @@
 | MAC-10 | `/Game/R13/Weapons/Stein/Mac10/SKM_Mac10` | Skeletal | runtime code wired; animation coverage pending |
 | TEC-9 | `/Game/R13/Weapons/Stein/Tec9/SKM_Tec9` | Skeletal | runtime code wired; animation coverage pending |
 | Lever Action .45-70 | `/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction` | Skeletal | runtime code wired; animation coverage pending |
-| Anti-Armor Launcher (`OC_RPG1`) | **MISSING** | Missing production mesh | gameplay launcher class exists, but no canonical production visual is wired; R14 runtime weapon validation must remain FAIL until a licensed model is sourced/imported and attached |
+| Anti-Armor Launcher (`OC_RPG1`) | `/Game/R13/Weapons/rocketlauncherModern` | Static | Kenney CC0 source + imported uasset verified; runtime production visual wired; canonical/runtime automation added; grip/visual validation pending |
 | M2 Browning visual | `/Game/Production/Weapons/M2/SM_M2_Browning` | Static | source/import path verified; mounted by gun-truck runtime code; visual validation pending |
 
 Current first-person presentation provides generic ADS, recoil and reload offsets. Explicit model animation sequences are currently wired for AK-47 only. R14 therefore treats all other rows as incomplete until their compatible animation coverage and hand alignment are validated.
 
-Current equipped-weapon attachment also uses one shared camera-space base transform for every weapon class (`X=38, Y=12, Z=-14`, zero rotation). R14 treats this as a presentation defect: AK-47, pistol, M700, MAC-10 and other weapons require individual calibrated first-person grip profiles rather than one universal transform.
+Current equipped-weapon attachment previously relied on one shared camera-space base transform for every weapon class (`X=38, Y=12, Z=-14`, zero rotation). R14 now routes each implemented weapon ID through its own explicit `FOCFirstPersonWeaponProfile`. All profiles intentionally preserve the legacy baseline and remain `UNCALIBRATED` until the exact mesh is visually approved in UE 5.8; no fake per-weapon coordinates are being guessed.
 
 ## Characters
 
@@ -58,6 +58,7 @@ Source/license notes:
 - HMMWV source metadata requires attribution.
 - M2 source licensing metadata is inconsistent; attribution is preserved until re-verification.
 - BTR-4 source has no verified redistribution license and remains development-only.
+- Kenney Weapon Pack source includes `LICENSE_KENNEY_CC0.txt`, explicitly Creative Commons Zero (CC0); the imported `rocketlauncherModern` is therefore acceptable for the R14 production launcher visual.
 
 ## Environment / interiors
 
