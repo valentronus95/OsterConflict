@@ -1,0 +1,128 @@
+name: R14 character model contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/r14-character-model-contracts.yml'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterProductionProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterProductionProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCCharacterProductionProfileTests.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionCharacterAssetsSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualTypes.h'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTeamTypes.h'
+      - 'R14_CHARACTER_MODEL_REQUIREMENTS.md'
+      - 'R14_MODEL_REGISTRY.md'
+  push:
+    branches:
+      - feat/r14-production-models
+    paths:
+      - '.github/workflows/r14-character-model-contracts.yml'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterProductionProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterProductionProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCCharacterProductionProfileTests.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionCharacterAssetsSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualTypes.h'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTeamTypes.h'
+      - 'R14_CHARACTER_MODEL_REQUIREMENTS.md'
+      - 'R14_MODEL_REGISTRY.md'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Validate current character model contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import sys
+
+          failures = []
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          header = Path('OsterConflict/Source/OsterConflict/Public/OCCharacterProductionProfiles.h').read_text(encoding='utf-8')
+          profiles = Path('OsterConflict/Source/OsterConflict/Private/OCCharacterProductionProfiles.cpp').read_text(encoding='utf-8')
+          tests = Path('OsterConflict/Source/OsterConflict/Private/Tests/OCCharacterProductionProfileTests.cpp').read_text(encoding='utf-8')
+          runtime_assets = Path('OsterConflict/Source/OsterConflict/Private/OCProductionCharacterAssetsSubsystem.cpp').read_text(encoding='utf-8')
+          runtime_visual = Path('OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp').read_text(encoding='utf-8')
+          visual_types = Path('OsterConflict/Source/OsterConflict/Public/OCCharacterVisualTypes.h').read_text(encoding='utf-8')
+          team_types = Path('OsterConflict/Source/OsterConflict/Public/OCTeamTypes.h').read_text(encoding='utf-8')
+          requirements = Path('R14_CHARACTER_MODEL_REQUIREMENTS.md').read_text(encoding='utf-8')
+
+          for token in ('FOCCharacterProductionProfile', 'FOCCharacterRoleProductionProfile',
+                        'bFactionUniqueBody = false', 'bFactionUniqueArms = false',
+                        'bRoleUniqueVisual = false', 'OCGetDeclaredCharacterProductionModules',
+                        'OCGetDeclaredCharacterRoleProductionProfiles'):
+              require(token in header, f'character profile contract missing: {token}')
+
+          for faction in ('UASpecialUnit', 'MaskedFighters', 'USRangers', 'Insurgents'):
+              require(faction in visual_types, f'visual faction enum missing {faction}')
+              require(faction in profiles, f'production faction profile missing {faction}')
+              require(faction in tests, f'character automation missing faction {faction}')
+
+          for role in ('Rifleman', 'Medic', 'Engineer', 'Support'):
+              require(role in team_types, f'authoritative gameplay role missing {role}')
+              require(f'EOCPlayerRole::{role}' in profiles, f'production role profile missing {role}')
+              require(f'EOCPlayerRole::{role}' in tests, f'character automation missing role {role}')
+
+          body = '/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter.SKM_QuantumCharacter'
+          arms = '/Game/QuantumCharacter/Mesh/Modules/SKM_Arms.SKM_Arms'
+          no_head = '/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter_NoHead.SKM_QuantumCharacter_NoHead'
+          require(body in profiles and body in runtime_assets, 'verified QuantumCharacter body contract changed')
+          require(arms in profiles and arms in runtime_assets, 'verified QuantumCharacter arms contract changed')
+          require(no_head in profiles, 'modular no-head body disappeared from audited registry')
+
+          require('EOCPlayerRole::Medic' in runtime_visual and
+                  'EOCPlayerRole::Engineer' in runtime_visual and
+                  'EOCPlayerRole::Support' in runtime_visual,
+                  'runtime role visual mapping lost explicit non-Rifleman roles')
+          require('EOCCharacterGearClass::Light' in runtime_visual and
+                  'EOCCharacterGearClass::Standard' in runtime_visual and
+                  'EOCCharacterGearClass::Heavy' in runtime_visual,
+                  'runtime visual gear classes are incomplete')
+
+          module_paths = (
+              no_head,
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Arms.SKM_Arms',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Head.SKM_Head',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Bulletproof_Bege.SKM_Bulletproof_Bege',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Drops_1_Bege.SKM_Drops_1_Bege',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Holster_Hard_Bege.SKM_Holster_Hard_Bege',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Jeans.SKM_Jeans',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Patch_Back.SKM_Patch_Back',
+              '/Game/QuantumCharacter/Mesh/Modules/SKM_Shirt_RolledUp_Blue.SKM_Shirt_RolledUp_Blue',
+              '/Game/QuantumCharacter/Mesh/Modules/SM_Cap_Bege.SM_Cap_Bege',
+          )
+          for path in module_paths:
+              require(path in profiles, f'audited character module missing: {path}')
+
+          require('Modules.Num() >= 10' in tests, 'UE automation no longer covers all 10 audited modules')
+          require('GetSkeleton()' in tests, 'UE automation lost skeleton validation')
+          require('GetLODNum() > 0' in tests, 'UE automation lost skeletal LOD validation')
+          require('GetNumLODs() > 0' in tests, 'UE automation lost static LOD validation')
+          require('BodyNoHead is only an audited candidate' in tests,
+                  'UE automation no longer protects no-head candidate status')
+          require('Support visual is not yet falsely declared role-unique' in tests,
+                  'UE automation no longer records Engineer/Support role collision')
+
+          require('4/4 faction profiles production-distinct' in requirements,
+                  'Stage 2 faction Definition of Done was weakened')
+          require('Engineer і Support більше не виглядають одним і тим самим Heavy preset' in requirements,
+                  'Stage 2 Engineer/Support differentiation requirement was weakened')
+
+          if failures:
+              print('R14 character model contracts FAILED:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('R14 character model contracts PASS')
