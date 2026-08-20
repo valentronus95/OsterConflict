@@ -7,33 +7,42 @@ Scope owner: Silpo location only
 
 ## 1. Мета
 
-Створити окрему впізнавану, прохідну та географічно прив'язану 3D-реконструкцію остерського «Сільпо» з прилеглою ділянкою. Перший етап має дати правильну коробку будівлі, фасад, силует, вхід, колізію та базовий інтер'єр. Наповнення товаром, дрібний декор і брендова поліграфія виконуються окремим наступним проходом.
+Створити впізнавану, прохідну та географічно прив'язану 3D-реконструкцію остерського «Сільпо» з безпосередньою прилеглою територією. Модель має відповідати конкретному магазину з референсів, а не бути типовим супермаркетом.
 
-Модель не повинна перетворюватися на типовий сучасний магазин «за мотивами». Поточні фото конкретного остерського об'єкта є головним візуальним джерелом.
+Поточна ціль гілки:
+
+- правильний силует і фасад;
+- реальний вхід у будівлю;
+- робочі інтерактивні двері;
+- базовий інтер'єр без товарного наповнення;
+- пусті полиці, каси, холодильне обладнання, острів овочів/фруктів;
+- базове магазинне освітлення;
+- найближчий вуличний контекст;
+- фото-референси збережені разом із ТЗ у цій гілці.
 
 ## 2. Ізоляція гілки
 
 Уся робота цього ТЗ виконується тільки в `silpo-oster`.
 
-Попередній набір фотографій музею не належить до цього ТЗ, не є джерелом для «Сільпо» і не повинен потрапляти до каталогу Silpo references.
+У межах цієї гілки не змінювати незалежні локації, зброю, транспорт, ботів, меню/UI та глобальні gameplay-системи, якщо зміна не потрібна безпосередньо для роботи «Сільпо».
 
-Не змінювати в межах цієї гілки музей, стадіон, зброю, транспорт, ботів, меню або інші незалежні системи, якщо зміна не потрібна безпосередньо для роботи «Сільпо».
+До `main` цей location pass не переноситься до окремого етапу перевірки.
 
-## 3. Ієрархія джерел
+## 3. Джерела та рівні впевненості
 
-Порядок пріоритету:
+Пріоритет доказів:
 
-1. Поточний користувацький фотонабір «Сільпо» з цього чату: зовнішні та внутрішні ракурси.
-2. Офіційна адреса магазину «Сільпо».
-3. Публічні картографічні дані для геоприв'язки, орієнтації ділянки та сусідніх об'єктів.
-4. Публічні фото/панорами конкретно цього магазину.
-5. Лише після цього — обережна інтерполяція невидимих частин.
+1. 20 поточних користувацьких фото конкретного остерського «Сільпо».
+2. Офіційна сторінка магазину «Сільпо».
+3. Публічна картографічна адресна прив'язка.
+4. Публічні містобудівні матеріали для контексту району.
+5. Обережна інтерполяція лише тих частин, які не видно на фото.
 
-Заборонено видавати приблизний розмір, реконструйований план або припущення за точне вимірювання.
+Не видавати приблизні розміри, реконструйований план або орієнтацію фасаду за точне кадастрове/інвентаризаційне вимірювання.
 
 ## 4. Перевірена геолокація
 
-Офіційний сайт «Сільпо» підтверджує адресу:
+Офіційна адреса:
 
 `м. Остер, вул. Хмельницького Богдана, 54`
 
@@ -48,242 +57,235 @@ Visicom address-center:
 Public reference:
 `https://maps.visicom.ua/i/ADR3KJXJOBMR8PFNND`
 
-Visicom also returns an address bounding envelope:
+Visicom address envelope:
 
 - west/south: `30.875477200868417, 50.94875909434981`
 - east/north: `30.875857188233603, 50.94896906215886`
 
-This envelope is NOT treated as a cadastral building footprint. It is only a location confidence check.
+Цей envelope використовується тільки як адресний контроль і не вважається кадастровим footprint будівлі.
 
-Using the project WGS84 -> Unreal tangent-plane mapping with the museum origin (`50.948239, 30.883865`), the Silpo address center resolves approximately to:
+Project WGS84 -> Unreal mapping дає приблизно:
 
-- Unreal X: `-57107 cm` (west of the project origin)
-- Unreal Y: `+6621 cm` (north of the project origin)
-- Unreal Z: terrain level
+- Unreal X: `-57107 cm`;
+- Unreal Y: `+6621 cm`;
+- Unreal Z: terrain level.
 
-The runtime implementation must call `FOCGeoReference::Silpo()` instead of duplicating raw coordinates in multiple systems.
+Єдина runtime-точка істини: `FOCGeoReference::Silpo()`.
 
-## 5. Що вже було в проєкті до цієї гілки
+## 5. Візуальні висновки з фото
 
-Audit result:
+Фото підтверджують такі ключові ознаки:
 
-- окремого `Silpo`, `Сільпо` або `Supermarket` actor/subsystem у `main` не знайдено;
-- центральний Остер зараз формується `AOCWorldSectorOster` із source-only доріг, житлових блоків, рослинності та landmark proxy geometry;
-- у районі адреси «Сільпо» немає окремої photo-driven production reconstruction;
-- у проєкті вже є робочий replicated `AOCInteractableDoor`, тому для входу не створюється другий несумісний механізм дверей;
-- музей уже має окремий photo-model/replacement pattern, але Silpo pass має бути незалежним і не видаляти музейні компоненти.
+- довга одноповерхова світло-персикова/бежева будівля;
+- фасад із симетричним ступінчастим парапетом;
+- велика фірмова вивіска у верхній центральній частині фасаду;
+- громадський вхід розташований біля лівого краю довгого фасаду, а не по центру;
+- невеликий виступаючий вхідний вузол/навіс і піднятий поріг;
+- більша частина довгого фасаду глуха та зайнята рекламними панелями;
+- перед фасадом звичайний асфальтований майданчик з припаркованими автомобілями;
+- виразної постійної розмітки паркомісць на референсах не видно;
+- біля правого краю будівлі є стовп/повітряні комунікації;
+- поруч із боковою частиною видно дрібний ринковий/вуличний торговий контекст;
+- всередині низька підвісна плиткова стеля;
+- світлі квадратні підлогові плитки;
+- довгі ряди звичайних магазинних стелажів;
+- дерев'яний/деревоподібний низький острів овочів/фруктів;
+- довгі холодильні прилавки/вітрини;
+- компактна багатокасова зона;
+- над касами присутні невеликі нумеровані маркери;
+- освітлення звичайне лінійне магазинне, без декоративної кольорової сцени.
 
-Тому Silpo implementation створюється як окремий world subsystem із вузьким cleanup radius навколо Silpo anchor.
+## 6. Геометрія R14.0 — базовий photo model
 
-## 6. Геометрія будівлі — Phase 1
+Runtime owner:
 
-Поточна runtime-модель використовує photo-proportioned перший блок-аут:
+- `UOCR140SilpoPhotoModelSubsystem`
+- actor tag: `R140_SilpoPhotoModel`
+- identity tag: `SilpoOster_BohdanaKhmelnytskoho54`
+
+Поточний blockout:
 
 - приблизна довжина: `30.0 m`;
 - приблизна глибина: `17.5 m`;
-- висота стін: `4.3 m`;
-- низький похилий дах;
-- довгий одноповерховий торговий об'єм;
-- центральний/майже центральний вхідний проріз;
-- фасад із цегляно-бежевою/приглушеною старою кладкою;
-- темний дах;
-- прямокутні вікна;
-- видимі решітки на бокових/задніх вікнах там, де це підтверджують фото;
-- невеликий навіс над входом;
-- бордово-марунова фасадна плашка `СІЛЬПО`;
-- тверде покриття перед входом.
+- висота основної стіни: `3.9 m`;
+- low/flat roof за парапетом;
+- ступінчастий фасадний парапет;
+- громадський вхід: `EntranceCenterX = -1315 cm`;
+- ширина вхідного прорізу: `140 cm`;
+- висота вхідного прорізу: `245 cm`.
 
-Ці 30.0 x 17.5 x 4.3 m є стартовими пропорціями, а не заявою про інвентаризаційні розміри. Вони мають коригуватися тільки після надійного footprint/планового джерела або фотограмметричної звірки.
+Ці розміри є gameplay/photo blockout і можуть коригуватися після надійнішого footprint або вимірювального джерела.
 
-## 7. Фасад
+## 7. Фасад R14.0
 
-Обов'язкові ознаки першого візуального проходу:
+Реалізовано:
 
-- не робити скляний сучасний супермаркет;
-- зберегти просту стару одноповерхову коробку;
-- передати характер кладки, карнизної лінії, віконних прорізів і невеликого входу;
-- фасадна вивіска повинна читатися з дороги;
-- вікна мають бути частиною конкретного ритму фасаду, а не випадковими повтореннями;
-- зовнішня геометрія не повинна блокувати фізичний вхід;
-- масштаб дверей, вікон і висоти стелі перевіряється відносно капсули гравця.
+- світлий штукатурний фасад;
+- темний нижній цоколь;
+- ступінчастий парапет;
+- центральну sign-zone;
+- крупну `СІЛЬПО` вивіску як source-only geometry/TextRender placeholder;
+- рекламні панелі вздовж фасаду;
+- невеликий навіс і поріг біля входу;
+- бокові/задні прорізи тільки там, де вони не суперечать основним фото;
+- локальний cleanup generic building/fence/tree proxy geometry навколо site anchor;
+- дороги і sidewalks не є ціллю cleanup.
 
 ## 8. Вхід і двері
 
-«Сільпо» має бути реально прохідним.
+Публічний вхід повинен бути реально прохідним.
 
-Вхідний проріз у стіні створюється геометрично, а не текстурою.
+Поточний контракт:
 
-Перший етап використовує дві окремі replicated `AOCInteractableDoor`:
+- один головний вхід, як на фото;
+- реальний геометричний проріз у front wall;
+- один replicated `AOCInteractableDoor`;
+- actor tag: `R140_SilpoEntranceDoor`;
+- identity tag: `SilpoEntranceMain`;
+- двері спавняться лише при `World.GetNetMode() != NM_Client`;
+- interaction використовує існуючу систему `E`;
+- стан open/closed реплікується існуючим door actor;
+- дверне полотно має фізичну колізію.
 
-- interaction prompt через існуючу систему `E`;
-- серверна зміна стану;
-- реплікація відкрито/закрито;
-- фізична колізія дверного полотна;
-- doorway не повинен перекриватися shell geometry;
-- двері спавняться тільки authoritative world, щоб клієнт не створював дубль.
+## 9. Інтер'єр R14.0
 
-## 9. Інтер'єр — Phase 1
+Поточний gameplay-ready interior pass:
 
-Мета зараз — не повністю наповнений магазин, а правильний прохідний торговий простір.
-
-Обов'язково:
-
-- проста підлога;
-- невисока звичайна стеля;
-- базове нейтральне магазинне світло;
-- 6 простих двосторонніх gondola shelf lines;
+- базова підлога;
+- 6 довгих порожніх shelf runs;
 - полиці пусті;
-- 4 звичайні касові місця;
-- прості wall-cooler/refrigeration shells уздовж задньої стіни;
-- мінімальні back-of-house utility markers;
-- нормальні проходи між рядами;
-- жодних випадкових коробок/меблів, що перекривають навігацію.
+- 4 касові місця;
+- порожній produce island;
+- rear wall cooler/refrigeration shells;
+- мінімальні service/back-of-house markers;
+- широкі проходи без випадкових блокуючих об'єктів;
+- 15 runtime point lights;
+- геометричні лінійні ceiling fixtures.
 
-Не робити на цьому етапі:
+Товарне наповнення, цінники, дрібна брендова реклама та NPC не входять у поточний pass.
 
-- повний асортимент товарів;
-- дрібні цінники;
-- брендовану рекламу кожної категорії;
-- складський inventory simulation;
-- касову економіку;
-- NPC-покупців.
+## 10. R14.1 — photo detail pass
 
-## 10. Освітлення
+Runtime owner:
 
-Перший pass:
+- `UOCR141SilpoDetailSubsystem`
+- actor tag: `R141_SilpoPhotoDetails`
 
-- рівномірне нейтральне біле магазинне світло;
+R14.1 додає поверх базової моделі без руйнування R14.0:
+
+- низьку suspended ceiling plane;
+- grid підвісної стелі;
+- уточнення trim біля входу;
+- тонкі cap-елементи ступінчастого парапету;
+- кронштейни зовнішніх фасадних світильників;
+- просту checkout queue/cart-bay geometry;
+- 4 overhead checkout number signs;
+- один utility pole біля правого краю фасаду;
+- низькодетальний immediate side-market edge;
+- asphalt correction поверх ранньої умовної парковочної розмітки, оскільки на фото майданчик читається як звичайний зношений асфальт.
+
+Цей pass не додає товарів і не намагається симулювати повноцінний магазинний inventory.
+
+## 11. Освітлення
+
+Вимоги:
+
+- нейтральне біле магазинне світло;
 - без декоративної кольорової підсвітки;
-- без темних провалів у проходах;
-- світильники не повинні створювати надмірний shadow cost;
-- фінальна форма LED/люмінесцентних світильників буде окремим art pass.
+- не залишати темні провали між рядами;
+- runtime-created point lights мають бути `Movable`;
+- shadow cost для внутрішніх базових lights мінімізується;
+- геометрія світильників повинна читатися як довгі лінійні fixtures під підвісною стелею.
 
-## 11. Прилегла територія
+## 12. Безпосередня територія
 
-Моделювати тільки те, що стосується Silpo site і підтверджується фото/картою:
+Моделюється тільки photo-supported immediate context:
 
-- передній paved forecourt / підхід до входу;
-- край вулиці та реальний напрямок підходу;
-- бокова і задня смуга ділянки;
-- місця дерев, стовпів, дротів, огорож/сусідніх будівель — після звірки конкретних ракурсів;
-- service/back-of-house зона без вигаданого великого loading dock, якщо його немає на фото.
+- підхід до входу;
+- асфальтований майданчик;
+- вузька смуга рослинності біля фасаду;
+- utility pole біля правої сторони;
+- найпростіший side-market edge як контекст масштабу;
+- зв'язок із наявною дорожньою мережею карти без її видалення або перебудови.
 
-Source cleanup не має видаляти дороги або великі міські системи. Дозволено прибирати лише generic building/fence/tree proxies, що фізично конфліктують із Silpo footprint.
+Детальні сусідні будівлі не входять у цей branch без власного reference pass.
 
-## 12. Сусідні об'єкти та міський контекст
+## 13. Публічні плани/схеми
 
-Публічні джерела підтверджують комерційний контекст тієї ж вулиці, зокрема аптеку біля №50Г та інші невеликі точки на Богдана Хмельницького. Вони є орієнтирами для вуличної щільності, але НЕ входять у Silpo branch як окремі detailed buildings без власного reference pass.
+Під час web-audit підтверджено існування містобудівного детального плану території в Острі, обмеженої вулицями Б. Хмельницького, Будівельників та ринковим містечком, для будівництва торговельного центру.
 
-Головний принцип: не перетворювати ділянку на ізольовану коробку посеред порожньої карти, але й не вигадувати точний сусідній фасад без джерела.
-
-## 13. План/схеми
-
-Під час первинного web-audit знайдено надійні адресу і координатну прив'язку, але не знайдено індексованого офіційного поверхового плану саме будівлі «Сільпо» за адресою Остер, Богдана Хмельницького 54.
+Це корисний контекст для району, але на поточному етапі не доведено, що його графічна частина є точним поверховим або технічним планом існуючої будівлі магазину за №54.
 
 Тому:
 
-- не вигадувати «офіційний план»;
-- поточний interior layout є gameplay blockout, побудованим за фото;
-- якщо буде знайдено публічний технічний/кадастровий/орендний план саме цієї будівлі, його геометрія має замінити приблизний blockout;
-- будь-який новий plan source додається до reference manifest із URL, датою доступу та типом доказу.
+- не називати реконструйований interior layout «офіційним планом»;
+- не копіювати приблизні межі як кадастровий footprint;
+- якщо буде знайдено публічний plan/technical drawing саме цієї будівлі, він має отримати окремий запис у reference manifest;
+- після такого джерела допускається корекція `SilpoYawDegrees`, footprint і внутрішніх пропорцій.
 
-## 14. Reference set
+## 14. Photo reference pack
 
-Поточний Silpo photopack: 20 зображень у поточному повідомленні користувача, зовнішні та внутрішні ракурси.
+У гілці збережено 20 окремих review copies:
 
-Музейні фото з попереднього повідомлення: `EXCLUDED`.
+1. `Photos/01_exterior_facade_front.jpg`
+2. `Photos/02_interior_entry_vertical.jpg`
+3. `Photos/03_interior_produce_aisle.jpg`
+4. `Photos/04_exterior_facade_sign_close.jpg`
+5. `Photos/05_interior_beverage_shelf.jpg`
+6. `Photos/06_interior_refrigerated_counter.jpg`
+7. `Photos/07_interior_checkout_zone.jpg`
+8. `Photos/08_exterior_entrance_sidewalk_oblique.jpg`
+9. `Photos/09_exterior_entrance_corner.jpg`
+10. `Photos/10_exterior_side_wall_posters.jpg`
+11. `Photos/11_interior_main_aisles.jpg`
+12. `Photos/12_exterior_entrance_close.jpg`
+13. `Photos/13_exterior_facade_across_road.jpg`
+14. `Photos/14_exterior_facade_market_side.jpg`
+15. `Photos/15_exterior_side_market_activity.jpg`
+16. `Photos/16_exterior_entrance_porch_close.jpg`
+17. `Photos/17_context_opposite_building_annotation.jpg`
+18. `Photos/18_exterior_side_facade_warm_light.jpg`
+19. `Photos/19_context_facade_street_wide.jpg`
+20. `Photos/20_context_bohdana_khmelnytskoho_street.jpg`
 
-Планована структура репозиторію:
+Repository path:
 
 `OsterConflict/SourceReferences/Locations/Silpo_Oster/Photos/`
 
-Naming convention:
+Ці файли є reference/review assets і не імпортуються в Unreal `Content` як gameplay textures.
 
-- `SILPO_EXT_FRONT_01.*`
-- `SILPO_EXT_FRONT_02.*`
-- `SILPO_EXT_SIDE_LEFT_01.*`
-- `SILPO_EXT_SIDE_RIGHT_01.*`
-- `SILPO_EXT_REAR_01.*`
-- `SILPO_EXT_APPROACH_01.*`
-- `SILPO_INT_ENTRANCE_01.*`
-- `SILPO_INT_CHECKOUTS_01.*`
-- `SILPO_INT_AISLES_01.*`
-- `SILPO_INT_AISLES_02.*`
-- `SILPO_INT_COOLERS_01.*`
-- інші кадри — за фактичним вмістом після binary ingest.
+## 15. Acceptance criteria перед merge
 
-Reference image binaries мають зберігатися окремо від runtime `Content` і не імпортуватися автоматично як Unreal assets.
+Обов'язково перевірити в UE 5.8:
 
-## 15. Реалізація в коді
+- проєкт компілюється без C++ errors;
+- `OsterConflict_Runtime` запускається без crash;
+- R14.0 actor з'являється біля `FOCGeoReference::Silpo()`;
+- R14.1 detail actor з'являється після базової моделі;
+- фасад читається з дороги як конкретний магазин із фото;
+- вхід знаходиться біля лівого краю фасаду;
+- doorway фізично не перекритий wall/trim geometry;
+- одна public entrance door відкривається і закривається;
+- клієнт не створює duplicate door;
+- всередину можна зайти FPS-персонажем;
+- між shelf runs можна пройти;
+- касова зона не блокує головний маршрут;
+- suspended ceiling не перетинає player camera;
+- basic lights працюють у runtime;
+- дорога біля site не зникає після cleanup;
+- generic proxy building не стирчить крізь Silpo shell;
+- 20 photo reference files присутні в гілці;
+- `python OsterConflict/Tools/validate_silpo_location.py` повертає PASS.
 
-### Geo contract
+## 16. Наступні art passes
 
-- `FOCGeoReference::Silpo()`
-- single WGS84 source of truth
+Після compile/PIE validation:
 
-### Runtime model
-
-- `UOCR140SilpoPhotoModelSubsystem`
-- запускається тільки для `OsterConflict_Runtime` Game/PIE world;
-- пропускає frontend-only session;
-- локально прибирає conflicting source proxies;
-- створює enterable Silpo shell;
-- створює sparse interior;
-- authoritative world створює replicated entrance doors.
-
-### Tags
-
-- `R140_SilpoPhotoModel`
-- `SilpoOster_BohdanaKhmelnytskoho54`
-- `R140_SilpoEntranceDoor`
-
-## 16. Acceptance criteria
-
-Географія:
-
-- модель використовує `FOCGeoReference::Silpo()`;
-- центр моделі не задається випадковим FVector;
-- відстань runtime root від computed Silpo local anchor не перевищує 1 cm;
-- жодна Silpo-specific зміна не переміщує музей/стадіон.
-
-Exterior:
-
-- будівля впізнається за силуетом і фасадом без HUD-підпису;
-- пропорції не виглядають як generic cube;
-- вхід і вивіска читаються з переднього підходу;
-- дах, фасад і віконний ритм узгоджені з фото.
-
-Interior:
-
-- гравець проходить через двері всередину;
-- немає invisible wall у doorway;
-- полиці і каси мають collision;
-- проходи залишаються прохідними;
-- базове освітлення працює;
-- немає товарного clutter у Phase 1.
-
-Networking:
-
-- двері створює сервер/standalone world;
-- door state реплікується;
-- клієнт не створює duplicate entrance doors.
-
-Regression:
-
-- frontend не запускає Silpo model pass;
-- runtime map завантажується без class/name collision;
-- музейні R13.7 компоненти не ховаються Silpo cleanup;
-- source cleanup не торкається `Roads`/`Sidewalks`.
-
-## 17. Наступні підетапи
-
-1. Geo/site audit — DONE for address anchor; footprint bearing remains non-survey.
-2. Branch isolation — DONE.
-3. Enterable shell — IMPLEMENTED first pass.
-4. Facade/photo proportions — IMPLEMENTED first pass, requires in-engine visual comparison.
-5. Sparse shelves/checkouts/lights — IMPLEMENTED first pass.
-6. Correct binary photo reference ingest — pending only because the current Silpo inline images are not exposed to the repository connector as downloadable file bytes in this session; do not substitute the mounted museum images.
-7. Satellite/plan footprint refinement — pending reliable public footprint/plan source.
-8. UE 5.8 compile + PIE visual validation — pending CI/local build run.
-9. Detail pass: exact window spacing, signage, utility boxes, poles/wires, landscaping, rear service area.
-10. Product/detail population — separate future pass.
+1. точніше звірити yaw і footprint по надійному top-down source;
+2. уточнити пропорції вхідного вузла;
+3. замінити placeholder sign geometry на точніший logo mesh/material без runtime-залежності від фото;
+4. зробити реалістичніші дверні/віконні рами;
+5. деталізувати касові столи, cart bay і холодильники;
+6. додати реалістичні empty shelf meshes замість чистих box primitives;
+7. додати дрібний exterior wear, цоколь, бордюри, кабелі та фасадні світильники;
+8. тільки після цього переходити до товарного наповнення.
