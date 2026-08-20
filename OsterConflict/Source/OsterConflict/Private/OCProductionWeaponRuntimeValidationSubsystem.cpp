@@ -27,8 +27,7 @@ namespace
     enum class EExpectedWeaponMeshKind : uint8
     {
         Static,
-        Skeletal,
-        Missing
+        Skeletal
     };
 
     struct FExpectedWeaponVisual
@@ -136,7 +135,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
         { TEXT("Lever Action .45-70"), FName(TEXT("R13_LEVER4570")), AOCWeapon_LeverAction::StaticClass(),
             TEXT("/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction.SKM_LeverAction"), EExpectedWeaponMeshKind::Skeletal },
         { TEXT("Anti-Armor Launcher"), FName(TEXT("OC_RPG1")), AOCAntiArmorLauncher::StaticClass(),
-            nullptr, EExpectedWeaponMeshKind::Missing },
+            TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern"), EExpectedWeaponMeshKind::Static },
     };
 
     const FString ReportDir = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("AutomationReports"), TEXT("ProductionModels"));
@@ -201,7 +200,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
             }
         }
 
-        const bool bCanonicalAssetDefined = Expected.MeshKind != EExpectedWeaponMeshKind::Missing && Expected.ObjectPath != nullptr;
+        const bool bCanonicalAssetDefined = Expected.ObjectPath != nullptr;
         const bool bPass = bSpawned && bIdMatches && bCanonicalAssetDefined && bAssetLoads &&
             bUsesExpectedProductionVisual && bFallbackHidden;
 
@@ -249,7 +248,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     else
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("R14 production weapon validation FAILED: %d/%d classes. This is expected until every weapon, including OC_RPG1, has a canonical production visual. Report: %s"),
+            TEXT("R14 production weapon validation FAILED: %d/%d classes. Inspect canonical asset, production component and fallback visibility results in: %s"),
             PassedWeapons, UE_ARRAY_COUNT(Expectations), *ReportPath);
     }
 }
