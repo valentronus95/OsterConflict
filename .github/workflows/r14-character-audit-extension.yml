@@ -1,0 +1,61 @@
+name: R14 character audit extension
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/r14-character-audit-extension.yml'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterProductionProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCCharacterProductionProfileTests.cpp'
+      - 'R14_CHARACTER_MODEL_REQUIREMENTS.md'
+  push:
+    branches:
+      - feat/r14-production-models
+    paths:
+      - '.github/workflows/r14-character-audit-extension.yml'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterProductionProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCCharacterProductionProfileTests.cpp'
+      - 'R14_CHARACTER_MODEL_REQUIREMENTS.md'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Validate modular character audit
+        shell: python
+        run: |
+          from pathlib import Path
+          import sys
+
+          profiles = Path('OsterConflict/Source/OsterConflict/Private/OCCharacterProductionProfiles.cpp').read_text(encoding='utf-8')
+          tests = Path('OsterConflict/Source/OsterConflict/Private/Tests/OCCharacterProductionProfileTests.cpp').read_text(encoding='utf-8')
+          requirements = Path('R14_CHARACTER_MODEL_REQUIREMENTS.md').read_text(encoding='utf-8')
+          failures = []
+
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          no_head = '/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter_NoHead.SKM_QuantumCharacter_NoHead'
+          require(no_head in profiles, 'BodyNoHead candidate disappeared from character registry')
+          require('BodyNoHead' in profiles, 'BodyNoHead module id disappeared')
+          require('Modules.Num() >= 10' in tests, 'character automation no longer covers all 10 audited modules')
+          require('BodyNoHead is only an audited candidate' in tests,
+                  'no-head body can be falsely promoted to runtime-active without validation')
+          require('4/4 faction profiles production-distinct' in requirements,
+                  'Stage 2 faction differentiation gate was weakened')
+          require('Engineer і Support більше не виглядають одним і тим самим Heavy preset' in requirements,
+                  'Stage 2 Engineer/Support differentiation gate was weakened')
+
+          if failures:
+              print('R14 character audit extension FAILED:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('R14 character audit extension PASS')
