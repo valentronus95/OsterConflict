@@ -1,0 +1,234 @@
+name: R14 weapon model contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/r14-weapon-model-contracts.yml'
+      - 'R14_PRODUCTION_MODELS_TZ.md'
+      - 'R14_MODEL_REGISTRY.md'
+      - 'R14_MODEL_INTEGRATION_HISTORY.md'
+      - 'OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCAntiArmorLauncher.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCProductionWeaponRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
+  push:
+    branches:
+      - feat/r14-production-models
+    paths:
+      - '.github/workflows/r14-weapon-model-contracts.yml'
+      - 'R14_PRODUCTION_MODELS_TZ.md'
+      - 'R14_MODEL_REGISTRY.md'
+      - 'R14_MODEL_INTEGRATION_HISTORY.md'
+      - 'OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCAntiArmorLauncher.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCProductionWeaponRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
+
+permissions:
+  contents: read
+
+jobs:
+  weapon-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Validate R14 weapon integration contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import sys
+
+          failures = []
+
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          variants_path = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp')
+          launcher_path = Path('OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp')
+          launcher_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCAntiArmorLauncher.h')
+          fps_path = Path('OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp')
+          profile_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp')
+          profile_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h')
+          runtime_path = Path('OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp')
+          runtime_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCProductionWeaponRuntimeValidationSubsystem.h')
+          automation_path = Path('OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp')
+          validator_path = Path('OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd')
+          registry_path = Path('R14_MODEL_REGISTRY.md')
+          tz_path = Path('R14_PRODUCTION_MODELS_TZ.md')
+          kenney_license_path = Path('OsterConflict/Content/Raw/R13/Weapons/Kenney/LICENSE_KENNEY_CC0.txt')
+
+          required_paths = (
+              variants_path, launcher_path, launcher_h_path, fps_path, profile_cpp_path, profile_h_path,
+              runtime_path, runtime_h_path, automation_path, validator_path, registry_path, tz_path,
+              kenney_license_path,
+          )
+          for required_path in required_paths:
+              require(required_path.is_file(), f'missing required R14 file: {required_path}')
+
+          weapon_ids = (
+              'OC_AR1', 'OC_SMG1', 'OC_PST1', 'OC_SNP1', 'OC_SG1', 'OC_LMG1',
+              'R13_M14', 'R13_MAC10', 'R13_TEC9', 'R13_LEVER4570', 'OC_RPG1',
+          )
+          launcher_asset = '/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern'
+
+          if variants_path.is_file():
+              variants = variants_path.read_text(encoding='utf-8')
+              required_weapon_assets = (
+                  '/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47',
+                  '/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5',
+                  '/Game/R13/Weapons/Stein/1911/SKM_1911.SKM_1911',
+                  '/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700',
+                  '/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870',
+                  '/Game/Production/Weapons/M249/SM_M249.SM_M249',
+                  '/Game/R13/Weapons/Stein/M14/SKM_M14.SKM_M14',
+                  '/Game/R13/Weapons/Stein/Mac10/SKM_Mac10.SKM_Mac10',
+                  '/Game/R13/Weapons/Stein/Tec9/SKM_Tec9.SKM_Tec9',
+                  '/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction.SKM_LeverAction',
+              )
+              for asset in required_weapon_assets:
+                  require(asset in variants, f'weapon runtime path missing or changed: {asset}')
+              require('OC_ProductionWeaponVisual' in variants,
+                      'production weapon visual tag is missing from weapon variants')
+              require('HideStaticWeaponFallback' in variants,
+                      'production weapon variants no longer hide source-only fallback visuals')
+
+          if launcher_path.is_file() and launcher_h_path.is_file():
+              launcher = launcher_path.read_text(encoding='utf-8')
+              launcher_h = launcher_h_path.read_text(encoding='utf-8')
+              require('OC_RPG1' in launcher, 'anti-armor launcher weapon id changed')
+              require('EOCWeaponClass::Launcher' in launcher, 'anti-armor launcher no longer uses Launcher class')
+              require(launcher_asset in launcher, 'Kenney production launcher runtime path is not wired')
+              require('OC_ProductionWeaponVisual' in launcher,
+                      'anti-armor launcher production visual is not tagged for validation/presentation')
+              require('void AOCAntiArmorLauncher::BeginPlay()' in launcher and
+                      'virtual void BeginPlay() override;' in launcher_h,
+                      'anti-armor launcher production visual hook is incomplete')
+
+          if kenney_license_path.is_file():
+              license_text = kenney_license_path.read_text(encoding='utf-8', errors='replace').lower()
+              require('creative commons zero' in license_text and 'cc0' in license_text,
+                      'Kenney weapon source is no longer backed by the checked CC0 license file')
+
+          if profile_cpp_path.is_file() and profile_h_path.is_file():
+              profile_cpp = profile_cpp_path.read_text(encoding='utf-8')
+              profile_h = profile_h_path.read_text(encoding='utf-8')
+              for weapon_id in weapon_ids:
+                  require(weapon_id in profile_cpp, f'first-person grip matrix lost weapon id {weapon_id}')
+              require('bGripCalibrated = false' in profile_h,
+                      'new grip profiles must default to uncalibrated until UE visual approval')
+              require('CameraLocation = FVector(38.0f, 12.0f, -14.0f)' in profile_h,
+                      'R14 grip refactor no longer preserves the legacy baseline before calibration')
+              require('OCHasDeclaredFirstPersonWeaponProfile' in profile_cpp and
+                      'OCResolveFirstPersonWeaponProfile' in profile_cpp,
+                      'R14 grip profile resolver contract is incomplete')
+
+          if fps_path.is_file():
+              fps = fps_path.read_text(encoding='utf-8')
+              require('/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W' in fps,
+                      'AK-47 dedicated fire animation path changed')
+              require('/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W' in fps,
+                      'AK-47 dedicated reload animation path changed')
+              require('Sequence->GetSkeleton() != Mesh->GetSkeleton()' in fps,
+                      'weapon animation skeleton compatibility guard is missing')
+              require('EAnimationMode::AnimationBlueprint' in fps,
+                      'weapon presentation no longer protects authored animation blueprints')
+              require('OCResolveFirstPersonWeaponProfile' in fps,
+                      'first-person weapon subsystem is bypassing the R14 grip profile resolver')
+              require('Profile.CameraLocation' in fps and 'Profile.CameraRotation' in fps,
+                      'first-person weapon base transform is not routed through the weapon profile')
+              require('Profile.ADSWeaponOffset' in fps and 'Profile.ReloadWeaponLocation' in fps,
+                      'ADS/reload presentation is bypassing the per-weapon profile')
+              require('UNCALIBRATED' in fps,
+                      'uncalibrated weapon grip state is no longer visible in runtime diagnostics')
+
+          if runtime_path.is_file():
+              runtime = runtime_path.read_text(encoding='utf-8')
+              require('ValidateProductionWeapons' in runtime,
+                      'R14 production weapon runtime validator entrypoint is missing')
+              require('FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeapons"))' in runtime,
+                      'runtime weapon validation is no longer explicitly opt-in')
+              require('ValidateProductionWeaponsHeadless' in runtime and 'FPlatformMisc::RequestExit(false)' in runtime,
+                      'blocking headless weapon runtime gate is incomplete')
+              require('ValidationDepthCm = -1000000.0f' in runtime,
+                      'temporary validation weapons are no longer isolated below the playable world')
+              require('RF_Transient' in runtime,
+                      'temporary validation weapon actors are no longer transient')
+              require('Weapon->Destroy()' in runtime,
+                      'temporary validation weapon actors are not destroyed after inspection')
+              require('weapon_runtime_validation.txt' in runtime,
+                      'runtime validator no longer writes the weapon validation report')
+              require('production_weapon_runtime_success.txt' in runtime,
+                      'runtime validator no longer has an explicit all-weapons success sentinel')
+              for weapon_id in weapon_ids:
+                  require(weapon_id in runtime, f'runtime validation lost weapon id {weapon_id}')
+              require(launcher_asset in runtime,
+                      'runtime validator does not verify the Kenney anti-armor launcher asset')
+              require('EExpectedWeaponMeshKind::Missing' not in runtime,
+                      'runtime validator still carries a fake missing-weapon state after launcher integration')
+
+          if automation_path.is_file():
+              automation = automation_path.read_text(encoding='utf-8')
+              require(launcher_asset in automation,
+                      'canonical UE automation does not include the anti-armor launcher asset')
+              require('Anti-Armor Launcher' in automation,
+                      'canonical UE automation lost the anti-armor launcher label')
+
+          if validator_path.is_file():
+              validator = validator_path.read_text(encoding='utf-8')
+              require('-ValidateProductionWeapons' in validator,
+                      'visual Sandbox no longer launches the explicit weapon runtime gate')
+              require('-ValidateProductionWeaponsHeadless' in validator,
+                      'one-click validator no longer runs the blocking headless weapon gate')
+              require('weapon_runtime_validation.txt' in validator,
+                      'one-click validator no longer points to the weapon runtime report')
+              require('production_weapon_runtime_success.txt' in validator,
+                      'one-click validator no longer requires the full weapon success sentinel')
+              require('Anti-Armor Launcher=PASS' in validator,
+                      'one-click canonical validation does not explicitly require the launcher asset')
+              require('PR #15' in validator,
+                      'R14 validator still references an obsolete model-integration PR')
+
+          if registry_path.is_file():
+              registry = registry_path.read_text(encoding='utf-8')
+              require('/Game/R13/Weapons/rocketlauncherModern' in registry,
+                      'R14 model registry does not record the production anti-armor launcher path')
+              require('CC0' in registry,
+                      'R14 model registry does not preserve launcher license status')
+              require('UNCALIBRATED' in registry or 'uncalibrated' in registry.lower() or 'calibrat' in registry.lower(),
+                      'R14 model registry does not expose the weapon grip calibration state')
+
+          if tz_path.is_file():
+              tz = tz_path.read_text(encoding='utf-8')
+              require('first-person' in tz.lower() and 'third-person' in tz.lower(),
+                      'R14 ТЗ lost first-/third-person weapon validation requirements')
+              require('fire animation' in tz.lower() and 'reload animation' in tz.lower(),
+                      'R14 ТЗ lost weapon fire/reload animation requirements')
+
+          if failures:
+              print('R14 weapon model contract validation FAILED:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('R14 weapon model contract validation PASS')

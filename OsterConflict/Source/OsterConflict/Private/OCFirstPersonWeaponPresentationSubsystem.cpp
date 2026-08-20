@@ -3,6 +3,7 @@
 #include "OCCharacter.h"
 #include "OCGameMode.h"
 #include "OCWeaponBase.h"
+#include "OCWeaponPresentationProfiles.h"
 
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -198,6 +199,9 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
     FOCFirstPersonWeaponState& State = StateByCharacter.FindOrAdd(CharacterKey);
     const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+    const FName WeaponId = Weapon->GetWeaponId();
+    const bool bDeclaredProfile = OCHasDeclaredFirstPersonWeaponProfile(WeaponId);
+    const FOCFirstPersonWeaponProfile Profile = OCResolveFirstPersonWeaponProfile(WeaponId);
 
     if (!ExistingState)
     {
@@ -206,10 +210,27 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.LastAmmo = Weapon->GetAmmoInMagazine();
         State.bWasReloading = Weapon->IsReloading();
         State.ReloadStartTime = Now;
-        State.BaseWeaponLocation = Weapon->GetActorRelativeLocation();
-        State.BaseWeaponRotation = Weapon->GetActorRelativeRotation();
-        State.BaseArmsLocation = Arms->GetRelativeLocation();
-        State.BaseArmsRotation = Arms->GetRelativeRotation();
+
+        // R14: stop inheriting one anonymous transform from AOCWeaponBase. Every weapon id now
+        // resolves through an explicit profile. Values intentionally preserve the legacy baseline
+        // until that exact mesh has been visually calibrated in UE 5.8.
+        State.BaseWeaponLocation = Profile.CameraLocation;
+        State.BaseWeaponRotation = Profile.CameraRotation;
+        State.BaseArmsLocation = Arms->GetRelativeLocation() + Profile.ArmsBaseOffset;
+        State.BaseArmsRotation = Arms->GetRelativeRotation() + Profile.ArmsBaseRotationOffset;
+
+        if (!bDeclaredProfile)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("R14 first-person presentation has no declared grip profile for weapon id %s."),
+                *WeaponId.ToString());
+        }
+        else if (!Profile.bGripCalibrated)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("R14 first-person grip profile is UNCALIBRATED for %s; legacy camera-space baseline is preserved until visual approval."),
+                *WeaponId.ToString());
+        }
     }
 
     const bool bADS = Character.IsAiming();
@@ -230,7 +251,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     if (State.LastAmmo != INDEX_NONE && CurrentAmmo < State.LastAmmo && !Weapon->IsReloading())
     {
         State.RecoilAlpha = 1.0f;
-        if (Weapon->GetWeaponId() == FName(TEXT("OC_AR1")))
+        if (WeaponId == FName(TEXT("OC_AR1")))
         {
             PlayWeaponAnimation(*Weapon, AKFireAnimation, State, 0.11);
         }
@@ -241,7 +262,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     if (bReloading && !State.bWasReloading)
     {
         State.ReloadStartTime = Now;
-        if (Weapon->GetWeaponId() == FName(TEXT("OC_AR1")))
+        if (WeaponId == FName(TEXT("OC_AR1")))
         {
             PlayWeaponAnimation(*Weapon, AKReloadAnimation, State, Weapon->GetReloadDuration());
         }
@@ -279,29 +300,30 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     FVector ArmsLocation = State.BaseArmsLocation;
     FRotator ArmsRotation = State.BaseArmsRotation;
 
-    // Camera-space ADS convergence. The weapon remains attached to the same authoritative inventory actor.
     if (bADS)
     {
-        WeaponLocation += FVector(-5.5f, -9.0f, 4.0f);
-        ArmsLocation += FVector(-2.0f, -3.0f, 1.5f);
+        WeaponLocation += Profile.ADSWeaponOffset;
+        WeaponRotation += Profile.ADSWeaponRotationOffset;
+        ArmsLocation += Profile.ADSArmsOffset;
+        ArmsRotation += Profile.ADSArmsRotationOffset;
     }
 
     // Local recoil moves both the production weapon and hands together instead of letting the gun
-    // visually detach from the character during a shot.
-    WeaponLocation += FVector(-4.5f * State.RecoilAlpha, 0.0f, 1.4f * State.RecoilAlpha);
-    WeaponRotation += FRotator(-4.0f * State.RecoilAlpha, 0.0f, 0.8f * State.RecoilAlpha);
-    ArmsLocation += FVector(-2.0f * State.RecoilAlpha, 0.0f, 0.6f * State.RecoilAlpha);
-    ArmsRotation += FRotator(-2.0f * State.RecoilAlpha, 0.0f, 0.4f * State.RecoilAlpha);
+    // visually detach from the character during a shot. Values now belong to the weapon profile.
+    WeaponLocation += Profile.RecoilWeaponLocation * State.RecoilAlpha;
+    WeaponRotation += Profile.RecoilWeaponRotation * State.RecoilAlpha;
+    ArmsLocation += Profile.RecoilArmsLocation * State.RecoilAlpha;
+    ArmsRotation += Profile.RecoilArmsRotation * State.RecoilAlpha;
 
     if (bReloading)
     {
         const float Duration = FMath::Max(0.05f, Weapon->GetReloadDuration());
         const float Alpha = FMath::Clamp(static_cast<float>((Now - State.ReloadStartTime) / Duration), 0.0f, 1.0f);
         const float Arc = FMath::Sin(Alpha * PI);
-        WeaponLocation += FVector(-8.0f, 3.0f, -11.0f) * Arc;
-        WeaponRotation += FRotator(-12.0f, 4.0f, 19.0f) * Arc;
-        ArmsLocation += FVector(-5.0f, 2.0f, -7.0f) * Arc;
-        ArmsRotation += FRotator(-8.0f, 3.0f, 11.0f) * Arc;
+        WeaponLocation += Profile.ReloadWeaponLocation * Arc;
+        WeaponRotation += Profile.ReloadWeaponRotation * Arc;
+        ArmsLocation += Profile.ReloadArmsLocation * Arc;
+        ArmsRotation += Profile.ReloadArmsRotation * Arc;
     }
 
     Weapon->SetActorRelativeLocation(WeaponLocation);

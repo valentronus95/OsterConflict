@@ -5,6 +5,9 @@ on:
     paths:
       - '.gitattributes'
       - '.github/workflows/production-model-contracts.yml'
+      - 'R14_PRODUCTION_MODELS_TZ.md'
+      - 'R14_MODEL_REGISTRY.md'
+      - 'R14_MODEL_INTEGRATION_HISTORY.md'
       - 'OsterConflict/Docs/MODEL_INTEGRATION_STATUS.md'
       - 'OsterConflict/SourceAssets/**'
       - 'OsterConflict/Content/Production/**'
@@ -25,9 +28,13 @@ on:
   push:
     branches:
       - feat/import-hmmwv-btr4-m2
+      - feat/r14-production-models
     paths:
       - '.gitattributes'
       - '.github/workflows/production-model-contracts.yml'
+      - 'R14_PRODUCTION_MODELS_TZ.md'
+      - 'R14_MODEL_REGISTRY.md'
+      - 'R14_MODEL_INTEGRATION_HISTORY.md'
       - 'OsterConflict/Docs/MODEL_INTEGRATION_STATUS.md'
       - 'OsterConflict/SourceAssets/**'
       - 'OsterConflict/Content/Production/**'
@@ -113,7 +120,7 @@ jobs:
               require(canonical in import_cmd, f'Unreal import sentinel no longer validates {canonical}')
 
           ingest = Path('OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd').read_text(encoding='utf-8')
-          require('set "TARGET_BRANCH=feat/import-hmmwv-btr4-m2"' in ingest, 'ingest is not locked to the feature branch')
+          require('set "TARGET_BRANCH=feat/r14-production-models"' in ingest, 'ingest is not locked to the R14 model branch')
           require('git pull --ff-only origin "%TARGET_BRANCH%"' in ingest, 'ingest lost its fast-forward safety check')
           require('VERIFY_PRODUCTION_MODEL_INGEST.cmd' in ingest, 'post-import verification gate is not called')
           require('HEAD:%TARGET_BRANCH%' in ingest, 'ingest push is not explicitly targeted to the feature branch')
@@ -206,11 +213,18 @@ jobs:
               require('GetStaticMaterials().Num() > 0' in automation_test,
                       'production model automation test no longer validates material slots')
               require('GetNumLODs() > 0' in automation_test,
-                      'production model automation test no longer validates render LODs')
+                      'production model automation test no longer validates static render LODs')
+              require('GetSkeleton() != nullptr' in automation_test,
+                      'R14 production model automation no longer validates skeletal mesh skeletons')
+              require('GetLODNum() > 0' in automation_test,
+                      'R14 production model automation no longer validates skeletal render LODs')
               for canonical in (
                   '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
                   '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
                   '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
+                  '/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47',
+                  '/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5',
+                  '/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter.SKM_QuantumCharacter',
               ):
                   require(canonical in automation_test, f'automation test no longer checks {canonical}')
           if local_validator_path.is_file():

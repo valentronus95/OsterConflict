@@ -2,6 +2,7 @@
 
 #include "OCBTR.h"
 #include "OCGameMode.h"
+#include "OCHMMWVGunTruck.h"
 #include "OCPickupGunTruck.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -16,6 +17,7 @@ namespace
     constexpr float ValidationDelaySeconds = 6.25f;
 
     const TCHAR* HMMWVAssetPath = TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA");
+    const TCHAR* PickupAssetPath = TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup");
     const TCHAR* M2AssetPath = TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning");
     const TCHAR* BTR4AssetPath = TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus");
     const FName ProductionM2Tag(TEXT("OC_ProductionM2"));
@@ -92,22 +94,39 @@ void UOCProductionVehicleRuntimeValidationSubsystem::OnWorldBeginPlay(UWorld& In
 void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(UWorld& World)
 {
     UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr, HMMWVAssetPath);
+    UStaticMesh* Pickup = LoadObject<UStaticMesh>(nullptr, PickupAssetPath);
     UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr, M2AssetPath);
     UStaticMesh* BTR4 = LoadObject<UStaticMesh>(nullptr, BTR4AssetPath);
 
     const bool bHMMWVAssetReady = HasUsableProductionAsset(HMMWV);
+    const bool bPickupAssetReady = HasUsableProductionAsset(Pickup);
     const bool bM2AssetReady = HasUsableProductionAsset(M2);
     const bool bBTR4AssetReady = HasUsableProductionAsset(BTR4);
 
     int32 GunTruckCount = 0;
-    int32 GunTrucksUsingHMMWV = 0;
+    int32 HMMWVGunTruckCount = 0;
+    int32 HMMWVGunTrucksUsingHMMWV = 0;
+    int32 PickupGunTruckCount = 0;
+    int32 PickupGunTrucksUsingPickup = 0;
     int32 GunTrucksUsingM2 = 0;
+
     for (TActorIterator<AOCPickupGunTruck> It(&World); It; ++It)
     {
         AOCPickupGunTruck* GunTruck = *It;
         if (!GunTruck) continue;
         ++GunTruckCount;
-        if (ActorUsesMesh(GunTruck, HMMWV)) ++GunTrucksUsingHMMWV;
+
+        if (GunTruck->IsA<AOCHMMWVGunTruck>())
+        {
+            ++HMMWVGunTruckCount;
+            if (ActorUsesMesh(GunTruck, HMMWV)) ++HMMWVGunTrucksUsingHMMWV;
+        }
+        else
+        {
+            ++PickupGunTruckCount;
+            if (ActorUsesMesh(GunTruck, Pickup)) ++PickupGunTrucksUsingPickup;
+        }
+
         if (GunTruckUsesProductionM2(GunTruck, M2)) ++GunTrucksUsingM2;
     }
 
@@ -121,24 +140,32 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
         if (ActorUsesMesh(BTR, BTR4)) ++BTRsUsingProductionShell;
     }
 
-    const bool bGunTruckRuntimePass = GunTruckCount == 0 ||
-        (GunTrucksUsingHMMWV == GunTruckCount && GunTrucksUsingM2 == GunTruckCount);
+    const bool bHMMWVRuntimePass = HMMWVGunTruckCount == 0 ||
+        HMMWVGunTrucksUsingHMMWV == HMMWVGunTruckCount;
+    const bool bPickupRuntimePass = PickupGunTruckCount == 0 ||
+        PickupGunTrucksUsingPickup == PickupGunTruckCount;
+    const bool bM2RuntimePass = GunTruckCount == 0 || GunTrucksUsingM2 == GunTruckCount;
     const bool bBTRRuntimePass = BTRCount == 0 || BTRsUsingProductionShell == BTRCount;
-    const bool bPass = bHMMWVAssetReady && bM2AssetReady && bBTR4AssetReady &&
-        bGunTruckRuntimePass && bBTRRuntimePass;
+
+    const bool bPass = bHMMWVAssetReady && bPickupAssetReady && bM2AssetReady && bBTR4AssetReady &&
+        bHMMWVRuntimePass && bPickupRuntimePass && bM2RuntimePass && bBTRRuntimePass;
 
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("Production vehicle validation PASS: assets HMMWV/M2/BTR4 ready; gunTrucks=%d hmmwv=%d m2=%d; btrs=%d productionShell=%d."),
-            GunTruckCount, GunTrucksUsingHMMWV, GunTrucksUsingM2,
+            TEXT("Production vehicle validation PASS: assets HMMWV/Pickup/M2/BTR4 ready; hmmwvTrucks=%d hmmwvShell=%d; pickupTrucks=%d pickupShell=%d; m2=%d/%d; btrs=%d productionShell=%d."),
+            HMMWVGunTruckCount, HMMWVGunTrucksUsingHMMWV,
+            PickupGunTruckCount, PickupGunTrucksUsingPickup,
+            GunTrucksUsingM2, GunTruckCount,
             BTRCount, BTRsUsingProductionShell);
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("Production vehicle validation FAILED: assetReady HMMWV=%d M2=%d BTR4=%d; gunTrucks=%d hmmwv=%d m2=%d; btrs=%d productionShell=%d. Missing production assets intentionally fall back, so do not mark PR ready until this passes after local ingest."),
-        bHMMWVAssetReady ? 1 : 0, bM2AssetReady ? 1 : 0, bBTR4AssetReady ? 1 : 0,
-        GunTruckCount, GunTrucksUsingHMMWV, GunTrucksUsingM2,
+        TEXT("Production vehicle validation FAILED: assetReady HMMWV=%d Pickup=%d M2=%d BTR4=%d; hmmwvTrucks=%d hmmwvShell=%d; pickupTrucks=%d pickupShell=%d; m2=%d/%d; btrs=%d productionShell=%d. Distinct production vehicle identities must not silently substitute each other."),
+        bHMMWVAssetReady ? 1 : 0, bPickupAssetReady ? 1 : 0, bM2AssetReady ? 1 : 0, bBTR4AssetReady ? 1 : 0,
+        HMMWVGunTruckCount, HMMWVGunTrucksUsingHMMWV,
+        PickupGunTruckCount, PickupGunTrucksUsingPickup,
+        GunTrucksUsingM2, GunTruckCount,
         BTRCount, BTRsUsingProductionShell);
 }
