@@ -85,7 +85,6 @@ AOCMuseumDoubleDoor::AOCMuseumDoubleDoor()
     FrameTop->SetRelativeScale3D(FVector(TotalWidthCm + FrameCm * 2.0f, 16.0f, FrameCm) / 100.0f);
     FrameTop->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    // Photo-reference panel relief. These are shallow raised pieces attached to each moving leaf.
     auto AddPanel = [this, Cube](USceneComponent* Parent, TArray<TObjectPtr<UStaticMeshComponent>>& OutDetails,
         const TCHAR* Name, const FVector& LocalCenter, const FVector& SizeCm)
     {
@@ -114,23 +113,64 @@ AOCMuseumDoubleDoor::AOCMuseumDoubleDoor()
     AddPanel(RightHinge, RightPanelDetails, TEXT("RightLowerPanel"),
         FVector(-LeafWidthCm * 0.5f, -5.0f, 58.0f), FVector(66.0f, 3.0f, 58.0f));
 
-    // Narrow central raised strips reproduce the characteristic vertical spine visible in REF-06.
+    // REF-06 close-up: each panel has a second raised perimeter rather than one flat rectangle.
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftUpperTopRail"), FVector(54.0f, -7.0f, 252.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftUpperBottomRail"), FVector(54.0f, -7.0f, 192.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftMiddleTopRail"), FVector(54.0f, -7.0f, 186.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftMiddleBottomRail"), FVector(54.0f, -7.0f, 104.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftLowerTopRail"), FVector(54.0f, -7.0f, 91.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftLowerBottomRail"), FVector(54.0f, -7.0f, 24.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftOuterStile"), FVector(12.0f, -7.0f, 136.0f), FVector(8.0f, 3.0f, 246.0f));
+    AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftInnerStile"), FVector(96.0f, -7.0f, 136.0f), FVector(8.0f, 3.0f, 246.0f));
+
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightUpperTopRail"), FVector(-54.0f, -7.0f, 252.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightUpperBottomRail"), FVector(-54.0f, -7.0f, 192.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightMiddleTopRail"), FVector(-54.0f, -7.0f, 186.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightMiddleBottomRail"), FVector(-54.0f, -7.0f, 104.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightLowerTopRail"), FVector(-54.0f, -7.0f, 91.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightLowerBottomRail"), FVector(-54.0f, -7.0f, 24.0f), FVector(78.0f, 3.0f, 7.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightOuterStile"), FVector(-12.0f, -7.0f, 136.0f), FVector(8.0f, 3.0f, 246.0f));
+    AddPanel(RightHinge, RightPanelDetails, TEXT("RightInnerStile"), FVector(-96.0f, -7.0f, 136.0f), FVector(8.0f, 3.0f, 246.0f));
+
+    // Narrow central raised strips and finial blocks reproduce the characteristic carved spine in REF-06.
     AddPanel(LeftHinge, LeftPanelDetails, TEXT("LeftCenterSpine"),
-        FVector(LeafWidthCm - 7.0f, -6.0f, 136.0f), FVector(8.0f, 4.0f, 252.0f));
+        FVector(LeafWidthCm - 7.0f, -8.0f, 136.0f), FVector(8.0f, 4.0f, 252.0f));
     AddPanel(RightHinge, RightPanelDetails, TEXT("RightCenterSpine"),
-        FVector(-LeafWidthCm + 7.0f, -6.0f, 136.0f), FVector(8.0f, 4.0f, 252.0f));
+        FVector(-LeafWidthCm + 7.0f, -8.0f, 136.0f), FVector(8.0f, 4.0f, 252.0f));
+    for (const float Z : { 232.0f, 198.0f, 101.0f, 70.0f })
+    {
+        const FString LeftName = FString::Printf(TEXT("LeftSpineNode_%03d"), FMath::RoundToInt(Z));
+        UStaticMeshComponent* LeftNode = CreateDefaultSubobject<UStaticMeshComponent>(*LeftName);
+        LeftNode->SetupAttachment(LeftHinge);
+        LeftNode->SetStaticMesh(Cube);
+        LeftNode->SetRelativeLocation(FVector(LeafWidthCm - 8.0f, -10.0f, Z));
+        LeftNode->SetRelativeScale3D(FVector(15.0f, 5.0f, 15.0f) / 100.0f);
+        LeftNode->SetMobility(EComponentMobility::Movable);
+        LeftNode->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        LeftPanelDetails.Add(LeftNode);
+
+        const FString RightName = FString::Printf(TEXT("RightSpineNode_%03d"), FMath::RoundToInt(Z));
+        UStaticMeshComponent* RightNode = CreateDefaultSubobject<UStaticMeshComponent>(*RightName);
+        RightNode->SetupAttachment(RightHinge);
+        RightNode->SetStaticMesh(Cube);
+        RightNode->SetRelativeLocation(FVector(-LeafWidthCm + 8.0f, -10.0f, Z));
+        RightNode->SetRelativeScale3D(FVector(15.0f, 5.0f, 15.0f) / 100.0f);
+        RightNode->SetMobility(EComponentMobility::Movable);
+        RightNode->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        RightPanelDetails.Add(RightNode);
+    }
 
     LeftHandle = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftHandle"));
     LeftHandle->SetupAttachment(LeftHinge);
     LeftHandle->SetStaticMesh(Cube);
-    LeftHandle->SetRelativeLocation(FVector(LeafWidthCm - 15.0f, -10.0f, 125.0f));
+    LeftHandle->SetRelativeLocation(FVector(LeafWidthCm - 15.0f, -12.0f, 125.0f));
     LeftHandle->SetRelativeScale3D(FVector(4.0f, 8.0f, 22.0f) / 100.0f);
     LeftHandle->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     RightHandle = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightHandle"));
     RightHandle->SetupAttachment(RightHinge);
     RightHandle->SetStaticMesh(Cube);
-    RightHandle->SetRelativeLocation(FVector(-LeafWidthCm + 15.0f, -10.0f, 125.0f));
+    RightHandle->SetRelativeLocation(FVector(-LeafWidthCm + 15.0f, -12.0f, 125.0f));
     RightHandle->SetRelativeScale3D(FVector(4.0f, 8.0f, 22.0f) / 100.0f);
     RightHandle->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
