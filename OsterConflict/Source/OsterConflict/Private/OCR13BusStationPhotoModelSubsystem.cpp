@@ -16,14 +16,12 @@
 namespace
 {
     constexpr float BusStationDelaySeconds = 2.34f;
-    // Public sources confirm the station site and historical/current photo existence, but the exact parcel yaw has
-    // not yet been surveyed. Keep a single explicit value rather than baking inferred rotation into every detail.
     constexpr float BusStationYawDegrees = 0.0f;
 
     FVector BusStationAnchor()
     {
-        const FOCGeoReferencePoint Ref = FOCGeoReference::BusStation();
-        return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, 0.0);
+        // Verified POI: Oster bus station, Bohdana Khmelnytskoho Street 75.
+        return OCGeoReference::FromLatLon(50.948122, 30.881425) + FVector(0.0f, 0.0f, 4.0f);
     }
 
     UMaterialInstanceDynamic* MakeColor(AActor* Owner, UMaterialInterface* Base,
@@ -42,39 +40,35 @@ namespace
         UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(Owner, Name);
         if (!Component) return nullptr;
         Component->SetupAttachment(Root);
-        Component->SetStaticMesh(Mesh);
-        if (Material)
-        {
-            const int32 Slots = FMath::Max(1, Mesh->GetStaticMaterials().Num());
-            for (int32 Slot = 0; Slot < Slots; ++Slot) Component->SetMaterial(Slot, Material);
-        }
         Component->SetMobility(EComponentMobility::Static);
-        Component->SetCollisionProfileName(FName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision")));
+        Component->SetStaticMesh(Mesh);
+        if (Material) Component->SetMaterial(0, Material);
         Component->SetCollisionEnabled(bCollision ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
-        Component->SetGenerateOverlapEvents(false);
-        Component->SetCanEverAffectNavigation(bCollision);
+        Component->SetCollisionResponseToAllChannels(bCollision ? ECR_Block : ECR_Ignore);
         Component->SetCastShadow(bShadow);
-        Component->SetCullDistances(0, 90000);
-        Owner->AddInstanceComponent(Component);
+        Component->SetCanEverAffectNavigation(bCollision);
         Component->RegisterComponent();
+        Owner->AddInstanceComponent(Component);
         return Component;
     }
 
-    void AddBox(UInstancedStaticMeshComponent* Component, const FVector& Center, const FVector& SizeCm)
+    void AddBox(UInstancedStaticMeshComponent* Component, const FVector& CenterCm, const FVector& SizeCm,
+        const float YawDegrees = BusStationYawDegrees)
     {
         if (!Component) return;
-        Component->AddInstance(FTransform(FRotator::ZeroRotator, Center, SizeCm / 100.0f), false);
+        Component->AddInstance(FTransform(
+            FRotator(0.0f, YawDegrees, 0.0f),
+            CenterCm,
+            FVector(SizeCm.X / 100.0f, SizeCm.Y / 100.0f, SizeCm.Z / 100.0f)));
     }
 
-    void AddFittedPlank(UInstancedStaticMeshComponent* Component, UStaticMesh* Mesh,
-        const FVector& Center, const FVector& DesiredSizeCm)
+    AActor* FindNamedActor(UWorld& World, const FName Name)
     {
-        if (!Component || !Mesh) return;
-        const FVector NativeSize = Mesh->GetBounds().BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return;
-        const FVector Scale(DesiredSizeCm.X / NativeSize.X, DesiredSizeCm.Y / NativeSize.Y, DesiredSizeCm.Z / NativeSize.Z);
-        Component->AddInstance(FTransform(FRotator::ZeroRotator,
-            Center - Mesh->GetBounds().Origin * Scale, Scale), false);
+        for (TActorIterator<AActor> It(&World); It; ++It)
+        {
+            if (IsValid(*It) && It->GetFName() == Name) return *It;
+        }
+        return nullptr;
     }
 }
 
@@ -89,47 +83,31 @@ void UOCR13BusStationPhotoModelSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
-    {
-        if (GameMode->IsFrontendOnlySession()) return;
-    }
+    if (AOCGameMode* GM = InWorld.GetAuthGameMode<AOCGameMode>(); GM && GM->IsFrontendOnlySession()) return;
 
-    // This landmark owns blocking collision, therefore it must be deterministic on listen/dedicated server as well
-    // as on clients. Rendering cost on a headless server is irrelevant compared with divergent authoritative physics.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    FTimerHandle Timer;
-    InWorld.GetTimerManager().SetTimer(Timer,
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-        {
-            if (UWorld* World = WeakWorld.Get()) BuildBusStation(*World);
-        }), BusStationDelaySeconds, false);
+    InWorld.GetTimerManager().SetTimer(BuildTimer, FTimerDelegate::CreateLambda([this, WeakWorld]()
+    {
+        if (UWorld* World = WeakWorld.Get()) BuildBusStation(*World);
+    }), BusStationDelaySeconds, false);
 }
 
 void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
 {
-    for (TActorIterator<AActor> It(&World); It; ++It)
-    {
-        AActor* Existing = *It;
-        if (Existing && Existing->ActorHasTag(TEXT("R13_BusStationPhotoModel"))) return;
-    }
+    if (FindNamedActor(World, TEXT("R13_OsterBusStation"))) return;
 
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* Plank = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Old_Planks_Plank_1.Old_Planks_Plank_1"));
-    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    UMaterialInterface* GlassMaterial = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Glass_Window.Glass_Window"));
-    if (!Cube || !Basic) return;
+    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Visual/Materials/M_OCBasicColor.M_OCBasicColor"));
+    if (!Cube || !Basic)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("R13 bus station: missing cube/basic-color material."));
+        return;
+    }
 
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.Name = TEXT("R13_OsterBusStation");
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    AActor* Model = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
+    AActor* Model = World.SpawnActor<AActor>(AActor::StaticClass(), BusStationAnchor(), FRotator::ZeroRotator);
     if (!Model) return;
-    Model->SetReplicates(false);
-    Model->SetActorEnableCollision(true);
-    Model->Tags.Add(TEXT("R13_BusStationPhotoModel"));
+    Model->SetActorLabel(TEXT("R13_OsterBusStation"));
+    Model->Rename(TEXT("R13_OsterBusStation"));
 
     USceneComponent* Root = NewObject<USceneComponent>(Model, TEXT("R13_BusStationRoot"));
     if (!Root)
@@ -137,78 +115,61 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
         Model->Destroy();
         return;
     }
-    Root->SetMobility(EComponentMobility::Static);
     Model->SetRootComponent(Root);
-    Model->AddInstanceComponent(Root);
     Root->RegisterComponent();
-    Model->SetActorLocationAndRotation(BusStationAnchor(), FRotator(0.0f, BusStationYawDegrees, 0.0f));
+    Model->AddInstanceComponent(Root);
 
     UMaterialInstanceDynamic* Wall = MakeColor(Model, Basic, TEXT("R13_BusStationWall"),
-        FLinearColor(0.55f, 0.52f, 0.43f, 1.0f));
+        FLinearColor(0.23f, 0.17f, 0.12f, 1.0f));
     UMaterialInstanceDynamic* WallLight = MakeColor(Model, Basic, TEXT("R13_BusStationWallLight"),
-        FLinearColor(0.72f, 0.70f, 0.62f, 1.0f));
+        FLinearColor(0.54f, 0.44f, 0.30f, 1.0f));
     UMaterialInstanceDynamic* Dark = MakeColor(Model, Basic, TEXT("R13_BusStationDark"),
-        FLinearColor(0.10f, 0.11f, 0.11f, 1.0f));
-    UMaterialInstanceDynamic* Concrete = MakeColor(Model, Basic, TEXT("R13_BusStationConcrete"),
-        FLinearColor(0.30f, 0.30f, 0.28f, 1.0f));
+        FLinearColor(0.035f, 0.040f, 0.042f, 1.0f));
+    UMaterialInstanceDynamic* Concrete = MakeColor(Model, Basic, TEXT("R13_BusStationConcreteMaterial"),
+        FLinearColor(0.34f, 0.34f, 0.33f, 1.0f));
     UMaterialInstanceDynamic* Asphalt = MakeColor(Model, Basic, TEXT("R13_BusStationAsphalt"),
-        FLinearColor(0.065f, 0.068f, 0.067f, 1.0f));
+        FLinearColor(0.12f, 0.12f, 0.115f, 1.0f));
     UMaterialInstanceDynamic* White = MakeColor(Model, Basic, TEXT("R13_BusStationWhite"),
-        FLinearColor(0.83f, 0.83f, 0.78f, 1.0f));
+        FLinearColor(0.79f, 0.78f, 0.70f, 1.0f));
 
     UInstancedStaticMeshComponent* Shell = MakeISM(Model, Root, Cube, Wall, TEXT("R13_BusStationShell"), true);
     UInstancedStaticMeshComponent* Trim = MakeISM(Model, Root, Cube, WallLight, TEXT("R13_BusStationTrim"), false);
-    UInstancedStaticMeshComponent* DarkParts = MakeISM(Model, Root, Cube, Dark, TEXT("R13_BusStationDarkParts"), false);
-    UInstancedStaticMeshComponent* Glass = MakeISM(Model, Root, Cube, GlassMaterial, TEXT("R13_BusStationGlass"), false);
+    UInstancedStaticMeshComponent* Windows = MakeISM(Model, Root, Cube, Dark, TEXT("R13_BusStationWindows"), false);
     UInstancedStaticMeshComponent* ConcreteParts = MakeISM(Model, Root, Cube, Concrete, TEXT("R13_BusStationConcrete"), true);
-    UInstancedStaticMeshComponent* Forecourt = MakeISM(Model, Root, Cube, Asphalt, TEXT("R13_BusStationForecourt"), true, false);
-    UInstancedStaticMeshComponent* Markings = MakeISM(Model, Root, Cube, White, TEXT("R13_BusStationBayMarkings"), false, false);
-    UInstancedStaticMeshComponent* BenchWood = MakeISM(Model, Root, Plank, nullptr, TEXT("R13_BusStationBenchWood"), false);
+    UInstancedStaticMeshComponent* AsphaltParts = MakeISM(Model, Root, Cube, Asphalt, TEXT("R13_BusStationAsphaltParts"), true, false);
+    UInstancedStaticMeshComponent* WhiteParts = MakeISM(Model, Root, Cube, White, TEXT("R13_BusStationWhiteParts"), false);
 
-    AddBox(Shell, FVector(0.0f, 180.0f, 190.0f), FVector(2300.0f, 820.0f, 380.0f));
-    AddBox(Shell, FVector(-760.0f, -310.0f, 155.0f), FVector(780.0f, 220.0f, 310.0f));
-    AddBox(Trim, FVector(0.0f, -238.0f, 385.0f), FVector(2360.0f, 28.0f, 44.0f));
-    AddBox(Trim, FVector(0.0f, 600.0f, 385.0f), FVector(2360.0f, 28.0f, 44.0f));
+    // Compact one-storey roadside terminal based on the verified bus-station photo massing.
+    AddBox(Shell, FVector(0.0f, 0.0f, 170.0f), FVector(2250.0f, 980.0f, 340.0f));
+    AddBox(Shell, FVector(-620.0f, -30.0f, 360.0f), FVector(650.0f, 880.0f, 115.0f));
+    AddBox(Shell, FVector(520.0f, -45.0f, 360.0f), FVector(720.0f, 850.0f, 115.0f));
 
-    const float WindowXs[] = { -850.0f, -560.0f, 410.0f, 700.0f, 990.0f };
-    for (const float X : WindowXs)
-    {
-        AddBox(DarkParts, FVector(X, -244.0f, 195.0f), FVector(218.0f, 14.0f, 238.0f));
-        AddBox(Glass, FVector(X, -253.0f, 195.0f), FVector(190.0f, 7.0f, 210.0f));
-    }
-    for (const float DoorX : { -160.0f, 75.0f })
-    {
-        AddBox(DarkParts, FVector(DoorX, -250.0f, 150.0f), FVector(205.0f, 18.0f, 300.0f));
-        AddBox(Glass, FVector(DoorX, -261.0f, 155.0f), FVector(175.0f, 7.0f, 265.0f));
-    }
+    // Shallow front canopy and concrete apron.
+    AddBox(ConcreteParts, FVector(0.0f, 575.0f, -2.0f), FVector(2700.0f, 900.0f, 18.0f));
+    AddBox(ConcreteParts, FVector(0.0f, 505.0f, 310.0f), FVector(1500.0f, 150.0f, 22.0f));
+    AddBox(ConcreteParts, FVector(-660.0f, 470.0f, 160.0f), FVector(22.0f, 22.0f, 300.0f));
+    AddBox(ConcreteParts, FVector(660.0f, 470.0f, 160.0f), FVector(22.0f, 22.0f, 300.0f));
 
-    // Avoid TextRender signage until proper texture/decal art is available; it visibly shimmered at Silpo.
-    AddBox(ConcreteParts, FVector(70.0f, -570.0f, 337.0f), FVector(2550.0f, 620.0f, 34.0f));
-    for (const float X : { -1010.0f, -480.0f, 50.0f, 580.0f, 1110.0f })
-    {
-        AddBox(ConcreteParts, FVector(X, -640.0f, 168.0f), FVector(26.0f, 26.0f, 336.0f));
-    }
-    AddBox(Trim, FVector(-650.0f, -292.0f, 455.0f), FVector(980.0f, 24.0f, 105.0f));
+    // Front openings and contrasting facade bands.
+    AddBox(Windows, FVector(-720.0f, 497.0f, 175.0f), FVector(360.0f, 14.0f, 190.0f));
+    AddBox(Windows, FVector(-250.0f, 497.0f, 175.0f), FVector(300.0f, 14.0f, 190.0f));
+    AddBox(Windows, FVector(220.0f, 497.0f, 175.0f), FVector(300.0f, 14.0f, 190.0f));
+    AddBox(Windows, FVector(690.0f, 497.0f, 175.0f), FVector(360.0f, 14.0f, 190.0f));
+    AddBox(Trim, FVector(0.0f, 504.0f, 325.0f), FVector(2200.0f, 18.0f, 34.0f));
+    AddBox(Trim, FVector(0.0f, 503.0f, 70.0f), FVector(2200.0f, 16.0f, 24.0f));
 
-    AddBox(ConcreteParts, FVector(80.0f, -760.0f, 9.0f), FVector(2760.0f, 520.0f, 18.0f));
-    AddBox(Forecourt, FVector(80.0f, -1500.0f, 4.0f), FVector(3300.0f, 1050.0f, 8.0f));
-    for (const float X : { -1120.0f, -380.0f, 360.0f, 1100.0f })
-    {
-        AddBox(Markings, FVector(X, -1540.0f, 10.0f), FVector(12.0f, 790.0f, 4.0f));
-    }
-    AddBox(Markings, FVector(0.0f, -1930.0f, 10.0f), FVector(2400.0f, 12.0f, 4.0f));
+    // Central entrance.
+    AddBox(Dark ? Windows : Shell, FVector(0.0f, 503.0f, 120.0f), FVector(210.0f, 20.0f, 240.0f));
+    AddBox(WhiteParts, FVector(-117.0f, 513.0f, 120.0f), FVector(14.0f, 18.0f, 240.0f));
+    AddBox(WhiteParts, FVector(117.0f, 513.0f, 120.0f), FVector(14.0f, 18.0f, 240.0f));
+    AddBox(WhiteParts, FVector(0.0f, 513.0f, 242.0f), FVector(250.0f, 18.0f, 14.0f));
 
-    if (BenchWood && Plank)
+    // Roadside pull-in and lane markings in front of the terminal.
+    AddBox(AsphaltParts, FVector(0.0f, 1450.0f, -7.0f), FVector(4200.0f, 1400.0f, 14.0f));
+    for (int32 Index = -3; Index <= 3; ++Index)
     {
-        AddFittedPlank(BenchWood, Plank, FVector(-520.0f, -735.0f, 52.0f), FVector(210.0f, 38.0f, 7.0f));
-        AddFittedPlank(BenchWood, Plank, FVector(420.0f, -735.0f, 52.0f), FVector(210.0f, 38.0f, 7.0f));
-    }
-    for (const float X : { -610.0f, -430.0f, 330.0f, 510.0f })
-    {
-        AddBox(DarkParts, FVector(X, -735.0f, 25.0f), FVector(8.0f, 32.0f, 50.0f));
+        AddBox(WhiteParts, FVector(static_cast<float>(Index) * 520.0f, 1450.0f, 2.0f), FVector(220.0f, 12.0f, 3.0f));
     }
 
-    UE_LOG(LogTemp, Display,
-        TEXT("R13 Oster bus station built at verified geo anchor (%.1f, %.1f); server-authoritative one-storey model and compact forecourt active; parcel yaw remains explicit provisional value."),
-        BusStationAnchor().X, BusStationAnchor().Y);
+    UE_LOG(LogTemp, Display, TEXT("R13 bus station photo model: built at verified POI anchor."));
 }
