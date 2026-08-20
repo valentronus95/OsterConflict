@@ -16,8 +16,8 @@
 | Remington 870 | `/Game/Production/Weapons/Remington870/SM_Remington870` | Static | runtime code wired; animated production replacement/pass pending |
 | M249 | `/Game/Production/Weapons/M249/SM_M249` | Static | runtime code wired; animated production replacement/pass pending |
 | M14 | `/Game/R13/Weapons/Stein/M14/SKM_M14` | Skeletal | runtime code wired; animation coverage pending |
-| MAC-10 | `/Game/R13/Weapons/Stein/Mac10/SKM_MAC10` | Skeletal | runtime code wired; animation coverage pending |
-| TEC-9 | `/Game/R13/Weapons/Stein/Tec9/SKM_TEC9` | Skeletal | runtime code wired; animation coverage pending |
+| MAC-10 | `/Game/R13/Weapons/Stein/Mac10/SKM_Mac10` | Skeletal | runtime code wired; animation coverage pending |
+| TEC-9 | `/Game/R13/Weapons/Stein/Tec9/SKM_Tec9` | Skeletal | runtime code wired; animation coverage pending |
 | Lever Action .45-70 | `/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction` | Skeletal | runtime code wired; animation coverage pending |
 | Anti-Armor Launcher (`OC_RPG1`) | `/Game/R13/Weapons/rocketlauncherModern` | Static | Kenney CC0 source + imported uasset verified; runtime production visual wired; canonical/runtime automation added; grip/visual validation pending |
 | M2 Browning visual | `/Game/Production/Weapons/M2/SM_M2_Browning` | Static | source/import path verified; mounted by gun-truck runtime code; visual validation pending |
