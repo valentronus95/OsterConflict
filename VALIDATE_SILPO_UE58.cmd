@@ -4,17 +4,17 @@ cd /d "%~dp0"
 
 echo ============================================================
 echo OSTER CONFLICT - SILPO OSTER R14 VALIDATION
-ECHO Branch target: silpo-oster
-ECHO Static contracts + UE 5.8 Editor build
-ECHO ============================================================
+echo Branch target: silpo-oster
+echo Static contracts + UE 5.8 Editor build
+echo ============================================================
 echo.
 
 set "PY_CMD="
 where py >nul 2>nul
-if %ERRORLEVEL%==0 set "PY_CMD=py -3"
+if not errorlevel 1 set "PY_CMD=py -3"
 if not defined PY_CMD (
   where python >nul 2>nul
-  if %ERRORLEVEL%==0 set "PY_CMD=python"
+  if not errorlevel 1 set "PY_CMD=python"
 )
 
 if not defined PY_CMD (
@@ -26,7 +26,7 @@ if not defined PY_CMD (
 
 echo [1/2] Silpo source/reference contracts...
 %PY_CMD% "OsterConflict\Tools\validate_silpo_location.py"
-if not "%ERRORLEVEL%"=="0" (
+if errorlevel 1 (
   echo.
   echo [FAIL] Silpo static validation failed. UE build not started.
   pause
