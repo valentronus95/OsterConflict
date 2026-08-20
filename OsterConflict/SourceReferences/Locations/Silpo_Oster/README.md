@@ -5,9 +5,7 @@ Branch: `silpo-oster`
 
 ## Source policy
 
-Primary visual evidence is the current user-provided Silpo exterior/interior photo set.
-
-The museum screenshots/photos supplied in the preceding message are explicitly excluded. They are not Silpo references and must not be copied into this directory.
+Primary visual evidence is the current user-provided Silpo exterior/interior photo set from this task. The repository keeps compact review copies outside Unreal `Content` so the geometry can be checked against the same fixed references without turning them into runtime textures.
 
 ## Public anchors
 
@@ -15,10 +13,18 @@ The museum screenshots/photos supplied in the preceding message are explicitly e
 - Visicom address point: `https://maps.visicom.ua/i/ADR3KJXJOBMR8PFNND`
 - Verified address-center WGS84: `50.948833799986254, 30.87572244094098`
 
-## Binary photo status
+## Photo pack
 
-The current Silpo images are visually available in the chat but are not exposed as downloadable conversation-file bytes to the repository connector in this session. The only mountable image binaries currently exposed by the file layer are the older museum set, so they are intentionally not uploaded here.
+`Photos/` contains 20 semantic review references covering:
+- front facade and sign;
+- left-side public entrance and porch;
+- side/street context;
+- main sales-floor aisles;
+- produce area;
+- beverage shelving;
+- refrigeration;
+- checkout zone.
 
-Do not substitute unrelated screenshots just to make the folder non-empty.
+The files are evidence/review assets only. They are not imported into Unreal `Content` and must not become gameplay texture dependencies.
 
-When the correct Silpo binary sources are exposed, store them under `Photos/` using semantic names from `SILPO_OSTER_TZ.md` and keep originals/reference copies outside Unreal `Content`.
+The detailed per-photo manifest and modeling conclusions live in `OsterConflict/Docs/Locations/SILPO_OSTER_TZ.md`.
