@@ -38,4 +38,5 @@ public:
     static FOCGeoReferencePoint FormerCityAdministration();
     static FOCGeoReferencePoint HistoricCourtBuilding();
     static FOCGeoReferencePoint ResurrectionChurch();
+    static FOCGeoReferencePoint Silpo();
 };
