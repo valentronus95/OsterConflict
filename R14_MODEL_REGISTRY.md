@@ -19,9 +19,12 @@
 | MAC-10 | `/Game/R13/Weapons/Stein/Mac10/SKM_Mac10` | Skeletal | runtime code wired; animation coverage pending |
 | TEC-9 | `/Game/R13/Weapons/Stein/Tec9/SKM_Tec9` | Skeletal | runtime code wired; animation coverage pending |
 | Lever Action .45-70 | `/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction` | Skeletal | runtime code wired; animation coverage pending |
+| Anti-Armor Launcher (`OC_RPG1`) | **MISSING** | Missing production mesh | gameplay launcher class exists, but no canonical production visual is wired; R14 runtime weapon validation must remain FAIL until a licensed model is sourced/imported and attached |
 | M2 Browning visual | `/Game/Production/Weapons/M2/SM_M2_Browning` | Static | source/import path verified; mounted by gun-truck runtime code; visual validation pending |
 
 Current first-person presentation provides generic ADS, recoil and reload offsets. Explicit model animation sequences are currently wired for AK-47 only. R14 therefore treats all other rows as incomplete until their compatible animation coverage and hand alignment are validated.
+
+Current equipped-weapon attachment also uses one shared camera-space base transform for every weapon class (`X=38, Y=12, Z=-14`, zero rotation). R14 treats this as a presentation defect: AK-47, pistol, M700, MAC-10 and other weapons require individual calibrated first-person grip profiles rather than one universal transform.
 
 ## Characters
 
@@ -72,8 +75,9 @@ Environment model acceptance fields to fill during stages 4–5: exact asset pat
 
 ## Animation sources
 
-- `SampleAnimationPack`: rifle idle and ADS idle currently used only as compatible fallback.
+- `SampleAnimationPack`: rifle idle and ADS idle currently used only as compatible fallback; checked Rifle directory contains no named Fire/Reload assets.
 - `AK-47/Animations`: explicit fire/reload sequences currently wired.
+- R13 Stein weapon directories: skeletal weapon meshes/accessories are present, but dedicated weapon Fire/Reload animation assets were not found in the checked weapon folders.
 - `QuantumCharacter/Demo/Animations`: current body idle/walk/run/fall source used by production character subsystem.
 
 ## Required final fields for every production row
