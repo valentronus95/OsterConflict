@@ -1,6 +1,7 @@
 #include "OCR13WeaponVariantSpawnSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCTeamSpawnPoint.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
 #include "OCWorldSectorOster.h"
@@ -13,6 +14,7 @@ namespace
 {
     constexpr int32 MaxSpawnAttempts = 20;
     constexpr float SpawnRetryDelaySeconds = 0.50f;
+    constexpr int32 WeaponTestCount = 10;
 }
 
 bool UOCR13WeaponVariantSpawnSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -29,7 +31,6 @@ void UOCR13WeaponVariantSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_Client) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Frontend-only sessions intentionally do not create the Oster world sector or gameplay pickups.
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
@@ -75,50 +76,70 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
         else
         {
             UE_LOG(LogTemp, Warning,
-                TEXT("R13 bundled weapon variants: Oster world sector was not ready after %d attempts; no extra pickups created."),
+                TEXT("R13 weapon test rack: Oster world sector was not ready after %d attempts."),
                 SpawnAttemptCount);
         }
         return;
     }
 
-    struct FVariantSeed
+    // Put the complete test rack beside the actual Team One base spawn. The compact layout can move that spawn,
+    // so derive the location from the live actor instead of scattering test weapons across unrelated landmarks.
+    FVector BaseSpawn(-64000.0f, 44000.0f, 160.0f);
+    for (TActorIterator<AOCTeamSpawnPoint> It(&World); It; ++It)
     {
-        TSubclassOf<AOCWeaponBase> WeaponClass;
-        FVector Location;
-    };
+        AOCTeamSpawnPoint* Spawn = *It;
+        if (Spawn && Spawn->IsBaseSpawn() && Spawn->GetTeamId() == EOCTeam::TeamOne)
+        {
+            BaseSpawn = Spawn->GetActorLocation();
+            break;
+        }
+    }
 
-    const FVariantSeed Seeds[] =
+    const TSubclassOf<AOCWeaponBase> Classes[WeaponTestCount] =
     {
-        { AOCWeapon_M14::StaticClass(), AOCWorldSectorOster::MuseumAnchor() + FVector(5200.0f, -3200.0f, 80.0f) },
-        { AOCWeapon_LeverAction::StaticClass(), AOCWorldSectorOster::ParkAnchor() + FVector(-5000.0f, 4200.0f, 80.0f) },
-        { AOCWeapon_MAC10::StaticClass(), AOCWorldSectorOster::StadiumAnchor() + FVector(4200.0f, 4500.0f, 80.0f) },
-        { AOCWeapon_Tec9::StaticClass(), AOCWorldSectorOster::CollegeAnchor() + FVector(-3600.0f, -4000.0f, 80.0f) },
+        AOCWeapon_AssaultRifle::StaticClass(),
+        AOCWeapon_SMG::StaticClass(),
+        AOCWeapon_Pistol::StaticClass(),
+        AOCWeapon_Sniper::StaticClass(),
+        AOCWeapon_Shotgun::StaticClass(),
+        AOCWeapon_LMG::StaticClass(),
+        AOCWeapon_M14::StaticClass(),
+        AOCWeapon_LeverAction::StaticClass(),
+        AOCWeapon_MAC10::StaticClass(),
+        AOCWeapon_Tec9::StaticClass(),
     };
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
     TArray<AOCWeaponBase*> SpawnedWeapons;
-    SpawnedWeapons.Reserve(UE_ARRAY_COUNT(Seeds));
+    SpawnedWeapons.Reserve(WeaponTestCount);
 
     bool bSpawnedAll = true;
-    for (const FVariantSeed& Seed : Seeds)
+    for (int32 Index = 0; Index < WeaponTestCount; ++Index)
     {
+        // Two clean rows of five, starting about 4 m to the side/front of the spawn point.
+        const int32 Row = Index / 5;
+        const int32 Column = Index % 5;
+        const FVector Location = BaseSpawn + FVector(
+            420.0f + static_cast<float>(Row) * 230.0f,
+            -480.0f + static_cast<float>(Column) * 240.0f,
+            120.0f);
+
         AOCWeaponBase* Weapon = World.SpawnActor<AOCWeaponBase>(
-            Seed.WeaponClass, Seed.Location, FRotator::ZeroRotator, SpawnParams);
+            Classes[Index], Location, FRotator::ZeroRotator, SpawnParams);
         if (!Weapon)
         {
             bSpawnedAll = false;
             break;
         }
 
-        Weapon->DropToWorldServer(Seed.Location, FRotator::ZeroRotator);
+        Weapon->DropToWorldServer(Location, FRotator::ZeroRotator);
         SpawnedWeapons.Add(Weapon);
     }
 
-    if (!bSpawnedAll || SpawnedWeapons.Num() != UE_ARRAY_COUNT(Seeds))
+    if (!bSpawnedAll || SpawnedWeapons.Num() != WeaponTestCount)
     {
-        // Do not leave a partial set behind and then duplicate successful seeds on the retry.
         for (AOCWeaponBase* Weapon : SpawnedWeapons)
         {
             if (IsValid(Weapon)) Weapon->Destroy();
@@ -131,13 +152,14 @@ void UOCR13WeaponVariantSpawnSubsystem::TrySpawnBundledVariants(UWorld& World)
         else
         {
             UE_LOG(LogTemp, Warning,
-                TEXT("R13 bundled weapon variants: could not create all four pickup variants after %d attempts."),
-                SpawnAttemptCount);
+                TEXT("R13 weapon test rack: could not create all %d pickups after %d attempts."),
+                WeaponTestCount, SpawnAttemptCount);
         }
         return;
     }
 
     bSpawnComplete = true;
     UE_LOG(LogTemp, Display,
-        TEXT("R13 bundled weapon variants spawned as pickups: 4/4 after %d attempt(s)"), SpawnAttemptCount);
+        TEXT("R13 weapon test rack spawned beside Team One base: %d/%d weapons after %d attempt(s)."),
+        SpawnedWeapons.Num(), WeaponTestCount, SpawnAttemptCount);
 }
