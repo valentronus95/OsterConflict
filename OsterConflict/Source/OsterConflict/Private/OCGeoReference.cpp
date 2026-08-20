@@ -21,12 +21,12 @@ FOCGeoReferencePoint FOCGeoReference::Museum()
 
 FOCGeoReferencePoint FOCGeoReference::Stadium()
 {
-    // R13 playtest topology correction: when standing in front of the museum and facing its entrance, the stadium is
-    // on the museum's left. The previous OSM-derived point placed it on the opposite side. Mirror only the previous
-    // east/west offset around the trusted museum origin so every stadium consumer moves consistently, but explicitly
-    // downgrade this anchor to C: the side relationship is user-verified while exact stadium distance/centroid is not.
-    return { TEXT("StadionOster"), 50.94936, 30.883070, EOCReferenceConfidence::C,
-        TEXT("R13 playtest topology correction: stadium is left of the museum facade; exact distance/centroid remains provisional and must not be treated as surveyed") };
+    // R13 playtest topology correction: with the player standing south of the museum and looking north at its front
+    // entrance, left is local west (-X). Keep the stadium on the museum northing and move only west far enough that
+    // its authored ~119 m pitch/stand footprint no longer overlaps the museum site. The relationship is intentional;
+    // the exact distance/centroid is still not survey-grade and therefore remains confidence C.
+    return { TEXT("StadionOster"), 50.948239, 30.882150, EOCReferenceConfidence::C,
+        TEXT("R13 playtest topology anchor: stadium is west/left of the museum facade on the same provisional northing; approximately 120 m center separation, exact centroid still requires site verification") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
