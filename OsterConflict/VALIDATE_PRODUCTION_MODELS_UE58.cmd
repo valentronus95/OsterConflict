@@ -64,7 +64,7 @@ echo UE:      %UE_ROOT%
 echo Project: %UPROJECT%
 echo.
 
-echo [1/3] Building OsterConflictEditor Development Win64...
+echo [1/4] Building OsterConflictEditor Development Win64...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -75,7 +75,7 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/3] Running OsterConflict.ProductionModels automation tests...
+echo [2/4] Running OsterConflict.ProductionModels automation tests...
 "%UE_CMD%" "%UPROJECT%" -unattended -nop4 -nosplash -nullrhi -stdout ^
     -ExecCmds="Automation RunTest OsterConflict.ProductionModels;Quit" ^
     -ReportExportPath="%REPORT_DIR%"
@@ -99,27 +99,45 @@ if not exist "%SUCCESS_SENTINEL%" (
 findstr /L /C:"Ukrainian HMMWV=PASS" "%SUCCESS_SENTINEL%" >nul || goto :test_failed
 findstr /L /C:"M2 Browning=PASS" "%SUCCESS_SENTINEL%" >nul || goto :test_failed
 findstr /L /C:"BTR-4 Bucephalus=PASS" "%SUCCESS_SENTINEL%" >nul || goto :test_failed
+findstr /L /C:"Anti-Armor Launcher=PASS" "%SUCCESS_SENTINEL%" >nul || goto :test_failed
 
 echo.
 echo PASS: production asset automation checks passed.
 echo Report: %REPORT_DIR%
 echo.
-echo [3/3] Launching standalone Sandbox visual + weapon runtime validation...
+echo [3/4] Running headless production-weapon runtime gate...
 set "VISUAL_MAP=/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1"
+if exist "%WEAPON_RUNTIME_REPORT%" del /q "%WEAPON_RUNTIME_REPORT%" >nul 2>nul
+if exist "%WEAPON_RUNTIME_SENTINEL%" del /q "%WEAPON_RUNTIME_SENTINEL%" >nul 2>nul
+
+"%UE_CMD%" "%UPROJECT%" "%VISUAL_MAP%" -game -NoFrontend ^
+    -ValidateProductionWeapons -ValidateProductionWeaponsHeadless ^
+    -unattended -nop4 -nosplash -nullrhi -stdout
+set "WEAPON_RUNTIME_RC=%ERRORLEVEL%"
+
+if not "%WEAPON_RUNTIME_RC%"=="0" (
+    echo.
+    echo ERROR: headless production-weapon runtime process failed with code %WEAPON_RUNTIME_RC%.
+    echo Report: %WEAPON_RUNTIME_REPORT%
+    exit /b %WEAPON_RUNTIME_RC%
+)
+
+if not exist "%WEAPON_RUNTIME_REPORT%" goto :weapon_runtime_failed
+if not exist "%WEAPON_RUNTIME_SENTINEL%" goto :weapon_runtime_failed
+findstr /L /C:"R14_PRODUCTION_WEAPONS=PASS" "%WEAPON_RUNTIME_SENTINEL%" >nul || goto :weapon_runtime_failed
+
+echo PASS: all declared production weapon actors passed the runtime mesh/fallback gate.
+echo Report: %WEAPON_RUNTIME_REPORT%
+echo.
+echo [4/4] Launching standalone Sandbox visual check...
 start "Oster Conflict - R14 Production Model Visual Check" "%UE_EDITOR%" "%UPROJECT%" "%VISUAL_MAP%" -game -NoFrontend -ValidateProductionWeapons -log -windowed -ResX=1600 -ResY=900
 
 echo.
 echo ============================================================
-echo AUTOMATION PASS. R14 visual Sandbox launched.
-echo Weapon runtime validation will write:
-echo   %WEAPON_RUNTIME_REPORT%
-echo Full weapon success sentinel, once every weapon has a canonical production visual:
-echo   %WEAPON_RUNTIME_SENTINEL%
-echo.
+echo R14 AUTOMATION + WEAPON RUNTIME GATE PASS. Visual Sandbox launched.
 echo Check weapon hand placement, ADS, fire/reload presentation, HMMWV scale/materials,
 echo M2 pivot+muzzle and BTR-4 shell/materials before marking PR #15 ready.
-echo NOTE: OC_RPG1 currently has no canonical production mesh, so the weapon runtime
-echo       report must remain FAIL until that model is added. Do not fake this gate.
+echo Grip profiles remain UNCALIBRATED until each exact weapon is visually approved.
 echo ============================================================
 exit /b 0
 
@@ -129,3 +147,11 @@ echo ERROR: production automation sentinel is incomplete.
 echo File: %SUCCESS_SENTINEL%
 echo Report: %REPORT_DIR%
 exit /b 11
+
+:weapon_runtime_failed
+echo.
+echo ERROR: R14 production-weapon runtime gate did not pass.
+echo Report:   %WEAPON_RUNTIME_REPORT%
+echo Sentinel: %WEAPON_RUNTIME_SENTINEL%
+if exist "%WEAPON_RUNTIME_REPORT%" type "%WEAPON_RUNTIME_REPORT%"
+exit /b 12
