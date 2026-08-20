@@ -17,6 +17,7 @@ class UTextRenderComponent;
  * - Oster central stadium
  * - Oster Vocational College of Construction and Design
  * - Oster city park
+ * - Silpo supermarket at Bohdana Khmelnytskoho 54 (dedicated branch replacement pass)
  *
  * This remains a gameplay reconstruction, NOT survey-grade architectural documentation.
  * Public references determine silhouette, storey count, facade rhythm, roof character, site relationships,
@@ -41,6 +42,7 @@ public:
     static FVector FormerCityAdministrationAnchor();
     static FVector HistoricCourtAnchor();
     static FVector ResurrectionChurchAnchor();
+    static FVector SilpoAnchor();
     static FVector StadiumAnchor();
     static FVector KrushelnytskaEnterableHouseAnchor();
     static float KrushelnytskaEnterableHouseYaw();
