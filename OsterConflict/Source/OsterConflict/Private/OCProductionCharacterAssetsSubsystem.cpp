@@ -11,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "UObject/UObjectGlobals.h"
 #include "TimerManager.h"
 
 namespace
@@ -19,11 +20,12 @@ namespace
     constexpr const TCHAR* ArmsPath = TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Arms.SKM_Arms");
 
     void AddSkeletalGear(AOCCharacter& Character, USkeletalMeshComponent* Body,
-        USkeletalMesh* Mesh, const FName ComponentName)
+        USkeletalMesh* Mesh, const FName BaseComponentName)
     {
         if (!Body || !Mesh) return;
 
-        USkeletalMeshComponent* Gear = NewObject<USkeletalMeshComponent>(&Character, ComponentName);
+        const FName UniqueName = MakeUniqueObjectName(&Character, USkeletalMeshComponent::StaticClass(), BaseComponentName);
+        USkeletalMeshComponent* Gear = NewObject<USkeletalMeshComponent>(&Character, UniqueName);
         if (!Gear) return;
 
         Gear->SetupAttachment(Body);
@@ -34,17 +36,18 @@ namespace
         Gear->SetCanEverAffectNavigation(false);
         Gear->SetOwnerNoSee(true);
         Gear->SetCastShadow(true);
-        Gear->ComponentTags.Add(TEXT("OC_ProductionGear"));
+        Gear->ComponentTags.Add(FName(TEXT("OC_ProductionGear")));
         Character.AddInstanceComponent(Gear);
         Gear->RegisterComponent();
     }
 
     void AddStaticGear(AOCCharacter& Character, USkeletalMeshComponent* Body,
-        UStaticMesh* Mesh, const FName ComponentName, const FName SocketName)
+        UStaticMesh* Mesh, const FName BaseComponentName, const FName SocketName)
     {
         if (!Body || !Mesh) return;
 
-        UStaticMeshComponent* Gear = NewObject<UStaticMeshComponent>(&Character, ComponentName);
+        const FName UniqueName = MakeUniqueObjectName(&Character, UStaticMeshComponent::StaticClass(), BaseComponentName);
+        UStaticMeshComponent* Gear = NewObject<UStaticMeshComponent>(&Character, UniqueName);
         if (!Gear) return;
 
         Gear->SetupAttachment(Body, SocketName);
@@ -54,7 +57,7 @@ namespace
         Gear->SetCanEverAffectNavigation(false);
         Gear->SetOwnerNoSee(true);
         Gear->SetCastShadow(true);
-        Gear->ComponentTags.Add(TEXT("OC_ProductionGear"));
+        Gear->ComponentTags.Add(FName(TEXT("OC_ProductionGear")));
         Character.AddInstanceComponent(Gear);
         Gear->RegisterComponent();
     }
@@ -63,9 +66,9 @@ namespace
     {
         switch (GearClass)
         {
-        case EOCCharacterGearClass::Light: return TEXT("OC_Gear_Light");
-        case EOCCharacterGearClass::Heavy: return TEXT("OC_Gear_Heavy");
-        default: return TEXT("OC_Gear_Standard");
+        case EOCCharacterGearClass::Light: return FName(TEXT("OC_Gear_Light"));
+        case EOCCharacterGearClass::Heavy: return FName(TEXT("OC_Gear_Heavy"));
+        default: return FName(TEXT("OC_Gear_Standard"));
         }
     }
 }
@@ -104,7 +107,7 @@ void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
         UOCCharacterVisualProfile* Profile = NewObject<UOCCharacterVisualProfile>(this);
         if (!Profile) return static_cast<UOCCharacterVisualProfile*>(nullptr);
         Profile->Faction = Faction;
-        Profile->DisplayName = FText::FromString(DisplayName);
+        Profile->DisplayName = FText::FromString(FString(DisplayName));
         Profile->ThirdPersonBodyMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(BodyPath));
         Profile->FirstPersonArmsMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(ArmsPath));
         return Profile;
@@ -155,33 +158,33 @@ void UOCProductionCharacterAssetsSubsystem::ApplyGear(AOCCharacter& Character)
     Character.GetComponents(Components);
     for (UActorComponent* Component : Components)
     {
-        if (Component && Component->ComponentHasTag(TEXT("OC_ProductionGear")))
+        if (Component && Component->ComponentHasTag(FName(TEXT("OC_ProductionGear"))))
         {
             Component->DestroyComponent();
         }
     }
 
-    Character.Tags.Remove(TEXT("OC_Gear_Light"));
-    Character.Tags.Remove(TEXT("OC_Gear_Standard"));
-    Character.Tags.Remove(TEXT("OC_Gear_Heavy"));
+    Character.Tags.Remove(FName(TEXT("OC_Gear_Light")));
+    Character.Tags.Remove(FName(TEXT("OC_Gear_Standard")));
+    Character.Tags.Remove(FName(TEXT("OC_Gear_Heavy")));
     Character.Tags.Add(DesiredTag);
 
     switch (GearClass)
     {
     case EOCCharacterGearClass::Light:
-        AddStaticGear(Character, Body, CapMesh, TEXT("OC_ProductionCap"), TEXT("head"));
-        AddSkeletalGear(Character, Body, HolsterMesh, TEXT("OC_ProductionHolster"));
+        AddStaticGear(Character, Body, CapMesh, FName(TEXT("OC_ProductionCap")), FName(TEXT("head")));
+        AddSkeletalGear(Character, Body, HolsterMesh, FName(TEXT("OC_ProductionHolster")));
         break;
 
     case EOCCharacterGearClass::Heavy:
-        AddSkeletalGear(Character, Body, VestMesh, TEXT("OC_ProductionVest"));
-        AddSkeletalGear(Character, Body, DropsMesh, TEXT("OC_ProductionDrops"));
-        AddSkeletalGear(Character, Body, HolsterMesh, TEXT("OC_ProductionHolster"));
+        AddSkeletalGear(Character, Body, VestMesh, FName(TEXT("OC_ProductionVest")));
+        AddSkeletalGear(Character, Body, DropsMesh, FName(TEXT("OC_ProductionDrops")));
+        AddSkeletalGear(Character, Body, HolsterMesh, FName(TEXT("OC_ProductionHolster")));
         break;
 
     default:
-        AddSkeletalGear(Character, Body, VestMesh, TEXT("OC_ProductionVest"));
-        AddSkeletalGear(Character, Body, HolsterMesh, TEXT("OC_ProductionHolster"));
+        AddSkeletalGear(Character, Body, VestMesh, FName(TEXT("OC_ProductionVest")));
+        AddSkeletalGear(Character, Body, HolsterMesh, FName(TEXT("OC_ProductionHolster")));
         break;
     }
 }
