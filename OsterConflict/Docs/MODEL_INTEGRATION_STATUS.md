@@ -47,7 +47,22 @@ This file separates four states that must not be confused:
 - VehicleVarietyPack Pickup remains the fallback gun-truck visual.
 - `AOCPickupGunTruck` now prefers canonical `/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA` and mounts `/Game/Production/Weapons/M2/SM_M2_Browning` on the existing gameplay turret pivot when those assets exist.
 - `AOCBTR` now prefers canonical `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus` as a visual shell while retaining the existing 8-wheel suspension, physics, armor and turret gameplay.
-- `Scripts/import_production_vehicle_assets.py` provides deterministic UE 5.8 import paths/names and removes the HMMWV Mk19 scene subtree before importing the HMMWV. `IMPORT_PRODUCTION_VEHICLES_UE58.cmd` is the one-click Editor command-line launcher.
+- Production vehicle replacement clears component material overrides with `EmptyOverrideMaterials()` so the imported mesh keeps its authored material slots instead of inheriting fallback visual overrides.
+- `Scripts/import_production_vehicle_assets.py` provides deterministic UE 5.8 import paths/names and removes the HMMWV Mk19 scene subtree before importing the HMMWV. `IMPORT_PRODUCTION_VEHICLES_UE58.cmd` is the Editor command-line launcher.
+- `UOCProductionVehicleRuntimeValidationSubsystem` performs delayed PIE/runtime validation of HMMWV, M2 and BTR-4 asset availability, usable bounds/material slots and actual use on spawned gun-truck/BTR actors. Fallbacks remain functional, but validation reports a failure until production assets are really active.
+
+## Binary ingest safety
+
+`INGEST_UPLOADED_MODELS_AND_IMPORT.cmd` is locked to `feat/import-hmmwv-btr4-m2` and refuses to start with unrelated tracked local changes. It performs fetch/switch/fast-forward safety checks before touching production binaries.
+
+After Unreal import, `VERIFY_PRODUCTION_MODEL_INGEST.cmd` verifies before the generated asset commit:
+- HMMWV GLB, M2 GLB, BTR-4 FBX and all six required BTR textures exist as real local binaries, not tiny unsmudged pointer files;
+- canonical HMMWV, M2 and BTR-4 `.uasset` outputs exist;
+- the corresponding extensions resolve to the Git LFS filter;
+- source binaries already committed in `HEAD` are stored as LFS pointers;
+- generated Unreal assets staged in the index are stored as LFS pointers.
+
+The ingest exits with failure and does not commit generated Unreal assets if this verification gate fails.
 
 ## Source files received in the current work session but not yet physically stored by the GitHub connector
 
@@ -56,7 +71,7 @@ The conversation upload contains:
 - separate M2 Browning GLB;
 - user-selected BTR-4E Bucephalus FBX plus six textures.
 
-The current GitHub connector can mutate repository text/code/branches/PRs but does not expose a local binary/LFS upload operation. Therefore runtime paths and import automation are integrated, but these new source bytes and the generated `/Game/Production/...` `.uasset` files must not be reported as present in GitHub until a real LFS push/import has occurred.
+The current GitHub connector can mutate repository text/code/branches/PRs but does not expose a local binary/LFS upload operation. Therefore runtime paths, validation and import automation are integrated, but these new source bytes and the generated `/Game/Production/...` `.uasset` files must not be reported as present in GitHub until a real local LFS push/import has occurred.
 
 ## Restored content intentionally not scattered blindly into runtime
 
@@ -75,4 +90,4 @@ The uploaded BTR-4 FBX contains a source/authoring path referring to a GTA San A
 
 ## Validation boundary
 
-GitHub can verify repository state, asset paths and source integration. It cannot replace an Unreal Engine 5.8 compile/PIE visual run. Imported mesh orientation, authored sockets, material dependencies, animation retargeting, M2 muzzle alignment, hand placement and final vehicle scale must be visually checked in UE before declaring the art pass final.
+GitHub can verify repository state, asset paths, validation code and source integration. It cannot replace an Unreal Engine 5.8 compile/PIE visual run. Imported mesh orientation, authored sockets, material dependencies, animation retargeting, M2 muzzle alignment, hand placement and final vehicle scale must be visually checked in UE before declaring the art pass final.
