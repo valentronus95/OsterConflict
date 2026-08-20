@@ -7,6 +7,7 @@
 #include "Components/SceneComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
@@ -87,13 +88,14 @@ bool UOCR13BusStationPhotoModelSubsystem::ShouldCreateSubsystem(UObject* Outer) 
 void UOCR13BusStationPhotoModelSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
-    if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    // This landmark owns blocking collision, therefore it must be deterministic on listen/dedicated server as well
+    // as on clients. Rendering cost on a headless server is irrelevant compared with divergent authoritative physics.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
     InWorld.GetTimerManager().SetTimer(Timer,
@@ -107,7 +109,8 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
 {
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
-        if (AActor* Existing = *It; Existing && Existing->ActorHasTag(TEXT("R13_BusStationPhotoModel"))) return;
+        AActor* Existing = *It;
+        if (Existing && Existing->ActorHasTag(TEXT("R13_BusStationPhotoModel"))) return;
     }
 
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -162,14 +165,11 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
     UInstancedStaticMeshComponent* Markings = MakeISM(Model, Root, Cube, White, TEXT("R13_BusStationBayMarkings"), false, false);
     UInstancedStaticMeshComponent* BenchWood = MakeISM(Model, Root, Plank, nullptr, TEXT("R13_BusStationBenchWood"), false);
 
-    // Conservative low regional-station mass. The historical and 2009 references establish a small bus-station site,
-    // not a large modern terminal, so the landmark deliberately stays one storey and modest in scale.
     AddBox(Shell, FVector(0.0f, 180.0f, 190.0f), FVector(2300.0f, 820.0f, 380.0f));
     AddBox(Shell, FVector(-760.0f, -310.0f, 155.0f), FVector(780.0f, 220.0f, 310.0f));
     AddBox(Trim, FVector(0.0f, -238.0f, 385.0f), FVector(2360.0f, 28.0f, 44.0f));
     AddBox(Trim, FVector(0.0f, 600.0f, 385.0f), FVector(2360.0f, 28.0f, 44.0f));
 
-    // Front waiting-room glazing: several narrow bays plus a central double entrance rather than one giant glass wall.
     const float WindowXs[] = { -850.0f, -560.0f, 410.0f, 700.0f, 990.0f };
     for (const float X : WindowXs)
     {
@@ -182,8 +182,7 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
         AddBox(Glass, FVector(DoorX, -261.0f, 155.0f), FVector(175.0f, 7.0f, 265.0f));
     }
 
-    // Shallow covered waiting edge and robust columns. No font-rendered sign here: the current TextRender path already
-    // demonstrated visible shimmer at Silpo, so signage remains a blank physical plate until a proper texture/decal exists.
+    // Avoid TextRender signage until proper texture/decal art is available; it visibly shimmered at Silpo.
     AddBox(ConcreteParts, FVector(70.0f, -570.0f, 337.0f), FVector(2550.0f, 620.0f, 34.0f));
     for (const float X : { -1010.0f, -480.0f, 50.0f, 580.0f, 1110.0f })
     {
@@ -191,7 +190,6 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
     }
     AddBox(Trim, FVector(-650.0f, -292.0f, 455.0f), FVector(980.0f, 24.0f, 105.0f));
 
-    // Passenger platform and compact bus manoeuvring apron. This is intentionally bounded so it cannot swallow nearby roads.
     AddBox(ConcreteParts, FVector(80.0f, -760.0f, 9.0f), FVector(2760.0f, 520.0f, 18.0f));
     AddBox(Forecourt, FVector(80.0f, -1500.0f, 4.0f), FVector(3300.0f, 1050.0f, 8.0f));
     for (const float X : { -1120.0f, -380.0f, 360.0f, 1100.0f })
@@ -200,7 +198,6 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
     }
     AddBox(Markings, FVector(0.0f, -1930.0f, 10.0f), FVector(2400.0f, 12.0f, 4.0f));
 
-    // Two restrained waiting benches. Use the existing old-plank asset when available; otherwise the station still builds.
     if (BenchWood && Plank)
     {
         AddFittedPlank(BenchWood, Plank, FVector(-520.0f, -735.0f, 52.0f), FVector(210.0f, 38.0f, 7.0f));
@@ -212,6 +209,6 @@ void UOCR13BusStationPhotoModelSubsystem::BuildBusStation(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 Oster bus station built at verified geo anchor (%.1f, %.1f); one-storey photo-informed model and compact forecourt active, parcel yaw remains explicit provisional value."),
+        TEXT("R13 Oster bus station built at verified geo anchor (%.1f, %.1f); server-authoritative one-storey model and compact forecourt active; parcel yaw remains explicit provisional value."),
         BusStationAnchor().X, BusStationAnchor().Y);
 }
