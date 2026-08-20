@@ -5,10 +5,12 @@
 #include "OCR13MapPlacementRepairSubsystem.generated.h"
 
 /**
- * Final R13 map-QA repair pass for placement defects exposed by the first playable city review.
- * It corrects deterministic source/art transforms only; it does not generate new landmarks or move gameplay geometry.
+ * Legacy late QA repair pass retained as reference only.
+ * Disabled from R13 runtime because it performs whole-world ISM/vegetation mutations at 0.95/2.85 seconds after
+ * BeginPlay, producing visible popping and a measurable hitch exactly while the player is entering the match.
+ * Placement fixes must be authored at source/spawn time instead of repaired over a live scene.
  */
-UCLASS()
+UCLASS(Abstract)
 class OSTERCONFLICT_API UOCR13MapPlacementRepairSubsystem : public UWorldSubsystem
 {
     GENERATED_BODY()
