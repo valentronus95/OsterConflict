@@ -9,6 +9,7 @@ import unreal
 PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
 SOURCE_ROOT = PROJECT_DIR / "SourceAssets" / "Production"
 CACHE_ROOT = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
+SUCCESS_SENTINEL = CACHE_ROOT / "production_import_success.txt"
 
 HMMWV_SOURCE = SOURCE_ROOT / "Vehicles" / "HMMWV" / "ukrainian_hmmwv_mk_19.glb"
 M2_SOURCE = SOURCE_ROOT / "Weapons" / "M2" / "m2_50cal_machinegun_cc0.glb"
@@ -224,8 +225,11 @@ def ensure_sources_exist():
 
 
 def main():
-    ensure_sources_exist()
     CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    if SUCCESS_SENTINEL.exists():
+        SUCCESS_SENTINEL.unlink()
+
+    ensure_sources_exist()
 
     cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
     make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
@@ -240,6 +244,9 @@ def main():
     log("Production vehicle import complete:")
     for path in imported:
         log(f"  {path}")
+
+    SUCCESS_SENTINEL.write_text("\n".join(imported) + "\n", encoding="utf-8")
+    log(f"Success sentinel written: {SUCCESS_SENTINEL}")
 
 
 if __name__ == "__main__":
