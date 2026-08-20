@@ -66,6 +66,12 @@ for needle in [
     'TEXT("StadionOsterFootpaths")',
     'TEXT("StadionOsterEntranceBlue")',
     'TEXT("StadionOsterEntranceYellow")',
+    'TEXT("StadionOsterEntranceText")',
+    'TEXT("СТАДІОН ОСТЕР")',
+    '#include "Components/TextRenderComponent.h"',
+    "SiteActor->SetActorEnableCollision(true);",
+    'TEXT("StadionOsterFences01"), true, true, 60000',
+    'TEXT("StadionOsterFences03"), true, true, 60000',
     'TEXT("StadiumGeometry")',
     'TEXT("StadiumDetails")',
     'TEXT("Fences")',
@@ -85,9 +91,10 @@ for forbidden in [
     "StadiumDelaySeconds",
     "SetTimer(",
     "AOCWorldSectorOster::StadiumAnchor()",
+    "SiteActor->SetActorEnableCollision(false);",
 ]:
     if forbidden in stadium_cpp:
-        fail(f"authoritative stadium owner still contains legacy/delayed pattern {forbidden!r}")
+        fail(f"authoritative stadium owner still contains legacy/unsafe pattern {forbidden!r}")
 
 if stadium_cpp.count("World.SpawnActor<AActor>") != 1:
     fail("authoritative stadium owner must spawn exactly one site actor")
@@ -139,6 +146,7 @@ print("- canonical 17-frame reference set present")
 print("- stadium anchor is hard-georeferenced")
 print("- one synchronous authoritative stadium owner")
 print("- delayed legacy stadium builder is retired")
-print("- legacy stadium visuals/local shared fences are cleaned without global fence removal")
+print("- local collision is active for sports metal, entrance structure and replacement fences")
+print("- 2025 entrance landmark has explicit СТАДІОН ОСТЕР lettering")
 print("- modern turf/running surface, sport zones, curved footpaths and real rural assets are wired")
 print("STATUS: CODED_UNTESTED (UE 5.8 build/playtest still required)")
