@@ -83,8 +83,14 @@ void UOCRecoveredRoadsidePropsSubsystem::Populate(UWorld& World)
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Wheelbarrow_Worn_01/SM_Ind_Con_Wheelbarrow_Worn_01.SM_Ind_Con_Wheelbarrow_Worn_01"));
     UStaticMesh* GravelMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Pile_Gravel_Crushed_01/SM_Ind_Con_Pile_Gravel_Crushed_01.SM_Ind_Con_Pile_Gravel_Crushed_01"));
+    UStaticMesh* CableWheelMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_CableWheel_Wood_L_01/SM_Ind_Con_CableWheel_Wood_L_01.SM_Ind_Con_CableWheel_Wood_L_01"));
+    UStaticMesh* ShovelMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Min_Tool_Shovel_Old_01/SM_Ind_Min_Tool_Shovel_Old_01.SM_Ind_Min_Tool_Shovel_Old_01"));
+    UStaticMesh* ToolboxMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Old_Toolbox_Metal_Green_02/SM_Ind_Old_Toolbox_Metal_Green_02.SM_Ind_Old_Toolbox_Metal_Green_02"));
 
-    if (!WheelbarrowMesh && !GravelMesh)
+    if (!WheelbarrowMesh && !GravelMesh && !CableWheelMesh && !ShovelMesh && !ToolboxMesh)
     {
         UE_LOG(LogTemp, Warning, TEXT("Recovered roadside-props pass skipped: selected meshes were not loadable."));
         return;
@@ -104,6 +110,9 @@ void UOCRecoveredRoadsidePropsSubsystem::Populate(UWorld& World)
 
     UInstancedStaticMeshComponent* Wheelbarrows = MakeISM(Actor, Root, WheelbarrowMesh, TEXT("RecoveredWheelbarrows"));
     UInstancedStaticMeshComponent* GravelPiles = MakeISM(Actor, Root, GravelMesh, TEXT("RecoveredGravelPiles"));
+    UInstancedStaticMeshComponent* CableWheels = MakeISM(Actor, Root, CableWheelMesh, TEXT("RecoveredCableWheels"));
+    UInstancedStaticMeshComponent* Shovels = MakeISM(Actor, Root, ShovelMesh, TEXT("RecoveredShovels"));
+    UInstancedStaticMeshComponent* Toolboxes = MakeISM(Actor, Root, ToolboxMesh, TEXT("RecoveredToolboxes"));
 
     // Dress only the restored unfinished-building shell. Nothing is scattered through named
     // Oster locations, and these props remain visual-only until the site is inspected in UE.
@@ -119,6 +128,13 @@ void UOCRecoveredRoadsidePropsSubsystem::Populate(UWorld& World)
     AddFitted(GravelPiles, GravelMesh, Site + FVector(1950.0f, -1200.0f, 0.0f),
         FVector(190.0f, 175.0f, 70.0f), -24.0f);
 
+    AddFitted(CableWheels, CableWheelMesh, Site + FVector(1650.0f, 850.0f, 0.0f),
+        FVector(175.0f, 90.0f, 175.0f), 72.0f);
+    AddFitted(Shovels, ShovelMesh, Site + FVector(-1120.0f, 720.0f, 0.0f),
+        FVector(24.0f, 18.0f, 145.0f), -16.0f);
+    AddFitted(Toolboxes, ToolboxMesh, Site + FVector(-680.0f, -780.0f, 0.0f),
+        FVector(62.0f, 28.0f, 25.0f), 11.0f);
+
     UE_LOG(LogTemp, Display,
-        TEXT("Recovered roadside props placed at the modular unfinished-building site."));
+        TEXT("Recovered construction site now uses wheelbarrows, gravel, cable wheel, shovel and toolbox models."));
 }

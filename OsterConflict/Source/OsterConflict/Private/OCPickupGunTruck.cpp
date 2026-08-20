@@ -63,16 +63,62 @@ AOCPickupGunTruck::AOCPickupGunTruck()
 
 void AOCPickupGunTruck::ApplyVehicleStyle()
 {
-    Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
+    bool bUsingProductionPickup = false;
+    if (Chassis)
+    {
+        if (UStaticMesh* PickupMesh = LoadObject<UStaticMesh>(nullptr,
+            TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup")))
+        {
+            const FBoxSphereBounds Bounds = PickupMesh->GetBounds();
+            const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+            if (NativeSize.X > 1.0f && NativeSize.Y > 1.0f && NativeSize.Z > 1.0f)
+            {
+                const FVector DesiredSizeCm(485.0f, 194.0f, 170.0f);
+                const FVector Scale(
+                    DesiredSizeCm.X / NativeSize.X,
+                    DesiredSizeCm.Y / NativeSize.Y,
+                    DesiredSizeCm.Z / NativeSize.Z);
 
-    // The old camera was placed at X=82, exactly inside the opaque placeholder
-    // windshield mesh, which produced the giant black shape seen from first person.
-    // Keep the camera in the cab and behind the dashboard instead of inside geometry.
+                Chassis->SetStaticMesh(PickupMesh);
+                Chassis->SetRelativeRotation(FRotator::ZeroRotator);
+                Chassis->SetRelativeScale3D(Scale);
+                Chassis->SetRelativeLocation(-Bounds.Origin * Scale);
+                for (int32 MaterialIndex = 0; MaterialIndex < Chassis->GetNumMaterials(); ++MaterialIndex)
+                {
+                    Chassis->SetMaterial(MaterialIndex, nullptr);
+                }
+                bUsingProductionPickup = true;
+            }
+        }
+    }
+
+    if (!bUsingProductionPickup && Chassis)
+    {
+        Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
+    }
+
+    if (bUsingProductionPickup)
+    {
+        UStaticMeshComponent* SourceOnlyPickupParts[] =
+        {
+            CabRoof.Get(), BedFloor.Get(), BedLeft.Get(), BedRight.Get(),
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+        };
+        for (UStaticMeshComponent* Component : SourceOnlyPickupParts)
+        {
+            if (Component) Component->SetVisibility(false, true);
+        }
+        for (UStaticMeshComponent* Wheel : WheelVisuals)
+        {
+            if (Wheel) Wheel->SetVisibility(false, true);
+        }
+    }
+
+    // The old camera was placed at X=82, exactly inside the opaque placeholder windshield mesh,
+    // which produced the giant black shape seen from first person.
     InteriorCamera->SetRelativeLocation(FVector(28.0f, -45.0f, 88.0f));
     InteriorCamera->SetFieldOfView(92.0f);
 
-    // Until a proper translucent glass material replaces the source-only cube proxy,
-    // do not render that opaque slab. It otherwise blocks the complete forward view.
     if (Windshield)
     {
         Windshield->SetVisibility(false, true);

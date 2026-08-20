@@ -27,6 +27,23 @@ public:
     void InitializeFirstPersonArms(USkeletalMeshComponent* InFirstPersonArms);
     void RefreshPresentation(bool bForce = false);
 
+    /** Runtime art bridge used by restored production packs without changing gameplay identity. */
+    void SetRuntimeProfiles(UOCCharacterVisualProfile* InUA, UOCCharacterVisualProfile* InMasked,
+        UOCCharacterVisualProfile* InRangers, UOCCharacterVisualProfile* InInsurgents)
+    {
+        if (UASpecialUnitProfile == InUA && MaskedFightersProfile == InMasked &&
+            USRangersProfile == InRangers && InsurgentsProfile == InInsurgents)
+        {
+            return;
+        }
+
+        UASpecialUnitProfile = InUA;
+        MaskedFightersProfile = InMasked;
+        USRangersProfile = InRangers;
+        InsurgentsProfile = InInsurgents;
+        RefreshPresentation(true);
+    }
+
     UFUNCTION(BlueprintPure, Category="Character|Visual") FOCCharacterAppearance GetAppearance() const { return CurrentAppearance; }
     UFUNCTION(BlueprintPure, Category="Character|Visual") EOCFactionArchetype GetFaction() const { return CurrentAppearance.Faction; }
 

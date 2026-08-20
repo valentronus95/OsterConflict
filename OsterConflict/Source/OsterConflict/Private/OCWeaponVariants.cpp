@@ -1,5 +1,12 @@
 #include "OCWeaponVariants.h"
 
+#include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "UObject/UObjectGlobals.h"
+
 namespace
 {
 FOCWeaponTuning BasePreset(const TCHAR* Id, const TCHAR* Name, EOCWeaponClass WeaponClass,
@@ -12,6 +19,52 @@ FOCWeaponTuning BasePreset(const TCHAR* Id, const TCHAR* Name, EOCWeaponClass We
     T.PreferredSlot = Slot;
     T.AmmoType = AmmoType;
     return T;
+}
+
+bool ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,
+    const TCHAR* AssetPath, const FName ComponentBaseName, float DesiredLengthCm)
+{
+    if (!Owner || !Root) return false;
+
+    USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, AssetPath);
+    if (!Mesh) return false;
+
+    const FBoxSphereBounds Bounds = Mesh->GetBounds();
+    const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+    const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+    if (NativeLength <= 1.0f) return false;
+
+    TArray<UStaticMeshComponent*> StaticMeshComponents;
+    Owner->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+    for (UStaticMeshComponent* Component : StaticMeshComponents)
+    {
+        if (Component)
+        {
+            // Keep the source proxy component alive as pickup collision/fallback, but do not render it
+            // once the imported production weapon is available.
+            Component->SetVisibility(false, true);
+            Component->SetHiddenInGame(true, true);
+        }
+    }
+
+    const FName UniqueName = MakeUniqueObjectName(Owner, USkeletalMeshComponent::StaticClass(), ComponentBaseName);
+    USkeletalMeshComponent* ProductionVisual = NewObject<USkeletalMeshComponent>(Owner, UniqueName);
+    if (!ProductionVisual) return false;
+
+    const float UniformScale = DesiredLengthCm / NativeLength;
+    ProductionVisual->SetupAttachment(Root);
+    ProductionVisual->SetSkeletalMeshAsset(Mesh);
+    ProductionVisual->SetRelativeLocation(-Bounds.Origin * UniformScale);
+    ProductionVisual->SetRelativeRotation(FRotator::ZeroRotator);
+    ProductionVisual->SetRelativeScale3D(FVector(UniformScale));
+    ProductionVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ProductionVisual->SetGenerateOverlapEvents(false);
+    ProductionVisual->SetCanEverAffectNavigation(false);
+    ProductionVisual->SetCastShadow(true);
+    ProductionVisual->ComponentTags.Add(FName(TEXT("OC_ProductionWeaponVisual")));
+    Owner->AddInstanceComponent(ProductionVisual);
+    ProductionVisual->RegisterComponent();
+    return true;
 }
 }
 
@@ -26,6 +79,44 @@ AOCWeapon_AssaultRifle::AOCWeapon_AssaultRifle()
     ConfigureBuiltInTuning(T);
 }
 
+void AOCWeapon_AssaultRifle::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UStaticMesh* ProductionAK = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
+    if (!ProductionAK || !WeaponMesh)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("AK-47 production mesh unavailable; keeping source-only assault-rifle proxy."));
+        return;
+    }
+
+    TArray<UStaticMeshComponent*> StaticMeshComponents;
+    GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+    for (UStaticMeshComponent* Component : StaticMeshComponents)
+    {
+        if (Component && Component != WeaponMesh)
+        {
+            Component->SetVisibility(false, true);
+            Component->SetHiddenInGame(true, true);
+        }
+    }
+
+    WeaponMesh->SetStaticMesh(ProductionAK);
+    WeaponMesh->SetRelativeLocation(FVector::ZeroVector);
+    WeaponMesh->SetRelativeRotation(FRotator::ZeroRotator);
+    WeaponMesh->SetRelativeScale3D(FVector(1.0f));
+    WeaponMesh->SetHiddenInGame(false, true);
+    WeaponMesh->SetVisibility(true, true);
+    for (int32 MaterialIndex = 0; MaterialIndex < WeaponMesh->GetNumMaterials(); ++MaterialIndex)
+    {
+        WeaponMesh->SetMaterial(MaterialIndex, nullptr);
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("Assault rifle now uses /Game/AK-47/Mesh/SM_AK-47."));
+}
+
 AOCWeapon_SMG::AOCWeapon_SMG()
 {
     FOCWeaponTuning T = BasePreset(TEXT("OC_SMG1"), TEXT("OC-SMG1"), EOCWeaponClass::SMG,
@@ -36,6 +127,17 @@ AOCWeapon_SMG::AOCWeapon_SMG()
     T.MagazineSize = 30; T.InitialReserveAmmo = 150; T.MaxReserveAmmo = 300; T.ReloadDuration = 1.90f;
     T.AudioLoudnessScale = 0.92f;
     ConfigureBuiltInTuning(T);
+}
+
+void AOCWeapon_SMG::BeginPlay()
+{
+    Super::BeginPlay();
+    if (ApplySkeletalProductionWeapon(this, WeaponRoot,
+        TEXT("/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5"),
+        FName(TEXT("ProductionMP5")), 68.0f))
+    {
+        UE_LOG(LogTemp, Display, TEXT("SMG now uses restored R13 MP5 production mesh."));
+    }
 }
 
 AOCWeapon_Pistol::AOCWeapon_Pistol()
@@ -51,6 +153,17 @@ AOCWeapon_Pistol::AOCWeapon_Pistol()
     ConfigureBuiltInTuning(T);
 }
 
+void AOCWeapon_Pistol::BeginPlay()
+{
+    Super::BeginPlay();
+    if (ApplySkeletalProductionWeapon(this, WeaponRoot,
+        TEXT("/Game/R13/Weapons/Stein/1911/SKM_1911.SKM_1911"),
+        FName(TEXT("Production1911")), 23.0f))
+    {
+        UE_LOG(LogTemp, Display, TEXT("Pistol now uses restored R13 1911 production mesh."));
+    }
+}
+
 AOCWeapon_Sniper::AOCWeapon_Sniper()
 {
     FOCWeaponTuning T = BasePreset(TEXT("OC_SNP1"), TEXT("OC-SNP1"), EOCWeaponClass::SniperRifle,
@@ -62,6 +175,17 @@ AOCWeapon_Sniper::AOCWeapon_Sniper()
     T.bSupportsAutomatic = false; T.bSupportsSemiAutomatic = true;
     T.AudioLoudnessScale = 1.18f;
     ConfigureBuiltInTuning(T);
+}
+
+void AOCWeapon_Sniper::BeginPlay()
+{
+    Super::BeginPlay();
+    if (ApplySkeletalProductionWeapon(this, WeaponRoot,
+        TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"),
+        FName(TEXT("ProductionM700")), 112.0f))
+    {
+        UE_LOG(LogTemp, Display, TEXT("Sniper rifle now uses restored R13 M700 production mesh."));
+    }
 }
 
 AOCWeapon_Shotgun::AOCWeapon_Shotgun()
