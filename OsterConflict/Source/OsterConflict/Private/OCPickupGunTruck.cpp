@@ -27,10 +27,9 @@ namespace
         Component->SetRelativeRotation(FRotator::ZeroRotator);
         Component->SetRelativeScale3D(Scale);
         Component->SetRelativeLocation(-Bounds.Origin * Scale);
-        for (int32 MaterialIndex = 0; MaterialIndex < Component->GetNumMaterials(); ++MaterialIndex)
-        {
-            Component->SetMaterial(MaterialIndex, nullptr);
-        }
+        // Remove component-level overrides left by the source/fallback visual while preserving
+        // the materials authored on the imported production mesh itself.
+        Component->EmptyOverrideMaterials();
         return true;
     }
 
