@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "OCCharacterVisualTypes.h"
+#include "OCTeamTypes.h"
 
 /**
  * Current production-asset contract for one visual faction.
@@ -18,6 +19,19 @@ struct FOCCharacterProductionProfile
     FString FirstPersonArmsObjectPath;
     bool bFactionUniqueBody = false;
     bool bFactionUniqueArms = false;
+};
+
+/**
+ * Visual production contract for an authoritative gameplay role.
+ * This mirrors the existing role -> GearClass behavior without changing balance/loadout logic.
+ */
+struct FOCCharacterRoleProductionProfile
+{
+    EOCPlayerRole Role = EOCPlayerRole::Rifleman;
+    FString DisplayName;
+    EOCCharacterGearClass PrimaryGearClass = EOCCharacterGearClass::Standard;
+    bool bAllowsLightGearVariant = false;
+    bool bRoleUniqueVisual = false;
 };
 
 enum class EOCCharacterProductionModuleType : uint8
@@ -38,4 +52,9 @@ struct FOCCharacterProductionModule
 OSTERCONFLICT_API bool OCHasDeclaredCharacterProductionProfile(EOCFactionArchetype Faction);
 OSTERCONFLICT_API FOCCharacterProductionProfile OCResolveCharacterProductionProfile(EOCFactionArchetype Faction);
 OSTERCONFLICT_API TArray<FOCCharacterProductionProfile> OCGetDeclaredCharacterProductionProfiles();
+
+OSTERCONFLICT_API bool OCHasDeclaredCharacterRoleProductionProfile(EOCPlayerRole Role);
+OSTERCONFLICT_API FOCCharacterRoleProductionProfile OCResolveCharacterRoleProductionProfile(EOCPlayerRole Role);
+OSTERCONFLICT_API TArray<FOCCharacterRoleProductionProfile> OCGetDeclaredCharacterRoleProductionProfiles();
+
 OSTERCONFLICT_API TArray<FOCCharacterProductionModule> OCGetDeclaredCharacterProductionModules();
