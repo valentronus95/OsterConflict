@@ -1,5 +1,4 @@
 import json
-import os
 import shutil
 import struct
 from pathlib import Path
@@ -97,6 +96,29 @@ def make_hmmwv_without_mk19(source, destination):
     _write_glb(destination, chunks)
 
 
+def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes):
+    """Configure the non-deprecated UE 5.8 Interchange controls used by our GLB ingest."""
+    combine_behavior = getattr(unreal, "InterchangeCombineStaticMeshesBehavior", None)
+    if combine_behavior is None or not hasattr(combine_behavior, "ALL"):
+        fail("UE 5.8 InterchangeCombineStaticMeshesBehavior.ALL is unavailable; refusing ambiguous GLB import.")
+
+    force_mesh_type = getattr(unreal, "InterchangeForceMeshType", None)
+    if force_mesh_type is None or not hasattr(force_mesh_type, "IFMT_STATIC_MESH"):
+        fail("UE 5.8 InterchangeForceMeshType.IFMT_STATIC_MESH is unavailable; refusing ambiguous GLB import.")
+
+    # UE 5.8 deprecates the old combine_static_meshes bool. The behavior enum is the authoritative control.
+    mesh_pipeline.set_editor_property("combine_static_meshes_behavior", combine_behavior.ALL)
+    mesh_pipeline.set_editor_property("import_static_meshes", True)
+    mesh_pipeline.set_editor_property("import_skeletal_meshes", False)
+    mesh_pipeline.set_editor_property("collision", False)
+
+    # Force rigid GLB scene geometry into one static-mesh import path even if the source carries
+    # hierarchy/transform metadata that Interchange might otherwise attempt to classify differently.
+    common_meshes.set_editor_property("force_all_mesh_as_type", force_mesh_type.IFMT_STATIC_MESH)
+    common_meshes.set_editor_property("bake_meshes", True)
+    common_meshes.set_editor_property("auto_detect_mesh_type", False)
+
+
 def make_interchange_task(filename, destination_path, asset_name):
     pipeline = unreal.InterchangeGenericAssetsPipeline()
     pipeline.set_editor_property("asset_name", asset_name)
@@ -105,14 +127,10 @@ def make_interchange_task(filename, destination_path, asset_name):
     pipeline.set_editor_property("use_source_name_for_asset", False)
 
     mesh_pipeline = pipeline.get_editor_property("mesh_pipeline")
-    mesh_pipeline.set_editor_property("combine_static_meshes", True)
-    mesh_pipeline.set_editor_property("import_static_meshes", True)
-    mesh_pipeline.set_editor_property("import_skeletal_meshes", False)
-    mesh_pipeline.set_editor_property("collision", False)
-
     common_meshes = pipeline.get_editor_property("common_meshes_properties")
-    common_meshes.set_editor_property("bake_meshes", True)
-    common_meshes.set_editor_property("auto_detect_mesh_type", False)
+    if mesh_pipeline is None or common_meshes is None:
+        fail("UE 5.8 Interchange generic mesh pipeline is unavailable.")
+    configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes)
 
     stack = unreal.InterchangePipelineStackOverride()
     stack.add_pipeline(pipeline)
@@ -120,6 +138,7 @@ def make_interchange_task(filename, destination_path, asset_name):
     task = unreal.AssetImportTask()
     task.set_editor_property("filename", str(filename))
     task.set_editor_property("destination_path", destination_path)
+    task.set_editor_property("destination_name", asset_name)
     task.set_editor_property("automated", True)
     task.set_editor_property("replace_existing", True)
     task.set_editor_property("replace_existing_settings", True)
@@ -153,6 +172,8 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
             if texture.is_file() and texture.suffix.lower() in (".png", ".tga", ".jpg", ".jpeg"):
                 shutil.copy2(texture, stage / texture.name)
 
+    # Keep BTR FBX on the mature legacy FBX importer. Interchange FBX support is still documented
+    # as experimental in UE 5.8, while this path needs deterministic combined static-mesh output.
     options = unreal.FbxImportUI()
     options.set_editor_property("import_mesh", True)
     options.set_editor_property("import_as_skeletal", False)
@@ -161,6 +182,8 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
     options.set_editor_property("automated_import_should_detect_type", False)
     options.set_editor_property("mesh_type_to_import", unreal.FBXImportType.FBXIT_STATIC_MESH)
     static_data = options.get_editor_property("static_mesh_import_data")
+    if static_data is None:
+        fail("UE 5.8 FBX static-mesh import settings are unavailable.")
     static_data.set_editor_property("combine_meshes", True)
     static_data.set_editor_property("generate_lightmap_u_vs", True)
     static_data.set_editor_property("auto_generate_collision", False)
