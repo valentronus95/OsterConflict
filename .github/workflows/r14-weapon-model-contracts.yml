@@ -13,6 +13,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionWeaponRuntimeValidationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
@@ -30,6 +32,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCProductionWeaponRuntimeValidationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
@@ -61,14 +65,25 @@ jobs:
           variants_path = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp')
           launcher_path = Path('OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp')
           fps_path = Path('OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp')
+          profile_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp')
+          profile_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h')
           runtime_path = Path('OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp')
           runtime_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCProductionWeaponRuntimeValidationSubsystem.h')
           validator_path = Path('OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd')
           registry_path = Path('R14_MODEL_REGISTRY.md')
           tz_path = Path('R14_PRODUCTION_MODELS_TZ.md')
 
-          for required_path in (variants_path, launcher_path, fps_path, runtime_path, runtime_h_path, validator_path, registry_path, tz_path):
+          required_paths = (
+              variants_path, launcher_path, fps_path, profile_cpp_path, profile_h_path,
+              runtime_path, runtime_h_path, validator_path, registry_path, tz_path,
+          )
+          for required_path in required_paths:
               require(required_path.is_file(), f'missing required R14 file: {required_path}')
+
+          weapon_ids = (
+              'OC_AR1', 'OC_SMG1', 'OC_PST1', 'OC_SNP1', 'OC_SG1', 'OC_LMG1',
+              'R13_M14', 'R13_MAC10', 'R13_TEC9', 'R13_LEVER4570', 'OC_RPG1',
+          )
 
           if variants_path.is_file():
               variants = variants_path.read_text(encoding='utf-8')
@@ -96,6 +111,19 @@ jobs:
               require('OC_RPG1' in launcher, 'anti-armor launcher weapon id changed')
               require('EOCWeaponClass::Launcher' in launcher, 'anti-armor launcher no longer uses Launcher class')
 
+          if profile_cpp_path.is_file() and profile_h_path.is_file():
+              profile_cpp = profile_cpp_path.read_text(encoding='utf-8')
+              profile_h = profile_h_path.read_text(encoding='utf-8')
+              for weapon_id in weapon_ids:
+                  require(weapon_id in profile_cpp, f'first-person grip matrix lost weapon id {weapon_id}')
+              require('bGripCalibrated = false' in profile_h,
+                      'new grip profiles must default to uncalibrated until UE visual approval')
+              require('CameraLocation = FVector(38.0f, 12.0f, -14.0f)' in profile_h,
+                      'R14 grip refactor no longer preserves the legacy baseline before calibration')
+              require('OCHasDeclaredFirstPersonWeaponProfile' in profile_cpp and
+                      'OCResolveFirstPersonWeaponProfile' in profile_cpp,
+                      'R14 grip profile resolver contract is incomplete')
+
           if fps_path.is_file():
               fps = fps_path.read_text(encoding='utf-8')
               require('/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W' in fps,
@@ -106,6 +134,14 @@ jobs:
                       'weapon animation skeleton compatibility guard is missing')
               require('EAnimationMode::AnimationBlueprint' in fps,
                       'weapon presentation no longer protects authored animation blueprints')
+              require('OCResolveFirstPersonWeaponProfile' in fps,
+                      'first-person weapon subsystem is bypassing the R14 grip profile resolver')
+              require('Profile.CameraLocation' in fps and 'Profile.CameraRotation' in fps,
+                      'first-person weapon base transform is not routed through the weapon profile')
+              require('Profile.ADSWeaponOffset' in fps and 'Profile.ReloadWeaponLocation' in fps,
+                      'ADS/reload presentation is bypassing the per-weapon profile')
+              require('UN​CALIBRATED'.replace('\u200b', '') in fps,
+                      'uncalibrated weapon grip state is no longer visible in runtime diagnostics')
 
           if runtime_path.is_file():
               runtime = runtime_path.read_text(encoding='utf-8')
@@ -123,10 +159,7 @@ jobs:
                       'runtime validator no longer writes the weapon validation report')
               require('production_weapon_runtime_success.txt' in runtime,
                       'runtime validator no longer has an explicit all-weapons success sentinel')
-              for weapon_id in (
-                  'OC_AR1', 'OC_SMG1', 'OC_PST1', 'OC_SNP1', 'OC_SG1', 'OC_LMG1',
-                  'R13_M14', 'R13_MAC10', 'R13_TEC9', 'R13_LEVER4570', 'OC_RPG1',
-              ):
+              for weapon_id in weapon_ids:
                   require(weapon_id in runtime, f'runtime validation lost weapon id {weapon_id}')
               require('EExpectedWeaponMeshKind::Missing' in runtime and 'OC_RPG1' in runtime,
                       'the unresolved anti-armor launcher production model gap is being hidden')
@@ -146,6 +179,8 @@ jobs:
               registry = registry_path.read_text(encoding='utf-8')
               require('Anti-Armor' in registry or 'anti-armor' in registry.lower(),
                       'R14 model registry does not expose the anti-armor launcher gap')
+              require('UNCALIBRATED' in registry or 'uncalibrated' in registry.lower() or 'calibrat' in registry.lower(),
+                      'R14 model registry does not expose the weapon grip calibration state')
 
           if tz_path.is_file():
               tz = tz_path.read_text(encoding='utf-8')
