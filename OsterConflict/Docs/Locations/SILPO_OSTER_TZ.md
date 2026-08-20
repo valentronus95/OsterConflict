@@ -18,6 +18,7 @@ Scope owner: Silpo location only
 - пусті полиці, каси, холодильне обладнання, острів овочів/фруктів;
 - низька підвісна стеля та магазинне освітлення;
 - візуальні деталі підлоги, стелажів, холодильників і кас;
+- впізнавана фасадна вивіска та характерний ступінчастий парапет;
 - найближчий вуличний контекст;
 - фото-референси збережені в цій гілці поряд із ТЗ.
 
@@ -78,13 +79,14 @@ Project WGS84 -> Unreal mapping дає приблизно:
 Фото підтверджують такі ключові ознаки:
 
 - довга одноповерхова світло-персикова/бежева будівля;
-- фасад із симетричним ступінчастим парапетом;
-- велика фірмова вивіска у верхній центральній частині фасаду;
+- фасад із симетричним ступінчастим парапетом і темними металевими cap-лініями;
+- велика помаранчева овальна/фігурна вивіска з темно-синім контуром та біло-синім написом у верхній центральній частині;
 - громадський вхід розташований біля лівого краю довгого фасаду, а не по центру;
 - невеликий виступаючий вхідний вузол/навіс і піднятий поріг;
 - більша частина довгого фасаду глуха та зайнята рекламними панелями;
 - перед фасадом звичайний асфальтований майданчик з припаркованими автомобілями;
 - виразної постійної розмітки паркомісць на референсах не видно;
+- перед фасадом видно окремий синій знак `P` на стійці;
 - біля правого краю будівлі є стовп/повітряні комунікації;
 - поруч із боковою частиною видно дрібний ринковий/вуличний торговий контекст;
 - всередині низька підвісна плиткова стеля;
@@ -125,7 +127,7 @@ Runtime owner:
 - темний нижній цоколь;
 - ступінчастий парапет;
 - центральну sign-zone;
-- крупну `СІЛЬПО` вивіску як source-only geometry/TextRender placeholder;
+- базову `СІЛЬПО` sign placeholder geometry;
 - рекламні панелі вздовж фасаду;
 - невеликий навіс і поріг біля входу;
 - бокові/задні прорізи тільки там, де вони не суперечать основним фото;
@@ -185,8 +187,6 @@ R14.1 додає поверх базової моделі без руйнува�
 - низькодетальний immediate side-market edge;
 - asphalt correction поверх ранньої умовної парковочної розмітки, оскільки на фото майданчик читається як звичайний зношений асфальт.
 
-Цей pass не додає товарів і не симулює магазинний inventory.
-
 ## 11. R14.2 — interior photo detail pass
 
 Runtime owner:
@@ -207,7 +207,26 @@ R14.2 є суто візуальним, non-destructive та non-colliding ша�
 
 Усі R14.2 visual components мають `NoCollision`, тому цей pass не повинен змінювати маршрути гравця або створювати нові невидимі блокери.
 
-## 12. Освітлення
+## 12. R14.3 — facade identity pass
+
+Runtime owner:
+
+- `UOCR143SilpoFacadeIdentitySubsystem`
+- actor tag: `R143_SilpoFacadeIdentity`
+
+R14.3 виправляє найбільш впізнавану частину будівлі, не торкаючись collision shell:
+
+- перекриває ранню прямокутну placeholder-плашку кольором фасаду;
+- використовує source-only `/Engine/BasicShapes/Cylinder.Cylinder` як сплющені еліпси;
+- формує більший темно-синій outline і меншу помаранчеву face-площину;
+- додає два TextRender layers `Сільпо`: синій shadow та світлу face-площину;
+- додає темні тонкі top rails по п'яти рівнях ступінчастого парапету;
+- додає окремий синій знак `P` на стійці перед фасадом та нейтральну нижню табличку;
+- усі R14.3 components мають `NoCollision`.
+
+Це source-only наближення характерної форми вивіски, а не імпорт фотографії як текстури. Фінальний logo mesh/material можна замінити пізніше без зміни положення будівлі.
+
+## 13. Освітлення
 
 Вимоги:
 
@@ -218,20 +237,21 @@ R14.2 є суто візуальним, non-destructive та non-colliding ша�
 - shadow cost для внутрішніх базових lights мінімізується;
 - геометрія світильників повинна читатися як довгі лінійні fixtures під підвісною стелею.
 
-## 13. Безпосередня територія
+## 14. Безпосередня територія
 
 Моделюється тільки photo-supported immediate context:
 
 - підхід до входу;
 - асфальтований майданчик;
 - вузька смуга рослинності біля фасаду;
+- parking sign перед фасадом;
 - utility pole біля правої сторони;
 - найпростіший side-market edge як контекст масштабу;
 - зв'язок із наявною дорожньою мережею карти без її видалення або перебудови.
 
 Детальні сусідні будівлі не входять у цей branch без власного reference pass.
 
-## 14. Публічні плани/схеми
+## 15. Публічні плани/схеми
 
 Під час web-audit підтверджено існування містобудівного детального плану території в Острі, обмеженої вулицями Б. Хмельницького, Будівельників та ринковим містечком, для будівництва торговельного центру.
 
@@ -244,7 +264,7 @@ R14.2 є суто візуальним, non-destructive та non-colliding ша�
 - якщо буде знайдено публічний plan/technical drawing саме цієї будівлі, він має отримати окремий запис у reference manifest;
 - після такого джерела допускається корекція `SilpoYawDegrees`, footprint і внутрішніх пропорцій.
 
-## 15. Photo reference pack
+## 16. Photo reference pack
 
 У гілці збережено 20 окремих review copies:
 
@@ -275,7 +295,7 @@ Repository path:
 
 Ці файли є reference/review assets і не імпортуються в Unreal `Content` як gameplay textures.
 
-## 16. Static validation
+## 17. Static validation
 
 Branch validator:
 
@@ -285,17 +305,18 @@ Branch validator:
 
 - WGS84 geo contract;
 - expected local coordinate conversion;
-- R14.0/R14.1/R14.2 runtime-map і frontend guards;
+- R14.0/R14.1/R14.2/R14.3 runtime-map і frontend guards;
 - відсутність target-логіки для Roads/Sidewalks;
 - один головний `AOCInteractableDoor`;
 - photo-derived far-left entrance constants;
 - базові компоненти фасаду й інтер'єру;
 - R14.1 detail contract;
 - R14.2 non-colliding interior detail contract;
+- R14.3 layered facade-logo/parapet/parking-sign contract;
 - наявність усіх 20 photo files;
 - узгодженість ТЗ, scope і reference README.
 
-## 17. Acceptance criteria перед merge
+## 18. Acceptance criteria перед merge
 
 Обов'язково перевірити в UE 5.8:
 
@@ -304,7 +325,9 @@ Branch validator:
 - R14.0 actor з'являється біля `FOCGeoReference::Silpo()`;
 - R14.1 detail actor з'являється після базової моделі;
 - R14.2 interior-detail actor з'являється без collision side effects;
+- R14.3 facade-identity actor з'являється поверх placeholder sign без z-fighting;
 - фасад читається з дороги як конкретний магазин із фото;
+- layered orange/blue logo не провалюється в стіну й не висить перед фасадом надто далеко;
 - вхід знаходиться біля лівого краю фасаду;
 - doorway фізично не перекритий wall/trim geometry;
 - одна public entrance door відкривається і закривається;
@@ -313,20 +336,20 @@ Branch validator:
 - між shelf runs можна пройти;
 - касова зона не блокує головний маршрут;
 - suspended ceiling не перетинає player camera;
-- tile-grout, shelf trim та cooler frames не мають collision;
+- tile-grout, shelf trim, cooler frames і R14.3 facade identity не мають collision;
 - basic lights працюють у runtime;
 - дорога біля site не зникає після cleanup;
 - generic proxy building не стирчить крізь Silpo shell;
 - 20 photo reference files присутні в гілці;
 - `python OsterConflict/Tools/validate_silpo_location.py` повертає PASS.
 
-## 18. Наступні art passes
+## 19. Наступні art passes
 
 Після compile/PIE validation:
 
 1. точніше звірити yaw і footprint по надійному top-down source;
 2. уточнити пропорції вхідного вузла;
-3. замінити placeholder sign geometry на точніший logo mesh/material без runtime-залежності від фото;
+3. перевірити масштаб/нахил layered logo в реальному camera view та відкоригувати форму;
 4. зробити реалістичніші дверні/віконні рами;
 5. деталізувати касові столи, cart bay і холодильники;
 6. додати реалістичні empty shelf meshes замість чистих box primitives;
