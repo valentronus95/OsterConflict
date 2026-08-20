@@ -150,7 +150,7 @@ void UOCR13CityCouncilPhotoModelSubsystem::BuildCityCouncil(UWorld& World)
         FLinearColor(0.78f, 0.77f, 0.69f, 1.0f));
     UMaterialInstanceDynamic* Dark = MakeColor(Model, Basic, TEXT("R13_CityCouncilDark"),
         FLinearColor(0.085f, 0.075f, 0.065f, 1.0f));
-    UMaterialInstanceDynamic* RoofMat = MakeColor(Model, Basic, TEXT("R13_CityCouncilRoof"),
+    UMaterialInstanceDynamic* RoofMat = MakeColor(Model, Basic, TEXT("R13_CityCouncilRoofMaterial"),
         FLinearColor(0.16f, 0.14f, 0.12f, 1.0f));
     UMaterialInstanceDynamic* Stone = MakeColor(Model, Basic, TEXT("R13_CityCouncilStone"),
         FLinearColor(0.36f, 0.36f, 0.34f, 1.0f));
