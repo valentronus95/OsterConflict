@@ -11,7 +11,9 @@
 
 namespace
 {
-    constexpr float RepairTimesSeconds[] = { 0.08f, 0.30f, 0.72f };
+    // One successful startup repair is enough. Re-running the same forced prepass at 0.30/0.72 s visibly shifts
+    // the menu after it has already settled and makes normal hover feedback look like a layout jump.
+    constexpr float RepairTimesSeconds[] = { 0.08f };
 
     void FillViewportSlot(UWidget* Widget, const int32 ZOrder)
     {
@@ -61,7 +63,7 @@ void UOCR13FrontendLayoutRepairSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    // Window maximize/minimize/DPI changes can alter cached viewport geometry after the three startup passes.
+    // Window maximize/minimize/DPI changes can alter cached viewport geometry after the startup pass.
     // Detect only a meaningful size change and repair once instead of rebuilding the menu every frame.
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
