@@ -96,11 +96,11 @@ namespace
 
     void AddDrainage(UInstancedStaticMeshComponent* Pipe, UStaticMesh* Cylinder, const FVector& Museum)
     {
-        // Long eave gutters. Cylinders are used here so the silhouette reads as actual drainage rather than square trim.
+        // Cylinder mesh axis is local Z. Pitch=90 rotates it onto world X for the long horizontal gutters.
         AddFittedPipe(Pipe, Cylinder, Museum + FVector(0.0f, -458.0f, 414.0f), 11.0f, 1710.0f,
-            FRotator(0.0f, 90.0f, 0.0f));
+            FRotator(90.0f, 0.0f, 0.0f));
         AddFittedPipe(Pipe, Cylinder, Museum + FVector(0.0f, 458.0f, 414.0f), 11.0f, 1710.0f,
-            FRotator(0.0f, 90.0f, 0.0f));
+            FRotator(90.0f, 0.0f, 0.0f));
 
         // Downspouts at the photographed long-side corners, plus one annex drain.
         for (const FVector& Offset :
@@ -111,11 +111,11 @@ namespace
         AddFittedPipe(Pipe, Cylinder, Museum + FVector(1230.0f, 458.0f, 175.0f),
             8.0f, 285.0f, FRotator::ZeroRotator);
 
-        // Short lower elbows keep the vertical pipes from ending abruptly in midair.
+        // Short lower elbows also run on X.
         AddFittedPipe(Pipe, Cylinder, Museum + FVector(-806.0f, -454.0f, 28.0f),
-            9.0f, 55.0f, FRotator(0.0f, 90.0f, 0.0f));
+            9.0f, 55.0f, FRotator(90.0f, 0.0f, 0.0f));
         AddFittedPipe(Pipe, Cylinder, Museum + FVector(806.0f, 454.0f, 28.0f),
-            9.0f, 55.0f, FRotator(0.0f, 90.0f, 0.0f));
+            9.0f, 55.0f, FRotator(90.0f, 0.0f, 0.0f));
     }
 }
 
