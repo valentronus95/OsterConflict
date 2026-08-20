@@ -3,8 +3,10 @@
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
 void UOCR13TravelLoadingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -32,8 +34,21 @@ void UOCR13TravelLoadingSubsystem::HandlePreLoadMap(const FString& MapName)
 
 void UOCR13TravelLoadingSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
 {
-    if (!LoadedWorld) return;
-    HideOverlay();
+    if (!LoadedWorld)
+    {
+        HideOverlay();
+        return;
+    }
+
+    // PostLoadMap fires before the first gameplay presentation has fully settled. Hiding on that exact callback
+    // exposed the old frontend for a few frames with its background already gone. Keep the deliberate loading frame
+    // across the first half-second of the new world, then reveal the deployment UI in one clean transition.
+    FTimerHandle HideTimer;
+    LoadedWorld->GetTimerManager().SetTimer(
+        HideTimer,
+        FTimerDelegate::CreateWeakLambda(this, [this]() { HideOverlay(); }),
+        0.50f,
+        false);
 }
 
 void UOCR13TravelLoadingSubsystem::ShowOverlay()
@@ -45,17 +60,24 @@ void UOCR13TravelLoadingSubsystem::ShowOverlay()
     if (!Viewport) return;
 
     LoadingWidget =
-        SNew(SBorder)
+        SNew(SOverlay)
+        + SOverlay::Slot()
+        .HAlign(HAlign_Fill)
+        .VAlign(VAlign_Fill)
+        [
+            SNew(SBorder)
+            .BorderBackgroundColor(FLinearColor(0.018f, 0.022f, 0.027f, 1.0f))
+        ]
+        + SOverlay::Slot()
         .HAlign(HAlign_Center)
         .VAlign(VAlign_Center)
-        .BorderBackgroundColor(FLinearColor(0.018f, 0.022f, 0.027f, 1.0f))
         [
             SNew(STextBlock)
             .Text(FText::FromString(TEXT("OSTER CONFLICT\nЗАВАНТАЖЕННЯ")))
             .Justification(ETextJustify::Center)
         ];
 
-    Viewport->AddViewportWidgetContent(LoadingWidget.ToSharedRef(), 10000);
+    Viewport->AddViewportWidgetContent(LoadingWidget.ToSharedRef(), 30000);
 }
 
 void UOCR13TravelLoadingSubsystem::HideOverlay()
