@@ -39,7 +39,10 @@ public:
     void HandleCapturePointOwnerChanged(AOCCapturePoint* Point, EOCTeam PreviousOwner, EOCTeam NewOwner);
     bool CanDealDamage(const AController* InstigatorController, const AActor* VictimActor) const;
     bool IsSandboxMode() const { return bSandboxMode; }
+    /** True only for the standalone UI shell that must never expose the live gameplay world behind the frontend. */
     bool IsFrontendOnlySession() const { return bFrontendOnlySession; }
+    /** Location-first inspection session: no bots or vehicle fleets, used while rebuilding Oster. */
+    bool IsLocationTestMode() const { return bLocationTestMode; }
     /** Server-owned Sandbox admin policy. Sandbox mode by itself never grants admin rights. */
     bool CanUseSandboxAdmin(const AController* Controller) const;
 
@@ -57,8 +60,9 @@ public:
     FString BuildPerformanceSnapshot() const;
     EOCFactionArchetype GetFactionForTeam(EOCTeam Team) const { return Team == EOCTeam::TeamTwo ? TeamTwoFaction : TeamOneFaction; }
 
-    /** S14 squad/chat backend. */
+    /** S14/R13 squad/chat/deployment backend. */
     bool RequestSquadChange(AOCPlayerState* State, int32 RequestedSquadId);
+    bool RequestRoleChange(AOCPlayerState* State, EOCPlayerRole RequestedRole);
     bool RequestTeamChange(AOCPlayerState* State, EOCTeam RequestedTeam);
     void RouteChatMessage(AOCPlayerController* Sender, EOCChatChannel Channel, const FString& Message);
     bool SubmitSquadOrder(AOCPlayerController* Sender, EOCSquadOrderType Type, FName ObjectiveId,
@@ -88,6 +92,8 @@ private:
     bool bSandboxMode = false;
     /** Standalone Frontend is UI-only; it must not spawn match world/bots behind the menu. */
     bool bFrontendOnlySession = false;
+    /** Temporary location-first playtest profile requested by ?LocationTest=1. */
+    bool bLocationTestMode = false;
     /** Explicit development/test server switch. Ignored in Shipping builds. */
     bool bAllowSandboxAdminAll = false;
     int32 RequestedBotCount = -1;

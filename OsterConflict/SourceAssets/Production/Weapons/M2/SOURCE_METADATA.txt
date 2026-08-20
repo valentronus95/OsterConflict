@@ -1,5 +1,0 @@
-Asset: M2 .50cal machinegun
-Author metadata: britdawgmasterfunk
-Source: Sketchfab model m2-50cal-machinegun-cc0-cbd897c1e1554fae9a5302a79ed59640
-Note: model title mentions CC0, while the downloaded GLB metadata was observed as CC-BY-4.0. Preserve attribution unless the source license is re-verified.
-Integration: combined static production visual mounted on the existing gun-truck turret pivot.

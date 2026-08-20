@@ -62,6 +62,9 @@ void AOCGameMode::InitGame(const FString& MapName, const FString& Options, FStri
         !FParse::Param(FCommandLine::Get(), TEXT("NoFrontend"));
     const FString RequestedMode = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
     bSandboxMode = RequestedMode.Equals(TEXT("Sandbox"), ESearchCase::IgnoreCase) || RequestedMode.Equals(TEXT("Test"), ESearchCase::IgnoreCase);
+    const FString LocationTestOption = UGameplayStatics::ParseOption(Options, TEXT("LocationTest"));
+    bLocationTestMode = LocationTestOption.Equals(TEXT("1")) ||
+        LocationTestOption.Equals(TEXT("true"), ESearchCase::IgnoreCase);
 
     const FString SandboxAdminAllOption = UGameplayStatics::ParseOption(Options, TEXT("SandboxAdminAll"));
 #if UE_BUILD_SHIPPING
@@ -111,8 +114,18 @@ void AOCGameMode::BeginPlay()
         bSandboxMode ? TEXT("Sandbox") : TEXT("Conquest"), MaxPlayerSlots, TargetPopulation, *GetWorld()->GetMapName());
 
     SpawnOsterCenterSector();
-    SpawnCivilianVehicleFleet();
-    SpawnCombatVehicleFleet();
+    if (!bLocationTestMode)
+    {
+        SpawnCivilianVehicleFleet();
+        SpawnCombatVehicleFleet();
+    }
+    else
+    {
+        RequestedBotCount = 0;
+        TargetPopulation = 1;
+        bAutoFillBots = false;
+        UE_LOG(LogTemp, Display, TEXT("R13 location test: bot population and vehicle fleets suppressed for map inspection."));
+    }
 
     if (AOCGameState* State = GetGameState<AOCGameState>())
     {

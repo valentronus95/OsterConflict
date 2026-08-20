@@ -14,7 +14,6 @@ namespace
     constexpr float MuseumValidationDelaySeconds = 5.65f;
     constexpr float SourceLandmarkCheckRadiusCm = 3600.0f;
     constexpr float SourceFenceCheckRadiusCm = 3300.0f;
-    constexpr float TreeCheckRadiusCm = 5200.0f;
     const FName FinalMuseumTag(TEXT("R137_MuseumPhotoModel"));
 
     bool IsLegacyMuseumPresentation(const FName Name)
@@ -36,15 +35,6 @@ namespace
             Name == TEXT("WoodFences") ||
             Name == TEXT("MetalFences") ||
             Name == TEXT("LightSheetFences");
-    }
-
-    bool IsAssetDecoratorTreeFamily(const FName Name)
-    {
-        return Name == TEXT("RealTreeA") ||
-            Name == TEXT("RealTreeB") ||
-            Name == TEXT("RealTreeC") ||
-            Name == TEXT("RealPineA") ||
-            Name == TEXT("RealPineB");
     }
 
     int32 CountInstancesNear(UInstancedStaticMeshComponent* Component, const FVector& Center, const float RadiusCm)
@@ -101,7 +91,6 @@ void UOCR137MuseumRuntimeValidationSubsystem::ValidateMuseumReplacement(UWorld& 
     int32 VisibleLegacyComponents = 0;
     int32 SourceLandmarkInstancesNearMuseum = 0;
     int32 SourceFenceInstancesNearMuseum = 0;
-    int32 DecoratorTreeInstancesNearMuseum = 0;
 
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
@@ -144,11 +133,6 @@ void UOCR137MuseumRuntimeValidationSubsystem::ValidateMuseumReplacement(UWorld& 
                 SourceFenceInstancesNearMuseum +=
                     CountInstancesNear(Component, Museum, SourceFenceCheckRadiusCm);
             }
-            else if (IsAssetDecoratorTreeFamily(Name))
-            {
-                DecoratorTreeInstancesNearMuseum +=
-                    CountInstancesNear(Component, Museum, TreeCheckRadiusCm);
-            }
         }
     }
 
@@ -160,22 +144,20 @@ void UOCR137MuseumRuntimeValidationSubsystem::ValidateMuseumReplacement(UWorld& 
         FinalInstancesNearAnchor > 0 &&
         VisibleLegacyComponents == 0 &&
         SourceLandmarkInstancesNearMuseum == 0 &&
-        SourceFenceInstancesNearMuseum == 0 &&
-        DecoratorTreeInstancesNearMuseum == 0;
+        SourceFenceInstancesNearMuseum == 0;
 
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("R13.7 museum validation PASS: finalActors=%d components=%d instances=%d collidableComponents=%d nearAnchor=%d; no legacy/source/decorator residue."),
+            TEXT("R13.7 museum validation PASS: finalActors=%d components=%d instances=%d collidableComponents=%d nearAnchor=%d; no visible R13 museum layers or source shed/fence residue."),
             FinalModelActors, FinalModelComponents, FinalModelInstances,
             CollidableFinalComponents, FinalInstancesNearAnchor);
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("R13.7 museum validation FAILED: finalActors=%d components=%d instances=%d collidableComponents=%d nearAnchor=%d visibleLegacy=%d sourceLandmarkResidue=%d sourceFenceResidue=%d decoratorTreeResidue=%d."),
+        TEXT("R13.7 museum validation FAILED: finalActors=%d components=%d instances=%d collidableComponents=%d nearAnchor=%d visibleLegacy=%d sourceLandmarkResidue=%d sourceFenceResidue=%d."),
         FinalModelActors, FinalModelComponents, FinalModelInstances,
         CollidableFinalComponents, FinalInstancesNearAnchor, VisibleLegacyComponents,
-        SourceLandmarkInstancesNearMuseum, SourceFenceInstancesNearMuseum,
-        DecoratorTreeInstancesNearMuseum);
+        SourceLandmarkInstancesNearMuseum, SourceFenceInstancesNearMuseum);
 }

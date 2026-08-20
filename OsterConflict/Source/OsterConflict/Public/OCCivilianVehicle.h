@@ -9,7 +9,8 @@ enum class EOCCivilianVehicleStyle : uint8
 {
     Wagon,
     Sedan,
-    Hatchback
+    Hatchback,
+    BoxTruck
 };
 
 UCLASS()

@@ -1,0 +1,41 @@
+name: Location playtest safety
+
+on:
+  push:
+    branches:
+      - r13-content-gameplay-pass
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13CompactOsterSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13MuseumRespawnSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13MuseumRespawnSubsystem.h'
+      - 'VERIFY_R13_LOCATION_PLAYTEST_SAFETY.py'
+      - '.github/workflows/location-playtest-safety.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13CompactOsterSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13MuseumRespawnSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13MuseumRespawnSubsystem.h'
+      - 'VERIFY_R13_LOCATION_PLAYTEST_SAFETY.py'
+      - '.github/workflows/location-playtest-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-location-playtest-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify compact ground and museum respawn
+        run: python VERIFY_R13_LOCATION_PLAYTEST_SAFETY.py

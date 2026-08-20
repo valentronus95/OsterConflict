@@ -18,12 +18,6 @@ public:
 protected:
     virtual void ApplyVehicleStyle() override;
 
-    /**
-     * Production shell selector used by the dedicated HMMWV subclass.
-     * The base pickup must stay a pickup instead of silently becoming a HMMWV when that asset exists.
-     */
-    virtual bool ShouldUseHMMWVProductionVisual() const { return false; }
-
 private:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> CabRoof;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> BedFloor;

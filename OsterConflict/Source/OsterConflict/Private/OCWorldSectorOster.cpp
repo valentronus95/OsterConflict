@@ -1,5 +1,8 @@
 #include "OCWorldSectorOster.h"
 #include "OCGeoReference.h"
+#include "OCLocationSectorPlan.h"
+#include "OCLocationSectorS01Data.h"
+#include "OCLocationSectorS01RoadData.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -141,7 +144,7 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     // S08 regression marker: SOLOMII KRUSHELNYTSKOI STREET / S08
     ConfigureLabel(MuseumLabel, TEXT("OSTER LOCAL HISTORY MUSEUM / SOLONYNA HOUSE / S16A VERIFIED ANCHOR"),
         MuseumAnchor() + FVector(0, 0, 1050));
-    ConfigureLabel(StadiumLabel, TEXT("OSTER CENTRAL STADIUM / PHOTO + GENERAL-PLAN TOPOLOGY / S16A"),
+    ConfigureLabel(StadiumLabel, TEXT("OSTER CENTRAL STADIUM / CANONICAL GEO ANCHOR"),
         StadiumAnchor() + FVector(0, 0, 700));
     ConfigureLabel(ParkLabel, TEXT("OSTER CENTRAL CITY PARK / S16A VERIFIED ANCHOR"), ParkAnchor() + FVector(0, 0, 800));
     ConfigureLabel(CollegeLabel, TEXT("OSTER COLLEGE / SOLOMII KRUSHELNYTSKOI 7A / S16A VERIFIED ANCHOR"),
@@ -150,13 +153,10 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         FVector(-33500.0f, 32000.0f, 720.0f));
 }
 
-
 void AOCWorldSectorOster::BeginPlay()
 {
     Super::BeginPlay();
 
-    // R11 visual foundation: the source-only world already has a useful layout, but R10 left every
-    // primitive on the engine default material. Give each semantic family a readable outdoor palette.
     UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
@@ -201,7 +201,6 @@ void AOCWorldSectorOster::BeginPlay()
     Tint(Waterways,           FLinearColor(0.055f, 0.22f, 0.36f));
     Tint(Bridges,             FLinearColor(0.32f, 0.31f, 0.29f));
 
-    // Authoring/reference markers are useful to developers and terrible as scenery.
     if (ReferenceMarkers) ReferenceMarkers->SetVisibility(false, true);
     UTextRenderComponent* Labels[] = { MuseumLabel, StadiumLabel, ParkLabel, CollegeLabel, KrushelnytskaStreetLabel };
     for (UTextRenderComponent* Label : Labels)
@@ -209,7 +208,6 @@ void AOCWorldSectorOster::BeginPlay()
         if (Label) Label->SetVisibility(false, true);
     }
 
-    // Large numbers of grass proxy tiles should not waste shadow budget.
     if (GrassMown) GrassMown->SetCastShadow(false);
     if (GrassRough) GrassRough->SetCastShadow(false);
     if (GrassWetland) GrassWetland->SetCastShadow(false);
@@ -230,7 +228,6 @@ FVector AOCWorldSectorOster::CollegeAnchor()
 
 FVector AOCWorldSectorOster::ParkAnchor()
 {
-    // S16A correction: use the published coordinate explicitly identified as CENTRAL CITY PARK.
     const FOCGeoReferencePoint Ref = FOCGeoReference::CentralPark();
     return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, GroundTopZ);
 }
@@ -261,8 +258,8 @@ FVector AOCWorldSectorOster::ResurrectionChurchAnchor()
 
 FVector AOCWorldSectorOster::StadiumAnchor()
 {
-    // Stadium placement remains confidence-B: aerial/photo topology is strong but no survey-grade public point is used yet.
-    return FVector(15000.0f, -1500.0f, GroundTopZ);
+    const FOCGeoReferencePoint Ref = FOCGeoReference::Stadium();
+    return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, GroundTopZ);
 }
 
 FVector AOCWorldSectorOster::KrushelnytskaEnterableHouseAnchor()
@@ -326,23 +323,20 @@ void AOCWorldSectorOster::AddFacadeWindow(UInstancedStaticMeshComponent* Compone
     AddBox(Component, BuildingCenter + WorldOffset, SizeCm, WindowYaw);
 }
 
-
 void AOCWorldSectorOster::BuildGameplayBases()
 {
     struct FBaseSeed { FVector Center; float Yaw; };
     const FBaseSeed Bases[] =
     {
         { FVector(-104000.0f, -92000.0f, 0.0f), 35.0f },
-        { FVector( 104000.0f,  92000.0f, 0.0f), 215.0f }
+        { FVector(104000.0f, 92000.0f, 0.0f), 215.0f }
     };
 
     for (const FBaseSeed& Base : Bases)
     {
-        // Hardstand and approach keep the first seconds of a match visually readable.
         AddBox(Sidewalks, Base.Center + FVector(0,0,10), FVector(8200, 6200, 20), Base.Yaw);
         AddBox(Roads, Base.Center + Rotate2D(FVector(6500,0,8), Base.Yaw), FVector(7600, 780, 16), Base.Yaw);
 
-        // Two low shelters, ammo/service hut and waist-high cover. Source-only geometry, not final art.
         AddBox(Buildings, Base.Center + Rotate2D(FVector(-1500,-1450,230), Base.Yaw), FVector(2200,1200,460), Base.Yaw);
         AddGableRoof(ResidentialRoofs, Base.Center + Rotate2D(FVector(-1500,-1450,0), Base.Yaw),
             2350, 1350, 610, Base.Yaw, 20.0f);
@@ -357,7 +351,6 @@ void AOCWorldSectorOster::BuildGameplayBases()
                 FVector(280,560,110), Base.Yaw + 12.0f * I);
         }
 
-        // Perimeter with deliberate vehicle/infantry openings.
         AddBox(MetalFences, Base.Center + Rotate2D(FVector(-3400,0,125), Base.Yaw), FVector(45,6000,250), Base.Yaw);
         AddBox(MetalFences, Base.Center + Rotate2D(FVector(0,-3000,125), Base.Yaw), FVector(6800,45,250), Base.Yaw);
         AddBox(MetalFences, Base.Center + Rotate2D(FVector(0,3000,125), Base.Yaw), FVector(6800,45,250), Base.Yaw);
@@ -379,8 +372,6 @@ void AOCWorldSectorOster::ConfigureLabel(UTextRenderComponent* Label, const FStr
 
 void AOCWorldSectorOster::BuildRoadNetwork()
 {
-    // S16A topology pass. The 2025 official general plan confirms Oster is a radial/irregular low-rise town,
-    // not a rectangular grid. These source-only strips preserve gameplay widths while following that hierarchy.
     auto AddRoadWithWalks = [this](const FVector& Center, const FVector& Size, float Yaw, bool bTwoWalks = true)
     {
         AddBox(Roads, Center, Size, Yaw);
@@ -394,31 +385,55 @@ void AOCWorldSectorOster::BuildRoadNetwork()
         }
     };
 
-    // Central east-west corridor and the museum/stadium road edge.
     AddRoadWithWalks(FVector(-5000, -9000, RoadZ), FVector(138000, 1050, 16), 0.0f);
-    AddRoadWithWalks(FVector(-18000, 17000, RoadZ), FVector(61000, 820, 16), 0.0f);
-
-    // Solomii Krushelnytskoi / west-central north-south spine, tied to the verified college anchor.
-    AddRoadWithWalks(FVector(-33500, 25000, RoadZ), FVector(112000, 920, 16), 91.5f);
-
-    // Central curved/radial streets approximated as short segments from the official general-plan topology.
-    AddRoadWithWalks(FVector(-23500, 40500, RoadZ), FVector(51000, 760, 16), 18.0f);
-    AddRoadWithWalks(FVector(-48000, 51000, RoadZ), FVector(52000, 720, 16), 63.0f, false);
-    AddRoadWithWalks(FVector(-5000, 33500, RoadZ), FVector(49000, 760, 16), -34.0f);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::EastWest02Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::WorldDiag01Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::WorldNW01Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::WorldDiag02Segments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
     AddRoadWithWalks(FVector(20500, 20500, RoadZ), FVector(52000, 780, 16), 73.0f, false);
     AddRoadWithWalks(FVector(31500, -23000, RoadZ), FVector(63000, 850, 16), 4.0f, false);
     AddRoadWithWalks(FVector(-33000, -25500, RoadZ), FVector(56000, 760, 16), -7.0f, false);
 
-    // Central-park approach and northern civic links. ParkAnchor is now the verified CENTRAL CITY PARK point.
     const FVector Park = ParkAnchor();
-    AddRoadWithWalks(Park + FVector(0, -8500, RoadZ), FVector(43000, 720, 16), 2.0f);
-    AddRoadWithWalks(Park + FVector(-9000, 13500, RoadZ), FVector(37000, 700, 16), 79.0f, false);
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::ParkSouthSegments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
+    for (const FOCS01RoadCorridorSeed& Segment : FOCLocationSectorS01RoadData::ParkNorthLinkSegments())
+    {
+        AddRoadWithWalks(Segment.LocalOffset, Segment.SizeCm, Segment.Yaw, Segment.bTwoWalks);
+    }
 
-    // College frontage/access.
     const FVector College = CollegeAnchor();
-    AddRoadWithWalks(College + FVector(-13500, 0, RoadZ), FVector(30000, 660, 14), 0.0f);
+    auto ResolveS01RoadAnchor = [&Park, &College](EOCS01RoadAnchor Anchor)
+    {
+        if (Anchor == EOCS01RoadAnchor::College) return College;
+        if (Anchor == EOCS01RoadAnchor::CentralPark) return Park;
+        return FVector::ZeroVector;
+    };
 
-    // Peripheral routes visible in the general plan, important for future vehicle loops.
+    for (const FOCS01RoadCorridorSeed& Road : FOCLocationSectorS01RoadData::OwnedInsideCorridors())
+    {
+        AddRoadWithWalks(ResolveS01RoadAnchor(Road.Anchor) + Road.LocalOffset,
+            Road.SizeCm, Road.Yaw, Road.bTwoWalks);
+    }
+
     AddBox(Roads, FVector(-86500, 15000, RoadZ), FVector(780, 138000, 16), 7.0f);
     AddBox(Roads, FVector(65500, 15000, RoadZ), FVector(780, 120000, 16), -5.0f);
     AddBox(Roads, FVector(2500, -67500, RoadZ), FVector(130000, 820, 16), -3.0f);
@@ -426,37 +441,33 @@ void AOCWorldSectorOster::BuildRoadNetwork()
 
 void AOCWorldSectorOster::BuildHydrography()
 {
-    // General-plan macro geometry: Desna floodplain to west/north-west; Oster river arcs around south/east.
-    // These are broad navigation/visual proxies, not shoreline survey geometry.
     struct FWaterSeed { FVector Center; FVector Size; float Yaw; };
     const FWaterSeed DesnaSeeds[] =
     {
         { FVector(-112000, -25000, -18), FVector(17000, 72000, 20), 3.0f },
-        { FVector(-104000,  38000, -18), FVector(19000, 72000, 20), 13.0f },
-        { FVector(-83000,   92000, -18), FVector(22000, 60000, 20), 36.0f }
+        { FVector(-104000, 38000, -18), FVector(19000, 72000, 20), 13.0f },
+        { FVector(-83000, 92000, -18), FVector(22000, 60000, 20), 36.0f }
     };
     for (const FWaterSeed& Seed : DesnaSeeds) AddBox(Waterways, Seed.Center, Seed.Size, Seed.Yaw);
 
     const FWaterSeed OsterSeeds[] =
     {
         { FVector(-52000, -98000, -16), FVector(62000, 9000, 18), -7.0f },
-        { FVector(  3000, -101000, -16), FVector(57000, 8200, 18),  3.0f },
-        { FVector( 52000, -87000, -16), FVector(56000, 8000, 18), 26.0f },
-        { FVector( 82000, -52000, -16), FVector(51000, 7600, 18), 67.0f }
+        { FVector(3000, -101000, -16), FVector(57000, 8200, 18), 3.0f },
+        { FVector(52000, -87000, -16), FVector(56000, 8000, 18), 26.0f },
+        { FVector(82000, -52000, -16), FVector(51000, 7600, 18), 67.0f }
     };
     for (const FWaterSeed& Seed : OsterSeeds) AddBox(Waterways, Seed.Center, Seed.Size, Seed.Yaw);
 
-    // Simple bridge proxies on the southern approaches. Final bridge meshes and exact alignments are later content work.
     AddBox(Bridges, FVector(-17000, -100000, 75), FVector(1200, 11800, 150), 87.0f);
-    AddBox(Bridges, FVector( 76000,  -65000, 75), FVector(1200, 10500, 150), 28.0f);
+    AddBox(Bridges, FVector(76000, -65000, 75), FVector(1200, 10500, 150), 28.0f);
 }
 
 void AOCWorldSectorOster::BuildVerifiedReferenceMarkers()
 {
-    // Small non-colliding pillars expose verified geo anchors in source-only builds and make reference drift visible.
     const FVector Points[] =
     {
-        MuseumAnchor(), CollegeAnchor(), ParkAnchor(), CultureParkNorthAnchor(),
+        MuseumAnchor(), StadiumAnchor(), CollegeAnchor(), ParkAnchor(), CultureParkNorthAnchor(),
         FormerCityAdministrationAnchor(), HistoricCourtAnchor(), ResurrectionChurchAnchor()
     };
     for (const FVector& P : Points)
@@ -470,14 +481,11 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
     const FVector Museum = MuseumAnchor();
     const float MuseumYaw = 0.0f;
 
-    // Reference cues: red-brick single-storey wings, central wooden upper storey/gable,
-    // front glazed/porch projection, decorative roofline and mature garden trees.
     AddBox(LandmarkBlocks, Museum + FVector(0, 0, 270), FVector(3400, 1750, 540), MuseumYaw);
     AddBox(LandmarkBlocks, Museum + FVector(-2050, 120, 245), FVector(1100, 1500, 490), MuseumYaw);
     AddBox(LandmarkBlocks, Museum + FVector(2050, 80, 245), FVector(1100, 1500, 490), MuseumYaw);
     AddBox(LandmarkBlocks, Museum + FVector(50, 80, 720), FVector(1550, 1280, 420), MuseumYaw);
 
-    // Front porch / glazed bay and entrance platform.
     AddBox(LandmarkDetails, Museum + FVector(1180, -1120, 250), FVector(1050, 620, 500), MuseumYaw);
     AddBox(LandmarkDetails, Museum + FVector(1180, -1510, 55), FVector(1450, 760, 110), MuseumYaw);
     for (int32 Step = 0; Step < 4; ++Step)
@@ -491,13 +499,11 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
     AddGableRoof(LandmarkRoofs, Museum + FVector(2050, 80, 0), 1250, 1650, 720, MuseumYaw, 24.0f);
     AddGableRoof(LandmarkRoofs, Museum + FVector(1180, -1120, 0), 1200, 760, 650, MuseumYaw, 28.0f);
 
-    // S16A silhouette details visible in multiple facade references: central front gable, chimney masses and trim bands.
     AddBox(LandmarkDetails, Museum + FVector(0, -40, 1080), FVector(1500, 90, 95), MuseumYaw);
     AddBox(LandmarkDetails, Museum + FVector(-1520, 250, 970), FVector(190, 190, 520), MuseumYaw);
     AddBox(LandmarkDetails, Museum + FVector(1580, 180, 940), FVector(180, 180, 460), MuseumYaw);
     AddBox(LandmarkDetails, Museum + FVector(0, -910, 525), FVector(3350, 55, 90), MuseumYaw);
 
-    // Front facade window rhythm from published photographs.
     const float MuseumWindowX[] = { -2650.0f, -1850.0f, -650.0f, 100.0f, 750.0f, 2250.0f };
     for (float X : MuseumWindowX)
     {
@@ -511,64 +517,46 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
     AddBox(Fences, Museum + FVector(0, 2450, 90), FVector(6000, 40, 180));
     AddBox(Fences, Museum + FVector(-3000, 0, 90), FVector(40, 4900, 180));
 
-    // Stadium: public 2021 sources show a rectangular artificial-turf pitch, perimeter fencing,
-    // renewed track/apron, small stands and service/change facilities.
     const FVector Stadium = StadiumAnchor();
     AddBox(StadiumGeometry, Stadium + FVector(0, 0, 4), FVector(11900, 8200, 8));
     AddBox(StadiumGeometry, Stadium + FVector(0, 0, 12), FVector(10500, 6800, 12));
 
-    // S16A track/apron approximation from reconstruction photos and the official general-plan sports footprint.
     AddBox(StadiumGeometry, Stadium + FVector(0, -3740, 18), FVector(11200, 520, 14));
-    AddBox(StadiumGeometry, Stadium + FVector(0,  3740, 18), FVector(11200, 520, 14));
+    AddBox(StadiumGeometry, Stadium + FVector(0, 3740, 18), FVector(11200, 520, 14));
     AddBox(StadiumGeometry, Stadium + FVector(-5600, 0, 18), FVector(520, 7400, 14));
-    AddBox(StadiumGeometry, Stadium + FVector( 5600, 0, 18), FVector(520, 7400, 14));
+    AddBox(StadiumGeometry, Stadium + FVector(5600, 0, 18), FVector(520, 7400, 14));
 
-    // Touchline/goal line proxies and center line; thin raised strips read clearly in the source-only build.
     AddBox(StadiumDetails, Stadium + FVector(0, 0, 25), FVector(10400, 18, 8));
     AddBox(StadiumDetails, Stadium + FVector(-5200, 0, 25), FVector(18, 6750, 8));
     AddBox(StadiumDetails, Stadium + FVector(5200, 0, 25), FVector(18, 6750, 8));
 
-    // Spectator stand along the road-facing side, plus service/changing-room block.
     AddBox(StadiumDetails, Stadium + FVector(0, -4750, 150), FVector(5200, 720, 300));
     AddBox(StadiumDetails, Stadium + FVector(2600, -5250, 300), FVector(2400, 850, 600));
     AddBox(StadiumDetails, Stadium + FVector(-3750, -5050, 210), FVector(1300, 800, 420));
 
-    // Perimeter fence; trees are placed around rather than inside the pitch, matching aerial references.
     AddBox(Fences, Stadium + FVector(0, -4300, 125), FVector(12400, 35, 250));
     AddBox(Fences, Stadium + FVector(0, 4300, 125), FVector(12400, 35, 250));
     AddBox(Fences, Stadium + FVector(-6200, 0, 125), FVector(35, 8600, 250));
     AddBox(Fences, Stadium + FVector(6200, 0, 125), FVector(35, 8600, 250));
 
-    // Goal frames.
     for (float GoalX : { -5200.0f, 5200.0f })
     {
         AddBox(StadiumDetails, Stadium + FVector(GoalX, -365, 125), FVector(30, 30, 250));
         AddBox(StadiumDetails, Stadium + FVector(GoalX, 365, 125), FVector(30, 30, 250));
         AddBox(StadiumDetails, Stadium + FVector(GoalX, 0, 250), FVector(30, 760, 30));
     }
-
-    // The source block remains as a collision/navigation backstop, but its procedural art is hidden at creation.
-    // OCR13StadiumSurfaceSubsystem is the only player-facing Stadion Oster presentation owner.
-    StadiumGeometry->SetVisibility(false, true);
-    StadiumGeometry->SetHiddenInGame(true, true);
-    StadiumDetails->SetVisibility(false, true);
-    StadiumDetails->SetHiddenInGame(true, true);
 }
 
 void AOCWorldSectorOster::BuildCentralPark()
 {
     const FVector Park = ParkAnchor();
 
-    // City-park footprint centered on a documented park monument/reference coordinate.
     AddBox(ParkGeometry, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));
+    for (const FOCS01PathSeed& Path : FOCLocationSectorS01RoadData::OwnedCentralParkPaths())
+    {
+        AddBox(Sidewalks, Park + Path.LocalOffset, Path.SizeCm, Path.Yaw);
+    }
 
-    // Main alleys and secondary diagonals seen across public city-park material.
-    AddBox(Sidewalks, Park + FVector(0, 0, 14), FVector(17800, 360, 18));
-    AddBox(Sidewalks, Park + FVector(0, -300, 14), FVector(360, 13200, 18));
-    AddBox(Sidewalks, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);
-    AddBox(Sidewalks, Park + FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f);
-
-    // Civic center / memorial plaza block and stepped approach.
     AddBox(ParkDetails, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
     AddBox(ParkDetails, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
     for (int32 Step = 0; Step < 4; ++Step)
@@ -577,21 +565,18 @@ void AOCWorldSectorOster::BuildCentralPark()
             FVector(1900 - Step * 120.0f, 260, 28), 0.0f);
     }
 
-    // Small skate/active-recreation pad is present in recent public park coverage; placement is approximate.
     AddBox(ParkDetails, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
     AddBoxRotated(ParkDetails, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
     AddBoxRotated(ParkDetails, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
 
-    // The separate published "city park near culture house" point lies farther north. Keep it as a secondary
-    // civic grove/reference instead of incorrectly using it as the whole central-park centroid (S09 behavior).
     const FVector NorthCivic = CultureParkNorthAnchor();
-    const FVector Mid = (Park + NorthCivic) * 0.5f;
-    const FVector Delta = NorthCivic - Park;
-    const float LinkYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
     AddBox(ParkGeometry, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));
-    AddBox(Sidewalks, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);
+    for (const FOCS01PathSeed& Path : FOCLocationSectorS01RoadData::ParkNorthCivicPathSegments())
+    {
+        // These records are absolute world coordinates so the original Park -> CultureParkNorth contour is preserved.
+        AddBox(Sidewalks, Path.LocalOffset, Path.SizeCm, Path.Yaw);
+    }
 
-    // Benches along main alleys. Simple source-only proxies now; final assets arrive in art pass.
     for (int32 I = -3; I <= 3; ++I)
     {
         AddBox(ParkDetails, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120));
@@ -604,13 +589,10 @@ void AOCWorldSectorOster::BuildCollegeSector()
     const FVector College = CollegeAnchor();
     const float Yaw = 1.0f;
 
-    // Reference-driven main block: four storeys, long beige/tiled facade, flat/very-low roof,
-    // repeated white-framed windows and a glazed entrance vestibule with canopy and broad steps.
     const FVector MainCenter = College + FVector(0, 0, 720);
     AddBox(LandmarkBlocks, MainCenter, FVector(6500, 1900, 1440), Yaw);
     AddBox(LandmarkRoofs, College + FVector(0, 0, 1460), FVector(6650, 2020, 70), Yaw);
 
-    // Front entrance glass vestibule/canopy and stairs.
     AddBox(LandmarkDetails, College + FVector(900, -1230, 230), FVector(2450, 600, 460), Yaw);
     AddBox(LandmarkDetails, College + FVector(900, -1590, 505), FVector(2650, 920, 70), Yaw);
     for (int32 Step = 0; Step < 5; ++Step)
@@ -619,7 +601,6 @@ void AOCWorldSectorOster::BuildCollegeSector()
             FVector(2750 - Step * 100.0f, 220, 40), Yaw);
     }
 
-    // Four-storey window grid. S09 intentionally models facade rhythm rather than a single featureless wall.
     constexpr int32 Columns = 9;
     constexpr int32 Rows = 4;
     for (int32 Row = 0; Row < Rows; ++Row)
@@ -628,28 +609,26 @@ void AOCWorldSectorOster::BuildCollegeSector()
         {
             const float X = -2800.0f + Col * 700.0f;
             const float Z = 255.0f + Row * 340.0f;
-            // Entrance replaces the two central ground-floor windows.
             if (Row == 0 && (Col == 5 || Col == 6)) continue;
             AddFacadeWindow(LandmarkWindows, College, FVector(X, -965, Z), FVector(430, 24, 220), Yaw, true);
         }
     }
 
-    // Side/rear academic wing and smaller service structure visible as campus massing rather than generic city blocks.
     AddBox(LandmarkBlocks, College + FVector(-2450, 2500, 520), FVector(2200, 4200, 1040), Yaw);
     AddBox(LandmarkBlocks, College + FVector(3100, 2650, 320), FVector(2500, 1900, 640), Yaw);
     AddBox(LandmarkRoofs, College + FVector(-2450, 2500, 1060), FVector(2320, 4320, 60), Yaw);
     AddBox(LandmarkRoofs, College + FVector(3100, 2650, 660), FVector(2620, 2020, 55), Yaw);
 
-    // Public institutional sources describe three academic buildings plus dormitories / workshops. S16A adds
-    // campus massing as confidence-B geometry; exact facade detail for these secondary blocks remains future art work.
     AddBox(LandmarkBlocks, College + FVector(-5200, 4700, 430), FVector(1900, 3600, 860), Yaw + 2.0f);
     AddBox(LandmarkRoofs, College + FVector(-5200, 4700, 885), FVector(2020, 3720, 55), Yaw + 2.0f);
     AddBox(LandmarkBlocks, College + FVector(4800, 6000, 510), FVector(2100, 4300, 1020), Yaw - 1.0f);
     AddBox(LandmarkRoofs, College + FVector(4800, 6000, 1045), FVector(2220, 4420, 55), Yaw - 1.0f);
     AddBox(LandmarkBlocks, College + FVector(9000, 2600, 340), FVector(2600, 1500, 680), Yaw);
 
-    // Courtyard, sport/recreation strip and perimeter.
-    AddBox(Sidewalks, College + FVector(900, 5200, 12), FVector(8000, 5900, 18), Yaw);
+    for (const FOCS01PathSeed& Path : FOCLocationSectorS01RoadData::OwnedCollegePaths())
+    {
+        AddBox(Sidewalks, College + Path.LocalOffset, Path.SizeCm, Path.Yaw);
+    }
     AddBox(ParkGeometry, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);
     AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);
     AddBox(Fences, College + FVector(0, 9300, 110), FVector(11200, 45, 220), Yaw);
@@ -658,57 +637,56 @@ void AOCWorldSectorOster::BuildCollegeSector()
 
 void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()
 {
-    const float WestHouseX = -39200.0f;
-    const float EastHouseX = -27800.0f;
-    const float StartY = 20500.0f;
-
-    for (int32 Index = 0; Index < 8; ++Index)
+    auto AddHouseArchetype = [this](const FOCS01ResidentialPlotSeed& Plot)
     {
-        const float Y = StartY + static_cast<float>(Index) * 4800.0f;
-        const float WestYaw = 87.0f + static_cast<float>((Index % 3) - 1) * 2.0f;
-        const float EastYaw = -88.0f + static_cast<float>((Index % 2) * 3);
+        if (!Plot.bHasPrimaryHouse) return;
 
-        auto AddHouseArchetype = [this](const FVector& Center, float Width, float Depth, float Height, float Yaw, int32 Variant)
+        const FVector& Center = Plot.HouseCenter;
+        const FVector& Size = Plot.HouseSizeCm;
+        AddBox(Buildings, Center, Size, Plot.HouseYaw);
+        AddGableRoof(ResidentialRoofs, Center, Size.X + 120.0f, Size.Y + 160.0f,
+            Center.Z + Size.Z * 0.5f + 245.0f, Plot.HouseYaw,
+            24.0f + static_cast<float>((Plot.VisualVariant % 3) * 3));
+
+        const int32 WindowCount = Plot.VisualVariant % 2 == 0 ? 3 : 2;
+        for (int32 W = 0; W < WindowCount; ++W)
         {
-            AddBox(Buildings, Center, FVector(Width, Depth, Height), Yaw);
-            AddGableRoof(ResidentialRoofs, Center, Width + 120.0f, Depth + 160.0f,
-                Center.Z + Height * 0.5f + 245.0f, Yaw, 24.0f + static_cast<float>((Variant % 3) * 3));
-
-            // Two or three front windows and one door proxy to make the street read like Oster's low-rise housing stock.
-            const int32 WindowCount = Variant % 2 == 0 ? 3 : 2;
-            for (int32 W = 0; W < WindowCount; ++W)
-            {
-                const float X = (static_cast<float>(W) - (WindowCount - 1) * 0.5f) * (Width / (WindowCount + 0.8f));
-                AddFacadeWindow(ResidentialDetails, Center, FVector(X, -Depth * 0.505f, 40.0f),
-                    FVector(280, 18, 190), Yaw, true);
-            }
-            AddFacadeWindow(ResidentialDetails, Center, FVector(Width * 0.34f, -Depth * 0.51f, -25.0f),
-                FVector(220, 22, 310), Yaw, true);
-        };
-
-        if (Index != 2)
-        {
-            AddHouseArchetype(FVector(EastHouseX, Y, 270.0f),
-                1780.0f + static_cast<float>((Index % 3) * 170), 1180.0f, 540.0f, EastYaw, Index);
+            const float X = (static_cast<float>(W) - (WindowCount - 1) * 0.5f) *
+                (Size.X / (WindowCount + 0.8f));
+            AddFacadeWindow(ResidentialDetails, Center, FVector(X, -Size.Y * 0.505f, 40.0f),
+                FVector(280, 18, 190), Plot.HouseYaw, true);
         }
-        AddHouseArchetype(FVector(WestHouseX, Y + 700.0f, 260.0f),
-            1700.0f, 1120.0f + static_cast<float>((Index % 2) * 160), 520.0f, WestYaw, Index + 1);
+        AddFacadeWindow(ResidentialDetails, Center, FVector(Size.X * 0.34f, -Size.Y * 0.51f, -25.0f),
+            FVector(220, 22, 310), Plot.HouseYaw, true);
+    };
 
-        // Common Oster visual language from aerial/street references: long narrow lots, separate sheds, fences and gates.
-        AddBox(Buildings, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 150.0f), FVector(700, 1100, 300), WestYaw);
-        AddGableRoof(ResidentialRoofs, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 150.0f),
-            780, 1200, 390, WestYaw, 24.0f);
-        AddBox(Buildings, FVector(EastHouseX + 1600.0f, Y + 1750.0f, 140.0f), FVector(650, 1000, 280), EastYaw);
+    for (const FOCS01ResidentialPlotSeed& Plot : FOCLocationSectorS01Data::ProvisionalResidentialPlots())
+    {
+        AddHouseArchetype(Plot);
 
-        AddBox(Fences, FVector(-37100.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
-        AddBox(Fences, FVector(-29900.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
-        AddBox(Sidewalks, FVector(-36500.0f, Y + 450.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
-        AddBox(Sidewalks, FVector(-30500.0f, Y - 350.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
+        if (!Plot.bHasOutbuilding) continue;
+        AddBox(Buildings, Plot.OutbuildingCenter, Plot.OutbuildingSizeCm, Plot.OutbuildingYaw);
+        if (Plot.bOutbuildingHasRoof)
+        {
+            AddGableRoof(ResidentialRoofs, Plot.OutbuildingCenter,
+                Plot.OutbuildingSizeCm.X + 80.0f, Plot.OutbuildingSizeCm.Y + 100.0f,
+                Plot.OutbuildingCenter.Z + Plot.OutbuildingSizeCm.Z * 0.5f + 90.0f,
+                Plot.OutbuildingYaw, 24.0f);
+        }
     }
 
-    // S08 service alleys remain as infantry flanking routes.
-    AddBox(Roads, FVector(-43000.0f, 36000.0f, RoadZ), FVector(560.0f, 42000.0f, 14.0f), 0.0f);
-    AddBox(Roads, FVector(-24200.0f, 37000.0f, RoadZ), FVector(560.0f, 39000.0f, 14.0f), 0.0f);
+    for (const FOCS01FrontageSeed& Frontage : FOCLocationSectorS01Data::ProvisionalFrontages())
+    {
+        AddBox(Fences, Frontage.WestFenceCenter, Frontage.FenceSizeCm, Frontage.FenceYaw);
+        AddBox(Fences, Frontage.EastFenceCenter, Frontage.FenceSizeCm, Frontage.FenceYaw);
+        AddBox(Sidewalks, Frontage.WestWalkCenter, Frontage.WalkSizeCm, Frontage.WalkYaw);
+        AddBox(Sidewalks, Frontage.EastWalkCenter, Frontage.WalkSizeCm, Frontage.WalkYaw);
+    }
+
+    for (const FOCS01RoadSeed& Road : FOCLocationSectorS01Data::ProvisionalServiceRoads())
+    {
+        AddBox(Roads, Road.Center, Road.SizeCm, Road.Yaw);
+    }
 }
 
 void AOCWorldSectorOster::BuildResidentialBlocks()
@@ -730,16 +708,18 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
         { FVector(-52000, -21000, 0), 3, 4, FVector(4000, 4300, 0), 2.0f },
         { FVector(-50000, 28000, 0), 3, 4, FVector(4100, 4200, 0), -2.0f },
         { FVector(-12000, -33000, 0), 3, 5, FVector(3900, 4200, 0), 3.0f },
-        { FVector(-82000,  15000, 0), 3, 4, FVector(4100, 4300, 0), 8.0f },
+        { FVector(-82000, 15000, 0), 3, 4, FVector(4100, 4300, 0), 8.0f },
         { FVector(-76000, -41000, 0), 3, 4, FVector(4050, 4250, 0), -4.0f },
-        { FVector( 52000,  33000, 0), 3, 4, FVector(4200, 4400, 0), 5.0f },
-        { FVector( 47000, -50000, 0), 3, 4, FVector(4100, 4200, 0), -7.0f },
-        { FVector(-24000,  76000, 0), 2, 5, FVector(4200, 4100, 0), 12.0f }
+        { FVector(52000, 33000, 0), 3, 4, FVector(4200, 4400, 0), 5.0f },
+        { FVector(47000, -50000, 0), 3, 4, FVector(4100, 4200, 0), -7.0f },
+        { FVector(-24000, 76000, 0), 2, 5, FVector(4200, 4100, 0), 12.0f }
     };
 
     int32 HouseCounter = 0;
     for (const FBlockSeed& Block : Blocks)
     {
+        if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Block.Origin)) continue;
+
         for (int32 Row = 0; Row < Block.Rows; ++Row)
         {
             for (int32 Col = 0; Col < Block.Columns; ++Col)
@@ -756,7 +736,6 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
                 AddGableRoof(ResidentialRoofs, Center, Width + 120.0f, Depth + 140.0f,
                     Center.Z + Height * 0.5f + 230.0f, HouseYaw, 24.0f + (HouseCounter % 3) * 2.0f);
 
-                // Detached rear shed/outbuilding creates the irregular courtyard silhouettes visible in Oster aerial imagery.
                 const FVector ShedOffset = Rotate2D(FVector(-Width * 0.32f, Depth * 1.35f, -120.0f), HouseYaw);
                 AddBox(Buildings, Center + ShedOffset, FVector(620, 900, 280), HouseYaw + 90.0f);
                 AddGableRoof(ResidentialRoofs, Center + ShedOffset, 700, 980,
@@ -770,8 +749,6 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
                         FVector(260, 18, 180), HouseYaw, true);
                 }
 
-                // S16A variation: houses/lots are intentionally imperfect. Some have porches/extensions, some
-                // have missing/short fences, matching the mixed maintained/worn character seen in public imagery.
                 if ((HouseCounter % 4) == 0)
                 {
                     const FVector PorchOffset = Rotate2D(FVector(Width * 0.25f, -Depth * 0.70f, -65.0f), HouseYaw);
@@ -782,8 +759,6 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
                     const FVector AnnexOffset = Rotate2D(FVector(-Width * 0.58f, Depth * 0.25f, -70.0f), HouseYaw);
                     AddBox(Buildings, Center + AnnexOffset, FVector(650, 780, 320), HouseYaw + 90.0f);
                 }
-                // S16B Oster fence fidelity: street-facing yards are commonly screened by tall opaque fences.
-                // Distribution is deliberately weighted toward wood, with metal and light corrugated sheet variants.
                 if ((HouseCounter % 11) != 0)
                 {
                     const float FenceLength = (HouseCounter % 3 == 0) ? 2100.0f : 2850.0f;
@@ -796,7 +771,6 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
                     AddBox(FenceFamily, Center + Rotate2D(FVector(0, -1500, -120), HouseYaw),
                         FVector(FenceLength, 45, FenceHeight), HouseYaw);
 
-                    // Side boundary is usually simpler and slightly lower than the street facade.
                     if ((HouseCounter % 4) != 1)
                     {
                         AddBox(FenceFamily, Center + Rotate2D(FVector(-FenceLength * 0.48f, 150.0f, -135.0f), HouseYaw),
@@ -856,31 +830,40 @@ void AOCWorldSectorOster::BuildVegetation()
 
     auto AddGrassPatch = [this](UInstancedStaticMeshComponent* Family, const FVector& Center, const FVector& Size, float Yaw)
     {
-        // Source-only placeholder: very thin instanced boxes mark vegetation zones. Final S16C uses foliage/PCG meshes.
         AddBox(Family, Center + FVector(0,0,2.0f), FVector(Size.X, Size.Y, 4.0f), Yaw);
     };
 
-    // S16B ground-cover zoning. Clean mown lawns are limited to maintained civic/sports spaces.
     const FVector Park = ParkAnchor();
     const FVector College = CollegeAnchor();
     const FVector Stadium = StadiumAnchor();
-    AddGrassPatch(GrassMown, Park + FVector(0, 0, 0), FVector(19000, 14500, 4), 6.0f);
-    AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
-    AddGrassPatch(GrassMown, College + FVector(0, 5200, 0), FVector(12500, 7600, 4), 2.0f);
 
-    // Road verges/private lots: irregular, partly mown grass rather than uniform golf-course lawn.
+    auto ResolveS01VegetationAnchor = [&Park, &College](EOCS01VegetationAnchor Anchor)
+    {
+        return Anchor == EOCS01VegetationAnchor::College ? College : Park;
+    };
+
+    for (const FOCS01GrassPatchSeed& Patch : FOCLocationSectorS01Data::ProvisionalGrassPatches())
+    {
+        AddGrassPatch(GrassMown,
+            ResolveS01VegetationAnchor(Patch.Anchor) + Patch.LocalOffset,
+            Patch.SizeCm, Patch.Yaw);
+    }
+
+    AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
+
     const FVector RoughPatches[] = {
         FVector(-52000, 30000, 0), FVector(-52000,-25000,0), FVector(45000,30000,0),
         FVector(42000,-35000,0), FVector(-15000,70000,0), FVector(16000,-65000,0)
     };
     for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
+    {
+        if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(RoughPatches[I])) continue;
         AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
+    }
 
-    // Desna/Oster floodplain proxy: taller wet meadow/reed-edge vegetation, not a manicured lawn.
     AddGrassPatch(GrassWetland, FVector(-93000, 35000, 0), FVector(33000, 102000, 4), 12.0f);
-    AddGrassPatch(GrassWetland, FVector( 43000,-93000, 0), FVector(98000, 21000, 4), 8.0f);
+    AddGrassPatch(GrassWetland, FVector(43000,-93000, 0), FVector(98000, 21000, 4), 8.0f);
 
-    // Museum garden: old broadleaf canopy seen in reference photos, with a few tall Soviet-era poplar silhouettes nearby.
     for (int32 Index = 0; Index < 16; ++Index)
     {
         const float X = -4700.0f + static_cast<float>(Index % 8) * 1350.0f;
@@ -889,39 +872,26 @@ void AOCWorldSectorOster::BuildVegetation()
         AddTreeFamily(FVector(X, Y, 0), 0.88f + 0.07f * static_cast<float>(Index % 3), Family);
     }
 
-    // Stadium perimeter: mixed mature rows, including tall poplar forms typical of Soviet-era town planting.
     for (int32 I = -6; I <= 6; ++I)
     {
         const ETreeProxy Family = (I % 3 == 0) ? ETreeProxy::Poplar : ((I % 4 == 0) ? ETreeProxy::Birch : ETreeProxy::Broadleaf);
         AddTreeFamily(Stadium + FVector(I * 1500.0f, 5700.0f + (I % 2) * 350.0f, 0), 0.9f, Family);
     }
 
-    // Central park: Soviet-era urban palette is represented by broadleaf/linden-maple proxies,
-    // tall poplars, birch groups and occasional pine. Exact species placement remains reference-driven.
-    for (int32 Row = -3; Row <= 3; ++Row)
+    for (const FOCS01TreeSeed& Tree : FOCLocationSectorS01Data::ProvisionalVegetationTrees())
     {
-        for (int32 Col = -4; Col <= 4; ++Col)
+        ETreeProxy Family = ETreeProxy::Broadleaf;
+        switch (Tree.Family)
         {
-            if (FMath::Abs(Row) <= 1 && FMath::Abs(Col) <= 1) continue;
-            const float JitterX = static_cast<float>(((Row * 7 + Col * 3) % 5) - 2) * 180.0f;
-            const float JitterY = static_cast<float>(((Row * 5 + Col * 11) % 5) - 2) * 160.0f;
-            const int32 Roll = FMath::Abs(Row * 9 + Col * 5) % 12;
-            ETreeProxy Family = ETreeProxy::Broadleaf;
-            if (Roll <= 2) Family = ETreeProxy::Poplar;
-            else if (Roll == 3 || Roll == 4) Family = ETreeProxy::Birch;
-            else if (Roll == 5) Family = ETreeProxy::Pine;
-            AddTreeFamily(Park + FVector(Col * 1850.0f + JitterX, Row * 1700.0f + JitterY, 0),
-                0.85f + 0.05f * static_cast<float>((Row + Col + 8) % 4), Family);
+            case EOCS01TreeFamily::Poplar: Family = ETreeProxy::Poplar; break;
+            case EOCS01TreeFamily::Birch:  Family = ETreeProxy::Birch; break;
+            case EOCS01TreeFamily::Pine:   Family = ETreeProxy::Pine; break;
+            default: break;
         }
+
+        AddTreeFamily(ResolveS01VegetationAnchor(Tree.Anchor) + Tree.LocalOffset, Tree.Scale, Family);
     }
 
-    // College: official photos show tall conifers framing the facade, with mixed broadleaf planting around campus.
-    AddTreeFamily(College + FVector(-3800, -1100, 0), 1.2f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(3900, -950, 0), 1.15f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(-4600, 1500, 0), 1.0f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(4700, 2100, 0), 0.9f, ETreeProxy::Birch);
-
-    // Street rows: not every street receives formal planting; selected corridors get old poplar/broadleaf rhythm.
     for (int32 Index = -7; Index <= 7; ++Index)
     {
         const ETreeProxy WestEast = (Index % 4 == 0) ? ETreeProxy::Poplar : ETreeProxy::Broadleaf;
@@ -930,13 +900,12 @@ void AOCWorldSectorOster::BuildVegetation()
             AddTreeFamily(FVector(28500.0f, Index * 6500.0f, 0), 0.8f, (Index % 4 == 0) ? ETreeProxy::Poplar : ETreeProxy::Birch);
     }
 
-    // Private yards: fruit-tree silhouettes are intentionally represented with smaller broadleaf proxies;
-    // exact species (apple/cherry/plum/walnut) will be assigned in the final foliage content pass.
     for (int32 I=0; I<24; ++I)
     {
         const float X = -62000.0f + (I%8)*15000.0f;
         const float Y = -48000.0f + (I/8)*42000.0f + ((I%3)-1)*1800.0f;
-        AddTreeFamily(FVector(X,Y,0), 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
+        const FVector TreeLocation(X,Y,0);
+        if (FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(TreeLocation)) continue;
+        AddTreeFamily(TreeLocation, 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
     }
 }
-

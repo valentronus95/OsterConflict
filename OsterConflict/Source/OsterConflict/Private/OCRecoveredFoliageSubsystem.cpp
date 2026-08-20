@@ -16,10 +16,8 @@ namespace
         UStaticMesh* Mesh, const FName Name, const int32 CullEndCm)
     {
         if (!Owner || !Root || !Mesh) return nullptr;
-
         UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(Owner, Name);
         if (!Component) return nullptr;
-
         Component->SetupAttachment(Root);
         Component->SetStaticMesh(Mesh);
         Component->SetMobility(EComponentMobility::Static);
@@ -34,17 +32,28 @@ namespace
         return Component;
     }
 
-    FVector GeoPoint(const FOCGeoReferencePoint& Ref)
-    {
-        return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, 0.0f);
-    }
-
     void AddInstance(UInstancedStaticMeshComponent* Component, const FVector& Location,
         const float YawDegrees, const float UniformScale)
     {
         if (!Component || !Component->GetStaticMesh()) return;
         Component->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f),
             Location, FVector(UniformScale)), true);
+    }
+
+    bool IsInsideSilpoClearZone(const FVector& Location)
+    {
+        const FOCGeoReferencePoint Silpo = FOCGeoReference::Silpo();
+        const FVector Center = FOCGeoReference::ToLocalCm(Silpo.Latitude, Silpo.Longitude, 0.0);
+        const FVector Delta = Location - Center;
+        return FMath::Abs(Delta.X) < 2600.0f && FMath::Abs(Delta.Y) < 3600.0f;
+    }
+
+    bool IsInsideCollegeHardscape(const FVector& Location)
+    {
+        const FOCGeoReferencePoint College = FOCGeoReference::College();
+        const FVector Center = FOCGeoReference::ToLocalCm(College.Latitude, College.Longitude, 0.0);
+        const FVector Delta = Location - Center;
+        return FMath::Abs(Delta.X) < 2800.0f && FMath::Abs(Delta.Y) < 2300.0f;
     }
 }
 
@@ -58,21 +67,20 @@ bool UOCRecoveredFoliageSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 void UOCRecoveredFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
-
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    InWorld.GetTimerManager().SetTimerForNextTick(
+    FTimerHandle Timer;
+    InWorld.GetTimerManager().SetTimer(Timer,
         FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
         {
             if (UWorld* World = WeakWorld.Get()) Populate(*World);
-        }));
+        }), 1.50f, false);
 }
 
 void UOCRecoveredFoliageSubsystem::Populate(UWorld& World)
@@ -89,12 +97,12 @@ void UOCRecoveredFoliageSubsystem::Populate(UWorld& World)
 
     if (!GrassMesh && !FlowerMesh && !GroundPlantMesh)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Recovered foliage pass skipped: PN foliage meshes were not loadable."));
+        UE_LOG(LogTemp, Warning, TEXT("R13 recovered foliage skipped: PN foliage meshes were not loadable."));
         return;
     }
 
     FActorSpawnParameters SpawnParams;
-    SpawnParams.Name = TEXT("OC_RecoveredFoliage");
+    SpawnParams.Name = TEXT("OC_RecoveredFoliage_R13");
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     AActor* FoliageActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
     if (!FoliageActor) return;
@@ -105,17 +113,13 @@ void UOCRecoveredFoliageSubsystem::Populate(UWorld& World)
     Root->RegisterComponent();
     FoliageActor->SetRootComponent(Root);
 
-    UInstancedStaticMeshComponent* Grass = MakeFoliageISM(
-        FoliageActor, Root, GrassMesh, TEXT("RecoveredGrass"), 32000);
-    UInstancedStaticMeshComponent* Flowers = MakeFoliageISM(
-        FoliageActor, Root, FlowerMesh, TEXT("RecoveredFlowers"), 24000);
-    UInstancedStaticMeshComponent* GroundPlants = MakeFoliageISM(
-        FoliageActor, Root, GroundPlantMesh, TEXT("RecoveredGroundPlants"), 28000);
+    UInstancedStaticMeshComponent* Grass = MakeFoliageISM(FoliageActor, Root, GrassMesh, TEXT("RecoveredGrass"), 32000);
+    UInstancedStaticMeshComponent* Flowers = MakeFoliageISM(FoliageActor, Root, FlowerMesh, TEXT("RecoveredFlowers"), 24000);
+    UInstancedStaticMeshComponent* GroundPlants = MakeFoliageISM(FoliageActor, Root, GroundPlantMesh, TEXT("RecoveredGroundPlants"), 28000);
 
-    const FVector Park = GeoPoint(FOCGeoReference::CentralPark());
+    const FOCGeoReferencePoint ParkRef = FOCGeoReference::CentralPark();
+    const FVector Park = FOCGeoReference::ToLocalCm(ParkRef.Latitude, ParkRef.Longitude, 0.0);
 
-    // Park ground layer. Keep the central pedestrian opening clear instead of carpet-bombing
-    // the whole park with foliage instances.
     int32 Seed = 1;
     for (int32 Row = -5; Row <= 5; ++Row)
     {
@@ -130,6 +134,13 @@ void UOCRecoveredFoliageSubsystem::Populate(UWorld& World)
                 static_cast<float>(Col) * 1150.0f + JitterX,
                 static_cast<float>(Row) * 1050.0f + JitterY,
                 2.0f);
+
+            if (IsInsideSilpoClearZone(Location) || IsInsideCollegeHardscape(Location))
+            {
+                ++Seed;
+                continue;
+            }
+
             const float Scale = 0.72f + static_cast<float>(Seed % 5) * 0.08f;
             AddInstance(Grass, Location, static_cast<float>((Seed * 41) % 360), Scale);
 
@@ -147,13 +158,11 @@ void UOCRecoveredFoliageSubsystem::Populate(UWorld& World)
         }
     }
 
-    // Rural verge clusters near the restored forest-road pieces. These are intentionally sparse
-    // and far from the museum replacement footprint.
     const FVector VergeCenters[] =
     {
-        FVector(-92000.0f, -69000.0f, 2.0f),
-        FVector(-80500.0f, -61000.0f, 2.0f),
-        FVector(79000.0f, 61000.0f, 2.0f)
+        FVector(-67000.0f, -18500.0f, 2.0f),
+        FVector(-56000.0f, -12500.0f, 2.0f),
+        FVector(15500.0f, 44500.0f, 2.0f)
     };
 
     for (int32 Cluster = 0; Cluster < UE_ARRAY_COUNT(VergeCenters); ++Cluster)
@@ -164,16 +173,16 @@ void UOCRecoveredFoliageSubsystem::Populate(UWorld& World)
             const float Radius = 1900.0f + static_cast<float>((Index * 173) % 2200);
             const FVector Offset = FRotator(0.0f, Angle, 0.0f).RotateVector(FVector(Radius, 0.0f, 0.0f));
             const FVector Location = VergeCenters[Cluster] + Offset;
-            AddInstance(Grass, Location, Angle + 17.0f, 0.78f + 0.05f * static_cast<float>(Index % 4));
+            if (IsInsideSilpoClearZone(Location) || IsInsideCollegeHardscape(Location)) continue;
 
+            AddInstance(Grass, Location, Angle + 17.0f, 0.78f + 0.05f * static_cast<float>(Index % 4));
             if ((Index % 5) == 0)
             {
-                AddInstance(GroundPlants, Location + FVector(120.0f, 80.0f, 1.0f),
-                    Angle + 71.0f, 0.75f);
+                AddInstance(GroundPlants, Location + FVector(120.0f, 80.0f, 1.0f), Angle + 71.0f, 0.75f);
             }
         }
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Recovered PN foliage placed with instancing and short cull distances."));
+        TEXT("R13 recovered PN foliage placed with landmark hardscape exclusion around Silpo and college."));
 }

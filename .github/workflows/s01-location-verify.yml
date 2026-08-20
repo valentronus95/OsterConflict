@@ -1,0 +1,50 @@
+name: S01 location-first verification
+
+on:
+  push:
+    branches:
+      - r13-content-gameplay-pass
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-s01:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify S01 topology ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01.py
+
+      - name: Verify S01 vegetation registry
+        run: python VERIFY_R13_LOCATION_FIRST_S01_VEGETATION_DATA.py
+
+      - name: Verify S01 vegetation runtime ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01_VEGETATION_RUNTIME.py
+
+      - name: Verify S01 road topology ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01_ROAD_TOPOLOGY.py
+
+      - name: Verify S01 park-to-north path ownership
+        run: python VERIFY_R13_LOCATION_FIRST_S01_PARK_NORTH_PATH.py
+
+      - name: Verify Krushelnytska reference evidence
+        run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_REFERENCES.py
+
+      - name: Verify Krushelnytska review-only authoring gates
+        run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GATES.py
+
+      - name: Verify Krushelnytska feature acquisition contract
+        run: python VERIFY_R13_LOCATION_FIRST_S01_KRUSHELNYTSKA_GEOMETRY_FETCH.py

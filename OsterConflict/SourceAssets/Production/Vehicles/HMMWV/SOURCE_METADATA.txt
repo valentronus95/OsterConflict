@@ -1,5 +1,0 @@
-Asset: Ukrainian HMMWV Mk 19
-Author metadata: 42manako
-Source: Sketchfab model ukrainian-hmmwv-mk-19-42de209261f041e89d7e0a4e6a9078df
-Downloaded GLB metadata license: CC-BY-4.0
-Integration: import script removes Mk19 scene subtree and game mounts the separate M2 Browning production asset.

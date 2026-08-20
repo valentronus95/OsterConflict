@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).resolve().parent
 P = ROOT / 'OsterConflict'
@@ -25,16 +26,19 @@ fx_h = read(SRC/'Public/OCTransientVisualFX.h')
 fx = read(SRC/'Private/OCTransientVisualFX.cpp')
 char = read(SRC/'Private/OCCharacterVisualComponent.cpp')
 vehicle = read(SRC/'Private/OCVehicleBase.cpp')
+frontend = read(SRC/'Private/OCR13FrontendMenuSubsystem.cpp')
 validation = read(ROOT/'PC_TEST/RUN_UE58_PC_VALIDATION.ps1')
 preflight = read(P/'Scripts/S18C/WINDOWS_TOOLCHAIN_PREFLIGHT.ps1')
 prelaunch = read(ROOT/'PC_TEST/PRELAUNCH_CHECK.ps1')
 start = read(ROOT/'START_HERE.cmd')
-quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
+quick = read(ROOT/'RUN_R13_LISTEN_TEST.cmd')
 
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
 req('bReplicates = true' in env_cpp and 'bAlwaysRelevant = true' in env_cpp, 'daylight rig reaches network clients')
 req('SetAtmosphereSunLight(true)' in env_cpp and 'SetRealTimeCaptureEnabled(true)' in env_cpp, 'sun/sky runtime lighting configured')
-req('SetFogDensity(0.0085f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp, 'lightweight atmospheric depth configured')
+old_depth = 'SetFogDensity(0.0085f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp
+r13_neutral = 'SetFogDensity(0.0f)' in env_cpp and 'SetFogMaxOpacity(0.0f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp
+req(old_depth or r13_neutral, 'atmospheric depth or R13 neutral no-fog art-QA mode configured')
 req('SpawnActor<AOCVisualEnvironment>' in gm, 'GameMode spawns visual environment')
 req(gm.find('SpawnActor<AOCVisualEnvironment>') < gm.find('SpawnActor<AOCWorldSectorOster>'), 'lighting spawns before source world')
 
@@ -50,7 +54,13 @@ req('AOCTransientVisualFX' in weapon and 'ConfigureMuzzle' in weapon and 'Config
 req('DrawDebugLine(GetWorld(), TraceStart' not in weapon and 'DrawDebugPoint(GetWorld(), ImpactLocation' not in weapon, 'weapon fire/impact debug primitives removed')
 req('SetLifeSpan' in fx and 'UPointLightComponent' in fx_h and 'BasicShapeMaterial' in fx, 'transient FX self-clean and use lit material geometry')
 
-req('FPProxyArmL"), Cylinder' in char and 'FPProxyHandL"), Sphere' in char, 'first-person proxy arms/hands no longer rectangular blocks')
+req('FPProxyArmL"), Cylinder' in char and 'FPProxyHandL"), Sphere' in char, 'first-person proxy arm fallback remains structurally defined')
+primitive_arms_hidden = (
+    'for (UStaticMeshComponent* Part : FirstPersonProxyParts)' in char and
+    'if (Part) Part->SetVisibility(false, true);' in char and
+    'Arms->SetVisibility(bHasProductionArms, true);' in char
+)
+req(primitive_arms_hidden, 'first-person primitive arm fallback is hidden while authored FPS arms are visibility-gated')
 req('GetComponents<UStaticMeshComponent>(MeshComponents)' in vehicle and 'CivilianPalette' in vehicle and 'MilitaryBody' in vehicle, 'vehicle source proxies receive readable palettes')
 
 req("$BuildBat=Resolve-Required" in validation and 'RunUBT.bat' not in validation, 'validation no longer requires missing RunUBT.bat')
@@ -58,11 +68,28 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-req(('R11 VISUAL FOUNDATION' in start or 'R11.1 LAUNCHER FIXED' in start) and 'RUN_R11_LISTEN_TEST.cmd' in start, 'START_HERE exposes R11 visual smoke test')
-req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')
-req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh R11 quick launch bootstraps generated runtime map')
+req('R13 CONTENT + GAMEPLAY PASS' in start and 'RUN_R13_LISTEN_TEST.cmd' in start and 'RUN_R11_LISTEN_TEST.cmd' not in start,
+    'START_HERE exposes the current R13 gameplay path')
 
+# The current quick test deliberately boots a pawn-less Frontend shell first. Listen-server travel belongs to the
+# explicit START/LOCAL GAME action so bots and combat cannot run invisibly behind the main menu.
+req('-Frontend' in quick and '-NoFrontend' not in quick and '-game' in quick and '/Game/Maps/OsterConflict_Runtime' in quick,
+    'quick launch enters the current player-facing R13 frontend shell')
+req('?listen?Mode=Conquest?Bots=0?Population=1?BotFill=0?MaxPlayers=16?R13Gameplay=1?LocationTest=1' in frontend and
+    'StartLocalGameplay()' in frontend,
+    'frontend START action owns explicit bot-free location-test listen-server travel')
+req('?listen?Mode=Conquest' not in quick,
+    'quick launcher does not start the match behind the frontend shell')
+req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh quick launch bootstraps generated runtime map')
+
+# Local generated folders are expected after compiling. Only tracked generated artifacts violate the source archive contract.
+try:
+    tracked = subprocess.run(['git','ls-files'], cwd=ROOT, check=True, capture_output=True, text=True).stdout.splitlines()
+except (OSError, subprocess.CalledProcessError) as exc:
+    raise SystemExit('R11 VERIFY FAIL: unable to inspect tracked generated folders: ' + str(exc))
+tracked = [path.replace('\\','/') for path in tracked]
 for bad in ['Binaries','Intermediate','Saved','DerivedDataCache']:
-    req(not (P/bad).exists(), f'archive excludes generated {bad}')
+    prefix=f'OsterConflict/{bad}/'
+    req(not any(path.startswith(prefix) for path in tracked), f'archive does not track generated {bad}')
 
 print(f'R11 VISUAL FOUNDATION verifier: PASS ({len(checks)} checks)')

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/NetSerialization.h"
 #include "OCWeaponTypes.h"
@@ -11,6 +10,7 @@
 
 class AOCCharacter;
 class UOCWeaponDefinition;
+class USceneComponent;
 class UStaticMeshComponent;
 class UOCWeaponAudioComponent;
 class UOCWeaponAudioProfile;
@@ -41,21 +41,6 @@ public:
     /** Called locally by Character after inventory replication. */
     void ApplyInventoryPresentation(bool bActive, USceneComponent* ActiveAttachParent);
 
-    /**
-     * AActor exposes relative-transform setters but no matching getters in UE 5.8.
-     * Presentation code needs the exact transform of the authoritative weapon root so ADS/recoil
-     * offsets can be restored without accidentally mixing camera-relative and world-space values.
-     */
-    FVector GetActorRelativeLocation() const
-    {
-        return WeaponRoot ? WeaponRoot->GetRelativeLocation() : GetActorLocation();
-    }
-
-    FRotator GetActorRelativeRotation() const
-    {
-        return WeaponRoot ? WeaponRoot->GetRelativeRotation() : GetActorRotation();
-    }
-
     UFUNCTION(BlueprintPure, Category="Weapon")
     int32 GetAmmoInMagazine() const { return AmmoInMagazine; }
 
@@ -70,9 +55,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Weapon")
     float GetFireInterval() const;
-
-    UFUNCTION(BlueprintPure, Category="Weapon")
-    float GetReloadDuration() const { return FMath::Max(0.05f, Tuning.ReloadDuration); }
 
     UFUNCTION(BlueprintPure, Category="Weapon")
     EOCFireMode GetCurrentFireMode() const { return CurrentFireMode; }

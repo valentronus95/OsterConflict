@@ -4,11 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13StadiumSurfaceSubsystem.generated.h"
 
-/**
- * Authoritative presentation owner for the hard-georeferenced Stadion Oster site.
- * Legacy sector geometry remains only as hidden collision/backstop where required; no second stadium presentation
- * owner may rebuild this site after BeginPlay.
- */
+/** Visual turf, track, field markings and small spectator seating over the authored stadium collision geometry. */
 UCLASS()
 class OSTERCONFLICT_API UOCR13StadiumSurfaceSubsystem : public UWorldSubsystem
 {

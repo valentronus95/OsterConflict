@@ -8,7 +8,6 @@ class OSTERCONFLICT_API AOCAntiArmorLauncher : public AOCWeaponBase
     GENERATED_BODY()
 public:
     AOCAntiArmorLauncher();
-    virtual void BeginPlay() override;
     virtual bool TryFireServer(AOCCharacter* Shooter, const FVector& TraceOrigin, const FVector& TraceDirection,
         bool bAiming, bool bMoving, FHitResult& OutHit, bool& bOutDamagedActor, bool& bOutFatalHit) override;
 private:

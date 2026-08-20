@@ -26,7 +26,7 @@ REQ = [
 for rel in REQ:
     assert (PROJECT / rel).exists(), f"missing {rel}"
 
-blob = "\n".join((PROJECT / rel).read_text(errors="ignore") for rel in REQ)
+blob = "\n".join((PROJECT / rel).read_text(encoding="utf-8", errors="ignore") for rel in REQ)
 markers = [
     "AOCArmedVehicleBase", "AOCPickupGunTruck", "AOCBTR",
     "AOCPickupGunTruckSpawnPoint", "AOCBTRSpawnPoint",
@@ -35,7 +35,7 @@ markers = [
     "SetGunnerAimServer", "SetGunnerFireHeldServer", "RequestGunnerReloadServer",
     "EnterVehicleGunnerServer", "ExitVehicleGunnerServer", "bVehicleGunner",
     "ServerSetVehicleGunnerAim", "ServerSetVehicleGunnerFireHeld", "ServerReloadVehicleTurret",
-    "HasDriver()", "E  ENTER DRIVER", "E  ENTER GUNNER",
+    "HasDriver()", "E  СІСТИ ЗА КЕРМО", "E  СІСТИ ЗА КУЛЕМЕТ",
     "UOCBallisticDamageType", "UOCVehicleCannonDamageType", "UOCAntiArmorDamageType",
     "CanHullAcceptDamage", "GetCollisionDamageScale() const override { return 0.0f; }",
     "SpawnCombatVehicleFleet", "DrawGunnerHUD",
@@ -45,12 +45,12 @@ for marker in markers:
     assert marker in blob, f"missing marker {marker}"
 
 # Ensure BTR's core rule is actually coded, not only documented.
-btr_cpp = (PROJECT / "Source/OsterConflict/Private/OCBTR.cpp").read_text()
+btr_cpp = (PROJECT / "Source/OsterConflict/Private/OCBTR.cpp").read_text(encoding="utf-8")
 assert "IsChildOf(UOCAntiArmorDamageType::StaticClass())" in btr_cpp
 
 # Source-only delimiter sanity for all headers/cpps.
 for p in list((PROJECT / "Source/OsterConflict/Public").glob("*.h")) + list((PROJECT / "Source/OsterConflict/Private").glob("*.cpp")):
-    text = p.read_text(errors="ignore")
+    text = p.read_text(encoding="utf-8", errors="ignore")
     text = re.sub(r"//.*", "", text)
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
     text = re.sub(r'"(?:\\.|[^"\\])*"', '""', text)
@@ -64,8 +64,8 @@ for p in list((PROJECT / "Source/OsterConflict/Public").glob("*.h")) + list((PRO
     assert not stack, f"unclosed delimiter in {p.name}"
 
 # Character client->server gunner RPCs must have implementations.
-ch = (PROJECT / "Source/OsterConflict/Public/OCCharacter.h").read_text()
-cc = (PROJECT / "Source/OsterConflict/Private/OCCharacter.cpp").read_text()
+ch = (PROJECT / "Source/OsterConflict/Public/OCCharacter.h").read_text(encoding="utf-8")
+cc = (PROJECT / "Source/OsterConflict/Private/OCCharacter.cpp").read_text(encoding="utf-8")
 for rpc in re.findall(r"UFUNCTION\(Server,[^)]*\)\s*\n\s*void\s+(\w+)\s*\(", ch):
     assert f"AOCCharacter::{rpc}_Implementation" in cc, f"missing Character RPC impl {rpc}"
 

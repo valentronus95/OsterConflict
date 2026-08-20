@@ -11,11 +11,12 @@
 
 namespace
 {
-    // R13.7 final museum model starts at 5.10 s. Keep cleanup just before it.
+    // R13.6 finishes its museum/stadium photo pass at 4.15 s; R13.7 final museum model starts at 5.10 s.
+    // This cleanup therefore owns the narrow hand-off between those passes.
     constexpr float MuseumSiteCleanupDelaySeconds = 4.95f;
     constexpr float LandmarkCleanupRadiusCm = 3600.0f;
     constexpr float FenceCleanupRadiusCm = 3300.0f;
-    constexpr float TreeCleanupRadiusCm = 5200.0f;
+    constexpr float PrimitiveTreeCleanupRadiusCm = 5200.0f;
 
     bool RemoveInstancesNear(UInstancedStaticMeshComponent* Component, const FVector& Center, const float RadiusCm)
     {
@@ -37,6 +38,8 @@ namespace
 
     bool IsLegacyMuseumPresentation(const FName Name)
     {
+        // Older museum-specific components are named R13_Museum... .
+        // The final model uses R137Museum_..., so this cannot suppress the replacement model.
         return Name.ToString().StartsWith(TEXT("R13_Museum"));
     }
 
@@ -62,17 +65,6 @@ namespace
             Name == TEXT("SovietPoplarTrunks") || Name == TEXT("SovietPoplarCrowns") ||
             Name == TEXT("BirchTrunks") || Name == TEXT("BirchCrowns") ||
             Name == TEXT("PineTrunks") || Name == TEXT("PineCrowns");
-    }
-
-    bool IsAssetDecoratorTreeFamily(const FName Name)
-    {
-        // OCAssetModelDecorator owns these ISMs. Its generic museum garden must be removed before
-        // OCR137MuseumPhotoModelSubsystem places the photo-specific museum vegetation.
-        return Name == TEXT("RealTreeA") ||
-            Name == TEXT("RealTreeB") ||
-            Name == TEXT("RealTreeC") ||
-            Name == TEXT("RealPineA") ||
-            Name == TEXT("RealPineB");
     }
 }
 
@@ -109,8 +101,7 @@ void UOCR137MuseumSiteReplacementSubsystem::PrepareMuseumSite(UWorld& World)
     int32 HiddenLegacyComponents = 0;
     int32 TrimmedLandmarkFamilies = 0;
     int32 TrimmedFenceFamilies = 0;
-    int32 TrimmedPrimitiveTreeFamilies = 0;
-    int32 TrimmedDecoratorTreeFamilies = 0;
+    int32 TrimmedTreeFamilies = 0;
 
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
@@ -148,22 +139,14 @@ void UOCR137MuseumSiteReplacementSubsystem::PrepareMuseumSite(UWorld& World)
             }
 
             if (IsSourcePrimitiveTreeFamily(Name) &&
-                RemoveInstancesNear(Component, Museum, TreeCleanupRadiusCm))
+                RemoveInstancesNear(Component, Museum, PrimitiveTreeCleanupRadiusCm))
             {
-                ++TrimmedPrimitiveTreeFamilies;
-                continue;
-            }
-
-            if (IsAssetDecoratorTreeFamily(Name) &&
-                RemoveInstancesNear(Component, Museum, TreeCleanupRadiusCm))
-            {
-                ++TrimmedDecoratorTreeFamilies;
+                ++TrimmedTreeFamilies;
             }
         }
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13.7 museum site replacement: legacy=%d landmark=%d fence=%d primitiveTrees=%d decoratorTrees=%d. Final photo model follows at MuseumAnchor."),
-        HiddenLegacyComponents, TrimmedLandmarkFamilies, TrimmedFenceFamilies,
-        TrimmedPrimitiveTreeFamilies, TrimmedDecoratorTreeFamilies);
+        TEXT("R13.7 museum site replacement: old museum layers hidden=%d, source shed/landmark families trimmed=%d, old fence families trimmed=%d, primitive tree families trimmed=%d. Final R13.7 museum model follows at MuseumAnchor."),
+        HiddenLegacyComponents, TrimmedLandmarkFamilies, TrimmedFenceFamilies, TrimmedTreeFamilies);
 }

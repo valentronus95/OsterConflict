@@ -7,6 +7,7 @@ required = [
     'Source/OsterConflict/Private/OCGeoReference.cpp',
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
     'Source/OsterConflict/Private/OCWorldSectorOster.cpp',
+    'Source/OsterConflict/Private/OCLocationSectorS01RoadData.cpp',
     'Source/OsterConflict/Private/OCGameMode.cpp',
     'Docs/SESSION_16A_README_UA.md',
     'Docs/OSTER_REFERENCE_MANIFEST_S16A.md',
@@ -33,10 +34,11 @@ markers={
         'MapWidthCm = 240000.0f', 'MapHeightCm = 240000.0f',
         'BuildHydrography();', 'BuildVerifiedReferenceMarkers();',
         'Waterways', 'Bridges', 'ReferenceMarkers',
-        'S16A topology pass', 'official general plan',
+        'void AOCWorldSectorOster::BuildRoadNetwork()',
+        'const FVector Park = ParkAnchor();', 'const FVector College = CollegeAnchor();',
         'FOCGeoReference::CentralPark()', 'FOCGeoReference::CultureParkNorth()',
         'S16A VERIFIED ANCHOR', '10500, 6800',
-        'S16A variation: houses/lots are intentionally imperfect'
+        'FOCLocationSectorPlan::IsInsideKrushelnytskaCollegePark(Block.Origin)'
     ],
     'OCGameMode.cpp': [
         'SpawnActor<AOCWorldSectorOster>', 'AOCWorldSectorOster::ParkAnchor()',
@@ -60,13 +62,34 @@ for name,needles in markers.items():
         if needle not in text:
             print(f'Missing marker {needle!r} in {name}'); sys.exit(1)
 
+world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
+road_data=(root/'Source/OsterConflict/Private/OCLocationSectorS01RoadData.cpp').read_text(errors='ignore')
+
+# S16A originally authored the Krushelnytska spine as one direct 112000 cm corridor. Location-first S01 later split
+# that exact corridor at workflow ownership boundaries. Accept either the historical direct representation or the
+# current explicit split manifest, but never accept the spine disappearing entirely.
+legacy_road_spine = re.search(
+    r'AddRoadWithWalks\s*\(\s*FVector\s*\(\s*-33500\s*,\s*25000\s*,\s*RoadZ\s*\)\s*,\s*'
+    r'FVector\s*\(\s*112000\s*,\s*920\s*,\s*16\s*\)\s*,\s*91\.5f\s*\)',
+    world,
+)
+split_road_spine = (
+    'FOCLocationSectorS01RoadData::KrushelnytskaSpineSegments()' in world and
+    'S01_KR_SPINE_SOUTH_SHARED' in road_data and
+    'S01_KR_SPINE_INSIDE' in road_data and
+    'S01_KR_SPINE_NORTH_SHARED' in road_data and
+    road_data.count('91.5f, true') >= 3
+)
+if not legacy_road_spine and not split_road_spine:
+    print('Missing S16A Krushelnytska road-spine structure (legacy direct or S01 ownership split)'); sys.exit(1)
+
 # Museum origin should be deterministic and coordinates separated from layout code.
 gh=(root/'Source/OsterConflict/Public/OCGeoReference.h').read_text(errors='ignore')
 gc=(root/'Source/OsterConflict/Private/OCGeoReference.cpp').read_text(errors='ignore')
 if 'ToLocalCm' not in gh or 'EastMeters' not in gc or 'NorthMeters' not in gc:
     print('Georeference transform missing'); sys.exit(1)
 
-# S16A must not accidentally bundle the 74MB public planning reference PDF.
+# S16A must not accidentally bundle the large public planning reference PDF.
 for p in root.rglob('*'):
     if p.is_file() and p.suffix.lower()=='.pdf':
         print('Unexpected external PDF bundled in game project:',p); sys.exit(1)
@@ -106,4 +129,4 @@ for cpp_name,class_name in [('OCGeoReference.cpp','FOCGeoReference'),('OCWorldSe
         print('Duplicate method definitions',cpp_name,dup); sys.exit(1)
 
 print('S16A structural verification: PASS')
-print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers.')
+print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers plus legacy-or-split Krushelnytska road spine.')

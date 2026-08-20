@@ -18,7 +18,11 @@ markers = [
     "BirchTrunks", "BirchCrowns", "PineTrunks", "PineCrowns",
     "GrassMown", "GrassRough", "GrassWetland",
     "ETreeProxy::Poplar", "ETreeProxy::Birch", "ETreeProxy::Pine",
-    "S16B Oster fence fidelity", "street-facing yards", "wet meadow/reed-edge",
+    "const int32 FenceRoll = HouseCounter % 20",
+    "if (FenceRoll >= 12 && FenceRoll < 17) FenceFamily = MetalFences",
+    "else if (FenceRoll >= 17) FenceFamily = LightSheetFences",
+    "AddGrassPatch(GrassWetland, FVector(-93000, 35000, 0)",
+    "AddGrassPatch(GrassWetland, FVector(43000,-93000, 0)",
 ]
 for m in markers:
     assert m in text, f"missing marker: {m}"

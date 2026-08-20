@@ -13,6 +13,8 @@ required = [
     'Source/OsterConflict/Private/OCEnterableHouse.cpp',
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
     'Source/OsterConflict/Private/OCWorldSectorOster.cpp',
+    'Source/OsterConflict/Public/OCLocationSectorS01Data.h',
+    'Source/OsterConflict/Private/OCLocationSectorS01Data.cpp',
     'Source/OsterConflict/Public/OCCharacter.h',
     'Source/OsterConflict/Private/OCCharacter.cpp',
     'Source/OsterConflict/Private/OCGameMode.cpp',
@@ -51,7 +53,12 @@ markers = {
     ],
     'OCWorldSectorOster.cpp': [
         'BuildSolomiiKrushelnytskoiStreet();', 'KrushelnytskaEnterableHouseAnchor',
-        'SOLOMII KRUSHELNYTSKOI STREET / S08', 'service alleys'
+        'SOLOMII KRUSHELNYTSKOI STREET / S08',
+        'FOCLocationSectorS01Data::ProvisionalServiceRoads()', 'AddBox(Roads, Road.Center, Road.SizeCm, Road.Yaw)'
+    ],
+    'OCLocationSectorS01Data.cpp': [
+        'TEXT("S01_KR_SERVICE_W")', 'FVector(-43000, 36000, 8)', 'FVector(560, 42000, 14)',
+        'TEXT("S01_KR_SERVICE_E")', 'FVector(-24200, 37000, 8)', 'FVector(560, 39000, 14)'
     ],
     'OCCharacter.cpp': [
         'FindFocusedWorldInteractable', 'OCWorldInteractionTrace', 'Interactable->CanInteractServer(this)',

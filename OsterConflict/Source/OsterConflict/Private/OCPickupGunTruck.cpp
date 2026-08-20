@@ -8,84 +8,10 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
-#include "UObject/UObjectGlobals.h"
-
-namespace
-{
-    bool ApplyFittedVehicleMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh, const FVector& DesiredSizeCm)
-    {
-        if (!Component || !Mesh) return false;
-        const FBoxSphereBounds Bounds = Mesh->GetBounds();
-        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
-
-        const FVector Scale(
-            DesiredSizeCm.X / NativeSize.X,
-            DesiredSizeCm.Y / NativeSize.Y,
-            DesiredSizeCm.Z / NativeSize.Z);
-        Component->SetStaticMesh(Mesh);
-        Component->SetRelativeRotation(FRotator::ZeroRotator);
-        Component->SetRelativeScale3D(Scale);
-        Component->SetRelativeLocation(-Bounds.Origin * Scale);
-        Component->EmptyOverrideMaterials();
-        return true;
-    }
-
-    bool ApplyGroundedVehicleMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
-        const FVector& DesiredSizeCm, float GroundZCm)
-    {
-        if (!Component || !Mesh) return false;
-        const FBoxSphereBounds Bounds = Mesh->GetBounds();
-        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
-
-        const FVector Scale(
-            DesiredSizeCm.X / NativeSize.X,
-            DesiredSizeCm.Y / NativeSize.Y,
-            DesiredSizeCm.Z / NativeSize.Z);
-        FVector Location = -Bounds.Origin * Scale;
-        const float NativeBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
-        Location.Z = GroundZCm - NativeBottomZ * Scale.Z;
-
-        Component->SetStaticMesh(Mesh);
-        Component->SetRelativeRotation(FRotator::ZeroRotator);
-        Component->SetRelativeScale3D(Scale);
-        Component->SetRelativeLocation(Location);
-        Component->EmptyOverrideMaterials();
-        return true;
-    }
-
-    UStaticMeshComponent* AddFittedTurretVisual(AActor* Owner, USceneComponent* Parent,
-        UStaticMesh* Mesh, const FVector& DesiredSizeCm)
-    {
-        if (!Owner || !Parent || !Mesh) return nullptr;
-        const FBoxSphereBounds Bounds = Mesh->GetBounds();
-        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return nullptr;
-
-        UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(Owner, TEXT("ProductionM2Browning"));
-        if (!Visual) return nullptr;
-        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
-        const float UniformScale = DesiredSizeCm.X / NativeLength;
-        Visual->SetupAttachment(Parent);
-        Visual->SetStaticMesh(Mesh);
-        Visual->SetRelativeLocation(FVector::ZeroVector);
-        Visual->SetRelativeRotation(FRotator::ZeroRotator);
-        Visual->SetRelativeScale3D(FVector(UniformScale));
-        Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Visual->SetGenerateOverlapEvents(false);
-        Visual->SetCanEverAffectNavigation(false);
-        Visual->SetCastShadow(true);
-        Visual->ComponentTags.Add(FName(TEXT("OC_ProductionM2")));
-        Owner->AddInstanceComponent(Visual);
-        Visual->RegisterComponent();
-        return Visual;
-    }
-}
 
 AOCPickupGunTruck::AOCPickupGunTruck()
 {
-    TurretDisplayName = TEXT("M2 BROWNING .50");
+    TurretDisplayName = TEXT("MOUNTED MG");
     TurretDamage = 30.0f;
     TurretRoundsPerMinute = 680.0f;
     TurretRangeCm = 13000.0f;
@@ -96,9 +22,9 @@ AOCPickupGunTruck::AOCPickupGunTruck()
     TurretDamageTypeClass = UOCBallisticDamageType::StaticClass();
 
     VehicleMassKg = 2250.0f;
-    DriveForce = 720000.0f;
+    DriveForce = 1600000.0f;
     SteeringTorque = 91000000.0f;
-    MaxForwardSpeedKmh = 118.0f;
+    MaxForwardSpeedKmh = 90.0f;
     MaxVehicleHealth = 700.0f;
     WreckLifetimeSeconds = 28.0f;
 
@@ -137,85 +63,20 @@ AOCPickupGunTruck::AOCPickupGunTruck()
 
 void AOCPickupGunTruck::ApplyVehicleStyle()
 {
-    bool bUsingProductionVehicle = false;
-    bool bUsingHMMWV = false;
+    Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
 
-    if (Chassis && ShouldUseHMMWVProductionVisual())
-    {
-        if (UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA")))
-        {
-            bUsingHMMWV = ApplyGroundedVehicleMesh(Chassis, HMMWV, FVector(465.0f, 216.0f, 275.0f), -86.0f);
-            bUsingProductionVehicle = bUsingHMMWV;
-        }
-    }
-
-    if (!bUsingProductionVehicle && Chassis)
-    {
-        if (UStaticMesh* PickupMesh = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup")))
-        {
-            bUsingProductionVehicle = ApplyFittedVehicleMesh(Chassis, PickupMesh, FVector(485.0f, 194.0f, 170.0f));
-        }
-    }
-
-    if (!bUsingProductionVehicle && Chassis)
-    {
-        Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
-    }
-
-    if (bUsingProductionVehicle)
-    {
-        UStaticMeshComponent* SourceOnlyPickupParts[] =
-        {
-            CabRoof.Get(), BedFloor.Get(), BedLeft.Get(), BedRight.Get(),
-            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
-        };
-        for (UStaticMeshComponent* Component : SourceOnlyPickupParts)
-        {
-            if (Component) Component->SetVisibility(false, true);
-        }
-        for (UStaticMeshComponent* Wheel : WheelVisuals)
-        {
-            if (Wheel) Wheel->SetVisibility(false, true);
-        }
-    }
-
-    if (bUsingHMMWV && TurretPivot)
-    {
-        TurretPivot->SetRelativeLocation(FVector(72.0f, 0.0f, 103.0f));
-        if (BarrelPivot) BarrelPivot->SetRelativeLocation(FVector::ZeroVector);
-    }
-
-    if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
-    {
-        USceneComponent* M2Parent = BarrelPivot ? BarrelPivot.Get() : TurretPivot.Get();
-        if (AddFittedTurretVisual(this, M2Parent, M2, FVector(165.0f, 0.0f, 0.0f)))
-        {
-            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(118.0f, 0.0f, 0.0f));
-            if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
-            if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
-            UE_LOG(LogTemp, Display, TEXT("Gun truck uses production M2 Browning visual."));
-        }
-    }
-
-    InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
+    // The old camera was placed at X=82, exactly inside the opaque placeholder
+    // windshield mesh, which produced the giant black shape seen from first person.
+    // Keep the camera in the cab and behind the dashboard instead of inside geometry.
+    InteriorCamera->SetRelativeLocation(FVector(28.0f, -45.0f, 88.0f));
     InteriorCamera->SetFieldOfView(92.0f);
 
+    // Until a proper translucent glass material replaces the source-only cube proxy,
+    // do not render that opaque slab. It otherwise blocks the complete forward view.
     if (Windshield)
     {
         Windshield->SetVisibility(false, true);
     }
 
-    ThirdPersonSpringArm->TargetArmLength = bUsingHMMWV ? 660.0f : 620.0f;
-
-    if (bUsingHMMWV)
-    {
-        UE_LOG(LogTemp, Display, TEXT("HMMWV gun truck uses Ukrainian HMMWV production visual."));
-    }
-    else if (bUsingProductionVehicle)
-    {
-        UE_LOG(LogTemp, Display, TEXT("Pickup gun truck uses production pickup visual."));
-    }
+    ThirdPersonSpringArm->TargetArmLength = 620.0f;
 }
