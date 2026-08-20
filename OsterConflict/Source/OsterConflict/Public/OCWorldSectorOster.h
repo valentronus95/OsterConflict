@@ -42,7 +42,6 @@ public:
     static FVector FormerCityAdministrationAnchor();
     static FVector HistoricCourtAnchor();
     static FVector ResurrectionChurchAnchor();
-    static FVector SilpoAnchor();
     static FVector StadiumAnchor();
     static FVector KrushelnytskaEnterableHouseAnchor();
     static float KrushelnytskaEnterableHouseYaw();
