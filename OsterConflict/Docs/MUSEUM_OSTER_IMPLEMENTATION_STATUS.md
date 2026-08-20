@@ -18,12 +18,11 @@ Draft PR: `#16`
 - цоколь;
 - частина карнизів;
 - chimney;
-- rear annex;
+- rear annex mass;
 - yellow gas pipe;
-- concrete approach/steps;
-- site trees.
+- concrete approach/steps.
 
-Суцільний brick body, prototype glass, prototype doors, старі ґрати та частина trim приховуються новішими шарами.
+Суцільний brick body, prototype glass, prototype doors, старі ґрати, частина trim і старий симетричний tree pass замінюються новішими шарами.
 
 ### R13.8 — segmented architecture + enterable shell
 `UOCR138MuseumInteractiveArchitectureSubsystem`
@@ -123,13 +122,61 @@ Draft PR: `#16`
 - біля rear annex додана невелика асиметрична зелена група за REF-13;
 - placement deterministic, без випадкових змін між запусками.
 
+### R14.4 — довгі фасади, водовідведення і rear annex
+`UOCR144MuseumRearExteriorDetailSubsystem`
+
+Реалізовано за REF-03/09/11/13/19/20:
+- циліндричні жолоби вздовж довгих карнизів;
+- вертикальні downspouts;
+- короткі нижні відводи;
+- службові сходи на торці зі service double door;
+- темний base band задньої прибудови;
+- fascia/edge detail задньої прибудови;
+- невідомі door/window openings задньої прибудови навмисно не вигадуються.
+
+Під час статичного аудиту виправлена орієнтація gutter cylinders: горизонтальні труби використовують `Pitch=90`, а не yaw-only rotation.
+
+### R14.5 — photo-oriented mature tree layout
+`UOCR145MuseumTreeLayoutSubsystem`
+
+Реалізовано за REF-01/03/04/05/07/09/10/13/14:
+- старі симетричні `R137Museum_Pine01/Pine03/Deciduous01` приховуються і втрачають collision;
+- створюється окремий R14.5 tree actor;
+- ялини вздовж центрального підходу розставлені нерівномірно, без дзеркальних пар;
+- центральна алея лишається вільною;
+- біля будівлі додані mature deciduous trees, які видно на фасадних/бокових фото;
+- side conifers не перекривають службовий вхід;
+- використовуються наявні project foliage meshes, без нових generic tree assets.
+
+## Source-contract CI
+
+Додано:
+- `OsterConflict/Scripts/validate_museum_source_contracts.py`;
+- `.github/workflows/museum-source-contracts.yml`.
+
+CI перевіряє:
+- наявність усіх музейних runtime-класів;
+- structural tags/Section IDs;
+- final door/window replacement contracts;
+- `MakeUniqueObjectName` у runtime-created object/material paths;
+- правильний порядок R13.8 → R14.5 delay layers;
+- validator запускається після останнього шару;
+- правильну орієнтацію gutter cylinders;
+- suppression старого симетричного tree pass;
+- заборону вигадувати нерозбірливий historical inscription;
+- збереження підтвердженого номера будинку `30`.
+
+Перший source-contract run після додавання workflow пройшов `success`. Після R14.5 workflow має повторно перевірити оновлений контракт.
+
 ## Runtime validation
 
-`UOCR138MuseumRuntimeValidationSubsystem` після R14.3 перевіряє:
+`UOCR138MuseumRuntimeValidationSubsystem` після R14.5 перевіряє:
 - рівно один segmented architecture actor;
 - рівно один R14.0 facade detail actor;
 - рівно один R14.2 entrance detail actor;
 - рівно один R14.3 site vegetation actor;
+- рівно один R14.4 rear exterior actor;
+- рівно один R14.5 photo tree layout actor;
 - не менше 30 structural sections;
 - один final main double-door actor;
 - один final service double-door actor;
@@ -155,11 +202,9 @@ Draft PR: `#16`
 - перевірка foliage/old geometry overlap.
 
 ### High-fidelity exterior, наступні проходи
-- texture/decal pass старої цегли, плям, тріщин та вицвілого історичного напису;
+- texture/decal pass старої цегли, плям, тріщин та вицвілого історичного напису тільки після наявності/верифікації придатних decal assets;
 - заміна remaining BasicShapes visual authoring parts на production/static assets там, де є відповідні mesh;
-- gutter/downspout details;
-- rear annex detail pass;
-- фінальне звірення tree positions/scale з REF-04/05/07/10/13/14 після першого runtime walkaround.
+- фінальне звірення scale/placement після першого runtime walkaround.
 
 ### Interior
 Точних фото/плану інтер'єру в поточному reference pack немає.
