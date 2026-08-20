@@ -13,6 +13,8 @@ R140_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR140SilpoPhotoModel
 R140_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp"
 R141_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR141SilpoDetailSubsystem.h"
 R141_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp"
+R142_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR142SilpoInteriorDetailSubsystem.h"
+R142_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR142SilpoInteriorDetailSubsystem.cpp"
 TZ = ROOT / "OsterConflict/Docs/Locations/SILPO_OSTER_TZ.md"
 SCOPE = ROOT / "OsterConflict/Docs/Locations/SILPO_OSTER_BRANCH_SCOPE.md"
 REFS = ROOT / "OsterConflict/SourceReferences/Locations/Silpo_Oster/README.md"
@@ -26,7 +28,13 @@ def require(condition: bool, message: str) -> None:
         failures.append(message)
 
 
-required_files = (GEO_H, GEO_CPP, R140_H, R140_CPP, R141_H, R141_CPP, TZ, SCOPE, REFS)
+required_files = (
+    GEO_H, GEO_CPP,
+    R140_H, R140_CPP,
+    R141_H, R141_CPP,
+    R142_H, R142_CPP,
+    TZ, SCOPE, REFS,
+)
 for path in required_files:
     require(path.is_file(), f"missing required Silpo file: {path.relative_to(ROOT)}")
 
@@ -34,6 +42,7 @@ geo_h = GEO_H.read_text(encoding="utf-8") if GEO_H.is_file() else ""
 geo_cpp = GEO_CPP.read_text(encoding="utf-8") if GEO_CPP.is_file() else ""
 r140 = R140_CPP.read_text(encoding="utf-8") if R140_CPP.is_file() else ""
 r141 = R141_CPP.read_text(encoding="utf-8") if R141_CPP.is_file() else ""
+r142 = R142_CPP.read_text(encoding="utf-8") if R142_CPP.is_file() else ""
 tz = TZ.read_text(encoding="utf-8") if TZ.is_file() else ""
 scope = SCOPE.read_text(encoding="utf-8") if SCOPE.is_file() else ""
 refs = REFS.read_text(encoding="utf-8") if REFS.is_file() else ""
@@ -53,7 +62,7 @@ y_cm = (lat - lat0) * 111320.0 * 100.0
 require(abs(x_cm - (-57107.1)) < 10.0, f"unexpected Silpo X anchor: {x_cm:.1f} cm")
 require(abs(y_cm - 6621.3) < 10.0, f"unexpected Silpo Y anchor: {y_cm:.1f} cm")
 
-for label, source in (("R14.0", r140), ("R14.1", r141)):
+for label, source in (("R14.0", r140), ("R14.1", r141), ("R14.2", r142)):
     require("OsterConflict_Runtime" in source, f"{label} runtime-map guard missing")
     require("IsFrontendOnlySession()" in source, f"{label} frontend guard missing")
     require("FOCGeoReference::Silpo()" in source, f"{label} no longer uses Silpo geo anchor")
@@ -87,6 +96,17 @@ require("R141Silpo_CheckoutLaneSigns" in r141, "R14.1 checkout lane signs missin
 require("R141Silpo_AsphaltCorrection" in r141, "R14.1 plain asphalt correction missing")
 require("R141Silpo_SideMarketEdge" in r141, "R14.1 immediate side-market context missing")
 require("R141Silpo_FacadeTrim" in r141, "R14.1 facade trim missing")
+
+require("R142_SilpoInteriorDetails" in r142, "R14.2 interior detail actor tag missing")
+require("R142Silpo_FloorTileGrout" in r142, "R14.2 floor tile grid missing")
+require("R142Silpo_ShelfEndTrim" in r142, "R14.2 shelf detail missing")
+require("R142Silpo_CoolerDoorGlass" in r142, "R14.2 cooler glass detail missing")
+require("R142Silpo_CoolerDoorFrames" in r142, "R14.2 cooler frame detail missing")
+require("R142Silpo_CheckoutBelts" in r142, "R14.2 checkout belt detail missing")
+require("R142Silpo_ProduceBinDividers" in r142, "R14.2 produce-bin detail missing")
+require("R142Silpo_EntranceMat" in r142, "R14.2 entrance mat missing")
+require("ECollisionEnabled::NoCollision" in r142,
+        "R14.2 visual detail pass must remain non-colliding")
 
 expected_photo_names = {
     "01_exterior_facade_front.jpg",
@@ -129,6 +149,7 @@ for required in (
     "AOCInteractableDoor",
     "20",
     "R14.1",
+    "R14.2",
 ):
     require(required in tz, f"Silpo TZ lost required contract: {required}")
 
