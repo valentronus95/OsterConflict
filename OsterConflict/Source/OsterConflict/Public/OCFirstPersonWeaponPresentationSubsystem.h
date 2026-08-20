@@ -44,6 +44,7 @@ public:
 
 private:
     void UpdateLocalCharacter(AOCCharacter& Character, float DeltaTime);
+    void RestorePresentationState(AOCCharacter& Character, FOCFirstPersonWeaponState& State);
     void ApplyArmsPose(AOCCharacter& Character, FOCFirstPersonWeaponState& State, bool bADS);
     void PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
         FOCFirstPersonWeaponState& State, double ResetDelaySeconds);
