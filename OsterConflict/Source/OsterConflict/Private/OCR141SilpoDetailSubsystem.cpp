@@ -25,6 +25,13 @@ namespace
     constexpr float HalfDepth = BuildingDepthCm * 0.5f;
     constexpr float FrontY = -HalfDepth;
 
+    struct FParapetCap
+    {
+        float X;
+        float Z;
+        float Width;
+    };
+
     FVector SilpoAnchor()
     {
         const FOCGeoReferencePoint Ref = FOCGeoReference::Silpo();
@@ -185,7 +192,7 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         AddLocalBox(CeilingGrid, FVector(0.0f, Y, 357.5f), FVector(2820.0f, 3.0f, 3.0f));
     }
 
-    // Correct the first-pass painted parking hints: the photographed apron reads as plain worn asphalt.
+    // The photographed apron reads as plain worn asphalt, so cover the first-pass parking guide marks.
     AddLocalBox(AsphaltCorrection, FVector(100.0f, FrontY - 610.0f, 6.5f),
         FVector(3450.0f, 850.0f, 5.0f));
 
@@ -196,7 +203,7 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
     AddLocalBox(DarkDetails, FVector(-1315.0f, FrontY - 165.0f, 308.0f), FVector(315.0f, 315.0f, 12.0f));
 
     // Thin parapet cap pieces keep the stepped silhouette crisp at street-view distance.
-    const struct FCap { float X; float Z; float W; } Caps[] =
+    const FParapetCap Caps[] =
     {
         { -1170.0f, 451.0f, 660.0f },
         { -620.0f, 503.0f, 440.0f },
@@ -204,9 +211,9 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         { 620.0f, 503.0f, 440.0f },
         { 1170.0f, 451.0f, 660.0f },
     };
-    for (const FCap& Cap : Caps)
+    for (const FParapetCap& Cap : Caps)
     {
-        AddLocalBox(FacadeTrim, FVector(Cap.X, FrontY - 13.0f, Cap.Z), FVector(Cap.W, 30.0f, 8.0f));
+        AddLocalBox(FacadeTrim, FVector(Cap.X, FrontY - 13.0f, Cap.Z), FVector(Cap.Width, 30.0f, 8.0f));
     }
 
     // Exterior wall-light brackets above the advertising panels.
