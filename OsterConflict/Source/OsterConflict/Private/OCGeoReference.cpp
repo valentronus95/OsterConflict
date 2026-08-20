@@ -21,8 +21,12 @@ FOCGeoReferencePoint FOCGeoReference::Museum()
 
 FOCGeoReferencePoint FOCGeoReference::Stadium()
 {
-    return { TEXT("StadionOster"), 50.94936, 30.88466, EOCReferenceConfidence::B,
-        TEXT("OpenStreetMap-derived stadium coordinate; placement verified, exact site/facade detail remains incomplete") };
+    // R13 playtest topology correction: when standing in front of the museum and facing its entrance, the stadium is
+    // on the museum's left. The previous OSM-derived point placed it on the opposite side. Mirror only the previous
+    // east/west offset around the trusted museum origin so every stadium consumer moves consistently, but explicitly
+    // downgrade this anchor to C: the side relationship is user-verified while exact stadium distance/centroid is not.
+    return { TEXT("StadionOster"), 50.94936, 30.883070, EOCReferenceConfidence::C,
+        TEXT("R13 playtest topology correction: stadium is left of the museum facade; exact distance/centroid remains provisional and must not be treated as surveyed") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
