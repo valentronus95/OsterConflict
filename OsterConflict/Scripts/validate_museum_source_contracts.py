@@ -43,6 +43,8 @@ required_files = [
     PRIVATE / "OCR143MuseumSiteVegetationSubsystem.cpp",
     PUBLIC / "OCR144MuseumRearExteriorDetailSubsystem.h",
     PRIVATE / "OCR144MuseumRearExteriorDetailSubsystem.cpp",
+    PUBLIC / "OCR145MuseumTreeLayoutSubsystem.h",
+    PRIVATE / "OCR145MuseumTreeLayoutSubsystem.cpp",
     PUBLIC / "OCR138MuseumRuntimeValidationSubsystem.h",
     PRIVATE / "OCR138MuseumRuntimeValidationSubsystem.cpp",
 ]
@@ -60,6 +62,7 @@ window_replacement = read(PRIVATE / "OCR141MuseumWindowReplacementSubsystem.cpp"
 entrance = read(PRIVATE / "OCR142MuseumEntranceDetailSubsystem.cpp")
 vegetation = read(PRIVATE / "OCR143MuseumSiteVegetationSubsystem.cpp")
 rear = read(PRIVATE / "OCR144MuseumRearExteriorDetailSubsystem.cpp")
+trees = read(PRIVATE / "OCR145MuseumTreeLayoutSubsystem.cpp")
 validation = read(PRIVATE / "OCR138MuseumRuntimeValidationSubsystem.cpp")
 
 # Structural/gameplay contracts.
@@ -75,6 +78,9 @@ require("Glass_Window.Glass_Window" in window, "museum breakable windows lost re
 require('TEXT("MuseumUpperGableWindow")' in facade, "upper service-gable breakable window missing")
 require('TEXT("R143_MuseumSiteVegetation")' in vegetation, "museum low-vegetation layer missing")
 require('TEXT("R144_MuseumRearExteriorDetail")' in rear, "museum rear-exterior layer missing")
+require('TEXT("R145_MuseumPhotoTreeLayout")' in trees, "museum photo-oriented tree layer missing")
+require('TEXT("R137Museum_Pine01")' in trees and 'TEXT("R137Museum_Pine03")' in trees,
+        "R14.5 no longer suppresses the symmetric R13.7 pine layout")
 
 # Runtime object naming contracts. These source files dynamically create MIDs/components and must not
 # fall back to fixed names, which previously caused a fatal UObject class/name replacement collision.
@@ -84,6 +90,7 @@ for path, text in [
     (PRIVATE / "OCR142MuseumEntranceDetailSubsystem.cpp", entrance),
     (PRIVATE / "OCR143MuseumSiteVegetationSubsystem.cpp", vegetation),
     (PRIVATE / "OCR144MuseumRearExteriorDetailSubsystem.cpp", rear),
+    (PRIVATE / "OCR145MuseumTreeLayoutSubsystem.cpp", trees),
 ]:
     require("MakeUniqueObjectName" in text, f"runtime unique UObject naming missing in {path.name}")
 
@@ -106,6 +113,7 @@ layer_delays = [
     delay(entrance, "R142EntranceDetailDelaySeconds"),
     delay(vegetation, "R143SiteVegetationDelaySeconds"),
     delay(rear, "R144RearDetailDelaySeconds"),
+    delay(trees, "R145TreeLayoutDelaySeconds"),
 ]
 require(layer_delays == sorted(layer_delays), f"museum runtime layer delays are out of order: {layer_delays}")
 validation_delay = delay(validation, "R138MuseumValidationDelaySeconds")
@@ -117,12 +125,18 @@ require(rear.count("FRotator(90.0f, 0.0f, 0.0f)") >= 4,
 require("FRotator(0.0f, 90.0f, 0.0f)" not in rear,
         "R14.4 contains yaw-only cylinder rotation that leaves the cylinder vertical")
 
+# R14.5 tree layout must stay intentionally asymmetrical and must not block the approach centreline.
+require("const FTreeSeed Seeds[]" in trees, "R14.5 tree seed table missing")
+require(trees.count("FVector(") >= 14, "R14.5 tree layout became unexpectedly sparse")
+require("HideR137MuseumTrees(World);" in trees, "R14.5 does not suppress the old symmetric tree pass")
+
 # Final validation must explicitly enforce the post-replacement state.
 for token in [
     "FacadeDetailActors == 1",
     "EntranceDetailActors == 1",
     "SiteVegetationActors == 1",
     "RearExteriorActors == 1",
+    "TreeLayoutActors == 1",
     "MainDoorActors == 1",
     "ServiceDoorActors == 1",
     "PrototypeServiceDoors == 0",
