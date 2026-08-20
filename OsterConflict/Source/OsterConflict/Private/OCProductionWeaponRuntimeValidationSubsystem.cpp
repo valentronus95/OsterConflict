@@ -11,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -112,6 +113,8 @@ void UOCProductionWeaponRuntimeValidationSubsystem::OnWorldBeginPlay(UWorld& InW
 
 void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UWorld& World)
 {
+    const bool bHeadlessGate = FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeaponsHeadless"));
+
     const FExpectedWeaponVisual Expectations[] =
     {
         { TEXT("AK-47"), FName(TEXT("OC_AR1")), AOCWeapon_AssaultRifle::StaticClass(),
@@ -250,5 +253,12 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
         UE_LOG(LogTemp, Warning,
             TEXT("R14 production weapon validation FAILED: %d/%d classes. Inspect canonical asset, production component and fallback visibility results in: %s"),
             PassedWeapons, UE_ARRAY_COUNT(Expectations), *ReportPath);
+    }
+
+    if (bHeadlessGate)
+    {
+        // The CMD validator decides PASS from the explicit sentinel. Always terminate the headless
+        // UE process after the report is flushed so a missing sentinel becomes a deterministic gate.
+        FPlatformMisc::RequestExit(false);
     }
 }
