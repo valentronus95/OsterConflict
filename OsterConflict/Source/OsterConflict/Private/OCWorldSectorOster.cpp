@@ -546,6 +546,13 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
         AddBox(StadiumDetails, Stadium + FVector(GoalX, 365, 125), FVector(30, 30, 250));
         AddBox(StadiumDetails, Stadium + FVector(GoalX, 0, 250), FVector(30, 760, 30));
     }
+
+    // The source block remains as a collision/navigation backstop, but its procedural art is hidden at creation.
+    // OCR13StadiumSurfaceSubsystem is the only player-facing Stadion Oster presentation owner.
+    StadiumGeometry->SetVisibility(false, true);
+    StadiumGeometry->SetHiddenInGame(true, true);
+    StadiumDetails->SetVisibility(false, true);
+    StadiumDetails->SetHiddenInGame(true, true);
 }
 
 void AOCWorldSectorOster::BuildCentralPark()

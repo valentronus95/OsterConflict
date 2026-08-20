@@ -1,0 +1,45 @@
+name: Source verification
+
+on:
+  push:
+    branches:
+      - main
+      - r13-content-gameplay-pass
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-verify-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-source:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify Stadion Oster integration
+        shell: pwsh
+        run: |
+          python .\VERIFY_R13_STADION_OSTER.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run full structural and regression suite
+        if: github.ref_name != 'main'
+        shell: pwsh
+        run: |
+          python .\RUN_ALL_VERIFY.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

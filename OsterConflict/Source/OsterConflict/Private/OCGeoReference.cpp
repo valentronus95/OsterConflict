@@ -19,6 +19,22 @@ FOCGeoReferencePoint FOCGeoReference::Museum()
         TEXT("Public heritage/museum coordinates; Tatarivska 30; facade photo references available") };
 }
 
+FOCGeoReferencePoint FOCGeoReference::Stadium()
+{
+    // Canonical stadium anchor for the dedicated stadion-oster site. The old R13 west/left guess was explicitly
+    // provisional and contradicted the supplied maps. This point is tied to OSM way 416516456 and is cross-checked
+    // against the user's two landmark maps/reference-photo pack. With the project museum origin it resolves to
+    // roughly +55.8 m east / +124.8 m north, so no museum-relative hand-authored offset is required.
+    return { TEXT("StadionOster"), 50.949360, 30.884660, EOCReferenceConfidence::A,
+        TEXT("Canonical hard-georeferenced stadium center: OSM way 416516456; cross-checked against user-supplied satellite/map references stored under REFERENCE_PHOTOS/stadion_oster") };
+}
+
+FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
+{
+    return { TEXT("SolonynaEstatePark"), 50.948455, 30.885832, EOCReferenceConfidence::B,
+        TEXT("Inferred site center from public museum/stadium adjacency; topology anchor, not cadastral centroid") };
+}
+
 FOCGeoReferencePoint FOCGeoReference::College()
 {
     return { TEXT("OsterCollege"), 50.949182, 30.879127, EOCReferenceConfidence::A,
