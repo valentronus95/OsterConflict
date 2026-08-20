@@ -9,6 +9,14 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
+namespace
+{
+    // R13 still contains several procedural landmark passes. Until those are fully source-authored, keep them behind
+    // the loading presentation instead of showing a half-built city and letting the player watch geometry pop/change.
+    // The last retained startup cleanup currently runs at 5.85 s (Silpo anti-shimmer correction).
+    constexpr float GameplayPresentationSettleSeconds = 6.15f;
+}
+
 void UOCR13TravelLoadingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
@@ -40,14 +48,14 @@ void UOCR13TravelLoadingSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
         return;
     }
 
-    // PostLoadMap fires before the first gameplay presentation has fully settled. Hiding on that exact callback
-    // exposed the old frontend for a few frames with its background already gone. Keep the deliberate loading frame
-    // across the first half-second of the new world, then reveal the deployment UI in one clean transition.
+    // Do not reveal deployment while the procedural city is still mutating. Previously PostLoadMap removed the
+    // overlay almost immediately, so museum/Silpo/stadium/repair passes visibly flashed and also competed with the
+    // first team-selection interaction. The wait is explicit and deterministic until these passes are refactored out.
     FTimerHandle HideTimer;
     LoadedWorld->GetTimerManager().SetTimer(
         HideTimer,
         FTimerDelegate::CreateWeakLambda(this, [this]() { HideOverlay(); }),
-        0.50f,
+        GameplayPresentationSettleSeconds,
         false);
 }
 
