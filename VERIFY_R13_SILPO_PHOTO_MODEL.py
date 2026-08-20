@@ -5,6 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parent
 CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoPhotoModelSubsystem.cpp"
 HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoPhotoModelSubsystem.h"
+GEO_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp"
 DETAIL_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoFacadeDetailSubsystem.cpp"
 DETAIL_HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCR13SilpoFacadeDetailSubsystem.h"
 SITE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13SilpoSiteDetailSubsystem.cpp"
@@ -45,6 +46,7 @@ def delay(text: str, name: str, where: str) -> float:
 
 cpp = read(CPP)
 header = read(HEADER)
+geo_cpp = read(GEO_CPP)
 detail_cpp = read(DETAIL_CPP)
 detail_header = read(DETAIL_HEADER)
 site_cpp = read(SITE_CPP)
@@ -69,8 +71,8 @@ for needle in [
     require(header, needle, "base header")
 
 for needle in [
-    "constexpr double SilpoLatitude = 50.94907;",
-    "constexpr double SilpoLongitude = 30.87621;",
+    "constexpr double SilpoLatitude = 50.948833799986254;",
+    "constexpr double SilpoLongitude = 30.87572244094098;",
     'TEXT("R13_SilpoPhotoModel")',
     'TEXT("R13Silpo_MainShell")',
     'TEXT("R13Silpo_SteppedParapet")',
@@ -88,6 +90,12 @@ for needle in [
     "BuildSilpo(World);",
 ]:
     require(cpp, needle, "base Silpo model")
+
+require(
+    geo_cpp,
+    'return { TEXT("OsterSilpo"), 50.948833799986254, 30.87572244094098, EOCReferenceConfidence::A,',
+    "shared geo reference",
+)
 
 for family in [
     'Name == TEXT("Buildings")',
@@ -311,8 +319,8 @@ if not base_delay < detail_delay < site_delay < foliage_delay < parking_delay < 
 
 origin_lat = 50.948239
 origin_lon = 30.883865
-lat = 50.94907
-lon = 30.87621
+lat = 50.948833799986254
+lon = 30.87572244094098
 meters_per_lon = 111320.0 * math.cos(math.radians(origin_lat))
 x_cm = (lon - origin_lon) * meters_per_lon * 100.0
 y_cm = (lat - origin_lat) * 111320.0 * 100.0
