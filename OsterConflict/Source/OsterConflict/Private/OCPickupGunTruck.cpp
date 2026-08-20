@@ -33,6 +33,30 @@ namespace
         return true;
     }
 
+    bool ApplyGroundedVehicleMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
+        const FVector& DesiredSizeCm, float GroundZCm)
+    {
+        if (!Component || !Mesh) return false;
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
+
+        const FVector Scale(
+            DesiredSizeCm.X / NativeSize.X,
+            DesiredSizeCm.Y / NativeSize.Y,
+            DesiredSizeCm.Z / NativeSize.Z);
+        FVector Location = -Bounds.Origin * Scale;
+        const float NativeBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        Location.Z = GroundZCm - NativeBottomZ * Scale.Z;
+
+        Component->SetStaticMesh(Mesh);
+        Component->SetRelativeRotation(FRotator::ZeroRotator);
+        Component->SetRelativeScale3D(Scale);
+        Component->SetRelativeLocation(Location);
+        Component->EmptyOverrideMaterials();
+        return true;
+    }
+
     UStaticMeshComponent* AddFittedTurretVisual(AActor* Owner, USceneComponent* Parent,
         UStaticMesh* Mesh, const FVector& DesiredSizeCm)
     {
@@ -47,7 +71,9 @@ namespace
         const float UniformScale = DesiredSizeCm.X / NativeLength;
         Visual->SetupAttachment(Parent);
         Visual->SetStaticMesh(Mesh);
-        Visual->SetRelativeLocation(-Bounds.Origin * UniformScale);
+        // The M2 source origin is at the receiver/mount, not at the geometric center. Keeping that
+        // authored pivot makes BarrelPivot pitch the visible gun around the mount instead of its midpoint.
+        Visual->SetRelativeLocation(FVector::ZeroVector);
         Visual->SetRelativeRotation(FRotator::ZeroRotator);
         Visual->SetRelativeScale3D(FVector(UniformScale));
         Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -123,7 +149,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA")))
         {
-            bUsingHMMWV = ApplyFittedVehicleMesh(Chassis, HMMWV, FVector(465.0f, 216.0f, 185.0f));
+            // Preserve the authored roof/antenna height and align the imported wheels with the
+            // fallback vehicle's physical ground plane instead of vertically centering the shell.
+            bUsingHMMWV = ApplyGroundedVehicleMesh(Chassis, HMMWV, FVector(465.0f, 216.0f, 275.0f), -86.0f);
             bUsingProductionVehicle = bUsingHMMWV;
         }
 
@@ -159,11 +187,22 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
+    if (bUsingHMMWV && TurretPivot)
+    {
+        // Derived from the removed Mk19 receiver location in the production HMMWV source.
+        TurretPivot->SetRelativeLocation(FVector(72.0f, 0.0f, 103.0f));
+        if (BarrelPivot) BarrelPivot->SetRelativeLocation(FVector::ZeroVector);
+    }
+
     if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
     {
-        if (AddFittedTurretVisual(this, TurretPivot, M2, FVector(165.0f, 0.0f, 0.0f)))
+        USceneComponent* M2Parent = BarrelPivot ? BarrelPivot.Get() : TurretPivot.Get();
+        if (AddFittedTurretVisual(this, M2Parent, M2, FVector(165.0f, 0.0f, 0.0f)))
         {
+            // Match the trace origin to the authored muzzle location. The production M2 is attached
+            // to BarrelPivot so both the visual and the authoritative trace now follow gunner pitch.
+            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(118.0f, 0.0f, 0.0f));
             if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
             if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
             UE_LOG(LogTemp, Display, TEXT("Gun truck uses production M2 Browning visual."));
