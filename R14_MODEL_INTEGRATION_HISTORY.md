@@ -52,7 +52,7 @@
 - `UOCFirstPersonWeaponPresentationSubsystem` тепер бере base grip, ADS, recoil і reload transforms із weapon profile.
 - Профілі навмисно стартують зі старого baseline і `bGripCalibrated=false`. Координати конкретної зброї не вигадуються без фактичного UE 5.8 visual check.
 - Runtime log явно попереджає `UNCALIBRATED` для weapon profile, доки exact mesh не пройшов visual approval.
-- Додатково перевіряється equip path у `AOCWeaponBase`: він також має використовувати profile одразу під час attachment, щоб не було однокадрового стрибка зі старої універсальної позиції до profile position.
+- Перевірено equip path у `AOCWeaponBase`: `ApplyInventoryPresentation` досі містить legacy `FVector(38,12,-14)`. Presentation subsystem уже замінює його profile-значенням, але перенесення profile безпосередньо в equip path залишено окремим follow-up після Windows UE compile gate, щоб не переписувати великий базовий weapon-файл без фактичної компіляції.
 
 ## 2026-08-20 — anti-armor launcher production visual
 
@@ -78,4 +78,4 @@
 
 `Stage 0 — inventory/contracts`: основний weapon/vehicle/content inventory сформований; environment/character detailed inventory ще продовжується.
 
-`Stage 1 — weapons`: canonical production visuals тепер оголошені для всіх 11 реалізованих weapon IDs; runtime/headless validation infrastructure та per-weapon grip architecture готові. Наступний підетап: завершити equip-path profile wiring, потім UE 5.8 compile/runtime/visual calibration + підбір/імпорт сумісних fire/reload animation assets для всіх weapon rows, де вони позначені `MISSING`.
+`Stage 1 — weapons`: canonical production visuals тепер оголошені для всіх 11 реалізованих weapon IDs; runtime/headless validation infrastructure та per-weapon grip architecture готові. Наступний підетап: Windows UE 5.8 compile/runtime/visual calibration + підбір/імпорт сумісних fire/reload animation assets для всіх weapon rows, де вони позначені `MISSING`; equip-path profile wiring виконується після першого зеленого compile gate.
