@@ -150,7 +150,7 @@ void UOCR13CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World)
         FLinearColor(0.80f, 0.78f, 0.68f, 1.0f));
     UMaterialInstanceDynamic* DoorWood = MakeColor(Model, Basic, TEXT("R13_CultureHouseDoorWood"),
         FLinearColor(0.30f, 0.13f, 0.07f, 1.0f));
-    UMaterialInstanceDynamic* RoofMat = MakeColor(Model, Basic, TEXT("R13_CultureHouseRoof"),
+    UMaterialInstanceDynamic* RoofMat = MakeColor(Model, Basic, TEXT("R13_CultureHouseRoofMaterial"),
         FLinearColor(0.18f, 0.15f, 0.12f, 1.0f));
     UMaterialInstanceDynamic* Stone = MakeColor(Model, Basic, TEXT("R13_CultureHouseStone"),
         FLinearColor(0.41f, 0.39f, 0.35f, 1.0f));
