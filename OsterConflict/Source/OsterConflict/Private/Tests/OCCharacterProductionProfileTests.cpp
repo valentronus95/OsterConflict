@@ -100,12 +100,21 @@ bool FOCR14CharacterProductionProfilesTest::RunTest(const FString& Parameters)
     }
 
     const TArray<FOCCharacterProductionModule> Modules = OCGetDeclaredCharacterProductionModules();
-    TestTrue(TEXT("R14 character registry contains the audited QuantumCharacter modules"), Modules.Num() >= 9);
+    TestTrue(TEXT("R14 character registry contains all audited QuantumCharacter modules"), Modules.Num() >= 10);
 
+    bool bFoundNoHeadBody = false;
     for (const FOCCharacterProductionModule& Module : Modules)
     {
         TestFalse(TEXT("Character production module has a non-empty id"), Module.ModuleId.IsNone());
         TestFalse(TEXT("Character production module has a non-empty object path"), Module.ObjectPath.IsEmpty());
+        if (Module.ModuleId == FName(TEXT("BodyNoHead")))
+        {
+            bFoundNoHeadBody = true;
+            TestTrue(TEXT("BodyNoHead keeps its canonical modular body path"),
+                Module.ObjectPath == TEXT("/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter_NoHead.SKM_QuantumCharacter_NoHead"));
+            TestFalse(TEXT("BodyNoHead is only an audited candidate, not falsely marked runtime-active"),
+                Module.bCurrentlyUsedByRuntimeSubsystem);
+        }
 
         if (Module.Type == EOCCharacterProductionModuleType::Skeletal)
         {
@@ -133,6 +142,7 @@ bool FOCR14CharacterProductionProfilesTest::RunTest(const FString& Parameters)
             }
         }
     }
+    TestTrue(TEXT("R14 character registry explicitly contains BodyNoHead modular candidate"), bFoundNoHeadBody);
 
     return !HasAnyErrors();
 }
