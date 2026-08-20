@@ -54,3 +54,9 @@ FOCGeoReferencePoint FOCGeoReference::ResurrectionChurch()
     return { TEXT("ResurrectionChurch"), 50.954472, 30.873668, EOCReferenceConfidence::B,
         TEXT("Published heritage coordinate; used as north-west urban reference") };
 }
+
+FOCGeoReferencePoint FOCGeoReference::Silpo()
+{
+    return { TEXT("SilpoOster"), 50.948833799986254, 30.87572244094098, EOCReferenceConfidence::A,
+        TEXT("Official Silpo address: Bohdana Khmelnytskoho 54; public Visicom address-center coordinate; photo-supported site anchor, not cadastral survey") };
+}
