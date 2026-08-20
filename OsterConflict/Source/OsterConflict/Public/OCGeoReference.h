@@ -37,6 +37,7 @@ public:
     static FOCGeoReferencePoint College();
     static FOCGeoReferencePoint Silpo();
     static FOCGeoReferencePoint BusStation();
+    static FOCGeoReferencePoint CityCouncil();
     static FOCGeoReferencePoint CentralPark();
     static FOCGeoReferencePoint CultureParkNorth();
     static FOCGeoReferencePoint FormerCityAdministration();

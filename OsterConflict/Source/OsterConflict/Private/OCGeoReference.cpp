@@ -49,6 +49,12 @@ FOCGeoReferencePoint FOCGeoReference::BusStation()
         TEXT("Verified public-map bus-station coordinate; former Haharina 12; historic exterior photo exists on Wikimedia Commons") };
 }
 
+FOCGeoReferencePoint FOCGeoReference::CityCouncil()
+{
+    return { TEXT("OsterCityCouncil"), 50.95180891094453, 30.877121117838357, EOCReferenceConfidence::A,
+        TEXT("Verified address coordinate: Nezalezhnosti 21; current council/CNAP address and two Wikimedia Commons facade references agree on the landmark") };
+}
+
 FOCGeoReferencePoint FOCGeoReference::CentralPark()
 {
     return { TEXT("CentralCityPark"), 50.951645, 30.875861, EOCReferenceConfidence::A,
