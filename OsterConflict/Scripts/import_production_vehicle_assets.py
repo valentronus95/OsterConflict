@@ -24,6 +24,11 @@ HMMWV_NAME = "SM_HMMWV_UA"
 M2_NAME = "SM_M2_Browning"
 BTR_NAME = "SM_BTR4_Bucephalus"
 
+# This source HMMWV is authored with X as the vehicle longitudinal axis. Unreal's glTF
+# conversion maps glTF -Z into UE +X, so orient the source scene before import rather
+# than hiding the mismatch behind a runtime component rotation.
+HMMWV_CANONICAL_ROTATION = [0.0, -0.7071067811865476, 0.0, 0.7071067811865476]
+
 
 def log(message):
     unreal.log(f"[OC Production Import] {message}")
@@ -68,8 +73,29 @@ def _write_glb(path, chunks):
     Path(path).write_bytes(header + body)
 
 
+def add_scene_root_rotation(document, node_name, rotation):
+    """Wrap every populated glTF scene in one canonical orientation node."""
+    nodes = document.setdefault("nodes", [])
+    wrapped = 0
+    for scene_index, scene in enumerate(document.get("scenes", [])):
+        scene_roots = list(scene.get("nodes", []))
+        if not scene_roots:
+            continue
+        root_index = len(nodes)
+        nodes.append({
+            "name": f"{node_name}_{scene_index}",
+            "rotation": list(rotation),
+            "children": scene_roots,
+        })
+        scene["nodes"] = [root_index]
+        wrapped += 1
+    if wrapped <= 0:
+        fail("GLB contains no populated scene to orient for Unreal import.")
+    return wrapped
+
+
 def make_hmmwv_without_mk19(source, destination):
-    """Detach Mk19 scene nodes while retaining all HMMWV geometry/material/buffer data."""
+    """Detach Mk19 nodes and orient the remaining HMMWV for UE's +X-forward convention."""
     chunks = _read_glb(source)
     json_index = next((i for i, chunk in enumerate(chunks) if chunk[0] == 0x4E4F534A), None)
     if json_index is None:
@@ -82,7 +108,7 @@ def make_hmmwv_without_mk19(source, destination):
         if "mk19" in str(node.get("name", "")).lower()
     }
     if not mk19_nodes:
-        log("HMMWV source contains no Mk19 node; importing source unchanged.")
+        log("HMMWV source contains no Mk19 node; importing source unchanged apart from canonical orientation.")
     else:
         for node in nodes:
             if "children" in node:
@@ -91,6 +117,9 @@ def make_hmmwv_without_mk19(source, destination):
             if "nodes" in scene:
                 scene["nodes"] = [node for node in scene["nodes"] if node not in mk19_nodes]
         log(f"Detached Mk19 node(s) before HMMWV import: {sorted(mk19_nodes)}")
+
+    wrapped = add_scene_root_rotation(document, "OC_HMMWV_CanonicalAxis", HMMWV_CANONICAL_ROTATION)
+    log(f"Applied HMMWV canonical axis rotation to {wrapped} glTF scene(s).")
 
     chunks[json_index][1] = json.dumps(document, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     Path(destination).parent.mkdir(parents=True, exist_ok=True)
