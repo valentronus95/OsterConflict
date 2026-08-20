@@ -138,7 +138,7 @@ def make_interchange_task(filename, destination_path, asset_name):
     task = unreal.AssetImportTask()
     task.set_editor_property("filename", str(filename))
     task.set_editor_property("destination_path", destination_path)
-    task.set_editor_property("destination_name", asset_name)
+    # UE 5.8 ignores AssetImportTask.destination_name for Interchange. The pipeline asset_name above is authoritative.
     task.set_editor_property("automated", True)
     task.set_editor_property("replace_existing", True)
     task.set_editor_property("replace_existing_settings", True)
@@ -148,16 +148,29 @@ def make_interchange_task(filename, destination_path, asset_name):
     return task
 
 
+def verify_import_task_updated_asset(task, asset_path):
+    """Reject stale pre-existing assets when the import task did not actually create/update the canonical object."""
+    imported = [str(path).replace("\\", "/") for path in list(task.get_editor_property("imported_object_paths") or [])]
+    expected_object_prefix = f"{asset_path}."
+    updated_expected_asset = any(
+        path == asset_path or path.startswith(expected_object_prefix) or expected_object_prefix in path
+        for path in imported
+    )
+    if not updated_expected_asset:
+        fail(f"Import task did not report creating/updating {asset_path}. Imported/updated paths: {imported}")
+
+    if not unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+        fail(f"Import task reported {asset_path}, but the canonical asset does not exist after import.")
+
+    unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False)
+    return asset_path
+
+
 def import_glb_combined(filename, destination_path, asset_name):
     log(f"Importing GLB {filename.name} -> {destination_path}/{asset_name}")
     task = make_interchange_task(filename, destination_path, asset_name)
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    asset_path = f"{destination_path}/{asset_name}"
-    if not unreal.EditorAssetLibrary.does_asset_exist(asset_path):
-        imported = list(task.get_editor_property("imported_object_paths") or [])
-        fail(f"Expected {asset_path} was not created. Imported: {imported}")
-    unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False)
-    return asset_path
+    return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
 
 
 def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
@@ -201,12 +214,7 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
 
     log(f"Importing FBX {filename.name} -> {destination_path}/{asset_name}")
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    asset_path = f"{destination_path}/{asset_name}"
-    if not unreal.EditorAssetLibrary.does_asset_exist(asset_path):
-        imported = list(task.get_editor_property("imported_object_paths") or [])
-        fail(f"Expected {asset_path} was not created. Imported: {imported}")
-    unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False)
-    return asset_path
+    return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
 
 
 def ensure_sources_exist():
