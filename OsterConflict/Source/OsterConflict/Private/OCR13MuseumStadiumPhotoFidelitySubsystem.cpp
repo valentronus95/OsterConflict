@@ -20,10 +20,7 @@ void UOCR13MuseumStadiumPhotoFidelitySubsystem::OnWorldBeginPlay(UWorld& InWorld
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Retired compatibility subsystem.
-    // Museum presentation is owned by the dedicated museum owner and Stadion Oster is owned exclusively by
-    // UOCR13StadiumSurfaceSubsystem. Do not schedule delayed geometry replacement here: doing so previously caused
-    // duplicate stadium actors and visible scene rebuilding several seconds after BeginPlay.
+    // Retired compatibility subsystem. It deliberately schedules nothing and creates no geometry.
     ApplyPhotoFidelity(InWorld);
 }
 
@@ -32,24 +29,4 @@ void UOCR13MuseumStadiumPhotoFidelitySubsystem::ApplyPhotoFidelity(UWorld& World
     (void)World;
     UE_LOG(LogTemp, Display,
         TEXT("R13 museum/stadium legacy photo-fidelity pass retired: Stadion Oster presentation ownership is exclusive to OCR13StadiumSurfaceSubsystem."));
-}
-
-void UOCR13MuseumStadiumPhotoFidelitySubsystem::SuppressLegacyMuseumPresentation(UWorld& World)
-{
-    (void)World;
-}
-
-void UOCR13MuseumStadiumPhotoFidelitySubsystem::SuppressLegacyStadiumPresentation(UWorld& World)
-{
-    (void)World;
-}
-
-void UOCR13MuseumStadiumPhotoFidelitySubsystem::BuildMuseum(UWorld& World)
-{
-    (void)World;
-}
-
-void UOCR13MuseumStadiumPhotoFidelitySubsystem::BuildStadium(UWorld& World)
-{
-    (void)World;
 }
