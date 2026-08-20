@@ -22,6 +22,7 @@ namespace
     constexpr float FieldLengthCm = 10500.0f;
     constexpr float FieldWidthCm = 6800.0f;
     constexpr float SiteRadiusCm = 9000.0f;
+    constexpr float LegacyFenceCleanupRadiusCm = 8800.0f;
 
     FVector SitePoint(const FVector& SiteCenter, const FVector& LocalOffset)
     {
@@ -38,6 +39,28 @@ namespace
             if (Component && Component->GetFName() == Name) return Component;
         }
         return nullptr;
+    }
+
+    void RemoveInstancesNear(UInstancedStaticMeshComponent* Component, const FVector& Center, const float RadiusCm)
+    {
+        if (!Component) return;
+
+        TArray<int32> ToRemove;
+        FTransform Transform;
+        const float RadiusSq = FMath::Square(RadiusCm);
+        for (int32 Index = 0; Index < Component->GetInstanceCount(); ++Index)
+        {
+            if (Component->GetInstanceTransform(Index, Transform, true)
+                && FVector::DistSquared2D(Transform.GetLocation(), Center) <= RadiusSq)
+            {
+                ToRemove.Add(Index);
+            }
+        }
+
+        for (int32 RemoveIndex = ToRemove.Num() - 1; RemoveIndex >= 0; --RemoveIndex)
+        {
+            Component->RemoveInstance(ToRemove[RemoveIndex]);
+        }
     }
 
     UInstancedStaticMeshComponent* MakeISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh,
@@ -84,6 +107,26 @@ namespace
             SitePoint(SiteCenter, LocalCenter), SizeCm / 100.0f), true);
     }
 
+    void AddPathPolyline(UInstancedStaticMeshComponent* Target, const FVector& SiteCenter,
+        const TArray<FVector>& LocalPoints, const float WidthCm, const float ZCm)
+    {
+        if (!Target || LocalPoints.Num() < 2) return;
+
+        for (int32 Index = 1; Index < LocalPoints.Num(); ++Index)
+        {
+            const FVector A = LocalPoints[Index - 1];
+            const FVector B = LocalPoints[Index];
+            const FVector Delta = B - A;
+            const float Length = FVector2D(Delta.X, Delta.Y).Size();
+            if (Length <= 1.0f) continue;
+
+            FVector Mid = (A + B) * 0.5f;
+            Mid.Z = ZCm;
+            const float LocalYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
+            AddBoxLocal(Target, SiteCenter, Mid, FVector(Length + 24.0f, WidthCm, 4.0f), LocalYaw);
+        }
+    }
+
     void AddUniformGroundedMesh(UInstancedStaticMeshComponent* Target, UStaticMesh* Mesh,
         const FVector& SiteCenter, const FVector& LocalCenter, const float DesiredHeightCm,
         const float LocalYawDegrees = 0.0f)
@@ -114,9 +157,7 @@ namespace
         const float NativeLength = bLongX ? NativeSize.X : NativeSize.Y;
         const float ScaleXY = FMath::Clamp(DesiredLengthCm / NativeLength, 0.45f, 1.35f);
         const float HeightScale = FMath::Clamp(155.0f / NativeSize.Z, 0.40f, 1.60f);
-        FVector Scale = bLongX
-            ? FVector(ScaleXY, ScaleXY, HeightScale)
-            : FVector(ScaleXY, ScaleXY, HeightScale);
+        const FVector Scale(ScaleXY, ScaleXY, HeightScale);
 
         float Yaw = FieldYawDegrees + LocalYawDegrees;
         if (!bLongX) Yaw += 90.0f;
@@ -126,15 +167,15 @@ namespace
         Target->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), Location, Scale), true);
     }
 
-    void HideLegacyStadiumVisuals(UWorld& World)
+    void HideLegacyStadiumVisuals(UWorld& World, const FVector& Stadium)
     {
         for (TActorIterator<AOCWorldSectorOster> It(&World); It; ++It)
         {
             AOCWorldSectorOster* Sector = *It;
             if (!Sector) continue;
 
-            // Keep collision/navigation contract alive while retiring the visible procedural blockout. The dedicated
-            // site root below becomes the only player-facing stadium presentation owner on stadion-oster.
+            // Keep the old stadium collision/navigation contract alive while retiring the visible procedural
+            // blockout. The dedicated site root below becomes the only player-facing stadium presentation owner.
             for (const FName ComponentName : { FName(TEXT("StadiumGeometry")), FName(TEXT("StadiumDetails")) })
             {
                 if (UInstancedStaticMeshComponent* Component = FindISM(Sector, ComponentName))
@@ -143,6 +184,11 @@ namespace
                     Component->SetHiddenInGame(true, true);
                 }
             }
+
+            // Fences is a shared world-sector ISM, so hiding the whole component would erase unrelated Oster fences.
+            // Remove only instances inside the stadium site radius; the authoritative owner rebuilds this edge from
+            // real fence meshes. At 88 m this stays clear of the museum centre (~126 m away).
+            RemoveInstancesNear(FindISM(Sector, FName(TEXT("Fences"))), Stadium, LegacyFenceCleanupRadiusCm);
         }
     }
 }
@@ -195,7 +241,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     const FOCGeoReferencePoint StadiumGeo = FOCGeoReference::Stadium();
     const FVector Stadium = FOCGeoReference::ToLocalCm(StadiumGeo.Latitude, StadiumGeo.Longitude, 0.0);
 
-    HideLegacyStadiumVisuals(World);
+    HideLegacyStadiumVisuals(World, Stadium);
 
     AActor* SiteActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!SiteActor) return;
@@ -218,6 +264,8 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         TEXT("StadionOsterGrassMat"), FLinearColor(0.19f, 0.36f, 0.10f, 1.0f));
     UMaterialInstanceDynamic* TurfMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterTurfMat"), FLinearColor(0.055f, 0.31f, 0.11f, 1.0f));
+    UMaterialInstanceDynamic* TrackMat = MakeColor(SiteActor, BaseMaterial,
+        TEXT("StadionOsterTrackMat"), FLinearColor(0.22f, 0.07f, 0.045f, 1.0f));
     UMaterialInstanceDynamic* LineMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterLineMat"), FLinearColor(0.93f, 0.93f, 0.89f, 1.0f));
     UMaterialInstanceDynamic* MetalMat = MakeColor(SiteActor, BaseMaterial,
@@ -233,6 +281,8 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         TEXT("StadionOsterGrassApron"), false, false);
     UInstancedStaticMeshComponent* Turf = MakeISM(SiteActor, Root, Cube, TurfMat,
         TEXT("StadionOsterMainPitch"), false, false);
+    UInstancedStaticMeshComponent* Track = MakeISM(SiteActor, Root, Cube, TrackMat,
+        TEXT("StadionOsterRunningSurface"), false, false);
     UInstancedStaticMeshComponent* Lines = MakeISM(SiteActor, Root, Cube, LineMat,
         TEXT("StadionOsterPitchLines"), false, false);
     UInstancedStaticMeshComponent* SportsMetal = MakeISM(SiteActor, Root, Cube, MetalMat,
@@ -260,9 +310,17 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     // Site apron keeps the photographed open grassy character around the formal pitch. The underlying source ground
     // remains collision-authoritative; this is deliberately presentation-only to avoid a duplicate floor.
     AddBoxLocal(Grass, Stadium, FVector(0.0f, 0.0f, 5.0f), FVector(15400.0f, 11200.0f, 6.0f));
-    AddBoxLocal(Turf, Stadium, FVector(0.0f, 0.0f, 10.0f), FVector(FieldLengthCm, FieldWidthCm, 8.0f));
+    AddBoxLocal(Turf, Stadium, FVector(0.0f, 0.0f, 12.0f), FVector(FieldLengthCm, FieldWidthCm, 8.0f));
 
-    constexpr float LineZ = 16.0f;
+    // The modernization notes explicitly include artificial running tracks. This is a restrained perimeter surface,
+    // not an invented professional athletics bowl; exact lane count/curvature stays a later photo-alignment detail.
+    constexpr float TrackZ = 10.0f;
+    AddBoxLocal(Track, Stadium, FVector(0.0f, 3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
+    AddBoxLocal(Track, Stadium, FVector(0.0f,-3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
+    AddBoxLocal(Track, Stadium, FVector(5525.0f,0.0f, TrackZ), FVector(550.0f, 7000.0f, 5.0f));
+    AddBoxLocal(Track, Stadium, FVector(-5525.0f,0.0f,TrackZ), FVector(550.0f, 7000.0f, 5.0f));
+
+    constexpr float LineZ = 18.0f;
     constexpr float LineWidth = 12.0f;
     const float HalfLength = FieldLengthCm * 0.5f;
     const float HalfWidth = FieldWidthCm * 0.5f;
@@ -314,12 +372,25 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         AddBoxLocal(SportsMetal, Stadium, Base + FVector(0.0f,0.0f,205.0f), FVector(9.0f,120.0f,9.0f));
     }
 
-    // Narrow dirt footpaths from the photo set; deliberately not asphalt roads.
-    AddBoxLocal(Paths, Stadium, FVector(0.0f, 5550.0f, 8.0f), FVector(9300.0f, 115.0f, 4.0f), -3.0f);
-    AddBoxLocal(Paths, Stadium, FVector(-4700.0f, 4550.0f, 8.0f), FVector(3300.0f, 105.0f, 4.0f), 62.0f);
+    // Narrow worn footpaths follow several photo-derived bends instead of reading as two perfectly straight roads.
+    const TArray<FVector> NorthPath =
+    {
+        FVector(-4700.0f, 5420.0f, 0.0f), FVector(-3000.0f, 5510.0f, 0.0f),
+        FVector(-1200.0f, 5580.0f, 0.0f), FVector(700.0f, 5530.0f, 0.0f),
+        FVector(2500.0f, 5460.0f, 0.0f), FVector(4550.0f, 5560.0f, 0.0f)
+    };
+    AddPathPolyline(Paths, Stadium, NorthPath, 112.0f, 8.0f);
 
-    // 2025 entrance landmark: recognizable blue vertical pylon plus blue/yellow horizontal sign. Lettering is kept
-    // out of this first compile-safe pass; its prop/model will be refined against reference 07 without moving root.
+    const TArray<FVector> EntrancePath =
+    {
+        FVector(-6900.0f, 5100.0f, 0.0f), FVector(-6200.0f, 4850.0f, 0.0f),
+        FVector(-5650.0f, 4350.0f, 0.0f), FVector(-5200.0f, 3650.0f, 0.0f),
+        FVector(-4900.0f, 2850.0f, 0.0f)
+    };
+    AddPathPolyline(Paths, Stadium, EntrancePath, 104.0f, 8.0f);
+
+    // 2025 entrance landmark: recognizable blue vertical pylon plus blue/yellow horizontal sign. The site root and
+    // proportions are now fixed; lettering remains a dedicated prop/material pass so it cannot render mirrored.
     AddBoxLocal(SignBlue, Stadium, FVector(-6550.0f, 5050.0f, 170.0f), FVector(70.0f, 95.0f, 340.0f));
     AddBoxLocal(SignBlue, Stadium, FVector(-5650.0f, 5050.0f, 105.0f), FVector(1800.0f, 80.0f, 210.0f));
     AddBoxLocal(SignYellow, Stadium, FVector(-5650.0f, 5006.0f, 105.0f), FVector(1650.0f, 6.0f, 26.0f));
@@ -364,7 +435,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("Stadion Oster authoritative site created: geo=(%.6f, %.6f), local=(%.1f, %.1f), yaw=%.1f, field=%.0fx%.0f cm, radius=%.0f cm. Legacy stadium visuals hidden; reference pack is REFERENCE_PHOTOS/stadion_oster."),
+        TEXT("Stadion Oster authoritative site created: geo=(%.6f, %.6f), local=(%.1f, %.1f), yaw=%.1f, field=%.0fx%.0f cm, radius=%.0f cm. Legacy stadium visuals and local legacy fences retired; reference pack is REFERENCE_PHOTOS/stadion_oster."),
         StadiumGeo.Latitude, StadiumGeo.Longitude, Stadium.X, Stadium.Y, FieldYawDegrees,
         FieldLengthCm, FieldWidthCm, SiteRadiusCm);
 }
