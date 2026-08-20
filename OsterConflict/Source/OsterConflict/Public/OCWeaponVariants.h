@@ -46,6 +46,7 @@ class OSTERCONFLICT_API AOCWeapon_Shotgun : public AOCWeaponBase
     GENERATED_BODY()
 public:
     AOCWeapon_Shotgun();
+    virtual void BeginPlay() override;
 };
 
 UCLASS()
@@ -54,6 +55,7 @@ class OSTERCONFLICT_API AOCWeapon_LMG : public AOCWeaponBase
     GENERATED_BODY()
 public:
     AOCWeapon_LMG();
+    virtual void BeginPlay() override;
 };
 
 /** Restored R13 M14 as a distinct battle-rifle variant. */
