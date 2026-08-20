@@ -28,16 +28,10 @@ void UOCR13FirstPersonFallbackSubsystem::Tick(float DeltaTime)
         AOCCharacter* Character = *It;
         if (!Character || !Character->IsLocallyControlled()) continue;
 
-        bool bHasProductionArms = false;
-        TArray<USkeletalMeshComponent*> SkeletalMeshes;
-        Character->GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
-        for (USkeletalMeshComponent* Component : SkeletalMeshes)
-        {
-            if (!Component || Component->GetFName() != TEXT("FirstPersonArms")) continue;
-            bHasProductionArms = Component->GetSkeletalMeshAsset() != nullptr && Component->IsVisible();
-            break;
-        }
-
+        // The old emergency first-person fallback was built from primitive static meshes. In R13 those shapes can
+        // appear as the large rectangle/spheres around the weapon and obstruct the player's view. Missing authored
+        // arms are preferable to shipping obvious debug geometry, so keep every primitive proxy hidden. The real
+        // FirstPersonArms skeletal component remains untouched and becomes visible normally when production art exists.
         TArray<UStaticMeshComponent*> StaticMeshes;
         Character->GetComponents<UStaticMeshComponent>(StaticMeshes);
         for (UStaticMeshComponent* Component : StaticMeshes)
@@ -49,8 +43,8 @@ void UOCR13FirstPersonFallbackSubsystem::Tick(float DeltaTime)
             if (!bFirstPersonProxy) continue;
 
             Component->SetOnlyOwnerSee(true);
-            Component->SetHiddenInGame(false, true);
-            Component->SetVisibility(!bHasProductionArms, true);
+            Component->SetHiddenInGame(true, true);
+            Component->SetVisibility(false, true);
         }
     }
 }
