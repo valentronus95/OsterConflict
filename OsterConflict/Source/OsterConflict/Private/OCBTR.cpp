@@ -10,9 +10,37 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace
+{
+    bool ApplyFittedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
+        const FVector& DesiredSizeCm, float GroundZCm)
+    {
+        if (!Component || !Mesh) return false;
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
+
+        const FVector Scale(
+            DesiredSizeCm.X / NativeSize.X,
+            DesiredSizeCm.Y / NativeSize.Y,
+            DesiredSizeCm.Z / NativeSize.Z);
+        FVector Location = -Bounds.Origin * Scale;
+        const float NativeBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        Location.Z = GroundZCm - NativeBottomZ * Scale.Z;
+
+        Component->SetStaticMesh(Mesh);
+        Component->SetRelativeRotation(FRotator::ZeroRotator);
+        Component->SetRelativeScale3D(Scale);
+        Component->SetRelativeLocation(Location);
+        // Remove fallback component overrides while retaining the BTR mesh's imported materials.
+        Component->EmptyOverrideMaterials();
+        return true;
+    }
+}
+
 AOCBTR::AOCBTR()
 {
-    TurretDisplayName = TEXT("APC TURRET");
+    TurretDisplayName = TEXT("BTR-4 TURRET");
     TurretDamage = 58.0f;
     TurretRoundsPerMinute = 340.0f;
     TurretRangeCm = 16500.0f;
@@ -28,16 +56,13 @@ AOCBTR::AOCBTR()
     VehicleMassKg = 11800.0f;
     SpringStiffness = 37000.0f;
     SuspensionDamping = 6500.0f;
-
-    // R13 vehicle pass: the APC should comfortably pass 40 km/h and rotate with useful authority in streets,
-    // without pretending an 11.8 tonne eight-wheeler handles like a passenger car.
-    DriveForce = 5200000.0f;
-    RollingBrakeForce = 520000.0f;
-    HandbrakeForce = 2100000.0f;
-    LateralGrip = 26000.0f;
-    SteeringTorque = 310000000.0f;
-    AeroDrag = 0.14f;
-    MaxForwardSpeedKmh = 65.0f;
+    DriveForce = 1850000.0f;
+    RollingBrakeForce = 650000.0f;
+    HandbrakeForce = 1800000.0f;
+    LateralGrip = 18000.0f;
+    SteeringTorque = 170000000.0f;
+    AeroDrag = 0.30f;
+    MaxForwardSpeedKmh = 82.0f;
     MaxVehicleHealth = 1600.0f;
     WreckLifetimeSeconds = 38.0f;
 
@@ -125,8 +150,49 @@ float AOCBTR::ModifyHullDamage(float DamageAmount, const FDamageEvent&) const
 
 void AOCBTR::ApplyVehicleStyle()
 {
-    Chassis->SetRelativeScale3D(FVector(6.15f, 2.45f, 0.72f));
-    InteriorCamera->SetRelativeLocation(FVector(130.0f, -52.0f, 105.0f));
-    ThirdPersonSpringArm->TargetArmLength = 820.0f;
-    ThirdPersonSpringArm->SetRelativeLocation(FVector(-80.0f, 0.0f, 220.0f));
+    bool bUsingBTR4 = false;
+    if (Chassis)
+    {
+        if (UStaticMesh* ProductionBTR4 = LoadObject<UStaticMesh>(nullptr,
+            TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus")))
+        {
+            // The source is already close to the real BTR-4E dimensions. Fit it lightly, then put
+            // the wheel bottoms on the same ground plane as the authoritative 8-wheel suspension.
+            bUsingBTR4 = ApplyFittedBTRMesh(Chassis, ProductionBTR4, FVector(776.0f, 293.0f, 300.0f), -98.0f);
+        }
+    }
+
+    if (bUsingBTR4)
+    {
+        UStaticMeshComponent* ProxyParts[] =
+        {
+            UpperHull.Get(), NoseArmor.Get(), RearArmor.Get(),
+            WheelExtraFL.Get(), WheelExtraFR.Get(), WheelExtraRL.Get(), WheelExtraRR.Get(),
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+        };
+        for (UStaticMeshComponent* Component : ProxyParts)
+        {
+            if (Component) Component->SetVisibility(false, true);
+        }
+        for (UStaticMeshComponent* Wheel : WheelVisuals)
+        {
+            if (Wheel) Wheel->SetVisibility(false, true);
+        }
+
+        // The uploaded FBX currently arrives as one combined shell. Hide the old primitive turret
+        // so we do not render a cube/cylinder assembly through the authored BTR-4 model. Turret
+        // gameplay, aim limits, muzzle trace and damage remain authoritative on TurretPivot.
+        if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
+        if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+
+        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell."));
+    }
+    else if (Chassis)
+    {
+        Chassis->SetRelativeScale3D(FVector(6.15f, 2.45f, 0.72f));
+    }
+
+    InteriorCamera->SetRelativeLocation(bUsingBTR4 ? FVector(145.0f, -58.0f, 112.0f) : FVector(130.0f, -52.0f, 105.0f));
+    ThirdPersonSpringArm->TargetArmLength = bUsingBTR4 ? 900.0f : 820.0f;
+    ThirdPersonSpringArm->SetRelativeLocation(bUsingBTR4 ? FVector(-110.0f, 0.0f, 245.0f) : FVector(-80.0f, 0.0f, 220.0f));
 }

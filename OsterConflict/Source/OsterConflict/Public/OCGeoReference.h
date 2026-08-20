@@ -35,13 +35,10 @@ public:
     static FOCGeoReferencePoint Stadium();
     static FOCGeoReferencePoint SolonynaEstatePark();
     static FOCGeoReferencePoint College();
-    static FOCGeoReferencePoint Silpo();
-    static FOCGeoReferencePoint BusStation();
-    static FOCGeoReferencePoint CityCouncil();
-    static FOCGeoReferencePoint CultureHouse();
     static FOCGeoReferencePoint CentralPark();
     static FOCGeoReferencePoint CultureParkNorth();
     static FOCGeoReferencePoint FormerCityAdministration();
     static FOCGeoReferencePoint HistoricCourtBuilding();
     static FOCGeoReferencePoint ResurrectionChurch();
+    static FOCGeoReferencePoint Silpo();
 };

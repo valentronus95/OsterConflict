@@ -7,13 +7,10 @@
 
 class AOCCharacter;
 class UDamageType;
-class UInputAction;
-class UInputMappingContext;
 class USceneComponent;
 class UStaticMeshComponent;
-struct FInputActionValue;
 
-/** S11/R13 armed vehicle foundation: separate gunner seat plus a solo-driver turret fallback for local/small tests. */
+/** S11 two-player armed vehicle foundation: driver drives, separate gunner aims/fires. */
 UCLASS(Abstract)
 class OSTERCONFLICT_API AOCArmedVehicleBase : public AOCVehicleBase
 {
@@ -24,8 +21,6 @@ public:
 
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
-    virtual void PawnClientRestart() override;
-    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
         AController* EventInstigator, AActor* DamageCauser) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -43,10 +38,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Vehicle|Seats")
     bool HasGunner() const { return GunnerCharacter != nullptr; }
-
-    /** R13: an occupied driver seat may control the turret while the dedicated gunner seat is empty. */
-    UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
-    bool CanDriverUseTurret() const { return HasDriver() && !HasGunner() && !IsVehicleDestroyed(); }
 
     UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
     float GetTurretYaw() const { return TurretYaw; }
@@ -167,41 +158,11 @@ private:
     FTimerHandle TurretReloadTimerHandle;
     bool bGunnerFireHeld = false;
 
-    // R13 solo-driver mounted-weapon controls. The normal dedicated gunner seat still takes priority when occupied.
-    UPROPERTY() TObjectPtr<UInputMappingContext> DriverTurretMappingContext;
-    UPROPERTY() TObjectPtr<UInputAction> DriverTurretAimAction;
-    UPROPERTY() TObjectPtr<UInputAction> DriverTurretFireAction;
-    UPROPERTY() TObjectPtr<UInputAction> DriverTurretReloadAction;
-    UPROPERTY() TObjectPtr<UInputAction> DriverTurretLookXAction;
-    UPROPERTY() TObjectPtr<UInputAction> DriverTurretLookYAction;
-
-    bool bDriverTurretAimHeld = false;
-    float LocalDriverTurretYaw = 0.0f;
-    float LocalDriverTurretPitch = 0.0f;
-
-    UFUNCTION(Server, Unreliable)
-    void ServerSetDriverTurretAim(float RelativeYaw, float RelativePitch);
-
-    UFUNCTION(Server, Reliable)
-    void ServerSetDriverTurretFireHeld(bool bHeld);
-
-    UFUNCTION(Server, Reliable)
-    void ServerReloadDriverTurret();
-
     UFUNCTION()
     void OnRep_Gunner();
 
     UFUNCTION()
     void OnRep_TurretAim();
-
-    void ConfigureDriverTurretInput();
-    void DriverTurretAimPressed();
-    void DriverTurretAimReleased();
-    void DriverTurretFirePressed();
-    void DriverTurretFireReleased();
-    void DriverTurretReloadPressed();
-    void DriverTurretLookX(const FInputActionValue& Value);
-    void DriverTurretLookY(const FInputActionValue& Value);
 
     void ApplyTurretPresentation();
     void BeginTurretFireServer();
@@ -209,6 +170,5 @@ private:
     void FireTurretShotServer();
     void FinishTurretReloadServer();
     bool CanGunnerOperateServer(const AOCCharacter* Requester) const;
-    AOCCharacter* GetActiveTurretOperator() const;
     EOCTeam ResolveCharacterTeam(const AOCCharacter* Character) const;
 };

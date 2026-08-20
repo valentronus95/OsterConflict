@@ -33,15 +33,6 @@ public:
     bool IsSandboxGodMode() const { return bSandboxGodMode; }
     FString GetAdminActionLabel(int32 Index) const;
 
-    /**
-     * One-shot, short-lived server authorization consumed by OCR13SpawnSafetySubsystem.
-     * Legacy ready/F4 can still alter lobby-ready state for compatibility, but it cannot produce an accepted
-     * initial runtime pawn unless the staged deployment commit granted a fresh token first.
-     */
-    bool ConsumeR13DeploymentCommitAuthorization();
-    bool HasCompletedR13InitialDeployment() const { return bR13InitialDeploymentCompleted; }
-    void MarkR13InitialDeploymentCompleted() { bR13InitialDeploymentCompleted = true; }
-
     const TArray<FOCChatMessage>& GetRecentChatMessages() const { return RecentChatMessages; }
     const FOCSquadOrder& GetCurrentSquadOrder() const { return CurrentSquadOrder; }
 
@@ -51,8 +42,6 @@ public:
     UFUNCTION(Exec) void PerfReport();
     UFUNCTION(Client, Reliable) void ClientReceivePerfReport(const FString& Report);
     UFUNCTION(Client, Reliable) void ClientSetSandboxAdminAllowed(bool bAllowed);
-    /** Deployment stays open until the authoritative server confirms that a pawn was actually created. */
-    UFUNCTION(Client, Reliable) void ClientCompleteDeployment(bool bSuccess);
 
     /** S14 chat backend. The final S17 widget will call the same functions. */
     UFUNCTION(Exec) void SayGlobal(const FString& Message);
@@ -68,18 +57,14 @@ public:
     UFUNCTION(Client, Reliable) void ClientReceiveChat(const FOCChatMessage& Message);
     UFUNCTION(Client, Reliable) void ClientReceiveSquadOrder(const FOCSquadOrder& Order);
 
-    // S17A / R13 UMG-facing API. Selection is explicit so deployment can be a real staged flow.
+    // S17A UMG-facing API. These call the same server-authoritative backend used by the old dev hotkeys.
     UFUNCTION(BlueprintCallable, Category="UI") void UIConnect(const FString& Address, const FString& Username);
     UFUNCTION(BlueprintCallable, Category="UI") void UIToggleFrontend();
     UFUNCTION(BlueprintCallable, Category="UI") void UIRequestTeam(EOCTeam Team);
-    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestSquad(int32 SquadId);
-    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestRole(EOCPlayerRole RequestedRole);
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleRole();
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleSquad();
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
     UFUNCTION(BlueprintCallable, Category="UI") void UIReadyDeploy();
-    /** R13 staged flow keeps the deployment panel visible while the server validates/grounds the spawn. */
-    UFUNCTION(BlueprintCallable, Category="UI") void UICommitDeployment();
     UFUNCTION(BlueprintCallable, Category="UI") void UISendChat(EOCChatChannel Channel, const FString& Message);
     UFUNCTION(BlueprintCallable, Category="UI") void UIEndChatInput();
     UFUNCTION(BlueprintCallable, Category="UI") void UIAdminPrevious();
@@ -96,11 +81,8 @@ protected:
     UFUNCTION(Server, Reliable) void ServerExecuteSandboxAdminAction(int32 ActionIndex);
     UFUNCTION(Server, Reliable) void ServerSendChat(EOCChatChannel Channel, const FString& Message);
     UFUNCTION(Server, Reliable) void ServerCycleRole();
-    UFUNCTION(Server, Reliable) void ServerRequestRole(EOCPlayerRole RequestedRole);
     UFUNCTION(Server, Reliable) void ServerRequestSquad(int32 SquadId);
     UFUNCTION(Server, Reliable) void ServerSetLobbyReady(bool bReady);
-    /** Prevent the old out-of-bounds base spawn from winning the race against compact-map relocation. */
-    UFUNCTION(Server, Reliable) void ServerCommitDeployment();
     UFUNCTION(Server, Reliable) void ServerSubmitSquadOrder(EOCSquadOrderType Type, FName ObjectiveId, FVector Location);
     UFUNCTION(Server, Reliable) void ServerRequestTeam(EOCTeam RequestedTeam);
     UFUNCTION(Server, Reliable) void ServerSetDeploymentSpawn(FName SpawnId);
@@ -130,9 +112,6 @@ private:
     int32 SelectedAdminActionIndex = 0;
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
-    bool bR13DeploymentCommitAuthorized = false;
-    bool bR13InitialDeploymentCompleted = false;
-    double R13DeploymentCommitAuthorizationExpiresAt = -1.0;
     double LastChatServerTime = -100.0;
     TArray<FOCChatMessage> RecentChatMessages;
     FOCSquadOrder CurrentSquadOrder;

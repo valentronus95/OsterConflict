@@ -6,10 +6,11 @@ public class OsterConflict : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        // R13 contains many source-local helpers/constants in anonymous namespaces. They are valid in separate
-        // translation units, but Unreal unity blobs merge several .cpp files and make those private names collide
-        // (FindISM, MakeISM, MaxSpawnAttempts, etc.). Keep this game module non-unity so source-local helpers retain
-        // normal C++ translation-unit isolation. Shared PCHs remain enabled, so only the unity aggregation is disabled.
+        // OsterConflict contains a number of implementation-local helpers with intentionally common
+        // names (AddBox, MakeMID, MakeISM, etc.). Unreal unity builds concatenate multiple .cpp files
+        // into one translation unit, which breaks those otherwise file-local anonymous namespaces.
+        // Compile source files independently for deterministic UE 5.8 builds and lower per-action
+        // memory pressure on the current 16 GB development machine.
         bUseUnity = false;
 
         PublicDependencyModuleNames.AddRange(new string[]

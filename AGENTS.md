@@ -4,18 +4,19 @@ This repository is the canonical working project for the user.
 
 ## Repository
 - GitHub: `valentronus95/OsterConflict`
-- Active development branch: `r13-content-gameplay-pass`
+- Primary integration branch: `main`
+- Dedicated location branches may be used for isolated work, but completed, explicitly approved integrations land in `main` through a controlled forward-port.
 - Unreal Engine target: UE 5.8.x on Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 
 ## Mandatory context files
 Before editing the project, read these files in this order:
 1. `AGENTS.md`
-2. `OSTER_CONFLICT_MASTER_TZ.md` — canonical requirements and acceptance criteria.
-3. `OSTER_CONFLICT_WORK_LEDGER.md` — active issues, repeat counts, real completion state, commits and test status.
-4. `OsterConflict/Docs/PROJECT_CONTEXT.md` — concise technical context.
+2. `OSTER_CONFLICT_WORK_LEDGER.md` — active issues, repeat counts, real completion state, commits and test status.
+3. The dedicated location TZ for the work being changed; for Stadion Oster use `STADION_OSTER_TZ.md`.
+4. The matching implementation-status file when present; for Stadion Oster use `STADION_OSTER_IMPLEMENTATION_STATUS.md`.
 
-The MASTER TZ and WORK LEDGER are persistent living documents. Update them whenever the user adds/changes a requirement, repeats an unresolved requirement, a meaningful code block is committed, or build/playtest changes the status of a task.
+The WORK LEDGER and dedicated location TZ/status files are persistent living documents. Update them whenever the user adds/changes a requirement, repeats an unresolved requirement, a meaningful code block is committed, or build/playtest changes the status of a task.
 
 ## Mandatory workflow
 1. Work directly in this GitHub repository. Do not create replacement ZIP archives as the default delivery method.
@@ -30,6 +31,8 @@ The MASTER TZ and WORK LEDGER are persistent living documents. Update them whene
 10. Before creating primitive/blockout geometry, inventory the already imported assets under `OsterConflict/Content` and prefer a suitable real asset when one exists.
 11. For geography and landmark placement, user-confirmed local knowledge and verified photo/map evidence override old provisional code coordinates.
 12. Do not let independent late runtime subsystems silently overwrite an already visible landmark. One site/landmark should have a clear placement owner.
+13. Reference-photo retention is mandatory: when the user supplies images specifically to create a 3D model or location, preserve them in a named `REFERENCE_PHOTOS/<location>/` pack even if the user did not separately ask to save them. Ordinary bug/test screenshots are not automatically archived unless requested.
+14. Every preserved photo pack needs an index/manifest linking it to its TZ and explaining chronology/role. Do not discard older references after a model is built; they are regression evidence.
 
 ## Current priority
 R13 location repair, visual/gameplay stabilization, and replacement of placeholders with existing real assets. Highest-priority tracked work is maintained in `OSTER_CONFLICT_WORK_LEDGER.md`, currently centered on:
@@ -40,4 +43,6 @@ R13 location repair, visual/gameplay stabilization, and replacement of placehold
 - using existing imported houses/fences/lights/weapons/vehicles instead of visible primitive placeholders;
 - validating the complete spawn-relative weapon test rack.
 
-The detailed acceptance requirements live in `OSTER_CONFLICT_MASTER_TZ.md`.
+For the current Stadion Oster integration in `main`, the dedicated priority is the hard-georeferenced site defined by `STADION_OSTER_TZ.md`, `STADION_OSTER_IMPLEMENTATION_STATUS.md`, and `REFERENCE_PHOTOS/stadion_oster/`.
+
+The detailed Stadion Oster acceptance requirements live in its dedicated TZ.

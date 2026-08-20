@@ -2,33 +2,12 @@
 
 #include "OCCharacter.h"
 #include "OCGameMode.h"
-#include "OCAudioUserSettings.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
-#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
-#include "Sound/SoundBase.h"
 #include "TimerManager.h"
-
-namespace
-{
-    void PlayR13LocalHitFeedback(const UOCHealthComponent* Health, float DamageAmount)
-    {
-        if (!Health || DamageAmount <= 0.0f) return;
-        const AOCCharacter* Character = Cast<AOCCharacter>(Health->GetOwner());
-        UWorld* World = Health->GetWorld();
-        if (!Character || !Character->IsLocallyControlled() || !World || World->GetNetMode() == NM_DedicatedServer) return;
-
-        USoundBase* HitSound = LoadObject<USoundBase>(nullptr, TEXT("/Game/R13/Audio/player_hit.player_hit"));
-        if (!HitSound) return;
-        const float Bus = UOCAudioUserSettings::Get()->GetBusVolume(EOCAudioBus::Characters);
-        if (Bus <= 0.0f) return;
-        const float Severity = FMath::Clamp(DamageAmount / 55.0f, 0.45f, 1.0f);
-        UGameplayStatics::PlaySound2D(World, HitSound, FMath::Clamp(Bus * Severity, 0.0f, 1.0f));
-    }
-}
 
 UOCHealthComponent::UOCHealthComponent()
 {
@@ -132,9 +111,7 @@ void UOCHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage,
 
     const float PreviousHealth = CurrentHealth;
     CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.0f, MaxHealth);
-    const float AppliedDamage = PreviousHealth - CurrentHealth;
     OnHealthChanged.Broadcast(CurrentHealth, CurrentHealth - PreviousHealth);
-    PlayR13LocalHitFeedback(this, AppliedDamage);
 
     if (CurrentHealth <= 0.0f)
     {
@@ -190,6 +167,7 @@ bool UOCHealthComponent::ReviveServer(AController* ReviverController)
     OnRevived.Broadcast();
     ScheduleRegeneration();
 
+    // Keep the original attacker attribution only until revival. New damage starts a new combat chain.
     LastDamageInstigator.Reset();
     GetOwner()->ForceNetUpdate();
     return true;
@@ -267,10 +245,6 @@ void UOCHealthComponent::RegenerationStep()
 void UOCHealthComponent::OnRep_CurrentHealth(float PreviousHealth)
 {
     OnHealthChanged.Broadcast(CurrentHealth, CurrentHealth - PreviousHealth);
-    if (CurrentHealth < PreviousHealth)
-    {
-        PlayR13LocalHitFeedback(this, PreviousHealth - CurrentHealth);
-    }
 }
 
 void UOCHealthComponent::OnRep_LifeState(EOCLifeState PreviousState)

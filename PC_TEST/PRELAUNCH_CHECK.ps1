@@ -58,14 +58,9 @@ Pass "Visual Studio $vsVersion at $($vs.installationPath)"
 # Windows SDK: Epic's UE 5.8 toolchain table lists 10.0.22621.0 minimum.
 $sdkRoot=(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots' -ErrorAction SilentlyContinue).KitsRoot10
 if($sdkRoot){
-    $includeRoot=Join-Path $sdkRoot 'Include'
-    $sdkVers=@(
-        Get-ChildItem $includeRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-            try { [System.Version]::Parse($_.Name) } catch { }
-        }
-    ) | Sort-Object -Descending
+    $sdkVers=Get-ChildItem (Join-Path $sdkRoot 'Include') -Directory -ErrorAction SilentlyContinue | ForEach-Object { try{[version]$_.Name}catch{} } | Sort-Object -Descending
     $sdk=$sdkVers | Select-Object -First 1
-    if(!$sdk){ Warn "Could not enumerate Windows SDK versions under $includeRoot; UBT will perform authoritative SDK detection." }
+    if(!$sdk){ Warn 'Could not enumerate Windows SDK versions.' }
     elseif($sdk -lt [version]'10.0.22621.0'){ Fail "Windows SDK 10.0.22621.0+ required for UE 5.8 project gate; found $sdk" }
     else { Pass "Windows SDK $sdk" }
 }else{ Warn 'Windows Kits registry root not found; UBT will perform authoritative SDK detection.' }

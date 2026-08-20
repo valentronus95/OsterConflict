@@ -7,11 +7,11 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active branch: `r13-content-gameplay-pass`
+- Active integration branch: `main`
 - UE target: 5.8.x Windows
 - Unreal project: `OsterConflict/OsterConflict.uproject`
 - Поточний branch HEAD на момент створення ledger: `401971b0efec020d81d02b263f8c8e4097da28e9`
-- MASTER ТЗ: `OSTER_CONFLICT_MASTER_TZ.md`
+- Current location ТЗ: `STADION_OSTER_TZ.md` + `OsterConflict/Docs/Locations/SILPO_OSTER_TZ.md`
 - Точний repeat count починаємо вести системно з цього ledger. Для старих вимог, які явно повторювалися до створення файлу, використовується `≥N`, а не вигадане точне число.
 
 ## 2. Правила журналу
@@ -33,9 +33,9 @@
 | ID | Вимога | Repeat | Status | Фактичний стан / що залишилось |
 |---|---|---:|---|---|
 | LOC-MUSEUM-001 | Музей має бути окремим правильним landmark, не змішаним з Будинком культури/Сільпо | ≥2 | IN_PROGRESS | Старий змішаний вигляд playtest спростував. Будинок культури runtime біля музею вимкнений. Потрібен photo-driven refinement музею та перевірка сцени. |
-| LOC-STADIUM-001 | Якщо дивитись на вхід музею, стадіон має бути ліворуч | ≥2 | CODED_UNTESTED | Provisional anchor перенесено на ліву сторону. Точна дистанція ще не верифікована. Потрібен build/playtest. |
+| LOC-STADIUM-001 | Стадіон Остер має бути окремим hard-georeferenced site, узгодженим із музеєм і реальними картами | ≥2 | CODED_UNTESTED | Реалізацію зі `stadion-oster` контрольовано перенесено в `main` за прямою вказівкою користувача: canonical WGS84 anchor `50.949360, 30.884660`, окремий authoritative owner, modern field/sport zones, вхідна стела, дерева, стежки, будинки й локальні паркани. Legacy source visuals приховуються синхронно; delayed civic/landmark passes більше не додають окремі stadium-шари. Structural stadium/ownership verifiers проходять. Потрібні UE 5.8 build/playtest, перевірка Z/collision/flicker і візуальне підтвердження; збережений `.zip` photo-pack не проходить ZIP integrity test і має бути відновлений з 17 оригіналів. |
 | LOC-TERRAIN-001 | За музеєм має бути спуск вниз, нижче хати | ≥2 | CODED_UNTESTED | Доданий окремий collision terrain + lower residential district; terrain swap зроблено fail-safe. Потрібен build/playtest і корекція форми/висоти за фото/місцевістю. |
-| LOC-SILPO-001 | Сільпо має бути на своїй локації, окремо від музею | ≥2 | IN_PROGRESS | Підсистеми Сільпо існують окремо, але користувацький playtest не підтвердив правильну прив'язку. Потрібна повторна internet/photo verification координат, фасаду, парковки та сусідніх орієнтирів. |
+| LOC-SILPO-001 | Сільпо має бути на своїй локації, окремо від музею | ≥2 | CODED_UNTESTED | За прямою вказівкою користувача photo-driven Silpo pass контрольовано forward-port у `main` commit `ad689dff859bc65332669788cb94f727623ce7ab`, не затираючи новіші зміни `main`: canonical WGS84 `50.948833799986254, 30.87572244094098`; R14.0 shell/interior + один replicated interactive entrance; R14.1 site/detail; R14.2 interior detail; R14.3 facade identity; 20 reference photos, ТЗ, static validator і UE 5.8 validation launcher. Потрібні UE 5.8 build/PIE, перевірка collision/door/navigation/flicker та візуальна звірка з фото. |
 | LOC-WATERTOWER-001 | Водонапірна вежа біля Сільпо має бути окремим правильним landmark | 1 | TODO | Потрібно знайти/підтвердити фото та географічну прив'язку, перевірити наявні assets або створити/адаптувати модель. |
 | LOC-CULTURE-001 | Будинок культури має стояти на своїй локації, не в музеї | ≥2 | IN_PROGRESS | Неправильний runtime build на музейній ділянці вимкнений. Сам landmark ще не повернуто в підтверджене правильне місце. |
 | LOC-COLLEGE-001 | Коледж/технікум не повинен стояти у вигаданій точці | ≥2 | IN_PROGRESS | Неправильні College Facade/Access runtime layers вимкнені. Потрібна правильна прив'язка перед поверненням. |
@@ -59,6 +59,7 @@
 | TERRAIN-FAILSAFE-001 | Старий Ground вимикається тільки після успішного створення нового segmented terrain | CODED_UNTESTED | Commit `a2948d098304f79f39fad89dc6077ef8647f08f3`. |
 | GAME-WEAPON-ALL-001 | Rack розширено до 11 реалізованих pickup classes з anti-armor launcher | CODED_UNTESTED | Commit `588feaf59d3da346689f3164d953b02cf54987c7`. |
 | ASSET-STREETLIGHT-001 | Реальний `SM_StreetLight` використовується road infrastructure | CODED_UNTESTED | Commit `401971b0efec020d81d02b263f8c8e4097da28e9`. |
+| LOC-SILPO-MAIN-001 | Photo-driven Silpo Oster R14.0–R14.3 forward-port у `main` | CODED_UNTESTED | Commit `ad689dff859bc65332669788cb94f727623ce7ab`; UE 5.8 build/PIE ще не підтверджені. |
 
 ## 5. Відомі історичні проблеми процесу
 
@@ -89,7 +90,7 @@
 
 ## 6. Остання підтверджена робоча сесія
 
-### 2026-08-20 — Location structure + existing asset integration
+### 2026-08-20 — Location structure + Silpo main integration
 
 Зроблено:
 - створено collision slope/lower residential concept за музеєм;
@@ -101,27 +102,27 @@
 - weapon rack прив'язаний до actual pawn і розширений до 11 weapon classes;
 - неправильний Culture House build на музейній ділянці вимкнений;
 - неправильні college/park decorative layers вимкнені;
-- stadium provisional side correction виконана;
+- stadium hard-georeferenced pass перенесений у `main`;
+- Silpo photo-driven R14.0–R14.3 pass перенесений у `main` з 20 reference photos та validation tooling;
 - late runtime rebuild/flicker частково зменшено.
 
 Незакрито:
-1. остаточна правильна географія та photo-fidelity Музею;
-2. точна локація/вигляд Сільпо;
+1. UE 5.8 build/PIE Silpo та візуальна звірка його фасаду/інтер'єру;
+2. остаточна правильна географія та photo-fidelity Музею;
 3. точна локація/вигляд Будинку культури;
 4. водонапірна вежа біля Сільпо;
-5. точна дистанція стадіону;
-6. точна форма/висота рельєфу за музеєм;
-7. повернення коледжу/парку після верифікації;
-8. fence tiling;
-9. остаточне усунення runtime flicker;
-10. build + local playtest останньої серії C++ змін.
+5. точна форма/висота рельєфу за музеєм;
+6. повернення коледжу/парку після верифікації;
+7. fence tiling;
+8. остаточне усунення runtime flicker;
+9. build + local playtest останньої серії C++ змін.
 
 ## 7. Наступна черга робіт
 
-1. `LOC-SILPO-001` + `LOC-WATERTOWER-001`: internet/photo verification та окремий site block.
-2. `LOC-CULTURE-001`: знайти верифіковану ділянку і повернути Будинок культури окремо.
-3. `LOC-MUSEUM-001`: photo-fidelity pass без чужих landmarks.
-4. `LOC-TERRAIN-001`: topology refinement за реальними орієнтирами.
-5. `VIS-FENCES-001`: tiled fence sections.
-6. `VIS-FLICKER-001`: аудит усіх timer-based late replacements.
-7. UE build → локальний playtest → оновити всі відповідні статуси.
+1. UE 5.8 build → PIE/playtest Silpo (`LOC-SILPO-001`) → оновити статус за фактом.
+2. `LOC-WATERTOWER-001`: photo/geography verification та окремий landmark.
+3. `LOC-CULTURE-001`: знайти верифіковану ділянку і повернути Будинок культури окремо.
+4. `LOC-MUSEUM-001`: photo-fidelity pass без чужих landmarks.
+5. `LOC-TERRAIN-001`: topology refinement за реальними орієнтирами.
+6. `VIS-FENCES-001`: tiled fence sections.
+7. `VIS-FLICKER-001`: аудит усіх timer-based late replacements.

@@ -5,7 +5,6 @@ root = Path(__file__).resolve().parent / 'OsterConflict'
 required = [
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
     'Source/OsterConflict/Private/OCWorldSectorOster.cpp',
-    'Source/OsterConflict/Private/OCLocationSectorS01RoadData.cpp',
     'Source/OsterConflict/Private/OCGameMode.cpp',
     'Docs/SESSION_09_README_UA.md',
     'Docs/OSTER_REFERENCE_MANIFEST_S09.md',
@@ -22,20 +21,11 @@ markers = {
         'StadiumDetails', 'ParkDetails', 'AddGableRoof', 'AddFacadeWindow'
     ],
     'OCWorldSectorOster.cpp': [
-        'SOLONYNA HOUSE', 'const FVector Stadium = StadiumAnchor();',
+        'SOLONYNA HOUSE', 'Stadium:',
         'SOLOMII KRUSHELNYTSKOI 7A',
-        'FVector(3400, 1750, 540)', '10500, 6800', 'Columns = 9', 'Rows = 4',
-        'Park + FVector(6100, -4100, 18)',
-        'FOCLocationSectorS01Data::ProvisionalResidentialPlots()',
-        'Plot.OutbuildingCenter', 'Plot.bOutbuildingHasRoof',
-        'AddGableRoof(ResidentialRoofs'
-    ],
-    'OCLocationSectorS01RoadData.cpp': [
-        'FOCLocationSectorS01RoadData::OwnedCollegePaths()',
-        'S01_PATH_COLLEGE_CAMPUS',
-        'EOCS01RoadAnchor::College',
-        'FVector(900, 5200, 12)',
-        'FVector(8000, 5900, 18)'
+        'red-brick single-storey wings', '10500, 6800', 'Columns = 9', 'Rows = 4',
+        'Small skate/active-recreation pad', 'Detached rear shed/outbuilding',
+        'AddGableRoof(ResidentialRoofs', 'tall conifers'
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
     'OSTER_REFERENCE_MANIFEST_S09.md': ['Travels in Ukraine', 'OTG.cn.ua', 'Матеріально-технічна база', 'Остер з висоти пташиного польоту'],

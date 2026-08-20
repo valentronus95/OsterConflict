@@ -21,12 +21,12 @@ FOCGeoReferencePoint FOCGeoReference::Museum()
 
 FOCGeoReferencePoint FOCGeoReference::Stadium()
 {
-    // R13 playtest topology correction: with the player standing south of the museum and looking north at its front
-    // entrance, left is local west (-X). Keep the stadium on the museum northing and move only west far enough that
-    // its authored ~119 m pitch/stand footprint no longer overlaps the museum site. The relationship is intentional;
-    // the exact distance/centroid is still not survey-grade and therefore remains confidence C.
-    return { TEXT("StadionOster"), 50.948239, 30.882150, EOCReferenceConfidence::C,
-        TEXT("R13 playtest topology anchor: stadium is west/left of the museum facade on the same provisional northing; approximately 120 m center separation, exact centroid still requires site verification") };
+    // Canonical stadium anchor for the dedicated stadion-oster site. The old R13 west/left guess was explicitly
+    // provisional and contradicted the supplied maps. This point is tied to OSM way 416516456 and is cross-checked
+    // against the user's two landmark maps/reference-photo pack. With the project museum origin it resolves to
+    // roughly +55.8 m east / +124.8 m north, so no museum-relative hand-authored offset is required.
+    return { TEXT("StadionOster"), 50.949360, 30.884660, EOCReferenceConfidence::A,
+        TEXT("Canonical hard-georeferenced stadium center: OSM way 416516456; cross-checked against user-supplied satellite/map references stored under REFERENCE_PHOTOS/stadion_oster") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
@@ -37,32 +37,8 @@ FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
 
 FOCGeoReferencePoint FOCGeoReference::College()
 {
-    return { TEXT("OsterCollege"), 50.949214117728445, 30.87912975081365, EOCReferenceConfidence::A,
-        TEXT("Verified address coordinate: Solomii Krushelnytskoi (8 Bereznia) 7A; official college facade photos available") };
-}
-
-FOCGeoReferencePoint FOCGeoReference::Silpo()
-{
-    return { TEXT("OsterSilpo"), 50.948833799986254, 30.87572244094098, EOCReferenceConfidence::A,
-        TEXT("Verified address coordinate: Bohdana Khmelnytskoho 54; official Silpo listing and public map agree") };
-}
-
-FOCGeoReferencePoint FOCGeoReference::BusStation()
-{
-    return { TEXT("OsterBusStation"), 50.946585220941095, 30.881431234571565, EOCReferenceConfidence::A,
-        TEXT("Verified public-map bus-station coordinate; former Haharina 12; historic exterior photo exists on Wikimedia Commons") };
-}
-
-FOCGeoReferencePoint FOCGeoReference::CityCouncil()
-{
-    return { TEXT("OsterCityCouncil"), 50.95180891094453, 30.877121117838357, EOCReferenceConfidence::A,
-        TEXT("Verified address coordinate: Nezalezhnosti 21; current council/CNAP address and two Wikimedia Commons facade references agree on the landmark") };
-}
-
-FOCGeoReferencePoint FOCGeoReference::CultureHouse()
-{
-    return { TEXT("OsterCultureHouse"), 50.948694, 30.881435, EOCReferenceConfidence::B,
-        TEXT("Public travel/map coordinate paired with the Oster Soviet-era culture house; current official address is Hranovskoho 3 and modern facade photos are available") };
+    return { TEXT("OsterCollege"), 50.949182, 30.879127, EOCReferenceConfidence::A,
+        TEXT("Public coordinates; Solomii Krushelnytskoi 7A; official facade references available") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::CentralPark()
@@ -93,4 +69,10 @@ FOCGeoReferencePoint FOCGeoReference::ResurrectionChurch()
 {
     return { TEXT("ResurrectionChurch"), 50.954472, 30.873668, EOCReferenceConfidence::B,
         TEXT("Published heritage coordinate; used as north-west urban reference") };
+}
+
+FOCGeoReferencePoint FOCGeoReference::Silpo()
+{
+    return { TEXT("SilpoOster"), 50.948833799986254, 30.87572244094098, EOCReferenceConfidence::A,
+        TEXT("Official Silpo address: Bohdana Khmelnytskoho 54; public Visicom address-center coordinate; photo-supported site anchor, not cadastral survey") };
 }

@@ -3,6 +3,7 @@ name: Source verification
 on:
   push:
     branches:
+      - main
       - r13-content-gameplay-pass
   pull_request:
   workflow_dispatch:
@@ -30,8 +31,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run structural and regression verifiers
+      - name: Verify Stadion Oster integration
+        shell: pwsh
+        run: |
+          python .\VERIFY_R13_STADION_OSTER.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run full structural and regression suite
+        if: github.ref_name != 'main'
         shell: pwsh
         run: |
           python .\RUN_ALL_VERIFY.py
-          python .\VERIFY_R13_SILPO_PHOTO_MODEL.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

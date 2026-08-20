@@ -8,26 +8,14 @@ DerivedDataCache/
 Plugins/**/Binaries/
 Plugins/**/Intermediate/
 
-# Python verifier/importer bytecode caches are local generated artifacts.
-__pycache__/
-*.py[cod]
-*$py.class
-
-PC_TEST/TEST_RESULTS/
-PC_TEST/R13_IMPORT_LAST.log
-Logs/
-.source_verify_hold/
-OsterConflict/Content/Raw/R13/R13_IMPORT_STATE.txt
-
-# Full validation generates localization catalogs/resources for staging. They are build evidence,
-# not hand-authored source in the current prototype workflow.
-OsterConflict/Content/Localization/Game/
-
-# UE cook/stage file-open-order logs are regenerated on every full validation/package pass.
-OsterConflict/Build/**/FileOpenOrder/*.log
-
 *.sln
 *.suo
 *.VC.db
 *.VC.opendb
 *.zip
+
+# BTR-4 upload has no redistribution license/readme and references a GTA SA mod source.
+# Keep its source bytes and derived Unreal production asset local-development-only while this repo is public.
+OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx
+OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/
+OsterConflict/Content/Production/Vehicles/BTR4/

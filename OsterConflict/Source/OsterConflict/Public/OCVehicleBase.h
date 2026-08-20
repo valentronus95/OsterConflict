@@ -258,7 +258,7 @@ private:
     float LocalRight = 0.0f;
     bool bLocalHandbrake = false;
     bool bFreeLookHeld = false;
-    bool bFirstPersonCamera = false;
+    bool bFirstPersonCamera = true;
     float FreeLookYaw = 0.0f;
     float FreeLookPitch = 0.0f;
     float WheelSpinDegrees = 0.0f;

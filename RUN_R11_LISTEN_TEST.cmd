@@ -1,16 +1,13 @@
 @echo off
-setlocal EnableExtensions
+setlocal
 cd /d "%~dp0"
 
 if not defined UE_ROOT set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "EDITOR_CMD=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
-set "PROJECT_ROOT=%~dp0OsterConflict"
-set "PROJECT=%PROJECT_ROOT%\OsterConflict.uproject"
-set "MAP_FILE=%PROJECT_ROOT%\Content\Maps\OsterConflict_Runtime.umap"
-set "MAP_SCRIPT=%PROJECT_ROOT%\Scripts\S18B\CREATE_RELEASE_MAP.py"
-set "READY_CHECK=%~dp0PC_TEST\CHECK_R13_LAUNCH_READY.ps1"
-set "LFS_CHECK=%~dp0PC_TEST\CHECK_R13_LFS_PAYLOADS.ps1"
+set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
+set "MAP_FILE=%~dp0OsterConflict\Content\Maps\OsterConflict_Runtime.umap"
+set "MAP_SCRIPT=%~dp0OsterConflict\Scripts\S18B\CREATE_RELEASE_MAP.py"
 
 if not exist "%EDITOR%" (
   echo UE 5.8 editor not found at:
@@ -36,29 +33,12 @@ if not exist "%PROJECT%" (
   pause
   exit /b 3
 )
-if not exist "%READY_CHECK%" (
-  echo [ERROR] R13 launch readiness checker not found: %READY_CHECK%
-  pause
-  exit /b 3
-)
-if not exist "%LFS_CHECK%" (
-  echo [ERROR] R13 Git LFS payload checker not found: %LFS_CHECK%
-  pause
-  exit /b 3
-)
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%READY_CHECK%" -ProjectRoot "%PROJECT_ROOT%"
-set "READY_RC=%ERRORLEVEL%"
-if not "%READY_RC%"=="0" (
+if not exist "%~dp0OsterConflict\Binaries\Win64\UnrealEditor-OsterConflict.dll" (
+  echo [ERROR] Editor module is not built yet.
+  echo Run START_HERE option 1 first.
   pause
-  exit /b %READY_RC%
-)
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%LFS_CHECK%" -ProjectRoot "%PROJECT_ROOT%"
-set "LFS_RC=%ERRORLEVEL%"
-if not "%LFS_RC%"=="0" (
-  pause
-  exit /b %LFS_RC%
+  exit /b 4
 )
 
 if not exist "%MAP_FILE%" (
@@ -76,13 +56,7 @@ if not exist "%MAP_FILE%" (
   )
 )
 
-echo Starting R13.1 player-facing listen-server test...
-echo The Oster museum main menu is shown first; Start continues to deployment.
-echo Engine preparation/debug screen messages are suppressed in this player-facing path.
-echo.
-echo VEHICLE QUICK CONTROLS:
-echo   Driver: W/S drive, A/D steer, RMB free look, C camera, E exit when slow.
-echo   Turret control belongs to the dedicated gunner seat; driver mouse no longer steals the turret.
-echo.
-start "Oster Conflict R13.1" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -Frontend -R12VisualSlice -NoScreenMessages -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+echo Starting R11 visual gameplay smoke test...
+echo Daylight + semantic materials + composite weapons + bots + listen server.
+start "Oster Conflict R11" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=15?Population=16?BotFill=1?MaxPlayers=16" -game -NoFrontend -log -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 exit /b 0

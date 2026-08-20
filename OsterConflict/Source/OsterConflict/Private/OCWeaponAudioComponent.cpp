@@ -3,7 +3,6 @@
 #include "OCCharacter.h"
 #include "OCAudioUserSettings.h"
 #include "OCWeaponAudioProfile.h"
-#include "OCWeaponBase.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -19,25 +18,6 @@ namespace
         0,
         TEXT("Weapon audio debug labels. 0=off, 1=events."),
         ECVF_Default);
-
-    USoundBase* LoadR13Audio(const TCHAR* AssetName)
-    {
-        const FString ObjectPath = FString::Printf(TEXT("/Game/R13/Audio/%s.%s"), AssetName, AssetName);
-        return LoadObject<USoundBase>(nullptr, *ObjectPath);
-    }
-
-    USoundBase* LoadAK47Cue(const TCHAR* AssetName)
-    {
-        const FString ObjectPath = FString::Printf(
-            TEXT("/Game/AK-47/Sound/AK-47/Cues/%s.%s"), AssetName, AssetName);
-        return LoadObject<USoundBase>(nullptr, *ObjectPath);
-    }
-
-    bool IsFabAK47(const AActor* Owner)
-    {
-        const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(Owner);
-        return Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::AssaultRifle;
-    }
 }
 
 UOCWeaponAudioComponent::UOCWeaponAudioComponent()
@@ -150,30 +130,9 @@ void UOCWeaponAudioComponent::EmitDebugEvent(const FString& Label, const FVector
 void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const FVector& TraceEnd, bool bSuppressed, bool bSupersonic,
     EOCAcousticEnvironment Environment, int32 EventSeed)
 {
-    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
-        return;
-    }
-
-    if (!AudioProfile)
-    {
-        USoundBase* Shot = IsFabAK47(GetOwner())
-            ? LoadAK47Cue(TEXT("AK47_Fire_Cue"))
-            : LoadR13Audio(TEXT("gunfire_sfx"));
-
-        // Keep the old CC0 fallback if the Fab cue cannot be loaded for any reason.
-        if (!Shot) Shot = LoadR13Audio(TEXT("gunfire_sfx"));
-
-        if (Shot)
-        {
-            if (IsLocalWeaponOwner()) Play2D(Shot, bSuppressed ? 0.42f : 0.90f);
-            else PlayAt(Shot, ShotOrigin, bSuppressed ? 0.34f : 0.76f);
-            EmitDebugEvent(IsFabAK47(GetOwner()) ? TEXT("FAB AK47 SHOT") : TEXT("R13 SHOT"), ShotOrigin);
-        }
-        else
-        {
-            EmitDebugEvent(TEXT("SHOT(no profile/assets)"), ShotOrigin);
-        }
+        EmitDebugEvent(TEXT("SHOT(no profile)"), ShotOrigin);
         return;
     }
 
@@ -234,39 +193,8 @@ void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const F
 
 void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, const FVector& SourceLocation, int32 EventSeed)
 {
-    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
-        return;
-    }
-
-    if (!AudioProfile)
-    {
-        USoundBase* Sound = nullptr;
-        const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(GetOwner());
-        const bool bAK47 = Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::AssaultRifle;
-
-        if (Event == EOCWeaponAudioEvent::ReloadStart)
-        {
-            if (bAK47)
-                Sound = LoadAK47Cue(TEXT("Reload_Cue"));
-            else if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Pistol)
-                Sound = LoadR13Audio(TEXT("gunreload1"));
-            else if (Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::Shotgun)
-                Sound = LoadR13Audio(TEXT("shotguncock"));
-            else
-                Sound = LoadR13Audio(TEXT("assaultriflereload1"));
-        }
-        else if (Event == EOCWeaponAudioEvent::DryFire && bAK47)
-        {
-            Sound = LoadAK47Cue(TEXT("AK47_Empty_Cue"));
-        }
-
-        if (Sound)
-        {
-            if (IsLocalWeaponOwner() && Event != EOCWeaponAudioEvent::Drop) Play2D(Sound, 0.90f);
-            else PlayAt(Sound, SourceLocation, 0.80f);
-            EmitDebugEvent(bAK47 ? TEXT("FAB AK47 STATE") : TEXT("R13 WEAPON STATE"), SourceLocation);
-        }
         return;
     }
 
@@ -301,13 +229,8 @@ void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, c
 
 void UOCWeaponAudioComponent::HandleImpactLocal(const FVector& ImpactLocation, EOCImpactSurface Surface, int32 EventSeed)
 {
-    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
-        return;
-    }
-    if (!AudioProfile)
-    {
-        PlayAt(LoadR13Audio(TEXT("snd_bullethit")), ImpactLocation, 0.55f);
         return;
     }
     PlayAt(Pick(AudioProfile->GetImpactSet(Surface), EventSeed), ImpactLocation, 1.0f);

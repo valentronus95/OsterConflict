@@ -1,0 +1,90 @@
+name: R14 weapon profile contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/r14-weapon-profile-contracts.yml'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponAnimationProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCWeaponPresentationProfileTests.cpp'
+      - 'R14_WEAPON_ANIMATION_REQUIREMENTS.md'
+      - 'R14_MODEL_REGISTRY.md'
+  push:
+    branches:
+      - feat/r14-production-models
+    paths:
+      - '.github/workflows/r14-weapon-profile-contracts.yml'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponAnimationProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCWeaponPresentationProfileTests.cpp'
+      - 'R14_WEAPON_ANIMATION_REQUIREMENTS.md'
+      - 'R14_MODEL_REGISTRY.md'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Validate R14 weapon profile contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import sys
+
+          failures = []
+
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          animation_cpp = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp').read_text(encoding='utf-8')
+          animation_h = Path('OsterConflict/Source/OsterConflict/Public/OCWeaponAnimationProfiles.h').read_text(encoding='utf-8')
+          grip_cpp = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp').read_text(encoding='utf-8')
+          tests = Path('OsterConflict/Source/OsterConflict/Private/Tests/OCWeaponPresentationProfileTests.cpp').read_text(encoding='utf-8')
+
+          weapon_ids = (
+              'OC_AR1', 'OC_SMG1', 'OC_PST1', 'OC_SNP1', 'OC_SG1', 'OC_LMG1',
+              'R13_M14', 'R13_MAC10', 'R13_TEC9', 'R13_LEVER4570', 'OC_RPG1',
+          )
+
+          for weapon_id in weapon_ids:
+              require(weapon_id in animation_cpp, f'animation profile missing {weapon_id}')
+              require(weapon_id in grip_cpp, f'grip profile missing {weapon_id}')
+              require(weapon_id in tests, f'profile automation test missing {weapon_id}')
+
+          require('OCHasDeclaredWeaponAnimationProfile' in animation_h and
+                  'OCResolveWeaponAnimationProfile' in animation_h,
+                  'weapon animation profile public API is incomplete')
+          require('/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W' in animation_cpp,
+                  'AK-47 canonical fire animation path changed')
+          require('/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W' in animation_cpp,
+                  'AK-47 canonical reload animation path changed')
+          require('{ FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true }' in animation_cpp,
+                  'Remington 870 articulated reload requirement was lost')
+          require('{ FName(TEXT("OC_LMG1")), TEXT(""), TEXT(""), true }' in animation_cpp,
+                  'M249 articulated reload requirement was lost')
+          require('HasCompleteAuthoredCoverage' in tests,
+                  'automation no longer verifies complete authored AK animation coverage')
+          require('AKFire->GetSkeleton() == AKMesh->GetSkeleton()' in tests,
+                  'automation no longer verifies AK fire skeleton compatibility')
+          require('AKReload->GetSkeleton() == AKMesh->GetSkeleton()' in tests,
+                  'automation no longer verifies AK reload skeleton compatibility')
+
+          if failures:
+              print('R14 weapon profile contract validation FAILED:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('R14 weapon profile contract validation PASS')

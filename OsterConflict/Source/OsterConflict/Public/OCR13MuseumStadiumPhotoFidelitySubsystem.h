@@ -5,9 +5,10 @@
 #include "OCR13MuseumStadiumPhotoFidelitySubsystem.generated.h"
 
 /**
- * Final R13.6 presentation owner for the Oster museum + adjacent stadium zone.
- * It removes legacy/source presentation only inside the photographed site and rebuilds the area from the supplied
- * museum/stadium photo set while preserving the wider Oster geography and gameplay systems.
+ * Retired R13.6 compatibility shim.
+ *
+ * This subsystem intentionally owns no museum or stadium presentation. Stadion Oster is owned exclusively by
+ * UOCR13StadiumSurfaceSubsystem so no delayed legacy pass can rebuild or overlap the site after BeginPlay.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13MuseumStadiumPhotoFidelitySubsystem : public UWorldSubsystem
@@ -20,8 +21,4 @@ public:
 
 private:
     void ApplyPhotoFidelity(UWorld& World);
-    void SuppressLegacyMuseumPresentation(UWorld& World);
-    void SuppressLegacyStadiumPresentation(UWorld& World);
-    void BuildMuseum(UWorld& World);
-    void BuildStadium(UWorld& World);
 };

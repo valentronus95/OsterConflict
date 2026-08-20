@@ -4,7 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCRecoveredRoadsidePropsSubsystem.generated.h"
 
-/** Visual-only dressing for restored construction props inside the compact R13 play area. */
+/** Visual-only dressing for selected restored roadside/construction props. */
 UCLASS()
 class OSTERCONFLICT_API UOCRecoveredRoadsidePropsSubsystem : public UWorldSubsystem
 {

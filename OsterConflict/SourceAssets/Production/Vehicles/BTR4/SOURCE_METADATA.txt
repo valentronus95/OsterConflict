@@ -1,0 +1,5 @@
+Asset: BTR-4E Bucephalus (user-selected upload)
+Source package: FBX plus six PNG textures.
+Uploaded package did not contain a license/readme.
+FBX authoring strings reference a GTA San Andreas BTR-4E Bucephalus mod source path (`260142-btr-4-e-bucefal-vsu-v.1-gtasa_manual`).
+Integration status: development visual shell only until original redistribution license/source is verified.

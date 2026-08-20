@@ -5,21 +5,14 @@
 #include "OCHealthComponent.h"
 #include "OCDamageTypes.h"
 #include "OCGameMode.h"
+#include "OCHealthComponent.h"
 #include "OCPlayerState.h"
 #include "Components/SceneComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
-#include "GameFramework/PlayerController.h"
-#include "InputAction.h"
-#include "InputActionValue.h"
-#include "InputCoreTypes.h"
-#include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
@@ -62,26 +55,6 @@ AOCArmedVehicleBase::AOCArmedVehicleBase()
     }
 
     TurretDamageTypeClass = UOCBallisticDamageType::StaticClass();
-
-    // R13 solo-driver fallback. Dedicated gunner remains the preferred multiplayer seat, but one human can now
-    // test the mounted weapon without needing a second client just to hold the driver's seat.
-    DriverTurretMappingContext = CreateDefaultSubobject<UInputMappingContext>(TEXT("IMC_DriverTurretRuntime"));
-    DriverTurretAimAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_DriverTurretAim"));
-    DriverTurretFireAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_DriverTurretFire"));
-    DriverTurretReloadAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_DriverTurretReload"));
-    DriverTurretLookXAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_DriverTurretLookX"));
-    DriverTurretLookYAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_DriverTurretLookY"));
-    DriverTurretLookXAction->ValueType = EInputActionValueType::Axis1D;
-    DriverTurretLookYAction->ValueType = EInputActionValueType::Axis1D;
-
-    if (DriverTurretMappingContext)
-    {
-        DriverTurretMappingContext->MapKey(DriverTurretAimAction, EKeys::RightMouseButton);
-        DriverTurretMappingContext->MapKey(DriverTurretFireAction, EKeys::LeftMouseButton);
-        DriverTurretMappingContext->MapKey(DriverTurretReloadAction, EKeys::R);
-        DriverTurretMappingContext->MapKey(DriverTurretLookXAction, EKeys::MouseX);
-        DriverTurretMappingContext->MapKey(DriverTurretLookYAction, EKeys::MouseY);
-    }
 }
 
 void AOCArmedVehicleBase::BeginPlay()
@@ -108,126 +81,12 @@ void AOCArmedVehicleBase::Tick(float DeltaSeconds)
         ForceNetUpdate();
     }
 
-    AOCCharacter* Operator = GetActiveTurretOperator();
-    if (HasAuthority() && bGunnerFireHeld && CanGunnerOperateServer(Operator) && !bTurretReloading)
+    if (HasAuthority() && bGunnerFireHeld && CanGunnerOperateServer(GunnerCharacter) && !bTurretReloading)
     {
         if (!GetWorldTimerManager().IsTimerActive(TurretFireTimerHandle))
         {
             BeginTurretFireServer();
         }
-    }
-}
-
-void AOCArmedVehicleBase::PawnClientRestart()
-{
-    Super::PawnClientRestart();
-    ConfigureDriverTurretInput();
-}
-
-void AOCArmedVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-    Super::SetupPlayerInputComponent(PlayerInputComponent);
-    UEnhancedInputComponent* Enhanced = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-    if (!Enhanced) return;
-
-    Enhanced->BindAction(DriverTurretAimAction, ETriggerEvent::Started, this, &AOCArmedVehicleBase::DriverTurretAimPressed);
-    Enhanced->BindAction(DriverTurretAimAction, ETriggerEvent::Completed, this, &AOCArmedVehicleBase::DriverTurretAimReleased);
-    Enhanced->BindAction(DriverTurretAimAction, ETriggerEvent::Canceled, this, &AOCArmedVehicleBase::DriverTurretAimReleased);
-    Enhanced->BindAction(DriverTurretFireAction, ETriggerEvent::Started, this, &AOCArmedVehicleBase::DriverTurretFirePressed);
-    Enhanced->BindAction(DriverTurretFireAction, ETriggerEvent::Completed, this, &AOCArmedVehicleBase::DriverTurretFireReleased);
-    Enhanced->BindAction(DriverTurretFireAction, ETriggerEvent::Canceled, this, &AOCArmedVehicleBase::DriverTurretFireReleased);
-    Enhanced->BindAction(DriverTurretReloadAction, ETriggerEvent::Started, this, &AOCArmedVehicleBase::DriverTurretReloadPressed);
-    Enhanced->BindAction(DriverTurretLookXAction, ETriggerEvent::Triggered, this, &AOCArmedVehicleBase::DriverTurretLookX);
-    Enhanced->BindAction(DriverTurretLookYAction, ETriggerEvent::Triggered, this, &AOCArmedVehicleBase::DriverTurretLookY);
-}
-
-void AOCArmedVehicleBase::ConfigureDriverTurretInput()
-{
-    APlayerController* PC = Cast<APlayerController>(GetController());
-    if (!PC || !PC->IsLocalController() || !DriverTurretMappingContext) return;
-
-    if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-        ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-    {
-        Subsystem->RemoveMappingContext(DriverTurretMappingContext);
-        Subsystem->AddMappingContext(DriverTurretMappingContext, 30);
-    }
-}
-
-void AOCArmedVehicleBase::DriverTurretAimPressed()
-{
-    if (!CanDriverUseTurret()) return;
-    bDriverTurretAimHeld = true;
-    LocalDriverTurretYaw = TurretYaw;
-    LocalDriverTurretPitch = TurretPitch;
-}
-
-void AOCArmedVehicleBase::DriverTurretAimReleased()
-{
-    bDriverTurretAimHeld = false;
-}
-
-void AOCArmedVehicleBase::DriverTurretFirePressed()
-{
-    if (!CanDriverUseTurret()) return;
-    if (HasAuthority()) ServerSetDriverTurretFireHeld_Implementation(true);
-    else ServerSetDriverTurretFireHeld(true);
-}
-
-void AOCArmedVehicleBase::DriverTurretFireReleased()
-{
-    if (HasAuthority()) ServerSetDriverTurretFireHeld_Implementation(false);
-    else ServerSetDriverTurretFireHeld(false);
-}
-
-void AOCArmedVehicleBase::DriverTurretReloadPressed()
-{
-    if (!CanDriverUseTurret()) return;
-    if (HasAuthority()) ServerReloadDriverTurret_Implementation();
-    else ServerReloadDriverTurret();
-}
-
-void AOCArmedVehicleBase::DriverTurretLookX(const FInputActionValue& Value)
-{
-    if (!bDriverTurretAimHeld || !CanDriverUseTurret()) return;
-    LocalDriverTurretYaw = FMath::Clamp(LocalDriverTurretYaw + Value.Get<float>() * 1.35f, -MaxTurretYaw, MaxTurretYaw);
-    if (HasAuthority()) ServerSetDriverTurretAim_Implementation(LocalDriverTurretYaw, LocalDriverTurretPitch);
-    else ServerSetDriverTurretAim(LocalDriverTurretYaw, LocalDriverTurretPitch);
-}
-
-void AOCArmedVehicleBase::DriverTurretLookY(const FInputActionValue& Value)
-{
-    if (!bDriverTurretAimHeld || !CanDriverUseTurret()) return;
-    LocalDriverTurretPitch = FMath::Clamp(LocalDriverTurretPitch - Value.Get<float>() * 1.15f, MinTurretPitch, MaxTurretPitch);
-    if (HasAuthority()) ServerSetDriverTurretAim_Implementation(LocalDriverTurretYaw, LocalDriverTurretPitch);
-    else ServerSetDriverTurretAim(LocalDriverTurretYaw, LocalDriverTurretPitch);
-}
-
-void AOCArmedVehicleBase::ServerSetDriverTurretAim_Implementation(float RelativeYaw, float RelativePitch)
-{
-    if (AOCCharacter* Driver = GetDriverCharacter())
-    {
-        SetGunnerAimServer(Driver, RelativeYaw, RelativePitch);
-    }
-}
-
-void AOCArmedVehicleBase::ServerSetDriverTurretFireHeld_Implementation(bool bHeld)
-{
-    if (AOCCharacter* Driver = GetDriverCharacter())
-    {
-        SetGunnerFireHeldServer(Driver, bHeld);
-    }
-    else if (!bHeld)
-    {
-        StopTurretFireServer();
-    }
-}
-
-void AOCArmedVehicleBase::ServerReloadDriverTurret_Implementation()
-{
-    if (AOCCharacter* Driver = GetDriverCharacter())
-    {
-        RequestGunnerReloadServer(Driver);
     }
 }
 
@@ -274,8 +133,6 @@ bool AOCArmedVehicleBase::TryEnterVehicleServer(AOCCharacter* Character)
         return false;
     }
 
-    // Dedicated gunner takes priority over the solo-driver fallback immediately.
-    StopTurretFireServer();
     GunnerCharacter = Character;
     if (OccupantTeam == EOCTeam::None) OccupantTeam = CharacterTeam;
     Character->EnterVehicleGunnerServer(this, GetGunnerCameraWorldLocation());
@@ -287,22 +144,22 @@ bool AOCArmedVehicleBase::TryEnterVehicleServer(AOCCharacter* Character)
 
 FString AOCArmedVehicleBase::GetSeatPrompt(const AOCCharacter* Character) const
 {
-    if (IsVehicleDestroyed()) return TEXT("ТЕХНІКА ЗНИЩЕНА");
+    if (IsVehicleDestroyed()) return TEXT("VEHICLE DESTROYED");
     const EOCTeam ViewerTeam = ResolveCharacterTeam(Character);
     if (OccupantTeam != EOCTeam::None && ViewerTeam != EOCTeam::None && ViewerTeam != OccupantTeam)
     {
-        return TEXT("ВОРОЖА ТЕХНІКА ЗАЙНЯТА");
+        return TEXT("ENEMY VEHICLE OCCUPIED");
     }
-    if (!HasDriver()) return TEXT("E  СІСТИ ЗА КЕРМО");
-    if (!GunnerCharacter) return TEXT("E  СІСТИ ЗА КУЛЕМЕТ");
+    if (!HasDriver()) return TEXT("E  ENTER DRIVER");
+    if (!GunnerCharacter) return TEXT("E  ENTER GUNNER");
 
     FString DriverName = GetDriverDisplayName();
-    FString GunnerName = TEXT("СТРІЛЕЦЬ");
+    FString GunnerName = TEXT("GUNNER");
     if (const AOCPlayerState* PS = GunnerCharacter->GetPlayerState<AOCPlayerState>())
     {
         GunnerName = PS->GetPlayerName();
     }
-    return FString::Printf(TEXT("ЗАЙНЯТО  ВОДІЙ:%s  СТРІЛЕЦЬ:%s"), *DriverName, *GunnerName);
+    return FString::Printf(TEXT("FULL  D:%s  G:%s"), *DriverName, *GunnerName);
 }
 
 EOCTeam AOCArmedVehicleBase::ResolveCharacterTeam(const AOCCharacter* Character) const
@@ -312,21 +169,10 @@ EOCTeam AOCArmedVehicleBase::ResolveCharacterTeam(const AOCCharacter* Character)
     return EOCTeam::None;
 }
 
-AOCCharacter* AOCArmedVehicleBase::GetActiveTurretOperator() const
-{
-    if (GunnerCharacter) return GunnerCharacter.Get();
-    return GetDriverCharacter();
-}
-
 bool AOCArmedVehicleBase::CanGunnerOperateServer(const AOCCharacter* Requester) const
 {
-    if (!HasAuthority() || !Requester || !HasDriver() || IsVehicleDestroyed()) return false;
-
-    const bool bDedicatedGunner = Requester == GunnerCharacter;
-    const bool bSoloDriver = !GunnerCharacter && Requester == GetDriverCharacter();
-    if (!bDedicatedGunner && !bSoloDriver) return false;
-
-    return Requester->GetHealthComponent() && Requester->GetHealthComponent()->IsAlive();
+    return HasAuthority() && Requester && Requester == GunnerCharacter && HasDriver() &&
+        Requester->GetHealthComponent() && Requester->GetHealthComponent()->IsAlive() && !IsVehicleDestroyed();
 }
 
 void AOCArmedVehicleBase::SetGunnerAimServer(AOCCharacter* Requester, float RelativeYaw, float RelativePitch)
@@ -340,11 +186,7 @@ void AOCArmedVehicleBase::SetGunnerAimServer(AOCCharacter* Requester, float Rela
 
 void AOCArmedVehicleBase::SetGunnerFireHeldServer(AOCCharacter* Requester, bool bHeld)
 {
-    if (!CanGunnerOperateServer(Requester))
-    {
-        if (!bHeld) StopTurretFireServer();
-        return;
-    }
+    if (!CanGunnerOperateServer(Requester)) return;
     bGunnerFireHeld = bHeld;
     if (bHeld) BeginTurretFireServer();
     else StopTurretFireServer();
@@ -352,9 +194,7 @@ void AOCArmedVehicleBase::SetGunnerFireHeldServer(AOCCharacter* Requester, bool 
 
 void AOCArmedVehicleBase::BeginTurretFireServer()
 {
-    AOCCharacter* Operator = GetActiveTurretOperator();
-    if (!HasAuthority() || !bGunnerFireHeld || bTurretReloading || TurretAmmoInMagazine <= 0 ||
-        !CanGunnerOperateServer(Operator))
+    if (!HasAuthority() || !bGunnerFireHeld || bTurretReloading || TurretAmmoInMagazine <= 0 || !CanGunnerOperateServer(GunnerCharacter))
     {
         return;
     }
@@ -370,9 +210,7 @@ void AOCArmedVehicleBase::StopTurretFireServer()
 
 void AOCArmedVehicleBase::FireTurretShotServer()
 {
-    AOCCharacter* Operator = GetActiveTurretOperator();
-    if (!HasAuthority() || !bGunnerFireHeld || bTurretReloading || TurretAmmoInMagazine <= 0 ||
-        !CanGunnerOperateServer(Operator))
+    if (!HasAuthority() || !bGunnerFireHeld || bTurretReloading || TurretAmmoInMagazine <= 0 || !CanGunnerOperateServer(GunnerCharacter))
     {
         StopTurretFireServer();
         return;
@@ -394,10 +232,7 @@ void AOCArmedVehicleBase::FireTurretShotServer()
     if (GetWorld()->LineTraceSingleByChannel(Hit, Origin, End, ECC_Visibility, Params) && Hit.GetActor())
     {
         const AOCGameMode* GM = GetWorld()->GetAuthGameMode<AOCGameMode>();
-        AController* InstigatorController = nullptr;
-        if (Operator == GetDriverCharacter()) InstigatorController = Controller;
-        else if (Operator) InstigatorController = Operator->GetController();
-
+        AController* InstigatorController = GunnerCharacter ? GunnerCharacter->GetController() : nullptr;
         if (!GM || GM->CanDealDamage(InstigatorController, Hit.GetActor()))
         {
             TSubclassOf<UDamageType> AppliedDamageType = TurretDamageTypeClass;
@@ -516,10 +351,6 @@ FVector AOCArmedVehicleBase::GetGunnerCameraWorldLocation() const
 
 void AOCArmedVehicleBase::OnRep_Gunner()
 {
-    if (GunnerCharacter)
-    {
-        bDriverTurretAimHeld = false;
-    }
 }
 
 void AOCArmedVehicleBase::OnRep_TurretAim()
@@ -535,7 +366,6 @@ void AOCArmedVehicleBase::ApplyTurretPresentation()
 
 void AOCArmedVehicleBase::OnVehicleEnteredWreckServer()
 {
-    StopTurretFireServer();
     ForceExitGunnerServer();
 }
 
