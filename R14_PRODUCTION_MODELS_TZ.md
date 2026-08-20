@@ -31,10 +31,20 @@
 4. Не дублювати те, що вже є у проєкті.
 5. Ввести blacklist для непридатних транспортних моделей. Вантажівки не включати до активного бойового/цивільного vehicle pool R14.
 
+Поточний результат по weapons/vehicles:
+
+- canonical weapon matrix сформована для 11 реалізованих weapon IDs;
+- Kenney CC0 `rocketlauncherModern` знайдений серед уже завантажених assets та підключений до `OC_RPG1`;
+- box truck прибраний з R14;
+- HMMWV + M2, BTR-4, pickup та civilian vehicle runtime paths задокументовані;
+- окремі production/weapon CI contracts створені й працюють;
+- не завантажуємо дублікати, доки не перевірено вже наявний `Content`, `Raw`, `Fab`, `R13` та `SourceAssets`.
+
 Критерій завершення: реєстр не має невідомих активних runtime-моделей.
 
 ## 4. Етап 1 — зброя, найменший завершений production-контур
 
+Статус: IN PROGRESS
 Пріоритет №1.
 
 ### 4.1 Моделі
@@ -51,8 +61,8 @@
 - MAC-10
 - TEC-9
 - Lever Action .45-70
+- Anti-Armor Launcher (`OC_RPG1`) — Kenney CC0 `rocketlauncherModern` підключений; visual calibration pending
 - M2 Browning як vehicle/deployable weapon
-- anti-armor launcher та інші weapon-класи, що є в коді/weapon rack
 
 Для кожної зброї:
 
@@ -66,6 +76,15 @@
 - collision тільки там, де вона потрібна gameplay;
 - materials/PBR без загублених текстур;
 - тіні та owner visibility без дублювання моделі в камері.
+
+Поточний результат:
+
+- усі 11 реалізованих weapon IDs мають declared canonical production visual path у R14;
+- `OC_RPG1` більше не використовує фінальний BasicShape proxy: підключено `/Game/R13/Weapons/rocketlauncherModern`;
+- додано canonical automation для static/skeletal weapon meshes;
+- додано explicit runtime weapon validation із transient test actors та fallback detection;
+- `VALIDATE_PRODUCTION_MODELS_UE58.cmd` запускає blocking headless weapon runtime gate перед visual Sandbox;
+- compile/runtime/visual PASS не заявляється без фактичного Windows UE 5.8 запуску.
 
 ### 4.2 Руки та хват
 
@@ -83,6 +102,15 @@
 
 Якщо skeleton зброї та animation skeleton несумісні, не форсувати sequence. Виконати retarget або додати сумісний animation set.
 
+R14 architecture status:
+
+- старий один camera transform для всіх weapons більше не є прихованою константою presentation subsystem;
+- створено explicit `FOCFirstPersonWeaponProfile` для кожного weapon ID;
+- base grip, ADS, recoil і reload transforms проходять через profile;
+- усі профілі стартують із legacy baseline та `bGripCalibrated=false`;
+- runtime diagnostics явно позначає профіль `UNCALIBRATED`;
+- конкретні координати заборонено позначати calibrated без visual UE test.
+
 ### 4.3 Стрільба
 
 Для кожної зброї:
@@ -98,6 +126,8 @@
 - animation notify для shot/muzzle/ejection, де це доцільно;
 - multiplayer перевірка: authoritative shot не залежить від cosmetic animation.
 
+Поточний стан: explicit model fire sequence підтверджений для AK-47. Для інших weapon rows потрібен compatible animation/retarget pass.
+
 ### 4.4 Перезарядка
 
 Для кожної зброї:
@@ -108,6 +138,8 @@
 - bolt/charging handle/slide/lever animation;
 - timing gameplay reload узгоджений з animation notify;
 - interrupt/switch/death/vehicle transitions не залишають animation state завислим.
+
+Animation acquisition/status винесений у `R14_WEAPON_ANIMATION_REQUIREMENTS.md`. Поточний Content підтверджує explicit weapon fire/reload тільки для AK-47; для решти потрібен compatible animation/retarget pass. `SampleAnimationPack` не вважається повним fire/reload рішенням лише тому, що в назві є слово Animation.
 
 Критерій завершення етапу 1: кожна зброя з weapon rack має production mesh, коректний хват, fire/reload presentation і проходить runtime visual check.
 
@@ -175,7 +207,7 @@
 - wind response;
 - foliage collision тільки де потрібна;
 - LOD/Nanite/cull distances;
-- density budget без перевантаження RTX 3050 Laptop.
+- density budget без перевантаження цільового заліза.
 
 ### 7.2 Небо та освітлення
 
@@ -233,12 +265,15 @@
 11. Log scan: missing assets, skeleton mismatch, duplicate object/class, material errors.
 12. Performance pass: frame time, VRAM/RAM, draw calls/foliage density.
 
+Для Stage 1 `VALIDATE_PRODUCTION_MODELS_UE58.cmd` додатково виконує blocking headless runtime weapon gate перед visual Sandbox.
+
 ## 11. Definition of Done
 
 R14 готовий до merge лише коли:
 
 - усі активні weapon classes мають production visual;
 - зброя коректно тримається в руках і має fire/reload presentation;
+- усі weapon grip profiles пройшли visual calibration, без `UNCALIBRATED` статусів;
 - персонажі розведені по командних/класових visual profiles;
 - HMMWV + M2 та armed pickup перевірені;
 - випадкові вантажівки не спавняться;
