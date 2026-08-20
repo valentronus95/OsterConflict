@@ -13,7 +13,7 @@ where git >nul 2>nul || (
     exit /b 3
 )
 
-rem Source files must be real local binaries, not tiny unsmudged LFS pointer files.
+rem All three model families must exist as real local binaries for the local UE import/visual pass.
 call :require_local_binary "OsterConflict\SourceAssets\Production\Vehicles\HMMWV\ukrainian_hmmwv_mk_19.glb" 1024
 call :require_local_binary "OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb" 1024
 call :require_local_binary "OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx" 1024
@@ -24,35 +24,32 @@ call :require_local_binary "OsterConflict\SourceAssets\Production\Vehicles\BTR4\
 call :require_local_binary "OsterConflict\SourceAssets\Production\Vehicles\BTR4\Textures\interior.png" 1024
 call :require_local_binary "OsterConflict\SourceAssets\Production\Vehicles\BTR4\Textures\tire.png" 1024
 
-rem Canonical Unreal products must exist after the Editor import.
+rem Canonical Unreal products must exist locally after the Editor import.
 call :require_local_binary "OsterConflict\Content\Production\Vehicles\HMMWV\SM_HMMWV_UA.uasset" 1024
 call :require_local_binary "OsterConflict\Content\Production\Weapons\M2\SM_M2_Browning.uasset" 1024
 call :require_local_binary "OsterConflict\Content\Production\Vehicles\BTR4\SM_BTR4_Bucephalus.uasset" 1024
 
-rem Every production binary extension used by this ingest must resolve to the LFS filter.
+rem HMMWV and M2 have attribution metadata suitable for public-source development distribution.
+rem Verify their source/generated files use LFS and are represented by pointers in Git/index.
 call :require_lfs_attr "OsterConflict\SourceAssets\Production\Vehicles\HMMWV\ukrainian_hmmwv_mk_19.glb"
 call :require_lfs_attr "OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb"
-call :require_lfs_attr "OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx"
-call :require_lfs_attr "OsterConflict\SourceAssets\Production\Vehicles\BTR4\Textures\Korpus_low_albedo.png"
 call :require_lfs_attr "OsterConflict\Content\Production\Vehicles\HMMWV\SM_HMMWV_UA.uasset"
 call :require_lfs_attr "OsterConflict\Content\Production\Weapons\M2\SM_M2_Browning.uasset"
-call :require_lfs_attr "OsterConflict\Content\Production\Vehicles\BTR4\SM_BTR4_Bucephalus.uasset"
-
-rem Source binaries are committed before the Unreal import. Verify Git stores LFS pointers, not raw binaries.
 call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/HMMWV/ukrainian_hmmwv_mk_19.glb"
 call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Weapons/M2/m2_50cal_machinegun_cc0.glb"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Bahnya_low_albedo.png"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Koleso_low_albedo.png"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Korpus_low_albedo.png"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Windows_low_albedo.png"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/interior.png"
-call :require_head_lfs_pointer "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/tire.png"
-
-rem Unreal assets are staged immediately before this validator runs. Verify the index contains LFS pointers.
 call :require_index_lfs_pointer "OsterConflict/Content/Production/Vehicles/HMMWV/SM_HMMWV_UA.uasset"
 call :require_index_lfs_pointer "OsterConflict/Content/Production/Weapons/M2/SM_M2_Browning.uasset"
-call :require_index_lfs_pointer "OsterConflict/Content/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.uasset"
+
+rem BTR-4 package contains no redistribution license and references a GTA SA mod source.
+rem This repository is public, so BTR source bytes, textures and derived uasset MUST remain local-only.
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx"
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Bahnya_low_albedo.png"
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Koleso_low_albedo.png"
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Korpus_low_albedo.png"
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/Windows_low_albedo.png"
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/interior.png"
+call :require_local_only "OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/tire.png"
+call :require_local_only "OsterConflict/Content/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.uasset"
 
 if not "%FAILED%"=="0" (
     echo.
@@ -66,7 +63,8 @@ if not "%FAILED%"=="0" (
 
 echo.
 echo ============================================================
-echo PASS: production source binaries, Unreal assets and LFS pointers verified.
+echo PASS: HMMWV/M2 public LFS contract verified.
+echo PASS: BTR-4 local development assets exist and are excluded from public Git history.
 echo ============================================================
 popd
 exit /b 0
@@ -119,5 +117,22 @@ if errorlevel 1 (
     set "FAILED=1"
 ) else (
     echo PASS: staged LFS pointer: %CHECK_PATH%
+)
+goto :eof
+
+:require_local_only
+set "CHECK_PATH=%~1"
+git check-ignore -q -- "%CHECK_PATH%"
+if errorlevel 1 (
+    echo ERROR: local-only BTR path is not protected by .gitignore: %CHECK_PATH%
+    set "FAILED=1"
+    goto :eof
+)
+git ls-files --error-unmatch -- "%CHECK_PATH%" >nul 2>nul
+if not errorlevel 1 (
+    echo ERROR: local-only BTR path is tracked or staged in public Git history: %CHECK_PATH%
+    set "FAILED=1"
+) else (
+    echo PASS: local-only and ignored: %CHECK_PATH%
 )
 goto :eof
