@@ -99,6 +99,7 @@ void UOCR13VerifiedLandmarkClearanceSubsystem::ApplyClearance(UWorld& World)
         { Geo(FOCGeoReference::Silpo()), FVector2D(2200.0f, 1550.0f), true },
         { Geo(FOCGeoReference::BusStation()), FVector2D(1750.0f, 1300.0f), false },
         { Geo(FOCGeoReference::CityCouncil()), FVector2D(2300.0f, 1650.0f), true },
+        { Geo(FOCGeoReference::CultureHouse()), FVector2D(1900.0f, 1700.0f), true },
     };
 
     int32 RemovedGeneric = 0;
@@ -110,7 +111,8 @@ void UOCR13VerifiedLandmarkClearanceSubsystem::ApplyClearance(UWorld& World)
         if (!Actor ||
             Actor->ActorHasTag(TEXT("R13_SilpoPhotoModel")) ||
             Actor->ActorHasTag(TEXT("R13_BusStationPhotoModel")) ||
-            Actor->ActorHasTag(TEXT("R13_CityCouncilPhotoModel")))
+            Actor->ActorHasTag(TEXT("R13_CityCouncilPhotoModel")) ||
+            Actor->ActorHasTag(TEXT("R13_CultureHousePhotoModel")))
         {
             continue;
         }
@@ -136,6 +138,6 @@ void UOCR13VerifiedLandmarkClearanceSubsystem::ApplyClearance(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R13 verified landmark clearance: generic=%d landmark=%d instances removed from Silpo/bus-station/city-council zones; roads/sidewalks preserved and server collision kept deterministic."),
+        TEXT("R13 verified landmark clearance: generic=%d landmark=%d instances removed from Silpo/bus-station/city-council/culture-house zones; roads/sidewalks preserved and server collision kept deterministic."),
         RemovedGeneric, RemovedLandmark);
 }

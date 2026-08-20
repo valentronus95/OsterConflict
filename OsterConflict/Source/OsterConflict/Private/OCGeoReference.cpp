@@ -55,6 +55,12 @@ FOCGeoReferencePoint FOCGeoReference::CityCouncil()
         TEXT("Verified address coordinate: Nezalezhnosti 21; current council/CNAP address and two Wikimedia Commons facade references agree on the landmark") };
 }
 
+FOCGeoReferencePoint FOCGeoReference::CultureHouse()
+{
+    return { TEXT("OsterCultureHouse"), 50.948694, 30.881435, EOCReferenceConfidence::B,
+        TEXT("Public travel/map coordinate paired with the Oster Soviet-era culture house; current official address is Hranovskoho 3 and modern facade photos are available") };
+}
+
 FOCGeoReferencePoint FOCGeoReference::CentralPark()
 {
     return { TEXT("CentralCityPark"), 50.951645, 30.875861, EOCReferenceConfidence::A,
