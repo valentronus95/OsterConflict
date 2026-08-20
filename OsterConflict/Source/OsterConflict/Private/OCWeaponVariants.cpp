@@ -21,6 +21,24 @@ FOCWeaponTuning BasePreset(const TCHAR* Id, const TCHAR* Name, EOCWeaponClass We
     return T;
 }
 
+void HideStaticWeaponFallback(AOCWeaponBase* Owner)
+{
+    if (!Owner) return;
+
+    TArray<UStaticMeshComponent*> StaticMeshComponents;
+    Owner->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+    for (UStaticMeshComponent* Component : StaticMeshComponents)
+    {
+        if (Component)
+        {
+            // Keep source proxy components alive as pickup collision/fallback authority. Once a
+            // production visual loads they stop rendering, but gameplay/collision is unchanged.
+            Component->SetVisibility(false, true);
+            Component->SetHiddenInGame(true, true);
+        }
+    }
+}
+
 USkeletalMeshComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,
     const TCHAR* AssetPath, const FName ComponentBaseName, float DesiredLengthCm)
 {
@@ -34,18 +52,7 @@ USkeletalMeshComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USce
     const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
     if (NativeLength <= 1.0f) return nullptr;
 
-    TArray<UStaticMeshComponent*> StaticMeshComponents;
-    Owner->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
-    for (UStaticMeshComponent* Component : StaticMeshComponents)
-    {
-        if (Component)
-        {
-            // Keep the source proxy component alive as pickup collision/fallback, but do not render it
-            // once the imported production weapon is available.
-            Component->SetVisibility(false, true);
-            Component->SetHiddenInGame(true, true);
-        }
-    }
+    HideStaticWeaponFallback(Owner);
 
     const FName UniqueName = MakeUniqueObjectName(Owner, USkeletalMeshComponent::StaticClass(), ComponentBaseName);
     USkeletalMeshComponent* ProductionVisual = NewObject<USkeletalMeshComponent>(Owner, UniqueName);
@@ -54,6 +61,43 @@ USkeletalMeshComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USce
     const float UniformScale = DesiredLengthCm / NativeLength;
     ProductionVisual->SetupAttachment(Root);
     ProductionVisual->SetSkeletalMeshAsset(Mesh);
+    ProductionVisual->SetRelativeLocation(-Bounds.Origin * UniformScale);
+    ProductionVisual->SetRelativeRotation(FRotator::ZeroRotator);
+    ProductionVisual->SetRelativeScale3D(FVector(UniformScale));
+    ProductionVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ProductionVisual->SetGenerateOverlapEvents(false);
+    ProductionVisual->SetCanEverAffectNavigation(false);
+    ProductionVisual->SetCastShadow(true);
+    ProductionVisual->SetHiddenInGame(false, true);
+    ProductionVisual->SetVisibility(true, true);
+    ProductionVisual->ComponentTags.Add(FName(TEXT("OC_ProductionWeaponVisual")));
+    Owner->AddInstanceComponent(ProductionVisual);
+    ProductionVisual->RegisterComponent();
+    return ProductionVisual;
+}
+
+UStaticMeshComponent* ApplyStaticProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,
+    const TCHAR* AssetPath, const FName ComponentBaseName, float DesiredLengthCm)
+{
+    if (!Owner || !Root) return nullptr;
+
+    UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, AssetPath);
+    if (!Mesh) return nullptr;
+
+    const FBoxSphereBounds Bounds = Mesh->GetBounds();
+    const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+    const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+    if (NativeLength <= 1.0f) return nullptr;
+
+    HideStaticWeaponFallback(Owner);
+
+    const FName UniqueName = MakeUniqueObjectName(Owner, UStaticMeshComponent::StaticClass(), ComponentBaseName);
+    UStaticMeshComponent* ProductionVisual = NewObject<UStaticMeshComponent>(Owner, UniqueName);
+    if (!ProductionVisual) return nullptr;
+
+    const float UniformScale = DesiredLengthCm / NativeLength;
+    ProductionVisual->SetupAttachment(Root);
+    ProductionVisual->SetStaticMesh(Mesh);
     ProductionVisual->SetRelativeLocation(-Bounds.Origin * UniformScale);
     ProductionVisual->SetRelativeRotation(FRotator::ZeroRotator);
     ProductionVisual->SetRelativeScale3D(FVector(UniformScale));
@@ -169,7 +213,7 @@ void AOCWeapon_Sniper::BeginPlay()
 
 AOCWeapon_Shotgun::AOCWeapon_Shotgun()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_SG1"), TEXT("OC Shotgun"), EOCWeaponClass::Shotgun,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_SG1"), TEXT("Remington 870"), EOCWeaponClass::Shotgun,
         EOCInventorySlot::Primary, EOCAmmoType::Shell);
     T.Damage = 11.5f; T.PelletsPerShot = 8; T.RangeCm = 4200.0f; T.RoundsPerMinute = 85.0f;
     T.HipSpreadDegrees = 2.60f; T.ADSSpreadDegrees = 1.10f; T.MovingSpreadMultiplier = 1.35f;
@@ -180,9 +224,24 @@ AOCWeapon_Shotgun::AOCWeapon_Shotgun()
     ConfigureBuiltInTuning(T);
 }
 
+void AOCWeapon_Shotgun::BeginPlay()
+{
+    Super::BeginPlay();
+    if (ApplyStaticProductionWeapon(this, WeaponRoot,
+        TEXT("/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"),
+        FName(TEXT("ProductionRemington870")), 100.0f))
+    {
+        UE_LOG(LogTemp, Display, TEXT("Shotgun uses Remington 870 production mesh."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Remington 870 production mesh unavailable; keeping shotgun fallback visual."));
+    }
+}
+
 AOCWeapon_LMG::AOCWeapon_LMG()
 {
-    FOCWeaponTuning T = BasePreset(TEXT("OC_LMG1"), TEXT("OC LMG"), EOCWeaponClass::LMG,
+    FOCWeaponTuning T = BasePreset(TEXT("OC_LMG1"), TEXT("M249"), EOCWeaponClass::LMG,
         EOCInventorySlot::Primary, EOCAmmoType::Rifle);
     T.Damage = 31.0f; T.RangeCm = 15000.0f; T.RoundsPerMinute = 720.0f;
     T.HipSpreadDegrees = 1.85f; T.ADSSpreadDegrees = 0.30f; T.MovingSpreadMultiplier = 1.95f;
@@ -190,6 +249,21 @@ AOCWeapon_LMG::AOCWeapon_LMG()
     T.MagazineSize = 75; T.InitialReserveAmmo = 225; T.MaxReserveAmmo = 450; T.ReloadDuration = 4.20f;
     T.AudioLoudnessScale = 1.08f;
     ConfigureBuiltInTuning(T);
+}
+
+void AOCWeapon_LMG::BeginPlay()
+{
+    Super::BeginPlay();
+    if (ApplyStaticProductionWeapon(this, WeaponRoot,
+        TEXT("/Game/Production/Weapons/M249/SM_M249.SM_M249"),
+        FName(TEXT("ProductionM249")), 104.0f))
+    {
+        UE_LOG(LogTemp, Display, TEXT("LMG uses M249 production mesh."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("M249 production mesh unavailable; keeping LMG fallback visual."));
+    }
 }
 
 AOCWeapon_M14::AOCWeapon_M14()
