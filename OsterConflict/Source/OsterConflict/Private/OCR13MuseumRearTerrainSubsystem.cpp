@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace
 {
@@ -25,6 +26,7 @@ namespace
     constexpr float ValleyDropCm = 850.0f;
     constexpr float TerrainThicknessCm = 140.0f;
     constexpr float FinalizeDelaySeconds = 3.40f;
+    constexpr int32 ExpectedTerrainSlabCount = 7;
 
     const FName TerrainActorTag(TEXT("R13_MuseumRearTerrain"));
     const FName LowerDistrictActorTag(TEXT("R13_MuseumRearLowerDistrict"));
@@ -243,15 +245,8 @@ void UOCR13MuseumRearTerrainSubsystem::BuildTerrainSurface(UWorld& World)
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     if (!LegacyGround || !Cube || !Basic) return;
 
-    // The old 2.4 km cube floor made any local descent physically impossible. Replace its visual/collision role
-    // with segmented slabs that keep the rest of the map at the original Z=0 datum.
-    LegacyGround->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    LegacyGround->SetVisibility(false, true);
-    LegacyGround->SetHiddenInGame(true, true);
-
     AActor* TerrainActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!TerrainActor) return;
-    TerrainActor->Tags.Add(TerrainActorTag);
     TerrainActor->SetReplicates(false);
     TerrainActor->SetActorEnableCollision(true);
 
@@ -281,11 +276,10 @@ void UOCR13MuseumRearTerrainSubsystem::BuildTerrainSurface(UWorld& World)
         return;
     }
 
-    // Unaffected city surface to the west/east of the valley.
+    // Build the complete replacement first. The legacy Ground remains active until this succeeds, so a missing
+    // mesh/component can never leave the playtest world without a walkable floor.
     AddFlatSurface(Terrain, -MapHalfCm, -ValleyHalfWidthCm, -MapHalfCm, MapHalfCm, 0.0f);
     AddFlatSurface(Terrain, ValleyHalfWidthCm, MapHalfCm, -MapHalfCm, MapHalfCm, 0.0f);
-
-    // Center strip: museum plateau, descent, lower residential terrace, then gradual return to city datum.
     AddFlatSurface(Terrain, -ValleyHalfWidthCm, ValleyHalfWidthCm, -MapHalfCm, ValleyStartY, 0.0f);
     AddYSlopeSurface(Terrain, -ValleyHalfWidthCm, ValleyHalfWidthCm,
         ValleyStartY, ValleyBottomStartY, 0.0f, -ValleyDropCm);
@@ -295,8 +289,23 @@ void UOCR13MuseumRearTerrainSubsystem::BuildTerrainSurface(UWorld& World)
         ValleyBottomEndY, ValleyEndY, -ValleyDropCm, 0.0f);
     AddFlatSurface(Terrain, -ValleyHalfWidthCm, ValleyHalfWidthCm, ValleyEndY, MapHalfCm, 0.0f);
 
+    if (Terrain->GetInstanceCount() != ExpectedTerrainSlabCount)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("R13 museum rear terrain: replacement incomplete (%d/%d slabs); legacy Ground preserved."),
+            Terrain->GetInstanceCount(), ExpectedTerrainSlabCount);
+        TerrainActor->Destroy();
+        return;
+    }
+
+    // Commit the swap only after the replacement collision exists in full.
+    LegacyGround->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    LegacyGround->SetVisibility(false, true);
+    LegacyGround->SetHiddenInGame(true, true);
+    TerrainActor->Tags.Add(TerrainActorTag);
+
     UE_LOG(LogTemp, Display,
-        TEXT("R13 museum rear terrain: flat authoritative Ground disabled; collision valley authored behind museum, provisional drop=%.0f cm."),
+        TEXT("R13 museum rear terrain: replacement verified in-memory; flat authoritative Ground disabled; provisional drop=%.0f cm."),
         ValleyDropCm);
 }
 
@@ -401,7 +410,6 @@ void UOCR13MuseumRearTerrainSubsystem::FinalizeLowerResidentialDistrict(UWorld& 
         ++HouseCount;
     }
 
-    // Real village fence meshes define several small private plots without turning the lower terrace into a maze.
     struct FFenceSeed { float X; float Y; float Yaw; bool bVariant03; float Span; };
     const FFenceSeed FenceSeeds[] = {
         { -6550.0f, 18250.0f, 90.0f, false, 850.0f },
