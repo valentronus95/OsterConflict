@@ -5,10 +5,11 @@
 #include "OCR13CollegeAccessRepairSubsystem.generated.h"
 
 /**
- * Repairs the legacy college front-fence instance that crosses the authored entrance stairs.
- * Keeps the original fence material/collision but replaces the one continuous span with two side segments.
+ * Reference-only repair for the legacy college entrance fence.
+ * Runtime execution is disabled while the college site itself is being re-anchored. Repairing a fence on a known-wrong
+ * parcel is wasted work and contributes another delayed geometry mutation during the first seconds of gameplay.
  */
-UCLASS()
+UCLASS(Abstract)
 class OSTERCONFLICT_API UOCR13CollegeAccessRepairSubsystem : public UWorldSubsystem
 {
     GENERATED_BODY()
