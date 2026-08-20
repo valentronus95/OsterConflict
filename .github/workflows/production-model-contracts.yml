@@ -91,6 +91,8 @@ jobs:
                   'Python importer no longer writes the explicit success sentinel')
           require('SUCCESS_SENTINEL.write_text' in importer,
                   'Python importer no longer writes sentinel only after successful completion')
+          require('HMMWV_CANONICAL_ROTATION' in importer and 'add_scene_root_rotation' in importer,
+                  'HMMWV source is no longer canonicalized to Unreal vehicle axes before import')
 
           import_cmd = Path('OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd').read_text(encoding='utf-8')
           require('production_import_success.txt' in import_cmd,
@@ -109,6 +111,10 @@ jobs:
           require('git pull --ff-only origin "%TARGET_BRANCH%"' in ingest, 'ingest lost its fast-forward safety check')
           require('VERIFY_PRODUCTION_MODEL_INGEST.cmd' in ingest, 'post-import verification gate is not called')
           require('HEAD:%TARGET_BRANCH%' in ingest, 'ingest push is not explicitly targeted to the feature branch')
+          require('OsterConflict_vehicle_assets_ready.zip' in ingest,
+                  'ingest no longer accepts the normalized production-model archive')
+          require('$btrFbx=' in ingest and '$btrZip=' in ingest,
+                  'ingest no longer accepts both direct BTR FBX and nested BTR ZIP layouts')
 
           verifier_path = Path('OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd')
           require(verifier_path.is_file(), 'production model ingest verifier is missing')
@@ -137,6 +143,12 @@ jobs:
           require('/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus' in btr, 'BTR-4 canonical runtime path changed')
           require('EmptyOverrideMaterials()' in pickup, 'HMMWV production visual no longer clears fallback material overrides safely')
           require('EmptyOverrideMaterials()' in btr, 'BTR-4 production visual no longer clears fallback material overrides safely')
+          require('ApplyGroundedVehicleMesh' in pickup and '-86.0f' in pickup,
+                  'HMMWV production shell is no longer grounded to the wheel plane')
+          require('M2Parent = BarrelPivot' in pickup and 'MuzzlePoint->SetRelativeLocation(FVector(118.0f' in pickup,
+                  'production M2 visual and trace no longer share the pitching barrel pivot')
+          require('ApplyFittedBTRMesh' in btr and '-98.0f' in btr,
+                  'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane')
           require(runtime_validator.is_file(), 'production vehicle runtime validator cpp is missing')
           require(runtime_validator_h.is_file(), 'production vehicle runtime validator header is missing')
 
