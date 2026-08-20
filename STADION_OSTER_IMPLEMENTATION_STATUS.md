@@ -20,13 +20,23 @@ Draft PR: `#14`
 - додаткові тренувальні ворота;
 - баскетбольні стійки/щити;
 - група вуличних перекладин;
-- photo-derived вхідна синьо-жовта стела як окремий stadium prop blockout;
+- photo-derived синьо-жовта вхідна стела;
+- окремий `TextRenderComponent` із написом `СТАДІОН ОСТЕР`, прив'язаний до того самого authoritative site root;
+- actor-level collision увімкнено; visual-only grass/turf/track/path залишені `NoCollision`;
+- collision увімкнено для спортивних металевих елементів, несучої частини входу та replacement fence meshes;
 - природні сегментовані ґрунтові стежки замість прямих road-like смуг;
 - нерівномірний tree belt із наявних imported meshes;
 - прилеглі будинки та короткі секції парканів із наявних imported meshes;
 - canonical photo pack та `INDEX.md` для 17 референсів;
 - окремий structural verifier `VERIFY_R13_STADION_OSTER.py`;
 - verifier підключений до `.github/workflows/source-verify.yml`.
+
+## CI
+
+- `Source verification` уже проходив після основної stadium-реалізації та виправлення stale regression-маркерів;
+- після кожної нової правки PR запускає цей verifier повторно;
+- окремий `S01 location-first verification` має baseline-падіння в `VERIFY_R13_LOCATION_FIRST_S01_ROAD_TOPOLOGY.py` для `S01_KR_SPINE_SOUTH_SHARED`;
+- stadium branch не змінює `OCLocationSectorS01RoadData.cpp` або цей topology verifier, а серед geo anchors, що впливають на stadium diff, змінений тільки `Stadium()`. Тому S01 road geometry не виправляється всередині stadium task.
 
 ## Ще не VERIFIED
 
@@ -35,12 +45,12 @@ Draft PR: `#14`
 1. успішного UE 5.8 compile/build;
 2. локального gameplay test;
 3. перевірки фактичного Z/terrain контакту на stadium anchor;
-4. перевірки collision воріт, огорож і service geometry;
+4. runtime-перевірки collision воріт, огорож і entrance structure;
 5. перевірки, що немає z-fighting / duplicate surfaces / delayed flicker;
 6. візуального зіставлення входу, дерев, стежок, житлової межі та спортзон із canonical photo pack;
-7. остаточного пропа напису `Стадіон Остер`, який не може бути mirrored/placeholder;
+7. візуальної перевірки напису `СТАДІОН ОСТЕР`: правильний бік, кириличні glyphs, відсутність mirrored rendering;
 8. уточнення трибун, роздягалень і санвузлів лише за підтвердженим візуальним матеріалом, без вигаданих великих споруд.
 
 ## Правило merge
 
-PR #14 залишається Draft. Не зливати в базову гілку до проходження source CI та UE 5.8 локальної перевірки.
+PR #14 залишається Draft. Не зливати в базову гілку до проходження актуального source CI та UE 5.8 локальної перевірки.
