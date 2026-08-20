@@ -3,6 +3,7 @@
 #include "OCBreakableWindow.h"
 #include "OCGameMode.h"
 #include "OCInteractableDoor.h"
+#include "OCMuseumDoubleDoor.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -51,7 +52,7 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
 
     int32 ArchitectureActors = 0;
     int32 StructuralSections = 0;
-    int32 MainDoorLeaves = 0;
+    int32 MainDoorActors = 0;
     int32 ServiceDoors = 0;
     int32 BreakableWindows = 0;
     int32 InitiallyBrokenWindows = 0;
@@ -81,16 +82,15 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
             continue;
         }
 
+        if (AOCMuseumDoubleDoor* MainDoor = Cast<AOCMuseumDoubleDoor>(Actor))
+        {
+            if (MainDoor->ActorHasTag(TEXT("MuseumMainDoubleDoor"))) ++MainDoorActors;
+            continue;
+        }
+
         if (AOCInteractableDoor* Door = Cast<AOCInteractableDoor>(Actor))
         {
-            if (Door->ActorHasTag(TEXT("MuseumMainDoorLeft")) || Door->ActorHasTag(TEXT("MuseumMainDoorRight")))
-            {
-                ++MainDoorLeaves;
-            }
-            if (Door->ActorHasTag(TEXT("MuseumServiceDoor")))
-            {
-                ++ServiceDoors;
-            }
+            if (Door->ActorHasTag(TEXT("MuseumServiceDoor"))) ++ServiceDoors;
             continue;
         }
 
@@ -103,7 +103,7 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
 
     const bool bPass = ArchitectureActors == 1 &&
         StructuralSections >= 30 &&
-        MainDoorLeaves == 2 &&
+        MainDoorActors == 1 &&
         ServiceDoors == 1 &&
         BreakableWindows >= 20 &&
         InitiallyBrokenWindows == 0;
@@ -111,12 +111,12 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("R13.8 museum validation PASS: architectureActors=%d structuralSections=%d mainDoorLeaves=%d serviceDoors=%d breakableWindows=%d."),
-            ArchitectureActors, StructuralSections, MainDoorLeaves, ServiceDoors, BreakableWindows);
+            TEXT("R13.8 museum validation PASS: architectureActors=%d structuralSections=%d mainDoorActors=%d serviceDoors=%d breakableWindows=%d."),
+            ArchitectureActors, StructuralSections, MainDoorActors, ServiceDoors, BreakableWindows);
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("R13.8 museum validation FAILED: architectureActors=%d structuralSections=%d mainDoorLeaves=%d serviceDoors=%d breakableWindows=%d initiallyBrokenWindows=%d."),
-        ArchitectureActors, StructuralSections, MainDoorLeaves, ServiceDoors, BreakableWindows, InitiallyBrokenWindows);
+        TEXT("R13.8 museum validation FAILED: architectureActors=%d structuralSections=%d mainDoorActors=%d serviceDoors=%d breakableWindows=%d initiallyBrokenWindows=%d."),
+        ArchitectureActors, StructuralSections, MainDoorActors, ServiceDoors, BreakableWindows, InitiallyBrokenWindows);
 }
