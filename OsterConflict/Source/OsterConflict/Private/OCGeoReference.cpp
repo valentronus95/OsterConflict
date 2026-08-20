@@ -22,24 +22,31 @@ FOCGeoReferencePoint FOCGeoReference::Museum()
 FOCGeoReferencePoint FOCGeoReference::Stadium()
 {
     return { TEXT("StadionOster"), 50.94936, 30.88466, EOCReferenceConfidence::B,
-        TEXT("Public-map stadium coordinate; placement verified, exact site/facade detail remains incomplete") };
+        TEXT("OpenStreetMap-derived stadium coordinate; placement verified, exact site/facade detail remains incomplete") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::SolonynaEstatePark()
 {
-    // Public map listings place the named V.K. Solonyna city/estate park about 140 m east of the museum and
-    // about 130 m south-east of Stadion Oster. The exact OSM park polygon centroid is not available in our source
-    // references yet, so this is deliberately confidence-B: a topology/site anchor, not a survey point.
-    // Circle-intersection topology from those two published relationships resolves to ~138 m east / ~24 m north
-    // of the museum origin, which keeps the park distinct from the much farther CentralCityPark anchor.
     return { TEXT("SolonynaEstatePark"), 50.948455, 30.885832, EOCReferenceConfidence::B,
-        TEXT("Inferred site center from public museum/stadium adjacency: ~140 m east of museum and ~130 m SE of stadium; not an OSM polygon centroid") };
+        TEXT("Inferred site center from public museum/stadium adjacency; topology anchor, not cadastral centroid") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::College()
 {
-    return { TEXT("OsterCollege"), 50.949182, 30.879127, EOCReferenceConfidence::A,
-        TEXT("Public coordinates; Solomii Krushelnytskoi 7A; official facade references available") };
+    return { TEXT("OsterCollege"), 50.949214117728445, 30.87912975081365, EOCReferenceConfidence::A,
+        TEXT("Verified address coordinate: Solomii Krushelnytskoi (8 Bereznia) 7A; official college facade photos available") };
+}
+
+FOCGeoReferencePoint FOCGeoReference::Silpo()
+{
+    return { TEXT("OsterSilpo"), 50.948833799986254, 30.87572244094098, EOCReferenceConfidence::A,
+        TEXT("Verified address coordinate: Bohdana Khmelnytskoho 54; official Silpo listing and public map agree") };
+}
+
+FOCGeoReferencePoint FOCGeoReference::BusStation()
+{
+    return { TEXT("OsterBusStation"), 50.946585220941095, 30.881431234571565, EOCReferenceConfidence::A,
+        TEXT("Verified public-map bus-station coordinate; former Haharina 12; historic exterior photo exists on Wikimedia Commons") };
 }
 
 FOCGeoReferencePoint FOCGeoReference::CentralPark()
