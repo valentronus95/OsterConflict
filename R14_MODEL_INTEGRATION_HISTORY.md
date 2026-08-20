@@ -22,10 +22,24 @@
 - Видалено `OsterConflict/Content/VehicleVarietyPack/Meshes/SM_Truck_Box.uasset` з R14. Інші потрібні vehicle assets пакета не зачіпалися.
 - Розширено `OsterConflict.ProductionModels.CanonicalAssets`: automation тепер перевіряє не лише HMMWV/M2/BTR-4, а також armed pickup visual, Remington 870, M249, AK-47, MP5, M1911, M700, M14, MAC-10, TEC-9, Lever Action, QuantumCharacter body та first-person arms.
 - Для skeletal meshes тест додатково перевіряє usable bounds, skeleton, material slots і render LOD.
-- Це source change. UE compile/runtime ще не заявляється як PASS до фактичного запуску `VALIDATE_PRODUCTION_MODELS_UE58.cmd` на Windows з UE 5.8.
+- `INGEST_UPLOADED_MODELS_AND_IMPORT.cmd` переведено зі старої `feat/import-hmmwv-btr4-m2` на активну `feat/r14-production-models`, щоб локальний ingest не перемикав роботу назад у застарілу гілку.
+- Створено Draft PR #15 `R14 production models integration` як довготривалий review/CI контейнер. Merge заборонений до завершення R14 verification gates.
+- Перший PR contract run #44 впав, бо workflow ще очікував стару назву branch у ingest contract. Workflow виправлено, а не обійдено.
+- Production model workflow тепер підтримує R14 push/PR paths та перевіряє R14 branch lock і розширений skeletal model contract.
+- Повторний run #46 (`32397545168`) завершився SUCCESS по всіх contract steps.
+
+## 2026-08-20 — animation inventory для Stage 1
+
+- `SampleAnimationPack/Animations` містить `Rifle`, `Unarmed`, `Door` набори.
+- Перевірений `Rifle` набір має rifle idle/ADS/walk animation assets, але в поточному каталозі не знайдено named `Fire` або `Reload` assets.
+- Тому `SampleAnimationPack` не можна чесно вважати повним fire/reload рішенням для всіх weapon models.
+- AK-47 залишається єдиною зброєю з explicit model fire/reload sequences, уже підключеними в `UOCFirstPersonWeaponPresentationSubsystem`.
+- Для MP5/M1911/M700/M14/MAC-10/TEC-9/Lever Action та static Remington/M249 потрібен окремий compatible animation/retarget pass; для static meshes Remington/M249 також потрібно вирішити, чи замінювати їх на skeletal production meshes для рухомих деталей.
 
 ## Поточна точка роботи
 
 `Stage 0 — inventory/contracts`: IN PROGRESS.
 
-`Stage 1 — weapons`: STARTED. Перший крок зроблено через повне розширення canonical asset validation; далі йде animation/grip coverage по кожній зброї.
+`Stage 1 — weapons`: STARTED. Canonical mesh validation готовий; наступний підетап — weapon-by-weapon grip + compatible fire/reload animation coverage, починаючи з уже skeletal моделей.
+
+Примітка: UE 5.8 compile/runtime/visual/cook ще не позначені PASS. GitHub CI тут перевіряє contracts/source structure, а фактичний Unreal validation виконується окремо через Windows UE 5.8 pipeline.
