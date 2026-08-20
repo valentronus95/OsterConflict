@@ -47,6 +47,7 @@ required_files = [
     PRIVATE / "OCR145MuseumTreeLayoutSubsystem.cpp",
     PUBLIC / "OCR138MuseumRuntimeValidationSubsystem.h",
     PRIVATE / "OCR138MuseumRuntimeValidationSubsystem.cpp",
+    ROOT / "VALIDATE_MUSEUM_UE58.cmd",
 ]
 
 for path in required_files:
@@ -64,6 +65,7 @@ vegetation = read(PRIVATE / "OCR143MuseumSiteVegetationSubsystem.cpp")
 rear = read(PRIVATE / "OCR144MuseumRearExteriorDetailSubsystem.cpp")
 trees = read(PRIVATE / "OCR145MuseumTreeLayoutSubsystem.cpp")
 validation = read(PRIVATE / "OCR138MuseumRuntimeValidationSubsystem.cpp")
+windows_launcher = read(ROOT / "VALIDATE_MUSEUM_UE58.cmd")
 
 # Structural/gameplay contracts.
 require('TEXT("MuseumStructural")' in architecture, "segmented architecture lost MuseumStructural tags")
@@ -146,6 +148,17 @@ for token in [
     "InitiallyBrokenWindows == 0",
 ]:
     require(token in validation, f"runtime validation contract missing: {token}")
+
+# Windows validation launcher contract. It is intentionally interactive: build, launch Sandbox, then parse the log.
+require("OsterConflictEditor Win64 Development" in windows_launcher, "museum Windows launcher no longer builds the editor")
+require("/Game/Maps/OsterConflict_Runtime?Mode=Sandbox" in windows_launcher, "museum Windows launcher lost Sandbox runtime map")
+require('R14.5 museum validation PASS' in windows_launcher, "museum Windows launcher lost R14.5 PASS marker check")
+require("necho " not in windows_launcher.lower(), "museum Windows launcher contains mistyped necho command")
+object_collision_pos = windows_launcher.find("Cannot replace existing object of a different class")
+fatal_pos = windows_launcher.find('findstr /I /C:"Fatal error"')
+require(object_collision_pos >= 0, "museum Windows launcher lost UObject collision check")
+require(fatal_pos >= 0, "museum Windows launcher lost fatal-error check")
+require(object_collision_pos < fatal_pos, "specific UObject collision check must run before generic fatal-error check")
 
 # Photo-fidelity guardrails. Do not fabricate the unreadable historical wall inscription.
 require("historical inscription" not in facade.lower(), "facade code claims an unverified historical inscription")
