@@ -4,7 +4,8 @@ This repository is the canonical working project for the user.
 
 ## Repository
 - GitHub: `valentronus95/OsterConflict`
-- Active development branch: `r13-content-gameplay-pass`
+- Primary R13 integration branch: `r13-content-gameplay-pass`
+- Dedicated location branches may temporarily override the active work branch; for the current stadium task use `stadion-oster` and do not mix unrelated landmark work into it.
 - Unreal Engine target: UE 5.8.x on Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 
@@ -14,6 +15,7 @@ Before editing the project, read these files in this order:
 2. `OSTER_CONFLICT_MASTER_TZ.md` — canonical requirements and acceptance criteria.
 3. `OSTER_CONFLICT_WORK_LEDGER.md` — active issues, repeat counts, real completion state, commits and test status.
 4. `OsterConflict/Docs/PROJECT_CONTEXT.md` — concise technical context.
+5. If the current branch has a dedicated location TZ (for example `STADION_OSTER_TZ.md`), read it before touching that location.
 
 The MASTER TZ and WORK LEDGER are persistent living documents. Update them whenever the user adds/changes a requirement, repeats an unresolved requirement, a meaningful code block is committed, or build/playtest changes the status of a task.
 
@@ -30,6 +32,8 @@ The MASTER TZ and WORK LEDGER are persistent living documents. Update them whene
 10. Before creating primitive/blockout geometry, inventory the already imported assets under `OsterConflict/Content` and prefer a suitable real asset when one exists.
 11. For geography and landmark placement, user-confirmed local knowledge and verified photo/map evidence override old provisional code coordinates.
 12. Do not let independent late runtime subsystems silently overwrite an already visible landmark. One site/landmark should have a clear placement owner.
+13. Reference-photo retention is mandatory: when the user supplies images specifically to create a 3D model or location, preserve them in a named `REFERENCE_PHOTOS/<location>/` pack even if the user did not separately ask to save them. Ordinary bug/test screenshots are not automatically archived unless requested.
+14. Every preserved photo pack needs an index/manifest linking it to its TZ and explaining chronology/role. Do not discard older references after a model is built; they are regression evidence.
 
 ## Current priority
 R13 location repair, visual/gameplay stabilization, and replacement of placeholders with existing real assets. Highest-priority tracked work is maintained in `OSTER_CONFLICT_WORK_LEDGER.md`, currently centered on:
@@ -40,4 +44,6 @@ R13 location repair, visual/gameplay stabilization, and replacement of placehold
 - using existing imported houses/fences/lights/weapons/vehicles instead of visible primitive placeholders;
 - validating the complete spawn-relative weapon test rack.
 
-The detailed acceptance requirements live in `OSTER_CONFLICT_MASTER_TZ.md`.
+On `stadion-oster`, the dedicated priority is the hard-georeferenced Stadium Oster site defined by `STADION_OSTER_TZ.md` and `REFERENCE_PHOTOS/stadion_oster/`.
+
+The detailed acceptance requirements live in `OSTER_CONFLICT_MASTER_TZ.md` and the current dedicated location TZ.
