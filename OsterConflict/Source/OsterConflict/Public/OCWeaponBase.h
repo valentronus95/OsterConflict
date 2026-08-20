@@ -57,6 +57,9 @@ public:
     float GetFireInterval() const;
 
     UFUNCTION(BlueprintPure, Category="Weapon")
+    float GetReloadDuration() const { return FMath::Max(0.05f, Tuning.ReloadDuration); }
+
+    UFUNCTION(BlueprintPure, Category="Weapon")
     EOCFireMode GetCurrentFireMode() const { return CurrentFireMode; }
 
     UFUNCTION(BlueprintPure, Category="Weapon")

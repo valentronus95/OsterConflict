@@ -13,3 +13,9 @@ Plugins/**/Intermediate/
 *.VC.db
 *.VC.opendb
 *.zip
+
+# BTR-4 upload has no redistribution license/readme and references a GTA SA mod source.
+# Keep its source bytes and derived Unreal production asset local-development-only while this repo is public.
+OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx
+OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/
+OsterConflict/Content/Production/Vehicles/BTR4/

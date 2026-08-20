@@ -1,0 +1,237 @@
+name: Production model integration contracts
+
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/production-model-contracts.yml'
+      - 'OsterConflict/Docs/MODEL_INTEGRATION_STATUS.md'
+      - 'OsterConflict/SourceAssets/**'
+      - 'OsterConflict/Content/Production/**'
+      - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd'
+      - 'OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd'
+      - 'OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
+  push:
+    branches:
+      - feat/import-hmmwv-btr4-m2
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/production-model-contracts.yml'
+      - 'OsterConflict/Docs/MODEL_INTEGRATION_STATUS.md'
+      - 'OsterConflict/SourceAssets/**'
+      - 'OsterConflict/Content/Production/**'
+      - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd'
+      - 'OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd'
+      - 'OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Validate Python syntax
+        run: python -m py_compile OsterConflict/Scripts/import_production_vehicle_assets.py
+
+      - name: Validate production integration contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          import sys
+
+          failures = []
+
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+
+          attrs = Path('.gitattributes').read_text(encoding='utf-8')
+          for extension in ('*.uasset', '*.umap', '*.fbx', '*.png', '*.glb', '*.gltf', '*.bin', '*.zip'):
+              require(
+                  f'{extension} filter=lfs diff=lfs merge=lfs -text' in attrs,
+                  f'missing Git LFS rule for {extension}',
+              )
+
+          importer = Path('OsterConflict/Scripts/import_production_vehicle_assets.py').read_text(encoding='utf-8')
+          require('InterchangeCombineStaticMeshesBehavior' in importer, 'UE 5.8 combine behavior enum is not used')
+          require('combine_behavior.ALL' in importer, 'GLB import is not configured to combine all static meshes')
+          require('InterchangeForceMeshType' in importer, 'force mesh type enum is not used')
+          require('force_mesh_type.IFMT_STATIC_MESH' in importer, 'GLB import is not forced to static mesh')
+          require(
+              'set_editor_property("combine_static_meshes", True)' not in importer,
+              'deprecated UE 5.8 combine_static_meshes bool was reintroduced',
+          )
+          require('verify_import_task_updated_asset' in importer,
+                  'importer no longer rejects stale pre-existing assets after a failed task')
+          require('imported_object_paths' in importer,
+                  'importer no longer verifies the task actually created/updated the canonical object')
+          require('production_import_success.txt' in importer,
+                  'Python importer no longer writes the explicit success sentinel')
+          require('SUCCESS_SENTINEL.write_text' in importer,
+                  'Python importer no longer writes sentinel only after successful completion')
+          require('HMMWV_CANONICAL_ROTATION' in importer and 'add_scene_root_rotation' in importer,
+                  'HMMWV source is no longer canonicalized to Unreal vehicle axes before import')
+
+          import_cmd = Path('OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd').read_text(encoding='utf-8')
+          require('production_import_success.txt' in import_cmd,
+                  'Unreal import launcher no longer checks the Python success sentinel')
+          require('if not exist "%SUCCESS_SENTINEL%"' in import_cmd,
+                  'Unreal import launcher trusts process exit code without sentinel validation')
+          for canonical in (
+              '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA',
+              '/Game/Production/Weapons/M2/SM_M2_Browning',
+              '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus',
+          ):
+              require(canonical in import_cmd, f'Unreal import sentinel no longer validates {canonical}')
+
+          ingest = Path('OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd').read_text(encoding='utf-8')
+          require('set "TARGET_BRANCH=feat/import-hmmwv-btr4-m2"' in ingest, 'ingest is not locked to the feature branch')
+          require('git pull --ff-only origin "%TARGET_BRANCH%"' in ingest, 'ingest lost its fast-forward safety check')
+          require('VERIFY_PRODUCTION_MODEL_INGEST.cmd' in ingest, 'post-import verification gate is not called')
+          require('HEAD:%TARGET_BRANCH%' in ingest, 'ingest push is not explicitly targeted to the feature branch')
+          require('OsterConflict_vehicle_assets_ready.zip' in ingest,
+                  'ingest no longer accepts the normalized production-model archive')
+          require('$btrFbx=' in ingest and '$btrZip=' in ingest,
+                  'ingest no longer accepts both direct BTR FBX and nested BTR ZIP layouts')
+
+          verifier_path = Path('OsterConflict/VERIFY_PRODUCTION_MODEL_INGEST.cmd')
+          require(verifier_path.is_file(), 'production model ingest verifier is missing')
+          if verifier_path.is_file():
+              verifier = verifier_path.read_text(encoding='utf-8')
+              for name in (
+                  'ukrainian_hmmwv_mk_19.glb',
+                  'm2_50cal_machinegun_cc0.glb',
+                  'BTR4_Bucephalus.fbx',
+                  'SM_HMMWV_UA.uasset',
+                  'SM_M2_Browning.uasset',
+                  'SM_BTR4_Bucephalus.uasset',
+              ):
+                  require(name in verifier, f'verifier no longer checks {name}')
+              require('git check-attr filter' in verifier, 'verifier no longer checks LFS attributes')
+              require('git show "HEAD:%CHECK_PATH%"' in verifier, 'verifier no longer checks committed LFS pointers')
+              require('git show ":%CHECK_PATH%"' in verifier, 'verifier no longer checks staged LFS pointers')
+
+          pickup = Path('OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp').read_text(encoding='utf-8')
+          btr = Path('OsterConflict/Source/OsterConflict/Private/OCBTR.cpp').read_text(encoding='utf-8')
+          runtime_validator = Path('OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp')
+          runtime_validator_h = Path('OsterConflict/Source/OsterConflict/Public/OCProductionVehicleRuntimeValidationSubsystem.h')
+
+          require('/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA' in pickup, 'HMMWV canonical runtime path changed')
+          require('/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning' in pickup, 'M2 canonical runtime path changed')
+          require('/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus' in btr, 'BTR-4 canonical runtime path changed')
+          require('EmptyOverrideMaterials()' in pickup, 'HMMWV production visual no longer clears fallback material overrides safely')
+          require('EmptyOverrideMaterials()' in btr, 'BTR-4 production visual no longer clears fallback material overrides safely')
+          require('ApplyGroundedVehicleMesh' in pickup and '-86.0f' in pickup,
+                  'HMMWV production shell is no longer grounded to the wheel plane')
+          require('M2Parent = BarrelPivot' in pickup and 'MuzzlePoint->SetRelativeLocation(FVector(118.0f' in pickup,
+                  'production M2 visual and trace no longer share the pitching barrel pivot')
+          require('ApplyFittedBTRMesh' in btr and '-98.0f' in btr,
+                  'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane')
+          require(runtime_validator.is_file(), 'production vehicle runtime validator cpp is missing')
+          require(runtime_validator_h.is_file(), 'production vehicle runtime validator header is missing')
+
+          weapon_variants_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp')
+          weapon_variants_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCWeaponVariants.h')
+          require(weapon_variants_cpp_path.is_file(), 'weapon variants cpp is missing')
+          require(weapon_variants_h_path.is_file(), 'weapon variants header is missing')
+          if weapon_variants_cpp_path.is_file() and weapon_variants_h_path.is_file():
+              weapon_variants_cpp = weapon_variants_cpp_path.read_text(encoding='utf-8')
+              weapon_variants_h = weapon_variants_h_path.read_text(encoding='utf-8')
+              require('ApplyStaticProductionWeapon' in weapon_variants_cpp,
+                      'static production weapon visual helper is missing')
+              require('/Game/Production/Weapons/M249/SM_M249.SM_M249' in weapon_variants_cpp,
+                      'M249 canonical runtime path changed')
+              require('/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870' in weapon_variants_cpp,
+                      'Remington 870 canonical runtime path changed')
+              require('void AOCWeapon_LMG::BeginPlay()' in weapon_variants_cpp and
+                      'void AOCWeapon_Shotgun::BeginPlay()' in weapon_variants_cpp,
+                      'LMG/shotgun production BeginPlay hooks are missing')
+              require(weapon_variants_h.count('virtual void BeginPlay() override;') >= 10,
+                      'weapon variant header lost one or more production BeginPlay hooks')
+
+          fps_cpp_path = Path('OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp')
+          fps_h_path = Path('OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h')
+          require(fps_cpp_path.is_file(), 'FPS weapon presentation cpp is missing')
+          require(fps_h_path.is_file(), 'FPS weapon presentation header is missing')
+          if fps_cpp_path.is_file() and fps_h_path.is_file():
+              fps_cpp = fps_cpp_path.read_text(encoding='utf-8')
+              fps_h = fps_h_path.read_text(encoding='utf-8')
+              require('RestorePresentationState' in fps_cpp and 'RestorePresentationState' in fps_h,
+                      'FPS presentation no longer restores transient state on transitions')
+              require('EAnimationMode::AnimationBlueprint' in fps_cpp,
+                      'FPS fallback animation no longer guards authored AnimBlueprint state')
+              require('StateByCharacter.Remove(CharacterKey)' in fps_cpp,
+                      'FPS transition state is not cleared after restoration')
+              require('FMath::Max(0.05f, Weapon->GetReloadDuration())' in fps_cpp,
+                      'FPS reload presentation lost its zero-duration guard')
+
+          automation_test_path = Path('OsterConflict/Source/OsterConflict/Private/Tests/OCProductionModelTests.cpp')
+          local_validator_path = Path('OsterConflict/VALIDATE_PRODUCTION_MODELS_UE58.cmd')
+          require(automation_test_path.is_file(), 'production model UE automation test is missing')
+          require(local_validator_path.is_file(), 'one-click UE 5.8 production validator is missing')
+          if automation_test_path.is_file():
+              automation_test = automation_test_path.read_text(encoding='utf-8')
+              require('OsterConflict.ProductionModels.CanonicalAssets' in automation_test,
+                      'production model automation test name changed unexpectedly')
+              require('production_automation_success.txt' in automation_test,
+                      'production model automation test no longer writes its success sentinel')
+              require('GetStaticMaterials().Num() > 0' in automation_test,
+                      'production model automation test no longer validates material slots')
+              require('GetNumLODs() > 0' in automation_test,
+                      'production model automation test no longer validates render LODs')
+              for canonical in (
+                  '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
+                  '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
+                  '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
+              ):
+                  require(canonical in automation_test, f'automation test no longer checks {canonical}')
+          if local_validator_path.is_file():
+              local_validator = local_validator_path.read_text(encoding='utf-8')
+              require('OsterConflictEditor Win64 Development' in local_validator,
+                      'one-click validator no longer compiles the Editor target')
+              require('Automation RunTest OsterConflict.ProductionModels;Quit' in local_validator,
+                      'one-click validator no longer runs production-model automation tests')
+              require('-ReportExportPath=' in local_validator,
+                      'one-click validator no longer exports the UE automation report')
+              require('production_automation_success.txt' in local_validator,
+                      'one-click validator no longer requires the automation success sentinel')
+              require('/Game/Maps/OsterConflict_Runtime?Mode=Sandbox' in local_validator,
+                      'one-click validator no longer launches the production visual Sandbox map')
+              require('-NoFrontend' in local_validator,
+                      'one-click visual validation can regress into frontend-only mode')
+
+          if failures:
+              print('Production model contract validation FAILED:')
+              for failure in failures:
+                  print(f' - {failure}')
+              sys.exit(1)
+
+          print('Production model contract validation PASS')
