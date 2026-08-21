@@ -8,6 +8,7 @@ set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "VERIFY=%~dp0VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py"
+set "M2_IMPORT=%~dp0RUN_IMPORT_M2_PRODUCTION.cmd"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
@@ -60,7 +61,7 @@ if not defined PY_CMD (
 )
 
 if exist "%VERIFY%" (
-  echo [0/2] Verifying current R14 landmark ownership...
+  echo [0/3] Verifying current R14 landmark ownership...
   %PY_CMD% "%VERIFY%"
   if errorlevel 1 (
     echo [STOP] Current main source verification failed.
@@ -70,7 +71,7 @@ if exist "%VERIFY%" (
 )
 
 echo.
-echo [1/2] Building current OsterConflictEditor...
+echo [1/3] Building current OsterConflictEditor...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -81,7 +82,18 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/2] Launching CURRENT NORMAL GAME frontend...
+echo [2/3] Ensuring canonical M2 Browning production visual...
+if exist "%M2_IMPORT%" (
+  call "%M2_IMPORT%"
+  if errorlevel 1 (
+    echo [WARN] M2 production import did not complete. Continuing with the existing real-machinegun diagnostic fallback.
+  )
+) else (
+  echo [WARN] M2 import helper is missing. Pull current main to enable automatic M2 import.
+)
+
+echo.
+echo [3/3] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Log: %PLAYTEST_LOG%
