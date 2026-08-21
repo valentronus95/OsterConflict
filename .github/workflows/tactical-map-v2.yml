@@ -10,6 +10,7 @@ on:
       - 'VERIFY_TACTICAL_MAP_V2.py'
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
+      - 'VERIFY_S17B.py'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
