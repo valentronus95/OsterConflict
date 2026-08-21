@@ -74,6 +74,7 @@ private:
     void BuildProductionVisualLayer();
     bool ReframeProjectionForCentralOster();
     void RestyleStaticTacticalChrome();
+    void InstallTacticalIconography();
 
     void RefreshSquadMarkers();
     void RefreshObjectiveMarkers();
