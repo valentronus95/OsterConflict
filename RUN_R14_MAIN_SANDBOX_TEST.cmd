@@ -74,11 +74,12 @@ if not defined PY_CMD (
 )
 
 echo ============================================================
-echo OSTER CONFLICT - CURRENT MAIN R14.7 PLAYTEST
+echo OSTER CONFLICT - CURRENT MAIN R14.7 LOCATION TEST
 echo LATEST LOCATIONS + LATEST IMPORTED GAMEPLAY ASSETS
 echo ============================================================
 echo This launcher refuses to run if the latest R14.7 gameplay asset baseline is missing.
 echo Legacy R11/R13 mixed-location launchers are not used.
+echo LocationTest=1 is mandatory here: it isolates the current-main location test contract and test weapon rack.
 echo.
 echo [0/2] Verifying exclusive landmark ownership and map-separation guards...
 %PY_CMD% "%VERIFY%"
@@ -103,7 +104,7 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/2] Launching OsterConflict_Runtime in Sandbox mode...
+echo [2/2] Launching OsterConflict_Runtime in Sandbox LocationTest mode...
 echo Persistent log:
 echo   %PLAYTEST_LOG%
 echo.
@@ -111,6 +112,9 @@ echo R14.7 content baseline includes the latest imported AK47, 1911, M14, M700,
 echo MP5, MAC-10, TEC-9, Lever Action, generic weapon assets, combat audio and menu background.
 echo.
 echo Location check priority:
+echo   - LocationTest=1 is active on the current-main OsterConflict_Runtime map.
+echo   - The test weapon rack is created beside the actually deployed/possessed pawn.
+echo   - The LocationTest rack contains all 11 implemented pickup classes and legacy world pickups are suppressed for this test.
 echo   - Museum exists only at the museum geo site.
 echo   - Silpo exists only at Bohdana Khmelnytskoho 54.
 echo   - Culture House exists only at Hranovskoho 3.
@@ -119,13 +123,13 @@ echo   - No legacy Culture House/Civic/Silpo composite appears at the museum or 
 echo   - The old synthetic straight CentralPark-to-north-civic sidewalk/grove is absent.
 echo   - Stadium remains on its separate hard-georeferenced site.
 echo.
-set "VISUAL_MAP=/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1"
+set "VISUAL_MAP=/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1?LocationTest=1"
 "%EDITOR%" "%PROJECT%" "%VISUAL_MAP%" -game -NoFrontend -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 echo.
 echo ============================================================
-echo R14.7 MAIN PLAYTEST FINISHED - exit code %GAME_RC%
+echo R14.7 MAIN LOCATION TEST FINISHED - exit code %GAME_RC%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================
 pause
