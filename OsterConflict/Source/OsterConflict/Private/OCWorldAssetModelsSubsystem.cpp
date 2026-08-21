@@ -3,9 +3,42 @@
 #include "OCAssetModelDecorator.h"
 #include "OCWorldSectorOster.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+
+namespace
+{
+    void HideLegacyVisualProxies(AOCWorldSectorOster& Sector)
+    {
+        TArray<UActorComponent*> Components;
+        Sector.GetComponents(Components);
+
+        for (UActorComponent* Component : Components)
+        {
+            UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component);
+            if (!Primitive) continue;
+
+            const FName Name = Primitive->GetFName();
+            const bool bLegacyVisualProxy =
+                Name == TEXT("Buildings") ||
+                Name == TEXT("ResidentialRoofs") ||
+                Name == TEXT("ResidentialDetails") ||
+                Name == TEXT("GrassMown") ||
+                Name == TEXT("GrassRough") ||
+                Name == TEXT("GrassWetland");
+
+            if (!bLegacyVisualProxy) continue;
+
+            // Keep collision on the legacy building cores while the imported house meshes own
+            // presentation. Grass tiles are visual-only anyway. This removes the white/grey box
+            // houses and thin green cube patches without changing gameplay collision contracts.
+            Primitive->SetVisibility(false, true);
+            Primitive->SetHiddenInGame(true, true);
+        }
+    }
+}
 
 bool UOCWorldAssetModelsSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -69,5 +102,9 @@ void UOCWorldAssetModelsSubsystem::AttachToOsterSector(UWorld* World)
 
     Decorator->SetActorScale3D(OsterSector->GetActorScale3D());
     Decorator->PopulateForSector(OsterSector);
+    HideLegacyVisualProxies(*OsterSector);
     DecoratorActor = Decorator;
+
+    UE_LOG(LogTemp, Display,
+        TEXT("Oster imported world models own presentation; legacy Buildings/Grass cube proxies hidden while building collision remains active."));
 }

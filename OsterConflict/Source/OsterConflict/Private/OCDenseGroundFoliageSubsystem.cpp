@@ -28,7 +28,7 @@ namespace
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(false);
-        Component->SetCullDistances(900, CullEndCm);
+        Component->SetCullDistances(700, CullEndCm);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;
@@ -68,6 +68,15 @@ namespace
 
         return false;
     }
+
+    UStaticMesh* LoadFirstMesh(const TArray<const TCHAR*>& Paths)
+    {
+        for (const TCHAR* Path : Paths)
+        {
+            if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, Path)) return Mesh;
+        }
+        return nullptr;
+    }
 }
 
 bool UOCDenseGroundFoliageSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -102,30 +111,48 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
     if (bPopulated) return;
     bPopulated = true;
 
-    const TCHAR* GrassPaths[] =
+    // PN remains preferred. AdvancedVillagePack grass patches are real imported fallbacks already
+    // present in Content, so a missing PN asset no longer collapses the whole ground-cover pass.
+    const TArray<const TCHAR*> GrassCandidates[] =
     {
-        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh"),
-        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_02_mesh.grass_01_02_mesh"),
-        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_04_mesh.grass_01_04_mesh"),
-        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_07_mesh.grass_01_07_mesh")
+        {
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01")
+        },
+        {
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_02_mesh.grass_01_02_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var02.SM_GrassPatch_Var02")
+        },
+        {
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_04_mesh.grass_01_04_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03")
+        },
+        {
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_07_mesh.grass_01_07_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01")
+        }
     };
 
-    UStaticMesh* GrassMeshes[UE_ARRAY_COUNT(GrassPaths)] = {};
+    UStaticMesh* GrassMeshes[UE_ARRAY_COUNT(GrassCandidates)] = {};
     bool bAnyGrass = false;
-    for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassPaths); ++Index)
+    for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
-        GrassMeshes[Index] = LoadObject<UStaticMesh>(nullptr, GrassPaths[Index]);
+        GrassMeshes[Index] = LoadFirstMesh(GrassCandidates[Index]);
         bAnyGrass |= GrassMeshes[Index] != nullptr;
     }
 
-    UStaticMesh* GroundPlantMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_01.ground_01_01"));
-    UStaticMesh* FlowerMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_01_01.flower_01_01"));
+    UStaticMesh* GroundPlantMesh = LoadFirstMesh({
+        TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_01.ground_01_01"),
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plant.SM_Plant")
+    });
+    UStaticMesh* FlowerMesh = LoadFirstMesh({
+        TEXT("/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_01_01.flower_01_01"),
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Flower_Var01.SM_Flower_Var01")
+    });
 
     if (!bAnyGrass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Dense foliage skipped: PN grass meshes were not loadable."));
+        UE_LOG(LogTemp, Warning, TEXT("Dense foliage skipped: no real grass mesh was loadable from PN or AdvancedVillagePack."));
         return;
     }
 
@@ -141,37 +168,37 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
     Root->RegisterComponent();
     FoliageActor->SetRootComponent(Root);
 
-    UHierarchicalInstancedStaticMeshComponent* GrassComponents[UE_ARRAY_COUNT(GrassPaths)] = {};
-    for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassPaths); ++Index)
+    UHierarchicalInstancedStaticMeshComponent* GrassComponents[UE_ARRAY_COUNT(GrassCandidates)] = {};
+    for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
         GrassComponents[Index] = MakeFoliageHISM(
-            FoliageActor, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 28000);
+            FoliageActor, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 30000);
     }
     UHierarchicalInstancedStaticMeshComponent* GroundPlants = MakeFoliageHISM(
-        FoliageActor, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 25000);
+        FoliageActor, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 26000);
     UHierarchicalInstancedStaticMeshComponent* Flowers = MakeFoliageHISM(
-        FoliageActor, Root, FlowerMesh, TEXT("DenseFlowers"), 22000);
+        FoliageActor, Root, FlowerMesh, TEXT("DenseFlowers"), 23000);
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OCDenseGroundFoliage), false);
     QueryParams.AddIgnoredActor(FoliageActor);
 
-    FRandomStream Random(20260820);
+    FRandomStream Random(20260821);
     int32 GrassInstances = 0;
     int32 PlantInstances = 0;
     int32 FlowerInstances = 0;
 
-    // Cover the playable sector instead of decorating only one park. Ground traces keep foliage
-    // on actual collision surfaces, while component/tag filtering rejects roads, buildings,
-    // pavement, bridges and other hard surfaces.
+    // The previous 22 m sampling grid read as isolated tufts. 13.5 m cells plus 2-4 clumps per
+    // valid cell produce continuous-looking verge/yard/park coverage while HISM+culling keeps the
+    // draw-call model bounded. Every base cell is still ground-traced and hard surfaces are rejected.
     constexpr float SectorMin = -96000.0f;
     constexpr float SectorMax = 96000.0f;
-    constexpr float GridStep = 2200.0f;
+    constexpr float GridStep = 1350.0f;
 
     for (float X = SectorMin; X <= SectorMax; X += GridStep)
     {
         for (float Y = SectorMin; Y <= SectorMax; Y += GridStep)
         {
-            const FVector2D Jitter(Random.FRandRange(-720.0f, 720.0f), Random.FRandRange(-720.0f, 720.0f));
+            const FVector2D Jitter(Random.FRandRange(-430.0f, 430.0f), Random.FRandRange(-430.0f, 430.0f));
             const FVector TraceStart(X + Jitter.X, Y + Jitter.Y, 18000.0f);
             const FVector TraceEnd(X + Jitter.X, Y + Jitter.Y, -3000.0f);
 
@@ -180,49 +207,48 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
             if (!Hit.bBlockingHit || IsBlockedSurface(Hit)) continue;
             if (Hit.ImpactNormal.Z < 0.72f) continue;
 
-            const int32 Variant = Random.RandRange(0, UE_ARRAY_COUNT(GrassPaths) - 1);
-            UHierarchicalInstancedStaticMeshComponent* Grass = GrassComponents[Variant];
-            if (!Grass) continue;
-
             const FVector BaseLocation = Hit.ImpactPoint + Hit.ImpactNormal * 2.0f;
-            const float Yaw = Random.FRandRange(0.0f, 360.0f);
-            const float Scale = Random.FRandRange(0.72f, 1.08f);
-            Grass->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), BaseLocation, FVector(Scale)), true);
-            ++GrassInstances;
-
-            // Most valid cells receive a second clump so parks, yards and verges read as ground
-            // cover rather than isolated decorative tufts.
-            if (Random.FRand() < 0.68f)
+            const int32 ClumpCount = Random.RandRange(2, 4);
+            for (int32 ClumpIndex = 0; ClumpIndex < ClumpCount; ++ClumpIndex)
             {
-                const FVector Offset(Random.FRandRange(-620.0f, 620.0f), Random.FRandRange(-620.0f, 620.0f), 0.0f);
+                const int32 Variant = Random.RandRange(0, UE_ARRAY_COUNT(GrassCandidates) - 1);
+                UHierarchicalInstancedStaticMeshComponent* Grass = GrassComponents[Variant];
+                if (!Grass) continue;
+
+                const FVector Offset(
+                    Random.FRandRange(-460.0f, 460.0f),
+                    Random.FRandRange(-460.0f, 460.0f),
+                    Random.FRandRange(-0.8f, 1.8f));
+                const float Yaw = Random.FRandRange(0.0f, 360.0f);
+                const float Scale = Random.FRandRange(0.72f, 1.10f);
                 Grass->AddInstance(FTransform(
-                    FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
+                    FRotator(0.0f, Yaw, 0.0f),
                     BaseLocation + Offset,
-                    FVector(Random.FRandRange(0.68f, 1.02f))), true);
+                    FVector(Scale)), true);
                 ++GrassInstances;
             }
 
-            if (GroundPlants && Random.FRand() < 0.13f)
+            if (GroundPlants && Random.FRand() < 0.16f)
             {
                 GroundPlants->AddInstance(FTransform(
                     FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(Random.FRandRange(-500.0f, 500.0f), Random.FRandRange(-500.0f, 500.0f), 1.0f),
-                    FVector(Random.FRandRange(0.70f, 1.00f))), true);
+                    BaseLocation + FVector(Random.FRandRange(-420.0f, 420.0f), Random.FRandRange(-420.0f, 420.0f), 1.0f),
+                    FVector(Random.FRandRange(0.70f, 1.02f))), true);
                 ++PlantInstances;
             }
 
-            if (Flowers && Random.FRand() < 0.055f)
+            if (Flowers && Random.FRand() < 0.045f)
             {
                 Flowers->AddInstance(FTransform(
                     FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(Random.FRandRange(-420.0f, 420.0f), Random.FRandRange(-420.0f, 420.0f), 1.0f),
-                    FVector(Random.FRandRange(0.65f, 0.90f))), true);
+                    BaseLocation + FVector(Random.FRandRange(-360.0f, 360.0f), Random.FRandRange(-360.0f, 360.0f), 1.0f),
+                    FVector(Random.FRandRange(0.64f, 0.90f))), true);
                 ++FlowerInstances;
             }
         }
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Dense Oster foliage populated: %d grass, %d ground plants, %d flowers."),
+        TEXT("Dense Oster foliage populated as sole ground-cover owner: %d grass, %d ground plants, %d flowers."),
         GrassInstances, PlantInstances, FlowerInstances);
 }
