@@ -45,10 +45,40 @@ if not exist "%VERIFY%" (
 
 where git >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] Git was not found in PATH. Cannot verify the R14.7 asset baseline.
+  echo [ERROR] Git was not found in PATH. Cannot verify current main.
   pause
   exit /b 6
 )
+
+rem Sandbox is a runtime acceptance route, not permission to test stale source.
+for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
+if /I not "%CURRENT_BRANCH%"=="main" (
+  echo [STOP] Sandbox playtest must run from branch main.
+  echo Current branch: %CURRENT_BRANCH%
+  echo Switch to main, then Fetch origin and Pull origin.
+  pause
+  exit /b 7
+)
+
+echo [PRECHECK] Fetching origin/main so a stale Sandbox build cannot be tested...
+git fetch origin main
+if errorlevel 1 (
+  echo [STOP] Could not fetch origin/main. Sandbox cancelled instead of testing unknown/stale code.
+  pause
+  exit /b 8
+)
+for /f "delims=" %%H in ('git rev-parse HEAD') do set "LOCAL_HEAD=%%H"
+for /f "delims=" %%H in ('git rev-parse origin/main') do set "REMOTE_HEAD=%%H"
+if /I not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
+  echo [STOP] Local main is not current GitHub main.
+  echo Local : %LOCAL_HEAD%
+  echo GitHub: %REMOTE_HEAD%
+  echo GitHub Desktop: Pull origin. Then start the Sandbox playtest again.
+  pause
+  exit /b 9
+)
+
+echo [PRECHECK] Runtime SHA: %LOCAL_HEAD%
 
 git merge-base --is-ancestor %R147_ASSET_COMMIT% HEAD >nul 2>nul
 if errorlevel 1 (
@@ -59,7 +89,7 @@ if errorlevel 1 (
   echo Required baseline: %R147_ASSET_COMMIT%
   echo The game will NOT launch an older weapon/audio/menu asset set.
   pause
-  exit /b 7
+  exit /b 10
 )
 
 git lfs version >nul 2>nul
@@ -70,7 +100,7 @@ if errorlevel 1 (
   echo Production UE assets are stored through Git LFS.
   echo Install/repair Git LFS, run git lfs install, then launch again.
   pause
-  exit /b 8
+  exit /b 11
 )
 
 echo [ASSET] Hydrating current Git LFS objects...
@@ -78,7 +108,7 @@ git lfs pull
 if errorlevel 1 (
   echo [ERROR] git lfs pull failed. Production meshes are not trustworthy for this run.
   pause
-  exit /b 9
+  exit /b 12
 )
 
 set "LFS_ASSET_ERROR=0"
@@ -114,7 +144,7 @@ if "%LFS_ASSET_ERROR%"=="1" (
   echo PLAYTEST BLOCKED: REQUIRED PRODUCTION/R13 ASSETS ARE NOT HYDRATED.
   echo Do not interpret primitive fallback geometry as a gameplay result.
   pause
-  exit /b 10
+  exit /b 13
 )
 
 set "PY_CMD="
@@ -127,14 +157,15 @@ if not defined PY_CMD (
 if not defined PY_CMD (
   echo [ERROR] Python 3 not found in PATH.
   pause
-  exit /b 11
+  exit /b 14
 )
 
 echo ============================================================
 echo OSTER CONFLICT - CURRENT MAIN R14.7 LOCATION TEST
 echo LATEST LOCATIONS + LATEST IMPORTED GAMEPLAY ASSETS
+echo Runtime SHA: %LOCAL_HEAD%
 echo ============================================================
-echo This launcher refuses to run with unhydrated critical Git LFS content.
+echo This launcher refuses to run stale main or unhydrated critical Git LFS content.
 echo Legacy R11/R13 mixed-location launchers are not used.
 echo LocationTest=1 is mandatory here: it isolates the current-main location test contract and test weapon rack.
 echo.
@@ -152,7 +183,7 @@ if errorlevel 1 (
   echo [STOP] Current working tree is not the expected R14 location integration.
   echo Pull current origin/main before running this test.
   pause
-  exit /b 12
+  exit /b 15
 )
 
 echo.
@@ -199,10 +230,12 @@ echo MP5, MAC-10, TEC-9, Lever Action, generic real weapon meshes, QuantumCharac
 echo combat audio and menu background.
 echo.
 echo Runtime check priority:
+echo   - Confirm the printed Runtime SHA equals current GitHub main before judging visuals.
 echo   - LocationTest=1 is active on the current-main OsterConflict_Runtime map.
 echo   - The test weapon rack is created beside the actually deployed/possessed pawn.
 echo   - The LocationTest rack contains all 11 implemented pickup classes and legacy world pickups are suppressed for this test.
 echo   - M opens/closes the tactical map; DeployTrap is on V, not M.
+echo   - Tactical Map uses the dark world-synchronised vector layer; raw green scene capture is not the production map.
 echo   - Pickup/HMMWV mounted gun should resolve to /Game/Production/Weapons/M2/SM_M2_Browning; verify scale, pivot, muzzle and gunner alignment.
 echo   - BTR should resolve to /Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus; verify scale, ground contact, all 8 wheels, camera framing and no green proxy shell.
 echo   - Enter vehicle, drive, exit, then immediately verify WASD + sprint + mouse look.

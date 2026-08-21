@@ -1,10 +1,12 @@
 from pathlib import Path
 import re
+import runpy
 
 ROOT = Path(__file__).resolve().parent
 MAP_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp"
 CHARACTER_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp"
 HUD_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCHUD.cpp"
+VISUAL_VERIFY = ROOT / "VERIFY_TACTICAL_MAP_VISUAL_DESIGN.py"
 
 
 def require(condition: bool, message: str) -> None:
@@ -52,3 +54,8 @@ require(reset_move < early_return and reset_look < early_return,
         "map-owned movement/look locks must be cleared before blocking-UI early return")
 
 print("Tactical Map input safety contract: PASS")
+
+# Keep the existing protected workflow as the entry point while making the production visual
+# contract mandatory for every Tactical Map CI run.
+require(VISUAL_VERIFY.exists(), "Tactical Map production visual verifier is missing")
+runpy.run_path(str(VISUAL_VERIFY), run_name="__tactical_map_visual_contract__")

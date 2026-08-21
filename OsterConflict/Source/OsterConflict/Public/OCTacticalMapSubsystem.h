@@ -30,6 +30,7 @@ class OSTERCONFLICT_API UOCTacticalMapWidget : public UUserWidget
 
 public:
     virtual TSharedRef<SWidget> RebuildWidget() override;
+    virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
     virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
@@ -55,6 +56,7 @@ private:
     TMap<TWeakObjectPtr<AOCCapturePoint>, TWeakObjectPtr<UTextBlock>> ObjectiveMarkers;
     FOCTacticalMapProjection Projection;
     bool bConfiguredFromSubsystem = false;
+    bool bProductionVisualLayerBuilt = false;
 
     float MapZoom = 1.0f;
     FVector2D MapPan = FVector2D::ZeroVector;
@@ -68,6 +70,10 @@ private:
     FVector2D WorldToMap(const FVector& WorldLocation) const;
     void AddLandmarkMarker(const FString& Label, const FVector& WorldLocation);
     void AddGrid();
+
+    void BuildProductionVisualLayer();
+    bool ReframeProjectionForCentralOster();
+    void RestyleStaticTacticalChrome();
 
     void RefreshSquadMarkers();
     void RefreshObjectiveMarkers();

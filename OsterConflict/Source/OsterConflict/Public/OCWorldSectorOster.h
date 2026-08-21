@@ -45,6 +45,16 @@ public:
     static FVector KrushelnytskaEnterableHouseAnchor();
     static float KrushelnytskaEnterableHouseYaw();
 
+    /** Read-only semantic geometry for the world-synchronised tactical map vector layer. */
+    const UInstancedStaticMeshComponent* GetTacticalRoads() const { return Roads; }
+    const UInstancedStaticMeshComponent* GetTacticalSidewalks() const { return Sidewalks; }
+    const UInstancedStaticMeshComponent* GetTacticalBuildings() const { return Buildings; }
+    const UInstancedStaticMeshComponent* GetTacticalResidentialRoofs() const { return ResidentialRoofs; }
+    const UInstancedStaticMeshComponent* GetTacticalLandmarkBlocks() const { return LandmarkBlocks; }
+    const UInstancedStaticMeshComponent* GetTacticalLandmarkRoofs() const { return LandmarkRoofs; }
+    const UInstancedStaticMeshComponent* GetTacticalStadiumGeometry() const { return StadiumGeometry; }
+    const UInstancedStaticMeshComponent* GetTacticalParkGeometry() const { return ParkGeometry; }
+
 private:
     UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Ground;
