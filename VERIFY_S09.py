@@ -35,7 +35,7 @@ markers = {
         'S01_PATH_COLLEGE_CAMPUS',
         'EOCS01RoadAnchor::College',
         'FVector(900, 5200, 12)',
-        'FVector(8000, 5900, 18)'
+        'FVector(8000, 280, 18)'
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
     'OSTER_REFERENCE_MANIFEST_S09.md': ['Travels in Ukraine', 'OTG.cn.ua', 'Матеріально-технічна база', 'Остер з висоти пташиного польоту'],
