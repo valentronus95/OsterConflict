@@ -29,6 +29,8 @@ public:
     bool IsAvailableForTeam(EOCTeam RequestedTeam) const;
 
 protected:
+    virtual void BeginPlay() override;
+
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Spawn")
     EOCTeam TeamId = EOCTeam::None;
 
