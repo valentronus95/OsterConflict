@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR137MuseumPhotoModelSubsystem.generated.h"
 
+class UWorld;
+
 /**
  * R13.7 museum-only replacement built from the current eight-angle Oster museum photo set.
  *
@@ -19,6 +21,9 @@ class OSTERCONFLICT_API UOCR137MuseumPhotoModelSubsystem : public UWorldSubsyste
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    /** Current-main startup coordinator entry. Reuses the existing authoritative build without a late reveal. */
+    void RunAuthoritativeBuildNow(UWorld& World) { ReplaceMuseum(World); }
 
 private:
     void ReplaceMuseum(UWorld& World);
