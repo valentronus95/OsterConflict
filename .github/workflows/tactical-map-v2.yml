@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/tactical-map-v2
+      - feat/tactical-map-iconography-current
   pull_request:
     paths:
       - 'TACTICAL_MAP_TZ.md'
@@ -11,13 +12,18 @@ on:
       - 'BUILD_EDITOR_LAUNCHER_UE58.cmd'
       - 'VERIFY_TACTICAL_MAP_V2.py'
       - 'VERIFY_TACTICAL_MAP_INPUT_SAFETY.py'
+      - 'VERIFY_TACTICAL_MAP_ICONOGRAPHY.py'
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
       - 'VERIFY_S17B.py'
+      - 'OsterConflict/Config/DefaultGame.ini'
+      - 'OsterConflict/Content/UI/TacticalMap/Icons/**'
       - 'OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCHUD.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapIconography.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCLobbyTypes.h'
@@ -59,6 +65,8 @@ jobs:
           python .\VERIFY_TACTICAL_MAP_V2.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python .\VERIFY_TACTICAL_MAP_INPUT_SAFETY.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_TACTICAL_MAP_ICONOGRAPHY.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run stable structural regression baseline
