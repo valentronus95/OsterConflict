@@ -9,6 +9,7 @@ set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "VERIFY=%~dp0VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py"
 set "M2_IMPORT=%~dp0RUN_IMPORT_M2_PRODUCTION.cmd"
+set "BTR4_IMPORT=%~dp0RUN_IMPORT_BTR4_PRODUCTION.cmd"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_MAIN_LAST_PLAYTEST.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
@@ -140,11 +141,11 @@ echo.
 echo KNOWN OPEN ASSET GAPS ON CURRENT MAIN:
 echo   - Exact /Game/Production/Weapons/M249 asset is absent; a real R13 machinegun mesh is diagnostic fallback only.
 echo   - Exact /Game/Production/Weapons/Remington870 asset is absent; a real R13 shotgun mesh is diagnostic fallback only.
-echo   - Exact /Game/Production/Vehicles/BTR4 asset is absent; BTR production verification remains OPEN.
-echo   - M2 now has an automatic canonical import path; downloaded local GLB wins, authored game-visual GLB is the fallback.
-echo None of those fallbacks may be marked VERIFIED without the intended production asset + UE runtime proof.
+echo   - M2 has an automatic canonical import path; downloaded local GLB wins, authored game-visual GLB is the fallback.
+echo   - BTR-4 has an automatic canonical import path; local user FBX wins when present, authored external-only 8x8 GLB is the fallback.
+echo None of those fallbacks may be marked VERIFIED without UE runtime proof.
 echo.
-echo [0/3] Verifying exclusive landmark ownership and map-separation guards...
+echo [0/4] Verifying exclusive landmark ownership and map-separation guards...
 %PY_CMD% "%VERIFY%"
 if errorlevel 1 (
   echo.
@@ -155,7 +156,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [1/3] Building OsterConflictEditor Win64 Development...
+echo [1/4] Building OsterConflictEditor Win64 Development...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -167,7 +168,7 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/3] Ensuring canonical M2 Browning production visual...
+echo [2/4] Ensuring canonical M2 Browning production visual...
 if exist "%M2_IMPORT%" (
   call "%M2_IMPORT%"
   if errorlevel 1 (
@@ -178,7 +179,18 @@ if exist "%M2_IMPORT%" (
 )
 
 echo.
-echo [3/3] Launching OsterConflict_Runtime in Sandbox LocationTest mode...
+echo [3/4] Ensuring canonical BTR-4 production visual...
+if exist "%BTR4_IMPORT%" (
+  call "%BTR4_IMPORT%"
+  if errorlevel 1 (
+    echo [WARN] BTR-4 production import did not complete. Sandbox may retain the legacy proxy shell.
+  )
+) else (
+  echo [WARN] BTR-4 import helper is missing. Pull current main to enable automatic BTR-4 import.
+)
+
+echo.
+echo [4/4] Launching OsterConflict_Runtime in Sandbox LocationTest mode...
 echo Persistent log:
 echo   %PLAYTEST_LOG%
 echo.
@@ -192,6 +204,7 @@ echo   - The test weapon rack is created beside the actually deployed/possessed 
 echo   - The LocationTest rack contains all 11 implemented pickup classes and legacy world pickups are suppressed for this test.
 echo   - M opens/closes the tactical map; DeployTrap is on V, not M.
 echo   - Pickup/HMMWV mounted gun should resolve to /Game/Production/Weapons/M2/SM_M2_Browning; verify scale, pivot, muzzle and gunner alignment.
+echo   - BTR should resolve to /Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus; verify scale, ground contact, all 8 wheels, camera framing and no green proxy shell.
 echo   - Enter vehicle, drive, exit, then immediately verify WASD + sprint + mouse look.
 echo   - No primitive weapon fallback is visible for M249/M1911/MAC-10/Remington 870.
 echo   - Museum exists only at the museum geo site.
