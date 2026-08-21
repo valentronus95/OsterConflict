@@ -44,16 +44,23 @@ require("FOCGeoReference::Silpo" in cpp, "Silpo source anchor is missing")
 require("ComponentName == TEXT(\"Ground\")" in cpp, "content bounds must not be forced by the 2.4 km ground proxy")
 require("FitProjectionBoundsToAspect" in cpp, "map capture/projection aspect fit is missing")
 
-# Actual-game map background contract: one orthographic snapshot from the current world sector, never AI geography.
+# Actual-game background contract: sector determines extent, but the texture captures the current gameplay scene.
 require("ASceneCapture2D" in header and "ASceneCapture2D" in cpp, "orthographic world capture actor is missing")
 require("UTextureRenderTarget2D" in header and "UTextureRenderTarget2D" in cpp, "map render target is missing")
 require("ECameraProjectionMode::Orthographic" in cpp, "world capture must remain orthographic")
-require("ShowOnlyActorComponents(Sector, true)" in cpp, "world capture no longer targets actual Oster sector components")
+require("PRM_RenderScenePrimitives" in cpp, "map background must render the complete current gameplay scene")
+require("ClearHiddenComponents" in cpp, "capture hidden-list reset is missing")
+require("HideActorComponents(Pawn, true)" in cpp, "dynamic pawns must not be baked into the background")
+require("ShowOnlyActorComponents(Sector, true)" not in cpp,
+        "regression: capture is restricted to AOCWorldSectorOster and would omit separately-owned landmarks")
+require("captured current gameplay world" in cpp, "full-scene capture contract log is missing")
 require("CaptureComponent->bCaptureEveryFrame = false" in cpp, "map background must not capture every frame")
 require("CaptureComponent->bCaptureOnMovement = false" in cpp, "map background must not recapture on camera movement")
-require("CaptureComponent->CaptureScene()" in cpp, "explicit one-shot world capture is missing")
+require("CaptureComponent->CaptureScene()" in cpp, "explicit world capture is missing")
 require("TacticalMapWorldCapture" in cpp, "captured world texture is not presented in the map widget")
 require("ConfigureWorldMap" in header and "ConfigureWorldMap" in cpp, "subsystem/widget world-map configuration contract is missing")
+require("MapWidget = CreateWidget<UOCTacticalMapWidget>" in cpp,
+        "map widget must rebuild on open so it receives the current world capture")
 require("МАСШТАБ · ПЕРЕМІЩЕННЯ · МАРКЕРИ — НАСТУПНИЙ ЕТАП" in cpp,
         "unfinished controls must not be presented as already working")
 
