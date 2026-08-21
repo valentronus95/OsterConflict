@@ -53,6 +53,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& World)
 {
     FTimerManager& Timers = World.GetTimerManager();
+    const bool bHasGameplayAuthority = World.GetNetMode() != NM_Client;
 
     // Museum. Cancel each historical delayed reveal BEFORE invoking the same existing build method,
     // so timers created intentionally by the immediate build itself are not accidentally erased.
@@ -66,21 +67,32 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         Timers.ClearAllTimersForObject(Stage);
         Stage->RunAuthoritativeUpgradeNow(World);
     }
-    if (UOCR139MuseumMainDoorReplacementSubsystem* Stage = World.GetSubsystem<UOCR139MuseumMainDoorReplacementSubsystem>())
+
+    // These two stages replace replicated gameplay actors and historically never executed on NM_Client.
+    if (bHasGameplayAuthority)
     {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
+        if (UOCR139MuseumMainDoorReplacementSubsystem* Stage = World.GetSubsystem<UOCR139MuseumMainDoorReplacementSubsystem>())
+        {
+            Timers.ClearAllTimersForObject(Stage);
+            Stage->RunAuthoritativeDetailNow(World);
+        }
     }
+
     if (UOCR140MuseumFacadeDetailSubsystem* Stage = World.GetSubsystem<UOCR140MuseumFacadeDetailSubsystem>())
     {
         Timers.ClearAllTimersForObject(Stage);
         Stage->RunAuthoritativeDetailNow(World);
     }
-    if (UOCR141MuseumWindowReplacementSubsystem* Stage = World.GetSubsystem<UOCR141MuseumWindowReplacementSubsystem>())
+
+    if (bHasGameplayAuthority)
     {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
+        if (UOCR141MuseumWindowReplacementSubsystem* Stage = World.GetSubsystem<UOCR141MuseumWindowReplacementSubsystem>())
+        {
+            Timers.ClearAllTimersForObject(Stage);
+            Stage->RunAuthoritativeDetailNow(World);
+        }
     }
+
     if (UOCR142MuseumEntranceDetailSubsystem* Stage = World.GetSubsystem<UOCR142MuseumEntranceDetailSubsystem>())
     {
         Timers.ClearAllTimersForObject(Stage);
@@ -132,5 +144,5 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled."));
+        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; authority-only door/window replacements preserved."));
 }
