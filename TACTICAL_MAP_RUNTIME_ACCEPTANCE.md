@@ -4,6 +4,18 @@ Status before runtime test: `CODED_UNTESTED`
 
 This checklist is the acceptance gate for `UI-TACTICAL-MAP-001`. Source/CI success is not runtime proof. A failed item keeps the feature out of `VERIFIED RUNTIME` and out of `main`.
 
+## 0. UE 5.8 build gate
+
+Before gameplay acceptance, test the exact feature-branch SHA that will be evaluated.
+
+- [ ] In GitHub Desktop switch to `feat/tactical-map-v2`, Fetch/Pull, and confirm there are no uncommitted local changes that would make the tested source differ from GitHub.
+- [ ] Record the exact branch HEAD SHA before building.
+- [ ] Run `BUILD_EDITOR_LAUNCHER_UE58.cmd /nopause` for the normal incremental `OsterConflictEditor Win64 Development` build.
+- [ ] The build helper must return exit code `0` and print `BUILD SUCCESSFUL`.
+- [ ] If the incremental build reports stale/generated-state problems, repeat once with `BUILD_EDITOR_LAUNCHER_UE58.cmd /clean /nopause`; do not make clean deletion the default for every test.
+- [ ] If UE 5.8 is installed somewhere other than `C:\Program Files\Epic Games\UE_5.8`, set `UE_ROOT` to the actual UE 5.8 directory before running the helper.
+- [ ] Any UnrealBuildTool/UHT compile error keeps status at `IN_PROGRESS`; source-contract CI does not override a real compiler failure.
+
 ## A. Launch and input ownership
 
 - [ ] Launch through the normal `START_HERE.cmd` path and reach actual gameplay.
@@ -11,6 +23,8 @@ This checklist is the acceptance gate for `UI-TACTICAL-MAP-001`. Source/CI succe
 - [ ] Press `M` again: Tactical Map closes exactly once.
 - [ ] While the map is open, player movement/look input is blocked and mouse cursor is available.
 - [ ] After closing the map, WASD, mouse look and normal gameplay input are restored immediately.
+- [ ] While the map is open, open a blocking UI path such as chat/settings/deployment; Tactical Map must close without leaving its movement/look ignore lock behind.
+- [ ] After that blocking UI is closed, WASD and mouse look work normally without respawn/reconnect.
 - [ ] `V` remains the DeployTrap key and `M` does not deploy a trap.
 - [ ] Map does not open over frontend menu, deployment panel, admin panel, settings or active chat input.
 
@@ -34,6 +48,7 @@ This checklist is the acceptance gate for `UI-TACTICAL-MAP-001`. Source/CI succe
 - [ ] Mouse wheel zooms around the cursor location, not only around screen center.
 - [ ] Zoom cannot go below the full-map view or beyond the intended maximum.
 - [ ] LMB drag pans the map.
+- [ ] LMB drag continues smoothly if the cursor crosses the visible map edge and stops cleanly on button release.
 - [ ] Pan is clamped: no empty background can be dragged into view beyond the map edges.
 - [ ] Zoom/pan do not desynchronize POI, objective, player, squad or ping overlays from the captured world image.
 
