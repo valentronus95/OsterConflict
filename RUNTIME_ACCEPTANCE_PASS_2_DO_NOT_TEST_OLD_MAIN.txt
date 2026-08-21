@@ -1,1 +1,0 @@
-Do not perform runtime acceptance from a local commit older than the final merge of this branch.
