@@ -117,6 +117,8 @@ namespace
             if (!IsValid(Component)) continue;
             const FString ComponentName = Component->GetName();
             if (ComponentName == TEXT("Ground") ||
+                ComponentName == TEXT("Waterways") ||
+                ComponentName == TEXT("Bridges") ||
                 ComponentName == TEXT("ReferenceMarkers") ||
                 ComponentName.Contains(TEXT("Label")))
             {
@@ -211,15 +213,15 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     AddCanvasText(WidgetTree, Root, TEXT("LegendTitle"), TEXT("ЛЕГЕНДА"),
         FVector2D(42.0f, 118.0f), FVector2D(210.0f, 32.0f), 17, ColorPrimaryText, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendPlayer"), TEXT("▲   ГРАВЕЦЬ"),
-        FVector2D(44.0f, 174.0f), FVector2D(210.0f, 28.0f), 16, ColorPlayer, 4);
+        FVector2D(44.0f, 174.0f), FVector2D(210.0f, 28.0f), 13, ColorPlayer, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendSquad"), TEXT("●   ЧЛЕНИ ЗАГОНУ"),
-        FVector2D(44.0f, 226.0f), FVector2D(220.0f, 28.0f), 16, ColorFriendly, 4);
+        FVector2D(44.0f, 226.0f), FVector2D(220.0f, 28.0f), 13, ColorFriendly, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendVehicle"), TEXT("▣   ТРАНСПОРТ ЗАГОНУ"),
-        FVector2D(44.0f, 278.0f), FVector2D(220.0f, 28.0f), 16, ColorFriendly, 4);
+        FVector2D(44.0f, 278.0f), FVector2D(220.0f, 28.0f), 13, ColorFriendly, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendObjective"), TEXT("◇   КОМАНДА / ЦІЛЬ"),
-        FVector2D(44.0f, 330.0f), FVector2D(220.0f, 28.0f), 16, ColorObjective, 4);
-    AddCanvasText(WidgetTree, Root, TEXT("LegendPOI"), TEXT("○   ТОЧКА ІНТЕРЕСУ"),
-        FVector2D(44.0f, 382.0f), FVector2D(220.0f, 28.0f), 16, ColorPrimaryText, 4);
+        FVector2D(44.0f, 330.0f), FVector2D(220.0f, 28.0f), 13, ColorObjective, 4);
+    AddCanvasText(WidgetTree, Root, TEXT("LegendPOI"), TEXT("•   ТОЧКА ІНТЕРЕСУ"),
+        FVector2D(44.0f, 382.0f), FVector2D(220.0f, 28.0f), 13, ColorPrimaryText, 4);
 
     UBorder* MapFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapFrame"));
     MapFrame->SetBrushColor(FLinearColor(0.12f, 0.15f, 0.15f, 1.0f));
@@ -256,6 +258,7 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
         MapBrush.SetResourceObject(WorldMapTexture);
         MapBrush.ImageSize = FVector2D(MapWidth, MapHeight);
         WorldMapImage->SetBrush(MapBrush);
+        WorldMapImage->SetColorAndOpacity(FLinearColor(0.34f, 0.40f, 0.36f, 1.0f));
         WorldMapImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
         WorldMapImage->SetRenderScale(FVector2D(-1.0f, 1.0f));
         if (UCanvasPanelSlot* WorldMapCanvasSlot = MapContentCanvas->AddChildToCanvas(WorldMapImage))
@@ -264,6 +267,15 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
             WorldMapCanvasSlot->SetOffsets(FMargin(0.0f));
             WorldMapCanvasSlot->SetZOrder(1);
         }
+    }
+
+    UBorder* TacticalMapFilter = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapWorldFilter"));
+    TacticalMapFilter->SetBrushColor(FLinearColor(0.008f, 0.014f, 0.018f, 0.58f));
+    if (UCanvasPanelSlot* FilterCanvasSlot = MapContentCanvas->AddChildToCanvas(TacticalMapFilter))
+    {
+        FilterCanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        FilterCanvasSlot->SetOffsets(FMargin(0.0f));
+        FilterCanvasSlot->SetZOrder(2);
     }
 
     AddGrid();
@@ -280,27 +292,31 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     PlayerMarker->SetColorAndOpacity(FSlateColor(ColorPlayer));
     PlayerMarker->SetJustification(ETextJustify::Center);
     PlayerMarker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-    SetTextSize(PlayerMarker, 24);
+    SetTextSize(PlayerMarker, 20);
     PlaceOnCanvas(MapContentCanvas, PlayerMarker, FVector2D(MapWidth * 0.5f, MapHeight * 0.5f),
-        FVector2D(42.0f, 42.0f), FVector2D(0.5f, 0.5f), 20);
+        FVector2D(36.0f, 36.0f), FVector2D(0.5f, 0.5f), 20);
 
     AddCanvasText(WidgetTree, MapCanvas, TEXT("NorthIndicator"), TEXT("N\n↑"),
-        FVector2D(MapWidth - 54.0f, 18.0f), FVector2D(36.0f, 58.0f), 20, ColorPrimaryText, 30);
+        FVector2D(MapWidth - 54.0f, 18.0f), FVector2D(36.0f, 58.0f), 18, ColorPrimaryText, 30);
     PlayerCoordinates = AddCanvasText(WidgetTree, MapCanvas, TEXT("TacticalMapPlayerCoordinates"), TEXT(""),
-        FVector2D(18.0f, MapHeight - 34.0f), FVector2D(720.0f, 24.0f), 13, ColorMutedText, 30);
+        FVector2D(18.0f, MapHeight - 34.0f), FVector2D(720.0f, 24.0f), 11, ColorMutedText, 30);
     const float WidthMeters = (Projection.WorldMax.X - Projection.WorldMin.X) / 100.0f;
     AddCanvasText(WidgetTree, MapCanvas, TEXT("TacticalMapScale"),
         FString::Printf(TEXT("СЕКТОР: %.0f м"), WidthMeters),
-        FVector2D(MapWidth - 205.0f, MapHeight - 34.0f), FVector2D(185.0f, 24.0f), 13, ColorMutedText, 30);
+        FVector2D(MapWidth - 205.0f, MapHeight - 34.0f), FVector2D(185.0f, 24.0f), 11, ColorMutedText, 30);
+
+    UBorder* FooterPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapFooterPanel"));
+    FooterPanel->SetBrushColor(FLinearColor(0.025f, 0.032f, 0.038f, 0.98f));
+    PlaceOnCanvas(Root, FooterPanel, FVector2D(20.0f, 806.0f), FVector2D(1543.0f, 46.0f), FVector2D::ZeroVector, 3);
 
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintClose"), TEXT("M  ЗАКРИТИ"),
-        FVector2D(38.0f, 846.0f), FVector2D(180.0f, 28.0f), 14, ColorMutedText, 5);
+        FVector2D(38.0f, 819.0f), FVector2D(180.0f, 22.0f), 11, ColorMutedText, 5);
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintZoom"), TEXT("КОЛЕСО  МАСШТАБ"),
-        FVector2D(315.0f, 846.0f), FVector2D(230.0f, 28.0f), 14, ColorMutedText, 5);
+        FVector2D(315.0f, 819.0f), FVector2D(230.0f, 22.0f), 11, ColorMutedText, 5);
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPan"), TEXT("ЛКМ + РУХ  ПЕРЕМІЩЕННЯ"),
-        FVector2D(650.0f, 846.0f), FVector2D(320.0f, 28.0f), 14, ColorMutedText, 5);
-    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPing"), TEXT("ПКМ  ТАКТИЧНИЙ МАРКЕР"),
-        FVector2D(1175.0f, 846.0f), FVector2D(340.0f, 28.0f), 14, ColorMutedText, 5);
+        FVector2D(650.0f, 819.0f), FVector2D(320.0f, 22.0f), 11, ColorMutedText, 5);
+    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPing"), TEXT("ПКМ  ПОСТАВИТИ МІТКУ"),
+        FVector2D(1180.0f, 819.0f), FVector2D(330.0f, 22.0f), 11, ColorMutedText, 5);
 
     ApplyMapViewTransform();
     return RootScale->TakeWidget();
@@ -447,13 +463,33 @@ FVector2D UOCTacticalMapWidget::WorldToMap(const FVector& WorldLocation) const
 void UOCTacticalMapWidget::AddLandmarkMarker(const FString& Label, const FVector& WorldLocation)
 {
     if (!WidgetTree || !MapContentCanvas) return;
-    UTextBlock* Marker = WidgetTree->ConstructWidget<UTextBlock>();
-    Marker->SetText(FText::FromString(FString::Printf(TEXT("○ %s"), *Label)));
-    Marker->SetColorAndOpacity(FSlateColor(ColorPrimaryText));
-    Marker->SetJustification(ETextJustify::Center);
-    SetTextSize(Marker, 14);
-    PlaceOnCanvas(MapContentCanvas, Marker, WorldToMap(WorldLocation), FVector2D(150.0f, 26.0f),
-        FVector2D(0.5f, 0.5f), 12);
+
+    const FVector2D Anchor = WorldToMap(WorldLocation);
+    FVector2D LabelOffset(18.0f, -12.0f);
+    if (Label == TEXT("ЦЕНТР")) LabelOffset = FVector2D(-118.0f, -34.0f);
+    else if (Label == TEXT("СІЛЬПО")) LabelOffset = FVector2D(-118.0f, 10.0f);
+    else if (Label == TEXT("МУЗЕЙ")) LabelOffset = FVector2D(18.0f, -30.0f);
+    else if (Label == TEXT("СТАДІОН")) LabelOffset = FVector2D(18.0f, 12.0f);
+    else if (Label == TEXT("ПАРК")) LabelOffset = FVector2D(-106.0f, -28.0f);
+
+    UTextBlock* Dot = WidgetTree->ConstructWidget<UTextBlock>();
+    Dot->SetText(FText::FromString(TEXT("•")));
+    Dot->SetColorAndOpacity(FSlateColor(FLinearColor(0.80f, 0.85f, 0.86f, 0.95f)));
+    Dot->SetJustification(ETextJustify::Center);
+    SetTextSize(Dot, 12);
+    PlaceOnCanvas(MapContentCanvas, Dot, Anchor, FVector2D(18.0f, 18.0f), FVector2D(0.5f, 0.5f), 12);
+
+    UBorder* Chip = WidgetTree->ConstructWidget<UBorder>();
+    Chip->SetBrushColor(FLinearColor(0.010f, 0.016f, 0.020f, 0.84f));
+    Chip->SetPadding(FMargin(6.0f, 2.0f, 6.0f, 2.0f));
+
+    UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
+    Text->SetText(FText::FromString(Label));
+    Text->SetColorAndOpacity(FSlateColor(FLinearColor(0.84f, 0.88f, 0.89f, 1.0f)));
+    SetTextSize(Text, 10);
+    Chip->SetContent(Text);
+
+    PlaceOnCanvas(MapContentCanvas, Chip, Anchor + LabelOffset, FVector2D(94.0f, 22.0f), FVector2D::ZeroVector, 13);
 }
 
 void UOCTacticalMapWidget::AddGrid()
@@ -474,7 +510,7 @@ void UOCTacticalMapWidget::AddGrid()
                 FName(*FString::Printf(TEXT("MapGridCol_%02d"), Index)),
                 FString::Chr(static_cast<TCHAR>('A' + Index)),
                 FVector2D(X + MapWidth / Columns * 0.5f - 8.0f, 7.0f), FVector2D(24.0f, 22.0f),
-                12, ColorMutedText, 4);
+                11, ColorMutedText, 4);
         }
     }
     for (int32 Index = 0; Index <= Rows; ++Index)
@@ -489,7 +525,7 @@ void UOCTacticalMapWidget::AddGrid()
             AddCanvasText(WidgetTree, MapContentCanvas,
                 FName(*FString::Printf(TEXT("MapGridRow_%02d"), Index)), FString::FromInt(Index + 1),
                 FVector2D(8.0f, Y + MapHeight / Rows * 0.5f - 8.0f), FVector2D(30.0f, 22.0f),
-                12, ColorMutedText, 4);
+                11, ColorMutedText, 4);
         }
     }
 }
@@ -530,8 +566,8 @@ void UOCTacticalMapWidget::RefreshSquadMarkers()
                 Marker->SetColorAndOpacity(FSlateColor(ColorFriendly));
                 Marker->SetJustification(ETextJustify::Center);
                 Marker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-                SetTextSize(Marker, 20);
-                PlaceOnCanvas(MapContentCanvas, Marker, FVector2D::ZeroVector, FVector2D(42.0f, 42.0f),
+                SetTextSize(Marker, 18);
+                PlaceOnCanvas(MapContentCanvas, Marker, FVector2D::ZeroVector, FVector2D(34.0f, 34.0f),
                     FVector2D(0.5f, 0.5f), 21);
                 SquadMarkers.Add(Character, Marker);
             }
@@ -576,8 +612,8 @@ void UOCTacticalMapWidget::RefreshObjectiveMarkers()
             Marker->SetColorAndOpacity(FSlateColor(ColorObjective));
             Marker->SetJustification(ETextJustify::Center);
             Marker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-            SetTextSize(Marker, 17);
-            PlaceOnCanvas(MapContentCanvas, Marker, FVector2D::ZeroVector, FVector2D(130.0f, 32.0f),
+            SetTextSize(Marker, 12);
+            PlaceOnCanvas(MapContentCanvas, Marker, FVector2D::ZeroVector, FVector2D(92.0f, 24.0f),
                 FVector2D(0.5f, 0.5f), 22);
             ObjectiveMarkers.Add(Point, Marker);
         }
@@ -585,20 +621,20 @@ void UOCTacticalMapWidget::RefreshObjectiveMarkers()
         FString StateSuffix;
         if (Point->IsContested())
         {
-            StateSuffix = TEXT("  !");
+            StateSuffix = TEXT(" !");
         }
         else if (Point->GetOwnerTeam() == EOCTeam::TeamOne)
         {
-            StateSuffix = TEXT("  T1");
+            StateSuffix = TEXT(" T1");
         }
         else if (Point->GetOwnerTeam() == EOCTeam::TeamTwo)
         {
-            StateSuffix = TEXT("  T2");
+            StateSuffix = TEXT(" T2");
         }
         else
         {
             const int32 CapturePercent = FMath::RoundToInt(FMath::Abs(Point->GetCaptureProgress()) * 100.0f);
-            if (CapturePercent > 0) StateSuffix = FString::Printf(TEXT("  %d%%"), CapturePercent);
+            if (CapturePercent > 0) StateSuffix = FString::Printf(TEXT(" %d%%"), CapturePercent);
         }
 
         Marker->SetText(FText::FromString(FString::Printf(
@@ -673,8 +709,8 @@ void UOCTacticalMapWidget::RefreshSquadOrderMarker()
         SquadOrderMarker->SetColorAndOpacity(FSlateColor(ColorObjective));
         SquadOrderMarker->SetJustification(ETextJustify::Center);
         SquadOrderMarker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-        SetTextSize(SquadOrderMarker, 15);
-        PlaceOnCanvas(MapContentCanvas, SquadOrderMarker, FVector2D::ZeroVector, FVector2D(170.0f, 30.0f),
+        SetTextSize(SquadOrderMarker, 12);
+        PlaceOnCanvas(MapContentCanvas, SquadOrderMarker, FVector2D::ZeroVector, FVector2D(138.0f, 24.0f),
             FVector2D(0.5f, 0.5f), 23);
     }
 
@@ -714,13 +750,12 @@ void UOCTacticalMapWidget::RefreshTacticalPingMarkers()
             NextTacticalPingExpiryServerTime = ExpireAt;
 
         UTextBlock* Marker = WidgetTree->ConstructWidget<UTextBlock>();
-        Marker->SetText(FText::FromString(FString::Printf(
-            TEXT("◆ %s"), Ping.IssuerName.IsEmpty() ? TEXT("PING") : *Ping.IssuerName)));
+        Marker->SetText(FText::FromString(TEXT("◆ МІТКА")));
         Marker->SetColorAndOpacity(FSlateColor(ColorObjective));
         Marker->SetJustification(ETextJustify::Center);
         Marker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-        SetTextSize(Marker, 14);
-        PlaceOnCanvas(MapContentCanvas, Marker, WorldToMap(Ping.WorldLocation), FVector2D(150.0f, 28.0f),
+        SetTextSize(Marker, 12);
+        PlaceOnCanvas(MapContentCanvas, Marker, WorldToMap(Ping.WorldLocation), FVector2D(92.0f, 24.0f),
             FVector2D(0.5f, 0.5f), 25);
         TacticalPingMarkers.Add(Marker);
     }
@@ -780,11 +815,11 @@ void UOCTacticalMapWidget::PlaceLocalPing(const FVector2D& ViewportLocal)
     if (!LocalPingMarker)
     {
         LocalPingMarker = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapLocalPing"));
-        LocalPingMarker->SetText(FText::FromString(TEXT("◆ PING")));
+        LocalPingMarker->SetText(FText::FromString(TEXT("◆ МІТКА")));
         LocalPingMarker->SetColorAndOpacity(FSlateColor(ColorObjective));
         LocalPingMarker->SetJustification(ETextJustify::Center);
-        SetTextSize(LocalPingMarker, 15);
-        PlaceOnCanvas(MapContentCanvas, LocalPingMarker, WorldToMap(WorldPing), FVector2D(100.0f, 28.0f),
+        SetTextSize(LocalPingMarker, 12);
+        PlaceOnCanvas(MapContentCanvas, LocalPingMarker, WorldToMap(WorldPing), FVector2D(92.0f, 24.0f),
             FVector2D(0.5f, 0.5f), 24);
     }
     else if (UCanvasPanelSlot* LocalPingCanvasSlot = Cast<UCanvasPanelSlot>(LocalPingMarker->Slot))

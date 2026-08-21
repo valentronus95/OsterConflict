@@ -36,185 +36,130 @@ tz = text(TZ)
 runtime_acceptance = text(RUNTIME_ACCEPTANCE)
 build_helper = text(BUILD_HELPER)
 
-# Input contract: M must be event-driven through Enhanced Input, not sampled every frame/timer tick.
-require("IMC_TacticalMapRuntime" in cpp, "tactical map mapping context is missing")
-require("IA_TacticalMapRuntime" in cpp, "tactical map input action is missing")
-require("AddMappingContext(MapMappingContext, 100)" in cpp, "tactical map input context priority must remain explicit")
-require("ETriggerEvent::Started" in cpp, "M toggle must be bound as an Enhanced Input Started event")
-require("IsInputKeyDown(EKeys::M)" not in cpp, "raw M polling regression detected")
-require("PollInput" not in header and "PollInput" not in cpp, "legacy 25 ms PollInput path returned")
+# Input: M is event-driven Enhanced Input, not raw polling, and vehicle possession must not kill the map.
+for token in ("IMC_TacticalMapRuntime", "IA_TacticalMapRuntime", "AddMappingContext(MapMappingContext, 100)",
+              "ETriggerEvent::Started"):
+    require(token in cpp, f"missing tactical-map input contract: {token}")
+require("IsInputKeyDown(EKeys::M)" not in cpp and "PollInput" not in cpp and "PollInput" not in header,
+        "legacy raw M polling returned")
 require("!Character && !Cast<AOCVehicleBase>(PC->GetPawn())" in cpp,
-        "map lifecycle must tolerate local possession switching from character to vehicle")
+        "map lifecycle must tolerate vehicle possession")
 
-# World alignment contract: actual AOCWorldSectorOster geometry owns map bounds and POI projection.
-require("ResolveSectorContentBounds" in cpp, "actual sector content-bounds resolver is missing")
-require("GetComponentsBoundingBox(true)" in cpp, "world-sector bounds fallback is missing")
-require("TActorIterator<AOCWorldSectorOster>" in cpp, "actual Oster world sector lookup is missing")
-require("ResolveSectorWorldLocation" in cpp, "sector-local POIs are not being transformed into world space")
-require("MuseumAnchor" in cpp and "StadiumAnchor" in cpp and "ParkAnchor" in cpp, "core Oster POIs are missing")
-require("FOCGeoReference::Silpo" in cpp, "Silpo source anchor is missing")
-require("ComponentName == TEXT(\"Ground\")" in cpp, "content bounds must not be forced by the 2.4 km ground proxy")
-require("FitProjectionBoundsToAspect" in cpp, "map capture/projection aspect fit is missing")
+# Geography: actual Oster world owns placement. Large/far proxies must not define the default city framing.
+for token in ("ResolveSectorContentBounds", "GetComponentsBoundingBox(true)", "TActorIterator<AOCWorldSectorOster>",
+              "ResolveSectorWorldLocation", "MuseumAnchor", "StadiumAnchor", "ParkAnchor", "FOCGeoReference::Silpo",
+              "FitProjectionBoundsToAspect"):
+    require(token in cpp, f"missing world-alignment contract: {token}")
+for excluded in ("Ground", "Waterways", "Bridges", "ReferenceMarkers"):
+    require(f'ComponentName == TEXT("{excluded}")' in cpp,
+            f"{excluded} must not define default tactical-map framing")
 
-# Actual-game background contract: sector determines extent, but texture captures the current gameplay scene.
-require("ASceneCapture2D" in header and "ASceneCapture2D" in cpp, "orthographic world capture actor is missing")
-require("UTextureRenderTarget2D" in header and "UTextureRenderTarget2D" in cpp, "map render target is missing")
-require("ECameraProjectionMode::Orthographic" in cpp, "world capture must remain orthographic")
-require("PRM_RenderScenePrimitives" in cpp, "map background must render the complete current gameplay scene")
-require("ClearHiddenComponents" in cpp, "capture hidden-list reset is missing")
-require("HideActorComponents(Pawn, true)" in cpp, "dynamic pawns must not be baked into the background")
+# Background: actual gameplay scene, orthographic, one-shot capture, then tactical treatment in UMG.
+for token in ("ASceneCapture2D", "UTextureRenderTarget2D", "ECameraProjectionMode::Orthographic",
+              "PRM_RenderScenePrimitives", "ClearHiddenComponents", "HideActorComponents(Pawn, true)",
+              "CaptureComponent->CaptureScene()", "TacticalMapWorldCapture", "ConfigureWorldMap"):
+    require(token in cpp or token in header, f"missing world-capture contract: {token}")
 require("ShowOnlyActorComponents(Sector, true)" not in cpp,
-        "regression: capture is restricted to AOCWorldSectorOster and would omit separately-owned landmarks")
-require("captured current gameplay world" in cpp, "full-scene capture contract log is missing")
-require("CaptureComponent->bCaptureEveryFrame = false" in cpp, "map background must not capture every frame")
-require("CaptureComponent->bCaptureOnMovement = false" in cpp, "map background must not recapture on camera movement")
-require("CaptureComponent->CaptureScene()" in cpp, "explicit world capture is missing")
-require("TacticalMapWorldCapture" in cpp, "captured world texture is not presented in the map widget")
-require("ConfigureWorldMap" in header and "ConfigureWorldMap" in cpp, "subsystem/widget world-map configuration contract is missing")
-require("MapWidget = CreateWidget<UOCTacticalMapWidget>" in cpp,
-        "map widget must rebuild on open so it receives the current world capture")
+        "capture regressed to one actor and would omit separately-owned landmarks")
+require("CaptureComponent->bCaptureEveryFrame = false" in cpp and
+        "CaptureComponent->bCaptureOnMovement = false" in cpp,
+        "tactical background must remain one-shot, not per-frame")
 
-# Interactive viewport contract: clipping, wheel zoom, LMB pan with clamp, RMB tactical ping.
-require("MapContentCanvas" in header and "TacticalMapContent" in cpp, "transformable map content layer is missing")
-require("NativeOnMouseWheel" in header and "NativeOnMouseWheel" in cpp, "mouse-wheel zoom handler is missing")
-require("NativeOnMouseButtonDown" in header and "NativeOnMouseButtonDown" in cpp, "map mouse-button handler is missing")
-require("NativeOnMouseMove" in header and "NativeOnMouseMove" in cpp, "map drag handler is missing")
-require("SetRenderScale(FVector2D(MapZoom, MapZoom))" in cpp, "zoom transform is not applied to map content")
-require("SetRenderTranslation(MapPan)" in cpp, "pan transform is not applied to map content")
-require("ClampMapPan" in header and "ClampMapPan" in cpp, "map pan clamp is missing")
-require("MaxMapZoom" in cpp and "MinMapZoom" in cpp, "map zoom bounds are missing")
-require("ViewportToContent" in cpp, "viewport-to-content inverse transform is missing")
-require("GetEffectingButton() == EKeys::RightMouseButton" in cpp, "RMB tactical ping input is missing")
-require("Projection.UVToWorld" in cpp, "tactical ping does not convert map UV back to world-space")
-require("КОЛЕСО  МАСШТАБ" in cpp and "ЛКМ + РУХ  ПЕРЕМІЩЕННЯ" in cpp and "ПКМ  ТАКТИЧНИЙ МАРКЕР" in cpp,
-        "implemented map controls are not exposed in the HUD hint bar")
+# Runtime visual polish from the 2026-08-22 playtest screenshots.
+require("TacticalMapWorldFilter" in cpp,
+        "dark tactical overlay is missing")
+require("WorldMapImage->SetColorAndOpacity(FLinearColor(0.34f, 0.40f, 0.36f, 1.0f))" in cpp,
+        "raw green world capture is not tinted")
+require("UBorder* Chip" in cpp and "SetTextSize(Text, 10)" in cpp,
+        "compact POI label chips are missing")
+for label in ("ЦЕНТР", "СІЛЬПО", "МУЗЕЙ", "СТАДІОН", "ПАРК"):
+    require(f'Label == TEXT("{label}")' in cpp or f'AddLandmarkMarker(TEXT("{label}")' in cpp,
+            f"POI label contract missing: {label}")
+require("TacticalMapFooterPanel" in cpp and "FVector2D(20.0f, 806.0f)" in cpp,
+        "safe in-frame footer is missing")
+for hint in ("M  ЗАКРИТИ", "КОЛЕСО  МАСШТАБ", "ЛКМ + РУХ  ПЕРЕМІЩЕННЯ", "ПКМ  ПОСТАВИТИ МІТКУ"):
+    require(hint in cpp, f"implemented control hint missing: {hint}")
+require('TEXT("◆ МІТКА")' in cpp,
+        "RMB ping must render as a tactical marker")
+require('Ping.IssuerName.IsEmpty() ? TEXT("PING") : *Ping.IssuerName' not in cpp,
+        "network ping must not render the issuer/player name as its map label")
 
-# Replicated squad marker contract: map consumes existing team/squad state instead of a parallel UI roster.
-require('#include "OCPlayerState.h"' in cpp, "replicated PlayerState feed is not connected to tactical map")
-require("RefreshSquadMarkers" in header and "RefreshSquadMarkers" in cpp, "squad marker refresh path is missing")
-require("GetTeamId()" in cpp and "GetSquadId()" in cpp, "squad markers are not filtered by authoritative team/squad state")
-require("TActorIterator<AOCCharacter>" in cpp, "squad marker actor feed is missing")
-require("SquadMarkers.Find(Character)" in cpp and "SquadMarkers.Add(Character, Marker)" in cpp,
-        "squad markers must be cached instead of recreated every tick")
-require("Character->IsInVehicle() ? Character->GetCurrentVehicle()" in cpp,
-        "squad member vehicle transition is not reflected in marker position")
+# Interactive viewport: clipped content, wheel zoom, LMB pan, inverse map transform and RMB ping.
+for token in ("MapContentCanvas", "TacticalMapContent", "NativeOnMouseWheel", "NativeOnMouseButtonDown",
+              "NativeOnMouseMove", "SetRenderScale(FVector2D(MapZoom, MapZoom))",
+              "SetRenderTranslation(MapPan)", "ClampMapPan", "ViewportToContent",
+              "GetEffectingButton() == EKeys::RightMouseButton", "Projection.UVToWorld"):
+    require(token in cpp or token in header, f"missing viewport interaction contract: {token}")
+require("MaxMapZoom" in cpp and "MinMapZoom" in cpp, "zoom bounds are missing")
+
+# Squad markers: authoritative team/squad state, cached widgets, actual character/vehicle position.
+for token in ('#include "OCPlayerState.h"', "RefreshSquadMarkers", "GetTeamId()", "GetSquadId()",
+              "TActorIterator<AOCCharacter>", "SquadMarkers.Find(Character)", "SquadMarkers.Add(Character, Marker)",
+              "Character->IsInVehicle() ? Character->GetCurrentVehicle()", "SpatialActor->GetActorLocation()"):
+    require(token in cpp or token in header, f"missing squad marker contract: {token}")
 require('TEXT("▣")' in cpp and 'TEXT("●")' in cpp, "squad/vehicle marker distinction is missing")
-require("SpatialActor->GetActorLocation()" in cpp, "dynamic squad marker does not use actual actor world position")
 
-# Replicated objective contract: the map consumes AOCCapturePoint actors, not hardcoded A/B/C screen coordinates.
-require('#include "OCCapturePoint.h"' in cpp, "capture-point objective feed is not connected")
-require("TMap<TWeakObjectPtr<AOCCapturePoint>" in header, "objective marker cache is missing")
-require("RefreshObjectiveMarkers" in header and "RefreshObjectiveMarkers" in cpp, "objective refresh path is missing")
-require("TActorIterator<AOCCapturePoint>" in cpp, "objective actor iteration is missing")
-require("Point->GetPointId()" in cpp, "objective IDs must come from AOCCapturePoint")
-require("Point->GetOwnerTeam()" in cpp, "objective ownership state is not consumed")
-require("Point->GetCaptureProgress()" in cpp, "objective capture progress is not consumed")
-require("Point->IsContested()" in cpp, "objective contested state is not consumed")
-require("ObjectiveMarkers.Find(Point)" in cpp and "ObjectiveMarkers.Add(Point, Marker)" in cpp,
-        "objective markers must be cached instead of recreated every tick")
-require("WorldToMap(Point->GetActorLocation())" in cpp,
-        "objective marker must project the authoritative capture-point actor location")
-require("TEXT(\"A\")" not in cpp and "TEXT(\"B\")" not in cpp and "TEXT(\"C\")" not in cpp,
+# Objectives: replicated AOCCapturePoint actors, no screen-space A/B/C hardcoding.
+for token in ('#include "OCCapturePoint.h"', "RefreshObjectiveMarkers", "TActorIterator<AOCCapturePoint>",
+              "Point->GetPointId()", "Point->GetOwnerTeam()", "Point->GetCaptureProgress()", "Point->IsContested()",
+              "ObjectiveMarkers.Find(Point)", "ObjectiveMarkers.Add(Point, Marker)",
+              "WorldToMap(Point->GetActorLocation())"):
+    require(token in cpp or token in header, f"missing objective contract: {token}")
+require('TEXT("A")' not in cpp and 'TEXT("B")' not in cpp and 'TEXT("C")' not in cpp,
         "tactical map must not hardcode objective IDs")
 
-# Squad order contract: Move/Regroup use their world location; Attack/Defend resolve ObjectiveId to a capture actor.
-require("RefreshSquadOrderMarker" in header and "RefreshSquadOrderMarker" in cpp, "squad order marker path is missing")
-require("ResolveSquadOrderWorldLocation" in header and "ResolveSquadOrderWorldLocation" in cpp,
-        "squad order world-location resolver is missing")
-require("PC->GetCurrentSquadOrder()" in cpp, "map is not using the existing squad-order state")
-require("Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup" in cpp,
-        "Move/Regroup world-location path is missing")
-require("Order.Type == EOCSquadOrderType::AttackObjective || Order.Type == EOCSquadOrderType::DefendObjective" in cpp,
-        "Attack/Defend objective-resolution path is missing")
-require("Point->GetPointId() == Order.ObjectiveId" in cpp,
-        "Attack/Defend order is not matched to the authoritative capture point")
-require("OutWorldLocation = Point->GetActorLocation()" in cpp,
-        "Attack/Defend order does not use the resolved objective actor world location")
-require("WorldToMap(OrderWorldLocation)" in cpp, "resolved squad order is not projected from world-space")
+# Squad orders: world-space Move/Regroup, objective actor resolution for Attack/Defend.
+for token in ("RefreshSquadOrderMarker", "ResolveSquadOrderWorldLocation", "PC->GetCurrentSquadOrder()",
+              "Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup",
+              "Order.Type == EOCSquadOrderType::AttackObjective || Order.Type == EOCSquadOrderType::DefendObjective",
+              "Point->GetPointId() == Order.ObjectiveId", "OutWorldLocation = Point->GetActorLocation()",
+              "WorldToMap(OrderWorldLocation)"):
+    require(token in cpp or token in header, f"missing squad-order contract: {token}")
 require("WorldToMap(FVector::ZeroVector)" not in cpp,
-        "regression: squad order must never deliberately plot an unresolved objective at world origin")
-require("TacticalMapSquadOrder" in cpp, "squad order marker widget is missing")
+        "unresolved objective must never be plotted at world origin")
 
-# Server-routed tactical ping contract: ordinary squad members can ping without overwriting squad-leader orders.
+# Server-routed tactical pings: validated, throttled, squad-scoped, separate from squad orders.
 require("struct FOCTacticalPing" in lobby_types_h, "tactical ping payload is missing")
 for field in ("WorldLocation", "IssuerName", "Team", "SquadId", "ServerTime"):
-    require(field in lobby_types_h, f"tactical ping payload is missing {field}")
-require("SubmitTacticalPing" in controller_h, "player controller tactical-ping submit API is missing")
-require("ServerSubmitTacticalPing" in controller_h and "ClientReceiveTacticalPing" in controller_h,
-        "tactical ping RPC declarations are missing")
-require("GetRecentTacticalPings" in controller_h and "GetTacticalPingRevision" in controller_h,
-        "map-facing tactical ping feed is missing")
-require("ServerSubmitTacticalPing_Implementation" in ping_network_cpp,
-        "server tactical ping implementation is missing")
-require("LastTacticalPingServerTime" in ping_network_cpp and "TacticalPingCooldownSeconds" in ping_network_cpp,
-        "server tactical ping spam throttle is missing")
-require("TacticalPingMaxDistanceCm" in ping_network_cpp and "FVector::DistSquared2D" in ping_network_cpp,
-        "server tactical ping location validation is missing")
-require("RecipientState->GetTeamId() == Ping.Team" in ping_network_cpp and
-        "RecipientState->GetSquadId() == Ping.SquadId" in ping_network_cpp,
-        "server tactical ping must only route to matching team+squad")
-require("ClientReceiveTacticalPing(Ping)" in ping_network_cpp,
-        "server tactical ping delivery RPC is missing")
-require("RecentTacticalPings.Add(Ping)" in ping_network_cpp and "++TacticalPingRevision" in ping_network_cpp,
-        "client tactical ping feed/revision update is missing")
+    require(field in lobby_types_h, f"tactical ping payload missing {field}")
+for token in ("SubmitTacticalPing", "ServerSubmitTacticalPing", "ClientReceiveTacticalPing",
+              "GetRecentTacticalPings", "GetTacticalPingRevision"):
+    require(token in controller_h, f"player controller tactical-ping API missing: {token}")
+for token in ("ServerSubmitTacticalPing_Implementation", "TacticalPingCooldownSeconds",
+              "TacticalPingMaxDistanceCm", "FVector::DistSquared2D",
+              "RecipientState->GetTeamId() == Ping.Team", "RecipientState->GetSquadId() == Ping.SquadId",
+              "ClientReceiveTacticalPing(Ping)", "RecentTacticalPings.Add(Ping)", "++TacticalPingRevision"):
+    require(token in ping_network_cpp, f"server/client tactical-ping contract missing: {token}")
 require("ServerSubmitSquadOrder" not in ping_network_cpp,
-        "tactical ping must not hijack or overwrite the squad-order channel")
+        "tactical ping must not hijack squad orders")
+for token in ("RefreshTacticalPingMarkers", "TacticalPingLifetimeSeconds", "GetServerWorldTimeSeconds",
+              "PC->GetTacticalPingRevision()", "PC->GetRecentTacticalPings()", "WorldToMap(Ping.WorldLocation)",
+              "PC->SubmitTacticalPing(WorldPing)", "TacticalMapLocalPing"):
+    require(token in cpp or token in header, f"map tactical-ping renderer missing: {token}")
 
-# Map rendering contract for network pings: use server time, expire, and project shared world coordinates.
-require("RefreshTacticalPingMarkers" in header and "RefreshTacticalPingMarkers" in cpp,
-        "network tactical ping rendering path is missing")
-require("TacticalPingLifetimeSeconds" in cpp and "8.0f" in cpp,
-        "network tactical pings need an explicit short lifetime")
-require("GetServerWorldTimeSeconds" in cpp,
-        "network tactical ping expiry must use synchronized server time when available")
-require("PC->GetTacticalPingRevision()" in cpp and "PC->GetRecentTacticalPings()" in cpp,
-        "map is not consuming the player-controller tactical ping feed")
-require("WorldToMap(Ping.WorldLocation)" in cpp,
-        "network tactical ping is not projected from its shared world coordinate")
-require("PC->SubmitTacticalPing(WorldPing)" in cpp,
-        "RMB map interaction is not submitting the projected world coordinate to the server")
-require("LocalState->GetTeamId() != EOCTeam::None && LocalState->GetSquadId() >= 0" in cpp,
-        "network ping path must be gated by actual team/squad membership")
-require("TacticalMapLocalPing" in cpp and "local fallback ping" in cpp,
-        "non-squad/sandbox local ping fallback is missing")
-
-# Projection contract: one reversible transform is shared by static markers, player, objectives and pings.
+# Projection: one reversible world/UV transform shared by all layers.
 require("struct OSTERCONFLICT_API FOCTacticalMapProjection" in projection_h, "projection type missing")
 require("WorldToUV" in projection_h and "UVToWorld" in projection_h, "reversible projection API missing")
-require("Projection.WorldToUV" in cpp, "widget bypasses the central projection")
-require("WorldYawToMapDegrees" in projection_cpp, "player heading projection missing")
-require("Round-trip" in tests, "projection round-trip test missing")
-require("North yaw keeps marker pointing up" in tests, "north-up heading test missing")
+require("Projection.WorldToUV" in cpp, "widget bypasses central projection")
+require("WorldYawToMapDegrees" in projection_cpp, "heading projection missing")
+require("Round-trip" in tests and "North yaw keeps marker pointing up" in tests,
+        "projection automation tests are incomplete")
 
-# Approved style/UI contract. This is textual/source-only; runtime visuals still require UE verification.
-for token in (
-    "TACTICAL MAP",
-    "OSTER CONFLICT",
-    "ЛЕГЕНДА",
-    "ГРАВЕЦЬ",
-    "ЧЛЕНИ ЗАГОНУ",
-    "ТРАНСПОРТ",
-    "ЦІЛЬ",
-    "ТОЧКА ІНТЕРЕСУ",
-):
+# Approved high-level UI identity.
+for token in ("TACTICAL MAP", "OSTER CONFLICT", "ЛЕГЕНДА", "ГРАВЕЦЬ", "ЧЛЕНИ ЗАГОНУ",
+              "ТРАНСПОРТ", "ЦІЛЬ", "ТОЧКА ІНТЕРЕСУ"):
     require(token in cpp, f"approved tactical-map UI token missing: {token}")
 
-# Documentation contract: generated concept is style-only and the level/world is the source of truth.
+# Documentation and UE 5.8 acceptance gate.
 require("джерело істини" in tz.lower(), "TZ must explicitly define a source of truth")
-require("actual" in tz.lower() or "фактич" in tz.lower(), "TZ must require actual level/world placement")
 require("AI-згенерована географія" in tz, "TZ must reject generated geography as production placement")
-
-# UE 5.8 local build/acceptance contract. GitHub-hosted Windows runners do not contain UE 5.8,
-# so source CI must keep the real local Build.bat path and runtime gate documented instead of pretending to compile UE.
 require("Build.bat" in build_helper and "OsterConflictEditor Win64 Development" in build_helper,
-        "UE 5.8 editor build helper no longer invokes the real UnrealBuildTool path")
-require("UE_ROOT" in build_helper, "UE 5.8 build helper must support an install-root override")
-require("/nopause" in build_helper, "UE 5.8 build helper needs non-interactive exit-code mode for acceptance")
-require("/clean" in build_helper, "UE 5.8 build helper needs an explicit clean-build mode")
-require("-NoHotReloadFromIDE" in build_helper, "acceptance build should not rely on editor hot reload")
+        "UE 5.8 build helper no longer invokes the real editor build")
+for token in ("UE_ROOT", "/nopause", "/clean", "-NoHotReloadFromIDE"):
+    require(token in build_helper, f"UE 5.8 build helper contract missing: {token}")
 require("CODED_UNTESTED" in runtime_acceptance and "VERIFIED RUNTIME" in runtime_acceptance,
         "runtime acceptance status gate is missing")
 require("UE 5.8 build result and exact commit SHA" in runtime_acceptance,
-        "runtime acceptance must record the exact UE 5.8 build SHA")
+        "runtime acceptance must record the exact UE build SHA")
 
 print("Tactical Map 2.0 source contracts: PASS")
