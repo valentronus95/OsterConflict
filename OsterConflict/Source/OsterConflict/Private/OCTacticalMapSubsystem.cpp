@@ -59,28 +59,28 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     Title->SetText(FText::FromString(TEXT("ТАКТИЧНА МАПА · ОСТЕР")));
     Title->SetColorAndOpacity(FSlateColor(FLinearColor(0.86f, 0.91f, 0.94f, 1.0f)));
     SetTextSize(Title, 28);
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(Title))
+    if (UCanvasPanelSlot* TitleCanvasSlot = MapCanvas->AddChildToCanvas(Title))
     {
-        Slot->SetPosition(FVector2D(42.0f, 28.0f));
-        Slot->SetSize(FVector2D(560.0f, 42.0f));
+        TitleCanvasSlot->SetPosition(FVector2D(42.0f, 28.0f));
+        TitleCanvasSlot->SetSize(FVector2D(560.0f, 42.0f));
     }
 
     UTextBlock* Hint = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapHint"));
     Hint->SetText(FText::FromString(TEXT("M / Esc — закрити")));
     Hint->SetColorAndOpacity(FSlateColor(FLinearColor(0.62f, 0.68f, 0.72f, 1.0f)));
     SetTextSize(Hint, 15);
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(Hint))
+    if (UCanvasPanelSlot* HintCanvasSlot = MapCanvas->AddChildToCanvas(Hint))
     {
-        Slot->SetPosition(FVector2D(860.0f, 34.0f));
-        Slot->SetSize(FVector2D(190.0f, 30.0f));
+        HintCanvasSlot->SetPosition(FVector2D(860.0f, 34.0f));
+        HintCanvasSlot->SetSize(FVector2D(190.0f, 30.0f));
     }
 
     UBorder* MapField = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapField"));
     MapField->SetBrushColor(FLinearColor(0.045f, 0.060f, 0.068f, 1.0f));
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(MapField))
+    if (UCanvasPanelSlot* MapFieldCanvasSlot = MapCanvas->AddChildToCanvas(MapField))
     {
-        Slot->SetPosition(FVector2D(MapLeft, MapTop));
-        Slot->SetSize(FVector2D(MapWidth, MapHeight));
+        MapFieldCanvasSlot->SetPosition(FVector2D(MapLeft, MapTop));
+        MapFieldCanvasSlot->SetSize(FVector2D(MapWidth, MapHeight));
     }
 
     const FVector Anchors[] =
@@ -125,19 +125,19 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     PlayerMarker->SetText(FText::FromString(TEXT("▲ ВИ")));
     PlayerMarker->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.89f, 0.28f, 1.0f)));
     SetTextSize(PlayerMarker, 17);
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(PlayerMarker))
+    if (UCanvasPanelSlot* PlayerMarkerCanvasSlot = MapCanvas->AddChildToCanvas(PlayerMarker))
     {
-        Slot->SetPosition(FVector2D(MapLeft + MapWidth * 0.5f, MapTop + MapHeight * 0.5f));
-        Slot->SetSize(FVector2D(120.0f, 28.0f));
+        PlayerMarkerCanvasSlot->SetPosition(FVector2D(MapLeft + MapWidth * 0.5f, MapTop + MapHeight * 0.5f));
+        PlayerMarkerCanvasSlot->SetSize(FVector2D(120.0f, 28.0f));
     }
 
     PlayerCoordinates = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapPlayerCoordinates"));
     PlayerCoordinates->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.77f, 0.80f, 1.0f)));
     SetTextSize(PlayerCoordinates, 15);
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(PlayerCoordinates))
+    if (UCanvasPanelSlot* CoordinatesCanvasSlot = MapCanvas->AddChildToCanvas(PlayerCoordinates))
     {
-        Slot->SetPosition(FVector2D(70.0f, 620.0f));
-        Slot->SetSize(FVector2D(850.0f, 30.0f));
+        CoordinatesCanvasSlot->SetPosition(FVector2D(70.0f, 620.0f));
+        CoordinatesCanvasSlot->SetSize(FVector2D(850.0f, 30.0f));
     }
 
     return Root->TakeWidget();
@@ -152,9 +152,9 @@ void UOCTacticalMapWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
     if (!Pawn || !PlayerMarker) return;
 
     const FVector Location = Pawn->GetActorLocation();
-    if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(PlayerMarker->Slot))
+    if (UCanvasPanelSlot* PlayerMarkerCanvasSlot = Cast<UCanvasPanelSlot>(PlayerMarker->Slot))
     {
-        Slot->SetPosition(WorldToMap(Location));
+        PlayerMarkerCanvasSlot->SetPosition(WorldToMap(Location));
     }
     if (PlayerCoordinates)
     {
@@ -179,10 +179,10 @@ void UOCTacticalMapWidget::AddLandmarkMarker(const FString& Label, const FVector
     Marker->SetText(FText::FromString(FString::Printf(TEXT("• %s"), *Label)));
     Marker->SetColorAndOpacity(FSlateColor(FLinearColor(0.76f, 0.83f, 0.86f, 1.0f)));
     SetTextSize(Marker, 14);
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(Marker))
+    if (UCanvasPanelSlot* MarkerCanvasSlot = MapCanvas->AddChildToCanvas(Marker))
     {
-        Slot->SetPosition(WorldToMap(WorldLocation));
-        Slot->SetSize(FVector2D(150.0f, 24.0f));
+        MarkerCanvasSlot->SetPosition(WorldToMap(WorldLocation));
+        MarkerCanvasSlot->SetSize(FVector2D(150.0f, 24.0f));
     }
 }
 
