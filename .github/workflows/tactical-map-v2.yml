@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - 'TACTICAL_MAP_TZ.md'
+      - 'TACTICAL_MAP_RUNTIME_ACCEPTANCE.md'
+      - 'BUILD_EDITOR_LAUNCHER_UE58.cmd'
       - 'VERIFY_TACTICAL_MAP_V2.py'
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
