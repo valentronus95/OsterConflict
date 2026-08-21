@@ -35,6 +35,9 @@ public:
 
     const TArray<FOCChatMessage>& GetRecentChatMessages() const { return RecentChatMessages; }
     const FOCSquadOrder& GetCurrentSquadOrder() const { return CurrentSquadOrder; }
+    const TArray<FOCTacticalPing>& GetRecentTacticalPings() const { return RecentTacticalPings; }
+    uint32 GetTacticalPingRevision() const { return TacticalPingRevision; }
+    void SubmitTacticalPing(const FVector& WorldLocation);
 
     UFUNCTION(Exec) void ConnectToServer(const FString& Address);
     UFUNCTION(Exec) void SetNickname(const FString& NewNickname);
@@ -56,6 +59,7 @@ public:
 
     UFUNCTION(Client, Reliable) void ClientReceiveChat(const FOCChatMessage& Message);
     UFUNCTION(Client, Reliable) void ClientReceiveSquadOrder(const FOCSquadOrder& Order);
+    UFUNCTION(Client, Reliable) void ClientReceiveTacticalPing(const FOCTacticalPing& Ping);
 
     // S17A UMG-facing API. These call the same server-authoritative backend used by the old dev hotkeys.
     UFUNCTION(BlueprintCallable, Category="UI") void UIConnect(const FString& Address, const FString& Username);
@@ -87,6 +91,7 @@ protected:
     UFUNCTION(Server, Reliable) void ServerRequestSquad(int32 SquadId);
     UFUNCTION(Server, Reliable) void ServerSetLobbyReady(bool bReady);
     UFUNCTION(Server, Reliable) void ServerSubmitSquadOrder(EOCSquadOrderType Type, FName ObjectiveId, FVector Location);
+    UFUNCTION(Server, Reliable) void ServerSubmitTacticalPing(FVector Location);
     UFUNCTION(Server, Reliable) void ServerRequestTeam(EOCTeam RequestedTeam);
     UFUNCTION(Server, Reliable) void ServerSetDeploymentSpawn(FName SpawnId);
     UFUNCTION(Server, Reliable) void ServerRequestPerfReport();
@@ -116,7 +121,10 @@ private:
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
     double LastChatServerTime = -100.0;
+    double LastTacticalPingServerTime = -100.0;
     TArray<FOCChatMessage> RecentChatMessages;
+    TArray<FOCTacticalPing> RecentTacticalPings;
+    uint32 TacticalPingRevision = 0;
     FOCSquadOrder CurrentSquadOrder;
     FName RequestedDeploymentSpawn = TEXT("BASE");
 
