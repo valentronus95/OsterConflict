@@ -68,7 +68,7 @@ void AOCTransientVisualFX::ConfigureTracer(const FVector& Start, const FVector& 
     const FVector Direction = Delta / Length;
     SetActorLocation((Start + End) * 0.5f);
     SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, Direction));
-    // Thin high-speed streak. Never render the old oversized yellow projectile bead.
+    // Thin high-speed streak instead of an oversized projectile bead.
     const float ThinRadius = FMath::Clamp(RadiusCm, 0.18f, 0.42f);
     Mesh->SetRelativeScale3D(FVector(ThinRadius / 50.0f, ThinRadius / 50.0f, Length / 100.0f));
     PointLight->SetVisibility(false);
@@ -99,8 +99,7 @@ void AOCTransientVisualFX::ConfigureImpact(const FVector& Location, const FVecto
 void AOCTransientVisualFX::ConfigureMuzzle(const FVector& Location, const FVector& Direction, const FLinearColor& Color,
     float LifetimeSeconds)
 {
-    // A muzzle flash is a short directional plume, not a glowing ball. Human beings apparently needed
-    // several centuries of firearms and one game prototype to settle this visual distinction.
+    // Muzzle presentation is a short directional plume rather than a glowing sphere.
     if (UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone")))
     {
         Mesh->SetStaticMesh(Cone);
