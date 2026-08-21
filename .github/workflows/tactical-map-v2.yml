@@ -10,6 +10,7 @@ on:
       - 'TACTICAL_MAP_RUNTIME_ACCEPTANCE.md'
       - 'BUILD_EDITOR_LAUNCHER_UE58.cmd'
       - 'VERIFY_TACTICAL_MAP_V2.py'
+      - 'VERIFY_TACTICAL_MAP_INPUT_SAFETY.py'
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
       - 'VERIFY_S17B.py'
@@ -54,6 +55,8 @@ jobs:
         shell: pwsh
         run: |
           python .\VERIFY_TACTICAL_MAP_V2.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_TACTICAL_MAP_INPUT_SAFETY.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run stable structural regression baseline
