@@ -33,6 +33,8 @@ require("AddMappingContext(MapMappingContext, 100)" in cpp, "tactical map input 
 require("ETriggerEvent::Started" in cpp, "M toggle must be bound as an Enhanced Input Started event")
 require("IsInputKeyDown(EKeys::M)" not in cpp, "raw M polling regression detected")
 require("PollInput" not in header and "PollInput" not in cpp, "legacy 25 ms PollInput path returned")
+require("!Character && !Cast<AOCVehicleBase>(PC->GetPawn())" in cpp,
+        "map lifecycle must tolerate local possession switching from character to vehicle")
 
 # World alignment contract: actual AOCWorldSectorOster geometry owns map bounds and POI projection.
 require("ResolveSectorContentBounds" in cpp, "actual sector content-bounds resolver is missing")
@@ -77,6 +79,26 @@ require("Projection.UVToWorld" in cpp, "tactical ping does not convert map UV ba
 require("TacticalMapLocalPing" in cpp and "◆ PING" in cpp, "local ping marker presentation is missing")
 require("КОЛЕСО  МАСШТАБ" in cpp and "ЛКМ + РУХ  ПЕРЕМІЩЕННЯ" in cpp and "ПКМ  ТАКТИЧНИЙ МАРКЕР" in cpp,
         "implemented map controls are not exposed in the HUD hint bar")
+
+# Replicated squad marker contract: map consumes existing team/squad state instead of a parallel UI roster.
+require('#include "OCPlayerState.h"' in cpp, "replicated PlayerState feed is not connected to tactical map")
+require("RefreshSquadMarkers" in header and "RefreshSquadMarkers" in cpp, "squad marker refresh path is missing")
+require("GetTeamId()" in cpp and "GetSquadId()" in cpp, "squad markers are not filtered by authoritative team/squad state")
+require("TActorIterator<AOCCharacter>" in cpp, "squad marker actor feed is missing")
+require("SquadMarkers.Find(Character)" in cpp and "SquadMarkers.Add(Character, Marker)" in cpp,
+        "squad markers must be cached instead of recreated every tick")
+require("Character->IsInVehicle() ? Character->GetCurrentVehicle()" in cpp,
+        "squad member vehicle transition is not reflected in marker position")
+require('TEXT("▣")' in cpp and 'TEXT("●")' in cpp, "squad/vehicle marker distinction is missing")
+require("SpatialActor->GetActorLocation()" in cpp, "dynamic squad marker does not use actual actor world position")
+
+# Spatial squad orders only: Move/Regroup have WorldLocation; Attack/Defend currently carry only ObjectiveId.
+require("RefreshSquadOrderMarker" in header and "RefreshSquadOrderMarker" in cpp, "squad order marker path is missing")
+require("PC->GetCurrentSquadOrder()" in cpp, "map is not using the existing squad-order state")
+require("Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup" in cpp,
+        "non-spatial Attack/Defend orders must not be falsely plotted at FVector::ZeroVector")
+require("WorldToMap(Order.WorldLocation)" in cpp, "spatial squad order is not projected from world-space")
+require("TacticalMapSquadOrder" in cpp, "squad order marker widget is missing")
 
 # Projection contract: one reversible transform is shared by static markers, player and ping.
 require("struct OSTERCONFLICT_API FOCTacticalMapProjection" in projection_h, "projection type missing")
