@@ -78,13 +78,13 @@ namespace
         const int32 ZOrder = 0)
     {
         if (!Canvas || !Widget) return nullptr;
-        UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Widget);
-        if (!Slot) return nullptr;
-        Slot->SetPosition(Position);
-        Slot->SetSize(Size);
-        Slot->SetAlignment(Alignment);
-        Slot->SetZOrder(ZOrder);
-        return Slot;
+        UCanvasPanelSlot* CanvasSlot = Canvas->AddChildToCanvas(Widget);
+        if (!CanvasSlot) return nullptr;
+        CanvasSlot->SetPosition(Position);
+        CanvasSlot->SetSize(Size);
+        CanvasSlot->SetAlignment(Alignment);
+        CanvasSlot->SetZOrder(ZOrder);
+        return CanvasSlot;
     }
 
     UTextBlock* AddCanvasText(
@@ -191,11 +191,11 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
 
     UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapBackdrop"));
     Backdrop->SetBrushColor(ColorBackdrop);
-    if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Backdrop))
+    if (UCanvasPanelSlot* BackdropCanvasSlot = Root->AddChildToCanvas(Backdrop))
     {
-        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-        Slot->SetOffsets(FMargin(0.0f));
-        Slot->SetZOrder(0);
+        BackdropCanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        BackdropCanvasSlot->SetOffsets(FMargin(0.0f));
+        BackdropCanvasSlot->SetZOrder(0);
     }
 
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapTitle"), TEXT("TACTICAL MAP"),
@@ -231,20 +231,20 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
 
     MapContentCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("TacticalMapContent"));
     MapContentCanvas->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(MapContentCanvas))
+    if (UCanvasPanelSlot* ContentCanvasSlot = MapCanvas->AddChildToCanvas(MapContentCanvas))
     {
-        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-        Slot->SetOffsets(FMargin(0.0f));
-        Slot->SetZOrder(0);
+        ContentCanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        ContentCanvasSlot->SetOffsets(FMargin(0.0f));
+        ContentCanvasSlot->SetZOrder(0);
     }
 
     UBorder* MapField = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapField"));
     MapField->SetBrushColor(ColorMap);
-    if (UCanvasPanelSlot* Slot = MapContentCanvas->AddChildToCanvas(MapField))
+    if (UCanvasPanelSlot* MapFieldCanvasSlot = MapContentCanvas->AddChildToCanvas(MapField))
     {
-        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-        Slot->SetOffsets(FMargin(2.0f));
-        Slot->SetZOrder(0);
+        MapFieldCanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        MapFieldCanvasSlot->SetOffsets(FMargin(2.0f));
+        MapFieldCanvasSlot->SetZOrder(0);
     }
 
     if (!bConfiguredFromSubsystem) ResolveProjectionFromWorld();
@@ -258,11 +258,11 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
         WorldMapImage->SetBrush(MapBrush);
         WorldMapImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
         WorldMapImage->SetRenderScale(FVector2D(-1.0f, 1.0f));
-        if (UCanvasPanelSlot* Slot = MapContentCanvas->AddChildToCanvas(WorldMapImage))
+        if (UCanvasPanelSlot* WorldMapCanvasSlot = MapContentCanvas->AddChildToCanvas(WorldMapImage))
         {
-            Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-            Slot->SetOffsets(FMargin(0.0f));
-            Slot->SetZOrder(1);
+            WorldMapCanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+            WorldMapCanvasSlot->SetOffsets(FMargin(0.0f));
+            WorldMapCanvasSlot->SetZOrder(1);
         }
     }
 
@@ -787,10 +787,10 @@ void UOCTacticalMapWidget::PlaceLocalPing(const FVector2D& ViewportLocal)
         PlaceOnCanvas(MapContentCanvas, LocalPingMarker, WorldToMap(WorldPing), FVector2D(100.0f, 28.0f),
             FVector2D(0.5f, 0.5f), 24);
     }
-    else if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(LocalPingMarker->Slot))
+    else if (UCanvasPanelSlot* LocalPingCanvasSlot = Cast<UCanvasPanelSlot>(LocalPingMarker->Slot))
     {
         LocalPingMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
-        Slot->SetPosition(WorldToMap(WorldPing));
+        LocalPingCanvasSlot->SetPosition(WorldToMap(WorldPing));
     }
 
     UE_LOG(LogTemp, Display,
@@ -986,7 +986,7 @@ bool UOCTacticalMapSubsystem::CaptureWorldMap()
         MapRenderTarget = NewObject<UTextureRenderTarget2D>(this, TEXT("RT_TacticalMapRuntime"));
         if (!MapRenderTarget) return false;
         MapRenderTarget->ClearColor = ColorMap;
-        MapRenderTarget->bHDR = false;
+        MapRenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
         MapRenderTarget->InitAutoFormat(CaptureWidth, CaptureHeight);
         MapRenderTarget->UpdateResourceImmediate(true);
     }
