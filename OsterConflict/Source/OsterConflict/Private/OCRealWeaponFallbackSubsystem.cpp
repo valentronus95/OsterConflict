@@ -21,7 +21,7 @@ namespace
         Weapon.GetComponents(Components);
         for (const UActorComponent* Component : Components)
         {
-            if (Component && Component->ComponentHasTag(ProductionVisualTag)) return true;
+            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;
         }
         return false;
     }
@@ -76,25 +76,26 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
 
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
-        AOCWeaponBase& Weapon = **It;
-        if (Weapon.ActorHasTag(RealFallbackTag) || HasProductionVisual(Weapon)) continue;
+        AOCWeaponBase* Weapon = *It;
+        if (!IsValid(Weapon) || Weapon->IsActorBeingDestroyed()) continue;
+        if (Weapon->ActorHasTag(RealFallbackTag) || HasProductionVisual(*Weapon)) continue;
 
-        const FString Name = Weapon.GetWeaponDisplayName();
+        const FString Name = Weapon->GetWeaponDisplayName();
         if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
         {
-            ApplyRealFallback(Weapon, GenericMachineGun, 104.0f, TEXT("R13 generic machinegun"));
+            ApplyRealFallback(*Weapon, GenericMachineGun.Get(), 104.0f, TEXT("R13 generic machinegun"));
         }
         else if (Name.Equals(TEXT("M1911"), ESearchCase::IgnoreCase))
         {
-            ApplyRealFallback(Weapon, GenericPistol, 24.0f, TEXT("R13 generic pistol"));
+            ApplyRealFallback(*Weapon, GenericPistol.Get(), 24.0f, TEXT("R13 generic pistol"));
         }
         else if (Name.Equals(TEXT("MAC-10"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("MAC10"), ESearchCase::IgnoreCase))
         {
-            ApplyRealFallback(Weapon, GenericSMG, 31.0f, TEXT("R13 generic SMG"));
+            ApplyRealFallback(*Weapon, GenericSMG.Get(), 31.0f, TEXT("R13 generic SMG"));
         }
         else if (Name.Equals(TEXT("Remington 870"), ESearchCase::IgnoreCase))
         {
-            ApplyRealFallback(Weapon, GenericShotgun, 103.0f, TEXT("R13 generic shotgun"));
+            ApplyRealFallback(*Weapon, GenericShotgun.Get(), 103.0f, TEXT("R13 generic shotgun"));
         }
     }
 }
@@ -105,7 +106,11 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     float DesiredLengthCm,
     const TCHAR* FallbackLabel)
 {
-    if (!Mesh || !Weapon.GetRootComponent()) return false;
+    USceneComponent* RootComponent = Weapon.GetRootComponent();
+    if (!IsValid(&Weapon) || Weapon.IsActorBeingDestroyed() || !IsValid(Mesh) || !IsValid(RootComponent))
+    {
+        return false;
+    }
 
     const FBoxSphereBounds Bounds = Mesh->GetBounds();
     const FVector NativeSize = Bounds.BoxExtent * 2.0f;
@@ -117,7 +122,7 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
     for (UStaticMeshComponent* Existing : StaticComponents)
     {
-        if (!Existing || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
+        if (!IsValid(Existing) || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
         Existing->SetVisibility(false, true);
         Existing->SetHiddenInGame(true, true);
         Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -128,9 +133,9 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
         UStaticMeshComponent::StaticClass(),
         FName(TEXT("OC_RealWeaponFallback")));
     UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(&Weapon, ComponentName);
-    if (!Visual) return false;
+    if (!IsValid(Visual)) return false;
 
-    Visual->SetupAttachment(Weapon.GetRootComponent());
+    Visual->SetupAttachment(RootComponent);
     Visual->SetStaticMesh(Mesh);
     Visual->SetRelativeLocation(FVector::ZeroVector);
     Visual->SetRelativeRotation(FRotator::ZeroRotator);
