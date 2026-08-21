@@ -46,12 +46,13 @@ for rel in ['Source/OsterConflict/Public/OCPlayerUserSettings.h','Source/OsterCo
     inc=[x.strip() for x in lines if x.strip().startswith('#include')]
     if not inc or 'generated.h' not in inc[-1]: raise SystemExit(f'generated.h order: {rel}')
 
-# server RPC declarations still have implementations
+# PlayerController server RPC implementations may live in any private translation unit.
 h=(P/'Source/OsterConflict/Public/OCPlayerController.h').read_text(errors='ignore')
-cpp=(P/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text(errors='ignore')
+private_dir=P/'Source/OsterConflict/Private'
+private_cpp='\n'.join(path.read_text(encoding='utf-8',errors='ignore') for path in private_dir.glob('*.cpp'))
 rpcs=re.findall(r'UFUNCTION\(Server, Reliable\)\s+void\s+(\w+)\s*\(',h)
 for rpc in rpcs:
-    if f'{rpc}_Implementation' not in cpp: raise SystemExit(f'RPC implementation missing: {rpc}')
+    if f'{rpc}_Implementation' not in private_cpp: raise SystemExit(f'RPC implementation missing: {rpc}')
 
 # delimiter sanity for all project C++
 for path in list((P/'Source/OsterConflict').rglob('*.h'))+list((P/'Source/OsterConflict').rglob('*.cpp')):

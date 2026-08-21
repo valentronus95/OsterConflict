@@ -26,11 +26,12 @@ for p in (ROOT/'Source/OsterConflict/Public').glob('*.h'):
         inc=[line.strip() for line in t.splitlines() if line.strip().startswith('#include')]
         gen=[x for x in inc if '.generated.h"' in x]
         if gen and inc[-1]!=gen[-1]: missing.append(f'{p.name}: generated.h is not last include')
-# RPC declarations must have cpp implementation markers
+# PlayerController Server RPC declarations may be implemented in any private translation unit.
 pc_h=(ROOT/'Source/OsterConflict/Public/OCPlayerController.h').read_text(encoding='utf-8')
-pc_c=(ROOT/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text(encoding='utf-8')
+private_dir=ROOT/'Source/OsterConflict/Private'
+private_cpp='\n'.join(p.read_text(encoding='utf-8') for p in private_dir.glob('*.cpp'))
 for name in re.findall(r'UFUNCTION\(Server, Reliable\)\s+void\s+(\w+)\(',pc_h):
-    if f'{name}_Implementation(' not in pc_c: missing.append(f'RPC implementation missing: {name}')
+    if f'{name}_Implementation(' not in private_cpp: missing.append(f'RPC implementation missing: {name}')
 if missing:
     print('S14A structural verification: FAIL')
     print('\n'.join(' - '+x for x in missing)); sys.exit(1)

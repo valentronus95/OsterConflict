@@ -4,14 +4,25 @@
 #include "Blueprint/UserWidget.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "TimerManager.h"
+#include "OCTacticalMapProjection.h"
 #include "OCTacticalMapSubsystem.generated.h"
 
+class AOCCapturePoint;
 class AOCCharacter;
 class AOCPlayerController;
+class AOCWorldSectorOster;
+class ASceneCapture2D;
 class UCanvasPanel;
+class UEnhancedInputComponent;
+class UInputAction;
+class UInputMappingContext;
 class UTextBlock;
+class UTextureRenderTarget2D;
 
-/** Source-only tactical map used until final authored map art/UI assets are supplied. */
+/**
+ * Source-driven Tactical Map 2.0 presentation.
+ * The accepted concept image is style-only; world geometry owns the geography.
+ */
 UCLASS()
 class OSTERCONFLICT_API UOCTacticalMapWidget : public UUserWidget
 {
@@ -20,23 +31,59 @@ class OSTERCONFLICT_API UOCTacticalMapWidget : public UUserWidget
 public:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+    virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+
+    void ConfigureWorldMap(const FOCTacticalMapProjection& InProjection, AOCWorldSectorOster* InWorldSector,
+        UTextureRenderTarget2D* InWorldMapTexture);
 
 private:
     UPROPERTY() TObjectPtr<UCanvasPanel> MapCanvas;
+    UPROPERTY() TObjectPtr<UCanvasPanel> MapContentCanvas;
     UPROPERTY() TObjectPtr<UTextBlock> PlayerMarker;
     UPROPERTY() TObjectPtr<UTextBlock> PlayerCoordinates;
+    UPROPERTY() TObjectPtr<UTextBlock> LocalPingMarker;
+    UPROPERTY() TObjectPtr<UTextBlock> SquadOrderMarker;
+    UPROPERTY() TArray<TObjectPtr<UTextBlock>> TacticalPingMarkers;
+    UPROPERTY() TObjectPtr<UTextureRenderTarget2D> WorldMapTexture;
 
-    FVector2D WorldMin = FVector2D::ZeroVector;
-    FVector2D WorldMax = FVector2D(1.0f, 1.0f);
+    TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
+    TMap<TWeakObjectPtr<AOCCharacter>, TWeakObjectPtr<UTextBlock>> SquadMarkers;
+    TMap<TWeakObjectPtr<AOCCapturePoint>, TWeakObjectPtr<UTextBlock>> ObjectiveMarkers;
+    FOCTacticalMapProjection Projection;
+    bool bConfiguredFromSubsystem = false;
 
+    float MapZoom = 1.0f;
+    FVector2D MapPan = FVector2D::ZeroVector;
+    bool bDraggingMap = false;
+    FVector2D LastDragLocalPosition = FVector2D::ZeroVector;
+    uint32 LastTacticalPingRevision = MAX_uint32;
+    float NextTacticalPingExpiryServerTime = -1.0f;
+
+    bool ResolveProjectionFromWorld();
+    FVector ResolveSectorWorldLocation(const FVector& SectorLocalLocation) const;
     FVector2D WorldToMap(const FVector& WorldLocation) const;
     void AddLandmarkMarker(const FString& Label, const FVector& WorldLocation);
+    void AddGrid();
+
+    void RefreshSquadMarkers();
+    void RefreshObjectiveMarkers();
+    void RefreshSquadOrderMarker();
+    void RefreshTacticalPingMarkers();
+    bool ResolveSquadOrderWorldLocation(FVector& OutWorldLocation) const;
+    bool PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const;
+    FVector2D ViewportToContent(const FVector2D& ViewportLocal) const;
+    void ApplyMapViewTransform();
+    void ClampMapPan();
+    void PlaceLocalPing(const FVector2D& ViewportLocal);
 };
 
 /**
- * Owns the M-key tactical-map contract without coupling it to trap deployment.
- * It also removes the legacy IA_DeployTrap -> M mapping from the current character and rehomes
- * that diagnostic gameplay action to V, keeping M exclusive to the map.
+ * Owns the Tactical Map 2.0 runtime contract.
+ * M is event-driven through Enhanced Input; the level/world remains the source of truth.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCTacticalMapSubsystem : public UWorldSubsystem
@@ -48,17 +95,33 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
     virtual void Deinitialize() override;
 
+    bool IsMapOpen() const { return bMapOpen; }
+    void ToggleMap(AOCPlayerController& PlayerController);
+
 private:
-    FTimerHandle InputPollTimer;
+    FTimerHandle InputSetupTimer;
+    TWeakObjectPtr<AOCPlayerController> BoundPlayerController;
+    TWeakObjectPtr<UEnhancedInputComponent> BoundInputComponent;
     TWeakObjectPtr<AOCCharacter> RemappedCharacter;
+    TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
+
+    UPROPERTY() TObjectPtr<UInputMappingContext> MapMappingContext;
+    UPROPERTY() TObjectPtr<UInputAction> MapToggleAction;
     UPROPERTY() TObjectPtr<UOCTacticalMapWidget> MapWidget;
-    bool bPreviousMDown = false;
-    bool bPreviousEscapeDown = false;
+    UPROPERTY() TObjectPtr<UTextureRenderTarget2D> MapRenderTarget;
+    UPROPERTY() TObjectPtr<ASceneCapture2D> MapCaptureActor;
+
+    FOCTacticalMapProjection MapProjection;
     bool bMapOpen = false;
 
-    void PollInput();
+    void EnsureEnhancedInputBinding();
+    void HandleMapToggleAction();
     void EnsureExclusiveMapBinding(AOCCharacter& Character);
     bool CanOpenMap(const AOCPlayerController& PlayerController) const;
+    bool HasBlockingUI(const AOCPlayerController& PlayerController) const;
+    bool ResolveWorldMapSource();
+    bool CaptureWorldMap();
+    void ReleaseCaptureResources();
     void OpenMap(AOCPlayerController& PlayerController);
-    void CloseMap(AOCPlayerController& PlayerController);
+    void CloseMap(AOCPlayerController& PlayerController, bool bRestoreGameplayInput);
 };

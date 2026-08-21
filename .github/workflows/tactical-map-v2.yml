@@ -1,0 +1,78 @@
+name: Tactical Map 2.0 source contracts
+
+on:
+  push:
+    branches:
+      - feat/tactical-map-v2
+  pull_request:
+    paths:
+      - 'TACTICAL_MAP_TZ.md'
+      - 'TACTICAL_MAP_RUNTIME_ACCEPTANCE.md'
+      - 'BUILD_EDITOR_LAUNCHER_UE58.cmd'
+      - 'VERIFY_TACTICAL_MAP_V2.py'
+      - 'VERIFY_TACTICAL_MAP_INPUT_SAFETY.py'
+      - 'VERIFY_S14A.py'
+      - 'VERIFY_S17A.py'
+      - 'VERIFY_S17B.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCHUD.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCLobbyTypes.h'
+      - 'OsterConflict/Source/OsterConflict/Public/OCPlayerController.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalPingNetwork.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCTacticalMapProjectionTests.cpp'
+      - '.github/workflows/tactical-map-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tactical-map-v2-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-tactical-map:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: 'utf-8'
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify Tactical Map 2.0 source contracts
+        shell: pwsh
+        run: |
+          python .\VERIFY_TACTICAL_MAP_V2.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_TACTICAL_MAP_INPUT_SAFETY.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run stable structural regression baseline
+        shell: pwsh
+        run: |
+          $checks = @(
+            'VERIFY_S04.py','VERIFY_S05.py','VERIFY_S06.py','VERIFY_S07.py','VERIFY_S08.py','VERIFY_S09.py',
+            'VERIFY_S10.py','VERIFY_S11.py','VERIFY_S12.py','VERIFY_S13.py','VERIFY_S14A.py','VERIFY_S14B.py',
+            'VERIFY_S15A.py','VERIFY_S15B.py','VERIFY_S16A.py','VERIFY_S16B.py','VERIFY_S16C.py','VERIFY_S17A.py',
+            'VERIFY_S17B.py','VERIFY_S18A.py','VERIFY_S18B.py','VERIFY_S18C.py','VERIFY_S18C_HARDENING_R1.py',
+            'VERIFY_S19C_SOURCE.py'
+          )
+          foreach ($check in $checks) {
+            Write-Host "===== $check ====="
+            python ".\$check"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

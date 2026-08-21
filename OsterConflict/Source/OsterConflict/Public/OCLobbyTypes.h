@@ -36,6 +36,18 @@ struct FOCChatMessage
 };
 
 USTRUCT(BlueprintType)
+struct FOCTacticalPing
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly) FVector WorldLocation = FVector::ZeroVector;
+    UPROPERTY(BlueprintReadOnly) FString IssuerName;
+    UPROPERTY(BlueprintReadOnly) EOCTeam Team = EOCTeam::None;
+    UPROPERTY(BlueprintReadOnly) int32 SquadId = INDEX_NONE;
+    UPROPERTY(BlueprintReadOnly) float ServerTime = 0.0f;
+};
+
+USTRUCT(BlueprintType)
 struct FOCSquadOrder
 {
     GENERATED_BODY()
