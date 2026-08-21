@@ -14,6 +14,13 @@ Plugins/**/Intermediate/
 *.VC.opendb
 *.zip
 
+# Local validation/playtest output. These files are generated on each PC and must never be committed.
+PC_TEST/TEST_RESULTS/
+PC_TEST/*_LAST.log
+PC_TEST/*_IMPORT_LAST.log
+Logs/*.log
+*_IMPORT_STATE.txt
+
 # BTR-4 upload has no redistribution license/readme and references a GTA SA mod source.
 # Keep its source bytes and derived Unreal production asset local-development-only while this repo is public.
 OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx
