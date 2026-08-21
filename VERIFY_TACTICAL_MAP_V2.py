@@ -10,6 +10,8 @@ PROJECTION_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCTacticalMapPr
 PROJECTION_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp"
 TESTS = ROOT / "OsterConflict/Source/OsterConflict/Private/Tests/OCTacticalMapProjectionTests.cpp"
 TZ = ROOT / "TACTICAL_MAP_TZ.md"
+RUNTIME_ACCEPTANCE = ROOT / "TACTICAL_MAP_RUNTIME_ACCEPTANCE.md"
+BUILD_HELPER = ROOT / "BUILD_EDITOR_LAUNCHER_UE58.cmd"
 
 
 def require(condition: bool, message: str) -> None:
@@ -31,6 +33,8 @@ projection_h = text(PROJECTION_H)
 projection_cpp = text(PROJECTION_CPP)
 tests = text(TESTS)
 tz = text(TZ)
+runtime_acceptance = text(RUNTIME_ACCEPTANCE)
+build_helper = text(BUILD_HELPER)
 
 # Input contract: M must be event-driven through Enhanced Input, not sampled every frame/timer tick.
 require("IMC_TacticalMapRuntime" in cpp, "tactical map mapping context is missing")
@@ -199,5 +203,18 @@ for token in (
 require("джерело істини" in tz.lower(), "TZ must explicitly define a source of truth")
 require("actual" in tz.lower() or "фактич" in tz.lower(), "TZ must require actual level/world placement")
 require("AI-згенерована географія" in tz, "TZ must reject generated geography as production placement")
+
+# UE 5.8 local build/acceptance contract. GitHub-hosted Windows runners do not contain UE 5.8,
+# so source CI must keep the real local Build.bat path and runtime gate documented instead of pretending to compile UE.
+require("Build.bat" in build_helper and "OsterConflictEditor Win64 Development" in build_helper,
+        "UE 5.8 editor build helper no longer invokes the real UnrealBuildTool path")
+require("UE_ROOT" in build_helper, "UE 5.8 build helper must support an install-root override")
+require("/nopause" in build_helper, "UE 5.8 build helper needs non-interactive exit-code mode for acceptance")
+require("/clean" in build_helper, "UE 5.8 build helper needs an explicit clean-build mode")
+require("-NoHotReloadFromIDE" in build_helper, "acceptance build should not rely on editor hot reload")
+require("CODED_UNTESTED" in runtime_acceptance and "VERIFIED RUNTIME" in runtime_acceptance,
+        "runtime acceptance status gate is missing")
+require("UE 5.8 build result and exact commit SHA" in runtime_acceptance,
+        "runtime acceptance must record the exact UE 5.8 build SHA")
 
 print("Tactical Map 2.0 source contracts: PASS")
