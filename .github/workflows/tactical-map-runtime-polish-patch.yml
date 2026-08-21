@@ -100,8 +100,7 @@ void UOCTacticalMapWidget::AddGrid()'''
               '        Marker->SetText(FText::FromString(TEXT("◆ МІТКА")));',
               'network tactical ping label')
 
-          if 'TEXT("◆ PING")' in text:
-              text = text.replace('TEXT("◆ PING")', 'TEXT("◆ МІТКА")')
+          text = text.replace('TEXT("◆ PING")', 'TEXT("◆ МІТКА")')
 
           footer_old = '''    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintClose"), TEXT("M  ЗАКРИТИ"),
         FVector2D(38.0f, 846.0f), FVector2D(180.0f, 28.0f), 14, ColorMutedText, 5);
@@ -141,3 +140,5 @@ void UOCTacticalMapWidget::AddGrid()'''
           git add OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp
           git commit -m "Polish Tactical Map runtime readability"
           git push origin HEAD:fix/tactical-map-runtime-polish
+
+# retrigger 2026-08-22 runtime screenshot fixes
