@@ -173,8 +173,6 @@ namespace
     {
         if (!SiteActor || !Root) return;
 
-        // The 2025 reference has a real named entrance landmark. TextRender follows the same proven component pattern
-        // used by the Silpo facade. Orientation faces the public approach side of the local -Y sign face.
         UTextRenderComponent* EntranceText = NewObject<UTextRenderComponent>(SiteActor, TEXT("StadionOsterEntranceText"));
         if (!EntranceText) return;
 
@@ -200,8 +198,6 @@ namespace
             AOCWorldSectorOster* Sector = *It;
             if (!Sector) continue;
 
-            // Keep the old stadium collision/navigation contract alive while retiring the visible procedural
-            // blockout. The dedicated site root below becomes the only player-facing stadium presentation owner.
             for (const FName ComponentName : { FName(TEXT("StadiumGeometry")), FName(TEXT("StadiumDetails")) })
             {
                 if (UInstancedStaticMeshComponent* Component = FindISM(Sector, ComponentName))
@@ -211,7 +207,6 @@ namespace
                 }
             }
 
-            // Fences is shared by the wider city. Remove only stadium-area instances and rebuild that edge locally.
             RemoveInstancesNear(FindISM(Sector, FName(TEXT("Fences"))), Stadium, LegacyFenceCleanupRadiusCm);
         }
     }
@@ -233,7 +228,6 @@ void UOCR13StadiumSurfaceSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Build once at BeginPlay. No delayed stadium presentation replacement is allowed.
     ApplyStadiumSurface(InWorld);
 }
 
@@ -260,15 +254,24 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
 
     const FOCGeoReferencePoint StadiumGeo = FOCGeoReference::Stadium();
-    const FVector Stadium = FOCGeoReference::ToLocalCm(StadiumGeo.Latitude, StadiumGeo.Longitude, 0.0);
+    FVector Stadium = FOCGeoReference::ToLocalCm(StadiumGeo.Latitude, StadiumGeo.Longitude, 0.0);
+
+    // Georeference provides XY. Runtime terrain owns Z. The old Z=0 assumption could put the entire
+    // stadium slab above/below the actual ground, making the site look like a floating blockout.
+    FHitResult GroundHit;
+    FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(OCStadiumGround), false);
+    const FVector GroundStart(Stadium.X, Stadium.Y, 10000.0f);
+    const FVector GroundEnd(Stadium.X, Stadium.Y, -5000.0f);
+    if (World.LineTraceSingleByChannel(GroundHit, GroundStart, GroundEnd, ECC_Visibility, GroundParams))
+    {
+        Stadium.Z = GroundHit.ImpactPoint.Z;
+    }
 
     HideLegacyStadiumVisuals(World, Stadium);
 
     AActor* SiteActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!SiteActor) return;
     SiteActor->SetReplicates(false);
-    // Component profiles decide what blocks. Keeping actor collision enabled avoids silently disabling the new goals,
-    // entrance structure and perimeter fences while visual-only grass/track/path components remain NoCollision.
     SiteActor->SetActorEnableCollision(true);
     SiteActor->Tags.Add(FName(TEXT("R13_StadionOsterAuthoritative")));
 
@@ -283,8 +286,6 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     SiteActor->AddInstanceComponent(Root);
     Root->RegisterComponent();
 
-    UMaterialInstanceDynamic* GrassMat = MakeColor(SiteActor, BaseMaterial,
-        TEXT("StadionOsterGrassMat"), FLinearColor(0.19f, 0.36f, 0.10f, 1.0f));
     UMaterialInstanceDynamic* TurfMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterTurfMat"), FLinearColor(0.055f, 0.31f, 0.11f, 1.0f));
     UMaterialInstanceDynamic* TrackMat = MakeColor(SiteActor, BaseMaterial,
@@ -300,8 +301,6 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     UMaterialInstanceDynamic* YellowMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterYellowMat"), FLinearColor(0.92f, 0.54f, 0.02f, 1.0f));
 
-    UInstancedStaticMeshComponent* Grass = MakeISM(SiteActor, Root, Cube, GrassMat,
-        TEXT("StadionOsterGrassApron"), false, false);
     UInstancedStaticMeshComponent* Turf = MakeISM(SiteActor, Root, Cube, TurfMat,
         TEXT("StadionOsterMainPitch"), false, false);
     UInstancedStaticMeshComponent* Track = MakeISM(SiteActor, Root, Cube, TrackMat,
@@ -330,11 +329,10 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     UInstancedStaticMeshComponent* Fences03 = MakeISM(SiteActor, Root, Fence03, nullptr,
         TEXT("StadionOsterFences03"), true, true, 60000);
 
-    // Site apron keeps the open grassy character around the formal pitch. Source terrain remains the floor collision.
-    AddBoxLocal(Grass, Stadium, FVector(0.0f, 0.0f, 5.0f), FVector(15400.0f, 11200.0f, 6.0f));
+    // Do not paint a 154x112 m Cube over the terrain. The terrain/foliage remains visible around
+    // the formal pitch, which removes the giant green rectangular slab seen in the playtest.
     AddBoxLocal(Turf, Stadium, FVector(0.0f, 0.0f, 12.0f), FVector(FieldLengthCm, FieldWidthCm, 8.0f));
 
-    // Restrained modern running surface. Exact lane curvature remains a visual-alignment item for UE playtest.
     constexpr float TrackZ = 10.0f;
     AddBoxLocal(Track, Stadium, FVector(0.0f, 3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
     AddBoxLocal(Track, Stadium, FVector(0.0f,-3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
@@ -361,7 +359,6 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         AddBoxLocal(Lines, Stadium, FVector((GoalX + PenaltyX) * 0.5f,-2015.0f, LineZ),
             FVector(1650.0f, LineWidth, 3.0f));
 
-        // 7.32 x 2.44 m full-size goal frame.
         AddBoxLocal(SportsMetal, Stadium, FVector(GoalX, -366.0f, 122.0f), FVector(10.0f, 10.0f, 244.0f));
         AddBoxLocal(SportsMetal, Stadium, FVector(GoalX,  366.0f, 122.0f), FVector(10.0f, 10.0f, 244.0f));
         AddBoxLocal(SportsMetal, Stadium, FVector(GoalX, 0.0f, 244.0f), FVector(10.0f, 742.0f, 10.0f));
@@ -405,7 +402,6 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     };
     AddPathPolyline(Paths, Stadium, EntrancePath, 104.0f, 8.0f);
 
-    // 2025 blue/yellow entrance landmark. Geometry and readable name remain part of the same authoritative site actor.
     AddBoxLocal(SignBlue, Stadium, FVector(-6550.0f, 5050.0f, 170.0f), FVector(70.0f, 95.0f, 340.0f));
     AddBoxLocal(SignBlue, Stadium, FVector(-5650.0f, 5050.0f, 105.0f), FVector(1800.0f, 80.0f, 210.0f));
     AddBoxLocal(SignYellow, Stadium, FVector(-5650.0f, 5006.0f, 105.0f), FVector(1650.0f, 6.0f, 26.0f));
@@ -438,7 +434,6 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
             5.0f + Index * 4.0f);
     }
 
-    // Collision-enabled real fence assets replace the removed legacy stadium fence instances.
     for (int32 Index = 0; Index < 12; ++Index)
     {
         const float X = -5500.0f + Index * 1000.0f;
@@ -449,7 +444,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("Stadion Oster authoritative site created: geo=(%.6f, %.6f), local=(%.1f, %.1f), yaw=%.1f, field=%.0fx%.0f cm, radius=%.0f cm. Entrance name and local collision are active; legacy stadium visuals/fences retired; references=REFERENCE_PHOTOS/stadion_oster."),
-        StadiumGeo.Latitude, StadiumGeo.Longitude, Stadium.X, Stadium.Y, FieldYawDegrees,
+        TEXT("Stadion Oster authoritative site created: geo=(%.6f, %.6f), local=(%.1f, %.1f, %.1f), yaw=%.1f, field=%.0fx%.0f cm, radius=%.0f cm. Runtime ground Z sampled; giant grass apron removed; legacy stadium visuals/fences retired; references=REFERENCE_PHOTOS/stadion_oster."),
+        StadiumGeo.Latitude, StadiumGeo.Longitude, Stadium.X, Stadium.Y, Stadium.Z, FieldYawDegrees,
         FieldLengthCm, FieldWidthCm, SiteRadiusCm);
 }
