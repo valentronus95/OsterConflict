@@ -188,11 +188,12 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     }
 
     bool bUsingMountedGunAsset = false;
-    USceneComponent* MountedGunParent = BarrelPivot ? BarrelPivot.Get() : TurretPivot.Get();
+    USceneComponent* M2Parent = BarrelPivot.Get();
+    if (!M2Parent) M2Parent = TurretPivot.Get();
     if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
     {
-        if (AddFittedTurretVisual(this, MountedGunParent, M2, 165.0f,
+        if (AddFittedTurretVisual(this, M2Parent, M2, 165.0f,
             FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
             bUsingMountedGunAsset = true;
@@ -206,7 +207,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (UStaticMesh* RealMachineGunFallback = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/R13/Weapons/machinegun.machinegun")))
         {
-            if (AddFittedTurretVisual(this, MountedGunParent, RealMachineGunFallback, 145.0f,
+            if (AddFittedTurretVisual(this, M2Parent, RealMachineGunFallback, 145.0f,
                 FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
             {
                 bUsingMountedGunAsset = true;
