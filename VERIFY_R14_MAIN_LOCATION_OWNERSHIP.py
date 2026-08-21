@@ -107,14 +107,18 @@ if separation_path.is_file():
 launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
-    if "CURRENT MAIN" not in launcher or "R14" not in launcher:
-        errors.append("START_HERE.cmd is not marked as current R14 main")
-    if "R14.7" not in launcher:
-        errors.append("START_HERE.cmd is not marked as the current R14.7 launcher")
+
+    # START_HERE.cmd is deliberately version-neutral for the user. The
+    # implementation version belongs to the internal launch scripts, not to the
+    # public entry point. Verify routing/intent instead of brittle R14.x labels.
+    if "OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК" not in launcher:
+        errors.append("START_HERE.cmd is not the canonical user launcher")
+    if "ТЕСТ ГРИ" not in launcher or "ЗВИЧАЙНА ГРА" not in launcher:
+        errors.append("START_HERE.cmd is missing the two supported user launch modes")
     if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in launcher:
         errors.append("START_HERE.cmd does not route normal playtest to RUN_R14_CURRENT_GAMEPLAY.cmd")
     if 'call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"' not in launcher:
-        errors.append("START_HERE.cmd does not retain the R14 sandbox diagnostic route")
+        errors.append("START_HERE.cmd does not retain the current-main sandbox diagnostic route")
     if "Launch R11 local listen-server visual test" in launcher:
         errors.append("START_HERE.cmd regressed to the legacy R11 playtest route")
 
@@ -127,5 +131,5 @@ if errors:
 print("R14 MAIN LOCATION OWNERSHIP: PASS")
 print("Museum, Silpo, Culture House and Stadium are bound to separate current-main site owners.")
 print("Culture House uses Hranovskoho 3 and cannot inherit Museum/Silpo coordinates.")
-print("Normal gameplay and Sandbox diagnostics are separate launch routes.")
+print("START_HERE.cmd is the single version-neutral user entry point; internal R14 scripts keep the implementation routes.")
 print("Legacy R13 Silpo/Culture House photo-model owners are absent and synthetic north-civic map geometry is guarded.")
