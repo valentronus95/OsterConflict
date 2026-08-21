@@ -43,13 +43,18 @@ civic_cpp = read(CIVIC_CPP) if CIVIC_CPP.exists() else ""
 dressing_cpp = read(DRESSING_CPP) if DRESSING_CPP.exists() else ""
 world_cpp = read(WORLD_CPP)
 
-if not REFERENCE_ARCHIVE.exists():
-    fail("missing canonical stadium reference archive")
-if REFERENCE_ARCHIVE.stat().st_size <= 0:
-    fail("canonical stadium reference archive is empty")
-archive_is_zip = zipfile.is_zipfile(REFERENCE_ARCHIVE)
-if not archive_is_zip:
-    require(reference_index, "Integrity status: `RESTORE_REQUIRED`", "reference archive integrity status")
+# The old archive was intentionally removed because it was corrupt and violated the LFS contract.
+# INDEX.md is authoritative while the payload is being restored. Absence is valid only when the
+# index explicitly records RESTORE_REQUIRED; an existing archive must still be non-empty and valid.
+if REFERENCE_ARCHIVE.exists():
+    if REFERENCE_ARCHIVE.stat().st_size <= 0:
+        fail("canonical stadium reference archive is empty")
+    archive_is_zip = zipfile.is_zipfile(REFERENCE_ARCHIVE)
+    if not archive_is_zip:
+        require(reference_index, "Integrity status: `RESTORE_REQUIRED`", "reference archive integrity status")
+else:
+    require(reference_index, "Integrity status: `RESTORE_REQUIRED`", "missing reference archive status")
+    archive_is_zip = False
 
 for needle in [
     "Authoritative presentation owner for the hard-georeferenced Stadion Oster site",
