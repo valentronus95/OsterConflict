@@ -204,11 +204,11 @@ void UOCTacticalMapWidget::RestyleStaticTacticalChrome()
     {
         UBorder* Accent = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapProductionAccent"));
         Accent->SetBrushColor(FLinearColor(0.95f, 0.55f, 0.12f, 0.92f));
-        if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Accent))
+        if (UCanvasPanelSlot* AccentCanvasSlot = Root->AddChildToCanvas(Accent))
         {
-            Slot->SetPosition(FVector2D(315.0f, 84.0f));
-            Slot->SetSize(FVector2D(1248.0f, 2.0f));
-            Slot->SetZOrder(6);
+            AccentCanvasSlot->SetPosition(FVector2D(315.0f, 84.0f));
+            AccentCanvasSlot->SetSize(FVector2D(1248.0f, 2.0f));
+            AccentCanvasSlot->SetZOrder(6);
         }
     }
 }
@@ -225,9 +225,9 @@ void UOCTacticalMapWidget::BuildProductionVisualLayer()
     for (int32 ChildIndex = MapContentCanvas->GetChildrenCount() - 1; ChildIndex >= 0; --ChildIndex)
     {
         UWidget* Child = MapContentCanvas->GetChildAt(ChildIndex);
-        if (const UCanvasPanelSlot* Slot = GetCanvasSlot(Child))
+        if (const UCanvasPanelSlot* ChildCanvasSlot = GetCanvasSlot(Child))
         {
-            const int32 Z = Slot->GetZOrder();
+            const int32 Z = ChildCanvasSlot->GetZOrder();
             if (Z == 12 || Z == 13) MapContentCanvas->RemoveChildAt(ChildIndex);
         }
     }
@@ -262,12 +262,12 @@ void UOCTacticalMapWidget::BuildProductionVisualLayer()
         Outer->SetBrushColor(bOutlined ? Outline : Fill);
         Outer->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
         Outer->SetRenderTransformAngle(MapAngle);
-        if (UCanvasPanelSlot* Slot = MapContentCanvas->AddChildToCanvas(Outer))
+        if (UCanvasPanelSlot* OuterCanvasSlot = MapContentCanvas->AddChildToCanvas(Outer))
         {
-            Slot->SetPosition(MapCenter);
-            Slot->SetSize(PixelSize);
-            Slot->SetAlignment(FVector2D(0.5f, 0.5f));
-            Slot->SetZOrder(ZOrder);
+            OuterCanvasSlot->SetPosition(MapCenter);
+            OuterCanvasSlot->SetSize(PixelSize);
+            OuterCanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+            OuterCanvasSlot->SetZOrder(ZOrder);
         }
 
         if (!bOutlined || PixelSize.X <= 3.0f || PixelSize.Y <= 3.0f) return;
@@ -276,12 +276,12 @@ void UOCTacticalMapWidget::BuildProductionVisualLayer()
         Inner->SetBrushColor(Fill);
         Inner->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
         Inner->SetRenderTransformAngle(MapAngle);
-        if (UCanvasPanelSlot* Slot = MapContentCanvas->AddChildToCanvas(Inner))
+        if (UCanvasPanelSlot* InnerCanvasSlot = MapContentCanvas->AddChildToCanvas(Inner))
         {
-            Slot->SetPosition(MapCenter);
-            Slot->SetSize(FVector2D(FMath::Max(1.0f, PixelSize.X - 2.0f), FMath::Max(1.0f, PixelSize.Y - 2.0f)));
-            Slot->SetAlignment(FVector2D(0.5f, 0.5f));
-            Slot->SetZOrder(ZOrder);
+            InnerCanvasSlot->SetPosition(MapCenter);
+            InnerCanvasSlot->SetSize(FVector2D(FMath::Max(1.0f, PixelSize.X - 2.0f), FMath::Max(1.0f, PixelSize.Y - 2.0f)));
+            InnerCanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+            InnerCanvasSlot->SetZOrder(ZOrder);
         }
     };
 
