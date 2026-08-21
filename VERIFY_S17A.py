@@ -25,12 +25,13 @@ markers=[
 missing=[m for m in markers if m not in alltext and m not in (P/'Source/OsterConflict/OsterConflict.Build.cs').read_text(errors='ignore')]
 if missing: raise SystemExit('MISSING MARKERS: '+', '.join(missing))
 
-# Server RPC declarations should have implementations.
+# Server RPC declarations may be implemented in any private translation unit.
 h=(P/'Source/OsterConflict/Public/OCPlayerController.h').read_text()
-cpp=(P/'Source/OsterConflict/Private/OCPlayerController.cpp').read_text()
+private_dir=P/'Source/OsterConflict/Private'
+private_cpp='\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in private_dir.glob('*.cpp'))
 rpcs=re.findall(r'UFUNCTION\(Server, Reliable\)\s+void\s+(\w+)\s*\(',h)
 for rpc in rpcs:
-    if f'{rpc}_Implementation' not in cpp: raise SystemExit(f'RPC implementation missing: {rpc}')
+    if f'{rpc}_Implementation' not in private_cpp: raise SystemExit(f'RPC implementation missing: {rpc}')
 
 # generated.h last include in UHT headers touched by S17A
 for rel in ['Source/OsterConflict/Public/OCGameUIRootWidget.h','Source/OsterConflict/Public/OCPlayerController.h']:
