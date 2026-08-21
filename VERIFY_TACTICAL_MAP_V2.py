@@ -3,6 +3,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h"
 CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp"
+CONTROLLER_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCPlayerController.h"
+PING_NETWORK_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalPingNetwork.cpp"
+LOBBY_TYPES_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCLobbyTypes.h"
 PROJECTION_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h"
 PROJECTION_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp"
 TESTS = ROOT / "OsterConflict/Source/OsterConflict/Private/Tests/OCTacticalMapProjectionTests.cpp"
@@ -21,6 +24,9 @@ def text(path: Path) -> str:
 
 header = text(HEADER)
 cpp = text(CPP)
+controller_h = text(CONTROLLER_H)
+ping_network_cpp = text(PING_NETWORK_CPP)
+lobby_types_h = text(LOBBY_TYPES_H)
 projection_h = text(PROJECTION_H)
 projection_cpp = text(PROJECTION_CPP)
 tests = text(TESTS)
@@ -64,7 +70,7 @@ require("ConfigureWorldMap" in header and "ConfigureWorldMap" in cpp, "subsystem
 require("MapWidget = CreateWidget<UOCTacticalMapWidget>" in cpp,
         "map widget must rebuild on open so it receives the current world capture")
 
-# Interactive viewport contract: clipping, wheel zoom, LMB pan with clamp, RMB local ping.
+# Interactive viewport contract: clipping, wheel zoom, LMB pan with clamp, RMB tactical ping.
 require("MapContentCanvas" in header and "TacticalMapContent" in cpp, "transformable map content layer is missing")
 require("NativeOnMouseWheel" in header and "NativeOnMouseWheel" in cpp, "mouse-wheel zoom handler is missing")
 require("NativeOnMouseButtonDown" in header and "NativeOnMouseButtonDown" in cpp, "map mouse-button handler is missing")
@@ -76,7 +82,6 @@ require("MaxMapZoom" in cpp and "MinMapZoom" in cpp, "map zoom bounds are missin
 require("ViewportToContent" in cpp, "viewport-to-content inverse transform is missing")
 require("GetEffectingButton() == EKeys::RightMouseButton" in cpp, "RMB tactical ping input is missing")
 require("Projection.UVToWorld" in cpp, "tactical ping does not convert map UV back to world-space")
-require("TacticalMapLocalPing" in cpp and "◆ PING" in cpp, "local ping marker presentation is missing")
 require("КОЛЕСО  МАСШТАБ" in cpp and "ЛКМ + РУХ  ПЕРЕМІЩЕННЯ" in cpp and "ПКМ  ТАКТИЧНИЙ МАРКЕР" in cpp,
         "implemented map controls are not exposed in the HUD hint bar")
 
@@ -126,7 +131,50 @@ require("WorldToMap(FVector::ZeroVector)" not in cpp,
         "regression: squad order must never deliberately plot an unresolved objective at world origin")
 require("TacticalMapSquadOrder" in cpp, "squad order marker widget is missing")
 
-# Projection contract: one reversible transform is shared by static markers, player, objectives and ping.
+# Server-routed tactical ping contract: ordinary squad members can ping without overwriting squad-leader orders.
+require("struct FOCTacticalPing" in lobby_types_h, "tactical ping payload is missing")
+for field in ("WorldLocation", "IssuerName", "Team", "SquadId", "ServerTime"):
+    require(field in lobby_types_h, f"tactical ping payload is missing {field}")
+require("SubmitTacticalPing" in controller_h, "player controller tactical-ping submit API is missing")
+require("ServerSubmitTacticalPing" in controller_h and "ClientReceiveTacticalPing" in controller_h,
+        "tactical ping RPC declarations are missing")
+require("GetRecentTacticalPings" in controller_h and "GetTacticalPingRevision" in controller_h,
+        "map-facing tactical ping feed is missing")
+require("ServerSubmitTacticalPing_Implementation" in ping_network_cpp,
+        "server tactical ping implementation is missing")
+require("LastTacticalPingServerTime" in ping_network_cpp and "TacticalPingCooldownSeconds" in ping_network_cpp,
+        "server tactical ping spam throttle is missing")
+require("TacticalPingMaxDistanceCm" in ping_network_cpp and "FVector::DistSquared2D" in ping_network_cpp,
+        "server tactical ping location validation is missing")
+require("RecipientState->GetTeamId() == Ping.Team" in ping_network_cpp and
+        "RecipientState->GetSquadId() == Ping.SquadId" in ping_network_cpp,
+        "server tactical ping must only route to matching team+squad")
+require("ClientReceiveTacticalPing(Ping)" in ping_network_cpp,
+        "server tactical ping delivery RPC is missing")
+require("RecentTacticalPings.Add(Ping)" in ping_network_cpp and "++TacticalPingRevision" in ping_network_cpp,
+        "client tactical ping feed/revision update is missing")
+require("ServerSubmitSquadOrder" not in ping_network_cpp,
+        "tactical ping must not hijack or overwrite the squad-order channel")
+
+# Map rendering contract for network pings: use server time, expire, and project shared world coordinates.
+require("RefreshTacticalPingMarkers" in header and "RefreshTacticalPingMarkers" in cpp,
+        "network tactical ping rendering path is missing")
+require("TacticalPingLifetimeSeconds" in cpp and "8.0f" in cpp,
+        "network tactical pings need an explicit short lifetime")
+require("GetServerWorldTimeSeconds" in cpp,
+        "network tactical ping expiry must use synchronized server time when available")
+require("PC->GetTacticalPingRevision()" in cpp and "PC->GetRecentTacticalPings()" in cpp,
+        "map is not consuming the player-controller tactical ping feed")
+require("WorldToMap(Ping.WorldLocation)" in cpp,
+        "network tactical ping is not projected from its shared world coordinate")
+require("PC->SubmitTacticalPing(WorldPing)" in cpp,
+        "RMB map interaction is not submitting the projected world coordinate to the server")
+require("LocalState->GetTeamId() != EOCTeam::None && LocalState->GetSquadId() >= 0" in cpp,
+        "network ping path must be gated by actual team/squad membership")
+require("TacticalMapLocalPing" in cpp and "local fallback ping" in cpp,
+        "non-squad/sandbox local ping fallback is missing")
+
+# Projection contract: one reversible transform is shared by static markers, player, objectives and pings.
 require("struct OSTERCONFLICT_API FOCTacticalMapProjection" in projection_h, "projection type missing")
 require("WorldToUV" in projection_h and "UVToWorld" in projection_h, "reversible projection API missing")
 require("Projection.WorldToUV" in cpp, "widget bypasses the central projection")
