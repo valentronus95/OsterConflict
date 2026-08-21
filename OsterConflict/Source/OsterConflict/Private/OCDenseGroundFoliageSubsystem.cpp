@@ -143,7 +143,7 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
 
     UStaticMesh* GroundPlantMesh = LoadFirstMesh({
         TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_01.ground_01_01"),
-        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plant_Var01.SM_Plant_Var01")
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plant.SM_Plant")
     });
     UStaticMesh* FlowerMesh = LoadFirstMesh({
         TEXT("/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_01_01.flower_01_01"),
