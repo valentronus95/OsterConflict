@@ -21,6 +21,7 @@
 - `VERIFIED BUILD` — конкретний compile blocker підтверджено усуненим фактичним наступним build/run.
 - `VERIFIED RUNTIME` — тільки після фактичного UE runtime/playtest.
 - Один landmark/site = один authoritative placement owner; cleanup не замінює ownership.
+- Відсутній source/production asset не можна вважати готовим через proxy або generic fallback; це лишається asset blocker до фактичного імпорту.
 
 ## 3. Активні вимоги
 
@@ -29,16 +30,16 @@
 | UI-BOOT-001 | Splash → main menu без чорної паузи | 1 | IN_PROGRESS | Normal launch показує splash Oster Conflict, потім проміжковий чорний екран, потім main menu. Треба зробити безперервний loading/frontend presentation. |
 | UI-MENU-001 | Головне меню стабільне | ≥3 | IN_PROGRESS | Main menu знову є і візуально виглядає нормально, але START дає сірий transition/фон і flow сприймається як повторний START. |
 | UI-TRAVEL-001 | START має один зрозумілий перехід у deployment/game | ≥3 | IN_PROGRESS | Після першого START весь екран/фон сіріє, потім deployment step 4 теж має кнопку `СТАРТ`, через що виглядає як подвійний запуск. Потрібно розділити loading і deploy action, перейменувати final deploy CTA. |
-| UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | IN_PROGRESS | Runtime: великий `КАНАЛ: КОМАНДА` постійно висить зліва. Треба hidden-by-default; `Y` відкриває Team, `U` Global. |
+| UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | CODED_UNTESTED | `d0f7c323...`: доданий runtime chat layer. Legacy `ChatPanel` приховується; `Y` відкриває Team, `U` Global, `Enter` надсилає/закриває, `Esc` закриває. Потрібен UE 5.8 runtime acceptance. |
 | GAME-SPAWN-001 | Нормальний фактичний spawn, не порожнє поле | ≥3 | IN_PROGRESS | Normal gameplay знову спавнить гравця в плоскому полі. Попередня вимога: тестові weapons мають бути біля фактичного/current spawn; конкретний landmark історично не був зафіксований. Потрібно перенести BASE spawn у реальну придатну зону карти та прив'язати diagnostics до нього. |
 | GAME-WEAPONS-001 | 11 pickup classes біля фактичного spawn | ≥3 | IN_PROGRESS | `LocationTest=1` rack source-side прив'язаний до possessed pawn, але normal gameplay його не показує. Новий runtime показує окремі floating/proxy weapons у старому blockout. Потрібен один test contract і pickup test усіх 11. |
-| VIS-FP-001 | Production/real weapon visuals без primitive boxes | ≥3 | IN_PROGRESS | AK first-person виглядає як real asset; M1911 та частина world weapons усе ще мають грубі primitive/proxy елементи. Reload і muzzle smoke вже видно, але production binding неповний. |
+| VIS-FP-001 | Production/real weapon visuals без primitive boxes | ≥3 | IN_PROGRESS | AK та частина exact R13 weapon meshes уже реально існують. `6eeb4aec...` прибрав 0.20 s затримку real-mesh fallback для M249/M1911/MAC-10/Remington 870, але exact production M249/Remington assets відсутні й runtime ще не перевірений. |
 | UI-TACTICAL-MAP-001 | `M` tactical map без конфлікту | 1 | IN_PROGRESS | Source: `M` map, trap `V`; новий playtest не дав runtime acceptance evidence для карти. |
 | GAME-VEHICLE-INPUT-001 | Після exit з авто повертаються WASD/sprint/mouse | 1 | IN_PROGRESS | Recovery coded; новий run показує driving/vehicles, але повторний enter→exit acceptance не зафіксовано. |
-| VEH-PICKUP-001 | Pickup/HMMWV має M2 Browning без proxy geometry | ≥2 | IN_PROGRESS | Runtime: пікап має реальну базову машину, але зверху великі чорні/сині primitive елементи; нормального Browning не видно. Потрібно знайти imported M2 asset і зробити його authoritative gun visual. |
-| VEH-PICKUP-SPEED-001 | Pickup max speed 120 км/год | 1 | IN_PROGRESS | User runtime повідомляє ~30 км/год. Потрібно перевірити vehicle tuning/units і поставити 120 км/год cap. |
-| ASSET-BTR-001 | BTR production model без green box/proxy | ≥2 | IN_PROGRESS | Новий runtime знову показує зелений blocky BTR. Треба повторно інвентаризувати Content і підключити фактичний imported BTR asset, якщо він є, замість старого очікуваного `/Game/Production/...` path. |
-| VEH-BTR-SPEED-001 | BTR max speed 90 км/год | 1 | IN_PROGRESS | User requirement: 90 км/год. Поточний tuning треба перевірити та виправити. |
+| VEH-PICKUP-001 | Pickup/HMMWV має M2 Browning без proxy geometry | ≥2 | IN_PROGRESS / ASSET BLOCKED | `SM_Pickup` реально є і використовується. Exact M2 `/Game/Production/...` відсутній, source FBX у Git теж відсутній. `1370a101...` замінює Cube/Cylinder на реальний R13 machine-gun mesh як чесно позначений temporary fallback; exact M2 все ще не готовий. |
+| VEH-PICKUP-SPEED-001 | Pickup max speed 120 км/год | 1 | CODED_UNTESTED | `c9ea15f4...`: серверний runtime speed contract ставить 120 км/год, forward cap + assist force біля старої rigid-body physics. Потрібен фактичний speed test. |
+| ASSET-BTR-001 | BTR production model без green box/proxy | ≥2 | IN_PROGRESS / ASSET BLOCKED | Повторний Content/SourceAssets inventory: exact BTR-4 production mesh у Git відсутній; є лише metadata з очікуваним `BTR4_Bucephalus.fbx`, самого FBX немає. Не підміняти BTR цивільним або вигаданим asset path. |
+| VEH-BTR-SPEED-001 | BTR max speed 90 км/год | 1 | CODED_UNTESTED | `c9ea15f4...`: серверний runtime speed contract ставить 90 км/год, forward cap + assist force. Потрібен фактичний speed test. |
 | ASSET-CHARACTER-001 | Production character/skins | ≥2 | IN_PROGRESS | Новий runtime уже показує повну real character model (джинси/кепка/бронежилет), тобто asset path працює хоча б для одного profile. Але це ще не прийнятий бойовий skin/profile і не всі персонажі перевірені. |
 | DEBUG-FLIGHT-001 | Керований spectator/free-fly test mode | 1 | IN_PROGRESS | User випадково відкрив Unreal gameplay debugger/spectator-like view через клавішу й побачив персонажа збоку. Не вважати готовим flight mode. Потрібен окремий зрозумілий dev free-fly contract без debugger overlay. |
 | LOC-MUSEUM-001 | Museum окремо від Silpo/Culture | ≥4 | IN_PROGRESS | Новий runtime підтвердив: landmark geometry досі змішується/накладається. Старий R13.7 late cleanup ~4.95s + rebuild ~5.10s більше не можна вважати лише ризиком, його треба прибрати з current runtime ownership. |
@@ -66,6 +67,10 @@
 | TACTICAL-MAP-SOURCE-001 | `M` map, `V` trap | CODED_UNTESTED | `a6d31480...`, `d9d36c1...`, build fix `bb7d49b5...`. |
 | LANDMARK-EXCLUSION-001 | Museum/Silpo/Culture cleanup guard | RUNTIME INSUFFICIENT | `dc07e098...`, `c248578a...`; latest playtest still shows mixed/box geometry, so guard is not a final ownership solution. |
 | LAUNCHER-UX-001 | Один user launcher | VERIFIED ENTRY POINT | `START_HERE.cmd` працює як єдиний вхід; normal main menu реально відкрився. Інші RUN scripts лишаються internal. |
+| CHAT-RUNTIME-001 | Hidden-by-default gameplay chat + `Y/U` channels | CODED_UNTESTED | `d0f7c323...`; окремий runtime chat owner, legacy persistent panel гаситься. |
+| VEH-SPEED-RUNTIME-001 | Pickup 120 / BTR 90 speed contracts | CODED_UNTESTED | `c9ea15f4...`; server/standalone runtime enforcement, без claim `VERIFIED`. |
+| MOUNTED-GUN-FALLBACK-001 | Не показувати Cube/Cylinder замість M2 | CODED_UNTESTED | `1370a101...`; exact M2 first, real R13 machine-gun fallback second, окремий fallback tag. |
+| WEAPON-FALLBACK-PRESENTATION-001 | Real weapon fallback без стартової primitive паузи | CODED_UNTESTED | `6eeb4aec...`; fallback застосовується одразу у `OnWorldBeginPlay`, timer лишився для пізніх spawn. |
 
 ## 5. Останній фактичний user run — 2026-08-21 17:44
 
@@ -90,15 +95,14 @@
 
 ## 6. Наступна черга
 
-1. Persist current playtest audit у root.
-2. UI: chat hidden-by-default; `Y` Team, `U` Global; fix stale HUD key hints.
-3. UI boot/travel: прибрати black gap і double-START confusion.
-4. Vehicle tuning: pickup 120 км/год, BTR 90 км/год.
-5. Inventory actual Content paths для BTR, M2 Browning і exact weapon meshes; підключити real assets, прибрати visible proxies.
-6. Spawn/test contract: нормальний BASE spawn + weapons біля фактичного test spawn.
-7. Disable confirmed legacy late museum/blockout owners; Museum/Silpo/Culture = 3 owners, 3 real sites.
-8. Silpo exterior regression, stadium orientation/terrain, houses/grass/relief.
-9. Distant flicker after duplicate geometry removal.
-10. Новий UE 5.8 playtest. Статуси підвищувати лише після runtime evidence.
+Порядок зафіксований user request і не переставляється:
+
+1. Chat `Y/U` + pickup 120 / BTR 90 + real assets: source fixes зроблені частково; exact BTR-4/M2 заблоковані відсутніми source assets, решта чекає runtime acceptance.
+2. Spawn/test contract: нормальний BASE spawn + weapons біля фактичного/current spawn.
+3. Museum/Silpo/Culture + confirmed legacy boxes: один owner на landmark, правильні real sites, без late rebuild/overlap.
+4. Stadion, terrain/relief, canonical houses, grass coverage.
+5. Distant flicker після duplicate geometry removal.
+6. Boot/travel polish: black gap + double-START confusion після закриття поточного gameplay/location priority.
+7. Новий UE 5.8 playtest. Статуси підвищувати лише після runtime evidence.
 
 **Заборона:** ніяких нових декоративних R15/R16 layers до закриття цього backlog.
