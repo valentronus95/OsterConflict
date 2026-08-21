@@ -123,6 +123,22 @@ AOCTeamSpawnPoint::AOCTeamSpawnPoint(const FObjectInitializer& ObjectInitializer
 {
 }
 
+void AOCTeamSpawnPoint::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (!HasAuthority() || !bBaseSpawn || TeamId == EOCTeam::None || !GetWorld()) return;
+
+    // Serialized PlayerStarts can enter play without being rebuilt through ConfigureServer. That was
+    // the reason an old far-away BASE could survive source-side relocation code. Runtime now treats
+    // the museum anchor as authoritative too, not merely the source builder that created the actor.
+    const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
+    if (FVector::DistSquared2D(GetActorLocation(), Museum) > FMath::Square(6000.0f))
+    {
+        ConfigureServer(TeamId, true, NAME_None);
+    }
+}
+
 void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName InLinkedCapturePointId)
 {
     if (!HasAuthority())
