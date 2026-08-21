@@ -98,6 +98,33 @@ bool AOCArmedVehicleBase::TryEnterVehicleServer(AOCCharacter* Character)
     }
 
     const EOCTeam CharacterTeam = ResolveCharacterTeam(Character);
+    if (!Character->GetHealthComponent() || !Character->GetHealthComponent()->IsAlive() || Character->IsInVehicle())
+    {
+        return false;
+    }
+    if (OccupantTeam != EOCTeam::None && CharacterTeam != OccupantTeam)
+    {
+        return false;
+    }
+    if (FVector::DistSquared(Character->GetActorLocation(), GetActorLocation()) > FMath::Square(GunnerEnterDistanceCm))
+    {
+        return false;
+    }
+
+    // RUNTIME 2026-08-22: approaching an armed vehicle from the rear/turret side is an explicit gunner entry.
+    // This allows a solo tester to operate the mounted gun without first filling the driver seat.
+    const FVector LocalApproach = GetActorTransform().InverseTransformPosition(Character->GetActorLocation());
+    const bool bApproachingTurretSide = LocalApproach.X < -25.0f;
+    if (!GunnerCharacter && bApproachingTurretSide)
+    {
+        GunnerCharacter = Character;
+        if (OccupantTeam == EOCTeam::None) OccupantTeam = CharacterTeam;
+        Character->EnterVehicleGunnerServer(this, GetGunnerCameraWorldLocation());
+        TurretYaw = 0.0f;
+        TurretPitch = 0.0f;
+        ForceNetUpdate();
+        return true;
+    }
 
     if (!HasDriver())
     {
@@ -114,21 +141,7 @@ bool AOCArmedVehicleBase::TryEnterVehicleServer(AOCCharacter* Character)
         return bEnteredDriver;
     }
 
-    if (GunnerCharacter || Character == GetDriverCharacter() || Character->IsInVehicle())
-    {
-        return false;
-    }
-
-    if (!Character->GetHealthComponent() || !Character->GetHealthComponent()->IsAlive())
-    {
-        return false;
-    }
-    if (OccupantTeam != EOCTeam::None && CharacterTeam != OccupantTeam)
-    {
-        return false;
-    }
-
-    if (FVector::DistSquared(Character->GetActorLocation(), GetActorLocation()) > FMath::Square(GunnerEnterDistanceCm))
+    if (GunnerCharacter || Character == GetDriverCharacter())
     {
         return false;
     }
@@ -149,6 +162,12 @@ FString AOCArmedVehicleBase::GetSeatPrompt(const AOCCharacter* Character) const
     if (OccupantTeam != EOCTeam::None && ViewerTeam != EOCTeam::None && ViewerTeam != OccupantTeam)
     {
         return TEXT("ENEMY VEHICLE OCCUPIED");
+    }
+
+    if (!HasDriver() && !GunnerCharacter && Character)
+    {
+        const FVector LocalApproach = GetActorTransform().InverseTransformPosition(Character->GetActorLocation());
+        return LocalApproach.X < -25.0f ? TEXT("E  ENTER GUNNER") : TEXT("E  ENTER DRIVER");
     }
     if (!HasDriver()) return TEXT("E  ENTER DRIVER");
     if (!GunnerCharacter) return TEXT("E  ENTER GUNNER");
@@ -171,7 +190,7 @@ EOCTeam AOCArmedVehicleBase::ResolveCharacterTeam(const AOCCharacter* Character)
 
 bool AOCArmedVehicleBase::CanGunnerOperateServer(const AOCCharacter* Requester) const
 {
-    return HasAuthority() && Requester && Requester == GunnerCharacter && HasDriver() &&
+    return HasAuthority() && Requester && Requester == GunnerCharacter &&
         Requester->GetHealthComponent() && Requester->GetHealthComponent()->IsAlive() && !IsVehicleDestroyed();
 }
 
