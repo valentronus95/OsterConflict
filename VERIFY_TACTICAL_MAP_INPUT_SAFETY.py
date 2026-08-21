@@ -2,7 +2,9 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parent
-CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp"
+MAP_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp"
+CHARACTER_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp"
+HUD_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCHUD.cpp"
 
 
 def require(condition: bool, message: str) -> None:
@@ -10,7 +12,21 @@ def require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
-text = CPP.read_text(encoding="utf-8")
+text = MAP_CPP.read_text(encoding="utf-8")
+character = CHARACTER_CPP.read_text(encoding="utf-8")
+hud = HUD_CPP.read_text(encoding="utf-8")
+
+# Canonical key ownership: M belongs to Tactical Map; DeployTrap belongs to V everywhere.
+require("MapKey(MapToggleAction, EKeys::M)" in text,
+        "Tactical Map must keep the canonical M mapping")
+require("DefaultMappingContext->MapKey(DeployTrapAction, EKeys::V);" in character,
+        "DeployTrap default mapping must be V")
+require("DefaultMappingContext->MapKey(DeployTrapAction, EKeys::M);" not in character,
+        "DeployTrap must not reclaim Tactical Map key M")
+require("V DEPLOY" in hud,
+        "HUD must advertise V as the DeployTrap key")
+require("M DEPLOY" not in hud,
+        "HUD must not advertise M as the DeployTrap key")
 
 # Drag must keep receiving mouse movement until LMB release, even when the cursor crosses the map edge.
 require("CaptureMouse(TakeWidget())" in text,
