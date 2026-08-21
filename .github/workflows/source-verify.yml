@@ -38,6 +38,13 @@ jobs:
           python .\VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Verify runtime-recovery source contracts
+        if: github.ref_name == 'main'
+        shell: pwsh
+        run: |
+          python .\VERIFY_RUNTIME_RECOVERY_SOURCE.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Verify Stadion Oster integration
         shell: pwsh
         run: |
