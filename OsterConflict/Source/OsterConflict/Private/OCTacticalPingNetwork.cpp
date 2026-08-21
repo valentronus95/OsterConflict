@@ -22,14 +22,14 @@ void AOCPlayerController::ServerSubmitTacticalPing_Implementation(FVector Locati
 {
     UWorld* World = GetWorld();
     AOCPlayerState* State = GetPlayerState<AOCPlayerState>();
-    APawn* Pawn = GetPawn();
-    if (!World || !State || !Pawn) return;
+    APawn* ControlledPawn = GetPawn();
+    if (!World || !State || !ControlledPawn) return;
     if (State->GetTeamId() == EOCTeam::None || State->GetSquadId() < 0) return;
     if (Location.ContainsNaN()) return;
 
     const double Now = World->GetTimeSeconds();
     if (Now - LastTacticalPingServerTime < TacticalPingCooldownSeconds) return;
-    if (FVector::DistSquared2D(Pawn->GetActorLocation(), Location) > FMath::Square(TacticalPingMaxDistanceCm)) return;
+    if (FVector::DistSquared2D(ControlledPawn->GetActorLocation(), Location) > FMath::Square(TacticalPingMaxDistanceCm)) return;
     LastTacticalPingServerTime = Now;
 
     FOCTacticalPing Ping;
