@@ -26,7 +26,7 @@ concurrency:
 jobs:
   verify-tactical-map:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout source without LFS payloads
         uses: actions/checkout@v4
@@ -43,4 +43,10 @@ jobs:
         shell: pwsh
         run: |
           python .\VERIFY_TACTICAL_MAP_V2.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run repository structural and regression suite
+        shell: pwsh
+        run: |
+          python .\RUN_ALL_VERIFY.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
