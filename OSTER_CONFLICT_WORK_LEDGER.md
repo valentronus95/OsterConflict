@@ -39,7 +39,7 @@
 | GAME-VEHICLE-INPUT-001 | Після exit з авто повертаються WASD/sprint/mouse | 1 | IN_PROGRESS | Recovery coded; повторний enter→exit acceptance у новому run ще не зафіксовано. |
 | VEH-PICKUP-001 | Pickup/HMMWV має M2 Browning без proxy geometry | ≥2 | CODED_UNTESTED | `1370a101...` прибирає Cube/Cylinder і використовує real R13 machinegun лише як diagnostic fallback. `66e902d4...` додав authored external-only M2 game-visual GLB generator; `d8c13771...` M2-only importer створює canonical `/Game/Production/Weapons/M2/SM_M2_Browning`, причому локальний downloaded `m2_50cal_machinegun_cc0.glb` має пріоритет. `4de7123c...`, `a76d0403...`, `17c094fa...` автоматизують імпорт перед normal/Sandbox run. Потрібні UE import + scale/pivot/muzzle/gunner acceptance. |
 | VEH-PICKUP-SPEED-001 | Pickup max speed 120 км/год | 1 | CODED_UNTESTED | `c9ea15f4...`: server/standalone runtime speed contract ставить 120 км/год, forward cap + assist force. Потрібен speed test. |
-| ASSET-BTR-001 | BTR production model без green box/proxy | ≥2 | IN_PROGRESS / ASSET BLOCKED | Exact BTR-4 production mesh у Git не знайдений; metadata очікує `BTR4_Bucephalus.fbx`, самого FBX немає. Не підміняти BTR цивільним asset. |
+| ASSET-BTR-001 | BTR production model без green box/proxy | ≥2 | CODED_UNTESTED | `6b89bcff...` додав authored external-only 8×8 BTR-4 game-visual GLB generator; `8f3dac18...` імпортує локальний user FBX, якщо він присутній, інакше генерує repo-safe GLB у canonical `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus`. `122ad4fd...`, `5d6cf9e9...`, `7abcb72d...` автоматизують імпорт перед normal/Sandbox run. Локальний FBX лишається dev-only до перевірки ліцензії; потрібні UE import + scale/ground/wheel/camera acceptance. |
 | VEH-BTR-SPEED-001 | BTR max speed 90 км/год | 1 | CODED_UNTESTED | `c9ea15f4...`: server/standalone runtime speed contract ставить 90 км/год. Потрібен speed test. |
 | ASSET-CHARACTER-001 | Production character/skins | ≥2 | IN_PROGRESS | Останній runtime показав повну real character model, але бойовий profile/скіни ще не прийняті як final. |
 | DEBUG-FLIGHT-001 | Керований spectator/free-fly test mode | 1 | IN_PROGRESS | Gameplay debugger/spectator-like view не є готовим dev free-fly contract. |
@@ -49,10 +49,10 @@
 | LOC-STADIUM-001 | Stadion Oster georeferenced, правильно орієнтований | ≥3 | CODED_UNTESTED | `061a69b4...`: прибрана 154×112 m green Cube apron; stadium Z тепер snap-иться до фактичної collision surface/ground trace, один stadium owner збережено. Фото-географічна орієнтація ще потребує runtime перевірки. |
 | LOC-TERRAIN-001 | Реальний relief, не плоска площина | ≥3 | IN_PROGRESS / DATA BLOCKED | Authoritative base `Ground` досі є приблизно 2400×2400 m Engine Cube. Репозиторій не містить підтвердженого heightmap/Landscape elevation data. Не вигадувати «реальний рельєф» формулою; потрібні фактичні terrain data/assets. |
 | VIS-HOUSES-001 | Реальні canonical houses замість коробок | ≥3 | CODED_UNTESTED | `92ff812d...`: legacy `Buildings` Cube presentation приховано, collision-core лишено; існуючі `SM_House_Var01/02` лишаються visual owner. Потрібен overview acceptance. |
-| VIS-GRASS-001 | Натуральне покриття травою | 1 | CODED_UNTESTED | `92ff812d...` приховав Cube grass tiles; `c67744a2...` вимкнув duplicate recovered foliage owner; `2d40fa53...` зробив DenseGroundFoliage єдиним owner і ущільнив grid 22 m → 13.5 m, 2–4 clumps/cell; `5e451eb4...` виправив реальний `SM_Plant` fallback. |
+| VIS-GRASS-001 | Натуральне покриття травою | 1 | CODED_UNTESTED | `92ff812d...` приховав Cube grass tiles; `c67744a2...` вимкнув duplicate recovered foliage owner; `2d40fa53...` зробив DenseGroundFoliage єдиним owner і ущільнив grid 22 m → 13.5 m, 2–4 clumps/cell; `5e451eb4...` виправив real `SM_Plant` fallback. |
 | VIS-FLICKER-001 | Без distant flicker/z-fighting/late rebuild | ≥3 | IN_PROGRESS | `65c5cac7...`/`f36eab1a...` source-side згорнули Museum/Silpo/Culture late rebuilds; `92ff812d...` прибрав visible box/grass overlaps; `82dcb4fd...` прибрав orphan roadside owner. Distant runtime acceptance ще потрібний. |
 | LEGACY-BLOCKOUT-001 | Legacy blockout не перекриває current locations/assets | ≥2 | IN_PROGRESS | Raw-coordinate unfinished-building owners прибрані (`d6c0ec4f...`, `e610cd5f...`); `82dcb4fd...` прибрав orphan props; `92ff812d...` приховав visible legacy Buildings/grass presentation. Загальний runtime overview ще не прийнятий. |
-| VIS-FENCES-001 | Реальні паркани без stretching | 1 | IN_PROGRESS | Real assets є, tiling/placement pending. |
+| VIS-FENCES-001 | Реальні паркани без stretching | 1 | CODED_UNTESTED | Current `OCAssetModelDecorator::AddFenceLine()` вже tiles real `Fence_Old_1_2m` секціями приблизно по 195 cm, а не розтягує один mesh. Потрібен лише runtime visual acceptance/placement check. |
 | VIS-STREETLIGHT-001 | Imported streetlight | 1 | CODED_UNTESTED | Source coded; current playtest не був acceptance check. |
 
 ## 4. Технічні фікси / build evidence
@@ -74,6 +74,9 @@
 | M2-AUTHORED-VISUAL-001 | Purpose-built external M2 game visual | CODED_UNTESTED | `66e902d4...`; pure-Python GLB generator, external receiver/barrel/jacket/spade grips/sights/pintle only, no internal/manufacturing model. |
 | M2-IMPORT-001 | Canonical M2 production import | CODED_UNTESTED | `d8c13771...`: local downloaded GLB wins; authored GLB generated if absent; target `/Game/Production/Weapons/M2/SM_M2_Browning`. |
 | M2-LAUNCH-INTEGRATION-001 | M2 import runs before normal/Sandbox playtest | CODED_UNTESTED | `4de7123c...`, `a76d0403...`, `17c094fa...`; import failure does not block game and falls back honestly. |
+| BTR4-AUTHORED-VISUAL-001 | Purpose-built external 8×8 BTR-4 game visual | CODED_UNTESTED | `6b89bcff...`; pure-Python GLB generator with hull, 8 wheels, external turret/cannon silhouette, hatches/optics/details; no engineering/manufacturing model. |
+| BTR4-IMPORT-001 | Canonical BTR-4 production import | CODED_UNTESTED | `8f3dac18...`: local user FBX wins when present; authored GLB generated if absent; target `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus`. |
+| BTR4-LAUNCH-INTEGRATION-001 | BTR-4 import runs before normal/Sandbox playtest | CODED_UNTESTED | `122ad4fd...`, `5d6cf9e9...`, `7abcb72d...`; runtime acceptance checklist includes scale/ground/8 wheels/camera/no green proxy. |
 | WEAPON-FALLBACK-PRESENTATION-001 | Real weapon fallback без стартової primitive паузи | CODED_UNTESTED | `6eeb4aec...`. |
 | BASE-SPAWN-RUNTIME-001 | BASE spawn перенесений із blockout edge у town corridor | CODED_UNTESTED | `45bf9fd5...`. |
 | BASE-WEAPON-RACK-001 | 11 weapon classes біля actual BASE | CODED_UNTESTED | `45bf9fd5...`. |
@@ -110,10 +113,10 @@
 
 Порядок user request зберігається; завершені source-pass не повторювати без нового evidence:
 
-1. Chat `Y/U`, pickup 120, BTR 90, weapon/vehicle visuals: chat/speeds/M2 source-side coded; **BTR exact asset лишається blocker**, M249/Remington exact visuals open.
+1. Chat `Y/U`, pickup 120, BTR 90, M2/BTR authored canonical import paths: source-side coded; M249/Remington exact visuals open; усе чекає runtime acceptance.
 2. Spawn/test contract: source fix `45bf9fd5...`, чекає runtime.
 3. Museum/Silpo/Culture + legacy boxes: startup late-rebuild coordinator і частина legacy cleanup coded; чекає runtime separation evidence.
-4. Stadium/houses/grass: source fixes coded; **terrain relief лишається DATA BLOCKED без heightmap/Landscape data**.
+4. Stadium/houses/grass/fences: source fixes coded; **terrain relief лишається DATA BLOCKED без heightmap/Landscape data**.
 5. Flicker: основні підтверджені overlap/late-rebuild джерела прибрані; потрібен distant runtime check.
 6. Boot/travel: startup MoviePlayer + current `ПОЯВИТИСЯ` flow coded; потрібен normal-launch acceptance.
 7. Source consistency cleanup `M` tactical map / `V` engineer trap, без нового input owner.
