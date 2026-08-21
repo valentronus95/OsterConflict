@@ -188,11 +188,12 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     }
 
     bool bUsingMountedGunAsset = false;
-    USceneComponent* MountedGunParent = BarrelPivot ? BarrelPivot.Get() : TurretPivot.Get();
+    USceneComponent* M2Parent = BarrelPivot.Get();
+    if (!M2Parent) M2Parent = TurretPivot.Get();
     if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
     {
-        if (AddFittedTurretVisual(this, MountedGunParent, M2, 165.0f,
+        if (AddFittedTurretVisual(this, M2Parent, M2, 165.0f,
             FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
             bUsingMountedGunAsset = true;
@@ -201,15 +202,12 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
-    // The licensed M2 source file is not currently present in the repository. Until that exact
-    // asset is imported, use an existing real R13 machine-gun mesh instead of exposing the old
-    // cube/cylinder proxy. It is deliberately tagged as a fallback, never as production M2.
     if (!bUsingMountedGunAsset)
     {
         if (UStaticMesh* RealMachineGunFallback = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/R13/Weapons/machinegun.machinegun")))
         {
-            if (AddFittedTurretVisual(this, MountedGunParent, RealMachineGunFallback, 145.0f,
+            if (AddFittedTurretVisual(this, M2Parent, RealMachineGunFallback, 145.0f,
                 FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
             {
                 bUsingMountedGunAsset = true;
@@ -220,10 +218,14 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
-    if (bUsingMountedGunAsset)
+    // Never show the old primitive disc/bar turret in a runtime build. If both real gun assets are absent,
+    // the mount stays visually empty and logs a hard content warning instead of pretending the proxy is a Browning.
+    if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
+    if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+    if (!bUsingMountedGunAsset)
     {
-        if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
-        if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+        UE_LOG(LogTemp, Error,
+            TEXT("Gun truck mounted-gun visual missing: import SM_M2_Browning or restore the R13 machinegun fallback asset."));
     }
 
     InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));

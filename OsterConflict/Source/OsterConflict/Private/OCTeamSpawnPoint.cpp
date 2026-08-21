@@ -4,6 +4,7 @@
 #include "OCCapturePoint.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
+#include "OCWorldSectorOster.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 
@@ -28,21 +29,25 @@ namespace
 
     FVector ResolveCanonicalBaseLocation(EOCTeam Team, bool bSecondary)
     {
-        // RUNTIME 2026-08-21: the old S16A base coordinates lived around +/-1040 m at the blockout edge,
-        // which is exactly why normal deployment opened in an empty field. The current authoritative
-        // gameplay bases sit on the two sidewalks of the long central east-west urban corridor.
-        // Road center: Y=-9000; sidewalk centers from AOCWorldSectorOster::BuildRoadNetwork are ~-8215/-9785.
+        // RUNTIME 2026-08-22: deployment is intentionally staged around the museum test hub.
+        // Keep the player outside the museum footprint while making the verified museum landmark,
+        // the test weapon rack and nearby vehicle checks immediately reachable after deployment.
+        const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
         if (Team == EOCTeam::TeamTwo)
         {
-            return FVector(bSecondary ? 60500.0f : 59000.0f, -9785.0f, 120.0f);
+            return Museum + (bSecondary
+                ? FVector(3200.0f, 1000.0f, 120.0f)
+                : FVector(2200.0f, 1700.0f, 120.0f));
         }
-        return FVector(bSecondary ? -62500.0f : -61000.0f, -8215.0f, 120.0f);
+        return Museum + (bSecondary
+            ? FVector(-3200.0f, -1000.0f, 120.0f)
+            : FVector(-2200.0f, -1700.0f, 120.0f));
     }
 
     float ResolveCanonicalBaseYaw(EOCTeam Team)
     {
-        // Both teams face toward the playable town center instead of outward into the map border.
-        return Team == EOCTeam::TeamTwo ? 180.0f : 0.0f;
+        // Spawn groups face back toward the museum/test hub rather than toward the map edge.
+        return Team == EOCTeam::TeamTwo ? -142.0f : 38.0f;
     }
 
     bool HasRackForTeam(UWorld* World, EOCTeam Team)
@@ -144,7 +149,7 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
         SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 
         UE_LOG(LogTemp, Display,
-            TEXT("BASE spawn relocated from legacy edge: team=%s secondary=%d old=%s new=%s"),
+            TEXT("BASE spawn relocated to museum test hub: team=%s secondary=%d old=%s new=%s"),
             *OCTeamToString(TeamId), bSecondary ? 1 : 0,
             *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString());
 

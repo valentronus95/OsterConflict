@@ -68,7 +68,9 @@ void AOCTransientVisualFX::ConfigureTracer(const FVector& Start, const FVector& 
     const FVector Direction = Delta / Length;
     SetActorLocation((Start + End) * 0.5f);
     SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, Direction));
-    Mesh->SetRelativeScale3D(FVector(RadiusCm / 50.0f, RadiusCm / 50.0f, Length / 100.0f));
+    // Thin high-speed streak instead of an oversized projectile bead.
+    const float ThinRadius = FMath::Clamp(RadiusCm, 0.18f, 0.42f);
+    Mesh->SetRelativeScale3D(FVector(ThinRadius / 50.0f, ThinRadius / 50.0f, Length / 100.0f));
     PointLight->SetVisibility(false);
     ApplyColor(Color);
     SetLifeSpan(FMath::Max(0.01f, LifetimeSeconds));
@@ -97,19 +99,25 @@ void AOCTransientVisualFX::ConfigureImpact(const FVector& Location, const FVecto
 void AOCTransientVisualFX::ConfigureMuzzle(const FVector& Location, const FVector& Direction, const FLinearColor& Color,
     float LifetimeSeconds)
 {
-    if (UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
+    // Muzzle presentation is a short directional plume rather than a glowing sphere.
+    if (UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone")))
     {
-        Mesh->SetStaticMesh(Sphere);
+        Mesh->SetStaticMesh(Cone);
+    }
+    else if (UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")))
+    {
+        Mesh->SetStaticMesh(Cylinder);
     }
 
-    SetActorLocation(Location + Direction.GetSafeNormal() * 14.0f);
-    SetActorRotation(Direction.Rotation());
-    Mesh->SetRelativeScale3D(FVector(0.08f, 0.035f, 0.035f));
+    const FVector SafeDirection = Direction.GetSafeNormal();
+    SetActorLocation(Location + SafeDirection * 11.0f);
+    SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, SafeDirection));
+    Mesh->SetRelativeScale3D(FVector(0.025f, 0.025f, 0.14f));
     ApplyColor(Color);
 
     PointLight->SetVisibility(true);
     PointLight->SetLightColor(Color);
-    PointLight->SetIntensity(4200.0f);
-    PointLight->SetAttenuationRadius(300.0f);
-    SetLifeSpan(FMath::Max(0.02f, LifetimeSeconds));
+    PointLight->SetIntensity(2500.0f);
+    PointLight->SetAttenuationRadius(220.0f);
+    SetLifeSpan(FMath::Max(0.015f, LifetimeSeconds));
 }

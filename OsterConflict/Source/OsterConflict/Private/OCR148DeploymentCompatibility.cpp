@@ -1,6 +1,8 @@
 #include "OCPlayerController.h"
 
+#include "OCDeploymentLoadingSubsystem.h"
 #include "OCPlayerState.h"
+#include "Engine/World.h"
 
 namespace
 {
@@ -42,8 +44,15 @@ void AOCPlayerController::UICommitDeployment()
 {
     if (!bDeploymentPanelVisible || bFrontendMenuVisible || bSettingsVisible) return;
 
-    // Current main already owns authoritative RestartPlayer through UIReadyDeploy/ServerSetLobbyReady.
-    // The recovered staged UI calls this compatibility entry point instead of restoring the obsolete
-    // compact-map deployment bridge that used to couple UI state to old R13 geography code.
+    if (UWorld* World = GetWorld())
+    {
+        if (UOCDeploymentLoadingSubsystem* Loading = World->GetSubsystem<UOCDeploymentLoadingSubsystem>())
+        {
+            Loading->BeginDeployment(this);
+            return;
+        }
+    }
+
+    // Fallback if the transition subsystem is unavailable for an unusual world type.
     UIReadyDeploy();
 }

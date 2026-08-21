@@ -212,8 +212,6 @@ void AOCVehicleBase::BeginPlay()
     }
     ApplyVehicleStyle();
 
-    // R11 source-only vehicle palette. Derived prototype vehicles already have useful silhouettes;
-    // color/material separation stops them reading as a pile of identical grey primitives.
     if (UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
     {
@@ -537,11 +535,22 @@ void AOCVehicleBase::ApplyDriveAndGripServer(float DeltaSeconds, int32 ContactCo
         }
     }
 
-    const float SteeringSpeedAlpha = FMath::Clamp(FMath::Abs(ForwardSpeed) / 800.0f, 0.0f, 1.0f);
+    // RUNTIME 2026-08-22: low-speed steering previously collapsed almost to zero because authority was
+    // proportional only to current forward velocity. Give commanded steering a minimum authority, with
+    // a stronger floor in reverse, then smoothly hand back to speed-based steering as velocity rises.
+    float SteeringSpeedAlpha = FMath::Clamp(FMath::Abs(ForwardSpeed) / 650.0f, 0.0f, 1.0f);
+    if (FMath::Abs(SteeringInput) > KINDA_SMALL_NUMBER && FMath::Abs(ThrottleInput) > 0.05f)
+    {
+        const float MinimumSteerAuthority = ThrottleInput < 0.0f ? 0.46f : 0.30f;
+        SteeringSpeedAlpha = FMath::Max(SteeringSpeedAlpha, MinimumSteerAuthority);
+    }
     if (SteeringSpeedAlpha > KINDA_SMALL_NUMBER)
     {
-        const float DirectionSign = ForwardSpeed < -30.0f ? -1.0f : 1.0f;
-        PhysicsBody->AddTorqueInRadians(GetActorUpVector() * SteeringInput * SteeringTorque * DamageGripScale * SteeringSpeedAlpha * DirectionSign, NAME_None, false);
+        const bool bMovingReverse = ForwardSpeed < -20.0f || (FMath::Abs(ForwardSpeed) < 20.0f && ThrottleInput < -0.05f);
+        const float DirectionSign = bMovingReverse ? -1.0f : 1.0f;
+        const float ReverseAuthorityBoost = bMovingReverse ? 1.15f : 1.0f;
+        PhysicsBody->AddTorqueInRadians(GetActorUpVector() * SteeringInput * SteeringTorque * DamageGripScale *
+            SteeringSpeedAlpha * DirectionSign * ReverseAuthorityBoost, NAME_None, false);
     }
 
     const float SpeedSq = Velocity.SizeSquared();
@@ -775,7 +784,6 @@ void AOCVehicleBase::DestroyWreck()
 
 void AOCVehicleBase::OnRep_Driver()
 {
-    // Driver pointer is intentionally replicated for seat occupancy/HUD. Camera ownership follows Pawn possession.
 }
 
 void AOCVehicleBase::OnRep_DamageState()
