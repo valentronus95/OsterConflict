@@ -26,7 +26,8 @@ public class OsterConflict : ModuleRules
             "GameplayTasks",
             "UMG",
             "Slate",
-            "SlateCore"
+            "SlateCore",
+            "MoviePlayer"
         });
     }
 }
