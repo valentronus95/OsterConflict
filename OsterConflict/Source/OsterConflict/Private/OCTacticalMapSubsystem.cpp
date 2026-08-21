@@ -1,5 +1,6 @@
 #include "OCTacticalMapSubsystem.h"
 
+#include "OCCapturePoint.h"
 #include "OCCharacter.h"
 #include "OCGeoReference.h"
 #include "OCLobbyTypes.h"
@@ -324,6 +325,7 @@ void UOCTacticalMapWidget::NativeTick(const FGeometry& MyGeometry, const float I
     }
 
     RefreshSquadMarkers();
+    RefreshObjectiveMarkers();
     RefreshSquadOrderMarker();
 }
 
@@ -550,6 +552,104 @@ void UOCTacticalMapWidget::RefreshSquadMarkers()
     }
 }
 
+void UOCTacticalMapWidget::RefreshObjectiveMarkers()
+{
+    if (!WidgetTree || !MapContentCanvas) return;
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    TSet<TWeakObjectPtr<AOCCapturePoint>> SeenPoints;
+    for (TActorIterator<AOCCapturePoint> It(World); It; ++It)
+    {
+        AOCCapturePoint* Point = *It;
+        if (!IsValid(Point) || Point->GetPointId().IsNone()) continue;
+
+        SeenPoints.Add(Point);
+        UTextBlock* Marker = nullptr;
+        if (TWeakObjectPtr<UTextBlock>* Existing = ObjectiveMarkers.Find(Point)) Marker = Existing->Get();
+        if (!Marker)
+        {
+            Marker = WidgetTree->ConstructWidget<UTextBlock>();
+            Marker->SetColorAndOpacity(FSlateColor(ColorObjective));
+            Marker->SetJustification(ETextJustify::Center);
+            Marker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+            SetTextSize(Marker, 17);
+            PlaceOnCanvas(MapContentCanvas, Marker, FVector2D::ZeroVector, FVector2D(130.0f, 32.0f),
+                FVector2D(0.5f, 0.5f), 22);
+            ObjectiveMarkers.Add(Point, Marker);
+        }
+
+        FString StateSuffix;
+        if (Point->IsContested())
+        {
+            StateSuffix = TEXT("  !");
+        }
+        else if (Point->GetOwnerTeam() == EOCTeam::TeamOne)
+        {
+            StateSuffix = TEXT("  T1");
+        }
+        else if (Point->GetOwnerTeam() == EOCTeam::TeamTwo)
+        {
+            StateSuffix = TEXT("  T2");
+        }
+        else
+        {
+            const int32 CapturePercent = FMath::RoundToInt(FMath::Abs(Point->GetCaptureProgress()) * 100.0f);
+            if (CapturePercent > 0) StateSuffix = FString::Printf(TEXT("  %d%%"), CapturePercent);
+        }
+
+        Marker->SetText(FText::FromString(FString::Printf(
+            TEXT("%s %s%s"),
+            Point->IsContested() ? TEXT("◆") : TEXT("◇"),
+            *Point->GetPointId().ToString(),
+            *StateSuffix)));
+        if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(Marker->Slot))
+            MarkerSlot->SetPosition(WorldToMap(Point->GetActorLocation()));
+    }
+
+    for (auto It = ObjectiveMarkers.CreateIterator(); It; ++It)
+    {
+        if (!SeenPoints.Contains(It.Key()))
+        {
+            if (UTextBlock* Marker = It.Value().Get()) Marker->RemoveFromParent();
+            It.RemoveCurrent();
+        }
+    }
+}
+
+bool UOCTacticalMapWidget::ResolveSquadOrderWorldLocation(FVector& OutWorldLocation) const
+{
+    AOCPlayerController* PC = Cast<AOCPlayerController>(GetOwningPlayer());
+    if (!PC) return false;
+
+    const FOCSquadOrder& Order = PC->GetCurrentSquadOrder();
+    if (!Order.IsActive()) return false;
+
+    if (Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup)
+    {
+        OutWorldLocation = Order.WorldLocation;
+        return true;
+    }
+
+    if ((Order.Type == EOCSquadOrderType::AttackObjective || Order.Type == EOCSquadOrderType::DefendObjective) &&
+        !Order.ObjectiveId.IsNone())
+    {
+        UWorld* World = GetWorld();
+        if (!World) return false;
+        for (TActorIterator<AOCCapturePoint> It(World); It; ++It)
+        {
+            AOCCapturePoint* Point = *It;
+            if (IsValid(Point) && Point->GetPointId() == Order.ObjectiveId)
+            {
+                OutWorldLocation = Point->GetActorLocation();
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void UOCTacticalMapWidget::RefreshSquadOrderMarker()
 {
     if (!WidgetTree || !MapContentCanvas) return;
@@ -557,8 +657,8 @@ void UOCTacticalMapWidget::RefreshSquadOrderMarker()
     if (!PC) return;
 
     const FOCSquadOrder& Order = PC->GetCurrentSquadOrder();
-    const bool bHasSpatialLocation = Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup;
-    if (!Order.IsActive() || !bHasSpatialLocation)
+    FVector OrderWorldLocation = FVector::ZeroVector;
+    if (!Order.IsActive() || !ResolveSquadOrderWorldLocation(OrderWorldLocation))
     {
         if (SquadOrderMarker) SquadOrderMarker->SetVisibility(ESlateVisibility::Collapsed);
         return;
@@ -578,7 +678,7 @@ void UOCTacticalMapWidget::RefreshSquadOrderMarker()
     SquadOrderMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
     SquadOrderMarker->SetText(FText::FromString(FString::Printf(TEXT("◇ %s"), *OCSquadOrderToString(Order))));
     if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(SquadOrderMarker->Slot))
-        MarkerSlot->SetPosition(WorldToMap(Order.WorldLocation));
+        MarkerSlot->SetPosition(WorldToMap(OrderWorldLocation));
 }
 
 bool UOCTacticalMapWidget::PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const
