@@ -50,13 +50,18 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     GenericSMG = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/uzi.uzi"));
     GenericShotgun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/shotgun.shotgun"));
 
+    // Apply to weapons that already exist at world begin immediately. The previous 0.20 s delay was
+    // enough for the source-only primitive to become visible for a frame or several frames during spawn.
+    RefreshWeaponFallbacks();
+
+    // Keep scanning for weapons spawned later by deployment/admin/test-mode systems.
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
         &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
         0.25f,
         true,
-        0.20f);
+        0.0f);
 }
 
 void UOCRealWeaponFallbackSubsystem::Deinitialize()
