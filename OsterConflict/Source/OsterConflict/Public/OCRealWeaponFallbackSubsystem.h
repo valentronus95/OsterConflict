@@ -24,9 +24,20 @@ public:
 
 private:
     FTimerHandle RefreshTimer;
+
+    // These meshes are loaded once and then used later from a timer. They MUST be
+    // reflected UObject references so UE garbage collection cannot reclaim them
+    // between OnWorldBeginPlay() and RefreshWeaponFallbacks().
+    UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericMachineGun;
+
+    UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericPistol;
+
+    UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericSMG;
+
+    UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericShotgun;
 
     void RefreshWeaponFallbacks();
