@@ -60,6 +60,61 @@ if errorlevel 1 (
   exit /b 7
 )
 
+git lfs version >nul 2>nul
+if errorlevel 1 (
+  echo ============================================================
+  echo PLAYTEST BLOCKED: GIT LFS IS NOT AVAILABLE
+  echo ============================================================
+  echo Production UE assets are stored through Git LFS.
+  echo Install/repair Git LFS, run git lfs install, then launch again.
+  pause
+  exit /b 8
+)
+
+echo [ASSET] Hydrating current Git LFS objects...
+git lfs pull
+if errorlevel 1 (
+  echo [ERROR] git lfs pull failed. Production meshes are not trustworthy for this run.
+  pause
+  exit /b 9
+)
+
+set "LFS_ASSET_ERROR=0"
+for %%F in (
+  "OsterConflict\Content\QuantumCharacter\Mesh\SKM_QuantumCharacter.uasset"
+  "OsterConflict\Content\QuantumCharacter\Mesh\Modules\SKM_Arms.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\1911\SKM_1911.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\Mac10\SKM_Mac10.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\M14\SKM_M14.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\M700\SKM_M700.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\MP5\SKM_MP5.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\Tec9\SKM_Tec9.uasset"
+  "OsterConflict\Content\R13\Weapons\Stein\LeverAction\SKM_LeverAction.uasset"
+  "OsterConflict\Content\R13\Weapons\machinegun.uasset"
+  "OsterConflict\Content\R13\Weapons\pistol.uasset"
+  "OsterConflict\Content\R13\Weapons\uzi.uasset"
+  "OsterConflict\Content\R13\Weapons\shotgun.uasset"
+  "OsterConflict\Content\R13\Weapons\rocketlauncherModern.uasset"
+  "OsterConflict\Content\AK-47\Mesh\SKM_AK-47.uasset"
+) do (
+  if not exist "%%~F" (
+    echo [ASSET ERROR] Missing required file: %%~F
+    set "LFS_ASSET_ERROR=1"
+  ) else (
+    for %%A in ("%%~F") do if %%~zA LSS 4096 (
+      echo [ASSET ERROR] File is still an LFS pointer or invalid tiny asset: %%~F ^(%%~zA bytes^)
+      set "LFS_ASSET_ERROR=1"
+    )
+  )
+)
+if "%LFS_ASSET_ERROR%"=="1" (
+  echo.
+  echo PLAYTEST BLOCKED: REQUIRED PRODUCTION/R13 ASSETS ARE NOT HYDRATED.
+  echo Do not interpret primitive fallback geometry as a gameplay result.
+  pause
+  exit /b 10
+)
+
 set "PY_CMD="
 where py >nul 2>nul
 if not errorlevel 1 set "PY_CMD=py -3"
@@ -70,16 +125,22 @@ if not defined PY_CMD (
 if not defined PY_CMD (
   echo [ERROR] Python 3 not found in PATH.
   pause
-  exit /b 8
+  exit /b 11
 )
 
 echo ============================================================
 echo OSTER CONFLICT - CURRENT MAIN R14.7 LOCATION TEST
 echo LATEST LOCATIONS + LATEST IMPORTED GAMEPLAY ASSETS
 echo ============================================================
-echo This launcher refuses to run if the latest R14.7 gameplay asset baseline is missing.
+echo This launcher refuses to run with unhydrated critical Git LFS content.
 echo Legacy R11/R13 mixed-location launchers are not used.
 echo LocationTest=1 is mandatory here: it isolates the current-main location test contract and test weapon rack.
+echo.
+echo KNOWN OPEN ASSET GAPS ON CURRENT MAIN:
+echo   - Exact /Game/Production/Weapons/M249 asset is absent; a real R13 machinegun mesh is diagnostic fallback only.
+echo   - Exact /Game/Production/Weapons/Remington870 asset is absent; a real R13 shotgun mesh is diagnostic fallback only.
+echo   - Exact /Game/Production/Vehicles/BTR4 asset is absent; BTR production verification remains OPEN.
+echo None of those fallbacks may be marked VERIFIED without the intended production asset + UE runtime proof.
 echo.
 echo [0/2] Verifying exclusive landmark ownership and map-separation guards...
 %PY_CMD% "%VERIFY%"
@@ -88,7 +149,7 @@ if errorlevel 1 (
   echo [STOP] Current working tree is not the expected R14 location integration.
   echo Pull current origin/main before running this test.
   pause
-  exit /b 9
+  exit /b 12
 )
 
 echo.
@@ -108,13 +169,17 @@ echo [2/2] Launching OsterConflict_Runtime in Sandbox LocationTest mode...
 echo Persistent log:
 echo   %PLAYTEST_LOG%
 echo.
-echo R14.7 content baseline includes the latest imported AK47, 1911, M14, M700,
-echo MP5, MAC-10, TEC-9, Lever Action, generic weapon assets, combat audio and menu background.
+echo R14.7 content baseline includes hydrated AK47, 1911, M14, M700,
+echo MP5, MAC-10, TEC-9, Lever Action, generic real weapon meshes, QuantumCharacter,
+echo combat audio and menu background.
 echo.
-echo Location check priority:
+echo Runtime check priority:
 echo   - LocationTest=1 is active on the current-main OsterConflict_Runtime map.
 echo   - The test weapon rack is created beside the actually deployed/possessed pawn.
 echo   - The LocationTest rack contains all 11 implemented pickup classes and legacy world pickups are suppressed for this test.
+echo   - M opens/closes the tactical map; DeployTrap is on V, not M.
+echo   - Enter vehicle, drive, exit, then immediately verify WASD + sprint + mouse look.
+echo   - No primitive weapon fallback is visible for M249/M1911/MAC-10/Remington 870.
 echo   - Museum exists only at the museum geo site.
 echo   - Silpo exists only at Bohdana Khmelnytskoho 54.
 echo   - Culture House exists only at Hranovskoho 3.
