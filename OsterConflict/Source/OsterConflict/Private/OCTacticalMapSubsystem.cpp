@@ -2,6 +2,7 @@
 
 #include "OCCapturePoint.h"
 #include "OCCharacter.h"
+#include "OCGameState.h"
 #include "OCGeoReference.h"
 #include "OCLobbyTypes.h"
 #include "OCPlayerController.h"
@@ -48,6 +49,7 @@ namespace
     constexpr float MinMapZoom = 1.0f;
     constexpr float MaxMapZoom = 3.5f;
     constexpr float MapZoomStep = 0.18f;
+    constexpr float TacticalPingLifetimeSeconds = 8.0f;
 
     const FLinearColor ColorBackdrop(0.012f, 0.016f, 0.020f, 0.985f);
     const FLinearColor ColorPanel(0.025f, 0.032f, 0.038f, 0.96f);
@@ -327,6 +329,7 @@ void UOCTacticalMapWidget::NativeTick(const FGeometry& MyGeometry, const float I
     RefreshSquadMarkers();
     RefreshObjectiveMarkers();
     RefreshSquadOrderMarker();
+    RefreshTacticalPingMarkers();
 }
 
 FReply UOCTacticalMapWidget::NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -681,6 +684,48 @@ void UOCTacticalMapWidget::RefreshSquadOrderMarker()
         MarkerSlot->SetPosition(WorldToMap(OrderWorldLocation));
 }
 
+void UOCTacticalMapWidget::RefreshTacticalPingMarkers()
+{
+    if (!WidgetTree || !MapContentCanvas) return;
+    AOCPlayerController* PC = Cast<AOCPlayerController>(GetOwningPlayer());
+    UWorld* World = GetWorld();
+    if (!PC || !World) return;
+
+    const AOCGameState* GameState = World->GetGameState<AOCGameState>();
+    const float ServerNow = GameState ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+    const uint32 Revision = PC->GetTacticalPingRevision();
+    if (Revision == LastTacticalPingRevision &&
+        (NextTacticalPingExpiryServerTime < 0.0f || ServerNow < NextTacticalPingExpiryServerTime))
+    {
+        return;
+    }
+
+    for (UTextBlock* Marker : TacticalPingMarkers)
+        if (Marker) Marker->RemoveFromParent();
+    TacticalPingMarkers.Reset();
+    LastTacticalPingRevision = Revision;
+    NextTacticalPingExpiryServerTime = -1.0f;
+
+    for (const FOCTacticalPing& Ping : PC->GetRecentTacticalPings())
+    {
+        const float ExpireAt = Ping.ServerTime + TacticalPingLifetimeSeconds;
+        if (ExpireAt <= ServerNow) continue;
+        if (NextTacticalPingExpiryServerTime < 0.0f || ExpireAt < NextTacticalPingExpiryServerTime)
+            NextTacticalPingExpiryServerTime = ExpireAt;
+
+        UTextBlock* Marker = WidgetTree->ConstructWidget<UTextBlock>();
+        Marker->SetText(FText::FromString(FString::Printf(
+            TEXT("◆ %s"), Ping.IssuerName.IsEmpty() ? TEXT("PING") : *Ping.IssuerName)));
+        Marker->SetColorAndOpacity(FSlateColor(ColorObjective));
+        Marker->SetJustification(ETextJustify::Center);
+        Marker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+        SetTextSize(Marker, 14);
+        PlaceOnCanvas(MapContentCanvas, Marker, WorldToMap(Ping.WorldLocation), FVector2D(150.0f, 28.0f),
+            FVector2D(0.5f, 0.5f), 25);
+        TacticalPingMarkers.Add(Marker);
+    }
+}
+
 bool UOCTacticalMapWidget::PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const
 {
     if (!MapCanvas) return false;
@@ -723,6 +768,15 @@ void UOCTacticalMapWidget::PlaceLocalPing(const FVector2D& ViewportLocal)
         FMath::Clamp(ContentPoint.Y / MapHeight, 0.0f, 1.0f));
     const FVector WorldPing = Projection.UVToWorld(UV, 0.0f, true);
 
+    AOCPlayerController* PC = Cast<AOCPlayerController>(GetOwningPlayer());
+    const AOCPlayerState* LocalState = PC ? PC->GetPlayerState<AOCPlayerState>() : nullptr;
+    if (PC && LocalState && LocalState->GetTeamId() != EOCTeam::None && LocalState->GetSquadId() >= 0)
+    {
+        if (LocalPingMarker) LocalPingMarker->SetVisibility(ESlateVisibility::Collapsed);
+        PC->SubmitTacticalPing(WorldPing);
+        return;
+    }
+
     if (!LocalPingMarker)
     {
         LocalPingMarker = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapLocalPing"));
@@ -735,11 +789,12 @@ void UOCTacticalMapWidget::PlaceLocalPing(const FVector2D& ViewportLocal)
     }
     else if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(LocalPingMarker->Slot))
     {
+        LocalPingMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
         Slot->SetPosition(WorldToMap(WorldPing));
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Tactical Map 2.0: local ping UV(%.3f, %.3f) -> World(%.0f, %.0f)."),
+        TEXT("Tactical Map 2.0: local fallback ping UV(%.3f, %.3f) -> World(%.0f, %.0f)."),
         UV.X, UV.Y, WorldPing.X, WorldPing.Y);
 }
 
