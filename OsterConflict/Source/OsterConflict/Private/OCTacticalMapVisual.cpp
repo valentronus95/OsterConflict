@@ -82,6 +82,7 @@ void UOCTacticalMapWidget::NativeConstruct()
 
     RestyleStaticTacticalChrome();
     BuildProductionVisualLayer();
+    InstallTacticalIconography();
 }
 
 bool UOCTacticalMapWidget::ReframeProjectionForCentralOster()
