@@ -2,7 +2,10 @@
 
 #include "OCCharacter.h"
 #include "OCGeoReference.h"
+#include "OCLobbyTypes.h"
 #include "OCPlayerController.h"
+#include "OCPlayerState.h"
+#include "OCVehicleBase.h"
 #include "OCWorldSectorOster.h"
 
 #include "Blueprint/WidgetTree.h"
@@ -208,9 +211,9 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
         FVector2D(44.0f, 174.0f), FVector2D(210.0f, 28.0f), 16, ColorPlayer, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendSquad"), TEXT("●   ЧЛЕНИ ЗАГОНУ"),
         FVector2D(44.0f, 226.0f), FVector2D(220.0f, 28.0f), 16, ColorFriendly, 4);
-    AddCanvasText(WidgetTree, Root, TEXT("LegendVehicle"), TEXT("▣   ТРАНСПОРТ"),
+    AddCanvasText(WidgetTree, Root, TEXT("LegendVehicle"), TEXT("▣   ТРАНСПОРТ ЗАГОНУ"),
         FVector2D(44.0f, 278.0f), FVector2D(220.0f, 28.0f), 16, ColorFriendly, 4);
-    AddCanvasText(WidgetTree, Root, TEXT("LegendObjective"), TEXT("◇   ЦІЛЬ"),
+    AddCanvasText(WidgetTree, Root, TEXT("LegendObjective"), TEXT("◇   КОМАНДА / ЦІЛЬ"),
         FVector2D(44.0f, 330.0f), FVector2D(220.0f, 28.0f), 16, ColorObjective, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendPOI"), TEXT("○   ТОЧКА ІНТЕРЕСУ"),
         FVector2D(44.0f, 382.0f), FVector2D(220.0f, 28.0f), 16, ColorPrimaryText, 4);
@@ -305,19 +308,23 @@ void UOCTacticalMapWidget::NativeTick(const FGeometry& MyGeometry, const float I
     Super::NativeTick(MyGeometry, InDeltaTime);
     const APlayerController* PC = GetOwningPlayer();
     const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
-    if (!Pawn || !PlayerMarker) return;
-
-    const FVector Location = Pawn->GetActorLocation();
-    if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(PlayerMarker->Slot))
-        MarkerSlot->SetPosition(WorldToMap(Location));
-    PlayerMarker->SetRenderTransformAngle(Projection.WorldYawToMapDegrees(Pawn->GetActorRotation().Yaw));
-
-    if (PlayerCoordinates)
+    if (Pawn && PlayerMarker)
     {
-        PlayerCoordinates->SetText(FText::FromString(FString::Printf(
-            TEXT("WORLD X %.0f · Y %.0f · Z %.0f   |   ZOOM x%.2f"),
-            Location.X, Location.Y, Location.Z, MapZoom)));
+        const FVector Location = Pawn->GetActorLocation();
+        if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(PlayerMarker->Slot))
+            MarkerSlot->SetPosition(WorldToMap(Location));
+        PlayerMarker->SetRenderTransformAngle(Projection.WorldYawToMapDegrees(Pawn->GetActorRotation().Yaw));
+
+        if (PlayerCoordinates)
+        {
+            PlayerCoordinates->SetText(FText::FromString(FString::Printf(
+                TEXT("WORLD X %.0f · Y %.0f · Z %.0f   |   ZOOM x%.2f"),
+                Location.X, Location.Y, Location.Z, MapZoom)));
+        }
     }
+
+    RefreshSquadMarkers();
+    RefreshSquadOrderMarker();
 }
 
 FReply UOCTacticalMapWidget::NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -482,6 +489,98 @@ void UOCTacticalMapWidget::AddGrid()
     }
 }
 
+void UOCTacticalMapWidget::RefreshSquadMarkers()
+{
+    if (!WidgetTree || !MapContentCanvas) return;
+    AOCPlayerController* PC = Cast<AOCPlayerController>(GetOwningPlayer());
+    AOCPlayerState* LocalState = PC ? PC->GetPlayerState<AOCPlayerState>() : nullptr;
+
+    if (!LocalState || LocalState->GetTeamId() == EOCTeam::None || LocalState->GetSquadId() == INDEX_NONE)
+    {
+        for (TPair<TWeakObjectPtr<AOCCharacter>, TWeakObjectPtr<UTextBlock>>& Pair : SquadMarkers)
+            if (UTextBlock* Marker = Pair.Value.Get()) Marker->RemoveFromParent();
+        SquadMarkers.Reset();
+        return;
+    }
+
+    TSet<TWeakObjectPtr<AOCCharacter>> SeenCharacters;
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        for (TActorIterator<AOCCharacter> It(World); It; ++It)
+        {
+            AOCCharacter* Character = *It;
+            if (!IsValid(Character)) continue;
+            AOCPlayerState* State = Character->GetPlayerState<AOCPlayerState>();
+            if (!State || State == LocalState) continue;
+            if (State->GetTeamId() != LocalState->GetTeamId() || State->GetSquadId() != LocalState->GetSquadId())
+                continue;
+
+            SeenCharacters.Add(Character);
+            UTextBlock* Marker = nullptr;
+            if (TWeakObjectPtr<UTextBlock>* Existing = SquadMarkers.Find(Character)) Marker = Existing->Get();
+            if (!Marker)
+            {
+                Marker = WidgetTree->ConstructWidget<UTextBlock>();
+                Marker->SetColorAndOpacity(FSlateColor(ColorFriendly));
+                Marker->SetJustification(ETextJustify::Center);
+                Marker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+                SetTextSize(Marker, 20);
+                PlaceOnCanvas(MapContentCanvas, Marker, FVector2D::ZeroVector, FVector2D(42.0f, 42.0f),
+                    FVector2D(0.5f, 0.5f), 21);
+                SquadMarkers.Add(Character, Marker);
+            }
+
+            AOCVehicleBase* Vehicle = Character->IsInVehicle() ? Character->GetCurrentVehicle() : nullptr;
+            const AActor* SpatialActor = IsValid(Vehicle) ? static_cast<const AActor*>(Vehicle) : static_cast<const AActor*>(Character);
+            Marker->SetText(FText::FromString(IsValid(Vehicle) ? TEXT("▣") : TEXT("●")));
+            if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(Marker->Slot))
+                MarkerSlot->SetPosition(WorldToMap(SpatialActor->GetActorLocation()));
+            Marker->SetRenderTransformAngle(Projection.WorldYawToMapDegrees(SpatialActor->GetActorRotation().Yaw));
+        }
+    }
+
+    for (auto It = SquadMarkers.CreateIterator(); It; ++It)
+    {
+        if (!SeenCharacters.Contains(It.Key()))
+        {
+            if (UTextBlock* Marker = It.Value().Get()) Marker->RemoveFromParent();
+            It.RemoveCurrent();
+        }
+    }
+}
+
+void UOCTacticalMapWidget::RefreshSquadOrderMarker()
+{
+    if (!WidgetTree || !MapContentCanvas) return;
+    AOCPlayerController* PC = Cast<AOCPlayerController>(GetOwningPlayer());
+    if (!PC) return;
+
+    const FOCSquadOrder& Order = PC->GetCurrentSquadOrder();
+    const bool bHasSpatialLocation = Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup;
+    if (!Order.IsActive() || !bHasSpatialLocation)
+    {
+        if (SquadOrderMarker) SquadOrderMarker->SetVisibility(ESlateVisibility::Collapsed);
+        return;
+    }
+
+    if (!SquadOrderMarker)
+    {
+        SquadOrderMarker = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapSquadOrder"));
+        SquadOrderMarker->SetColorAndOpacity(FSlateColor(ColorObjective));
+        SquadOrderMarker->SetJustification(ETextJustify::Center);
+        SquadOrderMarker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+        SetTextSize(SquadOrderMarker, 15);
+        PlaceOnCanvas(MapContentCanvas, SquadOrderMarker, FVector2D::ZeroVector, FVector2D(170.0f, 30.0f),
+            FVector2D(0.5f, 0.5f), 23);
+    }
+
+    SquadOrderMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
+    SquadOrderMarker->SetText(FText::FromString(FString::Printf(TEXT("◇ %s"), *OCSquadOrderToString(Order))));
+    if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(SquadOrderMarker->Slot))
+        MarkerSlot->SetPosition(WorldToMap(Order.WorldLocation));
+}
+
 bool UOCTacticalMapWidget::PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const
 {
     if (!MapCanvas) return false;
@@ -644,7 +743,7 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
         CloseMap(*PC, false);
         return;
     }
-    if (!Character) CloseMap(*PC, true);
+    if (!Character && !Cast<AOCVehicleBase>(PC->GetPawn())) CloseMap(*PC, true);
 }
 
 void UOCTacticalMapSubsystem::HandleMapToggleAction()
