@@ -47,6 +47,7 @@ private:
     UPROPERTY() TObjectPtr<UTextBlock> PlayerCoordinates;
     UPROPERTY() TObjectPtr<UTextBlock> LocalPingMarker;
     UPROPERTY() TObjectPtr<UTextBlock> SquadOrderMarker;
+    UPROPERTY() TArray<TObjectPtr<UTextBlock>> TacticalPingMarkers;
     UPROPERTY() TObjectPtr<UTextureRenderTarget2D> WorldMapTexture;
 
     TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
@@ -59,6 +60,8 @@ private:
     FVector2D MapPan = FVector2D::ZeroVector;
     bool bDraggingMap = false;
     FVector2D LastDragLocalPosition = FVector2D::ZeroVector;
+    uint32 LastTacticalPingRevision = MAX_uint32;
+    float NextTacticalPingExpiryServerTime = -1.0f;
 
     bool ResolveProjectionFromWorld();
     FVector ResolveSectorWorldLocation(const FVector& SectorLocalLocation) const;
@@ -69,6 +72,7 @@ private:
     void RefreshSquadMarkers();
     void RefreshObjectiveMarkers();
     void RefreshSquadOrderMarker();
+    void RefreshTacticalPingMarkers();
     bool ResolveSquadOrderWorldLocation(FVector& OutWorldLocation) const;
     bool PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const;
     FVector2D ViewportToContent(const FVector2D& ViewportLocal) const;
