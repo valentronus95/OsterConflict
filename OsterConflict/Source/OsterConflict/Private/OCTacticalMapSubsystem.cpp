@@ -23,6 +23,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "Input/Events.h"
+#include "Input/Reply.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
@@ -39,6 +41,9 @@ namespace
     constexpr uint32 CaptureWidth = 1600;
     constexpr uint32 CaptureHeight = 900;
     constexpr float CaptureAspect = static_cast<float>(CaptureWidth) / static_cast<float>(CaptureHeight);
+    constexpr float MinMapZoom = 1.0f;
+    constexpr float MaxMapZoom = 3.5f;
+    constexpr float MapZoomStep = 0.18f;
 
     const FLinearColor ColorBackdrop(0.012f, 0.016f, 0.020f, 0.985f);
     const FLinearColor ColorPanel(0.025f, 0.032f, 0.038f, 0.96f);
@@ -101,7 +106,6 @@ namespace
         FBox ContentBounds(ForceInit);
         TArray<UPrimitiveComponent*> Components;
         Sector.GetComponents<UPrimitiveComponent>(Components);
-
         for (UPrimitiveComponent* Component : Components)
         {
             if (!IsValid(Component)) continue;
@@ -112,15 +116,10 @@ namespace
             {
                 continue;
             }
-
             const FBox ComponentBounds = Component->Bounds.GetBox();
             if (ComponentBounds.IsValid) ContentBounds += ComponentBounds;
         }
-
-        if (!ContentBounds.IsValid)
-        {
-            ContentBounds = Sector.GetComponentsBoundingBox(true);
-        }
+        if (!ContentBounds.IsValid) ContentBounds = Sector.GetComponentsBoundingBox(true);
         return ContentBounds;
     }
 
@@ -135,11 +134,9 @@ namespace
         Half.X = FMath::Max(Half.X, 1000.0f);
         Half.Y = FMath::Max(Half.Y, 1000.0f);
         Half *= 1.0f + PaddingFraction;
-
         const float CurrentAspect = Half.X / Half.Y;
         if (CurrentAspect < TargetAspect) Half.X = Half.Y * TargetAspect;
         else Half.Y = Half.X / TargetAspect;
-
         Min = Center - Half;
         Max = Center + Half;
     }
@@ -147,13 +144,8 @@ namespace
     bool BuildProjectionFromSector(AOCWorldSectorOster& Sector, FOCTacticalMapProjection& Projection)
     {
         const FBox Bounds = ResolveSectorContentBounds(Sector);
-        if (!Bounds.IsValid ||
-            Bounds.Max.X <= Bounds.Min.X + 100.0f ||
-            Bounds.Max.Y <= Bounds.Min.Y + 100.0f)
-        {
+        if (!Bounds.IsValid || Bounds.Max.X <= Bounds.Min.X + 100.0f || Bounds.Max.Y <= Bounds.Min.Y + 100.0f)
             return false;
-        }
-
         Projection.WorldMin = FVector2D(Bounds.Min.X, Bounds.Min.Y);
         Projection.WorldMax = FVector2D(Bounds.Max.X, Bounds.Max.Y);
         FitProjectionBoundsToAspect(Projection.WorldMin, Projection.WorldMax, CaptureAspect, 0.025f);
@@ -176,35 +168,28 @@ void UOCTacticalMapWidget::ConfigureWorldMap(
 
 TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
 {
-    if (!WidgetTree)
-    {
-        WidgetTree = NewObject<UWidgetTree>(this, TEXT("TacticalMapWidgetTree"));
-    }
+    if (!WidgetTree) WidgetTree = NewObject<UWidgetTree>(this, TEXT("TacticalMapWidgetTree"));
 
-    UScaleBox* RootScale = WidgetTree->ConstructWidget<UScaleBox>(
-        UScaleBox::StaticClass(), TEXT("TacticalMapRootScale"));
+    UScaleBox* RootScale = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass(), TEXT("TacticalMapRootScale"));
     RootScale->SetStretch(EStretch::ScaleToFit);
     RootScale->SetStretchDirection(EStretchDirection::Both);
     WidgetTree->RootWidget = RootScale;
 
-    USizeBox* DesignSize = WidgetTree->ConstructWidget<USizeBox>(
-        USizeBox::StaticClass(), TEXT("TacticalMapDesignSize"));
+    USizeBox* DesignSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("TacticalMapDesignSize"));
     DesignSize->SetWidthOverride(DesignWidth);
     DesignSize->SetHeightOverride(DesignHeight);
     RootScale->SetContent(DesignSize);
 
-    UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(
-        UCanvasPanel::StaticClass(), TEXT("TacticalMapRoot"));
+    UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("TacticalMapRoot"));
     DesignSize->SetContent(Root);
 
-    UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(
-        UBorder::StaticClass(), TEXT("TacticalMapBackdrop"));
+    UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapBackdrop"));
     Backdrop->SetBrushColor(ColorBackdrop);
-    if (UCanvasPanelSlot* BackdropSlot = Root->AddChildToCanvas(Backdrop))
+    if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(Backdrop))
     {
-        BackdropSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-        BackdropSlot->SetOffsets(FMargin(0.0f));
-        BackdropSlot->SetZOrder(0);
+        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        Slot->SetOffsets(FMargin(0.0f));
+        Slot->SetZOrder(0);
     }
 
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapTitle"), TEXT("TACTICAL MAP"),
@@ -214,11 +199,9 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapSector"), TEXT("СЕКТОР: ОСТЕР  |  WORLD-SYNC"),
         FVector2D(1190.0f, 28.0f), FVector2D(360.0f, 28.0f), 14, ColorMutedText, 5);
 
-    UBorder* LegendPanel = WidgetTree->ConstructWidget<UBorder>(
-        UBorder::StaticClass(), TEXT("TacticalMapLegendPanel"));
+    UBorder* LegendPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapLegendPanel"));
     LegendPanel->SetBrushColor(ColorPanel);
     PlaceOnCanvas(Root, LegendPanel, FVector2D(20.0f, MapFrameTop), FVector2D(270.0f, 390.0f), FVector2D::ZeroVector, 2);
-
     AddCanvasText(WidgetTree, Root, TEXT("LegendTitle"), TEXT("ЛЕГЕНДА"),
         FVector2D(42.0f, 118.0f), FVector2D(210.0f, 32.0f), 17, ColorPrimaryText, 4);
     AddCanvasText(WidgetTree, Root, TEXT("LegendPlayer"), TEXT("▲   ГРАВЕЦЬ"),
@@ -232,44 +215,48 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     AddCanvasText(WidgetTree, Root, TEXT("LegendPOI"), TEXT("○   ТОЧКА ІНТЕРЕСУ"),
         FVector2D(44.0f, 382.0f), FVector2D(220.0f, 28.0f), 16, ColorPrimaryText, 4);
 
-    UBorder* MapFrame = WidgetTree->ConstructWidget<UBorder>(
-        UBorder::StaticClass(), TEXT("TacticalMapFrame"));
+    UBorder* MapFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapFrame"));
     MapFrame->SetBrushColor(FLinearColor(0.12f, 0.15f, 0.15f, 1.0f));
     PlaceOnCanvas(Root, MapFrame, FVector2D(MapFrameLeft, MapFrameTop), FVector2D(MapWidth, MapHeight), FVector2D::ZeroVector, 2);
 
-    MapCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(
-        UCanvasPanel::StaticClass(), TEXT("TacticalMapCanvas"));
+    MapCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("TacticalMapCanvas"));
     MapCanvas->SetClipping(EWidgetClipping::ClipToBounds);
     MapFrame->SetContent(MapCanvas);
 
-    UBorder* MapField = WidgetTree->ConstructWidget<UBorder>(
-        UBorder::StaticClass(), TEXT("TacticalMapField"));
-    MapField->SetBrushColor(ColorMap);
-    if (UCanvasPanelSlot* MapFieldSlot = MapCanvas->AddChildToCanvas(MapField))
+    MapContentCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("TacticalMapContent"));
+    MapContentCanvas->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+    if (UCanvasPanelSlot* Slot = MapCanvas->AddChildToCanvas(MapContentCanvas))
     {
-        MapFieldSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-        MapFieldSlot->SetOffsets(FMargin(2.0f));
-        MapFieldSlot->SetZOrder(0);
+        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        Slot->SetOffsets(FMargin(0.0f));
+        Slot->SetZOrder(0);
+    }
+
+    UBorder* MapField = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TacticalMapField"));
+    MapField->SetBrushColor(ColorMap);
+    if (UCanvasPanelSlot* Slot = MapContentCanvas->AddChildToCanvas(MapField))
+    {
+        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        Slot->SetOffsets(FMargin(2.0f));
+        Slot->SetZOrder(0);
     }
 
     if (!bConfiguredFromSubsystem) ResolveProjectionFromWorld();
 
     if (WorldMapTexture)
     {
-        UImage* WorldMapImage = WidgetTree->ConstructWidget<UImage>(
-            UImage::StaticClass(), TEXT("TacticalMapWorldCapture"));
+        UImage* WorldMapImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("TacticalMapWorldCapture"));
         FSlateBrush MapBrush;
         MapBrush.SetResourceObject(WorldMapTexture);
         MapBrush.ImageSize = FVector2D(MapWidth, MapHeight);
         WorldMapImage->SetBrush(MapBrush);
         WorldMapImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
         WorldMapImage->SetRenderScale(FVector2D(-1.0f, 1.0f));
-
-        if (UCanvasPanelSlot* WorldMapSlot = MapCanvas->AddChildToCanvas(WorldMapImage))
+        if (UCanvasPanelSlot* Slot = MapContentCanvas->AddChildToCanvas(WorldMapImage))
         {
-            WorldMapSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-            WorldMapSlot->SetOffsets(FMargin(0.0f));
-            WorldMapSlot->SetZOrder(1);
+            Slot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+            Slot->SetOffsets(FMargin(0.0f));
+            Slot->SetZOrder(1);
         }
     }
 
@@ -278,38 +265,38 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     AddLandmarkMarker(TEXT("СТАДІОН"), ResolveSectorWorldLocation(AOCWorldSectorOster::StadiumAnchor()));
     AddLandmarkMarker(TEXT("ПАРК"), ResolveSectorWorldLocation(AOCWorldSectorOster::ParkAnchor()));
     AddLandmarkMarker(TEXT("ЦЕНТР"), ResolveSectorWorldLocation(AOCWorldSectorOster::FormerCityAdministrationAnchor()));
-
     const FOCGeoReferencePoint SilpoRef = FOCGeoReference::Silpo();
-    const FVector SilpoLocal = FOCGeoReference::ToLocalCm(SilpoRef.Latitude, SilpoRef.Longitude, 0.0f);
-    AddLandmarkMarker(TEXT("СІЛЬПО"), ResolveSectorWorldLocation(SilpoLocal));
+    AddLandmarkMarker(TEXT("СІЛЬПО"), ResolveSectorWorldLocation(
+        FOCGeoReference::ToLocalCm(SilpoRef.Latitude, SilpoRef.Longitude, 0.0f)));
 
-    AddCanvasText(WidgetTree, MapCanvas, TEXT("NorthIndicator"), TEXT("N\n↑"),
-        FVector2D(MapWidth - 54.0f, 18.0f), FVector2D(36.0f, 58.0f), 20, ColorPrimaryText, 8);
-
-    PlayerMarker = WidgetTree->ConstructWidget<UTextBlock>(
-        UTextBlock::StaticClass(), TEXT("TacticalMapPlayerMarker"));
+    PlayerMarker = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapPlayerMarker"));
     PlayerMarker->SetText(FText::FromString(TEXT("▲")));
     PlayerMarker->SetColorAndOpacity(FSlateColor(ColorPlayer));
     PlayerMarker->SetJustification(ETextJustify::Center);
     PlayerMarker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
     SetTextSize(PlayerMarker, 24);
-    PlaceOnCanvas(MapCanvas, PlayerMarker, FVector2D(MapWidth * 0.5f, MapHeight * 0.5f),
+    PlaceOnCanvas(MapContentCanvas, PlayerMarker, FVector2D(MapWidth * 0.5f, MapHeight * 0.5f),
         FVector2D(42.0f, 42.0f), FVector2D(0.5f, 0.5f), 20);
 
+    AddCanvasText(WidgetTree, MapCanvas, TEXT("NorthIndicator"), TEXT("N\n↑"),
+        FVector2D(MapWidth - 54.0f, 18.0f), FVector2D(36.0f, 58.0f), 20, ColorPrimaryText, 30);
     PlayerCoordinates = AddCanvasText(WidgetTree, MapCanvas, TEXT("TacticalMapPlayerCoordinates"), TEXT(""),
-        FVector2D(18.0f, MapHeight - 34.0f), FVector2D(720.0f, 24.0f), 13, ColorMutedText, 10);
-
+        FVector2D(18.0f, MapHeight - 34.0f), FVector2D(720.0f, 24.0f), 13, ColorMutedText, 30);
     const float WidthMeters = (Projection.WorldMax.X - Projection.WorldMin.X) / 100.0f;
     AddCanvasText(WidgetTree, MapCanvas, TEXT("TacticalMapScale"),
-        FString::Printf(TEXT("ШИРИНА СЕКТОРА: %.0f м"), WidthMeters),
-        FVector2D(MapWidth - 250.0f, MapHeight - 34.0f), FVector2D(230.0f, 24.0f), 13, ColorMutedText, 10);
+        FString::Printf(TEXT("СЕКТОР: %.0f м"), WidthMeters),
+        FVector2D(MapWidth - 205.0f, MapHeight - 34.0f), FVector2D(185.0f, 24.0f), 13, ColorMutedText, 30);
 
-    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintClose"), TEXT("M  ЗАКРИТИ МАПУ"),
-        FVector2D(38.0f, 846.0f), FVector2D(240.0f, 28.0f), 14, ColorMutedText, 5);
-    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintNext"),
-        TEXT("МАСШТАБ · ПЕРЕМІЩЕННЯ · МАРКЕРИ — НАСТУПНИЙ ЕТАП"),
-        FVector2D(590.0f, 846.0f), FVector2D(680.0f, 28.0f), 14, ColorMutedText, 5);
+    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintClose"), TEXT("M  ЗАКРИТИ"),
+        FVector2D(38.0f, 846.0f), FVector2D(180.0f, 28.0f), 14, ColorMutedText, 5);
+    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintZoom"), TEXT("КОЛЕСО  МАСШТАБ"),
+        FVector2D(315.0f, 846.0f), FVector2D(230.0f, 28.0f), 14, ColorMutedText, 5);
+    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPan"), TEXT("ЛКМ + РУХ  ПЕРЕМІЩЕННЯ"),
+        FVector2D(650.0f, 846.0f), FVector2D(320.0f, 28.0f), 14, ColorMutedText, 5);
+    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPing"), TEXT("ПКМ  ТАКТИЧНИЙ МАРКЕР"),
+        FVector2D(1175.0f, 846.0f), FVector2D(340.0f, 28.0f), 14, ColorMutedText, 5);
 
+    ApplyMapViewTransform();
     return RootScale->TakeWidget();
 }
 
@@ -322,16 +309,87 @@ void UOCTacticalMapWidget::NativeTick(const FGeometry& MyGeometry, const float I
 
     const FVector Location = Pawn->GetActorLocation();
     if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(PlayerMarker->Slot))
-    {
         MarkerSlot->SetPosition(WorldToMap(Location));
-    }
     PlayerMarker->SetRenderTransformAngle(Projection.WorldYawToMapDegrees(Pawn->GetActorRotation().Yaw));
 
     if (PlayerCoordinates)
     {
         PlayerCoordinates->SetText(FText::FromString(FString::Printf(
-            TEXT("WORLD  X %.0f  ·  Y %.0f  ·  Z %.0f"), Location.X, Location.Y, Location.Z)));
+            TEXT("WORLD X %.0f · Y %.0f · Z %.0f   |   ZOOM x%.2f"),
+            Location.X, Location.Y, Location.Z, MapZoom)));
     }
+}
+
+FReply UOCTacticalMapWidget::NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    FVector2D Local;
+    if (!PointerToMapLocal(InMouseEvent, Local)) return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
+
+    const FVector2D AnchorContent = ViewportToContent(Local);
+    const float OldZoom = MapZoom;
+    MapZoom = FMath::Clamp(MapZoom + InMouseEvent.GetWheelDelta() * MapZoomStep, MinMapZoom, MaxMapZoom);
+    if (FMath::IsNearlyEqual(OldZoom, MapZoom)) return FReply::Handled();
+
+    const FVector2D Center(MapWidth * 0.5f, MapHeight * 0.5f);
+    MapPan = Local - Center - (AnchorContent - Center) * MapZoom;
+    ClampMapPan();
+    ApplyMapViewTransform();
+    return FReply::Handled();
+}
+
+FReply UOCTacticalMapWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    FVector2D Local;
+    if (!PointerToMapLocal(InMouseEvent, Local))
+        return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+    {
+        bDraggingMap = true;
+        LastDragLocalPosition = Local;
+        return FReply::Handled();
+    }
+    if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    {
+        PlaceLocalPing(Local);
+        return FReply::Handled();
+    }
+    return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+FReply UOCTacticalMapWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bDraggingMap)
+    {
+        bDraggingMap = false;
+        return FReply::Handled();
+    }
+    return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+FReply UOCTacticalMapWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    if (!bDraggingMap) return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+    if (!InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+    {
+        bDraggingMap = false;
+        return FReply::Handled();
+    }
+
+    if (!MapCanvas) return FReply::Handled();
+    const FGeometry MapGeometry = MapCanvas->GetCachedGeometry();
+    const FVector2D CurrentLocal = MapGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+    MapPan += CurrentLocal - LastDragLocalPosition;
+    LastDragLocalPosition = CurrentLocal;
+    ClampMapPan();
+    ApplyMapViewTransform();
+    return FReply::Handled();
+}
+
+void UOCTacticalMapWidget::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+    bDraggingMap = false;
+    Super::NativeOnMouseCaptureLost(CaptureLostEvent);
 }
 
 bool UOCTacticalMapWidget::ResolveProjectionFromWorld()
@@ -342,8 +400,7 @@ bool UOCTacticalMapWidget::ResolveProjectionFromWorld()
         for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
         {
             AOCWorldSectorOster* Sector = *It;
-            if (!IsValid(Sector)) continue;
-            if (BuildProjectionFromSector(*Sector, Projection))
+            if (IsValid(Sector) && BuildProjectionFromSector(*Sector, Projection))
             {
                 WorldSector = Sector;
                 UE_LOG(LogTemp, Display,
@@ -353,7 +410,6 @@ bool UOCTacticalMapWidget::ResolveProjectionFromWorld()
             }
         }
     }
-
     Projection.WorldMin = FVector2D(-120000.0f, -67500.0f);
     Projection.WorldMax = FVector2D(120000.0f, 67500.0f);
     Projection.bInvertX = false;
@@ -366,9 +422,7 @@ bool UOCTacticalMapWidget::ResolveProjectionFromWorld()
 FVector UOCTacticalMapWidget::ResolveSectorWorldLocation(const FVector& SectorLocalLocation) const
 {
     if (const AOCWorldSectorOster* Sector = WorldSector.Get())
-    {
         return Sector->GetActorTransform().TransformPosition(SectorLocalLocation);
-    }
     return SectorLocalLocation;
 }
 
@@ -380,54 +434,114 @@ FVector2D UOCTacticalMapWidget::WorldToMap(const FVector& WorldLocation) const
 
 void UOCTacticalMapWidget::AddLandmarkMarker(const FString& Label, const FVector& WorldLocation)
 {
-    if (!WidgetTree || !MapCanvas) return;
+    if (!WidgetTree || !MapContentCanvas) return;
     UTextBlock* Marker = WidgetTree->ConstructWidget<UTextBlock>();
     Marker->SetText(FText::FromString(FString::Printf(TEXT("○ %s"), *Label)));
     Marker->SetColorAndOpacity(FSlateColor(ColorPrimaryText));
     Marker->SetJustification(ETextJustify::Center);
     SetTextSize(Marker, 14);
-    PlaceOnCanvas(MapCanvas, Marker, WorldToMap(WorldLocation), FVector2D(150.0f, 26.0f),
+    PlaceOnCanvas(MapContentCanvas, Marker, WorldToMap(WorldLocation), FVector2D(150.0f, 26.0f),
         FVector2D(0.5f, 0.5f), 12);
 }
 
 void UOCTacticalMapWidget::AddGrid()
 {
-    if (!WidgetTree || !MapCanvas) return;
+    if (!WidgetTree || !MapContentCanvas) return;
     constexpr int32 Columns = 10;
     constexpr int32 Rows = 10;
-
     for (int32 Index = 0; Index <= Columns; ++Index)
     {
-        const float X = MapWidth * static_cast<float>(Index) / static_cast<float>(Columns);
-        UBorder* Line = WidgetTree->ConstructWidget<UBorder>(
-            UBorder::StaticClass(), FName(*FString::Printf(TEXT("MapGridV_%02d"), Index)));
+        const float X = MapWidth * static_cast<float>(Index) / Columns;
+        UBorder* Line = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(),
+            FName(*FString::Printf(TEXT("MapGridV_%02d"), Index)));
         Line->SetBrushColor(ColorGrid);
-        PlaceOnCanvas(MapCanvas, Line, FVector2D(X, 0.0f), FVector2D(1.0f, MapHeight), FVector2D::ZeroVector, 3);
+        PlaceOnCanvas(MapContentCanvas, Line, FVector2D(X, 0.0f), FVector2D(1.0f, MapHeight), FVector2D::ZeroVector, 3);
         if (Index < Columns)
         {
-            const TCHAR ColumnLetter = static_cast<TCHAR>('A' + Index);
-            AddCanvasText(WidgetTree, MapCanvas,
-                FName(*FString::Printf(TEXT("MapGridCol_%02d"), Index)), FString::Chr(ColumnLetter),
+            AddCanvasText(WidgetTree, MapContentCanvas,
+                FName(*FString::Printf(TEXT("MapGridCol_%02d"), Index)),
+                FString::Chr(static_cast<TCHAR>('A' + Index)),
                 FVector2D(X + MapWidth / Columns * 0.5f - 8.0f, 7.0f), FVector2D(24.0f, 22.0f),
                 12, ColorMutedText, 4);
         }
     }
-
     for (int32 Index = 0; Index <= Rows; ++Index)
     {
-        const float Y = MapHeight * static_cast<float>(Index) / static_cast<float>(Rows);
-        UBorder* Line = WidgetTree->ConstructWidget<UBorder>(
-            UBorder::StaticClass(), FName(*FString::Printf(TEXT("MapGridH_%02d"), Index)));
+        const float Y = MapHeight * static_cast<float>(Index) / Rows;
+        UBorder* Line = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(),
+            FName(*FString::Printf(TEXT("MapGridH_%02d"), Index)));
         Line->SetBrushColor(ColorGrid);
-        PlaceOnCanvas(MapCanvas, Line, FVector2D(0.0f, Y), FVector2D(MapWidth, 1.0f), FVector2D::ZeroVector, 3);
+        PlaceOnCanvas(MapContentCanvas, Line, FVector2D(0.0f, Y), FVector2D(MapWidth, 1.0f), FVector2D::ZeroVector, 3);
         if (Index < Rows)
         {
-            AddCanvasText(WidgetTree, MapCanvas,
+            AddCanvasText(WidgetTree, MapContentCanvas,
                 FName(*FString::Printf(TEXT("MapGridRow_%02d"), Index)), FString::FromInt(Index + 1),
                 FVector2D(8.0f, Y + MapHeight / Rows * 0.5f - 8.0f), FVector2D(30.0f, 22.0f),
                 12, ColorMutedText, 4);
         }
     }
+}
+
+bool UOCTacticalMapWidget::PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const
+{
+    if (!MapCanvas) return false;
+    const FGeometry MapGeometry = MapCanvas->GetCachedGeometry();
+    OutLocal = MapGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+    const FVector2D Size = MapGeometry.GetLocalSize();
+    return OutLocal.X >= 0.0f && OutLocal.Y >= 0.0f && OutLocal.X <= Size.X && OutLocal.Y <= Size.Y;
+}
+
+FVector2D UOCTacticalMapWidget::ViewportToContent(const FVector2D& ViewportLocal) const
+{
+    const FVector2D Center(MapWidth * 0.5f, MapHeight * 0.5f);
+    const float SafeZoom = FMath::Max(MapZoom, KINDA_SMALL_NUMBER);
+    return Center + (ViewportLocal - Center - MapPan) / SafeZoom;
+}
+
+void UOCTacticalMapWidget::ClampMapPan()
+{
+    const float MaxPanX = MapWidth * (MapZoom - 1.0f) * 0.5f;
+    const float MaxPanY = MapHeight * (MapZoom - 1.0f) * 0.5f;
+    MapPan.X = FMath::Clamp(MapPan.X, -MaxPanX, MaxPanX);
+    MapPan.Y = FMath::Clamp(MapPan.Y, -MaxPanY, MaxPanY);
+    if (MapZoom <= MinMapZoom + KINDA_SMALL_NUMBER) MapPan = FVector2D::ZeroVector;
+}
+
+void UOCTacticalMapWidget::ApplyMapViewTransform()
+{
+    if (!MapContentCanvas) return;
+    ClampMapPan();
+    MapContentCanvas->SetRenderScale(FVector2D(MapZoom, MapZoom));
+    MapContentCanvas->SetRenderTranslation(MapPan);
+}
+
+void UOCTacticalMapWidget::PlaceLocalPing(const FVector2D& ViewportLocal)
+{
+    if (!WidgetTree || !MapContentCanvas || !Projection.IsValid()) return;
+    const FVector2D ContentPoint = ViewportToContent(ViewportLocal);
+    const FVector2D UV(
+        FMath::Clamp(ContentPoint.X / MapWidth, 0.0f, 1.0f),
+        FMath::Clamp(ContentPoint.Y / MapHeight, 0.0f, 1.0f));
+    const FVector WorldPing = Projection.UVToWorld(UV, 0.0f, true);
+
+    if (!LocalPingMarker)
+    {
+        LocalPingMarker = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TacticalMapLocalPing"));
+        LocalPingMarker->SetText(FText::FromString(TEXT("◆ PING")));
+        LocalPingMarker->SetColorAndOpacity(FSlateColor(ColorObjective));
+        LocalPingMarker->SetJustification(ETextJustify::Center);
+        SetTextSize(LocalPingMarker, 15);
+        PlaceOnCanvas(MapContentCanvas, LocalPingMarker, WorldToMap(WorldPing), FVector2D(100.0f, 28.0f),
+            FVector2D(0.5f, 0.5f), 24);
+    }
+    else if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(LocalPingMarker->Slot))
+    {
+        Slot->SetPosition(WorldToMap(WorldPing));
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("Tactical Map 2.0: local ping UV(%.3f, %.3f) -> World(%.0f, %.0f)."),
+        UV.X, UV.Y, WorldPing.X, WorldPing.Y);
 }
 
 bool UOCTacticalMapSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -441,12 +555,10 @@ void UOCTacticalMapSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
-
     MapToggleAction = NewObject<UInputAction>(this, TEXT("IA_TacticalMapRuntime"));
     MapToggleAction->ValueType = EInputActionValueType::Boolean;
     MapMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_TacticalMapRuntime"));
     if (MapMappingContext && MapToggleAction) MapMappingContext->MapKey(MapToggleAction, EKeys::M);
-
     ResolveWorldMapSource();
     InWorld.GetTimerManager().SetTimer(InputSetupTimer, this,
         &UOCTacticalMapSubsystem::EnsureEnhancedInputBinding, 0.25f, true, 0.05f);
@@ -455,19 +567,15 @@ void UOCTacticalMapSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 void UOCTacticalMapSubsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(InputSetupTimer);
-
     if (AOCPlayerController* PC = BoundPlayerController.Get())
     {
         if (MapMappingContext)
         {
             if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
                 ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-            {
                 InputSubsystem->RemoveMappingContext(MapMappingContext);
-            }
         }
     }
-
     if (MapWidget)
     {
         MapWidget->RemoveFromParent();
@@ -497,9 +605,7 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
             {
                 if (UEnhancedInputLocalPlayerSubsystem* OldInputSubsystem =
                     ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(OldPC->GetLocalPlayer()))
-                {
                     OldInputSubsystem->RemoveMappingContext(MapMappingContext);
-                }
             }
         }
         BoundPlayerController = PC;
@@ -512,9 +618,7 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
             ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
         {
             if (!InputSubsystem->HasMappingContext(MapMappingContext))
-            {
                 InputSubsystem->AddMappingContext(MapMappingContext, 100);
-            }
         }
     }
 
@@ -534,7 +638,6 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
         EnsureExclusiveMapBinding(*Character);
         RemappedCharacter = Character;
     }
-
     if (!bMapOpen) return;
     if (HasBlockingUI(*PC))
     {
@@ -571,18 +674,14 @@ void UOCTacticalMapSubsystem::EnsureExclusiveMapBinding(AOCCharacter& Character)
             TEXT("Tactical Map 2.0: could not locate DeployTrap mapping; M exclusivity is not proven for this pawn."));
         return;
     }
-
     CharacterContext->UnmapKey(TrapAction, EKeys::M);
     CharacterContext->UnmapKey(TrapAction, EKeys::V);
     CharacterContext->MapKey(TrapAction, EKeys::V);
-
     if (APlayerController* PC = Cast<APlayerController>(Character.GetController()))
     {
         if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
             ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-        {
             InputSubsystem->RequestRebuildControlMappings();
-        }
     }
     UE_LOG(LogTemp, Display,
         TEXT("Tactical Map 2.0: M reserved for map; DeployTrap moved to V for this pawn."));
@@ -590,10 +689,8 @@ void UOCTacticalMapSubsystem::EnsureExclusiveMapBinding(AOCCharacter& Character)
 
 bool UOCTacticalMapSubsystem::HasBlockingUI(const AOCPlayerController& PlayerController) const
 {
-    return PlayerController.IsFrontendMenuVisible() ||
-        PlayerController.IsDeploymentPanelVisible() ||
-        PlayerController.IsAdminPanelVisible() ||
-        PlayerController.IsChatInputActive() ||
+    return PlayerController.IsFrontendMenuVisible() || PlayerController.IsDeploymentPanelVisible() ||
+        PlayerController.IsAdminPanelVisible() || PlayerController.IsChatInputActive() ||
         PlayerController.IsSettingsVisible();
 }
 
@@ -607,12 +704,10 @@ bool UOCTacticalMapSubsystem::ResolveWorldMapSource()
     WorldSector.Reset();
     UWorld* World = GetWorld();
     if (!World) return false;
-
     for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         AOCWorldSectorOster* Sector = *It;
-        if (!IsValid(Sector)) continue;
-        if (BuildProjectionFromSector(*Sector, MapProjection))
+        if (IsValid(Sector) && BuildProjectionFromSector(*Sector, MapProjection))
         {
             WorldSector = Sector;
             UE_LOG(LogTemp, Display,
@@ -621,7 +716,6 @@ bool UOCTacticalMapSubsystem::ResolveWorldMapSource()
             return true;
         }
     }
-
     UE_LOG(LogTemp, Warning, TEXT("Tactical Map 2.0: AOCWorldSectorOster source was not found."));
     return false;
 }
@@ -629,7 +723,6 @@ bool UOCTacticalMapSubsystem::ResolveWorldMapSource()
 bool UOCTacticalMapSubsystem::CaptureWorldMap()
 {
     if ((!WorldSector.IsValid() || !MapProjection.IsValid()) && !ResolveWorldMapSource()) return false;
-
     UWorld* World = GetWorld();
     AOCWorldSectorOster* Sector = WorldSector.Get();
     if (!World || !Sector) return false;
@@ -671,30 +764,22 @@ bool UOCTacticalMapSubsystem::CaptureWorldMap()
         ReleaseCaptureResources();
         return false;
     }
-
     CaptureComponent->ProjectionType = ECameraProjectionMode::Orthographic;
     CaptureComponent->OrthoWidth = MapProjection.WorldMax.X - MapProjection.WorldMin.X;
     CaptureComponent->TextureTarget = MapRenderTarget;
     CaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-
-    // The sector owns extent/projection only. Capture all scene primitives so separately-owned
-    // Museum/Silpo/Culture/roadside actors are represented exactly where the gameplay world placed them.
     CaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
     CaptureComponent->ClearHiddenComponents();
-
-    // Pawns are dynamic and receive their own tactical marker; do not bake them into the background texture.
     for (TActorIterator<APawn> PawnIt(World); PawnIt; ++PawnIt)
     {
         APawn* Pawn = *PawnIt;
         if (IsValid(Pawn)) CaptureComponent->HideActorComponents(Pawn, true);
     }
-
     CaptureComponent->bCaptureEveryFrame = false;
     CaptureComponent->bCaptureOnMovement = false;
     CaptureComponent->bUpdateOrthoPlanes = true;
     CaptureComponent->bAutoCalculateOrthoPlanes = true;
     CaptureComponent->CaptureScene();
-
     UE_LOG(LogTemp, Display,
         TEXT("Tactical Map 2.0: captured current gameplay world to %ux%u render target; OrthoWidth %.0f cm."),
         CaptureWidth, CaptureHeight, CaptureComponent->OrthoWidth);
@@ -715,17 +800,11 @@ void UOCTacticalMapSubsystem::ReleaseCaptureResources()
 void UOCTacticalMapSubsystem::OpenMap(AOCPlayerController& PlayerController)
 {
     if (bMapOpen || !CanOpenMap(PlayerController) || !PlayerController.GetPawn()) return;
-
     CaptureWorldMap();
     MapWidget = CreateWidget<UOCTacticalMapWidget>(&PlayerController, UOCTacticalMapWidget::StaticClass());
     if (!MapWidget) return;
-
-    if (MapProjection.IsValid())
-    {
-        MapWidget->ConfigureWorldMap(MapProjection, WorldSector.Get(), MapRenderTarget);
-    }
+    if (MapProjection.IsValid()) MapWidget->ConfigureWorldMap(MapProjection, WorldSector.Get(), MapRenderTarget);
     MapWidget->AddToViewport(900);
-
     PlayerController.ResetIgnoreMoveInput();
     PlayerController.ResetIgnoreLookInput();
     PlayerController.SetIgnoreMoveInput(true);
@@ -746,7 +825,6 @@ void UOCTacticalMapSubsystem::CloseMap(AOCPlayerController& PlayerController, co
     }
     bMapOpen = false;
     if (!bRestoreGameplayInput) return;
-
     PlayerController.ResetIgnoreMoveInput();
     PlayerController.ResetIgnoreLookInput();
     PlayerController.bShowMouseCursor = false;
