@@ -1,0 +1,50 @@
+name: Frontend and deployment regression guard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'VERIFY_FRONTEND_DEPLOYMENT_REGRESSION.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13UIViewportStabilizerSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentFlowSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13DeploymentFlowSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13DeploymentPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR148DeploymentCompatibility.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCPlayerController.h'
+      - '.github/workflows/frontend-deployment-regression.yml'
+  pull_request:
+    paths:
+      - 'VERIFY_FRONTEND_DEPLOYMENT_REGRESSION.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13UIViewportStabilizerSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentFlowSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13DeploymentFlowSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13DeploymentPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR148DeploymentCompatibility.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCPlayerController.h'
+      - '.github/workflows/frontend-deployment-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          lfs: false
+
+      - name: Run source regression guard
+        run: python VERIFY_FRONTEND_DEPLOYMENT_REGRESSION.py
