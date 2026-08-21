@@ -1,0 +1,40 @@
+name: Runtime acceptance pass 2 source contracts
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTeamSpawnPoint.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py'
+      - '.github/workflows/runtime-acceptance-pass-2.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTeamSpawnPoint.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify runtime acceptance pass 2 source contracts
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py

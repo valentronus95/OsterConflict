@@ -1,6 +1,11 @@
 from pathlib import Path
 import re, sys
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 root = Path(__file__).resolve().parent / 'OsterConflict'
 required = [
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
@@ -58,21 +63,21 @@ markers = {
 }
 for name, needles in markers.items():
     path = next((p for p in root.rglob(name) if 'Intermediate' not in str(p)), None)
-    text = path.read_text(errors='ignore') if path else ''
+    text = path.read_text(encoding='utf-8', errors='ignore') if path else ''
     for n in needles:
         if n not in text:
             print(f'Missing marker {n!r} in {name}')
             sys.exit(1)
 
 # Old tiny arena must not be spawned by the active GameMode anymore.
-gm = (root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(errors='ignore')
+gm = (root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(encoding='utf-8', errors='ignore')
 if 'SpawnActor<AOCTestArena>' in gm or 'SpawnPrototypeArena();' in gm:
     print('Old OCTestArena still active in S07 GameMode')
     sys.exit(1)
 
 # Basic delimiter sanity for C++ source. Strings/comments stripped enough to catch integration accidents.
 for p in list((root/'Source').rglob('*.h')) + list((root/'Source').rglob('*.cpp')):
-    t = p.read_text(errors='ignore')
+    t = p.read_text(encoding='utf-8', errors='ignore')
     x = re.sub(r'//.*', '', t)
     x = re.sub(r'/\*.*?\*/', '', x, flags=re.S)
     x = re.sub(r'"(?:\\.|[^"\\])*"', '""', x)
@@ -92,7 +97,7 @@ for p in list((root/'Source').rglob('*.h')) + list((root/'Source').rglob('*.cpp'
 
 # UHT reflected headers: generated include must remain the last include.
 for p in (root/'Source/OsterConflict/Public').rglob('*.h'):
-    lines = p.read_text(errors='ignore').splitlines()
+    lines = p.read_text(encoding='utf-8', errors='ignore').splitlines()
     generated = [i for i, line in enumerate(lines) if '.generated.h"' in line]
     if generated:
         include_lines = [i for i, line in enumerate(lines) if line.strip().startswith('#include')]
@@ -104,7 +109,8 @@ for p in (root/'Source/OsterConflict/Public').rglob('*.h'):
 for hname in ['OCCharacter.h', 'OCPlayerController.h']:
     hp = root/'Source/OsterConflict/Public'/hname
     cp = root/'Source/OsterConflict/Private'/hname.replace('.h', '.cpp')
-    ht, ct = hp.read_text(), cp.read_text()
+    ht = hp.read_text(encoding='utf-8', errors='ignore')
+    ct = cp.read_text(encoding='utf-8', errors='ignore')
     names = re.findall(r'UFUNCTION\(Server,[^\)]*\)\s*\n\s*void\s+(\w+)\s*\(', ht)
     for n in names:
         if f'{n}_Implementation' not in ct:
@@ -113,7 +119,7 @@ for hname in ['OCCharacter.h', 'OCPlayerController.h']:
 
 # Ukrainian project wording regression requested by owner.
 for p in list((root/'Docs').rglob('*.md')) + [root/'README.md']:
-    text = p.read_text(errors='ignore')
+    text = p.read_text(encoding='utf-8', errors='ignore')
     if 'карту Остера' in text or 'карта Остера' in text:
         print('Incorrect Ukrainian genitive remains:', p)
         sys.exit(1)
