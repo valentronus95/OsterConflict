@@ -304,7 +304,7 @@ void UOCTacticalMapWidget::AddGrid()
 
         if (Index < Columns)
         {
-            const TCHAR ColumnLetter = static_cast<TCHAR>(TEXT('A') + Index);
+            const TCHAR ColumnLetter = static_cast<TCHAR>('A' + Index);
             AddCanvasText(WidgetTree, MapCanvas, FName(*FString::Printf(TEXT("MapGridCol_%02d"), Index)),
                 FString::Chr(ColumnLetter), FVector2D(X + MapWidth / Columns * 0.5f - 8.0f, 7.0f),
                 FVector2D(24.0f, 22.0f), 12, ColorMutedText, 4);
@@ -414,13 +414,15 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
 
         BoundPlayerController = PC;
         BoundInputComponent.Reset();
+    }
 
-        if (MapMappingContext)
+    if (MapMappingContext)
+    {
+        if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+            ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
         {
-            if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
-                ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+            if (!InputSubsystem->HasMappingContext(MapMappingContext))
             {
-                InputSubsystem->RemoveMappingContext(MapMappingContext);
                 InputSubsystem->AddMappingContext(MapMappingContext, 100);
             }
         }
