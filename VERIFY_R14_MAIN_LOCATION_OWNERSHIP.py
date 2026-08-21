@@ -22,6 +22,7 @@ required_files = [
     PUBLIC / "OCR146LandmarkSeparationSubsystem.h",
     PUBLIC / "OCGeoReference.h",
     ROOT / "START_HERE.cmd",
+    ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
     ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd",
 ]
 
@@ -106,16 +107,14 @@ if separation_path.is_file():
 launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
-
-    # The launcher version advances independently from the R14.6 landmark-separation
-    # subsystem. Validate stable routing/contracts instead of freezing display text to
-    # one exact launcher label, which previously made a valid R14.7 main fail itself.
     if "CURRENT MAIN" not in launcher or "R14" not in launcher:
         errors.append("START_HERE.cmd is not marked as current R14 main")
     if "R14.7" not in launcher:
         errors.append("START_HERE.cmd is not marked as the current R14.7 launcher")
+    if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in launcher:
+        errors.append("START_HERE.cmd does not route normal playtest to RUN_R14_CURRENT_GAMEPLAY.cmd")
     if 'call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"' not in launcher:
-        errors.append("START_HERE.cmd does not route playtest to RUN_R14_MAIN_SANDBOX_TEST.cmd")
+        errors.append("START_HERE.cmd does not retain the R14 sandbox diagnostic route")
     if "Launch R11 local listen-server visual test" in launcher:
         errors.append("START_HERE.cmd regressed to the legacy R11 playtest route")
 
@@ -128,4 +127,5 @@ if errors:
 print("R14 MAIN LOCATION OWNERSHIP: PASS")
 print("Museum, Silpo, Culture House and Stadium are bound to separate current-main site owners.")
 print("Culture House uses Hranovskoho 3 and cannot inherit Museum/Silpo coordinates.")
+print("Normal gameplay and Sandbox diagnostics are separate launch routes.")
 print("Legacy R13 Silpo/Culture House photo-model owners are absent and synthetic north-civic map geometry is guarded.")
