@@ -4,13 +4,13 @@ cd /d "%~dp0"
 :menu
 cls
 echo ============================================================
-echo OSTER CONFLICT - UE 5.8 - R14 CURRENT MAIN - R14.6 LANDMARK SEPARATION
+echo OSTER CONFLICT - UE 5.8 - R14.7 CURRENT MAIN - LATEST GAMEPLAY ASSETS
 echo ============================================================
 echo 1. Compile Editor/Game with installed UE 5.8
 echo 2. Full validation (Launcher-aware)
 echo 3. Clean full validation
 echo 4. Validate Silpo R14 source + UE build
-echo 5. Launch CURRENT R14 main Sandbox location test
+echo 5. Launch CURRENT R14.7 Sandbox - latest locations + gameplay assets
 echo 6. Launch latest packaged dedicated-server session (source UE only)
 echo 7. Stop remembered local server
 echo 8. Open Ukrainian first-run README
