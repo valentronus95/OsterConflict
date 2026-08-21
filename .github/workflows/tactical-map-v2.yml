@@ -1,0 +1,46 @@
+name: Tactical Map 2.0 source contracts
+
+on:
+  push:
+    branches:
+      - feat/tactical-map-v2
+  pull_request:
+    paths:
+      - 'TACTICAL_MAP_TZ.md'
+      - 'VERIFY_TACTICAL_MAP_V2.py'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/Tests/OCTacticalMapProjectionTests.cpp'
+      - '.github/workflows/tactical-map-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tactical-map-v2-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-tactical-map:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify Tactical Map 2.0 source contracts
+        shell: pwsh
+        run: |
+          python .\VERIFY_TACTICAL_MAP_V2.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
