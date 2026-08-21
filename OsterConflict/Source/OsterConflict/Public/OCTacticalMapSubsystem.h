@@ -7,6 +7,7 @@
 #include "OCTacticalMapProjection.h"
 #include "OCTacticalMapSubsystem.generated.h"
 
+class AOCCapturePoint;
 class AOCCharacter;
 class AOCPlayerController;
 class AOCWorldSectorOster;
@@ -50,6 +51,7 @@ private:
 
     TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
     TMap<TWeakObjectPtr<AOCCharacter>, TWeakObjectPtr<UTextBlock>> SquadMarkers;
+    TMap<TWeakObjectPtr<AOCCapturePoint>, TWeakObjectPtr<UTextBlock>> ObjectiveMarkers;
     FOCTacticalMapProjection Projection;
     bool bConfiguredFromSubsystem = false;
 
@@ -65,7 +67,9 @@ private:
     void AddGrid();
 
     void RefreshSquadMarkers();
+    void RefreshObjectiveMarkers();
     void RefreshSquadOrderMarker();
+    bool ResolveSquadOrderWorldLocation(FVector& OutWorldLocation) const;
     bool PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const;
     FVector2D ViewportToContent(const FVector2D& ViewportLocal) const;
     void ApplyMapViewTransform();
