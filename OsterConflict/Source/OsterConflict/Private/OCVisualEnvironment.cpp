@@ -16,14 +16,15 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    // Neutral overcast/daylight baseline. Keep the sun bright enough for an outdoor FPS,
-    // but do not bake a warm amber tint into every material in the scene.
+    // Neutral daytime sun. The world is still source-built, so keep the conservative
+    // intensity that matches the project's exposure assumptions, but move the sun higher
+    // and remove all warm light tinting.
     SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
     SunLight->SetupAttachment(SceneRoot);
     SunLight->SetMobility(EComponentMobility::Movable);
-    SunLight->SetRelativeRotation(FRotator(-38.0f, -28.0f, 0.0f));
-    SunLight->SetIntensity(70000.0f);
-    SunLight->SetLightColor(FLinearColor(1.0f, 0.985f, 0.96f));
+    SunLight->SetRelativeRotation(FRotator(-58.0f, -28.0f, 0.0f));
+    SunLight->SetIntensity(4.0f);
+    SunLight->SetLightColor(FLinearColor::White);
     SunLight->SetAtmosphereSunLight(true);
     SunLight->SetAtmosphereSunLightIndex(0);
     SunLight->SetLightSourceAngle(0.5357f);
@@ -32,28 +33,40 @@ AOCVisualEnvironment::AOCVisualEnvironment()
 
     SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
     SkyAtmosphere->SetupAttachment(SceneRoot);
+
+    // Explicit Earth-like scattering coefficients. The former R13 pass reduced Mie scale
+    // almost to zero while retaining an olive ground albedo, producing the flat mustard/yellow
+    // sky seen in the gameplay test. Rayleigh is wavelength dependent and gives daylight its
+    // readable blue sky; Mie remains neutral rather than acting as a warm colour grade.
     SkyAtmosphere->SetRayleighScatteringScale(1.0f);
-    SkyAtmosphere->SetMieScatteringScale(0.35f);
-    SkyAtmosphere->SetMieAnisotropy(0.72f);
+    SkyAtmosphere->SetRayleighScattering(FLinearColor(0.005802f, 0.013558f, 0.033100f));
+    SkyAtmosphere->SetRayleighExponentialDistribution(8.0f);
+    SkyAtmosphere->SetMieScatteringScale(1.0f);
+    SkyAtmosphere->SetMieScattering(FLinearColor(0.003996f, 0.003996f, 0.003996f));
+    SkyAtmosphere->SetMieAnisotropy(0.80f);
     SkyAtmosphere->SetMultiScatteringFactor(1.0f);
-    SkyAtmosphere->SetGroundAlbedo(FColor(78, 86, 72));
-    SkyAtmosphere->SetHeightFogContribution(1.0f);
+    SkyAtmosphere->SetGroundAlbedo(FColor(96, 96, 96));
+    SkyAtmosphere->SetHeightFogContribution(0.0f);
+    SkyAtmosphere->SetSkyAndAerialPerspectiveLuminanceFactor(FLinearColor(0.94f, 1.00f, 1.08f));
 
     SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
     SkyLight->SetupAttachment(SceneRoot);
     SkyLight->SetMobility(EComponentMobility::Movable);
-    SkyLight->SetIntensity(1.0f);
-    SkyLight->SetLightColor(FLinearColor(0.94f, 0.97f, 1.0f));
-    SkyLight->SetLowerHemisphereColor(FLinearColor(0.075f, 0.085f, 0.07f));
+    SkyLight->SetIntensity(0.85f);
+    SkyLight->SetLightColor(FLinearColor::White);
+    SkyLight->SetLowerHemisphereColor(FLinearColor(0.055f, 0.065f, 0.055f));
     SkyLight->SetRealTimeCaptureEnabled(true);
 
     HeightFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("HeightFog"));
     HeightFog->SetupAttachment(SceneRoot);
-    HeightFog->SetFogDensity(0.0060f);
+
+    // Keep height fog out of the current art-QA pass. It can be reintroduced once the
+    // environment assets and daylight are stable, rather than hiding colour problems in haze.
+    HeightFog->SetFogDensity(0.0f);
     HeightFog->SetFogHeightFalloff(0.20f);
-    HeightFog->SetFogInscatteringColor(FLinearColor(0.67f, 0.72f, 0.78f));
-    HeightFog->SetDirectionalInscatteringColor(FLinearColor(0.92f, 0.93f, 0.91f));
+    HeightFog->SetFogInscatteringColor(FLinearColor(0.72f, 0.79f, 0.88f));
+    HeightFog->SetDirectionalInscatteringColor(FLinearColor::White);
     HeightFog->SetStartDistance(2500.0f);
-    HeightFog->SetFogMaxOpacity(0.62f);
+    HeightFog->SetFogMaxOpacity(0.0f);
     HeightFog->SetVolumetricFog(false);
 }
