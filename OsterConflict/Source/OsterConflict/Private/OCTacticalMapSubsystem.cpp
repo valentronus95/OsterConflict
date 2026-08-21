@@ -359,7 +359,7 @@ FReply UOCTacticalMapWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry
     {
         bDraggingMap = true;
         LastDragLocalPosition = Local;
-        return FReply::Handled();
+        return FReply::Handled().CaptureMouse(TakeWidget());
     }
     if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
@@ -374,7 +374,7 @@ FReply UOCTacticalMapWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, 
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bDraggingMap)
     {
         bDraggingMap = false;
-        return FReply::Handled();
+        return FReply::Handled().ReleaseMouseCapture();
     }
     return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
 }
@@ -385,7 +385,7 @@ FReply UOCTacticalMapWidget::NativeOnMouseMove(const FGeometry& InGeometry, cons
     if (!InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
     {
         bDraggingMap = false;
-        return FReply::Handled();
+        return FReply::Handled().ReleaseMouseCapture();
     }
 
     if (!MapCanvas) return FReply::Handled();
@@ -1078,9 +1078,11 @@ void UOCTacticalMapSubsystem::CloseMap(AOCPlayerController& PlayerController, co
         MapWidget = nullptr;
     }
     bMapOpen = false;
-    if (!bRestoreGameplayInput) return;
+    // Always remove the movement/look lock owned by Tactical Map. A blocking UI may
+    // keep its own cursor/input mode, but it must never inherit the map's ignore stack.
     PlayerController.ResetIgnoreMoveInput();
     PlayerController.ResetIgnoreLookInput();
+    if (!bRestoreGameplayInput) return;
     PlayerController.bShowMouseCursor = false;
     PlayerController.SetInputMode(FInputModeGameOnly());
 }
