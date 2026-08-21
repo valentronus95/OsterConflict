@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR143SilpoFacadeIdentitySubsystem.generated.h"
 
+class UWorld;
+
 /**
  * R14.3 visual identity pass for the Oster Silpo facade.
  * Replaces the temporary rectangular sign read with a source-only layered oval logo approximation,
@@ -17,6 +19,8 @@ class OSTERCONFLICT_API UOCR143SilpoFacadeIdentitySubsystem : public UWorldSubsy
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    void RunAuthoritativeDetailNow(UWorld& World) { BuildFacadeIdentity(World); }
 
 private:
     void BuildFacadeIdentity(UWorld& World);

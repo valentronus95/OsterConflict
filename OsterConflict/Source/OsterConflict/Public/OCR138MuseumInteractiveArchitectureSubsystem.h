@@ -24,6 +24,9 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
+    /** Current-main startup coordinator entry. Must run after the R13.7 photo owner exists. */
+    void RunAuthoritativeUpgradeNow(UWorld& World) { UpgradeMuseum(World); }
+
 private:
     void UpgradeMuseum(UWorld& World);
     AActor* FindR137MuseumActor(UWorld& World) const;

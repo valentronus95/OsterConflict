@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR141SilpoDetailSubsystem.generated.h"
 
+class UWorld;
+
 /**
  * R14.1 photo-detail pass for the Oster Silpo location.
  *
@@ -20,6 +22,8 @@ class OSTERCONFLICT_API UOCR141SilpoDetailSubsystem : public UWorldSubsystem
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    void RunAuthoritativeDetailNow(UWorld& World) { BuildDetails(World); }
 
 private:
     void BuildDetails(UWorld& World);

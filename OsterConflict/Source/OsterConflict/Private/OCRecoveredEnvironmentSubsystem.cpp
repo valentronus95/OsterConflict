@@ -47,7 +47,6 @@ void UOCRecoveredEnvironmentSubsystem::TryPopulate(UWorld& World)
 {
     if (bPopulated) return;
 
-    // Give the authoritative runtime sector/GameMode a chance to finish BeginPlay first.
     if (!World.HasBegunPlay() && AttachAttempts < MaxAttachAttempts)
     {
         ++AttachAttempts;
@@ -110,14 +109,9 @@ void UOCRecoveredEnvironmentSubsystem::Populate(UWorld& World)
 
     UStaticMesh* ForestPathMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/TileableForestRoad/Meshes/SM_Forest_Path.SM_Forest_Path"));
-    UStaticMesh* UnfinishedWallMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Scene_UnfinishedBuilding/Assets/Custom/Ind_Unf__Wall_01/SM_Ind_Unf_Wall_01.SM_Ind_Unf_Wall_01"));
-    UStaticMesh* UnfinishedPillarMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Scene_UnfinishedBuilding/Assets/Custom/Ind_Unf__Pillar_01/SM_Ind_Unf_Pillar_01.SM_Ind_Unf_Pillar_01"));
-
-    if (!ForestPathMesh && !UnfinishedWallMesh && !UnfinishedPillarMesh)
+    if (!ForestPathMesh)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Recovered environment pass skipped: restored meshes were not loadable."));
+        UE_LOG(LogTemp, Warning, TEXT("Recovered environment pass skipped: forest path mesh was not loadable."));
         return;
     }
 
@@ -136,14 +130,8 @@ void UOCRecoveredEnvironmentSubsystem::Populate(UWorld& World)
 
     UInstancedStaticMeshComponent* ForestPaths =
         CreateVisualISM(Decorator, Root, ForestPathMesh, TEXT("RecoveredForestPaths"), false);
-    UInstancedStaticMeshComponent* ConstructionWalls =
-        CreateVisualISM(Decorator, Root, UnfinishedWallMesh, TEXT("RecoveredConstructionWalls"), false);
-    UInstancedStaticMeshComponent* ConstructionPillars =
-        CreateVisualISM(Decorator, Root, UnfinishedPillarMesh, TEXT("RecoveredConstructionPillars"), false);
 
-    // Dirt/forest-road pieces are kept on the outskirts so they enrich the rural edge without
-    // replacing the authored central road network or landmark footprints.
-    if (ForestPaths && ForestPathMesh)
+    if (ForestPaths)
     {
         AddFittedInstance(ForestPaths, ForestPathMesh, FVector(-92000.0f, -69000.0f, 4.0f),
             FVector(9800.0f, 4300.0f, 180.0f), 24.0f);
@@ -153,34 +141,8 @@ void UOCRecoveredEnvironmentSubsystem::Populate(UWorld& World)
             FVector(10400.0f, 4500.0f, 180.0f), -38.0f);
     }
 
-    // A small unfinished shell on the outer residential edge demonstrates the restored modular
-    // construction kit without overwriting any named Oster landmark. Collision stays authoritative
-    // in the existing world sector until this placement is visually validated in UE.
-    const FVector Site(-69000.0f, 64500.0f, 0.0f);
-    if (ConstructionWalls && UnfinishedWallMesh)
-    {
-        AddFittedInstance(ConstructionWalls, UnfinishedWallMesh, Site + FVector(-600.0f, 0.0f, 160.0f),
-            FVector(1200.0f, 45.0f, 320.0f), 0.0f);
-        AddFittedInstance(ConstructionWalls, UnfinishedWallMesh, Site + FVector(600.0f, 0.0f, 160.0f),
-            FVector(1200.0f, 45.0f, 320.0f), 0.0f);
-        AddFittedInstance(ConstructionWalls, UnfinishedWallMesh, Site + FVector(0.0f, 1050.0f, 160.0f),
-            FVector(2100.0f, 45.0f, 320.0f), 90.0f);
-    }
-
-    if (ConstructionPillars && UnfinishedPillarMesh)
-    {
-        const FVector PillarOffsets[] =
-        {
-            FVector(-1050.0f, -700.0f, 160.0f), FVector(1050.0f, -700.0f, 160.0f),
-            FVector(-1050.0f, 700.0f, 160.0f),  FVector(1050.0f, 700.0f, 160.0f)
-        };
-        for (const FVector& Offset : PillarOffsets)
-        {
-            AddFittedInstance(ConstructionPillars, UnfinishedPillarMesh, Site + Offset,
-                FVector(45.0f, 45.0f, 320.0f), 0.0f);
-        }
-    }
-
+    // The former unfinished-building showcase at (-69000,64500) was intentionally removed.
+    // It had no evidence-backed Oster site and two runtime subsystems were acting as its owners.
     UE_LOG(LogTemp, Display,
-        TEXT("Recovered environment models placed: forest-road outskirts + modular unfinished-building shell."));
+        TEXT("Recovered environment models placed: forest-road outskirts only; unverified unfinished-building site is disabled."));
 }

@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR140MuseumFacadeDetailSubsystem.generated.h"
 
+class UWorld;
+
 /**
  * R14.0 photo-detail pass for the Oster museum exterior.
  * Corrects the photographed service-door gable, adds its upper breakable window,
@@ -17,6 +19,8 @@ class OSTERCONFLICT_API UOCR140MuseumFacadeDetailSubsystem : public UWorldSubsys
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    void RunAuthoritativeDetailNow(UWorld& World) { ApplyFacadeDetail(World); }
 
 private:
     void ApplyFacadeDetail(UWorld& World) const;

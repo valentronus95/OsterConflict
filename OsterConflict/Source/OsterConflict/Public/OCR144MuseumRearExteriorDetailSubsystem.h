@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR144MuseumRearExteriorDetailSubsystem.generated.h"
 
+class UWorld;
+
 /**
  * R14.4 long-side/rear detail pass from REF-03/09/11/13/19/20.
  * Adds drainage, service-entry steps and conservative annex edge detail without inventing unseen openings.
@@ -16,6 +18,8 @@ class OSTERCONFLICT_API UOCR144MuseumRearExteriorDetailSubsystem : public UWorld
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    void RunAuthoritativeDetailNow(UWorld& World) { BuildRearExteriorDetail(World); }
 
 private:
     void BuildRearExteriorDetail(UWorld& World) const;

@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR146CultureHousePhotoModelSubsystem.generated.h"
 
+class UWorld;
+
 /**
  * Authoritative current-main presentation owner for the Oster City House of Culture.
  * The building is anchored only to FOCGeoReference::CultureHouse() (Hranovskoho 3) and never to Museum/Silpo.
@@ -16,6 +18,8 @@ class OSTERCONFLICT_API UOCR146CultureHousePhotoModelSubsystem : public UWorldSu
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    void RunAuthoritativeBuildNow(UWorld& World) { BuildCultureHouse(World); }
 
 private:
     void BuildCultureHouse(UWorld& World) const;
