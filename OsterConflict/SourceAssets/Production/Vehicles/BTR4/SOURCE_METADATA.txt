@@ -1,5 +1,17 @@
-Asset: BTR-4E Bucephalus (user-selected upload)
-Source package: FBX plus six PNG textures.
-Uploaded package did not contain a license/readme.
-FBX authoring strings reference a GTA San Andreas BTR-4E Bucephalus mod source path (`260142-btr-4-e-bucefal-vsu-v.1-gtasa_manual`).
-Integration status: development visual shell only until original redistribution license/source is verified.
+Asset target: BTR-4E Bucephalus gameplay visual
+Canonical UE asset: /Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus
+
+User-selected source package:
+- FBX plus six PNG textures was previously supplied locally.
+- The uploaded package did not contain a license/readme.
+- FBX authoring strings reference a GTA San Andreas BTR-4E Bucephalus mod source path (`260142-btr-4-e-bucefal-vsu-v.1-gtasa_manual`).
+- Therefore that local FBX remains development-only until original redistribution license/source is verified.
+
+Repository-safe fallback:
+- `Scripts/generate_btr4_game_visual.py` creates an Oster Conflict authored external-only 8x8 BTR-4-inspired GLB.
+- It contains only presentation geometry (hull, wheels, external turret/cannon silhouette, hatches/optics/details), not engineering/manufacturing data.
+- `Scripts/import_btr4_production_asset.py` imports the local user FBX when present; otherwise it generates and imports the authored GLB.
+- `RUN_IMPORT_BTR4_PRODUCTION.cmd` is the internal import helper.
+
+Verification status:
+- Source-side import path exists, but UE 5.8 import, scale, ground contact, wheel alignment, camera framing and runtime presentation still require playtest acceptance.
