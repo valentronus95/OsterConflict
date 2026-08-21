@@ -55,13 +55,13 @@ void UOCRuntimeChatWidget::BuildWidgetTree()
     HelpText->SetText(LOCTEXT("ChatHelp", "ENTER — надіслати    ESC — закрити"));
     Content->AddChildToVerticalBox(HelpText);
 
-    if (UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(ChatPanel))
+    if (UCanvasPanelSlot* ChatCanvasSlot = RootCanvas->AddChildToCanvas(ChatPanel))
     {
-        Slot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));
-        Slot->SetAlignment(FVector2D(0.0f, 1.0f));
-        Slot->SetPosition(FVector2D(28.0f, -28.0f));
-        Slot->SetSize(FVector2D(440.0f, 250.0f));
-        Slot->SetZOrder(0);
+        ChatCanvasSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));
+        ChatCanvasSlot->SetAlignment(FVector2D(0.0f, 1.0f));
+        ChatCanvasSlot->SetPosition(FVector2D(28.0f, -28.0f));
+        ChatCanvasSlot->SetSize(FVector2D(440.0f, 250.0f));
+        ChatCanvasSlot->SetZOrder(0);
     }
 
     SetVisibility(ESlateVisibility::Collapsed);

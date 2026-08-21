@@ -18,12 +18,18 @@ void UOCVehicleSpeedRuntimeSubsystem::Tick(float DeltaTime)
 
     for (TActorIterator<AOCPickupGunTruck> It(World); It; ++It)
     {
-        ApplySpeedContract(*It, 120.0f, 550.0f);
+        if (AOCPickupGunTruck* Vehicle = *It)
+        {
+            ApplySpeedContract(*Vehicle, 120.0f, 550.0f);
+        }
     }
 
     for (TActorIterator<AOCBTR> It(World); It; ++It)
     {
-        ApplySpeedContract(*It, 90.0f, 320.0f);
+        if (AOCBTR* Vehicle = *It)
+        {
+            ApplySpeedContract(*Vehicle, 90.0f, 320.0f);
+        }
     }
 }
 
