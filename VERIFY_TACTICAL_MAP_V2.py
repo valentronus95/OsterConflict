@@ -44,7 +44,7 @@ require("FOCGeoReference::Silpo" in cpp, "Silpo source anchor is missing")
 require("ComponentName == TEXT(\"Ground\")" in cpp, "content bounds must not be forced by the 2.4 km ground proxy")
 require("FitProjectionBoundsToAspect" in cpp, "map capture/projection aspect fit is missing")
 
-# Actual-game background contract: sector determines extent, but the texture captures the current gameplay scene.
+# Actual-game background contract: sector determines extent, but texture captures the current gameplay scene.
 require("ASceneCapture2D" in header and "ASceneCapture2D" in cpp, "orthographic world capture actor is missing")
 require("UTextureRenderTarget2D" in header and "UTextureRenderTarget2D" in cpp, "map render target is missing")
 require("ECameraProjectionMode::Orthographic" in cpp, "world capture must remain orthographic")
@@ -61,10 +61,24 @@ require("TacticalMapWorldCapture" in cpp, "captured world texture is not present
 require("ConfigureWorldMap" in header and "ConfigureWorldMap" in cpp, "subsystem/widget world-map configuration contract is missing")
 require("MapWidget = CreateWidget<UOCTacticalMapWidget>" in cpp,
         "map widget must rebuild on open so it receives the current world capture")
-require("МАСШТАБ · ПЕРЕМІЩЕННЯ · МАРКЕРИ — НАСТУПНИЙ ЕТАП" in cpp,
-        "unfinished controls must not be presented as already working")
 
-# Projection contract: one reversible transform is shared by static markers and the player marker.
+# Interactive viewport contract: clipping, wheel zoom, LMB pan with clamp, RMB local ping.
+require("MapContentCanvas" in header and "TacticalMapContent" in cpp, "transformable map content layer is missing")
+require("NativeOnMouseWheel" in header and "NativeOnMouseWheel" in cpp, "mouse-wheel zoom handler is missing")
+require("NativeOnMouseButtonDown" in header and "NativeOnMouseButtonDown" in cpp, "map mouse-button handler is missing")
+require("NativeOnMouseMove" in header and "NativeOnMouseMove" in cpp, "map drag handler is missing")
+require("SetRenderScale(FVector2D(MapZoom, MapZoom))" in cpp, "zoom transform is not applied to map content")
+require("SetRenderTranslation(MapPan)" in cpp, "pan transform is not applied to map content")
+require("ClampMapPan" in header and "ClampMapPan" in cpp, "map pan clamp is missing")
+require("MaxMapZoom" in cpp and "MinMapZoom" in cpp, "map zoom bounds are missing")
+require("ViewportToContent" in cpp, "viewport-to-content inverse transform is missing")
+require("GetEffectingButton() == EKeys::RightMouseButton" in cpp, "RMB tactical ping input is missing")
+require("Projection.UVToWorld" in cpp, "tactical ping does not convert map UV back to world-space")
+require("TacticalMapLocalPing" in cpp and "◆ PING" in cpp, "local ping marker presentation is missing")
+require("КОЛЕСО  МАСШТАБ" in cpp and "ЛКМ + РУХ  ПЕРЕМІЩЕННЯ" in cpp and "ПКМ  ТАКТИЧНИЙ МАРКЕР" in cpp,
+        "implemented map controls are not exposed in the HUD hint bar")
+
+# Projection contract: one reversible transform is shared by static markers, player and ping.
 require("struct OSTERCONFLICT_API FOCTacticalMapProjection" in projection_h, "projection type missing")
 require("WorldToUV" in projection_h and "UVToWorld" in projection_h, "reversible projection API missing")
 require("Projection.WorldToUV" in cpp, "widget bypasses the central projection")
