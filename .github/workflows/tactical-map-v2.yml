@@ -12,6 +12,9 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCLobbyTypes.h'
+      - 'OsterConflict/Source/OsterConflict/Public/OCPlayerController.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalPingNetwork.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/Tests/OCTacticalMapProjectionTests.cpp'
       - '.github/workflows/tactical-map-v2.yml'
   workflow_dispatch:
