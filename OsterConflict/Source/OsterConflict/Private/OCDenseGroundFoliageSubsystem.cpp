@@ -93,17 +93,30 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    // Frontend and gameplay share the same runtime world. Returning permanently while the menu is
+    // active meant this subsystem never got a second OnWorldBeginPlay after START, so the player saw
+    // a bare green plane forever. Poll until the frontend flag drops, then build foliage once.
+    InWorld.GetTimerManager().SetTimer(
+        GameplayReadyTimer,
+        this,
+        &UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady,
+        0.35f,
+        true,
+        0.0f);
+}
+
+void UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady()
+{
+    UWorld* World = GetWorld();
+    if (!World || bPopulated) return;
+
+    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    InWorld.GetTimerManager().SetTimerForNextTick(
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-        {
-            if (UWorld* World = WeakWorld.Get()) Populate(*World);
-        }));
+    World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    Populate(*World);
 }
 
 void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
