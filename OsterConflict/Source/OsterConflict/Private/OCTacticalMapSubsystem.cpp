@@ -9,12 +9,17 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/ScaleBox.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/SceneCapture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -27,10 +32,13 @@ namespace
 {
     constexpr float DesignWidth = 1600.0f;
     constexpr float DesignHeight = 900.0f;
-    constexpr float MapWidth = 1260.0f;
-    constexpr float MapHeight = 710.0f;
+    constexpr float MapWidth = 1248.0f;
+    constexpr float MapHeight = 702.0f;
     constexpr float MapFrameLeft = 315.0f;
     constexpr float MapFrameTop = 92.0f;
+    constexpr uint32 CaptureWidth = 1600;
+    constexpr uint32 CaptureHeight = 900;
+    constexpr float CaptureAspect = static_cast<float>(CaptureWidth) / static_cast<float>(CaptureHeight);
 
     const FLinearColor ColorBackdrop(0.012f, 0.016f, 0.020f, 0.985f);
     const FLinearColor ColorPanel(0.025f, 0.032f, 0.038f, 0.96f);
@@ -76,16 +84,85 @@ namespace
         return Text;
     }
 
-    void ExpandBounds(FVector2D& Min, FVector2D& Max, const float Fraction)
+    FBox ResolveSectorContentBounds(AOCWorldSectorOster& Sector)
+    {
+        FBox ContentBounds(ForceInit);
+        TArray<UPrimitiveComponent*> Components;
+        Sector.GetComponents<UPrimitiveComponent>(Components);
+
+        for (UPrimitiveComponent* Component : Components)
+        {
+            if (!IsValid(Component)) continue;
+
+            const FString ComponentName = Component->GetName();
+            if (ComponentName == TEXT("Ground") ||
+                ComponentName == TEXT("ReferenceMarkers") ||
+                ComponentName.Contains(TEXT("Label")))
+            {
+                continue;
+            }
+
+            const FBox ComponentBounds = Component->Bounds.GetBox();
+            if (ComponentBounds.IsValid)
+            {
+                ContentBounds += ComponentBounds;
+            }
+        }
+
+        if (!ContentBounds.IsValid)
+        {
+            ContentBounds = Sector.GetComponentsBoundingBox(true);
+        }
+        return ContentBounds;
+    }
+
+    void FitProjectionBoundsToAspect(FVector2D& Min, FVector2D& Max, const float TargetAspect,
+        const float PaddingFraction)
     {
         const FVector2D Center = (Min + Max) * 0.5f;
         FVector2D Half = (Max - Min) * 0.5f;
         Half.X = FMath::Max(Half.X, 1000.0f);
         Half.Y = FMath::Max(Half.Y, 1000.0f);
-        Half *= (1.0f + Fraction);
+        Half *= (1.0f + PaddingFraction);
+
+        const float CurrentAspect = Half.X / Half.Y;
+        if (CurrentAspect < TargetAspect)
+        {
+            Half.X = Half.Y * TargetAspect;
+        }
+        else
+        {
+            Half.Y = Half.X / TargetAspect;
+        }
+
         Min = Center - Half;
         Max = Center + Half;
     }
+
+    bool BuildProjectionFromSector(AOCWorldSectorOster& Sector, FOCTacticalMapProjection& Projection)
+    {
+        const FBox Bounds = ResolveSectorContentBounds(Sector);
+        if (!Bounds.IsValid || Bounds.Max.X <= Bounds.Min.X + 100.0f || Bounds.Max.Y <= Bounds.Min.Y + 100.0f)
+        {
+            return false;
+        }
+
+        Projection.WorldMin = FVector2D(Bounds.Min.X, Bounds.Min.Y);
+        Projection.WorldMax = FVector2D(Bounds.Max.X, Bounds.Max.Y);
+        FitProjectionBoundsToAspect(Projection.WorldMin, Projection.WorldMax, CaptureAspect, 0.025f);
+        Projection.bInvertX = false;
+        Projection.bInvertY = true;
+        return Projection.IsValid();
+    }
+}
+
+void UOCTacticalMapWidget::ConfigureWorldMap(const FOCTacticalMapProjection& InProjection,
+    AOCWorldSectorOster* InWorldSector, UTextureRenderTarget2D* InWorldMapTexture)
+{
+    Projection = InProjection;
+    WorldSector = InWorldSector;
+    WorldMapTexture = InWorldMapTexture;
+    bConfiguredFromSubsystem = Projection.IsValid();
 }
 
 TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
@@ -154,10 +231,32 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
     MapFieldSlot->SetOffsets(FMargin(2.0f));
     MapFieldSlot->SetZOrder(0);
 
-    ResolveProjectionFromWorld();
+    if (!bConfiguredFromSubsystem)
+    {
+        ResolveProjectionFromWorld();
+    }
+
+    if (WorldMapTexture)
+    {
+        UImage* WorldMapImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("TacticalMapWorldCapture"));
+        FSlateBrush MapBrush;
+        MapBrush.SetResourceObject(WorldMapTexture);
+        MapBrush.ImageSize = FVector2D(MapWidth, MapHeight);
+        WorldMapImage->SetBrush(MapBrush);
+        WorldMapImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+        // Pitch -90 / yaw +90 gives north-up but mirrors east/west in screen space. Mirror X once in UMG so
+        // the captured world and the +X=east projection share the same orientation.
+        WorldMapImage->SetRenderScale(FVector2D(-1.0f, 1.0f));
+
+        UCanvasPanelSlot* WorldMapSlot = MapCanvas->AddChildToCanvas(WorldMapImage);
+        WorldMapSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+        WorldMapSlot->SetOffsets(FMargin(0.0f));
+        WorldMapSlot->SetZOrder(1);
+    }
+
     AddGrid();
 
-    // These markers are transformed through the same world projection as the player. No screen-space POI guesses.
+    // POIs use the same world projection as the player. There are no hand-authored screen coordinates here.
     AddLandmarkMarker(TEXT("МУЗЕЙ"), ResolveSectorWorldLocation(AOCWorldSectorOster::MuseumAnchor()));
     AddLandmarkMarker(TEXT("СТАДІОН"), ResolveSectorWorldLocation(AOCWorldSectorOster::StadiumAnchor()));
     AddLandmarkMarker(TEXT("ПАРК"), ResolveSectorWorldLocation(AOCWorldSectorOster::ParkAnchor()));
@@ -189,12 +288,8 @@ TSharedRef<SWidget> UOCTacticalMapWidget::RebuildWidget()
 
     AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintClose"), TEXT("M  ЗАКРИТИ МАПУ"),
         FVector2D(38.0f, 846.0f), FVector2D(240.0f, 28.0f), 14, ColorMutedText, 5);
-    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintZoom"), TEXT("КОЛЕСО МИШІ  МАСШТАБ"),
-        FVector2D(315.0f, 846.0f), FVector2D(300.0f, 28.0f), 14, ColorMutedText, 5);
-    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPan"), TEXT("ЛКМ + ПЕРЕТЯГНУТИ  ПЕРЕМІСТИТИ"),
-        FVector2D(680.0f, 846.0f), FVector2D(410.0f, 28.0f), 14, ColorMutedText, 5);
-    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintPing"), TEXT("ПКМ  ПОСТАВИТИ МАРКЕР"),
-        FVector2D(1190.0f, 846.0f), FVector2D(330.0f, 28.0f), 14, ColorMutedText, 5);
+    AddCanvasText(WidgetTree, Root, TEXT("TacticalMapHintNext"), TEXT("МАСШТАБ · ПЕРЕМІЩЕННЯ · МАРКЕРИ — НАСТУПНИЙ ЕТАП"),
+        FVector2D(590.0f, 846.0f), FVector2D(680.0f, 28.0f), 14, ColorMutedText, 5);
 
     return RootScale->TakeWidget();
 }
@@ -232,30 +327,22 @@ bool UOCTacticalMapWidget::ResolveProjectionFromWorld()
             AOCWorldSectorOster* Sector = *It;
             if (!IsValid(Sector)) continue;
 
-            const FBox Bounds = Sector->GetComponentsBoundingBox(true);
-            if (Bounds.IsValid && Bounds.Max.X > Bounds.Min.X + 100.0f && Bounds.Max.Y > Bounds.Min.Y + 100.0f)
+            if (BuildProjectionFromSector(*Sector, Projection))
             {
                 WorldSector = Sector;
-                Projection.WorldMin = FVector2D(Bounds.Min.X, Bounds.Min.Y);
-                Projection.WorldMax = FVector2D(Bounds.Max.X, Bounds.Max.Y);
-                ExpandBounds(Projection.WorldMin, Projection.WorldMax, 0.015f);
-                Projection.bInvertX = false;
-                Projection.bInvertY = true;
                 UE_LOG(LogTemp, Display,
-                    TEXT("Tactical Map 2.0: using actual AOCWorldSectorOster bounds Min(%.0f, %.0f) Max(%.0f, %.0f)."),
+                    TEXT("Tactical Map 2.0: widget fallback uses actual Oster content bounds Min(%.0f, %.0f) Max(%.0f, %.0f)."),
                     Projection.WorldMin.X, Projection.WorldMin.Y, Projection.WorldMax.X, Projection.WorldMax.Y);
                 return true;
             }
         }
     }
 
-    // The source sector is authored as a 240000 x 240000 cm ground. This fallback is deterministic but is used
-    // only when the actual sector actor cannot be resolved, and must not be treated as runtime verification.
-    Projection.WorldMin = FVector2D(-120000.0f, -120000.0f);
-    Projection.WorldMax = FVector2D(120000.0f, 120000.0f);
+    Projection.WorldMin = FVector2D(-120000.0f, -67500.0f);
+    Projection.WorldMax = FVector2D(120000.0f, 67500.0f);
     Projection.bInvertX = false;
     Projection.bInvertY = true;
-    UE_LOG(LogTemp, Warning, TEXT("Tactical Map 2.0: world sector not found; using 2.4 km source-sector fallback bounds."));
+    UE_LOG(LogTemp, Warning, TEXT("Tactical Map 2.0: world sector not found; using deterministic 16:9 source fallback bounds."));
     return false;
 }
 
@@ -348,6 +435,8 @@ void UOCTacticalMapSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         MapMappingContext->MapKey(MapToggleAction, EKeys::M);
     }
 
+    ResolveWorldMapSource();
+
     InWorld.GetTimerManager().SetTimer(
         InputSetupTimer,
         this,
@@ -383,6 +472,7 @@ void UOCTacticalMapSubsystem::Deinitialize()
         MapWidget = nullptr;
     }
 
+    ReleaseCaptureResources();
     BoundInputComponent.Reset();
     BoundPlayerController.Reset();
     RemappedCharacter.Reset();
@@ -428,7 +518,7 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
         }
     }
 
-    UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PC->InputComponent);
+    UEnhancedInputComponent* EnhancedInput = PC->FindComponentByClass<UEnhancedInputComponent>();
     if (EnhancedInput && BoundInputComponent.Get() != EnhancedInput && MapToggleAction)
     {
         EnhancedInput->BindAction(
@@ -451,7 +541,7 @@ void UOCTacticalMapSubsystem::EnsureEnhancedInputBinding()
 
     if (HasBlockingUI(*PC))
     {
-        // The other UI path has already applied its own cursor/input state. Only remove the map layer here.
+        // Another UI path owns cursor/input state now. Remove only the map layer and leave that state untouched.
         CloseMap(*PC, false);
         return;
     }
@@ -527,15 +617,132 @@ bool UOCTacticalMapSubsystem::CanOpenMap(const AOCPlayerController& PlayerContro
     return !HasBlockingUI(PlayerController);
 }
 
+bool UOCTacticalMapSubsystem::ResolveWorldMapSource()
+{
+    WorldSector.Reset();
+    UWorld* World = GetWorld();
+    if (!World) return false;
+
+    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
+    {
+        AOCWorldSectorOster* Sector = *It;
+        if (!IsValid(Sector)) continue;
+
+        if (BuildProjectionFromSector(*Sector, MapProjection))
+        {
+            WorldSector = Sector;
+            UE_LOG(LogTemp, Display,
+                TEXT("Tactical Map 2.0: actual world source resolved Min(%.0f, %.0f) Max(%.0f, %.0f)."),
+                MapProjection.WorldMin.X, MapProjection.WorldMin.Y,
+                MapProjection.WorldMax.X, MapProjection.WorldMax.Y);
+            return true;
+        }
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Tactical Map 2.0: AOCWorldSectorOster source was not found."));
+    return false;
+}
+
+bool UOCTacticalMapSubsystem::CaptureWorldMap()
+{
+    // The Oster geometry is static for a world session. Capture once and reuse the render target on every M toggle.
+    if (MapRenderTarget && MapProjection.IsValid() && WorldSector.IsValid())
+    {
+        return true;
+    }
+
+    if ((!WorldSector.IsValid() || !MapProjection.IsValid()) && !ResolveWorldMapSource())
+    {
+        return false;
+    }
+
+    UWorld* World = GetWorld();
+    AOCWorldSectorOster* Sector = WorldSector.Get();
+    if (!World || !Sector) return false;
+
+    MapRenderTarget = NewObject<UTextureRenderTarget2D>(this, TEXT("RT_TacticalMapRuntime"));
+    if (!MapRenderTarget) return false;
+
+    MapRenderTarget->ClearColor = ColorMap;
+    MapRenderTarget->bHDR = false;
+    MapRenderTarget->InitAutoFormat(CaptureWidth, CaptureHeight);
+
+    const FBox ContentBounds = ResolveSectorContentBounds(*Sector);
+    const FVector2D Center2D = (MapProjection.WorldMin + MapProjection.WorldMax) * 0.5f;
+    const float HighestWorldZ = ContentBounds.IsValid ? ContentBounds.Max.Z : Sector->GetActorLocation().Z;
+    const FVector CaptureLocation(Center2D.X, Center2D.Y, HighestWorldZ + 150000.0f);
+    const FRotator CaptureRotation(-90.0f, 90.0f, 0.0f);
+
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.ObjectFlags |= RF_Transient;
+    SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    MapCaptureActor = World->SpawnActor<ASceneCapture2D>(
+        ASceneCapture2D::StaticClass(), CaptureLocation, CaptureRotation, SpawnParameters);
+    if (!MapCaptureActor)
+    {
+        MapRenderTarget = nullptr;
+        return false;
+    }
+
+    USceneCaptureComponent2D* CaptureComponent = MapCaptureActor->GetCaptureComponent2D();
+    if (!CaptureComponent)
+    {
+        MapCaptureActor->Destroy();
+        MapCaptureActor = nullptr;
+        MapRenderTarget = nullptr;
+        return false;
+    }
+
+    CaptureComponent->ProjectionType = ECameraProjectionMode::Orthographic;
+    CaptureComponent->OrthoWidth = MapProjection.WorldMax.X - MapProjection.WorldMin.X;
+    CaptureComponent->TextureTarget = MapRenderTarget;
+    CaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+    CaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+    CaptureComponent->bCaptureEveryFrame = false;
+    CaptureComponent->bCaptureOnMovement = false;
+    CaptureComponent->bUpdateOrthoPlanes = true;
+    CaptureComponent->bAutoCalculateOrthoPlanes = true;
+    CaptureComponent->ClearShowOnlyComponents();
+    CaptureComponent->ShowOnlyActorComponents(Sector, true);
+    CaptureComponent->CaptureScene();
+
+    UE_LOG(LogTemp, Display,
+        TEXT("Tactical Map 2.0: captured actual Oster sector to %ux%u render target; OrthoWidth %.0f cm."),
+        CaptureWidth, CaptureHeight, CaptureComponent->OrthoWidth);
+
+    // CaptureScene is immediate. Keep only the render target; the camera has no reason to tick or exist afterward.
+    MapCaptureActor->Destroy();
+    MapCaptureActor = nullptr;
+    return true;
+}
+
+void UOCTacticalMapSubsystem::ReleaseCaptureResources()
+{
+    if (MapCaptureActor)
+    {
+        MapCaptureActor->Destroy();
+        MapCaptureActor = nullptr;
+    }
+    MapRenderTarget = nullptr;
+    WorldSector.Reset();
+}
+
 void UOCTacticalMapSubsystem::OpenMap(AOCPlayerController& PlayerController)
 {
     if (bMapOpen || !CanOpenMap(PlayerController) || !PlayerController.GetPawn()) return;
+
+    CaptureWorldMap();
 
     if (!MapWidget)
     {
         MapWidget = CreateWidget<UOCTacticalMapWidget>(&PlayerController, UOCTacticalMapWidget::StaticClass());
     }
     if (!MapWidget) return;
+
+    if (MapProjection.IsValid())
+    {
+        MapWidget->ConfigureWorldMap(MapProjection, WorldSector.Get(), MapRenderTarget);
+    }
 
     MapWidget->AddToViewport(900);
     PlayerController.ResetIgnoreMoveInput();
