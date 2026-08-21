@@ -98,6 +98,11 @@ public:
     bool IsMapOpen() const { return bMapOpen; }
     void ToggleMap(AOCPlayerController& PlayerController);
 
+    /** Shared source used by the always-on HUD minimap and the M tactical map. */
+    bool EnsureMapSnapshot() { return CaptureWorldMap(); }
+    UTextureRenderTarget2D* GetMapRenderTarget() const { return MapRenderTarget; }
+    const FOCTacticalMapProjection& GetMapProjection() const { return MapProjection; }
+
 private:
     FTimerHandle InputSetupTimer;
     TWeakObjectPtr<AOCPlayerController> BoundPlayerController;
