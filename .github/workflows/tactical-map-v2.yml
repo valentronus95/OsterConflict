@@ -14,6 +14,8 @@ on:
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
       - 'VERIFY_S17B.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCHUD.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
