@@ -29,15 +29,15 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     if (!PC || !PC->IsLocalController()) return;
 
-    // Frontend/settings are pre-game presentation while no pawn exists. Deployment stays presentation-owned until
-    // ClientCompleteDeployment confirms a collision-grounded pawn, even if server possession happened a frame earlier.
-    const bool bPreGamePresentationVisible =
-        (PC->GetPawn() == nullptr && (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible())) ||
-        PC->IsDeploymentPanelVisible();
+    // World-render suppression is allowed only before a gameplay pawn exists. A stale deployment/settings flag
+    // must never leave an already possessed player on the black HUD-only screen seen in the 2026-08-21 regression.
+    const bool bHasGameplayPawn = IsValid(PC->GetPawn());
+    const bool bPreGamePresentationVisible = !bHasGameplayPawn &&
+        (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible() || PC->IsDeploymentPanelVisible());
     SetWorldRenderingSuppressed(bPreGamePresentationVisible);
 
     // Only the startup main menu gets hard widget-layer isolation. Deployment/settings need their own root widgets.
-    const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && PC->GetPawn() == nullptr;
+    const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && !bHasGameplayPawn;
 
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
