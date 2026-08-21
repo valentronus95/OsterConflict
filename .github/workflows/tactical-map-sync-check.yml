@@ -1,0 +1,32 @@
+name: Tactical Map sync verification
+
+on:
+  push:
+    branches:
+      - feat/tactical-map-v2
+    paths:
+      - '.github/workflows/tactical-map-sync-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - shell: pwsh
+        run: |
+          python .\VERIFY_TACTICAL_MAP_V2.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_TACTICAL_MAP_INPUT_SAFETY.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_FRONTEND_DEPLOYMENT_REGRESSION.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
