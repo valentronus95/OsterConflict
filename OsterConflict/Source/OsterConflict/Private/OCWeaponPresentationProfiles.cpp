@@ -21,12 +21,21 @@ namespace
     {
         FOCFirstPersonWeaponProfile Profile;
         Profile.WeaponId = WeaponId;
-
-        // Preserve the old camera-space presentation until the exact mesh is visually
-        // inspected. R14 deliberately does not invent per-weapon grip coordinates.
         Profile.CameraLocation = FVector(38.0f, 12.0f, -14.0f);
         Profile.CameraRotation = FRotator::ZeroRotator;
         Profile.bGripCalibrated = false;
+        return Profile;
+    }
+
+    FOCFirstPersonWeaponProfile MakeAK47Profile()
+    {
+        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_AR1")));
+
+        // Historical runtime QA established that the Fab AK-47 mesh is authored with its
+        // long axis on Y while the game's first-person attach convention is X-forward.
+        // The -90 degree yaw is therefore an asset-axis correction, not an aesthetic guess.
+        Profile.CameraRotation = FRotator(0.0f, -90.0f, 0.0f);
+        Profile.bGripCalibrated = true;
         return Profile;
     }
 }
@@ -42,13 +51,12 @@ bool OCHasDeclaredFirstPersonWeaponProfile(const FName WeaponId)
 
 FOCFirstPersonWeaponProfile OCResolveFirstPersonWeaponProfile(const FName WeaponId)
 {
-    // Every known weapon currently starts from the legacy baseline. The important R14
-    // change is that each id now owns an explicit profile slot and calibration state,
-    // so visual tuning can be done weapon-by-weapon without hidden shared constants.
-    if (OCHasDeclaredFirstPersonWeaponProfile(WeaponId))
+    if (WeaponId == FName(TEXT("OC_AR1")))
     {
-        return MakeLegacyBaselineProfile(WeaponId);
+        return MakeAK47Profile();
     }
 
+    // Remaining weapons keep their previous baseline until each exact production mesh is
+    // visually calibrated. The AK has a known verified axis correction from runtime history.
     return MakeLegacyBaselineProfile(WeaponId);
 }
