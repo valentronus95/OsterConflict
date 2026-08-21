@@ -10,11 +10,13 @@
 class AOCCharacter;
 class AOCPlayerController;
 class AOCWorldSectorOster;
+class ASceneCapture2D;
 class UCanvasPanel;
 class UEnhancedInputComponent;
 class UInputAction;
 class UInputMappingContext;
 class UTextBlock;
+class UTextureRenderTarget2D;
 
 /**
  * Source-driven Tactical Map 2.0 presentation.
@@ -31,13 +33,19 @@ public:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+    /** Configure the widget from the same projection/render target used by the world capture. */
+    void ConfigureWorldMap(const FOCTacticalMapProjection& InProjection, AOCWorldSectorOster* InWorldSector,
+        UTextureRenderTarget2D* InWorldMapTexture);
+
 private:
     UPROPERTY() TObjectPtr<UCanvasPanel> MapCanvas;
     UPROPERTY() TObjectPtr<UTextBlock> PlayerMarker;
     UPROPERTY() TObjectPtr<UTextBlock> PlayerCoordinates;
+    UPROPERTY() TObjectPtr<UTextureRenderTarget2D> WorldMapTexture;
 
     TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
     FOCTacticalMapProjection Projection;
+    bool bConfiguredFromSubsystem = false;
 
     bool ResolveProjectionFromWorld();
     FVector ResolveSectorWorldLocation(const FVector& SectorLocalLocation) const;
@@ -50,7 +58,8 @@ private:
  * Owns the Tactical Map 2.0 runtime contract.
  *
  * M is registered through Enhanced Input instead of being polled every 25 ms. The subsystem keeps the map
- * transient and local, while the world itself remains the source of truth for map bounds and marker positions.
+ * transient and local, while the world itself remains the source of truth for map bounds, top-down background,
+ * and marker positions.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCTacticalMapSubsystem : public UWorldSubsystem
@@ -70,11 +79,15 @@ private:
     TWeakObjectPtr<AOCPlayerController> BoundPlayerController;
     TWeakObjectPtr<UEnhancedInputComponent> BoundInputComponent;
     TWeakObjectPtr<AOCCharacter> RemappedCharacter;
+    TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
 
     UPROPERTY() TObjectPtr<UInputMappingContext> MapMappingContext;
     UPROPERTY() TObjectPtr<UInputAction> MapToggleAction;
     UPROPERTY() TObjectPtr<UOCTacticalMapWidget> MapWidget;
+    UPROPERTY() TObjectPtr<UTextureRenderTarget2D> MapRenderTarget;
+    UPROPERTY() TObjectPtr<ASceneCapture2D> MapCaptureActor;
 
+    FOCTacticalMapProjection MapProjection;
     bool bMapOpen = false;
 
     void EnsureEnhancedInputBinding();
@@ -82,6 +95,9 @@ private:
     void EnsureExclusiveMapBinding(AOCCharacter& Character);
     bool CanOpenMap(const AOCPlayerController& PlayerController) const;
     bool HasBlockingUI(const AOCPlayerController& PlayerController) const;
+    bool ResolveWorldMapSource();
+    bool CaptureWorldMap();
+    void ReleaseCaptureResources();
     void OpenMap(AOCPlayerController& PlayerController);
     void CloseMap(AOCPlayerController& PlayerController, bool bRestoreGameplayInput);
 };
