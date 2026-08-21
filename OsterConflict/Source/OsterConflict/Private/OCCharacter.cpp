@@ -123,7 +123,7 @@ AOCCharacter::AOCCharacter()
         DefaultMappingContext->MapKey(SecondaryWeaponAction, EKeys::Two);
         DefaultMappingContext->MapKey(ThrowGrenadeAction, EKeys::F);
         DefaultMappingContext->MapKey(CycleGrenadeAction, EKeys::Four);
-        DefaultMappingContext->MapKey(DeployTrapAction, EKeys::M);
+        DefaultMappingContext->MapKey(DeployTrapAction, EKeys::V);
         DefaultMappingContext->MapKey(CycleTrapAction, EKeys::N);
     }
 }

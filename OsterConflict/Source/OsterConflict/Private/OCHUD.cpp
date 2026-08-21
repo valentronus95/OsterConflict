@@ -220,7 +220,7 @@ void AOCHUD::DrawHUD()
     DrawText(GrenadeText,FLinearColor(0.70f,0.74f,0.78f,1.0f),28.0f,Canvas->ClipY-42.0f,GEngine?GEngine->GetSmallFont():nullptr,0.78f,false);
     if(const AOCPlayerState* LocalRole=PC->GetPlayerState<AOCPlayerState>();LocalRole&&LocalRole->IsEngineer())
     {
-        const FString TrapText=FString::Printf(TEXT("N %s   M DEPLOY x%d"),*OCTrapPresetToString(Character->GetSelectedTrapPreset()),Character->GetTrapCount());
+        const FString TrapText=FString::Printf(TEXT("N %s   V DEPLOY x%d"),*OCTrapPresetToString(Character->GetSelectedTrapPreset()),Character->GetTrapCount());
         DrawText(TrapText,FLinearColor(0.70f,0.74f,0.78f,1.0f),28.0f,Canvas->ClipY-18.0f,GEngine?GEngine->GetSmallFont():nullptr,0.70f,false);
     }
 
