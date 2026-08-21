@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR140SilpoPhotoModelSubsystem.generated.h"
 
+class UWorld;
+
 /**
  * Silpo-only runtime replacement for the Oster supermarket at Bohdana Khmelnytskoho 54.
  *
@@ -21,6 +23,9 @@ class OSTERCONFLICT_API UOCR140SilpoPhotoModelSubsystem : public UWorldSubsystem
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+    /** Current-main coordinator entry. Runs the existing authoritative Silpo owner immediately. */
+    void RunAuthoritativeBuildNow(UWorld& World) { ReplaceSilpo(World); }
 
 private:
     void ReplaceSilpo(UWorld& World);
