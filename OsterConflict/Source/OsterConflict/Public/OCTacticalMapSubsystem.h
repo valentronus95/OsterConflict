@@ -45,9 +45,11 @@ private:
     UPROPERTY() TObjectPtr<UTextBlock> PlayerMarker;
     UPROPERTY() TObjectPtr<UTextBlock> PlayerCoordinates;
     UPROPERTY() TObjectPtr<UTextBlock> LocalPingMarker;
+    UPROPERTY() TObjectPtr<UTextBlock> SquadOrderMarker;
     UPROPERTY() TObjectPtr<UTextureRenderTarget2D> WorldMapTexture;
 
     TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
+    TMap<TWeakObjectPtr<AOCCharacter>, TWeakObjectPtr<UTextBlock>> SquadMarkers;
     FOCTacticalMapProjection Projection;
     bool bConfiguredFromSubsystem = false;
 
@@ -62,6 +64,8 @@ private:
     void AddLandmarkMarker(const FString& Label, const FVector& WorldLocation);
     void AddGrid();
 
+    void RefreshSquadMarkers();
+    void RefreshSquadOrderMarker();
     bool PointerToMapLocal(const FPointerEvent& InMouseEvent, FVector2D& OutLocal) const;
     FVector2D ViewportToContent(const FVector2D& ViewportLocal) const;
     void ApplyMapViewTransform();
