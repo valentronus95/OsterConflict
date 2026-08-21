@@ -1,0 +1,82 @@
+name: One-shot Tactical Map input safety patch
+
+on:
+  push:
+    branches:
+      - feat/tactical-map-v2
+    paths:
+      - '.github/workflows/tactical-map-one-shot-safety-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-source:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/tactical-map-v2
+          fetch-depth: 0
+
+      - name: Apply exact Tactical Map safety patch
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+
+          path = Path('OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '''    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)\n    {\n        bDraggingMap = true;\n        LastDragLocalPosition = Local;\n        return FReply::Handled();\n    }''',
+                  '''    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)\n    {\n        bDraggingMap = true;\n        LastDragLocalPosition = Local;\n        return FReply::Handled().CaptureMouse(TakeWidget());\n    }'''
+              ),
+              (
+                  '''    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bDraggingMap)\n    {\n        bDraggingMap = false;\n        return FReply::Handled();\n    }''',
+                  '''    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bDraggingMap)\n    {\n        bDraggingMap = false;\n        return FReply::Handled().ReleaseMouseCapture();\n    }'''
+              ),
+              (
+                  '''    if (!InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))\n    {\n        bDraggingMap = false;\n        return FReply::Handled();\n    }''',
+                  '''    if (!InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))\n    {\n        bDraggingMap = false;\n        return FReply::Handled().ReleaseMouseCapture();\n    }'''
+              ),
+              (
+                  '''    bMapOpen = false;\n    if (!bRestoreGameplayInput) return;\n    PlayerController.ResetIgnoreMoveInput();\n    PlayerController.ResetIgnoreLookInput();\n    PlayerController.bShowMouseCursor = false;''',
+                  '''    bMapOpen = false;\n    // Always remove the movement/look lock owned by Tactical Map. A blocking UI may\n    // keep its own cursor/input mode, but it must never inherit the map's ignore stack.\n    PlayerController.ResetIgnoreMoveInput();\n    PlayerController.ResetIgnoreLookInput();\n    if (!bRestoreGameplayInput) return;\n    PlayerController.bShowMouseCursor = false;'''
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8', newline='\n')
+          print('Exact Tactical Map input safety patch applied.')
+          '@ | Set-Content -Encoding utf8 .\_apply_tactical_map_patch.py
+          python .\_apply_tactical_map_patch.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item .\_apply_tactical_map_patch.py -Force
+
+      - name: Verify source contract and diff
+        shell: pwsh
+        run: |
+          python .\VERIFY_TACTICAL_MAP_V2.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff -- OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp
+
+      - name: Commit exact source patch to feature branch
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp
+          if (git diff --cached --quiet) { throw 'Safety patch produced no staged source change.' }
+          git commit -m "Harden tactical map input recovery and drag capture"
+          git push origin HEAD:feat/tactical-map-v2
