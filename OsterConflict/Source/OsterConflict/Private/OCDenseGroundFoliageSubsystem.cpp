@@ -28,7 +28,7 @@ namespace
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(false);
-        Component->SetCullDistances(700, CullEndCm);
+        Component->SetCullDistances(450, CullEndCm);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;
@@ -111,8 +111,6 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
     if (bPopulated) return;
     bPopulated = true;
 
-    // PN remains preferred. AdvancedVillagePack grass patches are real imported fallbacks already
-    // present in Content, so a missing PN asset no longer collapses the whole ground-cover pass.
     const TArray<const TCHAR*> GrassCandidates[] =
     {
         {
@@ -152,7 +150,7 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
 
     if (!bAnyGrass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Dense foliage skipped: no real grass mesh was loadable from PN or AdvancedVillagePack."));
+        UE_LOG(LogTemp, Error, TEXT("Dense foliage unavailable: no real grass mesh was loadable from PN or AdvancedVillagePack."));
         return;
     }
 
@@ -172,33 +170,33 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
         GrassComponents[Index] = MakeFoliageHISM(
-            FoliageActor, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 30000);
+            FoliageActor, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 36000);
     }
     UHierarchicalInstancedStaticMeshComponent* GroundPlants = MakeFoliageHISM(
-        FoliageActor, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 26000);
+        FoliageActor, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 30000);
     UHierarchicalInstancedStaticMeshComponent* Flowers = MakeFoliageHISM(
-        FoliageActor, Root, FlowerMesh, TEXT("DenseFlowers"), 23000);
+        FoliageActor, Root, FlowerMesh, TEXT("DenseFlowers"), 26000);
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OCDenseGroundFoliage), false);
     QueryParams.AddIgnoredActor(FoliageActor);
 
-    FRandomStream Random(20260821);
+    FRandomStream Random(20260822);
     int32 GrassInstances = 0;
     int32 PlantInstances = 0;
     int32 FlowerInstances = 0;
 
-    // The previous 22 m sampling grid read as isolated tufts. 13.5 m cells plus 2-4 clumps per
-    // valid cell produce continuous-looking verge/yard/park coverage while HISM+culling keeps the
-    // draw-call model bounded. Every base cell is still ground-traced and hard surfaces are rejected.
+    // Runtime playtest showed the old 13.5 m lattice still reading as isolated tufts. Use a denser
+    // 10 m ground-traced lattice and 3-5 clumps per valid cell. HISM keeps this as instanced foliage,
+    // while the hard-surface filter prevents grass from being sprayed across roads and buildings.
     constexpr float SectorMin = -96000.0f;
     constexpr float SectorMax = 96000.0f;
-    constexpr float GridStep = 1350.0f;
+    constexpr float GridStep = 1000.0f;
 
     for (float X = SectorMin; X <= SectorMax; X += GridStep)
     {
         for (float Y = SectorMin; Y <= SectorMax; Y += GridStep)
         {
-            const FVector2D Jitter(Random.FRandRange(-430.0f, 430.0f), Random.FRandRange(-430.0f, 430.0f));
+            const FVector2D Jitter(Random.FRandRange(-320.0f, 320.0f), Random.FRandRange(-320.0f, 320.0f));
             const FVector TraceStart(X + Jitter.X, Y + Jitter.Y, 18000.0f);
             const FVector TraceEnd(X + Jitter.X, Y + Jitter.Y, -3000.0f);
 
@@ -208,7 +206,7 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
             if (Hit.ImpactNormal.Z < 0.72f) continue;
 
             const FVector BaseLocation = Hit.ImpactPoint + Hit.ImpactNormal * 2.0f;
-            const int32 ClumpCount = Random.RandRange(2, 4);
+            const int32 ClumpCount = Random.RandRange(3, 5);
             for (int32 ClumpIndex = 0; ClumpIndex < ClumpCount; ++ClumpIndex)
             {
                 const int32 Variant = Random.RandRange(0, UE_ARRAY_COUNT(GrassCandidates) - 1);
@@ -216,11 +214,11 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
                 if (!Grass) continue;
 
                 const FVector Offset(
-                    Random.FRandRange(-460.0f, 460.0f),
-                    Random.FRandRange(-460.0f, 460.0f),
+                    Random.FRandRange(-360.0f, 360.0f),
+                    Random.FRandRange(-360.0f, 360.0f),
                     Random.FRandRange(-0.8f, 1.8f));
                 const float Yaw = Random.FRandRange(0.0f, 360.0f);
-                const float Scale = Random.FRandRange(0.72f, 1.10f);
+                const float Scale = Random.FRandRange(0.74f, 1.14f);
                 Grass->AddInstance(FTransform(
                     FRotator(0.0f, Yaw, 0.0f),
                     BaseLocation + Offset,
@@ -228,20 +226,20 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
                 ++GrassInstances;
             }
 
-            if (GroundPlants && Random.FRand() < 0.16f)
+            if (GroundPlants && Random.FRand() < 0.19f)
             {
                 GroundPlants->AddInstance(FTransform(
                     FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(Random.FRandRange(-420.0f, 420.0f), Random.FRandRange(-420.0f, 420.0f), 1.0f),
+                    BaseLocation + FVector(Random.FRandRange(-340.0f, 340.0f), Random.FRandRange(-340.0f, 340.0f), 1.0f),
                     FVector(Random.FRandRange(0.70f, 1.02f))), true);
                 ++PlantInstances;
             }
 
-            if (Flowers && Random.FRand() < 0.045f)
+            if (Flowers && Random.FRand() < 0.05f)
             {
                 Flowers->AddInstance(FTransform(
                     FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(Random.FRandRange(-360.0f, 360.0f), Random.FRandRange(-360.0f, 360.0f), 1.0f),
+                    BaseLocation + FVector(Random.FRandRange(-320.0f, 320.0f), Random.FRandRange(-320.0f, 320.0f), 1.0f),
                     FVector(Random.FRandRange(0.64f, 0.90f))), true);
                 ++FlowerInstances;
             }
