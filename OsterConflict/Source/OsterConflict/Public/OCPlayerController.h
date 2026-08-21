@@ -61,10 +61,13 @@ public:
     UFUNCTION(BlueprintCallable, Category="UI") void UIConnect(const FString& Address, const FString& Username);
     UFUNCTION(BlueprintCallable, Category="UI") void UIToggleFrontend();
     UFUNCTION(BlueprintCallable, Category="UI") void UIRequestTeam(EOCTeam Team);
+    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestSquad(int32 SquadId);
+    UFUNCTION(BlueprintCallable, Category="UI") void UIRequestRole(EOCPlayerRole RequestedRole);
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleRole();
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleSquad();
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
     UFUNCTION(BlueprintCallable, Category="UI") void UIReadyDeploy();
+    UFUNCTION(BlueprintCallable, Category="UI") void UICommitDeployment();
     UFUNCTION(BlueprintCallable, Category="UI") void UISendChat(EOCChatChannel Channel, const FString& Message);
     UFUNCTION(BlueprintCallable, Category="UI") void UIEndChatInput();
     UFUNCTION(BlueprintCallable, Category="UI") void UIAdminPrevious();
