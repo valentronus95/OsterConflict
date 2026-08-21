@@ -56,27 +56,27 @@ namespace
     }
 
     UStaticMeshComponent* AddFittedTurretVisual(AActor* Owner, USceneComponent* Parent,
-        UStaticMesh* Mesh, const FVector& DesiredSizeCm)
+        UStaticMesh* Mesh, float DesiredLengthCm, const FName ComponentName, const FName VisualTag)
     {
         if (!Owner || !Parent || !Mesh) return nullptr;
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
         if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return nullptr;
 
-        UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(Owner, TEXT("ProductionM2Browning"));
+        UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(Owner, ComponentName);
         if (!Visual) return nullptr;
         const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
-        const float UniformScale = DesiredSizeCm.X / NativeLength;
+        const float UniformScale = DesiredLengthCm / NativeLength;
         Visual->SetupAttachment(Parent);
         Visual->SetStaticMesh(Mesh);
-        Visual->SetRelativeLocation(FVector::ZeroVector);
+        Visual->SetRelativeLocation(-Bounds.Origin * UniformScale);
         Visual->SetRelativeRotation(FRotator::ZeroRotator);
         Visual->SetRelativeScale3D(FVector(UniformScale));
         Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Visual->SetGenerateOverlapEvents(false);
         Visual->SetCanEverAffectNavigation(false);
         Visual->SetCastShadow(true);
-        Visual->ComponentTags.Add(FName(TEXT("OC_ProductionM2")));
+        Visual->ComponentTags.Add(VisualTag);
         Owner->AddInstanceComponent(Visual);
         Visual->RegisterComponent();
         return Visual;
@@ -187,17 +187,43 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (BarrelPivot) BarrelPivot->SetRelativeLocation(FVector::ZeroVector);
     }
 
+    bool bUsingMountedGunAsset = false;
+    USceneComponent* MountedGunParent = BarrelPivot ? BarrelPivot.Get() : TurretPivot.Get();
     if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
     {
-        USceneComponent* M2Parent = BarrelPivot ? BarrelPivot.Get() : TurretPivot.Get();
-        if (AddFittedTurretVisual(this, M2Parent, M2, FVector(165.0f, 0.0f, 0.0f)))
+        if (AddFittedTurretVisual(this, MountedGunParent, M2, 165.0f,
+            FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
+            bUsingMountedGunAsset = true;
             if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(118.0f, 0.0f, 0.0f));
-            if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
-            if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
             UE_LOG(LogTemp, Display, TEXT("Gun truck uses production M2 Browning visual."));
         }
+    }
+
+    // The licensed M2 source file is not currently present in the repository. Until that exact
+    // asset is imported, use an existing real R13 machine-gun mesh instead of exposing the old
+    // cube/cylinder proxy. It is deliberately tagged as a fallback, never as production M2.
+    if (!bUsingMountedGunAsset)
+    {
+        if (UStaticMesh* RealMachineGunFallback = LoadObject<UStaticMesh>(nullptr,
+            TEXT("/Game/R13/Weapons/machinegun.machinegun")))
+        {
+            if (AddFittedTurretVisual(this, MountedGunParent, RealMachineGunFallback, 145.0f,
+                FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
+            {
+                bUsingMountedGunAsset = true;
+                if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(108.0f, 0.0f, 0.0f));
+                UE_LOG(LogTemp, Warning,
+                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback."));
+            }
+        }
+    }
+
+    if (bUsingMountedGunAsset)
+    {
+        if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
+        if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
     }
 
     InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
