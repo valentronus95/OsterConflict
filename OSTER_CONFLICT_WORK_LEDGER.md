@@ -18,6 +18,7 @@
 - 2026-08-21 source recovery після runtime-аудиту: додані `LocationTest=1` rack, LFS preflight, weapon real-mesh fallback, vehicle-exit input recovery, tactical map, persistent landmark exclusion guard і legacy-blockout audit. Усе це лишається `IN_PROGRESS/CODED_UNTESTED` до runtime.
 - Перший user build після цих source-змін: ownership verifier `PASS`, LFS hydration пройшла, UHT пройшов, але UE build зупинився на `C4458` у `OCTacticalMapSubsystem.cpp` через локальну змінну `Slot`. Виправлено commit `bb7d49b5d265d13947dc98651c28ab7a7e7a5ae0`; повторний build ще не виконаний.
 - Для користувача канонічний вхід тепер один: `START_HERE.cmd`. Version-named `RUN_*.cmd` — внутрішні helper scripts, нові user-facing launcher-файли на кожну версію не створювати. Спрощено commit `161591dc8f4a3e1953d224c762c8acc33b18970f`.
+- Другий user launch після спрощення `START_HERE.cmd` був зупинений ще до UE build самим `VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py`: verifier помилково вимагав текстові маркери `CURRENT MAIN`, `R14`, `R14.7` у version-neutral user launcher. Це не regression локацій. Verifier виправлено commit `bc106688ae1c7d764b86912c3bfccbd1799ddd6e`: тепер він перевіряє canonical `START_HERE.cmd` та правильні internal routes, а не номер версії у user-facing назві. Повторний локальний запуск pending.
 
 ## 2. Правила журналу
 
@@ -76,6 +77,7 @@
 | LANDMARK-EXCLUSION-001 | Museum/Silpo/Culture protected through startup + late actor spawn | CODED_UNTESTED | Commits `dc07e098...`, `c248578a...`: 40 passes / 8 sec + actor-spawn recheck + final validation. Runtime pending. |
 | VERIFY-RUNTIME-RECOVERY-001 | Source-only guard for RT-01..RT-08 recovery contract | CODED_UNTESTED | `VERIFY_RUNTIME_RECOVERY_SOURCE.py`, commit `004b04ed...`; CI integration commit `6ad32abc...`. Source guard is not runtime proof. |
 | LAUNCHER-UX-001 | Один user-facing launcher | CODED_UNTESTED | `START_HERE.cmd` спрощено до Test / Normal Game / Unreal Editor; commit `161591dc8f4a3e1953d224c762c8acc33b18970f`. Інші `RUN_*.cmd` вважати internal helpers, не створювати нові versioned user launchers. |
+| LAUNCHER-VERIFY-001 | Version-neutral `START_HERE.cmd` не блокується старим R14.7 text check | CODED_UNTESTED | User run 2026-08-21 зупинився на двох false-positive `[FAIL]` до UE build. `VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py` тепер перевіряє canonical launcher title + Test/Normal routes, а не `CURRENT MAIN/R14/R14.7` текст. Commit `bc106688ae1c7d764b86912c3bfccbd1799ddd6e`. Повторний локальний запуск pending. |
 | TERRAIN-FAILSAFE-001 | Старий Ground вимикається тільки після успішного створення нового segmented terrain | CODED_UNTESTED | Commit `a2948d098304f79f39fad89dc6077ef8647f08f3`. |
 | ASSET-STREETLIGHT-001 | Реальний `SM_StreetLight` використовується road infrastructure | CODED_UNTESTED | Commit `401971b0efec020d81d02b263f8c8e4097da28e9`. |
 | LOC-SILPO-MAIN-001 | Photo-driven Silpo Oster R14.0–R14.3 forward-port у `main` | CODED_UNTESTED | Original integration commit `ad689dff859bc65332669788cb94f727623ce7ab`; restored after rollback by recovery commit `2db682b1acde8ac3b0ffb80abd5faedca87f35f0`. Runtime separation remains open under `LOC-SILPO-001`. |
@@ -112,12 +114,13 @@
 - у ledger фіксувати asset path, який реально використовується.
 
 ### PROCESS-004 — Launcher/tree mismatch і launcher clutter
-Проблема: stale launcher/branch label раніше трактувався як доказ стану всього source tree; накопичились окремі `RUN_R11/R14...` launchers, що плутає користувача.
+Проблема: stale launcher/branch label раніше трактувався як доказ стану всього source tree; накопичились окремі `RUN_R11/R14...` launchers, що плутає користувача. Другий 2026-08-21 запуск також показав, що source verifier був прив'язаний до текстового `R14.7` label у `START_HERE.cmd`, хоча user launcher має бути version-neutral.
 
 Рішення:
 - версію source визначати по HEAD/tree та integration commits;
 - normal gameplay і Sandbox/LocationTest мають різні contracts, але для користувача вхід один — `START_HERE.cmd`;
-- helper scripts можуть залишатись internal, але нові user-facing launcher-файли на кожну версію заборонені.
+- helper scripts можуть залишатись internal, але нові user-facing launcher-файли на кожну версію заборонені;
+- source verifier перевіряє routes/contract, а не номер версії у user-facing launcher.
 
 ### PROCESS-005 — One-shot cleanup before late spawn
 Проблема: одноразове очищення legacy geometry може відпрацювати раніше, ніж інший runtime subsystem пізніше створить цю geometry знову.
@@ -129,7 +132,7 @@
 
 ## 6. Остання підтверджена робоча сесія
 
-### 2026-08-21 — source recovery + перший локальний build після 14-screen audit
+### 2026-08-21 — source recovery + два локальні launcher/build проходи після 14-screen audit
 
 Authoritative runtime defects з 14 скрінів лишаються відкритими до нового gameplay run:
 - primitive/proxy weapon presentation;
@@ -143,20 +146,20 @@ Authoritative runtime defects з 14 скрінів лишаються відкр
 
 Після цього source-side реалізовано recovery path для rack/assets/input/map/landmark guard/legacy audit.
 
-Фактичний user launch 2026-08-21 підтвердив:
+Перший фактичний user launch 2026-08-21 підтвердив:
 - Git LFS hydration дійшла до build;
 - `R14 MAIN LOCATION OWNERSHIP: PASS`;
 - UHT завершився;
 - compile дійшов до нових recovery source files;
 - build зупинився на конкретному `C4458` у tactical map, тому **гра ще не запускалась і runtime не перевірений**.
 
-`C4458` source fix уже в `main` (`bb7d49b5...`), але build/playtest після нього ще не відбувся.
+`C4458` source fix уже в `main` (`bb7d49b5...`), але наступний запуск після Pull був зупинений раніше самим ownership verifier через stale вимогу тексту `R14.7` у спрощеному `START_HERE.cmd`. Цей false-positive verifier fix уже в `main` (`bc106688...`). UE build після обох fixes ще не підтверджений.
 
 ## 7. Наступна черга робіт
 
 1. На локальному ПК зробити `Fetch/Pull origin` current `main`.
 2. Запускати **тільки `START_HERE.cmd` → `1. ТЕСТ ГРИ`**.
-3. Спочатку підтвердити `Result: Succeeded`. Якщо з'явиться новий compile blocker — виправляти його, не переходячи до декоративних задач.
+3. Спочатку ownership verifier має дати `PASS`, потім підтвердити `Result: Succeeded`. Якщо з'явиться новий compile blocker — виправляти його, не переходячи до декоративних задач.
 4. Якщо build успішний, runtime перевірити: weapon rack/11 pickups, primitive weapon visuals, tactical map `M`, vehicle enter→exit input, Museum/Silpo/Culture після 8+ секунд, BTR/character assets.
 5. Після diagnostic LocationTest окремо пройти `START_HERE.cmd` → `2. ЗВИЧАЙНА ГРА` і перевірити frontend → TEAM path/menu transition.
 6. Лише після фактичного runtime proof підвищувати відповідні статуси з `IN_PROGRESS/CODED_UNTESTED`.
