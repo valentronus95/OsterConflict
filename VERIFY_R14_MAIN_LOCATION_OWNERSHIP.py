@@ -106,12 +106,16 @@ if separation_path.is_file():
 launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
-    if "R14 CURRENT MAIN" not in launcher:
-        errors.append("START_HERE.cmd is not marked as R14 CURRENT MAIN")
-    if "R14.6 LANDMARK SEPARATION" not in launcher:
-        errors.append("START_HERE.cmd is not marked as the R14.6 landmark-separation build")
-    if "Launch CURRENT R14 main Sandbox location test" not in launcher:
-        errors.append("START_HERE.cmd does not route location playtest to current R14 main")
+
+    # The launcher version advances independently from the R14.6 landmark-separation
+    # subsystem. Validate stable routing/contracts instead of freezing display text to
+    # one exact launcher label, which previously made a valid R14.7 main fail itself.
+    if "CURRENT MAIN" not in launcher or "R14" not in launcher:
+        errors.append("START_HERE.cmd is not marked as current R14 main")
+    if "R14.7" not in launcher:
+        errors.append("START_HERE.cmd is not marked as the current R14.7 launcher")
+    if 'call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"' not in launcher:
+        errors.append("START_HERE.cmd does not route playtest to RUN_R14_MAIN_SANDBOX_TEST.cmd")
     if "Launch R11 local listen-server visual test" in launcher:
         errors.append("START_HERE.cmd regressed to the legacy R11 playtest route")
 
