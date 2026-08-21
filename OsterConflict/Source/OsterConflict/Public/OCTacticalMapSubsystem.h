@@ -4,14 +4,24 @@
 #include "Blueprint/UserWidget.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "TimerManager.h"
+#include "OCTacticalMapProjection.h"
 #include "OCTacticalMapSubsystem.generated.h"
 
 class AOCCharacter;
 class AOCPlayerController;
+class AOCWorldSectorOster;
 class UCanvasPanel;
+class UEnhancedInputComponent;
+class UInputAction;
+class UInputMappingContext;
 class UTextBlock;
 
-/** Source-only tactical map used until final authored map art/UI assets are supplied. */
+/**
+ * Source-driven Tactical Map 2.0 presentation.
+ *
+ * The accepted concept image is a style reference only. Geometry and marker placement are derived from
+ * the actual Oster world sector and its world-space coordinates.
+ */
 UCLASS()
 class OSTERCONFLICT_API UOCTacticalMapWidget : public UUserWidget
 {
@@ -26,17 +36,21 @@ private:
     UPROPERTY() TObjectPtr<UTextBlock> PlayerMarker;
     UPROPERTY() TObjectPtr<UTextBlock> PlayerCoordinates;
 
-    FVector2D WorldMin = FVector2D::ZeroVector;
-    FVector2D WorldMax = FVector2D(1.0f, 1.0f);
+    TWeakObjectPtr<AOCWorldSectorOster> WorldSector;
+    FOCTacticalMapProjection Projection;
 
+    bool ResolveProjectionFromWorld();
+    FVector ResolveSectorWorldLocation(const FVector& SectorLocalLocation) const;
     FVector2D WorldToMap(const FVector& WorldLocation) const;
     void AddLandmarkMarker(const FString& Label, const FVector& WorldLocation);
+    void AddGrid();
 };
 
 /**
- * Owns the M-key tactical-map contract without coupling it to trap deployment.
- * It also removes the legacy IA_DeployTrap -> M mapping from the current character and rehomes
- * that diagnostic gameplay action to V, keeping M exclusive to the map.
+ * Owns the Tactical Map 2.0 runtime contract.
+ *
+ * M is registered through Enhanced Input instead of being polled every 25 ms. The subsystem keeps the map
+ * transient and local, while the world itself remains the source of truth for map bounds and marker positions.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCTacticalMapSubsystem : public UWorldSubsystem
@@ -48,17 +62,26 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
     virtual void Deinitialize() override;
 
+    bool IsMapOpen() const { return bMapOpen; }
+    void ToggleMap(AOCPlayerController& PlayerController);
+
 private:
-    FTimerHandle InputPollTimer;
+    FTimerHandle InputSetupTimer;
+    TWeakObjectPtr<AOCPlayerController> BoundPlayerController;
+    TWeakObjectPtr<UEnhancedInputComponent> BoundInputComponent;
     TWeakObjectPtr<AOCCharacter> RemappedCharacter;
+
+    UPROPERTY() TObjectPtr<UInputMappingContext> MapMappingContext;
+    UPROPERTY() TObjectPtr<UInputAction> MapToggleAction;
     UPROPERTY() TObjectPtr<UOCTacticalMapWidget> MapWidget;
-    bool bPreviousMDown = false;
-    bool bPreviousEscapeDown = false;
+
     bool bMapOpen = false;
 
-    void PollInput();
+    void EnsureEnhancedInputBinding();
+    void HandleMapToggleAction();
     void EnsureExclusiveMapBinding(AOCCharacter& Character);
     bool CanOpenMap(const AOCPlayerController& PlayerController) const;
+    bool HasBlockingUI(const AOCPlayerController& PlayerController) const;
     void OpenMap(AOCPlayerController& PlayerController);
-    void CloseMap(AOCPlayerController& PlayerController);
+    void CloseMap(AOCPlayerController& PlayerController, bool bRestoreGameplayInput);
 };
