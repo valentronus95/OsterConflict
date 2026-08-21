@@ -169,9 +169,9 @@ void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWid
             MenuPanel->SetClipping(EWidgetClipping::ClipToBounds);
             if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(MenuPanel->Slot))
             {
-                // Keep the full composition inside the 1600x900 logical frame before the root ScaleBox adapts it.
-                Slot->SetPosition(FVector2D(90.0f, 60.0f));
-                Slot->SetSize(FVector2D(470.0f, 780.0f));
+                // Geometry has one owner: OCR13FrontendMenuSubsystem. The old stabilizer overwrote
+                // (112,92 / 440x760) with (90,60 / 470x780), which is the visible jump after START.
+                // Isolation may raise Z-order, but must never move or resize the approved menu composition.
                 Slot->SetZOrder(9010);
             }
         }
