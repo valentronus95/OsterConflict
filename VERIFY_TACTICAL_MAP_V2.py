@@ -92,15 +92,41 @@ require("Character->IsInVehicle() ? Character->GetCurrentVehicle()" in cpp,
 require('TEXT("▣")' in cpp and 'TEXT("●")' in cpp, "squad/vehicle marker distinction is missing")
 require("SpatialActor->GetActorLocation()" in cpp, "dynamic squad marker does not use actual actor world position")
 
-# Spatial squad orders only: Move/Regroup have WorldLocation; Attack/Defend currently carry only ObjectiveId.
+# Replicated objective contract: the map consumes AOCCapturePoint actors, not hardcoded A/B/C screen coordinates.
+require('#include "OCCapturePoint.h"' in cpp, "capture-point objective feed is not connected")
+require("TMap<TWeakObjectPtr<AOCCapturePoint>" in header, "objective marker cache is missing")
+require("RefreshObjectiveMarkers" in header and "RefreshObjectiveMarkers" in cpp, "objective refresh path is missing")
+require("TActorIterator<AOCCapturePoint>" in cpp, "objective actor iteration is missing")
+require("Point->GetPointId()" in cpp, "objective IDs must come from AOCCapturePoint")
+require("Point->GetOwnerTeam()" in cpp, "objective ownership state is not consumed")
+require("Point->GetCaptureProgress()" in cpp, "objective capture progress is not consumed")
+require("Point->IsContested()" in cpp, "objective contested state is not consumed")
+require("ObjectiveMarkers.Find(Point)" in cpp and "ObjectiveMarkers.Add(Point, Marker)" in cpp,
+        "objective markers must be cached instead of recreated every tick")
+require("WorldToMap(Point->GetActorLocation())" in cpp,
+        "objective marker must project the authoritative capture-point actor location")
+require("TEXT(\"A\")" not in cpp and "TEXT(\"B\")" not in cpp and "TEXT(\"C\")" not in cpp,
+        "tactical map must not hardcode objective IDs")
+
+# Squad order contract: Move/Regroup use their world location; Attack/Defend resolve ObjectiveId to a capture actor.
 require("RefreshSquadOrderMarker" in header and "RefreshSquadOrderMarker" in cpp, "squad order marker path is missing")
+require("ResolveSquadOrderWorldLocation" in header and "ResolveSquadOrderWorldLocation" in cpp,
+        "squad order world-location resolver is missing")
 require("PC->GetCurrentSquadOrder()" in cpp, "map is not using the existing squad-order state")
 require("Order.Type == EOCSquadOrderType::Move || Order.Type == EOCSquadOrderType::Regroup" in cpp,
-        "non-spatial Attack/Defend orders must not be falsely plotted at FVector::ZeroVector")
-require("WorldToMap(Order.WorldLocation)" in cpp, "spatial squad order is not projected from world-space")
+        "Move/Regroup world-location path is missing")
+require("Order.Type == EOCSquadOrderType::AttackObjective || Order.Type == EOCSquadOrderType::DefendObjective" in cpp,
+        "Attack/Defend objective-resolution path is missing")
+require("Point->GetPointId() == Order.ObjectiveId" in cpp,
+        "Attack/Defend order is not matched to the authoritative capture point")
+require("OutWorldLocation = Point->GetActorLocation()" in cpp,
+        "Attack/Defend order does not use the resolved objective actor world location")
+require("WorldToMap(OrderWorldLocation)" in cpp, "resolved squad order is not projected from world-space")
+require("WorldToMap(FVector::ZeroVector)" not in cpp,
+        "regression: squad order must never deliberately plot an unresolved objective at world origin")
 require("TacticalMapSquadOrder" in cpp, "squad order marker widget is missing")
 
-# Projection contract: one reversible transform is shared by static markers, player and ping.
+# Projection contract: one reversible transform is shared by static markers, player, objectives and ping.
 require("struct OSTERCONFLICT_API FOCTacticalMapProjection" in projection_h, "projection type missing")
 require("WorldToUV" in projection_h and "UVToWorld" in projection_h, "reversible projection API missing")
 require("Projection.WorldToUV" in cpp, "widget bypasses the central projection")
