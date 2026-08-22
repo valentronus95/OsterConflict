@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 
@@ -102,9 +103,12 @@ for needle in (
 ):
     require(weapon_preflight, needle, "required real weapon preflight")
 
+# Pass 6 generalizes the old local-only muzzle resolver to the actual firing replicated character/weapon.
 for needle in (
-    "IsOnLocalAimRay",
-    "bOnLocalAimRay",
+    "IsOnAimRay",
+    "ResolveFiringWeapon",
+    "Character->GetCurrentWeapon()",
+    "ResolveWeaponMuzzle",
     "bRebasedToMuzzle",
     "ComponentName.Contains(TEXT(\"barrel\")",
     "ComponentName.Contains(TEXT(\"muzzle\")",
@@ -113,6 +117,8 @@ for needle in (
     "const FBoxSphereBounds LocalBounds = Component.GetLocalBounds();",
     "LocalBounds.Origin - LocalBounds.BoxExtent",
     "LocalBounds.Origin + LocalBounds.BoxExtent",
+    "const FVector VisualStart = ResolveWeaponMuzzle",
+    "const FVector VisualMuzzle = ResolveWeaponMuzzle",
 ):
     require(fx, needle, "muzzle/tracer source")
 if "Component.GetLocalBounds(LocalMin, LocalMax)" in fx:
@@ -128,11 +134,16 @@ for needle in (
     require(spawn, needle, "museum base spawn")
 
 for needle in (
-    "constexpr int32 CellsPerBatch = 96;",
     "PopulateBatch",
     "PopulationBatchTimer",
 ):
     require(foliage, needle, "batched dense foliage")
+batch_match = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage)
+if not batch_match:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: foliage batch-size contract is missing")
+batch_size = int(batch_match.group(1))
+if not 1 <= batch_size <= 96:
+    raise SystemExit(f"RUNTIME ACCEPTANCE PASS 4 FAIL: foliage batch size {batch_size} exceeds accepted non-blocking ceiling 96")
 
 # The old R10 verifier already has a file-specific OCGameUIRootWidget slot-shadow check.
 # It must not revive its previous whole-project spelling ban, which incorrectly rejected unrelated helpers.
@@ -146,9 +157,9 @@ print("- Windows launcher uses Git LFS commands compatible with the playtest PC 
 print("- HMMWV/M2/BTR source intake searches existing project sources and common Windows download locations")
 print("- BTR production intake requires and restores the six known original texture files")
 print("- HMMWV/M2/BTR production ingest gate remains in the normal launcher")
-print("- local tracer can rebase its target-side network streak to the visible muzzle/barrel")
+print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon, not only the first local pawn")
 print("- muzzle bounds fallback uses the UE 5.8 return-value GetLocalBounds API")
 print("- BASE source remains tied to the canonical Museum test hub")
-print("- dense foliage remains batched instead of blocking the deployment frame")
+print("- dense foliage remains batched with an explicit non-blocking batch-size ceiling")
 print("- R10 retains the real UI shadow check without the unrelated global spelling false positive")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
