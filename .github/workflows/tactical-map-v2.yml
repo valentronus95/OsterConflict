@@ -5,6 +5,7 @@ on:
     branches:
       - feat/tactical-map-v2
       - feat/tactical-map-iconography-current
+      - feat/tactical-map-production-polish
   pull_request:
     paths:
       - 'TACTICAL_MAP_TZ.md'
@@ -13,6 +14,7 @@ on:
       - 'VERIFY_TACTICAL_MAP_V2.py'
       - 'VERIFY_TACTICAL_MAP_INPUT_SAFETY.py'
       - 'VERIFY_TACTICAL_MAP_ICONOGRAPHY.py'
+      - 'VERIFY_TACTICAL_MAP_PRODUCTION_POLISH.py'
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
       - 'VERIFY_S17B.py'
@@ -24,6 +26,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapIconography.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapProductionPolish.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapProjection.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapProjection.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCLobbyTypes.h'
@@ -67,6 +70,8 @@ jobs:
           python .\VERIFY_TACTICAL_MAP_INPUT_SAFETY.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python .\VERIFY_TACTICAL_MAP_ICONOGRAPHY.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_TACTICAL_MAP_PRODUCTION_POLISH.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run stable structural regression baseline
