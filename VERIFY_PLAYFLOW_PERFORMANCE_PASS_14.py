@@ -93,7 +93,7 @@ if not batch or int(batch.group(1)) > 32:
     raise SystemExit("PASS14 VERIFY FAIL: foliage batch still exceeds the emergency CPU budget")
 for needle in (
     'RandomStream.RandRange(2, 3)',
-    '"DenseGrass_%d"), 16000)',
+    'TEXT("DenseGrass_%d"), Index)), 16000',
     'TEXT("DenseGroundPlants"), 12000)',
     'TEXT("DenseFlowers"), 10000)',
     'RandomStream.FRand() < 0.12f',
