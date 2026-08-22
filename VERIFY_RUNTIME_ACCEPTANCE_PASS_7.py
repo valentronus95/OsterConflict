@@ -58,18 +58,25 @@ require(loading, 'if (!bReadySent && Elapsed >= 0.12)', "rendered zero-percent f
 require(loading, 'Widget->SetLoadingProgress(1.0f);', "loading reaches 100 before removal")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
 
-# BASE spawn has two layers of protection: canonical relocation plus an automatic gameplay-world guard that repairs
-# or creates missing server BASE actors before a human can fall into GameMode's legacy origin fallback.
+# BASE spawn now has three layers of protection: canonical relocation, automatic authoritative BASE creation,
+# and a persistent server-side check of each newly possessed human pawn that selected BASE. The old world-sector
+# timing dependency is intentionally gone because it failed in the real laptop playtest.
 require(team_spawn, 'const FVector Museum = AOCWorldSectorOster::MuseumAnchor();', "canonical Museum BASE anchor")
 require(team_spawn, 'SpawnRuntimeBaseWeaponRack(*this, TeamId);', "Museum BASE weapon rack")
 require(game_mode, 'const FVector FallbackLocation = bTeamTwo ? FVector(2800.0f, 0.0f, 120.0f) : FVector(-2800.0f, 0.0f, 120.0f);', "legacy fallback is explicitly tracked")
 require(spawn_guard_h, 'class OSTERCONFLICT_API UOCMuseumSpawnGuardSubsystem : public UTickableWorldSubsystem', "Museum spawn guard subsystem")
-require(spawn_guard, 'TActorIterator<AOCWorldSectorOster>', "guard waits for real gameplay sector")
+require(spawn_guard_h, 'ValidateBaseDeployments', "persistent deployed-pawn validation")
+require(spawn_guard, 'GameMode->IsFrontendOnlySession()', "frontend/gameplay authority gate")
 require(spawn_guard, 'FVector::DistSquared2D(Point->GetActorLocation(), Museum) > FMath::Square(3500.0f)', "stale BASE relocation guard")
 require(spawn_guard, 'Point->ConfigureServer(Team, true, NAME_None);', "canonical BASE repair path")
-require(spawn_guard, 'EnsureTeamBase(EOCTeam::TeamOne, bHasTeamOneBase);', "TeamOne BASE guarantee")
-require(spawn_guard, 'EnsureTeamBase(EOCTeam::TeamTwo, bHasTeamTwoBase);', "TeamTwo BASE guarantee")
+require(spawn_guard, 'EnsurePrimary(EOCTeam::TeamOne, TeamOnePrimary);', "TeamOne primary BASE guarantee")
+require(spawn_guard, 'EnsurePrimary(EOCTeam::TeamTwo, TeamTwoPrimary);', "TeamTwo primary BASE guarantee")
+require(spawn_guard, 'GetRequestedDeploymentSpawn()', "actual BASE-selected pawn validation")
+require(spawn_guard, 'PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM', "actual pawn Museum evidence")
+require(spawn_guard, 'PASS15_BASE_DEPLOYMENT_RECOVERED', "legacy fallback correction path")
 require(spawn_guard, 'PASS7_MUSEUM_BASES_READY', "runtime Museum BASE evidence marker")
+if 'bGameplaySectorPresent' in spawn_guard:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: Museum guard still depends on delayed world-sector actor timing")
 
 # Normal fleet slots really create HMMWV and BTR actors, so a zero-count vehicle validation is not allowed to pass.
 require(vehicle_spawns, 'AOCPickupGunTruckSpawnPoint::AOCPickupGunTruckSpawnPoint()', "legacy gun-truck spawn slot")
@@ -115,7 +122,8 @@ print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
 print("- pre-game settings keep the frontend backdrop and use an opaque panel")
 print("- deployment transition fully blocks the underlying panel and reaches 100% after possession")
-print("- gameplay world repairs/creates authoritative Museum BASE spawns before legacy origin fallback can be needed")
+print("- Museum BASE creation no longer depends on delayed world-sector timing")
+print("- actual BASE-selected pawns are verified/recovered to Museum if legacy fallback ever fires")
 print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; invalid proxies fail closed instead of being accepted")
 print("- acceptance launcher requires runtime READY evidence and rejects vehicle FAIL evidence")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance is still required")
