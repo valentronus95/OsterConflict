@@ -14,6 +14,7 @@ RUNTIME_CPP = SRC / "Private/OCR13StadiumRuntimeValidationSubsystem.cpp"
 RUNTIME_HEADER = SRC / "Public/OCR13StadiumRuntimeValidationSubsystem.h"
 REFERENCE_INDEX = ROOT / "REFERENCE_PHOTOS/stadion_oster/INDEX.md"
 REFERENCE_ARCHIVE = ROOT / "REFERENCE_PHOTOS/stadion_oster/stadion_oster_reference_pack_2026-08-20.zip"
+TZ = ROOT / "STADION_OSTER_TZ.md"
 STATUS = ROOT / "STADION_OSTER_IMPLEMENTATION_STATUS.md"
 LAUNCHER = ROOT / "RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd"
 
@@ -42,6 +43,7 @@ world_cpp = read(WORLD_CPP)
 runtime_cpp = read(RUNTIME_CPP)
 runtime_header = read(RUNTIME_HEADER)
 reference_index = read(REFERENCE_INDEX)
+tz = read(TZ)
 status = read(STATUS)
 launcher = read(LAUNCHER)
 
@@ -133,8 +135,10 @@ for forbidden in ("PhotoFidelityDelaySeconds", "BuildStadium(", "SuppressLegacyS
 
 for index in range(1, 18):
     require(reference_index, f"{index:02d}_", "17-frame reference index")
-for needle in ("CANONICAL_REFERENCE_SET", "50.94936", "30.88466"):
+for needle in ("CANONICAL_REFERENCE_SET",):
     require(reference_index, needle, "stadium reference index")
+for needle in ("50.94936", "30.88466", "власним placement owner"):
+    require(tz + reference_index, needle, "stadium TZ/reference contract")
 
 for needle in (
     "UOCR13StadiumRuntimeValidationSubsystem",
