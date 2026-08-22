@@ -7,6 +7,7 @@ SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
 
 RECOVERY_H = SRC / "Public" / "OCRuntimeRecoveryPass15Subsystem.h"
 RECOVERY = SRC / "Private" / "OCRuntimeRecoveryPass15Subsystem.cpp"
+MUSEUM_H = SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h"
 MUSEUM = SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp"
 SPAWN = SRC / "Private" / "OCTeamSpawnPoint.cpp"
 FOLIAGE = SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp"
@@ -33,6 +34,7 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 recovery_h = read(RECOVERY_H)
 recovery = read(RECOVERY)
+museum_h = read(MUSEUM_H)
 museum = read(MUSEUM)
 spawn = read(SPAWN)
 foliage = read(FOLIAGE)
@@ -63,14 +65,26 @@ for needle in (
 
 # Museum BASE must no longer wait forever for the world-sector actor. A real authoritative GameMode is enough.
 for needle in (
+    "ValidationAccumulator",
+    "LastValidatedPawnByController",
+    "ValidateBaseDeployments",
+):
+    require(museum_h, needle, "persistent Museum deployment guard")
+for needle in (
     "GameMode->IsFrontendOnlySession()",
     "PASS15_MUSEUM_BASES_WEAPONS_READY",
     "RequiredRackWeaponCount = 11",
     "CountRackWeaponsNear",
     "TeamOnePrimary->ConfigureServer",
     "TeamTwoPrimary->ConfigureServer",
+    "ValidateBaseDeployments()",
+    "GetRequestedDeploymentSpawn()",
+    "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM",
+    "PASS15_BASE_DEPLOYMENT_RECOVERED",
+    "PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "Pawn->SetActorLocationAndRotation",
 ):
-    require(museum, needle, "Museum BASE recovery")
+    require(museum, needle, "Museum BASE and actual pawn recovery")
 forbid(museum, "bGameplaySectorPresent", "obsolete world-sector wait gate")
 
 # Rack readiness must be based on 11 physical tagged weapon actors, not a tag on the spawn point.
@@ -98,7 +112,7 @@ if not batch or not 1 <= int(batch.group(1)) <= 16:
     raise SystemExit("PASS15 VERIFY FAIL: foliage batch exceeds the Pass 15 CPU ceiling")
 for needle in (
     "RandomStream.RandRange(1, 2)",
-    "DenseGrass_%d" ,
+    "DenseGrass_%d",
     "9000",
     "PASS15_FOLIAGE_BUDGET_READY",
 ):
@@ -127,14 +141,21 @@ for needle in (
 ):
     require(perf, needle, "adaptive performance recovery")
 
+# Focused launcher is intentionally independent of production vehicle intake. It must prove the actual pawn spawn,
+# physical/production weapon rack and measured FPS before accepting the recovery run.
 for needle in (
-    "RUN_R14_CURRENT_GAMEPLAY.cmd",
     "PASS15_FRONTEND_FIELDS_OPAQUE_READY",
     "PASS15_MUSEUM_BASES_WEAPONS_READY",
+    "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM",
+    "PASS15_BASE_DEPLOYMENT_RECOVERED",
+    "PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "PASS7_PRODUCTION_WEAPONS_READY",
+    "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL",
     "PASS15_PERF_SAMPLE",
     "PASS15_PERF_BELOW_TARGET",
     "PASS15_PERF_30FPS_READY",
     "R14_CURRENT_GAMEPLAY.log",
+    "BTR/HMMWV production intake is intentionally NOT part",
 ):
     require(launcher, needle, "Pass 15 runtime launcher")
 
@@ -142,6 +163,7 @@ print("RUNTIME RECOVERY PASS 15 SOURCE CONTRACT PASS")
 print("- server/network fields are dark and setup pages are effectively opaque")
 print("- host has an OpenLevel fallback; direct-connect stays behind an opaque pending/error presentation")
 print("- Museum BASE no longer depends on AOCWorldSectorOster actor timing")
+print("- actual BASE-selected human pawns are verified/recovered to Museum, not merely BASE actors")
 print("- Museum rack readiness requires 11 physical tagged weapon actors")
 print("- foliage budget is reduced again after the measured ~5 FPS playtest")
 print("- <20 FPS probe applies an unsaved emergency graphics profile before final sampling")
