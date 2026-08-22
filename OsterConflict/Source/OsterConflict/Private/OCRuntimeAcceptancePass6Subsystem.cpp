@@ -67,7 +67,7 @@ namespace
         for (UStaticMeshComponent* Component : Components)
         {
             if (!Component || Component->ComponentHasTag(ProductionWeaponVisualTag)) continue;
-            if (!Component->IsVisible() || Component->bHiddenInGame)
+            if (!Component->IsVisible())
             {
                 Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
                 Component->SetGenerateOverlapEvents(false);
