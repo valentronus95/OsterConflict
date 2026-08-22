@@ -6,6 +6,7 @@ on:
       - feat/tactical-map-v2
       - feat/tactical-map-iconography-current
       - feat/tactical-map-production-polish
+      - feat/tactical-map-polish-pass-2
   pull_request:
     paths:
       - 'TACTICAL_MAP_TZ.md'
@@ -15,6 +16,7 @@ on:
       - 'VERIFY_TACTICAL_MAP_INPUT_SAFETY.py'
       - 'VERIFY_TACTICAL_MAP_ICONOGRAPHY.py'
       - 'VERIFY_TACTICAL_MAP_PRODUCTION_POLISH.py'
+      - 'VERIFY_TACTICAL_MAP_POLISH_PASS2.py'
       - 'VERIFY_S14A.py'
       - 'VERIFY_S17A.py'
       - 'VERIFY_S17B.py'
@@ -72,6 +74,8 @@ jobs:
           python .\VERIFY_TACTICAL_MAP_ICONOGRAPHY.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python .\VERIFY_TACTICAL_MAP_PRODUCTION_POLISH.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\VERIFY_TACTICAL_MAP_POLISH_PASS2.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run stable structural regression baseline
