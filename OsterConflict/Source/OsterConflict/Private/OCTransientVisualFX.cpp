@@ -37,9 +37,9 @@ namespace
 
     bool TryResolveBoundsMuzzle(const UPrimitiveComponent& Component, const FVector& ShotDirection, FVector& OutMuzzle)
     {
-        FVector LocalMin;
-        FVector LocalMax;
-        Component.GetLocalBounds(LocalMin, LocalMax);
+        const FBoxSphereBounds LocalBounds = Component.GetLocalBounds();
+        const FVector LocalMin = LocalBounds.Origin - LocalBounds.BoxExtent;
+        const FVector LocalMax = LocalBounds.Origin + LocalBounds.BoxExtent;
         if (LocalMin.ContainsNaN() || LocalMax.ContainsNaN()) return false;
 
         const FVector LocalSize = LocalMax - LocalMin;
