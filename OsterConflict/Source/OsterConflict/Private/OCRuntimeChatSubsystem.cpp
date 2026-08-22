@@ -32,24 +32,24 @@ void UOCRuntimeChatWidget::BuildWidgetTree()
     WidgetTree->RootWidget = RootCanvas;
 
     ChatPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RuntimeChatPanel"));
-    ChatPanel->SetBrushColor(FLinearColor(0.02f, 0.025f, 0.03f, 0.90f));
-    ChatPanel->SetPadding(FMargin(12.0f));
+    ChatPanel->SetBrushColor(FLinearColor(0.02f, 0.025f, 0.03f, 0.88f));
+    ChatPanel->SetPadding(FMargin(9.0f));
 
     UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RuntimeChatContent"));
     ChatPanel->SetContent(Content);
 
     ChannelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RuntimeChatChannel"));
     ChannelText->SetText(LOCTEXT("TeamChannel", "КАНАЛ: КОМАНДА"));
-    Content->AddChildToVerticalBox(ChannelText)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    Content->AddChildToVerticalBox(ChannelText)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 5.0f));
 
     ChatLogText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RuntimeChatLog"));
     ChatLogText->SetAutoWrapText(true);
-    Content->AddChildToVerticalBox(ChatLogText)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    Content->AddChildToVerticalBox(ChatLogText)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 5.0f));
 
     ChatEntry = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("RuntimeChatEntry"));
     ChatEntry->SetHintText(LOCTEXT("ChatHint", "Введіть повідомлення…"));
     ChatEntry->OnTextCommitted.AddDynamic(this, &UOCRuntimeChatWidget::HandleChatCommitted);
-    Content->AddChildToVerticalBox(ChatEntry)->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 7.0f));
+    Content->AddChildToVerticalBox(ChatEntry)->SetPadding(FMargin(0.0f, 1.0f, 0.0f, 4.0f));
 
     UTextBlock* HelpText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RuntimeChatHelp"));
     HelpText->SetText(LOCTEXT("ChatHelp", "ENTER — надіслати    ESC — закрити"));
@@ -59,8 +59,8 @@ void UOCRuntimeChatWidget::BuildWidgetTree()
     {
         ChatCanvasSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));
         ChatCanvasSlot->SetAlignment(FVector2D(0.0f, 1.0f));
-        ChatCanvasSlot->SetPosition(FVector2D(28.0f, -28.0f));
-        ChatCanvasSlot->SetSize(FVector2D(440.0f, 250.0f));
+        ChatCanvasSlot->SetPosition(FVector2D(22.0f, -22.0f));
+        ChatCanvasSlot->SetSize(FVector2D(360.0f, 190.0f));
         ChatCanvasSlot->SetZOrder(0);
     }
 
@@ -134,7 +134,6 @@ void UOCRuntimeChatWidget::ApplyGameplayInputMode(bool bChatOpen)
         return;
     }
 
-    // Do not override another UI mode if a menu became active while chat was open.
     if (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible() || PC->IsDeploymentPanelVisible() || PC->IsAdminPanelVisible())
     {
         return;
@@ -154,7 +153,7 @@ void UOCRuntimeChatWidget::RefreshMessages()
 
     const TArray<FOCChatMessage>& Messages = PC->GetRecentChatMessages();
     FString Log;
-    const int32 First = FMath::Max(0, Messages.Num() - 6);
+    const int32 First = FMath::Max(0, Messages.Num() - 5);
     for (int32 Index = First; Index < Messages.Num(); ++Index)
     {
         const FOCChatMessage& Msg = Messages[Index];
@@ -214,7 +213,6 @@ void UOCRuntimeChatSubsystem::Tick(float DeltaTime)
     }
     else
     {
-        // Disable the obsolete T-toggle path if it is triggered by an old saved binding.
         if (PC->IsChatInputActive())
         {
             PC->UIEndChatInput();
