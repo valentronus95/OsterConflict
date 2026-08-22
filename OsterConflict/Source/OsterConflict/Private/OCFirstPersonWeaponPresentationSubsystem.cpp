@@ -6,10 +6,17 @@
 #include "OCWeaponPresentationProfiles.h"
 
 #include "Animation/AnimSequence.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+
+namespace
+{
+    const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
+}
 
 bool UOCFirstPersonWeaponPresentationSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -73,18 +80,26 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
     }
 }
 
-USkeletalMeshComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductionWeaponVisual(AOCWeaponBase& Weapon) const
+UPrimitiveComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductionWeaponVisual(AOCWeaponBase& Weapon) const
 {
-    TArray<USkeletalMeshComponent*> Components;
-    Weapon.GetComponents<USkeletalMeshComponent>(Components);
-    for (USkeletalMeshComponent* Component : Components)
+    // Pass 6: most restored R13 production weapons are StaticMesh assets. Looking only for
+    // USkeletalMeshComponent made those real models invisible to the presentation layer even though
+    // the actor-level ADS/recoil transform itself is mesh agnostic.
+    TArray<UPrimitiveComponent*> Components;
+    Weapon.GetComponents<UPrimitiveComponent>(Components);
+    for (UPrimitiveComponent* Component : Components)
     {
-        if (Component && Component->ComponentHasTag(FName(TEXT("OC_ProductionWeaponVisual"))))
+        if (Component && Component->ComponentHasTag(ProductionWeaponVisualTag))
         {
             return Component;
         }
     }
     return nullptr;
+}
+
+USkeletalMeshComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductionSkeletalWeaponVisual(AOCWeaponBase& Weapon) const
+{
+    return Cast<USkeletalMeshComponent>(FindProductionWeaponVisual(Weapon));
 }
 
 void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCCharacter& Character,
@@ -94,7 +109,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     {
         if (State.bWeaponAnimationActive)
         {
-            if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*PreviousWeapon))
+            if (USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(*PreviousWeapon))
             {
                 // We only start single-node sequences when no AnimBlueprint is authoritative.
                 // If another system has since installed an AnimBlueprint, leave it alone.
@@ -133,7 +148,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBas
     FOCFirstPersonWeaponState& State, double ResetDelaySeconds)
 {
     if (!Sequence) return;
-    USkeletalMeshComponent* Visual = FindProductionWeaponVisual(Weapon);
+    USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(Weapon);
     USkeletalMesh* Mesh = Visual ? Visual->GetSkeletalMeshAsset() : nullptr;
     if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return;
 
@@ -219,6 +234,20 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.BaseArmsLocation = Arms->GetRelativeLocation() + Profile.ArmsBaseOffset;
         State.BaseArmsRotation = Arms->GetRelativeRotation() + Profile.ArmsBaseRotationOffset;
 
+        UPrimitiveComponent* ProductionVisual = FindProductionWeaponVisual(*Weapon);
+        if (!ProductionVisual)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("Pass 6 first-person presentation has no production visual for weapon id %s."),
+                *WeaponId.ToString());
+        }
+        else if (Cast<UStaticMeshComponent>(ProductionVisual))
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("Pass 6 first-person presentation accepted StaticMesh production visual for %s."),
+                *WeaponId.ToString());
+        }
+
         if (!bDeclaredProfile)
         {
             UE_LOG(LogTemp, Error,
@@ -270,7 +299,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
     if (!bReloading && State.bWasReloading && State.bWeaponAnimationActive)
     {
-        if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*Weapon))
+        if (USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(*Weapon))
         {
             if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
             {
@@ -283,7 +312,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
     if (State.bWeaponAnimationActive && !bReloading && Now >= State.WeaponAnimationResetTime)
     {
-        if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*Weapon))
+        if (USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(*Weapon))
         {
             if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
             {
@@ -322,7 +351,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         const float Arc = FMath::Sin(Alpha * PI);
         WeaponLocation += Profile.ReloadWeaponLocation * Arc;
         WeaponRotation += Profile.ReloadWeaponRotation * Arc;
-        ArmsLocation += Profile.ReloadArmsLocation * Arc;
+        ArmsLocation += Profile.ReloadArmsOffset * Arc;
         ArmsRotation += Profile.ReloadArmsRotation * Arc;
     }
 
