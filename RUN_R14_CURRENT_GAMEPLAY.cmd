@@ -2,6 +2,7 @@
 setlocal EnableExtensions
 chcp 65001 >nul
 cd /d "%~dp0"
+set "PROJECT_ROOT=%CD%"
 
 set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
@@ -120,7 +121,7 @@ if errorlevel 1 (
   exit /b 13
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%LFS_VERIFY_PS%" -ProjectRoot "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%LFS_VERIFY_PS%" -ProjectRoot "%PROJECT_ROOT%"
 if errorlevel 1 (
   pause
   exit /b 14

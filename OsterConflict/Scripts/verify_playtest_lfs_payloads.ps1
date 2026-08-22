@@ -4,7 +4,26 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
+
+# cmd.exe can pass a trailing quote when a quoted argument ends in a backslash
+# (for example "%~dp0"). Normalize that boundary before Path.GetFullPath so
+# valid Windows project paths never become "Illegal characters in path".
+$ProjectRoot = $ProjectRoot.Trim().Trim([char]34).Trim([char]39)
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    Write-Host '[STOP] Project root passed to the LFS verifier is empty.' -ForegroundColor Red
+    exit 10
+}
+
+try {
+    $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
+}
+catch {
+    Write-Host ('[STOP] Invalid project root passed to the LFS verifier: ' + $ProjectRoot) -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 10
+}
+
+Write-Host ('[ASSETS] Verifying hydrated payloads under: ' + $ProjectRoot)
 
 $Roots = @(
     (Join-Path $ProjectRoot 'OsterConflict\Content\AK-47'),
