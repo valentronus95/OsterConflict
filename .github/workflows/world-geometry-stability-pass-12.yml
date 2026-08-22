@@ -1,0 +1,34 @@
+name: World geometry stability pass 12
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldGeometryStabilitySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldGeometryStabilitySubsystem.h'
+      - 'RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py'
+      - '.github/workflows/world-geometry-stability-pass-12.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldGeometryStabilitySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldGeometryStabilitySubsystem.h'
+      - 'RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py'
+      - '.github/workflows/world-geometry-stability-pass-12.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify late world-geometry stability contracts
+        run: python VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py
