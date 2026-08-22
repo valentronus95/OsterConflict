@@ -40,7 +40,7 @@ namespace
         FVector LocalMin;
         FVector LocalMax;
         Component.GetLocalBounds(LocalMin, LocalMax);
-        if (!LocalMin.IsFinite() || !LocalMax.IsFinite()) return false;
+        if (LocalMin.ContainsNaN() || LocalMax.ContainsNaN()) return false;
 
         const FVector LocalSize = LocalMax - LocalMin;
         if (LocalSize.GetAbsMax() <= 1.0f) return false;
