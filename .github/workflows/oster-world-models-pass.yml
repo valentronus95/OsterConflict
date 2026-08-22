@@ -11,6 +11,8 @@ on:
       - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_House_Var*.uasset'
       - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Tree_Var*.uasset'
       - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Fence_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Bridge_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Well*.uasset'
       - 'OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props/*.uasset'
       - 'VERIFY_OSTER_WORLD_MODELS_PASS.py'
       - 'OSTER_WORLD_MODELS_PASS_2026-08-22.md'
@@ -23,6 +25,8 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Bridge_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Well*.uasset'
       - 'VERIFY_OSTER_WORLD_MODELS_PASS.py'
       - '.github/workflows/oster-world-models-pass.yml'
 
