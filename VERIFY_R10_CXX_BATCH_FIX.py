@@ -48,14 +48,13 @@ require('No deprecated direct NetUpdateFrequency writes', not re.search(r'(?m)^\
 require('No deprecated direct MinNetUpdateFrequency writes', not re.search(r'(?m)^\s*MinNetUpdateFrequency\s*=', all_cpp))
 require('No deprecated direct NetCullDistanceSquared writes', not re.search(r'(?m)^\s*NetCullDistanceSquared\s*=', all_cpp))
 
-# Exact R9 compiler blocker signatures should be gone from source.
+# Exact R9 compiler blocker signatures should be gone from the files where they were actual C++ blockers.
+# Slot-named locals are checked above specifically in OCGameUIRootWidget.cpp. Treating the same spelling
+# in unrelated namespace helpers as a global project-wide blocker produced a false positive in source CI.
 forbidden = [
     'EOCPlayerRole Role, EOCBotDifficulty Difficulty',
     'TurretPivot->SetupAttachment(PhysicsBody);',
     'TurretDamageTypeClass ? TurretDamageTypeClass :',
-    'if (UVerticalBoxSlot* Slot',
-    'if (UCanvasPanelSlot* Slot',
-    'if (UHorizontalBoxSlot* Slot',
 ]
 joined = '\n'.join(p.read_text(encoding='utf-8', errors='replace') for p in SRC.rglob('*') if p.suffix in {'.h','.cpp'})
 for token in forbidden:

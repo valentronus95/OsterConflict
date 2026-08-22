@@ -6,16 +6,22 @@ cd /d "%~dp0"
 set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
+set "EDITOR_CMD=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "VERIFY=%~dp0VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py"
 set "PRODUCTION_IMPORT=%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
+set "WEAPON_VERIFY=%~dp0OsterConflict\Scripts\verify_required_weapon_assets.py"
+set "WEAPON_SENTINEL=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\required_weapon_asset_preflight_success.txt"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
+set "WEAPON_PREFLIGHT_LOG=%LOG_DIR%\R14_REQUIRED_WEAPON_ASSETS.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
 set "LFS_INCLUDE=OsterConflict/Content/AK-47/**,OsterConflict/Content/R13/Weapons/**,OsterConflict/Content/PN_FoliageCollection/**"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
+if exist "%WEAPON_PREFLIGHT_LOG%" del /q "%WEAPON_PREFLIGHT_LOG%" >nul 2>nul
+if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
 
 if not exist "%BUILD_BAT%" (
   echo [ERROR] UE 5.8 Build.bat not found: %BUILD_BAT%
@@ -27,17 +33,27 @@ if not exist "%EDITOR%" (
   pause
   exit /b 3
 )
+if not exist "%EDITOR_CMD%" (
+  echo [ERROR] UnrealEditor-Cmd.exe not found: %EDITOR_CMD%
+  pause
+  exit /b 4
+)
 if not exist "%PROJECT%" (
   echo [ERROR] Project not found: %PROJECT%
   pause
-  exit /b 4
+  exit /b 5
+)
+if not exist "%WEAPON_VERIFY%" (
+  echo [ERROR] Required weapon preflight script is missing: %WEAPON_VERIFY%
+  pause
+  exit /b 6
 )
 
 where git >nul 2>nul
 if errorlevel 1 (
   echo [ERROR] Git was not found in PATH.
   pause
-  exit /b 5
+  exit /b 7
 )
 
 for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
@@ -46,7 +62,7 @@ if /I not "%CURRENT_BRANCH%"=="main" (
   echo Current branch: %CURRENT_BRANCH%
   echo Switch to main, then Fetch origin and Pull origin.
   pause
-  exit /b 6
+  exit /b 8
 )
 
 echo [PRECHECK] Fetching origin/main so a stale local build cannot be tested...
@@ -54,7 +70,7 @@ git fetch origin main
 if errorlevel 1 (
   echo [STOP] Could not fetch origin/main. Playtest cancelled instead of testing unknown/stale code.
   pause
-  exit /b 7
+  exit /b 9
 )
 for /f "delims=" %%H in ('git rev-parse HEAD') do set "LOCAL_HEAD=%%H"
 for /f "delims=" %%H in ('git rev-parse origin/main') do set "REMOTE_HEAD=%%H"
@@ -64,7 +80,7 @@ if /I not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
   echo GitHub: %REMOTE_HEAD%
   echo GitHub Desktop: Pull origin. Then start the playtest again.
   pause
-  exit /b 8
+  exit /b 10
 )
 
 git merge-base --is-ancestor %R147_ASSET_COMMIT% HEAD >nul 2>nul
@@ -72,7 +88,7 @@ if errorlevel 1 (
   echo [STOP] Local main is missing the current R14 gameplay asset baseline.
   echo GitHub Desktop: Fetch origin, then Pull origin.
   pause
-  exit /b 9
+  exit /b 11
 )
 
 rem GitHub stores the restored R13/AK weapon meshes and PN foliage through Git LFS. A normal source
@@ -84,14 +100,14 @@ if errorlevel 1 (
   echo [STOP] Git LFS is not installed or not available in PATH.
   echo Install Git LFS, then run START_HERE.cmd again.
   pause
-  exit /b 10
+  exit /b 12
 )
 git lfs install >nul 2>nul
 git lfs pull origin main --include="%LFS_INCLUDE%"
 if errorlevel 1 (
   echo [STOP] Git LFS could not hydrate the required weapon/foliage assets.
   pause
-  exit /b 11
+  exit /b 13
 )
 git lfs checkout --include="%LFS_INCLUDE%" >nul
 
@@ -103,7 +119,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "Write-Host '[ASSETS] Weapon and foliage LFS payloads are hydrated.'"
 if errorlevel 1 (
   pause
-  exit /b 12
+  exit /b 14
 )
 
 set "PY_CMD="
@@ -116,21 +132,21 @@ if not defined PY_CMD (
 if not defined PY_CMD (
   echo [ERROR] Python 3 not found in PATH.
   pause
-  exit /b 13
+  exit /b 15
 )
 
 if exist "%VERIFY%" (
-  echo [0/3] Verifying current R14 landmark ownership...
+  echo [0/4] Verifying current R14 landmark ownership...
   %PY_CMD% "%VERIFY%"
   if errorlevel 1 (
     echo [STOP] Current main source verification failed.
     pause
-    exit /b 14
+    exit /b 16
   )
 )
 
 echo.
-echo [1/3] Building current OsterConflictEditor...
+echo [1/4] Building current OsterConflictEditor...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -141,11 +157,30 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/3] Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets...
+echo [2/4] Opening every required REAL weapon visual in a fresh UE process...
+if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
+"%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%WEAPON_VERIFY%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%WEAPON_PREFLIGHT_LOG%"
+set "WEAPON_RC=%ERRORLEVEL%"
+if not "%WEAPON_RC%"=="0" (
+  echo [STOP] UE weapon asset preflight process failed with code %WEAPON_RC%.
+  echo Log: %WEAPON_PREFLIGHT_LOG%
+  pause
+  exit /b 17
+)
+if not exist "%WEAPON_SENTINEL%" (
+  echo [STOP] One or more required weapon models could not be opened by Unreal.
+  echo Primitive weapon boxes are not accepted as a fallback for the normal playtest.
+  echo Log: %WEAPON_PREFLIGHT_LOG%
+  pause
+  exit /b 18
+)
+
+echo.
+echo [3/4] Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets...
 if not exist "%PRODUCTION_IMPORT%" (
   echo [STOP] Full production vehicle importer is missing: %PRODUCTION_IMPORT%
   pause
-  exit /b 15
+  exit /b 19
 )
 call "%PRODUCTION_IMPORT%"
 if errorlevel 1 (
@@ -156,11 +191,11 @@ if errorlevel 1 (
   echo   OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb
   echo   OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx
   pause
-  exit /b 16
+  exit /b 20
 )
 
 echo.
-echo [3/3] Launching CURRENT NORMAL GAME frontend...
+echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Log: %PLAYTEST_LOG%

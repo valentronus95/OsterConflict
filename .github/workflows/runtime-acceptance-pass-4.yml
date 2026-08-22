@@ -1,0 +1,37 @@
+name: Runtime acceptance pass 4 source contracts
+
+on:
+  pull_request:
+    paths:
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'OsterConflict/Scripts/verify_required_weapon_assets.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'VERIFY_R10_CXX_BATCH_FIX.py'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_4.py'
+      - '.github/workflows/runtime-acceptance-pass-4.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'OsterConflict/Scripts/verify_required_weapon_assets.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'VERIFY_R10_CXX_BATCH_FIX.py'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_4.py'
+      - '.github/workflows/runtime-acceptance-pass-4.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify runtime acceptance pass 4 source contracts
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_4.py
