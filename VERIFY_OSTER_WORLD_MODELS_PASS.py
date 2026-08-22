@@ -17,6 +17,7 @@ ENTERABLE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCEnterableHo
 ENTERABLE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h"
 MUSEUM_WINDOW_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp"
 SILPO_DETAIL_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp"
+CULTURE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp"
 RECOVERED_ENV = ROOT / "OsterConflict/Source/OsterConflict/Private/OCRecoveredEnvironmentSubsystem.cpp"
 CONTENT = ROOT / "OsterConflict/Content/AdvancedVillagePack/Meshes"
 CABIN_PROPS = ROOT / "OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props"
@@ -44,6 +45,7 @@ def main() -> int:
             (ENTERABLE_H, "OCEnterableHouse.h"),
             (MUSEUM_WINDOW_CPP, "OCMuseumBreakableWindow.cpp"),
             (SILPO_DETAIL_CPP, "OCR141SilpoDetailSubsystem.cpp"),
+            (CULTURE_CPP, "OCR146CultureHousePhotoModelSubsystem.cpp"),
             (RECOVERED_ENV, "OCRecoveredEnvironmentSubsystem.cpp"),
         ):
             require(path.is_file(), f"{label} missing")
@@ -55,6 +57,7 @@ def main() -> int:
         enterable_h = ENTERABLE_H.read_text(encoding="utf-8")
         museum_window_cpp = MUSEUM_WINDOW_CPP.read_text(encoding="utf-8")
         silpo_detail_cpp = SILPO_DETAIL_CPP.read_text(encoding="utf-8")
+        culture_cpp = CULTURE_CPP.read_text(encoding="utf-8")
         recovered_env = RECOVERED_ENV.read_text(encoding="utf-8")
 
         required_assets = [
@@ -88,7 +91,7 @@ def main() -> int:
         for asset in required_house_props:
             require((CABIN_PROPS / asset).is_file(), f"required authored rural prop missing: {asset}")
         require((CABIN_MODULAR / "Window_Frame_Part.uasset").is_file(),
-                "required authored museum window frame missing: Window_Frame_Part.uasset")
+                "required authored window frame missing: Window_Frame_Part.uasset")
 
         require_text(owner, "AOCAssetModelDecorator", "single residential presentation owner")
         require_text(owner, "HideLegacyVisualProxies", "legacy proxy visibility owner")
@@ -209,7 +212,6 @@ def main() -> int:
 
         # The photo-supported utility pole at Silpo now uses the matching checked-in rural asset.
         # Presentation remains no-collision; the old footprint is retained only as a hidden collision proxy.
-        # If the LFS payload is unavailable, the historical visible Cube pole remains the fallback.
         require_text(silpo_detail_cpp, "Power_Pole_1.Power_Pole_1", "Silpo authored utility pole path")
         require_text(silpo_detail_cpp, "AddFittedVerticalMesh", "Silpo utility-pole bounds fitting")
         require_text(silpo_detail_cpp, "FQuat::FindBetweenNormals", "Silpo utility-pole axis normalization")
@@ -219,6 +221,20 @@ def main() -> int:
         require_text(silpo_detail_cpp, "UtilityPoleCollision->SetHiddenInGame(true, true);",
                      "Silpo pole hidden collision proxy")
         require_text(silpo_detail_cpp, "AddLocalBox(Metal, UtilityPoleCenter", "Silpo pole unhydrated fallback")
+
+        # Culture House side/rear windows now use four authored frame-profile pieces around each glass pane.
+        # The existing Cube door-frame component remains the explicit LFS fallback and still owns front entrance trim.
+        require_text(culture_cpp, "Window_Frame_Part.Window_Frame_Part", "Culture House authored frame path")
+        require_text(culture_cpp, "R146Culture_AuthoredWindowFrames", "Culture House authored frame owner")
+        require_text(culture_cpp, "AddFittedFrameSegment", "Culture House frame bounds fitting")
+        require_text(culture_cpp, "AddAuthoredRectFrame", "Culture House four-segment frame assembly")
+        require_text(culture_cpp, "FQuat::FindBetweenNormals", "Culture House frame axis normalization")
+        require_text(culture_cpp, "AuthoredWindowFrame, nullptr", "Culture House authored materials preserved")
+        require_text(culture_cpp, "AddSideWindow(DoorFrames, AuthoredWindowFrames, Glass", "Culture House side authored frames")
+        require_text(culture_cpp, "AddAuthoredRectFrame(AuthoredWindowFrames, FVector(X, 952.0f, 390.0f)",
+                     "Culture House rear authored frames")
+        require_text(culture_cpp, "AddBox(FallbackFrames", "Culture House frame Cube fallback")
+        require_text(culture_cpp, "AddBox(Glass", "Culture House glass geometry preserved")
 
     except AssertionError as exc:
         failures.append(str(exc))
@@ -240,6 +256,7 @@ def main() -> int:
     print("- enterable house uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
     print("- museum breakable windows prefer authored frame geometry while preserving glass state/material")
     print("- Silpo's photo-supported utility pole prefers the authored rural pole and preserves old collision/fallback")
+    print("- Culture House side/rear glazing prefers four-piece authored frame geometry with Cube fallback")
     print("- cosmetic model layers do not leave invisible blocking collision")
     print("STATUS: CODED_UNTESTED; UE runtime acceptance is still required")
     return 0
