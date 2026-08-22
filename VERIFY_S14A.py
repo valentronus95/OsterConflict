@@ -8,7 +8,18 @@ checks={
  'Source/OsterConflict/Private/OCPlayerController.cpp':['SayGlobal','SayTeam','SaySquad','SquadAttack','SquadDefend','SquadMoveHere','SquadRegroup','ClientReceiveChat','ServerSendChat','IA_DeploymentToggle'],
  'Source/OsterConflict/Private/OCAIController.cpp':['GetSquadOrderFor','EOCSquadOrderType::Move','EOCSquadOrderType::AttackObjective'],
  'Source/OsterConflict/Private/OCHUD.cpp':['PRE-GAME / DEPLOYMENT','SERVER        %d HUMAN + %d BOT','SQUAD ORDER','[LEADER]'],
- 'Source/OsterConflict/Private/OCEnterableHouse.cpp':['BuildHouseholdProps','AddSofa','fridge','PC tower','laptop','ClutterCount'],
+ # The S14A house contract is behavioral/structural, not a requirement to preserve old cube-proxy comments.
+ # Real authored props may replace sofa/fridge/clutter while the small electronics proxies remain in the same owner.
+ 'Source/OsterConflict/Private/OCEnterableHouse.cpp':[
+     'BuildHouseholdProps',
+     'HouseholdElectronics',
+     'RealSofa',
+     'RealFridge',
+     'RealCrate',
+     'RealMetalBarrel',
+     'AddFittedGroundProp',
+     'ClearRealInteriorProps',
+ ],
  'Docs/SESSION_14A_README_UA.md':['HumanCount','SayGlobal','household'],
  'Docs/S14A_TEST_MATRIX.md':['SERVER_FULL_HUMANS','Squad chat','Household']
 }
