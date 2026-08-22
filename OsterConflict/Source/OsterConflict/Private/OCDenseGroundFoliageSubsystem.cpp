@@ -14,8 +14,8 @@ namespace
 {
     constexpr float SectorMin = -96000.0f;
     constexpr float SectorMax = 96000.0f;
-    constexpr float GridStep = 1000.0f;
-    constexpr int32 CellsPerBatch = 96;
+    constexpr float GridStep = 900.0f;
+    constexpr int32 CellsPerBatch = 88;
 
     UHierarchicalInstancedStaticMeshComponent* MakeFoliageHISM(
         AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh, const FName Name, int32 CullEndCm)
@@ -98,10 +98,6 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Initial frontend and the listen-server gameplay world can both use the same map. Poll until this
-    // particular world is gameplay-ready, then populate in small batches. The previous implementation
-    // performed ~37k traces plus >100k HISM inserts synchronously at the transition and caused the
-    // visible START/deployment freeze reported in runtime testing.
     InWorld.GetTimerManager().SetTimer(
         GameplayReadyTimer,
         this,
@@ -252,7 +248,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
     int32 Processed = 0;
     while (Processed < CellsPerBatch && CursorX <= SectorMax)
     {
-        const FVector2D Jitter(RandomStream.FRandRange(-320.0f, 320.0f), RandomStream.FRandRange(-320.0f, 320.0f));
+        const FVector2D Jitter(RandomStream.FRandRange(-285.0f, 285.0f), RandomStream.FRandRange(-285.0f, 285.0f));
         const FVector TraceStart(CursorX + Jitter.X, CursorY + Jitter.Y, 18000.0f);
         const FVector TraceEnd(CursorX + Jitter.X, CursorY + Jitter.Y, -3000.0f);
 
@@ -261,7 +257,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             Hit.bBlockingHit && !IsBlockedSurface(Hit) && Hit.ImpactNormal.Z >= 0.72f)
         {
             const FVector BaseLocation = Hit.ImpactPoint + Hit.ImpactNormal * 2.0f;
-            const int32 ClumpCount = RandomStream.RandRange(3, 5);
+            const int32 ClumpCount = RandomStream.RandRange(4, 6);
             for (int32 ClumpIndex = 0; ClumpIndex < ClumpCount; ++ClumpIndex)
             {
                 const int32 Variant = RandomStream.RandRange(0, GrassComponents.Num() - 1);
@@ -270,24 +266,24 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
                 if (!Grass) continue;
 
                 const FVector Offset(
-                    RandomStream.FRandRange(-360.0f, 360.0f),
-                    RandomStream.FRandRange(-360.0f, 360.0f),
+                    RandomStream.FRandRange(-300.0f, 300.0f),
+                    RandomStream.FRandRange(-300.0f, 300.0f),
                     RandomStream.FRandRange(-0.8f, 1.8f));
                 const float Yaw = RandomStream.FRandRange(0.0f, 360.0f);
-                const float Scale = RandomStream.FRandRange(0.78f, 1.18f);
+                const float Scale = RandomStream.FRandRange(0.80f, 1.20f);
                 Grass->AddInstance(FTransform(
                     FRotator(0.0f, Yaw, 0.0f), BaseLocation + Offset, FVector(Scale)), true);
                 ++GrassInstances;
             }
 
             if (UHierarchicalInstancedStaticMeshComponent* Plants = GroundPlants.Get();
-                Plants && RandomStream.FRand() < 0.19f)
+                Plants && RandomStream.FRand() < 0.22f)
             {
                 Plants->AddInstance(FTransform(
                     FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(RandomStream.FRandRange(-340.0f, 340.0f),
-                        RandomStream.FRandRange(-340.0f, 340.0f), 1.0f),
-                    FVector(RandomStream.FRandRange(0.70f, 1.02f))), true);
+                    BaseLocation + FVector(RandomStream.FRandRange(-300.0f, 300.0f),
+                        RandomStream.FRandRange(-300.0f, 300.0f), 1.0f),
+                    FVector(RandomStream.FRandRange(0.70f, 1.04f))), true);
                 ++PlantInstances;
             }
 
@@ -296,8 +292,8 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             {
                 FlowerComponent->AddInstance(FTransform(
                     FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(RandomStream.FRandRange(-320.0f, 320.0f),
-                        RandomStream.FRandRange(-320.0f, 320.0f), 1.0f),
+                    BaseLocation + FVector(RandomStream.FRandRange(-280.0f, 280.0f),
+                        RandomStream.FRandRange(-280.0f, 280.0f), 1.0f),
                     FVector(RandomStream.FRandRange(0.64f, 0.90f))), true);
                 ++FlowerInstances;
             }

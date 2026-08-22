@@ -158,8 +158,12 @@ jobs:
           require('EmptyOverrideMaterials()' in btr, 'BTR-4 production visual no longer clears fallback material overrides safely')
           require('ApplyGroundedVehicleMesh' in pickup and '-86.0f' in pickup,
                   'HMMWV production shell is no longer grounded to the wheel plane')
-          require('M2Parent = BarrelPivot' in pickup and 'MuzzlePoint->SetRelativeLocation(FVector(118.0f' in pickup,
-                  'production M2 visual and trace no longer share the pitching barrel pivot')
+          require(
+              'M2Parent = BarrelPivot' in pickup and
+              'ResolveLongAxisToForward' in pickup and
+              'MuzzlePoint->SetRelativeLocation(FVector(82.5f' in pickup,
+              'production M2 visual/trace lost normalized alignment on the pitching barrel pivot',
+          )
           require('ApplyFittedBTRMesh' in btr and '-98.0f' in btr,
                   'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane')
           require(runtime_validator.is_file(), 'production vehicle runtime validator cpp is missing')

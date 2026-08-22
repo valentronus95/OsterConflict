@@ -1,0 +1,48 @@
+name: Runtime reconcile pass 8 source contracts
+
+on:
+  push:
+    branches:
+      - fix/runtime-pass8-reconcile-pass6-20260822
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCMinimapSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRuntimeChatSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRuntimeAcceptancePass6Subsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRuntimeAcceptancePass6Subsystem.cpp'
+      - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
+      - '.github/workflows/runtime-reconcile-pass-8.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCMinimapSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRuntimeChatSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRuntimeAcceptancePass6Subsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRuntimeAcceptancePass6Subsystem.cpp'
+      - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
+      - '.github/workflows/runtime-reconcile-pass-8.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass 8 reconciliation contracts
+        run: python VERIFY_RUNTIME_RECONCILE_PASS_8.py

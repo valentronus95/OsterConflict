@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 
@@ -65,7 +66,6 @@ for needle in (
 ):
     require(foliage_h, needle, "foliage header")
 for needle in (
-    "CellsPerBatch = 96",
     "TryPopulateWhenGameplayReady",
     "if (GameMode->IsFrontendOnlySession()) return;",
     "BeginPopulation(*World)",
@@ -73,17 +73,25 @@ for needle in (
     "World->GetTimerManager().SetTimer(",
 ):
     require(foliage_cpp, needle, "non-blocking frontend-to-gameplay foliage")
+batch_match = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
+if not batch_match:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: foliage batch-size contract is missing")
+batch_size = int(batch_match.group(1))
+if not 1 <= batch_size <= 96:
+    raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: foliage batch size {batch_size} exceeds accepted non-blocking ceiling 96")
 if "Populate(*World);" in foliage_cpp:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: foliage still performs synchronous whole-map population")
 
 for needle in (
-    "ResolveLocalWeaponMuzzle",
+    "ResolveFiringWeapon",
+    "ResolveWeaponMuzzle",
+    "Character->GetCurrentWeapon()",
     "OC_ProductionWeaponVisual",
     "TryResolveSocketMuzzle",
     "TryResolveBoundsMuzzle",
     "GetLocalBounds",
-    "const FVector VisualStart = ResolveLocalWeaponMuzzle",
-    "const FVector VisualMuzzle = ResolveLocalWeaponMuzzle",
+    "const FVector VisualStart = ResolveWeaponMuzzle",
+    "const FVector VisualMuzzle = ResolveWeaponMuzzle",
 ):
     require(fx, needle, "muzzle/tracer presentation")
 if "Bounds.Origin + SafeDirection * Support" in fx:
@@ -99,7 +107,6 @@ for needle in (
 if "if (GameMode->IsFrontendOnlySession()) return;" in fallback:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: real weapon fallback still dies permanently in frontend world")
 
-# The stabilizer may isolate layers, but geometry belongs only to the frontend owner.
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
 require(frontend, "PanelSlot->SetSize(FVector2D(440.0f, 760.0f));", "frontend canonical menu geometry")
 for forbidden in (
@@ -169,9 +176,9 @@ for needle in (
 
 print("RUNTIME ACCEPTANCE PASS 3 SOURCE CONTRACT PASS")
 print("- BASE is placed directly beside the Museum test hub")
-print("- dense foliage is generated incrementally instead of freezing deployment")
+print("- dense foliage is generated incrementally with a bounded per-frame batch instead of freezing deployment")
 print("- restored weapon and foliage LFS payloads are hydrated before playtest using Windows-compatible commands")
 print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend")
-print("- local tracer/muzzle presentation uses socket/local-mesh barrel geometry")
+print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon and socket/local-mesh barrel geometry")
 print("- HMMWV + M2 + BTR are reopened in a fresh UE process before gameplay starts")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")

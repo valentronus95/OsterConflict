@@ -7,6 +7,7 @@
 class AOCCharacter;
 class AOCWeaponBase;
 class UAnimSequence;
+class UPrimitiveComponent;
 class USkeletalMeshComponent;
 
 struct FOCFirstPersonWeaponState
@@ -26,11 +27,6 @@ struct FOCFirstPersonWeaponState
     FRotator BaseArmsRotation = FRotator::ZeroRotator;
 };
 
-/**
- * Local presentation bridge for production first-person arms and weapon meshes.
- * Gameplay remains server-authoritative; this subsystem only drives camera-space pose,
- * recoil, ADS and reload presentation using imported animations when skeletons match.
- */
 UCLASS()
 class OSTERCONFLICT_API UOCFirstPersonWeaponPresentationSubsystem : public UTickableWorldSubsystem
 {
@@ -48,7 +44,9 @@ private:
     void ApplyArmsPose(AOCCharacter& Character, FOCFirstPersonWeaponState& State, bool bADS);
     void PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
         FOCFirstPersonWeaponState& State, double ResetDelaySeconds);
-    USkeletalMeshComponent* FindProductionWeaponVisual(AOCWeaponBase& Weapon) const;
+
+    UPrimitiveComponent* FindProductionWeaponVisual(AOCWeaponBase& Weapon) const;
+    USkeletalMeshComponent* FindProductionSkeletalWeaponVisual(AOCWeaponBase& Weapon) const;
 
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleIdleAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSIdleAnimation;
