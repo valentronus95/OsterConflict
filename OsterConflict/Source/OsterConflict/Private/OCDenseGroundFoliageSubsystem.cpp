@@ -12,6 +12,11 @@
 
 namespace
 {
+    constexpr float SectorMin = -96000.0f;
+    constexpr float SectorMax = 96000.0f;
+    constexpr float GridStep = 1000.0f;
+    constexpr int32 CellsPerBatch = 96;
+
     UHierarchicalInstancedStaticMeshComponent* MakeFoliageHISM(
         AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh, const FName Name, int32 CullEndCm)
     {
@@ -93,22 +98,37 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Frontend and gameplay share the same runtime world. Returning permanently while the menu is
-    // active meant this subsystem never got a second OnWorldBeginPlay after START, so the player saw
-    // a bare green plane forever. Poll until the frontend flag drops, then build foliage once.
+    // Initial frontend and the listen-server gameplay world can both use the same map. Poll until this
+    // particular world is gameplay-ready, then populate in small batches. The previous implementation
+    // performed ~37k traces plus >100k HISM inserts synchronously at the transition and caused the
+    // visible START/deployment freeze reported in runtime testing.
     InWorld.GetTimerManager().SetTimer(
         GameplayReadyTimer,
         this,
         &UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady,
-        0.35f,
+        0.20f,
         true,
         0.0f);
+}
+
+void UOCDenseGroundFoliageSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+        World->GetTimerManager().ClearTimer(PopulationBatchTimer);
+    }
+    GrassComponents.Reset();
+    GroundPlants.Reset();
+    Flowers.Reset();
+    FoliageActor.Reset();
+    Super::Deinitialize();
 }
 
 void UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady()
 {
     UWorld* World = GetWorld();
-    if (!World || bPopulated) return;
+    if (!World || bPopulated || bPopulationStarted) return;
 
     if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
     {
@@ -116,13 +136,24 @@ void UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady()
     }
 
     World->GetTimerManager().ClearTimer(GameplayReadyTimer);
-    Populate(*World);
+    if (!BeginPopulation(*World))
+    {
+        bPopulated = true;
+        return;
+    }
+
+    World->GetTimerManager().SetTimer(
+        PopulationBatchTimer,
+        this,
+        &UOCDenseGroundFoliageSubsystem::PopulateBatch,
+        0.016f,
+        true,
+        0.0f);
 }
 
-void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
+bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
 {
-    if (bPopulated) return;
-    bPopulated = true;
+    if (bPopulationStarted || bPopulated) return false;
 
     const TArray<const TCHAR*> GrassCandidates[] =
     {
@@ -163,103 +194,131 @@ void UOCDenseGroundFoliageSubsystem::Populate(UWorld& World)
 
     if (!bAnyGrass)
     {
-        UE_LOG(LogTemp, Error, TEXT("Dense foliage unavailable: no real grass mesh was loadable from PN or AdvancedVillagePack."));
-        return;
+        UE_LOG(LogTemp, Error,
+            TEXT("Dense foliage unavailable: grass assets are not loadable. Hydrate the PN/AdvancedVillage LFS content before playtest."));
+        return false;
     }
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.Name = TEXT("OC_DenseGroundFoliage");
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    AActor* FoliageActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
-    if (!FoliageActor) return;
-    FoliageActor->Tags.Add(TEXT("OC_DenseGroundFoliage"));
+    AActor* Owner = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
+    if (!Owner) return false;
+    Owner->Tags.Add(TEXT("OC_DenseGroundFoliage"));
 
-    USceneComponent* Root = NewObject<USceneComponent>(FoliageActor, TEXT("DenseFoliageRoot"));
-    FoliageActor->AddInstanceComponent(Root);
+    USceneComponent* Root = NewObject<USceneComponent>(Owner, TEXT("DenseFoliageRoot"));
+    if (!Root)
+    {
+        Owner->Destroy();
+        return false;
+    }
+    Owner->AddInstanceComponent(Root);
     Root->RegisterComponent();
-    FoliageActor->SetRootComponent(Root);
+    Owner->SetRootComponent(Root);
 
-    UHierarchicalInstancedStaticMeshComponent* GrassComponents[UE_ARRAY_COUNT(GrassCandidates)] = {};
+    GrassComponents.Reset();
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
-        GrassComponents[Index] = MakeFoliageHISM(
-            FoliageActor, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 36000);
+        GrassComponents.Add(MakeFoliageHISM(
+            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 42000));
     }
-    UHierarchicalInstancedStaticMeshComponent* GroundPlants = MakeFoliageHISM(
-        FoliageActor, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 30000);
-    UHierarchicalInstancedStaticMeshComponent* Flowers = MakeFoliageHISM(
-        FoliageActor, Root, FlowerMesh, TEXT("DenseFlowers"), 26000);
+    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 34000);
+    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), 30000);
+
+    FoliageActor = Owner;
+    RandomStream.Initialize(20260822);
+    CursorX = SectorMin;
+    CursorY = SectorMin;
+    GrassInstances = 0;
+    PlantInstances = 0;
+    FlowerInstances = 0;
+    bPopulationStarted = true;
+    return true;
+}
+
+void UOCDenseGroundFoliageSubsystem::PopulateBatch()
+{
+    UWorld* World = GetWorld();
+    AActor* Owner = FoliageActor.Get();
+    if (!World || !Owner || !bPopulationStarted || bPopulated)
+    {
+        if (World) World->GetTimerManager().ClearTimer(PopulationBatchTimer);
+        return;
+    }
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OCDenseGroundFoliage), false);
-    QueryParams.AddIgnoredActor(FoliageActor);
+    QueryParams.AddIgnoredActor(Owner);
 
-    FRandomStream Random(20260822);
-    int32 GrassInstances = 0;
-    int32 PlantInstances = 0;
-    int32 FlowerInstances = 0;
-
-    // Runtime playtest showed the old 13.5 m lattice still reading as isolated tufts. Use a denser
-    // 10 m ground-traced lattice and 3-5 clumps per valid cell. HISM keeps this as instanced foliage,
-    // while the hard-surface filter prevents grass from being sprayed across roads and buildings.
-    constexpr float SectorMin = -96000.0f;
-    constexpr float SectorMax = 96000.0f;
-    constexpr float GridStep = 1000.0f;
-
-    for (float X = SectorMin; X <= SectorMax; X += GridStep)
+    int32 Processed = 0;
+    while (Processed < CellsPerBatch && CursorX <= SectorMax)
     {
-        for (float Y = SectorMin; Y <= SectorMax; Y += GridStep)
+        const FVector2D Jitter(RandomStream.FRandRange(-320.0f, 320.0f), RandomStream.FRandRange(-320.0f, 320.0f));
+        const FVector TraceStart(CursorX + Jitter.X, CursorY + Jitter.Y, 18000.0f);
+        const FVector TraceEnd(CursorX + Jitter.X, CursorY + Jitter.Y, -3000.0f);
+
+        FHitResult Hit;
+        if (World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams) &&
+            Hit.bBlockingHit && !IsBlockedSurface(Hit) && Hit.ImpactNormal.Z >= 0.72f)
         {
-            const FVector2D Jitter(Random.FRandRange(-320.0f, 320.0f), Random.FRandRange(-320.0f, 320.0f));
-            const FVector TraceStart(X + Jitter.X, Y + Jitter.Y, 18000.0f);
-            const FVector TraceEnd(X + Jitter.X, Y + Jitter.Y, -3000.0f);
-
-            FHitResult Hit;
-            if (!World.LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams)) continue;
-            if (!Hit.bBlockingHit || IsBlockedSurface(Hit)) continue;
-            if (Hit.ImpactNormal.Z < 0.72f) continue;
-
             const FVector BaseLocation = Hit.ImpactPoint + Hit.ImpactNormal * 2.0f;
-            const int32 ClumpCount = Random.RandRange(3, 5);
+            const int32 ClumpCount = RandomStream.RandRange(3, 5);
             for (int32 ClumpIndex = 0; ClumpIndex < ClumpCount; ++ClumpIndex)
             {
-                const int32 Variant = Random.RandRange(0, UE_ARRAY_COUNT(GrassCandidates) - 1);
-                UHierarchicalInstancedStaticMeshComponent* Grass = GrassComponents[Variant];
+                const int32 Variant = RandomStream.RandRange(0, GrassComponents.Num() - 1);
+                UHierarchicalInstancedStaticMeshComponent* Grass = GrassComponents.IsValidIndex(Variant)
+                    ? GrassComponents[Variant].Get() : nullptr;
                 if (!Grass) continue;
 
                 const FVector Offset(
-                    Random.FRandRange(-360.0f, 360.0f),
-                    Random.FRandRange(-360.0f, 360.0f),
-                    Random.FRandRange(-0.8f, 1.8f));
-                const float Yaw = Random.FRandRange(0.0f, 360.0f);
-                const float Scale = Random.FRandRange(0.74f, 1.14f);
+                    RandomStream.FRandRange(-360.0f, 360.0f),
+                    RandomStream.FRandRange(-360.0f, 360.0f),
+                    RandomStream.FRandRange(-0.8f, 1.8f));
+                const float Yaw = RandomStream.FRandRange(0.0f, 360.0f);
+                const float Scale = RandomStream.FRandRange(0.78f, 1.18f);
                 Grass->AddInstance(FTransform(
-                    FRotator(0.0f, Yaw, 0.0f),
-                    BaseLocation + Offset,
-                    FVector(Scale)), true);
+                    FRotator(0.0f, Yaw, 0.0f), BaseLocation + Offset, FVector(Scale)), true);
                 ++GrassInstances;
             }
 
-            if (GroundPlants && Random.FRand() < 0.19f)
+            if (UHierarchicalInstancedStaticMeshComponent* Plants = GroundPlants.Get();
+                Plants && RandomStream.FRand() < 0.19f)
             {
-                GroundPlants->AddInstance(FTransform(
-                    FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(Random.FRandRange(-340.0f, 340.0f), Random.FRandRange(-340.0f, 340.0f), 1.0f),
-                    FVector(Random.FRandRange(0.70f, 1.02f))), true);
+                Plants->AddInstance(FTransform(
+                    FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
+                    BaseLocation + FVector(RandomStream.FRandRange(-340.0f, 340.0f),
+                        RandomStream.FRandRange(-340.0f, 340.0f), 1.0f),
+                    FVector(RandomStream.FRandRange(0.70f, 1.02f))), true);
                 ++PlantInstances;
             }
 
-            if (Flowers && Random.FRand() < 0.05f)
+            if (UHierarchicalInstancedStaticMeshComponent* FlowerComponent = Flowers.Get();
+                FlowerComponent && RandomStream.FRand() < 0.05f)
             {
-                Flowers->AddInstance(FTransform(
-                    FRotator(0.0f, Random.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(Random.FRandRange(-320.0f, 320.0f), Random.FRandRange(-320.0f, 320.0f), 1.0f),
-                    FVector(Random.FRandRange(0.64f, 0.90f))), true);
+                FlowerComponent->AddInstance(FTransform(
+                    FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
+                    BaseLocation + FVector(RandomStream.FRandRange(-320.0f, 320.0f),
+                        RandomStream.FRandRange(-320.0f, 320.0f), 1.0f),
+                    FVector(RandomStream.FRandRange(0.64f, 0.90f))), true);
                 ++FlowerInstances;
             }
         }
+
+        ++Processed;
+        CursorY += GridStep;
+        if (CursorY > SectorMax)
+        {
+            CursorY = SectorMin;
+            CursorX += GridStep;
+        }
     }
 
-    UE_LOG(LogTemp, Display,
-        TEXT("Dense Oster foliage populated as sole ground-cover owner: %d grass, %d ground plants, %d flowers."),
-        GrassInstances, PlantInstances, FlowerInstances);
+    if (CursorX > SectorMax)
+    {
+        World->GetTimerManager().ClearTimer(PopulationBatchTimer);
+        bPopulationStarted = false;
+        bPopulated = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("Dense Oster foliage batch population complete: %d grass, %d ground plants, %d flowers."),
+            GrassInstances, PlantInstances, FlowerInstances);
+    }
 }

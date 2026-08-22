@@ -1,4 +1,4 @@
-name: Runtime acceptance pass 2 source contracts
+name: Runtime acceptance pass 3 source contracts
 
 on:
   pull_request:
@@ -8,10 +8,12 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/Scripts/verify_production_vehicle_fresh_load.py'
       - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
       - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py'
       - '.github/workflows/runtime-acceptance-pass-2.yml'
@@ -23,10 +25,12 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/Scripts/verify_production_vehicle_fresh_load.py'
       - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
       - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py'
       - '.github/workflows/runtime-acceptance-pass-2.yml'
@@ -41,5 +45,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify runtime acceptance pass 2 source contracts
+      - name: Verify runtime acceptance pass 3 source contracts
         run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py

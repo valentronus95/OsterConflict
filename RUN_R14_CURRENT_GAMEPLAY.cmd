@@ -12,6 +12,7 @@ set "PRODUCTION_IMPORT=%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
+set "LFS_INCLUDE=OsterConflict/Content/AK-47/**,OsterConflict/Content/R13/Weapons/**,OsterConflict/Content/PN_FoliageCollection/**"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
@@ -39,9 +40,6 @@ if errorlevel 1 (
   exit /b 5
 )
 
-rem A playtest is useful only when it is actually running current main.
-rem Previously this launcher accepted an old local main, so the user could spend time testing code
-rem that had already been fixed on GitHub but was not present locally. Never allow that again.
 for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
 if /I not "%CURRENT_BRANCH%"=="main" (
   echo [STOP] Normal gameplay playtest must run from branch main.
@@ -77,6 +75,37 @@ if errorlevel 1 (
   exit /b 9
 )
 
+rem GitHub stores the restored R13/AK weapon meshes and PN foliage through Git LFS. A normal source
+rem checkout can leave 130-byte pointer stubs behind; Unreal then fails LoadObject and silently shows
+rem the primitive weapon/empty-grass fallbacks. Hydrate the exact playtest asset families every time.
+echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
+git lfs version >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git LFS is not installed or not available in PATH.
+  echo Install Git LFS, then run START_HERE.cmd again.
+  pause
+  exit /b 10
+)
+git lfs install >nul 2>nul
+git lfs pull origin main --include="%LFS_INCLUDE%"
+if errorlevel 1 (
+  echo [STOP] Git LFS could not hydrate the required weapon/foliage assets.
+  pause
+  exit /b 11
+)
+git lfs checkout --include="%LFS_INCLUDE%" >nul
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference='Stop';" ^
+  "$roots=@('%~dp0OsterConflict\Content\AK-47','%~dp0OsterConflict\Content\R13\Weapons','%~dp0OsterConflict\Content\PN_FoliageCollection');" ^
+  "$bad=@(); foreach($root in $roots){ if(Test-Path -LiteralPath $root){ Get-ChildItem -LiteralPath $root -Recurse -File ^| Where-Object {$_.Length -lt 1024} ^| ForEach-Object { $first=(Get-Content -LiteralPath $_.FullName -TotalCount 1 -ErrorAction SilentlyContinue); if($first -eq 'version https://git-lfs.github.com/spec/v1'){$bad += $_.FullName} } } };" ^
+  "if($bad.Count -gt 0){ Write-Host '[STOP] Unhydrated Git LFS model files remain:' -ForegroundColor Red; $bad ^| Select-Object -First 20 ^| ForEach-Object {Write-Host ('  '+$_)}; exit 12 };" ^
+  "Write-Host '[ASSETS] Weapon and foliage LFS payloads are hydrated.'"
+if errorlevel 1 (
+  pause
+  exit /b 12
+)
+
 set "PY_CMD="
 where py >nul 2>nul
 if not errorlevel 1 set "PY_CMD=py -3"
@@ -87,7 +116,7 @@ if not defined PY_CMD (
 if not defined PY_CMD (
   echo [ERROR] Python 3 not found in PATH.
   pause
-  exit /b 10
+  exit /b 13
 )
 
 if exist "%VERIFY%" (
@@ -96,7 +125,7 @@ if exist "%VERIFY%" (
   if errorlevel 1 (
     echo [STOP] Current main source verification failed.
     pause
-    exit /b 11
+    exit /b 14
   )
 )
 
@@ -116,7 +145,7 @@ echo [2/3] Importing and validating REAL production HMMWV + M2 Browning + BTR-4 
 if not exist "%PRODUCTION_IMPORT%" (
   echo [STOP] Full production vehicle importer is missing: %PRODUCTION_IMPORT%
   pause
-  exit /b 12
+  exit /b 15
 )
 call "%PRODUCTION_IMPORT%"
 if errorlevel 1 (
@@ -127,7 +156,7 @@ if errorlevel 1 (
   echo   OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb
   echo   OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx
   pause
-  exit /b 13
+  exit /b 16
 )
 
 echo.

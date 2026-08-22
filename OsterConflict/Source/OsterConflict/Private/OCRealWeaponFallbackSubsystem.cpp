@@ -1,6 +1,5 @@
 #include "OCRealWeaponFallbackSubsystem.h"
 
-#include "OCGameMode.h"
 #include "OCWeaponBase.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -40,21 +39,17 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
-    {
-        if (GameMode->IsFrontendOnlySession()) return;
-    }
 
+    // Frontend and gameplay can both use OsterConflict_Runtime. Do not permanently opt out when the
+    // first world frame is still presenting the frontend. Weapons are spawned later by deployment,
+    // the world builder and admin/test tools, so the periodic pass must stay alive for the whole world.
     GenericMachineGun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/machinegun.machinegun"));
     GenericPistol = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/pistol.pistol"));
     GenericSMG = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/uzi.uzi"));
     GenericShotgun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/shotgun.shotgun"));
 
-    // Apply to weapons that already exist at world begin immediately. The previous 0.20 s delay was
-    // enough for the source-only primitive to become visible for a frame or several frames during spawn.
     RefreshWeaponFallbacks();
 
-    // Keep scanning for weapons spawned later by deployment/admin/test-mode systems.
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
@@ -122,7 +117,6 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
     if (NativeLength <= 1.0f) return false;
 
-    // Hide every old static source-only primitive before the real imported fallback is registered.
     TArray<UStaticMeshComponent*> StaticComponents;
     Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
     for (UStaticMeshComponent* Existing : StaticComponents)
@@ -149,6 +143,7 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     Visual->SetGenerateOverlapEvents(false);
     Visual->SetCanEverAffectNavigation(false);
     Visual->ComponentTags.Add(RealFallbackComponentTag);
+    Visual->ComponentTags.Add(ProductionVisualTag);
     Weapon.AddInstanceComponent(Visual);
     Visual->RegisterComponent();
 
