@@ -57,10 +57,14 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
     VillageFenceA = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceA"));
     VillageFenceB = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceB"));
     VillageFenceC = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceC"));
+    VillageFenceD = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceD"));
 
     StreetLight = MakeVisualISM(this, SceneRoot, TEXT("RealStreetLight"));
     PowerPole = MakeVisualISM(this, SceneRoot, TEXT("RealPowerPole"));
-    Bridge = MakeVisualISM(this, SceneRoot, TEXT("RealBridge"));
+    BridgeA = MakeVisualISM(this, SceneRoot, TEXT("RealBridgeA"));
+    BridgeB = MakeVisualISM(this, SceneRoot, TEXT("RealBridgeB"));
+    BridgeC = MakeVisualISM(this, SceneRoot, TEXT("RealBridgeC"));
+    BridgeD = MakeVisualISM(this, SceneRoot, TEXT("RealBridgeD"));
     SideShed = MakeVisualISM(this, SceneRoot, TEXT("RealSideShed"));
     Crate = MakeVisualISM(this, SceneRoot, TEXT("RealCrate"));
     MetalBarrel = MakeVisualISM(this, SceneRoot, TEXT("RealMetalBarrel"));
@@ -69,6 +73,10 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
     Tire = MakeVisualISM(this, SceneRoot, TEXT("RealTire"));
     Bush = MakeVisualISM(this, SceneRoot, TEXT("RealBush"));
     Well = MakeVisualISM(this, SceneRoot, TEXT("RealWell"));
+    WellExtra01 = MakeVisualISM(this, SceneRoot, TEXT("RealWellExtra01"));
+    WellExtra02 = MakeVisualISM(this, SceneRoot, TEXT("RealWellExtra02"));
+    WellExtra03 = MakeVisualISM(this, SceneRoot, TEXT("RealWellExtra03"));
+    WellExtra04 = MakeVisualISM(this, SceneRoot, TEXT("RealWellExtra04"));
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshA(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01.SM_House_Var01"));
@@ -116,13 +124,21 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var02.SM_Fence_Var02"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> VillageFenceMeshC(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var03.SM_Fence_Var03"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> VillageFenceMeshD(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var04.SM_Fence_Var04"));
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> StreetLightMesh(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_StreetLight.SM_StreetLight"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PowerPoleMesh(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.Power_Pole_1"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> BridgeMesh(
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> BridgeMeshA(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Bridge_Var01.SM_Bridge_Var01"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> BridgeMeshB(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Bridge_Var02.SM_Bridge_Var02"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> BridgeMeshC(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Bridge_Var03.SM_Bridge_Var03"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> BridgeMeshD(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Bridge_Var04.SM_Bridge_Var04"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SideShedMesh(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Side_Shed.Side_Shed"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CrateMesh(
@@ -139,6 +155,14 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/Bush_1.Bush_1"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> WellMesh(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Well.SM_Well"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> WellExtraMesh01(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Well_Extra01.SM_Well_Extra01"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> WellExtraMesh02(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Well_Extra02.SM_Well_Extra02"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> WellExtraMesh03(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Well_Extra03.SM_Well_Extra03"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> WellExtraMesh04(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Well_Extra04.SM_Well_Extra04"));
 
     if (HouseMeshA.Succeeded()) HouseA->SetStaticMesh(HouseMeshA.Object);
     if (HouseMeshB.Succeeded()) HouseB->SetStaticMesh(HouseMeshB.Object);
@@ -164,10 +188,14 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
     if (VillageFenceMeshA.Succeeded()) VillageFenceA->SetStaticMesh(VillageFenceMeshA.Object);
     if (VillageFenceMeshB.Succeeded()) VillageFenceB->SetStaticMesh(VillageFenceMeshB.Object);
     if (VillageFenceMeshC.Succeeded()) VillageFenceC->SetStaticMesh(VillageFenceMeshC.Object);
+    if (VillageFenceMeshD.Succeeded()) VillageFenceD->SetStaticMesh(VillageFenceMeshD.Object);
 
     if (StreetLightMesh.Succeeded()) StreetLight->SetStaticMesh(StreetLightMesh.Object);
     if (PowerPoleMesh.Succeeded()) PowerPole->SetStaticMesh(PowerPoleMesh.Object);
-    if (BridgeMesh.Succeeded()) Bridge->SetStaticMesh(BridgeMesh.Object);
+    if (BridgeMeshA.Succeeded()) BridgeA->SetStaticMesh(BridgeMeshA.Object);
+    if (BridgeMeshB.Succeeded()) BridgeB->SetStaticMesh(BridgeMeshB.Object);
+    if (BridgeMeshC.Succeeded()) BridgeC->SetStaticMesh(BridgeMeshC.Object);
+    if (BridgeMeshD.Succeeded()) BridgeD->SetStaticMesh(BridgeMeshD.Object);
     if (SideShedMesh.Succeeded()) SideShed->SetStaticMesh(SideShedMesh.Object);
     if (CrateMesh.Succeeded()) Crate->SetStaticMesh(CrateMesh.Object);
     if (BarrelMesh.Succeeded()) MetalBarrel->SetStaticMesh(BarrelMesh.Object);
@@ -176,6 +204,10 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
     if (TireMesh.Succeeded()) Tire->SetStaticMesh(TireMesh.Object);
     if (BushMesh.Succeeded()) Bush->SetStaticMesh(BushMesh.Object);
     if (WellMesh.Succeeded()) Well->SetStaticMesh(WellMesh.Object);
+    if (WellExtraMesh01.Succeeded()) WellExtra01->SetStaticMesh(WellExtraMesh01.Object);
+    if (WellExtraMesh02.Succeeded()) WellExtra02->SetStaticMesh(WellExtraMesh02.Object);
+    if (WellExtraMesh03.Succeeded()) WellExtra03->SetStaticMesh(WellExtraMesh03.Object);
+    if (WellExtraMesh04.Succeeded()) WellExtra04->SetStaticMesh(WellExtraMesh04.Object);
 }
 
 void AOCAssetModelDecorator::PopulateForSector(AActor* SectorActor)
@@ -253,13 +285,35 @@ void AOCAssetModelDecorator::AddResidentialHouse(const FVector& Location, float 
 
 UInstancedStaticMeshComponent* AOCAssetModelDecorator::SelectResidentialFence(int32 VariantSeed) const
 {
-    switch (FMath::Abs(VariantSeed) % 4)
+    switch (FMath::Abs(VariantSeed) % 5)
     {
         case 1: return VillageFenceA && VillageFenceA->GetStaticMesh() ? VillageFenceA : OldFence;
         case 2: return VillageFenceB && VillageFenceB->GetStaticMesh() ? VillageFenceB : OldFence;
         case 3: return VillageFenceC && VillageFenceC->GetStaticMesh() ? VillageFenceC : OldFence;
+        case 4: return VillageFenceD && VillageFenceD->GetStaticMesh() ? VillageFenceD : OldFence;
         default: return OldFence;
     }
+}
+
+UInstancedStaticMeshComponent* AOCAssetModelDecorator::SelectBridge(int32 VariantSeed) const
+{
+    UInstancedStaticMeshComponent* Bridges[] = { BridgeA, BridgeB, BridgeC, BridgeD };
+    const int32 StartIndex = FMath::Abs(VariantSeed) % UE_ARRAY_COUNT(Bridges);
+    for (int32 Offset = 0; Offset < UE_ARRAY_COUNT(Bridges); ++Offset)
+    {
+        UInstancedStaticMeshComponent* Candidate = Bridges[(StartIndex + Offset) % UE_ARRAY_COUNT(Bridges)];
+        if (Candidate && Candidate->GetStaticMesh()) return Candidate;
+    }
+    return nullptr;
+}
+
+void AOCAssetModelDecorator::AddAuthoredWell(const FVector& Location, float YawDegrees,
+    const FVector& Scale, int32 VariantSeed)
+{
+    AddMeshInstance(Well, Location, YawDegrees, Scale);
+    UInstancedStaticMeshComponent* Extras[] = { WellExtra01, WellExtra02, WellExtra03, WellExtra04 };
+    const int32 Seed = FMath::Abs(VariantSeed);
+    AddMeshInstance(Extras[Seed % UE_ARRAY_COUNT(Extras)], Location, YawDegrees, Scale);
 }
 
 void AOCAssetModelDecorator::HideReplacedProxyComponents(AActor* SectorActor) const
@@ -509,9 +563,9 @@ void AOCAssetModelDecorator::BuildVegetationModels()
 
 void AOCAssetModelDecorator::BuildInfrastructureModels()
 {
-    // Real bridge art over the existing collision/deck proxies.
-    AddMeshInstance(Bridge, FVector(-17000.0f, -100000.0f, 0.0f), 87.0f, FVector(1.0f));
-    AddMeshInstance(Bridge, FVector(76000.0f, -65000.0f, 0.0f), 28.0f, FVector(0.95f));
+    // Keep the two existing bridge sites exactly where they were. Only the authored model family varies.
+    AddMeshInstance(SelectBridge(0), FVector(-17000.0f, -100000.0f, 0.0f), 87.0f, FVector(1.0f));
+    AddMeshInstance(SelectBridge(1), FVector(76000.0f, -65000.0f, 0.0f), 28.0f, FVector(0.95f));
 
     // Lighting along the central east-west corridor.
     for (int32 I = -6; I <= 6; ++I)
@@ -552,7 +606,7 @@ void AOCAssetModelDecorator::BuildAmbientProps()
     AddMeshInstance(MetalBarrel, YardA + FVector(1050, 650, 0), -8.0f);
     AddMeshInstance(Tire, YardA + FVector(1350, 420, 0), 42.0f);
 
-    AddMeshInstance(Well, YardB + FVector(1100, 1150, 0), 0.0f);
+    AddAuthoredWell(YardB + FVector(1100, 1150, 0), 0.0f, FVector(1.0f), 2);
     AddMeshInstance(Crate, YardB + FVector(-650, 850, 0), -32.0f);
 
     AddMeshInstance(ShoppingCart, YardC + FVector(900, -600, 0), 75.0f);
