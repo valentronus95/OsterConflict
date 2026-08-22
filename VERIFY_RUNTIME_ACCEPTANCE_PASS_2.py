@@ -12,6 +12,7 @@ FILES = {
     "frontend": ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp",
     "launcher": ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
     "production_import": ROOT / "OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
+    "source_recovery": ROOT / "OsterConflict/Scripts/prepare_local_production_sources.ps1",
 }
 
 
@@ -36,6 +37,7 @@ stabilizer = read("stabilizer")
 frontend = read("frontend")
 launcher = read("launcher")
 production_import = read("production_import")
+source_recovery = read("source_recovery")
 
 require(spawn_h, "virtual void BeginPlay() override;", "spawn header")
 for needle in (
@@ -84,11 +86,28 @@ for needle in (
     "The game will not launch with civilian pickup/proxy turret/proxy BTR geometry pretending to be final assets.",
 ):
     require(launcher, needle, "normal gameplay production gate")
+
 for needle in (
     "import_production_vehicle_assets.py",
+    "prepare_local_production_sources.ps1",
     "production_import_success.txt",
+    "-run=pythonscript",
+    '-script="%PY_SCRIPT%"',
+    "ProductionVehicleImport.log",
 ):
     require(production_import, needle, "full production importer")
+if "-ExecutePythonScript=" in production_import:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 2 FAIL: production importer still uses full-editor ExecutePythonScript route")
+
+for needle in (
+    "ukrainian_hmmwv_mk_19.glb",
+    "m2_50cal_machinegun_cc0.glb",
+    "BTR4_Bucephalus.fbx",
+    "OsterConflict_vehicle_assets_ready.zip",
+    "моделі.zip",
+    "Nothing is uploaded or committed.",
+):
+    require(source_recovery, needle, "local production source recovery")
 
 print("RUNTIME ACCEPTANCE PASS 2 SOURCE CONTRACT PASS")
 print("- menu geometry has one owner")
@@ -96,4 +115,6 @@ print("- serialized base spawn is reasserted near Museum at runtime")
 print("- foliage survives same-world frontend -> gameplay transition")
 print("- local tracer/muzzle presentation is rebased to visible weapon geometry")
 print("- normal gameplay is gated on full HMMWV + M2 + BTR production ingest")
+print("- missing local production sources are recovered from prior user downloads/ZIPs without branch mutation")
+print("- UE 5.8 production import uses the PythonScript commandlet and writes a dedicated import log")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
