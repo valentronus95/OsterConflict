@@ -14,11 +14,10 @@ namespace
 {
     constexpr float SectorMin = -96000.0f;
     constexpr float SectorMax = 96000.0f;
-    // Pass 14 performance budget: the old 9 m grid across 1.92 km could generate hundreds of
-    // thousands of grass instances. Keep environmental coverage but reduce both population work
-    // and the number of simultaneously visible instances on mid-range hardware.
-    constexpr float GridStep = 1600.0f;
-    constexpr int32 CellsPerBatch = 24;
+    // Pass 15 laptop recovery: Pass 14 was still visually unplayable at ~5 FPS in the real acceptance run.
+    // Keep HISM ground cover, but stop treating every few meters of a 1.92 km sector as a mandatory grass cell.
+    constexpr float GridStep = 2200.0f;
+    constexpr int32 CellsPerBatch = 12;
 
     UHierarchicalInstancedStaticMeshComponent* MakeFoliageHISM(
         AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh, const FName Name, int32 CullEndCm)
@@ -36,7 +35,7 @@ namespace
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(false);
-        Component->SetCullDistances(350, CullEndCm);
+        Component->SetCullDistances(300, CullEndCm);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;
@@ -145,7 +144,7 @@ void UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady()
         PopulationBatchTimer,
         this,
         &UOCDenseGroundFoliageSubsystem::PopulateBatch,
-        0.033f,
+        0.050f,
         true,
         0.0f);
 }
@@ -219,10 +218,10 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
         GrassComponents.Add(MakeFoliageHISM(
-            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 16000));
+            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 9000));
     }
-    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 12000);
-    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), 10000);
+    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 6500);
+    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), 4500);
 
     FoliageActor = Owner;
     RandomStream.Initialize(20260822);
@@ -233,7 +232,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     FlowerInstances = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS14_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=16000"),
+        TEXT("PASS15_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=9000"),
         GridStep, CellsPerBatch);
     return true;
 }
@@ -254,7 +253,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
     int32 Processed = 0;
     while (Processed < CellsPerBatch && CursorX <= SectorMax)
     {
-        const FVector2D Jitter(RandomStream.FRandRange(-500.0f, 500.0f), RandomStream.FRandRange(-500.0f, 500.0f));
+        const FVector2D Jitter(RandomStream.FRandRange(-700.0f, 700.0f), RandomStream.FRandRange(-700.0f, 700.0f));
         const FVector TraceStart(CursorX + Jitter.X, CursorY + Jitter.Y, 18000.0f);
         const FVector TraceEnd(CursorX + Jitter.X, CursorY + Jitter.Y, -3000.0f);
 
@@ -263,7 +262,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             Hit.bBlockingHit && !IsBlockedSurface(Hit) && Hit.ImpactNormal.Z >= 0.72f)
         {
             const FVector BaseLocation = Hit.ImpactPoint + Hit.ImpactNormal * 2.0f;
-            const int32 ClumpCount = RandomStream.RandRange(2, 3);
+            const int32 ClumpCount = RandomStream.RandRange(1, 2);
             for (int32 ClumpIndex = 0; ClumpIndex < ClumpCount; ++ClumpIndex)
             {
                 const int32 Variant = RandomStream.RandRange(0, GrassComponents.Num() - 1);
@@ -272,35 +271,35 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
                 if (!Grass) continue;
 
                 const FVector Offset(
-                    RandomStream.FRandRange(-520.0f, 520.0f),
-                    RandomStream.FRandRange(-520.0f, 520.0f),
+                    RandomStream.FRandRange(-700.0f, 700.0f),
+                    RandomStream.FRandRange(-700.0f, 700.0f),
                     RandomStream.FRandRange(-0.8f, 1.8f));
                 const float Yaw = RandomStream.FRandRange(0.0f, 360.0f);
-                const float Scale = RandomStream.FRandRange(0.80f, 1.20f);
+                const float Scale = RandomStream.FRandRange(0.80f, 1.16f);
                 Grass->AddInstance(FTransform(
                     FRotator(0.0f, Yaw, 0.0f), BaseLocation + Offset, FVector(Scale)), true);
                 ++GrassInstances;
             }
 
             if (UHierarchicalInstancedStaticMeshComponent* Plants = GroundPlants.Get();
-                Plants && RandomStream.FRand() < 0.12f)
+                Plants && RandomStream.FRand() < 0.08f)
             {
                 Plants->AddInstance(FTransform(
                     FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(RandomStream.FRandRange(-520.0f, 520.0f),
-                        RandomStream.FRandRange(-520.0f, 520.0f), 1.0f),
-                    FVector(RandomStream.FRandRange(0.70f, 1.04f))), true);
+                    BaseLocation + FVector(RandomStream.FRandRange(-700.0f, 700.0f),
+                        RandomStream.FRandRange(-700.0f, 700.0f), 1.0f),
+                    FVector(RandomStream.FRandRange(0.70f, 1.02f))), true);
                 ++PlantInstances;
             }
 
             if (UHierarchicalInstancedStaticMeshComponent* FlowerComponent = Flowers.Get();
-                FlowerComponent && RandomStream.FRand() < 0.025f)
+                FlowerComponent && RandomStream.FRand() < 0.015f)
             {
                 FlowerComponent->AddInstance(FTransform(
                     FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(RandomStream.FRandRange(-500.0f, 500.0f),
-                        RandomStream.FRandRange(-500.0f, 500.0f), 1.0f),
-                    FVector(RandomStream.FRandRange(0.64f, 0.90f))), true);
+                    BaseLocation + FVector(RandomStream.FRandRange(-680.0f, 680.0f),
+                        RandomStream.FRandRange(-680.0f, 680.0f), 1.0f),
+                    FVector(RandomStream.FRandRange(0.64f, 0.88f))), true);
                 ++FlowerInstances;
             }
         }
