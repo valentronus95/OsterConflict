@@ -250,13 +250,30 @@ if "%IS_ACCEPTANCE%"=="1" (
     exit /b 22
   )
 
-  findstr /C:"PASS7_PRODUCTION_VEHICLES_READY" "%PLAYTEST_LOG%" >nul
-  if errorlevel 1 (
-    echo [STOP] No production vehicle READY marker was recorded.
-    echo Complete the actual gameplay deployment and remain in the runtime long enough for vehicle validation.
+  findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] Production weapon runtime validation failed. Primitive Museum-rack weapon fallbacks are not accepted.
     echo Log: %PLAYTEST_LOG%
     pause
     exit /b 23
+  )
+
+  findstr /C:"PASS7_PRODUCTION_VEHICLES_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No production vehicle READY marker was recorded.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 24
+  )
+
+  findstr /C:"PASS7_PRODUCTION_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No production weapon READY marker was recorded for the Museum 11-weapon rack.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 25
   )
 
   findstr /C:"PASS7_MUSEUM_BASES_READY" "%PLAYTEST_LOG%" >nul
@@ -265,10 +282,11 @@ if "%IS_ACCEPTANCE%"=="1" (
     echo The acceptance run did not prove the Museum spawn route.
     echo Log: %PLAYTEST_LOG%
     pause
-    exit /b 24
+    exit /b 26
   )
 
   echo [ACCEPTANCE] PASS7_PRODUCTION_VEHICLES_READY found.
+  echo [ACCEPTANCE] PASS7_PRODUCTION_WEAPONS_READY found.
   echo [ACCEPTANCE] PASS7_MUSEUM_BASES_READY found.
   echo [ACCEPTANCE] Automated runtime evidence gates passed. Visual/UI checklist still requires direct observation.
 )
