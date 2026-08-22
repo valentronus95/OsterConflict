@@ -38,7 +38,12 @@ static_assets = (
 )
 
 for label, asset_path, object_tail in static_assets:
-    require(preflight, f'("{label}", "{asset_path}", unreal.StaticMesh)', f"{label} preflight StaticMesh contract")
+    static_line = f'("{label}", "{asset_path}", unreal.StaticMesh)'
+    skeletal_line = f'("{label}", "{asset_path}", unreal.SkeletalMesh)'
+    require(preflight, static_line, f"{label} preflight StaticMesh contract")
+    if skeletal_line in preflight:
+        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 5 FAIL: {label} reverted to false SkeletalMesh preflight contract")
+
     # The runtime validator uses the object path form with .ObjectName and must expect Static.
     object_path = asset_path + "." + object_tail.split(".")[-1]
     require(validator, f'TEXT("{object_path}"), EExpectedWeaponMeshKind::Static', f"{label} runtime StaticMesh contract")
@@ -48,9 +53,6 @@ for label, asset_path, object_tail in static_assets:
 require(variants, "UPrimitiveComponent* ApplySkeletalProductionWeapon", "dual-class production weapon loader")
 require(variants, "return ApplyStaticProductionWeapon(Owner, Root, AssetPath, ComponentBaseName, DesiredLengthCm);", "StaticMesh fallback for SKM-named R13 assets")
 require(variants, "OC_ProductionWeaponVisual", "production visual tag")
-
-if 'unreal.SkeletalMesh),\n    ("MP5"' in preflight:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 5 FAIL: MP5 reverted to false SkeletalMesh preflight contract")
 
 print("RUNTIME ACCEPTANCE PASS 5 SOURCE CONTRACT PASS")
 print("- local UE 5.8 asset classes, not SKM_ filename prefixes, define the R13 Stein mesh contract")
