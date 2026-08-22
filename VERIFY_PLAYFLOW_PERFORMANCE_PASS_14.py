@@ -10,6 +10,8 @@ FRONTEND = SRC / "Private" / "OCR13FrontendMenuSubsystem.cpp"
 GAME_MODE = SRC / "Private" / "OCGameMode.cpp"
 FOLIAGE = SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp"
 ENV = SRC / "Private" / "OCVisualEnvironment.cpp"
+PERF_H = SRC / "Public" / "OCPerformanceSampleSubsystem.h"
+PERF = SRC / "Private" / "OCPerformanceSampleSubsystem.cpp"
 IMPORTER = ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 MAIN_LAUNCHER = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 RUNTIME_LAUNCHER = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
@@ -36,6 +38,8 @@ frontend = read(FRONTEND)
 game_mode = read(GAME_MODE)
 foliage = read(FOLIAGE)
 env = read(ENV)
+perf_h = read(PERF_H)
+perf = read(PERF)
 importer = read(IMPORTER)
 main_launcher = read(MAIN_LAUNCHER)
 runtime_launcher = read(RUNTIME_LAUNCHER)
@@ -111,6 +115,25 @@ for needle in (
 forbid(env, 'SetRealTimeCaptureEnabled(true)', "continuous skylight capture")
 forbid(env, 'SetDynamicShadowDistanceMovableLight(30000.0f)', "old 300 m movable shadow range")
 
+# Runtime FPS evidence starts only after a local gameplay pawn exists and records a stable 10s sample.
+for needle in (
+    'UOCPerformanceSampleSubsystem : public UTickableWorldSubsystem',
+    'WarmupSeconds',
+    'SampleSeconds',
+    'WorstFrameSeconds',
+):
+    require(perf_h, needle, "performance sampler header")
+for needle in (
+    'PC->GetPawn() == nullptr',
+    'WarmupSeconds < 5.0f',
+    'SampleSeconds < 10.0f',
+    'PASS14_PERF_SAMPLE',
+    'PASS14_PERF_BELOW_TARGET',
+    'PASS14_PERF_30FPS_READY',
+    'AverageFps < 30.0f',
+):
+    require(perf, needle, "performance sampler")
+
 # The user's production-source failure came from a quoted path ending in backslash. Use a quote-safe . form.
 for needle in (
     'set "RECOVERY_PROJECT_DIR=%~dp0."',
@@ -126,13 +149,16 @@ for needle in (
 ):
     require(main_launcher, needle, "production importer fail-closed launcher")
 
-# Dedicated runtime acceptance checks the user-visible flow and the new runtime budget markers.
+# Dedicated runtime acceptance checks the user-visible flow and measured performance.
 for needle in (
     'RUN_R14_CURRENT_GAMEPLAY.cmd',
     'PASS14_MAIN_START_OPENS_SERVER_SETUP',
     'PASS14_HOST_TRAVEL_BEGIN',
     'PASS14_FRONTEND_TRAVEL_HANDOFF_READY',
     'PASS14_FOLIAGE_BUDGET_READY',
+    'PASS14_PERF_SAMPLE',
+    'PASS14_PERF_BELOW_TARGET',
+    'PASS14_PERF_30FPS_READY',
     'R14_CURRENT_GAMEPLAY.log',
 ):
     require(runtime_launcher, needle, "Pass 14 runtime launcher")
@@ -143,5 +169,6 @@ print("- host creation exposes MaxPlayers/Bots/BotDifficulty and normal Deployme
 print("- post-travel -Frontend resurrection is suppressed before Deployment")
 print("- dense foliage CPU/instance/draw-distance budgets were reduced after the 4-7 FPS playtest")
 print("- realtime skylight capture and 300 m movable-shadow range are retired")
+print("- a 5s warmup + 10s gameplay sample records average/worst-frame FPS and a 30 FPS readiness marker")
 print("- production model source recovery now receives a quote-safe project directory")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile and measured runtime FPS still required")
