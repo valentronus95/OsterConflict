@@ -183,7 +183,14 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
     if (bSettingsVisible)
     {
-        SetPresentationVisibility(false, !bLiveGameplay, bLiveGameplay);
+        // Settings opened from the pre-game frontend must never reveal the live 3D world. A leaked/transient pawn
+        // is not sufficient evidence that this is a gameplay pause. Only the explicit pause-menu state may dim gameplay.
+        const bool bSettingsOverGameplay = bPauseMenuActive && bLiveGameplay;
+        if (UBorder* SettingsPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("SettingsPanel"))))
+        {
+            SettingsPanel->SetBrushColor(FLinearColor(0.045f, 0.055f, 0.066f, 1.0f));
+        }
+        SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);
         return;
     }
 
@@ -622,7 +629,10 @@ void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: settings pressed"));
     if (AOCPlayerController* PC = ActiveController.Get())
     {
-        SetPresentationVisibility(false, false, false);
+        const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);
+        // Preserve the correct backing layer before UIOpenSettings flips the visibility state. Otherwise one rendered
+        // frame can expose the 3D world while the settings panel is being shown.
+        SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);
         PC->UIOpenSettings();
     }
 }

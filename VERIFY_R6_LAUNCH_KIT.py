@@ -79,12 +79,18 @@ req(start.count('goto menu') >= 3 and start.count('call "%~dp0') >= 2,
     'START_HERE dispatches its active actions through explicit conditional blocks')
 
 # Normal playtest must never silently run stale source or a proxy-content acceptance build.
+# main remains a strict origin/main check, while fix/runtime-acceptance-* may be tested pre-merge against its own remote head.
+req('set "FETCH_BRANCH=main"' in normal and 'set "REMOTE_REF=origin/main"' in normal,
+    'main normal-game route still verifies origin/main')
+req('findstr /B /I /C:"fix/runtime-acceptance-"' in normal and
+    'set "REMOTE_REF=origin/%CURRENT_BRANCH%"' in normal,
+    'isolated runtime-acceptance branch route exists for pre-merge UE testing')
 for marker in [
     'git branch --show-current',
-    'git fetch origin main',
+    'git fetch origin "%FETCH_BRANCH%"',
     'git rev-parse HEAD',
-    'git rev-parse origin/main',
-    'Local main is not current GitHub main.',
+    'git rev-parse "%REMOTE_REF%"',
+    'Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%.',
     'Building current OsterConflictEditor',
     'IMPORT_PRODUCTION_VEHICLES_UE58.cmd',
     'Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets',

@@ -54,11 +54,11 @@ namespace
         }
         else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
         {
-            // "Появитися" is a Russian calque and reads badly in the Ukrainian game UI.
-            // Keep the action concise and consistent with the main entry action.
+            // Keep the final deployment action distinct from the main-menu START action.
+            // Reusing START here made the normal flow read as if the player had to start the game twice.
             if (Text->GetText().ToString().Equals(TEXT("ПОЯВИТИСЯ"), ESearchCase::CaseSensitive))
             {
-                Text->SetText(NSLOCTEXT("OCR13DeploymentPresentation", "DeployStart", "СТАРТ"));
+                Text->SetText(NSLOCTEXT("OCR13DeploymentPresentation", "DeployEnterBattle", "У БІЙ"));
             }
         }
 
