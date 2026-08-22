@@ -32,9 +32,19 @@ namespace
         Component->SetRelativeRotation(FRotator::ZeroRotator);
         Component->SetRelativeScale3D(Scale);
         Component->SetRelativeLocation(Location);
-        // Remove fallback component overrides while retaining the BTR mesh's imported materials.
         Component->EmptyOverrideMaterials();
         return true;
+    }
+
+    void DisableVisualProxy(UStaticMeshComponent* Component)
+    {
+        if (!Component) return;
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(false);
     }
 }
 
@@ -156,8 +166,6 @@ void AOCBTR::ApplyVehicleStyle()
         if (UStaticMesh* ProductionBTR4 = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus")))
         {
-            // The source is already close to the real BTR-4E dimensions. Fit it lightly, then put
-            // the wheel bottoms on the same ground plane as the authoritative 8-wheel suspension.
             bUsingBTR4 = ApplyFittedBTRMesh(Chassis, ProductionBTR4, FVector(776.0f, 293.0f, 300.0f), -98.0f);
         }
     }
@@ -172,20 +180,17 @@ void AOCBTR::ApplyVehicleStyle()
         };
         for (UStaticMeshComponent* Component : ProxyParts)
         {
-            if (Component) Component->SetVisibility(false, true);
+            DisableVisualProxy(Component);
         }
         for (UStaticMeshComponent* Wheel : WheelVisuals)
         {
-            if (Wheel) Wheel->SetVisibility(false, true);
+            DisableVisualProxy(Wheel);
         }
 
-        // The uploaded FBX currently arrives as one combined shell. Hide the old primitive turret
-        // so we do not render a cube/cylinder assembly through the authored BTR-4 model. Turret
-        // gameplay, aim limits, muzzle trace and damage remain authoritative on TurretPivot.
-        if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
-        if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+        DisableVisualProxy(TurretBaseMesh);
+        DisableVisualProxy(BarrelMesh);
 
-        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell."));
+        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell; visual proxies disabled."));
     }
     else if (Chassis)
     {
