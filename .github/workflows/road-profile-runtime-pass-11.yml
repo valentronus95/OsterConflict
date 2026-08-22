@@ -1,0 +1,33 @@
+name: Road profile runtime acceptance pass 11
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRoadProfileRuntimeCorrectionSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRoadProfileRuntimeCorrectionSubsystem.h'
+      - 'RUN_R14_ROAD_PROFILE_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_ROAD_PROFILE_RUNTIME_PASS_11.py'
+      - '.github/workflows/road-profile-runtime-pass-11.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRoadProfileRuntimeCorrectionSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRoadProfileRuntimeCorrectionSubsystem.h'
+      - 'RUN_R14_ROAD_PROFILE_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_ROAD_PROFILE_RUNTIME_PASS_11.py'
+      - '.github/workflows/road-profile-runtime-pass-11.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify road profile runtime correction contracts
+        run: python VERIFY_ROAD_PROFILE_RUNTIME_PASS_11.py
