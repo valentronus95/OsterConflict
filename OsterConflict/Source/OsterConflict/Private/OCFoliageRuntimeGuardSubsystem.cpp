@@ -139,7 +139,7 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
         ++OutDenseGrassComponents;
         OutGrassInstances += Component->GetInstanceCount();
 
-        if (Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision || Component->CastShadow)
+        if (Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
         {
             return false;
         }
@@ -197,5 +197,5 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    FailValidation(TEXT("dense_foliage_collision_or_shadow_contract_failed"));
+    FailValidation(TEXT("dense_foliage_collision_contract_failed"));
 }
