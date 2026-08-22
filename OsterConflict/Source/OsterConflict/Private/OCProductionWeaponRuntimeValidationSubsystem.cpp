@@ -115,28 +115,30 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
 {
     const bool bHeadlessGate = FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeaponsHeadless"));
 
+    // Local UE 5.8 runtime inspection is authoritative. The restored Stein objects retain SKM_* names,
+    // but the asset class is StaticMesh for these seven weapons. AK-47 remains a real SkeletalMesh.
     const FExpectedWeaponVisual Expectations[] =
     {
         { TEXT("AK-47"), FName(TEXT("OC_AR1")), AOCWeapon_AssaultRifle::StaticClass(),
             TEXT("/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47"), EExpectedWeaponMeshKind::Skeletal },
         { TEXT("MP5"), FName(TEXT("OC_SMG1")), AOCWeapon_SMG::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/MP5/SKM_MP5.SKM_MP5"), EExpectedWeaponMeshKind::Static },
         { TEXT("M1911"), FName(TEXT("OC_PST1")), AOCWeapon_Pistol::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/1911/SKM_1911.SKM_1911"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/1911/SKM_1911.SKM_1911"), EExpectedWeaponMeshKind::Static },
         { TEXT("M700"), FName(TEXT("OC_SNP1")), AOCWeapon_Sniper::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), EExpectedWeaponMeshKind::Static },
         { TEXT("Remington 870"), FName(TEXT("OC_SG1")), AOCWeapon_Shotgun::StaticClass(),
             TEXT("/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"), EExpectedWeaponMeshKind::Static },
         { TEXT("M249"), FName(TEXT("OC_LMG1")), AOCWeapon_LMG::StaticClass(),
             TEXT("/Game/Production/Weapons/M249/SM_M249.SM_M249"), EExpectedWeaponMeshKind::Static },
         { TEXT("M14"), FName(TEXT("R13_M14")), AOCWeapon_M14::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/M14/SKM_M14.SKM_M14"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/M14/SKM_M14.SKM_M14"), EExpectedWeaponMeshKind::Static },
         { TEXT("MAC-10"), FName(TEXT("R13_MAC10")), AOCWeapon_Mac10::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/Mac10/SKM_Mac10.SKM_Mac10"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/Mac10/SKM_Mac10.SKM_Mac10"), EExpectedWeaponMeshKind::Static },
         { TEXT("TEC-9"), FName(TEXT("R13_TEC9")), AOCWeapon_Tec9::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/Tec9/SKM_Tec9.SKM_Tec9"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/Tec9/SKM_Tec9.SKM_Tec9"), EExpectedWeaponMeshKind::Static },
         { TEXT("Lever Action .45-70"), FName(TEXT("R13_LEVER4570")), AOCWeapon_LeverAction::StaticClass(),
-            TEXT("/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction.SKM_LeverAction"), EExpectedWeaponMeshKind::Skeletal },
+            TEXT("/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction.SKM_LeverAction"), EExpectedWeaponMeshKind::Static },
         { TEXT("Anti-Armor Launcher"), FName(TEXT("OC_RPG1")), AOCAntiArmorLauncher::StaticClass(),
             TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern"), EExpectedWeaponMeshKind::Static },
     };
