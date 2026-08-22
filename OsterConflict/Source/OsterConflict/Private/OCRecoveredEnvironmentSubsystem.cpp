@@ -18,29 +18,17 @@ namespace
 
 bool UOCRecoveredEnvironmentSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-    if (!Super::ShouldCreateSubsystem(Outer)) return false;
-    const UWorld* World = Cast<UWorld>(Outer);
-    return World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
+    // Retired by the world/model fidelity pass. The remaining implementation only placed three
+    // SM_Forest_Path meshes at raw local coordinates. No photo, satellite, drone or georeference
+    // evidence in the project ties those three placements to real Oster paths, so keeping this
+    // subsystem active would preserve invented geography merely because an asset happens to exist.
+    // Keep the implementation below for history/compatibility until the sites can be evidence-backed.
+    return false;
 }
 
 void UOCRecoveredEnvironmentSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
-
-    if (InWorld.GetNetMode() == NM_DedicatedServer) return;
-    if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-
-    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
-    {
-        if (GameMode->IsFrontendOnlySession()) return;
-    }
-
-    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    InWorld.GetTimerManager().SetTimerForNextTick(
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-        {
-            if (UWorld* World = WeakWorld.Get()) TryPopulate(*World);
-        }));
 }
 
 void UOCRecoveredEnvironmentSubsystem::TryPopulate(UWorld& World)
@@ -107,6 +95,8 @@ void UOCRecoveredEnvironmentSubsystem::Populate(UWorld& World)
     if (bPopulated) return;
     bPopulated = true;
 
+    // Historical implementation retained below for audit/recovery only. ShouldCreateSubsystem()
+    // prevents these unverified raw-coordinate placements from entering runtime worlds.
     UStaticMesh* ForestPathMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/TileableForestRoad/Meshes/SM_Forest_Path.SM_Forest_Path"));
     if (!ForestPathMesh)
@@ -141,8 +131,6 @@ void UOCRecoveredEnvironmentSubsystem::Populate(UWorld& World)
             FVector(10400.0f, 4500.0f, 180.0f), -38.0f);
     }
 
-    // The former unfinished-building showcase at (-69000,64500) was intentionally removed.
-    // It had no evidence-backed Oster site and two runtime subsystems were acting as its owners.
     UE_LOG(LogTemp, Display,
-        TEXT("Recovered environment models placed: forest-road outskirts only; unverified unfinished-building site is disabled."));
+        TEXT("Recovered environment historical implementation populated; runtime creation is currently retired pending evidence-backed sites."));
 }
