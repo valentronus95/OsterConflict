@@ -29,15 +29,12 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     if (!PC || !PC->IsLocalController()) return;
 
-    // World-render suppression is allowed only before a gameplay pawn exists. A stale deployment/settings flag
-    // must never leave an already possessed player on the black HUD-only screen seen in the 2026-08-21 regression.
     const bool bHasGameplayPawn = IsValid(PC->GetPawn());
-    const bool bPreGamePresentationVisible = !bHasGameplayPawn &&
-        (PC->IsFrontendMenuVisible() || PC->IsSettingsVisible() || PC->IsDeploymentPanelVisible());
-    SetWorldRenderingSuppressed(bPreGamePresentationVisible);
 
-    // Only the startup main menu gets hard widget-layer isolation. Deployment/settings need their own root widgets.
-    const bool bStartupMenuVisible = PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible() && !bHasGameplayPawn;
+    SetWorldRenderingSuppressed(false);
+
+    const bool bStartupShell = !bHasGameplayPawn &&
+        !PC->IsSettingsVisible() && !PC->IsDeploymentPanelVisible();
 
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
@@ -51,13 +48,11 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     if (!Root) return;
 
     StabilizeDeployment(Root);
-    ApplyStartupIsolation(Root, bStartupMenuVisible);
+    ApplyStartupIsolation(Root, bStartupShell);
 }
 
 void UOCR13UIViewportStabilizerSubsystem::Deinitialize()
 {
-    // GameViewportClient survives world travel. Never allow a frontend world teardown to leave rendering disabled
-    // for the newly opened gameplay world.
     SetWorldRenderingSuppressed(false);
     StartupSuppressedWidgets.Reset();
     bStartupIsolationActive = false;
@@ -151,10 +146,6 @@ void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWid
             else if (ZOrder >= 73 && ZOrder <= 77) Slot->SetZOrder(9003 + (ZOrder - 73));
         }
 
-        // StartLocalGameplay initiates map travel from the frontend world. Its presentation layer can be collapsed
-        // during the same input event before UE tears the old world down, which exposed one empty/grey frame.
-        // As long as the authoritative frontend state still says this is the startup shell, keep the opaque fallback
-        // and approved menu image alive. The new gameplay world destroys these widgets naturally during travel.
         if (UWidget* MenuBlocker = Root->GetWidgetFromName(TEXT("R13_MenuWorldBlocker")))
         {
             MenuBlocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -169,9 +160,6 @@ void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWid
             MenuPanel->SetClipping(EWidgetClipping::ClipToBounds);
             if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(MenuPanel->Slot))
             {
-                // Geometry has one owner: OCR13FrontendMenuSubsystem. The old stabilizer overwrote
-                // (112,92 / 440x760) with (90,60 / 470x780), which is the visible jump after START.
-                // Isolation may raise Z-order, but must never move or resize the approved menu composition.
                 Slot->SetZOrder(9010);
             }
         }
