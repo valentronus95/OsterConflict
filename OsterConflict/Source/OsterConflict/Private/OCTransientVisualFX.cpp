@@ -8,6 +8,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
@@ -67,8 +68,6 @@ namespace
             LocalMuzzle.Z = LocalShot.Z >= 0.0f ? LocalMax.Z : LocalMin.Z;
         }
 
-        // Imported weapon axes differ between packs. Bias the inferred barrel end toward world-up in
-        // component-local space instead of assuming local Z is always the top of the gun.
         const FVector LocalUp = Transform.InverseTransformVectorNoScale(FVector::UpVector).GetSafeNormal();
         const float UpExtent =
             FMath::Abs(LocalUp.X) * Extent.X +
@@ -83,39 +82,61 @@ namespace
         return true;
     }
 
-    bool IsOnLocalAimRay(const FVector& ViewLocation, const FVector& Point, const FVector& Direction)
+    bool IsOnAimRay(const FVector& ViewLocation, const FVector& Point, const FVector& Direction,
+        float& OutPerpendicularDistanceSquared)
     {
         const FVector ViewToPoint = Point - ViewLocation;
         const float Along = FVector::DotProduct(ViewToPoint, Direction);
         if (Along <= 0.0f) return false;
 
         const FVector Perpendicular = ViewToPoint - Direction * Along;
-        return Perpendicular.SizeSquared() <= FMath::Square(115.0f);
+        OutPerpendicularDistanceSquared = Perpendicular.SizeSquared();
+        return OutPerpendicularDistanceSquared <= FMath::Square(115.0f);
     }
 
-    FVector ResolveLocalWeaponMuzzle(UWorld* World, const FVector& NetworkStart, const FVector& Direction)
+    AOCWeaponBase* ResolveFiringWeapon(UWorld* World, const FVector& NetworkStart, const FVector& Direction)
+    {
+        if (!World) return nullptr;
+        const FVector SafeDirection = Direction.GetSafeNormal();
+        if (SafeDirection.IsNearlyZero()) return nullptr;
+
+        AOCWeaponBase* BestWeapon = nullptr;
+        float BestScore = TNumericLimits<float>::Max();
+
+        for (TActorIterator<AOCCharacter> It(World); It; ++It)
+        {
+            AOCCharacter* Character = *It;
+            AOCWeaponBase* Weapon = Character ? Character->GetCurrentWeapon() : nullptr;
+            if (!Character || !Weapon || Weapon->IsWorldPickup()) continue;
+
+            const FVector ViewLocation = Character->GetPawnViewLocation();
+            const float NearDistanceSquared = FVector::DistSquared(ViewLocation, NetworkStart);
+            const bool bNearView = NearDistanceSquared <= FMath::Square(110.0f);
+
+            float PerpendicularDistanceSquared = TNumericLimits<float>::Max();
+            const bool bOnAimRay = IsOnAimRay(ViewLocation, NetworkStart, SafeDirection, PerpendicularDistanceSquared);
+            if (!bNearView && !bOnAimRay) continue;
+
+            const float Score = bNearView ? NearDistanceSquared : (FMath::Square(110.0f) + PerpendicularDistanceSquared);
+            if (Score < BestScore)
+            {
+                BestScore = Score;
+                BestWeapon = Weapon;
+            }
+        }
+
+        return BestWeapon;
+    }
+
+    FVector ResolveWeaponMuzzle(UWorld* World, const FVector& NetworkStart, const FVector& Direction)
     {
         if (!World) return NetworkStart;
 
         const FVector SafeDirection = Direction.GetSafeNormal();
         if (SafeDirection.IsNearlyZero()) return NetworkStart;
 
-        APlayerController* PC = World->GetFirstPlayerController();
-        AOCCharacter* Character = PC ? Cast<AOCCharacter>(PC->GetPawn()) : nullptr;
-        AOCWeaponBase* Weapon = Character ? Character->GetCurrentWeapon() : nullptr;
-        if (!PC || !Character || !Weapon || Weapon->IsWorldPickup()) return NetworkStart;
-
-        FVector ViewLocation;
-        FRotator ViewRotation;
-        PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
-        // Muzzle FX receives the camera trace origin, while tracer FX receives the near-target start
-        // of the short network streak. Accept either a point close to the local camera or a point lying
-        // on the local aim ray. This keeps remote players' multicast tracers from being rebound to the
-        // local weapon while allowing the local streak to originate at the visible barrel.
-        const bool bNearView = FVector::DistSquared(ViewLocation, NetworkStart) <= FMath::Square(90.0f);
-        const bool bOnLocalAimRay = IsOnLocalAimRay(ViewLocation, NetworkStart, SafeDirection);
-        if (!bNearView && !bOnLocalAimRay) return NetworkStart;
+        AOCWeaponBase* Weapon = ResolveFiringWeapon(World, NetworkStart, SafeDirection);
+        if (!Weapon) return NetworkStart;
 
         TArray<UPrimitiveComponent*> Components;
         Weapon->GetComponents<UPrimitiveComponent>(Components);
@@ -142,8 +163,11 @@ namespace
             const bool bSocket = TryResolveSocketMuzzle(*Component, Candidate);
             if (!bSocket && !TryResolveBoundsMuzzle(*Component, SafeDirection, Candidate)) continue;
 
-            const float DistanceFromView = FVector::Distance(ViewLocation, Candidate);
-            if (DistanceFromView < 20.0f || DistanceFromView > 260.0f) continue;
+            const float DistanceFromTraceOrigin = FVector::Distance(NetworkStart, Candidate);
+            if (DistanceFromTraceOrigin < 4.0f && FVector::DistSquared(NetworkStart, WeaponOrigin) < FMath::Square(300.0f))
+            {
+                continue;
+            }
 
             const FString ComponentName = Component->GetName();
             const bool bNamedBarrel = ComponentName.Contains(TEXT("barrel"), ESearchCase::IgnoreCase) ||
@@ -207,14 +231,12 @@ void AOCTransientVisualFX::ConfigureTracer(const FVector& Start, const FVector& 
 {
     const FVector NetworkDelta = End - Start;
     const FVector NetworkDirection = NetworkDelta.GetSafeNormal();
-    const FVector VisualStart = ResolveLocalWeaponMuzzle(GetWorld(), Start, NetworkDirection);
+    const FVector VisualStart = ResolveWeaponMuzzle(GetWorld(), Start, NetworkDirection);
     const bool bRebasedToMuzzle = !VisualStart.Equals(Start, 1.0f);
 
     FVector VisualEnd = End;
     if (bRebasedToMuzzle)
     {
-        // The server multicasts a short target-side streak. Once the local player's streak is rebound
-        // to the barrel, keep it short there as well instead of turning it into a full laser to the hit.
         const float DistanceToEnd = FVector::Distance(VisualStart, End);
         VisualEnd = VisualStart + NetworkDirection * FMath::Min(DistanceToEnd, 900.0f);
     }
@@ -283,7 +305,7 @@ void AOCTransientVisualFX::ConfigureMuzzle(const FVector& Location, const FVecto
     }
 
     const FVector SafeDirection = Direction.GetSafeNormal();
-    const FVector VisualMuzzle = ResolveLocalWeaponMuzzle(GetWorld(), Location, SafeDirection);
+    const FVector VisualMuzzle = ResolveWeaponMuzzle(GetWorld(), Location, SafeDirection);
     SetActorLocation(VisualMuzzle + SafeDirection * 7.0f);
     SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, SafeDirection));
     Mesh->SetRelativeScale3D(FVector(0.020f, 0.020f, 0.10f));
