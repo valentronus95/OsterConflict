@@ -34,7 +34,11 @@ quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
 req('bReplicates = true' in env_cpp and 'bAlwaysRelevant = true' in env_cpp, 'daylight rig reaches network clients')
 req('SetAtmosphereSunLight(true)' in env_cpp and 'SetRealTimeCaptureEnabled(true)' in env_cpp, 'sun/sky runtime lighting configured')
-req('SetFogDensity(0.0085f)' in env_cpp and 'SetVolumetricFog(false)' in env_cpp, 'lightweight atmospheric depth configured')
+# Current art-QA direction intentionally removes height-fog colour grading. Atmospheric depth now comes
+# from the explicit Rayleigh/Mie SkyAtmosphere coefficients, while fog density/opacity stay at zero.
+req('SetRayleighScatteringScale(1.0f)' in env_cpp and 'SetMieScatteringScale(1.0f)' in env_cpp and
+    'SetFogDensity(0.0f)' in env_cpp and 'SetFogMaxOpacity(0.0f)' in env_cpp and
+    'SetVolumetricFog(false)' in env_cpp, 'neutral sky atmosphere configured without legacy haze')
 req('SpawnActor<AOCVisualEnvironment>' in gm, 'GameMode spawns visual environment')
 req(gm.find('SpawnActor<AOCVisualEnvironment>') < gm.find('SpawnActor<AOCWorldSectorOster>'), 'lighting spawns before source world')
 
