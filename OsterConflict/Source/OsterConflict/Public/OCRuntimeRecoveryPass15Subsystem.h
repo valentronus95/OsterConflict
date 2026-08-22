@@ -28,8 +28,10 @@ private:
     TWeakObjectPtr<UButton> BoundPrimaryButton;
     FTimerHandle HostFallbackTimer;
     bool bStylePassLogged = false;
+    bool bJoinPending = false;
 
     void ApplyFrontendRepairs();
+    void ApplyJoinPendingOverlay(UOCGameUIRootWidget* Root);
     void BindPrimaryFallback(UOCGameUIRootWidget* Root);
     void RecoverConnectionFailure(AOCPlayerController* PC);
     void RunHostTravelFallback();
