@@ -54,6 +54,10 @@ def main() -> int:
             "SM_Fence_Var01.uasset",
             "SM_Fence_Var02.uasset",
             "SM_Fence_Var03.uasset",
+            "SM_Fence_Var04.uasset",
+            *[f"SM_Bridge_Var{i:02d}.uasset" for i in range(1, 5)],
+            "SM_Well.uasset",
+            *[f"SM_Well_Extra{i:02d}.uasset" for i in range(1, 5)],
         ]
         for asset in required_assets:
             require((CONTENT / asset).is_file(), f"required authored world asset missing: {asset}")
@@ -78,29 +82,49 @@ def main() -> int:
 
         require_text(header, "AddResidentialHouse", "residential variant helper")
         require_text(header, "SelectResidentialFence", "residential fence selector")
+        require_text(header, "SelectBridge", "bridge family selector")
+        require_text(header, "AddAuthoredWell", "authored well helper")
         for index in range(1, 9):
             require_text(header, f"HouseAExtra{index:02d}", "house authored extras")
         require_text(header, "HouseBExtra", "house B authored extra")
         require_text(header, "TreeD", "tree family expansion")
         require_text(header, "TreeE", "tree family expansion")
-        require_text(header, "VillageFenceA", "fence family expansion")
-        require_text(header, "VillageFenceB", "fence family expansion")
-        require_text(header, "VillageFenceC", "fence family expansion")
+        for suffix in "ABCD":
+            require_text(header, f"VillageFence{suffix}", "fence family expansion")
+            require_text(header, f"Bridge{suffix}", "bridge family expansion")
+        for index in range(1, 5):
+            require_text(header, f"WellExtra{index:02d}", "well authored extras")
 
         for index in range(1, 9):
             require_text(cpp, f"SM_House_Var01_Extra{index:02d}", "house extra runtime path")
         require_text(cpp, "SM_House_Var02_Extra", "house B extra runtime path")
         require_text(cpp, "SM_Tree_Var04", "tree 04 runtime path")
         require_text(cpp, "SM_Tree_Var05", "tree 05 runtime path")
-        require_text(cpp, "SM_Fence_Var01", "fence 01 runtime path")
-        require_text(cpp, "SM_Fence_Var02", "fence 02 runtime path")
-        require_text(cpp, "SM_Fence_Var03", "fence 03 runtime path")
+        for index in range(1, 5):
+            require_text(cpp, f"SM_Fence_Var{index:02d}", "fence runtime path")
+            require_text(cpp, f"SM_Bridge_Var{index:02d}", "bridge runtime path")
+            require_text(cpp, f"SM_Well_Extra{index:02d}", "well extra runtime path")
 
-        # The extra mesh must share the exact location/yaw/scale of its base authored house.
+        # Authored family detail meshes share their base model transform rather than becoming new map sites.
         require_text(cpp, "AddMeshInstance(Extras[Seed % UE_ARRAY_COUNT(Extras)], Location, YawDegrees, Scale);",
-                     "House A extra alignment")
+                     "authored extra alignment")
         require_text(cpp, "AddMeshInstance(HouseBExtra, Location, YawDegrees, Scale);",
                      "House B extra alignment")
+
+        # Existing bridge geography is immutable in this pass. Only the presentation family may change.
+        infrastructure_match = re.search(
+            r"void AOCAssetModelDecorator::BuildInfrastructureModels\(\).*?void AOCAssetModelDecorator::BuildAmbientProps",
+            cpp,
+            flags=re.DOTALL,
+        )
+        require(infrastructure_match is not None, "infrastructure model function not found")
+        infrastructure = infrastructure_match.group(0)
+        require_text(infrastructure, "SelectBridge(0)", "first existing bridge authored selector")
+        require_text(infrastructure, "FVector(-17000.0f, -100000.0f, 0.0f)", "first existing bridge site")
+        require_text(infrastructure, "SelectBridge(1)", "second existing bridge authored selector")
+        require_text(infrastructure, "FVector(76000.0f, -65000.0f, 0.0f)", "second existing bridge site")
+        require(infrastructure.count("SelectBridge(") == 2,
+                "bridge pass must not invent additional bridge sites")
 
         # The enterable-house gap on Krushelnytskoi must remain reserved.
         require_text(cpp, "if (Index != 2)", "Krushelnytskoi enterable-house gap")
@@ -120,6 +144,11 @@ def main() -> int:
         # Variety may not regress to the previous simple A/B parity placement.
         require("(HouseCounter % 2 == 0) ? HouseA : HouseB" not in residential,
                 "residential visual family regressed to two-house parity")
+        require_text(cpp, "switch (FMath::Abs(VariantSeed) % 5)", "five-family residential fence selector")
+
+        # The existing residential well stays at its old site; the authored Extra is layered at the same transform.
+        require_text(cpp, "AddAuthoredWell(YardB + FVector(1100, 1150, 0)", "existing well site preserved")
+        require_text(cpp, "WellExtra01, WellExtra02, WellExtra03, WellExtra04", "well authored extra family")
 
         # All decorator ISMs remain presentation-only; collision stays with the authoritative world owner.
         require_text(cpp, 'Component->SetCollisionProfileName(TEXT("NoCollision"));', "decorator no-collision contract")
@@ -182,7 +211,9 @@ def main() -> int:
     print("OSTER WORLD MODELS SOURCE CONTRACT PASS")
     print("- residential presentation remains owned by AOCAssetModelDecorator")
     print("- 9 authored house-detail assets are integrated over the two base house families")
-    print("- broadleaf families expand from 3 to 5 and yard fences from 1 to 4 selectable families")
+    print("- broadleaf families expand from 3 to 5 and yard fences from 1 to 5 selectable families")
+    print("- four authored bridge meshes are wired while the two existing bridge sites remain unchanged")
+    print("- the existing residential well now uses its authored base + matching Extra detail family")
     print("- Krushelnytska enterable-house gap and collision-aligned residential centers remain intact")
     print("- enterable house now uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
     print("- cosmetic household props do not leave invisible blocking collision")
