@@ -13,7 +13,10 @@ ROOT = Path(__file__).resolve().parent
 CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp"
 HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h"
 WORLD_OWNER = ROOT / "OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp"
+ENTERABLE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp"
+ENTERABLE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h"
 CONTENT = ROOT / "OsterConflict/Content/AdvancedVillagePack/Meshes"
+CABIN_PROPS = ROOT / "OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props"
 
 
 def require(condition: bool, message: str) -> None:
@@ -32,10 +35,14 @@ def main() -> int:
         require(CPP.is_file(), "OCAssetModelDecorator.cpp missing")
         require(HEADER.is_file(), "OCAssetModelDecorator.h missing")
         require(WORLD_OWNER.is_file(), "OCWorldAssetModelsSubsystem.cpp missing")
+        require(ENTERABLE_CPP.is_file(), "OCEnterableHouse.cpp missing")
+        require(ENTERABLE_H.is_file(), "OCEnterableHouse.h missing")
 
         cpp = CPP.read_text(encoding="utf-8")
         header = HEADER.read_text(encoding="utf-8")
         owner = WORLD_OWNER.read_text(encoding="utf-8")
+        enterable_cpp = ENTERABLE_CPP.read_text(encoding="utf-8")
+        enterable_h = ENTERABLE_H.read_text(encoding="utf-8")
 
         required_assets = [
             "SM_House_Var01.uasset",
@@ -50,6 +57,21 @@ def main() -> int:
         ]
         for asset in required_assets:
             require((CONTENT / asset).is_file(), f"required authored world asset missing: {asset}")
+
+        required_house_props = [
+            "Old_Sofa.uasset",
+            "Wooden_Table_Small.uasset",
+            "Plastic_Chair.uasset",
+            "Office_Chair.uasset",
+            "Refrigerator_Old.uasset",
+            "Wooden_Crate.uasset",
+            "Metal_Barrel.uasset",
+            "Wheel_Barrow.uasset",
+            "Fence_Old_1_2m.uasset",
+            "Side_Shed.uasset",
+        ]
+        for asset in required_house_props:
+            require((CABIN_PROPS / asset).is_file(), f"required authored enterable-house prop missing: {asset}")
 
         require_text(owner, "AOCAssetModelDecorator", "single residential presentation owner")
         require_text(owner, "HideLegacyVisualProxies", "legacy proxy visibility owner")
@@ -103,6 +125,51 @@ def main() -> int:
         require_text(cpp, 'Component->SetCollisionProfileName(TEXT("NoCollision"));', "decorator no-collision contract")
         require_text(cpp, "Component->SetGenerateOverlapEvents(false);", "decorator overlap contract")
 
+        # Enterable-house owner now uses the already checked-in rural-cabin props instead of drawing
+        # its sofa/table/chairs/fridge/fence/shed entirely from Engine Cube geometry.
+        for prop_name in (
+            "Old_Sofa",
+            "Wooden_Table_Small",
+            "Plastic_Chair",
+            "Office_Chair",
+            "Refrigerator_Old",
+            "Wooden_Crate",
+            "Metal_Barrel",
+            "Wheel_Barrow",
+            "Fence_Old_1_2m",
+            "Side_Shed",
+        ):
+            require_text(enterable_cpp, prop_name, "enterable-house authored prop path")
+
+        for member in (
+            "RealSofa",
+            "RealTable",
+            "RealPlasticChair",
+            "RealOfficeChair",
+            "RealFridge",
+            "RealCrate",
+            "RealMetalBarrel",
+            "RealWheelBarrow",
+            "RealYardFence",
+            "RealSideShed",
+        ):
+            require_text(enterable_h, member, "enterable-house model owner")
+
+        require_text(enterable_h, "AddFittedGroundProp", "prop bounds-fitting helper")
+        require_text(enterable_h, "AddFittedFenceLine", "real fence line helper")
+        require_text(enterable_cpp, "const FBoxSphereBounds Bounds = Component->GetStaticMesh()->GetBounds();",
+                     "prop runtime bounds fitting")
+        require_text(enterable_cpp, "TargetLongestDimensionCm / NativeLongestDimension",
+                     "prop uniform scale fitting")
+        require_text(enterable_cpp, "DebugLabel->SetHiddenInGame(true);", "debug label hidden in production view")
+        require_text(enterable_cpp, 'HouseholdFurniture->SetCollisionProfileName(TEXT("NoCollision"));',
+                     "cosmetic furniture no invisible blocking collision")
+        require_text(enterable_cpp, 'HouseholdElectronics->SetCollisionProfileName(TEXT("NoCollision"));',
+                     "cosmetic electronics no invisible blocking collision")
+        require_text(enterable_cpp, "ClearRealInteriorProps();", "interior variant real-prop rebuild")
+        require_text(enterable_cpp, "SpawnInteractiveOpeningsServer();", "doors/windows interaction owner preserved")
+        require_text(enterable_cpp, "AOCInteractableGate", "yard gate interaction owner preserved")
+
     except AssertionError as exc:
         failures.append(str(exc))
 
@@ -116,8 +183,10 @@ def main() -> int:
     print("- residential presentation remains owned by AOCAssetModelDecorator")
     print("- 9 authored house-detail assets are integrated over the two base house families")
     print("- broadleaf families expand from 3 to 5 and yard fences from 1 to 4 selectable families")
-    print("- Krushelnytskoi enterable-house gap and collision-aligned residential centers remain intact")
-    print("- decorator models remain presentation-only/no-collision")
+    print("- Krushelnytska enterable-house gap and collision-aligned residential centers remain intact")
+    print("- enterable house now uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
+    print("- cosmetic household props do not leave invisible blocking collision")
+    print("- interactive door/window/light/gate ownership remains intact")
     print("STATUS: CODED_UNTESTED; UE runtime acceptance is still required")
     return 0
 
