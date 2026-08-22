@@ -15,8 +15,9 @@
 
 namespace
 {
-    constexpr float MinimapOuterSize = 230.0f;
-    constexpr float MinimapInnerSize = 214.0f;
+    // Pass 6 acceptance: keep the normal-play map useful without occupying a large HUD quadrant.
+    constexpr float MinimapOuterSize = 184.0f;
+    constexpr float MinimapInnerSize = 172.0f;
 }
 
 void UOCMinimapWidget::NativeConstruct()
@@ -29,10 +30,10 @@ void UOCMinimapWidget::NativeConstruct()
 
     UBorder* Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MinimapFrame"));
     Frame->SetBrushColor(FLinearColor(0.018f, 0.024f, 0.029f, 0.86f));
-    Frame->SetPadding(FMargin(8.0f));
+    Frame->SetPadding(FMargin(6.0f));
     UCanvasPanelSlot* FrameSlot = Root->AddChildToCanvas(Frame);
     FrameSlot->SetAnchors(FAnchors(0.0f, 0.0f));
-    FrameSlot->SetPosition(FVector2D(26.0f, 76.0f));
+    FrameSlot->SetPosition(FVector2D(22.0f, 72.0f));
     FrameSlot->SetSize(FVector2D(MinimapOuterSize, MinimapOuterSize));
 
     UCanvasPanel* MapCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("MinimapCanvas"));
@@ -50,10 +51,10 @@ void UOCMinimapWidget::NativeConstruct()
     PlayerMarker->SetJustification(ETextJustify::Center);
     PlayerMarker->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
     FSlateFontInfo MarkerFont = PlayerMarker->GetFont();
-    MarkerFont.Size = 18;
+    MarkerFont.Size = 15;
     PlayerMarker->SetFont(MarkerFont);
     UCanvasPanelSlot* MarkerSlot = MapCanvas->AddChildToCanvas(PlayerMarker);
-    MarkerSlot->SetSize(FVector2D(30.0f, 30.0f));
+    MarkerSlot->SetSize(FVector2D(26.0f, 26.0f));
     MarkerSlot->SetAlignment(FVector2D(0.5f, 0.5f));
     MarkerSlot->SetPosition(FVector2D(MinimapInnerSize * 0.5f, MinimapInnerSize * 0.5f));
 }
