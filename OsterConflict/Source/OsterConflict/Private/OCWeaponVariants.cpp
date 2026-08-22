@@ -39,41 +39,49 @@ void HideStaticWeaponFallback(AOCWeaponBase* Owner)
     }
 }
 
-USkeletalMeshComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,
+UStaticMeshComponent* ApplyStaticProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,
+    const TCHAR* AssetPath, const FName ComponentBaseName, float DesiredLengthCm);
+
+UPrimitiveComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,
     const TCHAR* AssetPath, const FName ComponentBaseName, float DesiredLengthCm)
 {
     if (!Owner || !Root) return nullptr;
 
-    USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, AssetPath);
-    if (!Mesh) return nullptr;
+    if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, AssetPath))
+    {
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+        if (NativeLength <= 1.0f) return nullptr;
 
-    const FBoxSphereBounds Bounds = Mesh->GetBounds();
-    const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-    const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
-    if (NativeLength <= 1.0f) return nullptr;
+        HideStaticWeaponFallback(Owner);
 
-    HideStaticWeaponFallback(Owner);
+        const FName UniqueName = MakeUniqueObjectName(Owner, USkeletalMeshComponent::StaticClass(), ComponentBaseName);
+        USkeletalMeshComponent* ProductionVisual = NewObject<USkeletalMeshComponent>(Owner, UniqueName);
+        if (!ProductionVisual) return nullptr;
 
-    const FName UniqueName = MakeUniqueObjectName(Owner, USkeletalMeshComponent::StaticClass(), ComponentBaseName);
-    USkeletalMeshComponent* ProductionVisual = NewObject<USkeletalMeshComponent>(Owner, UniqueName);
-    if (!ProductionVisual) return nullptr;
+        const float UniformScale = DesiredLengthCm / NativeLength;
+        ProductionVisual->SetupAttachment(Root);
+        ProductionVisual->SetSkeletalMeshAsset(Mesh);
+        ProductionVisual->SetRelativeLocation(-Bounds.Origin * UniformScale);
+        ProductionVisual->SetRelativeRotation(FRotator::ZeroRotator);
+        ProductionVisual->SetRelativeScale3D(FVector(UniformScale));
+        ProductionVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        ProductionVisual->SetGenerateOverlapEvents(false);
+        ProductionVisual->SetCanEverAffectNavigation(false);
+        ProductionVisual->SetCastShadow(true);
+        ProductionVisual->SetHiddenInGame(false, true);
+        ProductionVisual->SetVisibility(true, true);
+        ProductionVisual->ComponentTags.Add(FName(TEXT("OC_ProductionWeaponVisual")));
+        Owner->AddInstanceComponent(ProductionVisual);
+        ProductionVisual->RegisterComponent();
+        return ProductionVisual;
+    }
 
-    const float UniformScale = DesiredLengthCm / NativeLength;
-    ProductionVisual->SetupAttachment(Root);
-    ProductionVisual->SetSkeletalMeshAsset(Mesh);
-    ProductionVisual->SetRelativeLocation(-Bounds.Origin * UniformScale);
-    ProductionVisual->SetRelativeRotation(FRotator::ZeroRotator);
-    ProductionVisual->SetRelativeScale3D(FVector(UniformScale));
-    ProductionVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    ProductionVisual->SetGenerateOverlapEvents(false);
-    ProductionVisual->SetCanEverAffectNavigation(false);
-    ProductionVisual->SetCastShadow(true);
-    ProductionVisual->SetHiddenInGame(false, true);
-    ProductionVisual->SetVisibility(true, true);
-    ProductionVisual->ComponentTags.Add(FName(TEXT("OC_ProductionWeaponVisual")));
-    Owner->AddInstanceComponent(ProductionVisual);
-    ProductionVisual->RegisterComponent();
-    return ProductionVisual;
+    // The restored R13 Stein packages carry SKM_* names but UE 5.8 reports their canonical assets
+    // as StaticMesh. Runtime evidence wins over the filename convention: use the exact real mesh
+    // rather than silently leaving the primitive weapon body visible.
+    return ApplyStaticProductionWeapon(Owner, Root, AssetPath, ComponentBaseName, DesiredLengthCm);
 }
 
 UStaticMeshComponent* ApplyStaticProductionWeapon(AOCWeaponBase* Owner, USceneComponent* Root,

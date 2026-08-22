@@ -1,0 +1,31 @@
+name: Runtime acceptance pass 5 source contracts
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Scripts/verify_required_weapon_assets.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_5.py'
+      - '.github/workflows/runtime-acceptance-pass-5.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Scripts/verify_required_weapon_assets.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_5.py'
+      - '.github/workflows/runtime-acceptance-pass-5.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify R13 weapon asset-class contracts
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_5.py
