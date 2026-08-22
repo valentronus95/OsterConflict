@@ -36,6 +36,17 @@ namespace
         Component->EmptyOverrideMaterials();
         return true;
     }
+
+    void DisableVisualProxy(UStaticMeshComponent* Component)
+    {
+        if (!Component) return;
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(false);
+    }
 }
 
 AOCBTR::AOCBTR()
@@ -172,20 +183,19 @@ void AOCBTR::ApplyVehicleStyle()
         };
         for (UStaticMeshComponent* Component : ProxyParts)
         {
-            if (Component) Component->SetVisibility(false, true);
+            DisableVisualProxy(Component);
         }
         for (UStaticMeshComponent* Wheel : WheelVisuals)
         {
-            if (Wheel) Wheel->SetVisibility(false, true);
+            DisableVisualProxy(Wheel);
         }
 
-        // The uploaded FBX currently arrives as one combined shell. Hide the old primitive turret
-        // so we do not render a cube/cylinder assembly through the authored BTR-4 model. Turret
-        // gameplay, aim limits, muzzle trace and damage remain authoritative on TurretPivot.
-        if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
-        if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+        // Production shell owns all rendered geometry. Gameplay physics remains exclusively on PhysicsBody,
+        // while obsolete blockout turret meshes become fully inert instead of merely invisible obstacles.
+        DisableVisualProxy(TurretBaseMesh);
+        DisableVisualProxy(BarrelMesh);
 
-        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell."));
+        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell; visual proxies disabled."));
     }
     else if (Chassis)
     {
