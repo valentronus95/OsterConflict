@@ -18,6 +18,7 @@ set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 set "WEAPON_PREFLIGHT_LOG=%LOG_DIR%\R14_REQUIRED_WEAPON_ASSETS.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
+set "IS_ACCEPTANCE=0"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
@@ -78,6 +79,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
   )
   set "FETCH_BRANCH=%CURRENT_BRANCH%"
   set "REMOTE_REF=origin/%CURRENT_BRANCH%"
+  set "IS_ACCEPTANCE=1"
   echo [ACCEPTANCE] Running isolated runtime acceptance branch: %CURRENT_BRANCH%
   echo [ACCEPTANCE] main will remain untouched until this branch passes the UE runtime playtest.
 )
@@ -230,6 +232,46 @@ echo Source: %LOCAL_HEAD%
 echo.
 start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
+
+if "%IS_ACCEPTANCE%"=="1" (
+  echo.
+  echo [ACCEPTANCE] Inspecting runtime evidence from the exact branch playtest...
+  if not exist "%PLAYTEST_LOG%" (
+    echo [STOP] Acceptance log is missing: %PLAYTEST_LOG%
+    pause
+    exit /b 21
+  )
+
+  findstr /C:"PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] Production vehicle runtime validation failed. Proxy HMMWV/M2/BTR visuals are not accepted.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 22
+  )
+
+  findstr /C:"PASS7_PRODUCTION_VEHICLES_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No production vehicle READY marker was recorded.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for vehicle validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 23
+  )
+
+  findstr /C:"PASS7_MUSEUM_BASES_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No authoritative Museum BASE readiness marker was recorded.
+    echo The acceptance run did not prove the Museum spawn route.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 24
+  )
+
+  echo [ACCEPTANCE] PASS7_PRODUCTION_VEHICLES_READY found.
+  echo [ACCEPTANCE] PASS7_MUSEUM_BASES_READY found.
+  echo [ACCEPTANCE] Automated runtime evidence gates passed. Visual/UI checklist still requires direct observation.
+)
 
 echo.
 echo ============================================================
