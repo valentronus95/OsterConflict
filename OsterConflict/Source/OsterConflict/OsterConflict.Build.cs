@@ -18,6 +18,7 @@ public class OsterConflict : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
+            "RHI",
             "EnhancedInput",
             "InputCore",
             "NetCore",
