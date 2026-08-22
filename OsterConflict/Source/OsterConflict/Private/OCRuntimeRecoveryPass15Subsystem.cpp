@@ -7,6 +7,7 @@
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -133,6 +134,12 @@ void UOCRuntimeRecoveryPass15Subsystem::ApplyFrontendRepairs()
 
     BindPrimaryFallback(Root);
 
+    if (bJoinPending)
+    {
+        ApplyJoinPendingOverlay(Root);
+        return;
+    }
+
     UVerticalBox* Fields = Cast<UVerticalBox>(Root->GetWidgetFromName(TEXT("R13_FrontendFields")));
     const bool bFieldsPageVisible = Fields && Fields->GetVisibility() != ESlateVisibility::Collapsed;
     if (!bFieldsPageVisible) return;
@@ -158,6 +165,71 @@ void UOCRuntimeRecoveryPass15Subsystem::ApplyFrontendRepairs()
     }
 }
 
+void UOCRuntimeRecoveryPass15Subsystem::ApplyJoinPendingOverlay(UOCGameUIRootWidget* Root)
+{
+    if (!Root) return;
+
+    if (UBorder* Blocker = Cast<UBorder>(Root->GetWidgetFromName(TEXT("R13_MenuWorldBlocker"))))
+    {
+        Blocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    }
+    if (UImage* Background = Cast<UImage>(Root->GetWidgetFromName(TEXT("R13_MenuBackground"))))
+    {
+        Background->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    }
+    if (UBorder* Panel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("R13_MenuPanel"))))
+    {
+        Panel->SetVisibility(ESlateVisibility::Visible);
+        Panel->SetBrushColor(FLinearColor(0.025f, 0.030f, 0.035f, 0.96f));
+    }
+
+    UVerticalBox* Box = Cast<UVerticalBox>(Root->GetWidgetFromName(TEXT("R13_PlayerFrontend")));
+    if (!Box) return;
+
+    int32 DirectTextIndex = 0;
+    for (int32 Index = 0; Index < Box->GetChildrenCount(); ++Index)
+    {
+        UWidget* Child = Box->GetChildAt(Index);
+        if (UTextBlock* Text = Cast<UTextBlock>(Child))
+        {
+            if (DirectTextIndex < 2)
+            {
+                Text->SetVisibility(ESlateVisibility::Collapsed);
+            }
+            else if (DirectTextIndex == 2)
+            {
+                Text->SetText(NSLOCTEXT("OCR13FrontendPass15", "ConnectingTitle", "ПІДКЛЮЧЕННЯ ДО СЕРВЕРА"));
+                Text->SetVisibility(ESlateVisibility::Visible);
+            }
+            else if (DirectTextIndex == 3)
+            {
+                FText Status = NSLOCTEXT("OCR13FrontendPass15", "ConnectingStatus", "ОЧІКУВАННЯ ВІДПОВІДІ СЕРВЕРА…");
+                if (UWorld* World = GetWorld())
+                {
+                    if (const UOCGameInstance* GI = Cast<UOCGameInstance>(World->GetGameInstance()))
+                    {
+                        Status = GI->GetConnectionStatusText();
+                    }
+                }
+                Text->SetText(Status);
+                Text->SetVisibility(ESlateVisibility::Visible);
+            }
+            ++DirectTextIndex;
+            continue;
+        }
+
+        if (USizeBox* Size = Cast<USizeBox>(Child))
+        {
+            Size->SetVisibility(ESlateVisibility::Collapsed);
+            continue;
+        }
+        if (UVerticalBox* Fields = Cast<UVerticalBox>(Child))
+        {
+            Fields->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+}
+
 void UOCRuntimeRecoveryPass15Subsystem::BindPrimaryFallback(UOCGameUIRootWidget* Root)
 {
     UButton* Primary = FindPrimaryButton(Root);
@@ -178,13 +250,24 @@ void UOCRuntimeRecoveryPass15Subsystem::OnPrimaryClickedFallback()
     UWorld* World = GetWorld();
     if (!Label || !World) return;
 
-    if (Label->GetText().ToString() == TEXT("СТВОРИТИ СЕРВЕР"))
+    const FString LabelText = Label->GetText().ToString();
+    if (LabelText == TEXT("СТВОРИТИ СЕРВЕР"))
     {
         // If the original ConsoleCommand(open...) works, this world is torn down and its timer
         // disappears. If it silently does nothing, this timer performs the reliable OpenLevel path.
         World->GetTimerManager().ClearTimer(HostFallbackTimer);
         World->GetTimerManager().SetTimer(
             HostFallbackTimer, this, &UOCRuntimeRecoveryPass15Subsystem::RunHostTravelFallback, 0.20f, false);
+        return;
+    }
+
+    if (LabelText == TEXT("ПІДКЛЮЧИТИСЯ"))
+    {
+        // Pass 14 marks gameplay started before ClientTravel is actually connected, which makes the
+        // frontend repaint itself as a pause menu over the suppressed shell. Keep an opaque connection
+        // presentation on top until successful travel destroys this world or GameInstance reports failure.
+        bJoinPending = true;
+        UE_LOG(LogTemp, Display, TEXT("PASS15_DIRECT_CONNECT_OVERLAY_BEGIN"));
     }
 }
 
