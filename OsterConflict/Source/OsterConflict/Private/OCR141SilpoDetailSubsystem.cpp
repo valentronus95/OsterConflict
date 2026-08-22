@@ -82,6 +82,33 @@ namespace
         Component->AddInstance(FTransform(Rotation, LocalCenter, SizeCm / 100.0f), false);
     }
 
+    void AddFittedVerticalMesh(UInstancedStaticMeshComponent* Component, UStaticMesh* Mesh,
+        const FVector& DesiredCenter, const float DesiredHeightCm, const float YawDegrees)
+    {
+        if (!Component || !Mesh || DesiredHeightCm <= 1.0f) return;
+
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        const float NativeLengths[3] = { NativeSize.X, NativeSize.Y, NativeSize.Z };
+
+        int32 NativeLongestAxis = 0;
+        for (int32 Axis = 1; Axis < 3; ++Axis)
+        {
+            if (NativeLengths[Axis] > NativeLengths[NativeLongestAxis]) NativeLongestAxis = Axis;
+        }
+        if (NativeLengths[NativeLongestAxis] <= 1.0f) return;
+
+        const FVector UnitAxes[3] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
+        const FQuat AxisRotation = FQuat::FindBetweenNormals(UnitAxes[NativeLongestAxis], FVector::UpVector);
+        const FQuat YawRotation = FRotator(0.0f, YawDegrees + SilpoYawDegrees, 0.0f).Quaternion();
+        const FQuat Rotation = YawRotation * AxisRotation;
+        const float UniformScale = DesiredHeightCm / NativeLengths[NativeLongestAxis];
+        const FVector FittedCenterOffset = Rotation.RotateVector(Bounds.Origin * UniformScale);
+
+        Component->AddInstance(FTransform(Rotation, DesiredCenter - FittedCenterOffset,
+            FVector(UniformScale)), false);
+    }
+
     bool HasActorTag(UWorld& World, const FName Tag)
     {
         for (TActorIterator<AActor> It(&World); It; ++It)
@@ -124,6 +151,8 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
     if (HasActorTag(World, TEXT("R141_SilpoPhotoDetails"))) return;
 
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+    UStaticMesh* PowerPoleMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.Power_Pole_1"));
     UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     if (!Cube || !Basic) return;
@@ -180,6 +209,18 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         TEXT("R141Silpo_SideMarketEdge"), false, true);
     UInstancedStaticMeshComponent* LaneSigns = MakeISM(Details, Root, Cube, SignMat,
         TEXT("R141Silpo_CheckoutLaneSigns"), false, false);
+    UInstancedStaticMeshComponent* PowerPoleVisual = PowerPoleMesh
+        ? MakeISM(Details, Root, PowerPoleMesh, nullptr, TEXT("R141Silpo_AuthoredUtilityPole"), false, true)
+        : nullptr;
+    UInstancedStaticMeshComponent* UtilityPoleCollision = PowerPoleVisual
+        ? MakeISM(Details, Root, Cube, nullptr, TEXT("R141Silpo_UtilityPoleCollisionProxy"), true, false)
+        : nullptr;
+    if (UtilityPoleCollision)
+    {
+        UtilityPoleCollision->SetVisibility(false, true);
+        UtilityPoleCollision->SetHiddenInGame(true, true);
+        UtilityPoleCollision->SetCastShadow(false);
+    }
 
     // The interior photos show a low suspended tile ceiling rather than an exposed roof volume.
     AddLocalBox(Ceiling, FVector(0.0f, 0.0f, 362.0f), FVector(2860.0f, 1620.0f, 6.0f));
@@ -255,9 +296,23 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         Number->RegisterComponent();
     }
 
-    // One photo-supported utility pole just beyond the right end of the facade.
-    AddLocalBox(Metal, FVector(HalfLength + 165.0f, FrontY + 15.0f, 315.0f), FVector(16.0f, 16.0f, 630.0f));
-    AddLocalBox(Metal, FVector(HalfLength + 165.0f, FrontY + 15.0f, 565.0f), FVector(155.0f, 12.0f, 12.0f));
+    // One photo-supported utility pole just beyond the right end of the facade. Prefer the checked-in
+    // rural-cabin pole mesh, but keep the old simple collision footprint as a hidden proxy so replacing
+    // presentation does not silently change traversal/collision. If the LFS asset is not hydrated, retain
+    // the historical visible Cube fallback instead.
+    const FVector UtilityPoleCenter(HalfLength + 165.0f, FrontY + 15.0f, 315.0f);
+    if (PowerPoleVisual && UtilityPoleCollision)
+    {
+        AddFittedVerticalMesh(PowerPoleVisual, PowerPoleMesh, UtilityPoleCenter, 630.0f, 0.0f);
+        AddLocalBox(UtilityPoleCollision, UtilityPoleCenter, FVector(16.0f, 16.0f, 630.0f));
+        AddLocalBox(UtilityPoleCollision, FVector(HalfLength + 165.0f, FrontY + 15.0f, 565.0f),
+            FVector(155.0f, 12.0f, 12.0f));
+    }
+    else
+    {
+        AddLocalBox(Metal, UtilityPoleCenter, FVector(16.0f, 16.0f, 630.0f));
+        AddLocalBox(Metal, FVector(HalfLength + 165.0f, FrontY + 15.0f, 565.0f), FVector(155.0f, 12.0f, 12.0f));
+    }
 
     // Immediate right-side market edge visible in the street references. This is intentionally low-detail context,
     // not a claim about stall ownership or a permanent measured footprint.
