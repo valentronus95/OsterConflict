@@ -30,7 +30,6 @@ text = {
     for label, path in FILES.items()
 }
 
-# The approved frontend must own startup/pause presentation and permanently suppress the old gray shell.
 for token in [
     'TEXT("R13_MenuWorldBlocker")',
     'TEXT("R13_MenuBackground")',
@@ -46,18 +45,25 @@ for token in [
     if token not in text["menu"]:
         fail(f"frontend marker missing: {token}")
 
-# World rendering may be hidden only before possession. This prevents the HUD-only black screen after deployment.
 for token in [
     'const bool bHasGameplayPawn = IsValid(PC->GetPawn())',
-    'const bool bPreGamePresentationVisible = !bHasGameplayPawn',
-    'SetWorldRenderingSuppressed(bPreGamePresentationVisible)',
+    'const bool bStartupShell = !bHasGameplayPawn',
     'SetWorldRenderingSuppressed(false)',
     'GEngine->GameViewport->bDisableWorldRendering = bSuppress',
+    'R13_MenuWorldBlocker',
+    'R13_MenuBackground',
 ]:
     if token not in text["viewport"]:
         fail(f"viewport safety marker missing: {token}")
 
-# The recovered staged deployment must stay present and must make the legacy deployment widget inert.
+for forbidden in [
+    'SetWorldRenderingSuppressed(bFrontendMenu)',
+    'SetWorldRenderingSuppressed(bPreGamePresentationVisible)',
+    'SetWorldRenderingSuppressed(true)',
+]:
+    if forbidden in text["viewport"]:
+        fail(f"persistent viewport rendering suppression returned: {forbidden}")
+
 for token in [
     'TEXT("R13_DeploymentFlowPanel")',
     'TEXT("DeploymentPanel")',
@@ -78,7 +84,6 @@ for token in [
     if token not in text["deploy_present"]:
         fail(f"deployment presentation marker missing: {token}")
 
-# Current R14 controller backend must expose the explicit API consumed by the staged UI.
 for token in [
     'void UIRequestSquad(int32 SquadId)',
     'void UIRequestRole(EOCPlayerRole RequestedRole)',
@@ -97,4 +102,4 @@ for token in [
         fail(f"deployment compatibility marker missing: {token}")
 
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Approved frontend, staged deployment and post-possession world rendering safety are present.")
+print("Approved frontend, staged deployment and pawn-less travel-shell isolation are present without persistent viewport render suppression.")
