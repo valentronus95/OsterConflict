@@ -33,7 +33,11 @@ quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
 
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
 req('bReplicates = true' in env_cpp and 'bAlwaysRelevant = true' in env_cpp, 'daylight rig reaches network clients')
-req('SetAtmosphereSunLight(true)' in env_cpp and 'SetRealTimeCaptureEnabled(true)' in env_cpp, 'sun/sky runtime lighting configured')
+# Pass 14 keeps the fixed daytime atmosphere but stops continuous SkyLight recapture. The sun does not
+# animate during a match, so realtime cubemap capture is render cost without a visual benefit.
+req('SetAtmosphereSunLight(true)' in env_cpp and 'SetRealTimeCaptureEnabled(false)' in env_cpp and
+    'SetDynamicShadowCascades(4)' in env_cpp and 'SetDynamicShadowDistanceMovableLight(18000.0f)' in env_cpp,
+    'sun/sky runtime lighting configured with fixed-daylight performance budget')
 # Current art-QA direction intentionally removes height-fog colour grading. Atmospheric depth now comes
 # from the explicit Rayleigh/Mie SkyAtmosphere coefficients, while fog density/opacity stay at zero.
 req('SetRayleighScatteringScale(1.0f)' in env_cpp and 'SetMieScatteringScale(1.0f)' in env_cpp and

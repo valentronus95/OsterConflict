@@ -17,9 +17,9 @@ class UVerticalBox;
 /**
  * Dedicated R13 player-facing frontend.
  *
- * This subsystem owns the current frontend and pause presentation. The legacy direct-connect panel is detached
- * from the canvas so it cannot reappear underneath the R13 menu when the root widget refreshes after deployment
- * or when Escape is pressed during a live match.
+ * The frontend is a shell only. Main-menu START never spawns gameplay directly: it opens
+ * the explicit host-server setup. A listen/client world owns deployment and cannot resurrect
+ * the startup frontend after travel.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR13FrontendMenuSubsystem : public UTickableWorldSubsystem
@@ -44,7 +44,7 @@ private:
     void ApplyPausePage();
     void SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay = false);
     void SuppressLegacyFrontendLayers(UOCGameUIRootWidget* Root);
-    void StartLocalGameplay();
+    void StartHostedGameplay();
     void ForceMenuInput();
     void ReleaseMenuInput();
 
@@ -65,6 +65,9 @@ private:
     TWeakObjectPtr<UVerticalBox> FieldsBox;
     TWeakObjectPtr<UEditableTextBox> UsernameEntry;
     TWeakObjectPtr<UEditableTextBox> AddressEntry;
+    TWeakObjectPtr<UEditableTextBox> MaxPlayersEntry;
+    TWeakObjectPtr<UEditableTextBox> BotsEntry;
+    TWeakObjectPtr<UEditableTextBox> BotDifficultyEntry;
     TWeakObjectPtr<UTextBlock> StatusText;
     TWeakObjectPtr<UButton> PrimaryButton;
     TWeakObjectPtr<UButton> SecondaryButton;
@@ -72,8 +75,8 @@ private:
     TWeakObjectPtr<UButton> SettingsButton;
     TWeakObjectPtr<UButton> QuitButton;
 
-    int32 Page = 0; // 0 main, 1 local, 2 network
+    int32 Page = 0; // 0 main, 1 create server, 2 join server
     bool bGameplayStarted = false;
     bool bPauseMenuActive = false;
-    bool bLocalTravelPending = false; // keep the frontend frame intact until the gameplay world actually replaces it
+    bool bLocalTravelPending = false; // keep approved frontend intact until the server world replaces it
 };

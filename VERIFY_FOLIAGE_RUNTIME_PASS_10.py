@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict/Source/OsterConflict"
@@ -37,7 +38,8 @@ for needle in (
 ):
     require(world, needle, "source ground-cover zoning")
 
-# Real visible runtime grass must remain the batched mesh/HISM owner.
+# Real visible runtime grass must remain the batched mesh/HISM owner. Pass 14 may lower the
+# batch/density budget after measured performance problems, but must never return to an unbounded pass.
 for needle in (
     "UHierarchicalInstancedStaticMeshComponent",
     'TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh")',
@@ -46,9 +48,11 @@ for needle in (
     "Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);",
     "Component->SetCastShadow(false);",
     "PopulateBatch",
-    "CellsPerBatch = 88",
 ):
     require(dense, needle, "dense foliage owner")
+batch = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", dense)
+if not batch or not 1 <= int(batch.group(1)) <= 48:
+    raise SystemExit("PASS10 FOLIAGE VERIFY FAIL: dense foliage batch is missing or exceeds the performance ceiling")
 
 for needle in (
     "UOCFoliageRuntimeGuardSubsystem",
@@ -88,7 +92,7 @@ for needle in (
 
 print("FOLIAGE RUNTIME PASS 10 SOURCE CONTRACT PASS")
 print("- source zoning cubes remain authoring data, not accepted gameplay presentation")
-print("- real batched DenseGrass HISM remains the visible runtime owner")
+print("- real batched DenseGrass HISM remains the visible runtime owner with a bounded performance budget")
 print("- runtime guard retires GrassMown/GrassRough/GrassWetland proxy slabs")
 print("- runtime evidence requires one dense foliage actor and >=250 real grass instances")
 print("- strict Windows launcher requires Pass 10 proxy-retired + foliage-ready markers")

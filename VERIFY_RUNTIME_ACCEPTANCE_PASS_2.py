@@ -107,8 +107,12 @@ for needle in (
 if "if (GameMode->IsFrontendOnlySession()) return;" in fallback:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: real weapon fallback still dies permanently in frontend world")
 
+# The approved shell was widened from 440 to 470 px only so the explicit server setup can fit
+# MaxPlayers/Bots/BotDifficulty without changing its canonical left/top position or height.
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
-require(frontend, "PanelSlot->SetSize(FVector2D(440.0f, 760.0f));", "frontend canonical menu geometry")
+panel_size = re.search(r"PanelSlot->SetSize\(FVector2D\((440\.0f|470\.0f), 760\.0f\)\);", frontend)
+if not panel_size:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: frontend main shell must remain 440-470 x 760 at the canonical position")
 for forbidden in (
     "Slot->SetPosition(FVector2D(90.0f, 60.0f));",
     "Slot->SetSize(FVector2D(470.0f, 780.0f));",

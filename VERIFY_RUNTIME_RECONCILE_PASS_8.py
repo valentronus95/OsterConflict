@@ -78,13 +78,17 @@ for marker in (
 ):
     require(t["chat"], marker, "compact Y/U chat")
 
-# Denser grass remains incremental and bounded.
-require(t["foliage"], 'constexpr float GridStep = 900.0f', "grass density")
-require(t["foliage"], 'RandomStream.RandRange(4, 6)', "grass clumps")
+# Foliage remains HISM-based, collision-free and incrementally generated, but later performance
+# passes are allowed to make the grid sparser. Do not regress to the original 9 m / 88-cell load.
+grid = re.search(r'constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;', t["foliage"])
 batch = re.search(r'constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;', t["foliage"])
-if not batch or not 1 <= int(batch.group(1)) <= 96:
-    raise SystemExit("PASS 8 FAIL: foliage batch is missing or exceeds non-blocking ceiling")
+if not grid or not 900.0 <= float(grid.group(1)) <= 2400.0:
+    raise SystemExit("PASS 8 FAIL: foliage grid is missing or outside the supported incremental range")
+if not batch or not 1 <= int(batch.group(1)) <= 48:
+    raise SystemExit("PASS 8 FAIL: foliage batch is missing or exceeds the performance ceiling")
+require(t["foliage"], 'UHierarchicalInstancedStaticMeshComponent', "HISM foliage")
 require(t["foliage"], 'SetCollisionEnabled(ECollisionEnabled::NoCollision)', "foliage collision")
+require(t["foliage"], 'SetCastShadow(false)', "foliage shadows")
 
 # Frontend travel must not toggle the persistent viewport render flag off.
 require(t["viewport"], 'const bool bStartupShell = !bHasGameplayPawn', "pawn-less startup shell")
@@ -152,7 +156,7 @@ for marker in (
 
 print("RUNTIME RECONCILE PASS 8 SOURCE CONTRACT PASS")
 print("- Pass 7 settings/loading/Museum/fail-closed runtime evidence remains intact")
-print("- compact minimap/chat, denser batched foliage and travel isolation recovered")
+print("- compact minimap/chat and incremental HISM foliage remain intact with a performance ceiling")
 print("- BTR/HMMWV/M2 proxy collision and orientation corrections recovered")
 print("- StaticMesh first-person weapons and actual firing-weapon muzzle/tracer paths recovered")
 print("- obsolete map-edge BASE geometry cleanup and static-weapon axis normalization recovered")
