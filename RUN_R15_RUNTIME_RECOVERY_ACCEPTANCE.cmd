@@ -141,12 +141,28 @@ for %%M in (
   )
 )
 
+findstr /C:"PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+  echo [STOP] BASE deployment recovery failed to find a primary Museum BASE.
+  findstr /C:"PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%"
+  pause
+  exit /b 22
+)
+
+findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%" >nul
+if errorlevel 1 (
+  echo [STOP] No evidence that the actual player pawn deployed at Museum BASE.
+  echo The existence of BASE actors alone is not accepted anymore.
+  pause
+  exit /b 23
+)
+
 findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
   echo [STOP] Production weapon visuals failed runtime validation.
   findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%LOG%"
   pause
-  exit /b 22
+  exit /b 24
 )
 
 findstr /C:"PASS15_MUSEUM_BASES_WEAPONS_NOT_READY" "%LOG%" >nul
@@ -154,7 +170,7 @@ if not errorlevel 1 (
   echo [STOP] Museum BASE or physical 11-weapon rack did not become ready.
   findstr /C:"PASS15_MUSEUM_BASES_WEAPONS_NOT_READY" "%LOG%"
   pause
-  exit /b 23
+  exit /b 25
 )
 
 findstr /C:"PASS15_PERF_BELOW_TARGET" "%LOG%" >nul
@@ -162,14 +178,14 @@ if not errorlevel 1 (
   echo [STOP] Gameplay is still below the 30 FPS recovery target.
   findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_BELOW_TARGET" "%LOG%"
   pause
-  exit /b 24
+  exit /b 26
 )
 
 findstr /C:"PASS15_PERF_30FPS_READY" "%LOG%" >nul
 if errorlevel 1 (
   echo [STOP] No 30 FPS readiness marker was recorded.
   pause
-  exit /b 25
+  exit /b 27
 )
 
 echo.
@@ -177,6 +193,7 @@ echo ============================================================
 echo PASS 15 RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
 echo Source: %LOCAL_HEAD%
 echo ============================================================
+findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%"
 findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
 echo.
 echo Manual visual confirmation still required for exact Museum appearance and weapon placement.
