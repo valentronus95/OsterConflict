@@ -5,6 +5,10 @@ ROOT = Path(__file__).resolve().parent
 FRONTEND = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp"
 DEPLOY_PRESENTATION = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp"
 LOADING = ROOT / "OsterConflict/Source/OsterConflict/Private/OCDeploymentLoadingSubsystem.cpp"
+SPAWN_GUARD_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCMuseumSpawnGuardSubsystem.h"
+SPAWN_GUARD_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp"
+TEAM_SPAWN = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp"
+GAME_MODE = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp"
 LAUNCHER = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 
 
@@ -22,6 +26,10 @@ def require(text: str, needle: str, where: str) -> None:
 frontend = read(FRONTEND)
 deploy = read(DEPLOY_PRESENTATION)
 loading = read(LOADING)
+spawn_guard_h = read(SPAWN_GUARD_H)
+spawn_guard = read(SPAWN_GUARD_CPP)
+team_spawn = read(TEAM_SPAWN)
+game_mode = read(GAME_MODE)
 launcher = read(LAUNCHER)
 
 # Main-menu START remains the single top-level start action. Final deployment is semantically distinct.
@@ -46,6 +54,19 @@ require(loading, 'if (!bReadySent && Elapsed >= 0.12)', "rendered zero-percent f
 require(loading, 'Widget->SetLoadingProgress(1.0f);', "loading reaches 100 before removal")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
 
+# BASE spawn must have two layers of protection: the normal canonical relocation plus an automatic gameplay-world
+# guard that repairs/creates missing server BASE actors before a human can fall into GameMode's legacy origin fallback.
+require(team_spawn, 'const FVector Museum = AOCWorldSectorOster::MuseumAnchor();', "canonical Museum BASE anchor")
+require(team_spawn, 'SpawnRuntimeBaseWeaponRack(*this, TeamId);', "Museum BASE weapon rack")
+require(game_mode, 'const FVector FallbackLocation = bTeamTwo ? FVector(2800.0f, 0.0f, 120.0f) : FVector(-2800.0f, 0.0f, 120.0f);', "legacy fallback is explicitly tracked")
+require(spawn_guard_h, 'class OSTERCONFLICT_API UOCMuseumSpawnGuardSubsystem : public UTickableWorldSubsystem', "Museum spawn guard subsystem")
+require(spawn_guard, 'TActorIterator<AOCWorldSectorOster>', "guard waits for real gameplay sector")
+require(spawn_guard, 'FVector::DistSquared2D(Point->GetActorLocation(), Museum) > FMath::Square(3500.0f)', "stale BASE relocation guard")
+require(spawn_guard, 'Point->ConfigureServer(Team, true, NAME_None);', "canonical BASE repair path")
+require(spawn_guard, 'EnsureTeamBase(EOCTeam::TeamOne, bHasTeamOneBase);', "TeamOne BASE guarantee")
+require(spawn_guard, 'EnsureTeamBase(EOCTeam::TeamTwo, bHasTeamTwoBase);', "TeamTwo BASE guarantee")
+require(spawn_guard, 'PASS7_MUSEUM_BASES_READY', "runtime Museum BASE evidence marker")
+
 # Runtime acceptance must be executable before merge. The old launcher forced main and therefore tested stale code.
 require(launcher, 'findstr /B /I /C:"fix/runtime-acceptance-"', "runtime-acceptance branch allow-list")
 require(launcher, 'set "REMOTE_REF=origin/%CURRENT_BRANCH%"', "branch-specific remote ref")
@@ -59,5 +80,6 @@ print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
 print("- pre-game settings keep the frontend backdrop and use an opaque panel")
 print("- deployment transition fully blocks the underlying panel and reaches 100% after possession")
+print("- gameplay world repairs/creates authoritative Museum BASE spawns before legacy origin fallback can be needed")
 print("- normal frontend playtest can run from a fresh fix/runtime-acceptance-* branch before merge")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 runtime acceptance is still required")
