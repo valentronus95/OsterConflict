@@ -62,9 +62,10 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-# START_HERE is now a stable top-level launcher. Historical R11 smoke scripts remain internal helpers and
-# must not be reintroduced as another user-facing route merely to satisfy an old verifier string.
-req('NORMAL PLAYTEST' in start and 'RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'FULL QA / ADMIN PLAYTEST' in start,
+# START_HERE is the stable user launcher. Validate the actual current normal and technical routes rather
+# than resurrecting historical R11 menu labels that are no longer part of the user-facing launcher.
+req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R14_MAIN_SANDBOX_TEST.cmd' in start and
+    'ЗВИЧАЙНА ГРА' in start and 'ТЕХНІЧНИЙ ТЕСТ ГРИ' in start,
     'START_HERE exposes canonical current gameplay routes')
 req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')
 req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh R11 quick launch bootstraps generated runtime map')
