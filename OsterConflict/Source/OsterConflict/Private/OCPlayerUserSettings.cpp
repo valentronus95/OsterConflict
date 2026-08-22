@@ -32,10 +32,12 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
     UGameUserSettings* GameSettings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
     if (!GameSettings) return;
 
-    GameSettings->LoadSettings(false);
-
     if (!bInitialGraphicsProfileApplied)
     {
+        // Only the first initialization may reload the persisted engine settings. Repeating LoadSettings()
+        // from every Get() would overwrite pending changes while the graphics menu is open.
+        GameSettings->LoadSettings(false);
+
         // Pass 16: the failed laptop run proved that relying on whatever scalability UE happens to
         // inherit on first launch can make the game start at ~5 FPS. Apply a one-time CEILING only:
         // existing settings that are already cheaper are never raised, and after this flag is saved
