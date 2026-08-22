@@ -122,12 +122,15 @@ void UOCRuntimeRecoveryPass15Subsystem::Tick(float DeltaTime)
 
     if (UOCGameInstance* GI = Cast<UOCGameInstance>(World->GetGameInstance()))
     {
-        if (GI->HasConnectionFailure())
+        if (GI->HasConnectionFailure() && !GPass15ConnectionFailureReturnedToFrontend)
         {
             RecoverConnectionFailure(PC);
             return;
         }
-        GPass15ConnectionFailureReturnedToFrontend = false;
+        if (!GI->HasConnectionFailure())
+        {
+            GPass15ConnectionFailureReturnedToFrontend = false;
+        }
     }
 
     // The R13 frontend subsystem also updates presentation every frame. Applying the repair from
@@ -162,9 +165,25 @@ void UOCRuntimeRecoveryPass15Subsystem::ApplyFrontendRepairs()
         Panel->SetBrushColor(FLinearColor(0.025f, 0.030f, 0.035f, 0.96f));
     }
 
+    UTextBlock* StatusLine = nullptr;
     for (int32 Index = 0; Index < Fields->GetChildrenCount(); ++Index)
     {
-        ApplyDarkFieldStyle(Cast<UEditableTextBox>(Fields->GetChildAt(Index)));
+        UWidget* Child = Fields->GetChildAt(Index);
+        if (UEditableTextBox* Field = Cast<UEditableTextBox>(Child))
+        {
+            ApplyDarkFieldStyle(Field);
+        }
+        else if (UTextBlock* Text = Cast<UTextBlock>(Child))
+        {
+            StatusLine = Text;
+        }
+    }
+
+    if (const UOCGameInstance* GI = Cast<UOCGameInstance>(World->GetGameInstance());
+        StatusLine && GI && GI->HasConnectionFailure())
+    {
+        StatusLine->SetText(GI->GetConnectionStatusText());
+        StatusLine->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.48f, 0.42f, 1.0f)));
     }
 
     if (!bStylePassLogged)
@@ -322,6 +341,7 @@ void UOCRuntimeRecoveryPass15Subsystem::RecoverConnectionFailure(AOCPlayerContro
     if (!World || !PC || !GI || GPass15ConnectionFailureReturnedToFrontend) return;
 
     GPass15ConnectionFailureReturnedToFrontend = true;
+    bJoinPending = false;
     UE_LOG(LogTemp, Warning,
         TEXT("PASS15_CONNECTION_FAILURE_RETURN_FRONTEND code=%s message=%s"),
         *GI->GetConnectionFailureCode(), *GI->GetConnectionStatusText().ToString());
