@@ -11,6 +11,8 @@
 namespace
 {
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
+    constexpr int32 RequiredRackWeaponCount = 11;
+    constexpr float RackRecoveryRadiusCm = 1800.0f;
 
     FVector SnapLocationToWalkableSurface(UWorld* World, const FVector& DesiredLocation, float HeightAboveSurfaceCm)
     {
@@ -48,26 +50,37 @@ namespace
         return Team == EOCTeam::TeamTwo ? -148.0f : 32.0f;
     }
 
-    bool HasRackForTeam(UWorld* World, EOCTeam Team)
+    int32 CollectRackWeaponsNear(UWorld* World, const FVector& BaseLocation, TArray<AOCWeaponBase*>* OutWeapons = nullptr)
     {
-        if (!World) return true;
-        for (TActorIterator<AOCTeamSpawnPoint> It(World); It; ++It)
+        if (!World) return 0;
+        int32 Count = 0;
+        for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
         {
-            const AOCTeamSpawnPoint* Point = *It;
-            if (Point && Point->GetTeamId() == Team && Point->ActorHasTag(RuntimeBaseRackTag))
-            {
-                return true;
-            }
+            AOCWeaponBase* Weapon = *It;
+            if (!Weapon || !Weapon->ActorHasTag(RuntimeBaseRackTag)) continue;
+            if (FVector::DistSquared2D(Weapon->GetActorLocation(), BaseLocation) > FMath::Square(RackRecoveryRadiusCm)) continue;
+            ++Count;
+            if (OutWeapons) OutWeapons->Add(Weapon);
         }
-        return false;
+        return Count;
     }
 
     void SpawnRuntimeBaseWeaponRack(AOCTeamSpawnPoint& OwnerPoint, EOCTeam Team)
     {
         UWorld* World = OwnerPoint.GetWorld();
-        if (!World || HasRackForTeam(World, Team)) return;
+        if (!World) return;
 
-        OwnerPoint.Tags.Add(RuntimeBaseRackTag);
+        TArray<AOCWeaponBase*> ExistingRackWeapons;
+        const int32 ExistingCount = CollectRackWeaponsNear(World, OwnerPoint.GetActorLocation(), &ExistingRackWeapons);
+        if (ExistingCount >= RequiredRackWeaponCount) return;
+
+        // A tag on the spawn point is not evidence that the rack still exists. Remove a partial rack
+        // and rebuild all 11 actors so runtime state cannot claim success with missing physical weapons.
+        for (AOCWeaponBase* Existing : ExistingRackWeapons)
+        {
+            if (IsValid(Existing)) Existing->Destroy();
+        }
+        if (!OwnerPoint.ActorHasTag(RuntimeBaseRackTag)) OwnerPoint.Tags.Add(RuntimeBaseRackTag);
 
         const TSubclassOf<AOCWeaponBase> WeaponClasses[] =
         {
@@ -111,8 +124,8 @@ namespace
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("Runtime BASE spawn rack created beside museum: team=%s weapons=%d location=%s"),
-            *OCTeamToString(Team), Spawned, *Base.ToCompactString());
+            TEXT("Runtime BASE weapon rack rebuilt beside museum: team=%s removed_partial=%d weapons=%d location=%s"),
+            *OCTeamToString(Team), ExistingCount, Spawned, *Base.ToCompactString());
     }
 }
 
