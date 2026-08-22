@@ -16,9 +16,6 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    // Neutral daytime sun. The world is still source-built, so keep the conservative
-    // intensity that matches the project's exposure assumptions, but move the sun higher
-    // and remove all warm light tinting.
     SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
     SunLight->SetupAttachment(SceneRoot);
     SunLight->SetMobility(EComponentMobility::Movable);
@@ -28,16 +25,13 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SunLight->SetAtmosphereSunLight(true);
     SunLight->SetAtmosphereSunLightIndex(0);
     SunLight->SetLightSourceAngle(0.5357f);
-    SunLight->SetDynamicShadowCascades(3);
-    SunLight->SetDynamicShadowDistanceMovableLight(30000.0f);
+    // Pass 14 folds in the conservative distant-shadow stabilization: more resolution inside a
+    // shorter useful range instead of spending movable-shadow work on 300 m of tiny geometry.
+    SunLight->SetDynamicShadowCascades(4);
+    SunLight->SetDynamicShadowDistanceMovableLight(18000.0f);
 
     SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
     SkyAtmosphere->SetupAttachment(SceneRoot);
-
-    // Explicit Earth-like scattering coefficients. The former R13 pass reduced Mie scale
-    // almost to zero while retaining an olive ground albedo, producing the flat mustard/yellow
-    // sky seen in the gameplay test. Rayleigh is wavelength dependent and gives daylight its
-    // readable blue sky; Mie remains neutral rather than acting as a warm colour grade.
     SkyAtmosphere->SetRayleighScatteringScale(1.0f);
     SkyAtmosphere->SetRayleighScattering(FLinearColor(0.005802f, 0.013558f, 0.033100f));
     SkyAtmosphere->SetRayleighExponentialDistribution(8.0f);
@@ -55,13 +49,12 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SkyLight->SetIntensity(0.85f);
     SkyLight->SetLightColor(FLinearColor::White);
     SkyLight->SetLowerHemisphereColor(FLinearColor(0.055f, 0.065f, 0.055f));
-    SkyLight->SetRealTimeCaptureEnabled(true);
+    // The Oster daylight rig is static during a match. Continuous cubemap recapture was pure GPU
+    // overhead, especially painful on the 4-7 FPS playtest. Registration performs the initial capture.
+    SkyLight->SetRealTimeCaptureEnabled(false);
 
     HeightFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("HeightFog"));
     HeightFog->SetupAttachment(SceneRoot);
-
-    // Keep height fog out of the current art-QA pass. It can be reintroduced once the
-    // environment assets and daylight are stable, rather than hiding colour problems in haze.
     HeightFog->SetFogDensity(0.0f);
     HeightFog->SetFogHeightFalloff(0.20f);
     HeightFog->SetFogInscatteringColor(FLinearColor(0.72f, 0.79f, 0.88f));
@@ -69,4 +62,7 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     HeightFog->SetStartDistance(2500.0f);
     HeightFog->SetFogMaxOpacity(0.0f);
     HeightFog->SetVolumetricFog(false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS14_RENDER_BUDGET_READY shadow_cascades=4 shadow_cm=18000 skylight_realtime=0"));
 }
