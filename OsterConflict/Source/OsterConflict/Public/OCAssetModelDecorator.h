@@ -36,6 +36,9 @@ private:
     void AddResidentialHouse(const FVector& Location, float YawDegrees, const FVector& Scale,
         int32 VariantSeed);
     UInstancedStaticMeshComponent* SelectResidentialFence(int32 VariantSeed) const;
+    UInstancedStaticMeshComponent* SelectBridge(int32 VariantSeed) const;
+    void AddAuthoredWell(const FVector& Location, float YawDegrees, const FVector& Scale,
+        int32 VariantSeed);
 
     void HideReplacedProxyComponents(AActor* SectorActor) const;
     void BuildResidentialModels();
@@ -74,10 +77,14 @@ private:
     UPROPERTY() UInstancedStaticMeshComponent* VillageFenceA;
     UPROPERTY() UInstancedStaticMeshComponent* VillageFenceB;
     UPROPERTY() UInstancedStaticMeshComponent* VillageFenceC;
+    UPROPERTY() UInstancedStaticMeshComponent* VillageFenceD;
 
     UPROPERTY() UInstancedStaticMeshComponent* StreetLight;
     UPROPERTY() UInstancedStaticMeshComponent* PowerPole;
-    UPROPERTY() UInstancedStaticMeshComponent* Bridge;
+    UPROPERTY() UInstancedStaticMeshComponent* BridgeA;
+    UPROPERTY() UInstancedStaticMeshComponent* BridgeB;
+    UPROPERTY() UInstancedStaticMeshComponent* BridgeC;
+    UPROPERTY() UInstancedStaticMeshComponent* BridgeD;
     UPROPERTY() UInstancedStaticMeshComponent* SideShed;
     UPROPERTY() UInstancedStaticMeshComponent* Crate;
     UPROPERTY() UInstancedStaticMeshComponent* MetalBarrel;
@@ -86,4 +93,8 @@ private:
     UPROPERTY() UInstancedStaticMeshComponent* Tire;
     UPROPERTY() UInstancedStaticMeshComponent* Bush;
     UPROPERTY() UInstancedStaticMeshComponent* Well;
+    UPROPERTY() UInstancedStaticMeshComponent* WellExtra01;
+    UPROPERTY() UInstancedStaticMeshComponent* WellExtra02;
+    UPROPERTY() UInstancedStaticMeshComponent* WellExtra03;
+    UPROPERTY() UInstancedStaticMeshComponent* WellExtra04;
 };
