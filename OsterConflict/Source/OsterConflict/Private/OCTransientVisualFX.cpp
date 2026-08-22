@@ -15,6 +15,66 @@
 
 namespace
 {
+    const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
+
+    bool TryResolveSocketMuzzle(const UPrimitiveComponent& Component, FVector& OutMuzzle)
+    {
+        static const FName SocketNames[] =
+        {
+            TEXT("Muzzle"), TEXT("muzzle"), TEXT("MuzzleFlash"), TEXT("Muzzle_Flash"),
+            TEXT("Muzzle_01"), TEXT("MuzzleSocket"), TEXT("BarrelEnd"), TEXT("barrel_end")
+        };
+        for (const FName Socket : SocketNames)
+        {
+            if (Component.DoesSocketExist(Socket))
+            {
+                OutMuzzle = Component.GetSocketLocation(Socket);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool TryResolveBoundsMuzzle(const UPrimitiveComponent& Component, const FVector& ShotDirection, FVector& OutMuzzle)
+    {
+        FVector LocalMin;
+        FVector LocalMax;
+        Component.GetLocalBounds(LocalMin, LocalMax);
+        if (!LocalMin.IsFinite() || !LocalMax.IsFinite()) return false;
+
+        const FVector LocalSize = LocalMax - LocalMin;
+        if (LocalSize.GetAbsMax() <= 1.0f) return false;
+
+        const FTransform Transform = Component.GetComponentTransform();
+        const FVector LocalShot = Transform.InverseTransformVectorNoScale(ShotDirection).GetSafeNormal();
+        if (LocalShot.IsNearlyZero()) return false;
+
+        const FVector Center = (LocalMin + LocalMax) * 0.5f;
+        const FVector Extent = (LocalMax - LocalMin) * 0.5f;
+        FVector LocalMuzzle = Center;
+
+        // Use the end of the weapon's dominant axis, not the centre of its world AABB. The previous
+        // AABB projection placed the FX around the receiver/magazine height, visibly below the barrel.
+        const FVector AbsShot(FMath::Abs(LocalShot.X), FMath::Abs(LocalShot.Y), FMath::Abs(LocalShot.Z));
+        if (AbsShot.X >= AbsShot.Y && AbsShot.X >= AbsShot.Z)
+        {
+            LocalMuzzle.X = LocalShot.X >= 0.0f ? LocalMax.X : LocalMin.X;
+            LocalMuzzle.Z = Center.Z + Extent.Z * 0.34f;
+        }
+        else if (AbsShot.Y >= AbsShot.Z)
+        {
+            LocalMuzzle.Y = LocalShot.Y >= 0.0f ? LocalMax.Y : LocalMin.Y;
+            LocalMuzzle.Z = Center.Z + Extent.Z * 0.34f;
+        }
+        else
+        {
+            LocalMuzzle.Z = LocalShot.Z >= 0.0f ? LocalMax.Z : LocalMin.Z;
+        }
+
+        OutMuzzle = Transform.TransformPosition(LocalMuzzle);
+        return true;
+    }
+
     FVector ResolveLocalWeaponMuzzle(UWorld* World, const FVector& NetworkStart, const FVector& Direction)
     {
         if (!World) return NetworkStart;
@@ -28,9 +88,8 @@ namespace
         FRotator ViewRotation;
         PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
 
-        // Multicast trace data is camera-authored for hit validation. Only rewrite the local shooter's
-        // presentation. Remote shots keep their replicated start because their weapon geometry is not
-        // authoritative on this client's first-person camera.
+        // Network trace start remains camera-authored for hit validation. Rewrite presentation only for
+        // the local shooter's current first-person weapon.
         if (FVector::DistSquared(ViewLocation, NetworkStart) > FMath::Square(90.0f)) return NetworkStart;
 
         const FVector SafeDirection = Direction.GetSafeNormal();
@@ -42,7 +101,7 @@ namespace
         bool bHasProductionVisual = false;
         for (const UPrimitiveComponent* Component : Components)
         {
-            if (Component && Component->ComponentHasTag(FName(TEXT("OC_ProductionWeaponVisual"))))
+            if (Component && Component->ComponentHasTag(ProductionVisualTag) && Component->IsVisible())
             {
                 bHasProductionVisual = true;
                 break;
@@ -53,33 +112,28 @@ namespace
         float BestProjection = -TNumericLimits<float>::Max();
         for (const UPrimitiveComponent* Component : Components)
         {
-            if (!Component || !Component->IsRegistered()) continue;
-            if (bHasProductionVisual && !Component->ComponentHasTag(FName(TEXT("OC_ProductionWeaponVisual")))) continue;
+            if (!Component || !Component->IsRegistered() || !Component->IsVisible()) continue;
+            if (bHasProductionVisual && !Component->ComponentHasTag(ProductionVisualTag)) continue;
 
-            const FBoxSphereBounds& Bounds = Component->Bounds;
-            if (Bounds.SphereRadius <= 1.0f) continue;
+            FVector Candidate;
+            if (!TryResolveSocketMuzzle(*Component, Candidate) &&
+                !TryResolveBoundsMuzzle(*Component, SafeDirection, Candidate))
+            {
+                continue;
+            }
 
-            // Project the component's world AABB onto the shot direction and choose the furthest
-            // rendered weapon point. This works for AK, pistol and imported static/skeletal weapons
-            // without inventing one hard-coded muzzle offset for every mesh.
-            const float Support =
-                FMath::Abs(SafeDirection.X) * Bounds.BoxExtent.X +
-                FMath::Abs(SafeDirection.Y) * Bounds.BoxExtent.Y +
-                FMath::Abs(SafeDirection.Z) * Bounds.BoxExtent.Z;
-            const float Projection = FVector::DotProduct(Bounds.Origin, SafeDirection) + Support;
+            const float DistanceFromView = FVector::Distance(ViewLocation, Candidate);
+            if (DistanceFromView < 20.0f || DistanceFromView > 240.0f) continue;
+
+            const float Projection = FVector::DotProduct(Candidate, SafeDirection);
             if (Projection > BestProjection)
             {
                 BestProjection = Projection;
-                BestPoint = Bounds.Origin + SafeDirection * Support;
+                BestPoint = Candidate;
             }
         }
 
-        const float DistanceFromView = FVector::Distance(ViewLocation, BestPoint);
-        if (BestProjection <= -TNumericLimits<float>::Max() * 0.5f || DistanceFromView < 20.0f || DistanceFromView > 220.0f)
-        {
-            return NetworkStart;
-        }
-        return BestPoint;
+        return BestProjection > -TNumericLimits<float>::Max() * 0.5f ? BestPoint : NetworkStart;
     }
 }
 
@@ -143,12 +197,19 @@ void AOCTransientVisualFX::ConfigureTracer(const FVector& Start, const FVector& 
         Mesh->SetStaticMesh(Cylinder);
     }
 
-    const FVector Direction = Delta / Length;
-    SetActorLocation((VisualStart + End) * 0.5f);
-    SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, Direction));
-    // Thin high-speed streak instead of an oversized projectile bead.
-    const float ThinRadius = FMath::Clamp(RadiusCm, 0.18f, 0.42f);
-    Mesh->SetRelativeScale3D(FVector(ThinRadius / 50.0f, ThinRadius / 50.0f, Length / 100.0f));
+    const FVector VisualDirection = Delta / Length;
+    const FVector StreakStart = VisualStart + VisualDirection * 18.0f;
+    const float StreakLength = FVector::Distance(StreakStart, End);
+    if (StreakLength <= 1.0f)
+    {
+        Destroy();
+        return;
+    }
+
+    SetActorLocation((StreakStart + End) * 0.5f);
+    SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, VisualDirection));
+    const float ThinRadius = FMath::Clamp(RadiusCm, 0.12f, 0.30f);
+    Mesh->SetRelativeScale3D(FVector(ThinRadius / 50.0f, ThinRadius / 50.0f, StreakLength / 100.0f));
     PointLight->SetVisibility(false);
     ApplyColor(Color);
     SetLifeSpan(FMath::Max(0.01f, LifetimeSeconds));
@@ -177,7 +238,6 @@ void AOCTransientVisualFX::ConfigureImpact(const FVector& Location, const FVecto
 void AOCTransientVisualFX::ConfigureMuzzle(const FVector& Location, const FVector& Direction, const FLinearColor& Color,
     float LifetimeSeconds)
 {
-    // Muzzle presentation is a short directional plume rather than a glowing sphere.
     if (UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone")))
     {
         Mesh->SetStaticMesh(Cone);
@@ -189,14 +249,14 @@ void AOCTransientVisualFX::ConfigureMuzzle(const FVector& Location, const FVecto
 
     const FVector SafeDirection = Direction.GetSafeNormal();
     const FVector VisualMuzzle = ResolveLocalWeaponMuzzle(GetWorld(), Location, SafeDirection);
-    SetActorLocation(VisualMuzzle + SafeDirection * 11.0f);
+    SetActorLocation(VisualMuzzle + SafeDirection * 7.0f);
     SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, SafeDirection));
-    Mesh->SetRelativeScale3D(FVector(0.025f, 0.025f, 0.14f));
+    Mesh->SetRelativeScale3D(FVector(0.020f, 0.020f, 0.10f));
     ApplyColor(Color);
 
     PointLight->SetVisibility(true);
     PointLight->SetLightColor(Color);
-    PointLight->SetIntensity(2500.0f);
-    PointLight->SetAttenuationRadius(220.0f);
+    PointLight->SetIntensity(2100.0f);
+    PointLight->SetAttenuationRadius(180.0f);
     SetLifeSpan(FMath::Max(0.015f, LifetimeSeconds));
 }
