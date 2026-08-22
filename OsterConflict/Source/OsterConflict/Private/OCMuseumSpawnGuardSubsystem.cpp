@@ -1,12 +1,15 @@
 #include "OCMuseumSpawnGuardSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
+#include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
 #include "OCWeaponBase.h"
 #include "OCWorldSectorOster.h"
 
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 
 namespace
 {
@@ -14,6 +17,7 @@ namespace
     constexpr int32 RequiredRackWeaponCount = 11;
     constexpr float PrimaryBaseRadiusCm = 2200.0f;
     constexpr float RackRadiusCm = 1800.0f;
+    constexpr float BaseDeploymentAcceptanceRadiusCm = 3500.0f;
 
     int32 CountRackWeaponsNear(UWorld* World, const FVector& BaseLocation)
     {
@@ -30,6 +34,26 @@ namespace
         }
         return Count;
     }
+
+    AOCTeamSpawnPoint* FindPrimaryMuseumBase(UWorld* World, EOCTeam Team)
+    {
+        if (!World || Team == EOCTeam::None) return nullptr;
+        const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
+        AOCTeamSpawnPoint* Best = nullptr;
+        double BestSq = TNumericLimits<double>::Max();
+        for (TActorIterator<AOCTeamSpawnPoint> It(World); It; ++It)
+        {
+            AOCTeamSpawnPoint* Point = *It;
+            if (!Point || !Point->IsBaseSpawn() || Point->GetTeamId() != Team) continue;
+            const double DistanceSq = FVector::DistSquared2D(Point->GetActorLocation(), Museum);
+            if (DistanceSq <= FMath::Square(PrimaryBaseRadiusCm) && DistanceSq < BestSq)
+            {
+                BestSq = DistanceSq;
+                Best = Point;
+            }
+        }
+        return Best;
+    }
 }
 
 bool UOCMuseumSpawnGuardSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -41,10 +65,14 @@ bool UOCMuseumSpawnGuardSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 void UOCMuseumSpawnGuardSubsystem::Tick(float DeltaTime)
 {
-    if (bFinished || DeltaTime < 0.0f) return;
+    if (DeltaTime < 0.0f) return;
 
     UWorld* World = GetWorld();
     if (!World || World->GetNetMode() == NM_Client) return;
+
+    ValidationAccumulator += DeltaTime;
+    if (ValidationAccumulator < 0.25f) return;
+    ValidationAccumulator = 0.0f;
 
     // Pass 15: do not wait on AOCWorldSectorOster actor existence. The failed laptop playtest proved
     // that this guard can otherwise remain inert even though gameplay/deployment is already visible.
@@ -52,7 +80,15 @@ void UOCMuseumSpawnGuardSubsystem::Tick(float DeltaTime)
     const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
     if (!GameMode || GameMode->IsFrontendOnlySession()) return;
 
-    bFinished = EnsureAuthoritativeMuseumBases();
+    if (!bFinished)
+    {
+        bFinished = EnsureAuthoritativeMuseumBases();
+    }
+
+    if (bFinished)
+    {
+        ValidateBaseDeployments();
+    }
 }
 
 bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
@@ -156,6 +192,64 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
     UE_LOG(LogTemp, Warning,
         TEXT("PASS15_MUSEUM_BASES_WEAPONS_NOT_READY team1_rack=%d team2_rack=%d"), TeamOneRack, TeamTwoRack);
     return false;
+}
+
+void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
+{
+    UWorld* World = GetWorld();
+    if (!World || World->GetNetMode() == NM_Client) return;
+
+    const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
+
+    for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+    {
+        AOCPlayerController* PC = Cast<AOCPlayerController>(It->Get());
+        if (!PC || PC->IsActorBeingDestroyed()) continue;
+
+        APawn* Pawn = PC->GetPawn();
+        if (!Pawn) continue;
+
+        if (LastValidatedPawnByController.FindRef(PC).Get() == Pawn) continue;
+        LastValidatedPawnByController.Add(PC, Pawn);
+
+        if (!PC->GetRequestedDeploymentSpawn().ToString().Equals(TEXT("BASE"), ESearchCase::IgnoreCase))
+        {
+            continue;
+        }
+
+        const AOCPlayerState* State = PC->GetPlayerState<AOCPlayerState>();
+        const EOCTeam Team = State ? State->GetTeamId() : EOCTeam::None;
+        if (Team == EOCTeam::None) continue;
+
+        const double DistanceSq = FVector::DistSquared2D(Pawn->GetActorLocation(), Museum);
+        if (DistanceSq <= FMath::Square(BaseDeploymentAcceptanceRadiusCm))
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM team=%s pawn=%s location=%s"),
+                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
+            continue;
+        }
+
+        AOCTeamSpawnPoint* Base = FindPrimaryMuseumBase(World, Team);
+        if (!Base)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_primary_base=1 location=%s"),
+                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
+            continue;
+        }
+
+        const FVector OldLocation = Pawn->GetActorLocation();
+        FTransform Corrected = Base->GetActorTransform();
+        Corrected.AddToTranslation(FVector(0.0f, 0.0f, 80.0f));
+        Pawn->SetActorLocationAndRotation(
+            Corrected.GetLocation(), Corrected.Rotator(), false, nullptr, ETeleportType::TeleportPhysics);
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS15_BASE_DEPLOYMENT_RECOVERED team=%s pawn=%s old=%s new=%s museum=%s"),
+            *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
+            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString());
+    }
 }
 
 TStatId UOCMuseumSpawnGuardSubsystem::GetStatId() const
