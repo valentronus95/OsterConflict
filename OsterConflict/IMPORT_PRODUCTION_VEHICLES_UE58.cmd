@@ -4,9 +4,12 @@ setlocal EnableExtensions
 set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "PY_SCRIPT=%PROJECT_DIR%Scripts\import_production_vehicle_assets.py"
+set "VERIFY_SCRIPT=%PROJECT_DIR%Scripts\verify_production_vehicle_fresh_load.py"
 set "SOURCE_RECOVERY=%PROJECT_DIR%Scripts\prepare_local_production_sources.ps1"
 set "SUCCESS_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_import_success.txt"
+set "FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_fresh_load_success.txt"
 set "IMPORT_LOG=%PROJECT_DIR%Saved\Logs\ProductionVehicleImport.log"
+set "FRESH_LOG=%PROJECT_DIR%Saved\Logs\ProductionVehicleFreshLoad.log"
 set "UE_CMD="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" (
@@ -44,11 +47,12 @@ if not exist "%PY_SCRIPT%" (
     echo ERROR: Import script not found: %PY_SCRIPT%
     exit /b 4
 )
+if not exist "%VERIFY_SCRIPT%" (
+    echo ERROR: fresh-load verification script not found: %VERIFY_SCRIPT%
+    exit /b 5
+)
 
-rem The public repo intentionally does not carry every production source byte. BTR-4 is local-only for
-rem license reasons, and the HMMWV/M2 LFS sources were not present in current main. Recover the user's
-rem previously downloaded model files/ZIP locally before invoking Unreal instead of producing a vague
-rem "exit code 0 but sentinel missing" failure.
+rem Recover the user's previously downloaded real source files locally. BTR remains local-only.
 if exist "%SOURCE_RECOVERY%" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_RECOVERY%" -ProjectDir "%PROJECT_DIR%"
     set "SOURCE_RC=%ERRORLEVEL%"
@@ -74,7 +78,9 @@ if not exist "%PROJECT_DIR%SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus
 )
 
 if exist "%SUCCESS_SENTINEL%" del /q "%SUCCESS_SENTINEL%" >nul 2>nul
+if exist "%FRESH_SENTINEL%" del /q "%FRESH_SENTINEL%" >nul 2>nul
 if exist "%IMPORT_LOG%" del /q "%IMPORT_LOG%" >nul 2>nul
+if exist "%FRESH_LOG%" del /q "%FRESH_LOG%" >nul 2>nul
 
 echo ============================================================
 echo OSTER CONFLICT - PRODUCTION VEHICLE IMPORT
@@ -85,10 +91,6 @@ echo Script:  %PY_SCRIPT%
 echo Log:     %IMPORT_LOG%
 echo.
 
-rem UE 5.8 documents two Python launch routes. The old full-editor -ExecutePythonScript route also
-rem requires Editor Scripting Utilities and in the failing playtest returned 0 after platform validation
-rem without ever executing our Python script. Asset import does not need a loaded level, so use the
-rem PythonScript commandlet directly. This route requires only PythonScriptPlugin and is deterministic headless CI/runtime tooling.
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%PY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%IMPORT_LOG%"
 set "RESULT=%ERRORLEVEL%"
 
@@ -99,14 +101,12 @@ if not "%RESULT%"=="0" (
     exit /b %RESULT%
 )
 
-rem Do not trust the process exit code alone. Python writes this file only after all three import
-rem tasks report the canonical assets as created/updated and the assets are saved successfully.
 if not exist "%SUCCESS_SENTINEL%" (
     echo.
     echo ERROR: Unreal exited with code 0 but the production import success sentinel is missing.
     echo The Python commandlet did not complete all three canonical asset imports.
     echo Log: %IMPORT_LOG%
-    exit /b 5
+    exit /b 6
 )
 
 findstr /L /C:"/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA" "%SUCCESS_SENTINEL%" >nul || goto :bad_sentinel
@@ -114,8 +114,28 @@ findstr /L /C:"/Game/Production/Weapons/M2/SM_M2_Browning" "%SUCCESS_SENTINEL%" 
 findstr /L /C:"/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" "%SUCCESS_SENTINEL%" >nul || goto :bad_sentinel
 
 echo.
-echo PASS: HMMWV, M2 Browning and BTR-4 production assets imported, verified and saved.
-echo Log: %IMPORT_LOG%
+echo [VERIFY] Reopening production assets in a fresh UE process...
+"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%VERIFY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%FRESH_LOG%"
+set "VERIFY_RC=%ERRORLEVEL%"
+if not "%VERIFY_RC%"=="0" (
+    echo ERROR: fresh UE process could not load the imported production models. code=%VERIFY_RC%
+    echo Log: %FRESH_LOG%
+    exit /b %VERIFY_RC%
+)
+if not exist "%FRESH_SENTINEL%" (
+    echo ERROR: fresh-load production model sentinel is missing.
+    echo The game will not start with proxy BTR/HMMWV/M2 visuals.
+    echo Log: %FRESH_LOG%
+    exit /b 24
+)
+findstr /L /C:"/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+findstr /L /C:"/Game/Production/Weapons/M2/SM_M2_Browning" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+findstr /L /C:"/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+
+echo.
+echo PASS: HMMWV, M2 Browning and BTR-4 imported and load successfully in a fresh UE process.
+echo Import log: %IMPORT_LOG%
+echo Verify log: %FRESH_LOG%
 exit /b 0
 
 :bad_sentinel
@@ -123,4 +143,11 @@ echo.
 echo ERROR: production import success sentinel is incomplete or invalid.
 echo File: %SUCCESS_SENTINEL%
 echo Log:  %IMPORT_LOG%
-exit /b 6
+exit /b 7
+
+:bad_fresh
+echo.
+echo ERROR: fresh-load production model sentinel is incomplete or invalid.
+echo File: %FRESH_SENTINEL%
+echo Log:  %FRESH_LOG%
+exit /b 25
