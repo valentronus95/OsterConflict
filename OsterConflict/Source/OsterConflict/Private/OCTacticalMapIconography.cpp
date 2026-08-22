@@ -62,7 +62,8 @@ namespace
         const FName Name,
         const TCHAR* Value,
         const float NewX,
-        const float NewWidth)
+        const float NewWidth,
+        const float NewY = -1.0f)
     {
         if (!Tree) return;
         UTextBlock* Text = Cast<UTextBlock>(Tree->FindWidget(Name));
@@ -72,7 +73,7 @@ namespace
         if (UCanvasPanelSlot* TextCanvasSlot = Cast<UCanvasPanelSlot>(Text->Slot))
         {
             const FVector2D CurrentPosition = TextCanvasSlot->GetPosition();
-            TextCanvasSlot->SetPosition(FVector2D(NewX, CurrentPosition.Y));
+            TextCanvasSlot->SetPosition(FVector2D(NewX, NewY >= 0.0f ? NewY : CurrentPosition.Y));
             const FVector2D CurrentSize = TextCanvasSlot->GetSize();
             TextCanvasSlot->SetSize(FVector2D(NewWidth, CurrentSize.Y));
         }
@@ -123,22 +124,28 @@ void UOCTacticalMapWidget::InstallTacticalIconography()
     UCanvasPanel* Root = Cast<UCanvasPanel>(WidgetTree->FindWidget(TEXT("TacticalMapRoot")));
     if (!Root) return;
 
-    ConfigureLabel(WidgetTree, TEXT("LegendPlayer"), TEXT("ГРАВЕЦЬ"), 76.0f, 176.0f);
-    ConfigureLabel(WidgetTree, TEXT("LegendSquad"), TEXT("ЧЛЕНИ ЗАГОНУ"), 76.0f, 184.0f);
-    ConfigureLabel(WidgetTree, TEXT("LegendVehicle"), TEXT("ТРАНСПОРТ ЗАГОНУ"), 76.0f, 188.0f);
-    ConfigureLabel(WidgetTree, TEXT("LegendObjective"), TEXT("КОМАНДА / ЦІЛЬ"), 76.0f, 184.0f);
-    ConfigureLabel(WidgetTree, TEXT("LegendPOI"), TEXT("ТОЧКА ІНТЕРЕСУ"), 76.0f, 184.0f);
+    if (UBorder* LegendPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("TacticalMapLegendPanel"))))
+    {
+        if (UCanvasPanelSlot* LegendCanvasSlot = Cast<UCanvasPanelSlot>(LegendPanel->Slot))
+            LegendCanvasSlot->SetSize(FVector2D(270.0f, 310.0f));
+    }
+
+    ConfigureLabel(WidgetTree, TEXT("LegendPlayer"), TEXT("ГРАВЕЦЬ"), 76.0f, 176.0f, 166.0f);
+    ConfigureLabel(WidgetTree, TEXT("LegendSquad"), TEXT("ЧЛЕНИ ЗАГОНУ"), 76.0f, 184.0f, 208.0f);
+    ConfigureLabel(WidgetTree, TEXT("LegendVehicle"), TEXT("ТРАНСПОРТ ЗАГОНУ"), 76.0f, 188.0f, 250.0f);
+    ConfigureLabel(WidgetTree, TEXT("LegendObjective"), TEXT("КОМАНДА / ЦІЛЬ"), 76.0f, 184.0f, 292.0f);
+    ConfigureLabel(WidgetTree, TEXT("LegendPOI"), TEXT("ТОЧКА ІНТЕРЕСУ"), 76.0f, 184.0f, 334.0f);
 
     AddVectorIcon(WidgetTree, Root, TEXT("LegendIconPlayer"), TEXT("navigation.svg"),
-        FVector2D(46.0f, 173.0f), FVector2D(22.0f, 22.0f), IconPlayer, 6);
+        FVector2D(46.0f, 165.0f), FVector2D(22.0f, 22.0f), IconPlayer, 6);
     AddVectorIcon(WidgetTree, Root, TEXT("LegendIconSquad"), TEXT("users.svg"),
-        FVector2D(46.0f, 225.0f), FVector2D(22.0f, 22.0f), IconFriendly, 6);
+        FVector2D(46.0f, 207.0f), FVector2D(22.0f, 22.0f), IconFriendly, 6);
     AddVectorIcon(WidgetTree, Root, TEXT("LegendIconVehicle"), TEXT("truck.svg"),
-        FVector2D(46.0f, 277.0f), FVector2D(22.0f, 22.0f), IconFriendly, 6);
+        FVector2D(46.0f, 249.0f), FVector2D(22.0f, 22.0f), IconFriendly, 6);
     AddVectorIcon(WidgetTree, Root, TEXT("LegendIconObjective"), TEXT("crosshair.svg"),
-        FVector2D(46.0f, 329.0f), FVector2D(22.0f, 22.0f), IconAmber, 6);
+        FVector2D(46.0f, 291.0f), FVector2D(22.0f, 22.0f), IconAmber, 6);
     AddVectorIcon(WidgetTree, Root, TEXT("LegendIconPOI"), TEXT("map-pin.svg"),
-        FVector2D(46.0f, 381.0f), FVector2D(22.0f, 22.0f), IconPrimary, 6);
+        FVector2D(46.0f, 333.0f), FVector2D(22.0f, 22.0f), IconPrimary, 6);
 
     AddKeyCap(WidgetTree, Root, TEXT("TacticalMapKeyCapM"), TEXT("M"), FVector2D(34.0f, 816.0f));
     ConfigureLabel(WidgetTree, TEXT("TacticalMapHintClose"), TEXT("ЗАКРИТИ"), 72.0f, 130.0f);
@@ -156,5 +163,5 @@ void UOCTacticalMapWidget::InstallTacticalIconography()
     ConfigureLabel(WidgetTree, TEXT("TacticalMapHintPing"), TEXT("ПКМ · МІТКА"), 1212.0f, 210.0f);
 
     UE_LOG(LogTemp, Display,
-        TEXT("Tactical Map iconography: Lucide vector legend and input prompts installed."));
+        TEXT("Tactical Map iconography: compact Lucide vector legend and input prompts installed."));
 }
