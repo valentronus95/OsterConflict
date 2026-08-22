@@ -19,6 +19,7 @@ set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 set "WEAPON_PREFLIGHT_LOG=%LOG_DIR%\R14_REQUIRED_WEAPON_ASSETS.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
 set "IS_ACCEPTANCE=0"
+if /I "%OC_FORCE_ACCEPTANCE%"=="1" set "IS_ACCEPTANCE=1"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
@@ -82,6 +83,11 @@ if /I "%CURRENT_BRANCH%"=="main" (
   set "IS_ACCEPTANCE=1"
   echo [ACCEPTANCE] Running isolated runtime acceptance branch: %CURRENT_BRANCH%
   echo [ACCEPTANCE] main will remain untouched until this branch passes the UE runtime playtest.
+)
+
+if "%IS_ACCEPTANCE%"=="1" if /I "%CURRENT_BRANCH%"=="main" (
+  echo [ACCEPTANCE] Running strict runtime acceptance from current main.
+  echo [ACCEPTANCE] The launcher will reject missing Museum / weapon / vehicle READY evidence after the game closes.
 )
 
 echo [PRECHECK] Fetching origin/%FETCH_BRANCH% so a stale local build cannot be tested...
@@ -173,6 +179,16 @@ if exist "%~dp0VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py" (
   )
 )
 
+if exist "%~dp0VERIFY_RUNTIME_RECONCILE_PASS_8.py" (
+  echo [0c/4] Verifying runtime reconciliation Pass 8 source contracts...
+  %PY_CMD% "%~dp0VERIFY_RUNTIME_RECONCILE_PASS_8.py"
+  if errorlevel 1 (
+    echo [STOP] Pass 8 source verification failed.
+    pause
+    exit /b 16
+  )
+)
+
 echo.
 echo [1/4] Building current OsterConflictEditor...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
@@ -235,7 +251,7 @@ set "GAME_RC=%ERRORLEVEL%"
 
 if "%IS_ACCEPTANCE%"=="1" (
   echo.
-  echo [ACCEPTANCE] Inspecting runtime evidence from the exact branch playtest...
+  echo [ACCEPTANCE] Inspecting runtime evidence from the exact playtest source...
   if not exist "%PLAYTEST_LOG%" (
     echo [STOP] Acceptance log is missing: %PLAYTEST_LOG%
     pause
