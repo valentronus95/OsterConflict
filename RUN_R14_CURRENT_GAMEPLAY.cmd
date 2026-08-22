@@ -11,12 +11,12 @@ set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "VERIFY=%~dp0VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py"
 set "PRODUCTION_IMPORT=%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 set "WEAPON_VERIFY=%~dp0OsterConflict\Scripts\verify_required_weapon_assets.py"
+set "LFS_VERIFY_PS=%~dp0OsterConflict\Scripts\verify_playtest_lfs_payloads.ps1"
 set "WEAPON_SENTINEL=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\required_weapon_asset_preflight_success.txt"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 set "WEAPON_PREFLIGHT_LOG=%LOG_DIR%\R14_REQUIRED_WEAPON_ASSETS.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
-set "LFS_INCLUDE=OsterConflict/Content/AK-47/**,OsterConflict/Content/R13/Weapons/**,OsterConflict/Content/PN_FoliageCollection/**"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
@@ -45,6 +45,11 @@ if not exist "%PROJECT%" (
 )
 if not exist "%WEAPON_VERIFY%" (
   echo [ERROR] Required weapon preflight script is missing: %WEAPON_VERIFY%
+  pause
+  exit /b 6
+)
+if not exist "%LFS_VERIFY_PS%" (
+  echo [ERROR] Git LFS payload verifier is missing: %LFS_VERIFY_PS%
   pause
   exit /b 6
 )
@@ -91,9 +96,8 @@ if errorlevel 1 (
   exit /b 11
 )
 
-rem GitHub stores the restored R13/AK weapon meshes and PN foliage through Git LFS. A normal source
-rem checkout can leave 130-byte pointer stubs behind; Unreal then fails LoadObject and silently shows
-rem the primitive weapon/empty-grass fallbacks. Hydrate the exact playtest asset families every time.
+rem Hydrate the current main LFS payloads using only commands supported by older Git LFS releases.
+rem The previous --include form is not accepted by the Git LFS build installed on the playtest PC.
 echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
 git lfs version >nul 2>nul
 if errorlevel 1 (
@@ -103,20 +107,20 @@ if errorlevel 1 (
   exit /b 12
 )
 git lfs install >nul 2>nul
-git lfs pull origin main --include="%LFS_INCLUDE%"
+git lfs pull origin
 if errorlevel 1 (
-  echo [STOP] Git LFS could not hydrate the required weapon/foliage assets.
+  echo [STOP] Git LFS could not hydrate the current main assets.
   pause
   exit /b 13
 )
-git lfs checkout --include="%LFS_INCLUDE%" >nul
+git lfs checkout >nul
+if errorlevel 1 (
+  echo [STOP] Git LFS checkout failed after pull.
+  pause
+  exit /b 13
+)
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ErrorActionPreference='Stop';" ^
-  "$roots=@('%~dp0OsterConflict\Content\AK-47','%~dp0OsterConflict\Content\R13\Weapons','%~dp0OsterConflict\Content\PN_FoliageCollection');" ^
-  "$bad=@(); foreach($root in $roots){ if(Test-Path -LiteralPath $root){ Get-ChildItem -LiteralPath $root -Recurse -File ^| Where-Object {$_.Length -lt 1024} ^| ForEach-Object { $first=(Get-Content -LiteralPath $_.FullName -TotalCount 1 -ErrorAction SilentlyContinue); if($first -eq 'version https://git-lfs.github.com/spec/v1'){$bad += $_.FullName} } } };" ^
-  "if($bad.Count -gt 0){ Write-Host '[STOP] Unhydrated Git LFS model files remain:' -ForegroundColor Red; $bad ^| Select-Object -First 20 ^| ForEach-Object {Write-Host ('  '+$_)}; exit 12 };" ^
-  "Write-Host '[ASSETS] Weapon and foliage LFS payloads are hydrated.'"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%LFS_VERIFY_PS%" -ProjectRoot "%~dp0"
 if errorlevel 1 (
   pause
   exit /b 14

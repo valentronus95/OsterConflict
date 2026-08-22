@@ -12,6 +12,7 @@ FILES = {
     "stabilizer": ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp",
     "frontend": ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp",
     "launcher": ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
+    "lfs_verify": ROOT / "OsterConflict/Scripts/verify_playtest_lfs_payloads.ps1",
     "production_import": ROOT / "OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     "fresh_vehicle_verify": ROOT / "OsterConflict/Scripts/verify_production_vehicle_fresh_load.py",
     "source_recovery": ROOT / "OsterConflict/Scripts/prepare_local_production_sources.ps1",
@@ -39,6 +40,7 @@ fallback = read("fallback")
 stabilizer = read("stabilizer")
 frontend = read("frontend")
 launcher = read("launcher")
+lfs_verify = read("lfs_verify")
 production_import = read("production_import")
 fresh_vehicle_verify = read("fresh_vehicle_verify")
 source_recovery = read("source_recovery")
@@ -111,12 +113,24 @@ for needle in (
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     "Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
     "The game will not launch with civilian pickup/proxy turret/proxy BTR geometry pretending to be final assets.",
-    "git lfs pull origin main",
-    "OsterConflict/Content/R13/Weapons/**",
-    "OsterConflict/Content/PN_FoliageCollection/**",
-    "Unhydrated Git LFS model files remain",
+    "git lfs pull origin",
+    "git lfs checkout >nul",
+    "verify_playtest_lfs_payloads.ps1",
 ):
     require(launcher, needle, "normal gameplay production/LFS gate")
+if "--include=" in launcher:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: unsupported Git LFS --include flag returned")
+if "^|" in launcher:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid cmd caret-pipe returned to PowerShell path")
+
+for needle in (
+    "Content\\AK-47",
+    "Content\\R13\\Weapons",
+    "Content\\PN_FoliageCollection",
+    "Unhydrated Git LFS model files remain",
+    "version https://git-lfs.github.com/spec/v1",
+):
+    require(lfs_verify, needle, "standalone LFS payload verification")
 
 for needle in (
     "import_production_vehicle_assets.py",
@@ -156,7 +170,7 @@ for needle in (
 print("RUNTIME ACCEPTANCE PASS 3 SOURCE CONTRACT PASS")
 print("- BASE is placed directly beside the Museum test hub")
 print("- dense foliage is generated incrementally instead of freezing deployment")
-print("- restored weapon and foliage LFS payloads are hydrated before playtest")
+print("- restored weapon and foliage LFS payloads are hydrated before playtest using Windows-compatible commands")
 print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend")
 print("- local tracer/muzzle presentation uses socket/local-mesh barrel geometry")
 print("- HMMWV + M2 + BTR are reopened in a fresh UE process before gameplay starts")
