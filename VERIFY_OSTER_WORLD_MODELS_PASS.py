@@ -16,6 +16,7 @@ WORLD_OWNER = ROOT / "OsterConflict/Source/OsterConflict/Private/OCWorldAssetMod
 ENTERABLE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp"
 ENTERABLE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h"
 MUSEUM_WINDOW_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp"
+SILPO_DETAIL_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp"
 RECOVERED_ENV = ROOT / "OsterConflict/Source/OsterConflict/Private/OCRecoveredEnvironmentSubsystem.cpp"
 CONTENT = ROOT / "OsterConflict/Content/AdvancedVillagePack/Meshes"
 CABIN_PROPS = ROOT / "OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props"
@@ -42,6 +43,7 @@ def main() -> int:
             (ENTERABLE_CPP, "OCEnterableHouse.cpp"),
             (ENTERABLE_H, "OCEnterableHouse.h"),
             (MUSEUM_WINDOW_CPP, "OCMuseumBreakableWindow.cpp"),
+            (SILPO_DETAIL_CPP, "OCR141SilpoDetailSubsystem.cpp"),
             (RECOVERED_ENV, "OCRecoveredEnvironmentSubsystem.cpp"),
         ):
             require(path.is_file(), f"{label} missing")
@@ -52,6 +54,7 @@ def main() -> int:
         enterable_cpp = ENTERABLE_CPP.read_text(encoding="utf-8")
         enterable_h = ENTERABLE_H.read_text(encoding="utf-8")
         museum_window_cpp = MUSEUM_WINDOW_CPP.read_text(encoding="utf-8")
+        silpo_detail_cpp = SILPO_DETAIL_CPP.read_text(encoding="utf-8")
         recovered_env = RECOVERED_ENV.read_text(encoding="utf-8")
 
         required_assets = [
@@ -80,9 +83,10 @@ def main() -> int:
             "Wheel_Barrow.uasset",
             "Fence_Old_1_2m.uasset",
             "Side_Shed.uasset",
+            "Power_Pole_1.uasset",
         ]
         for asset in required_house_props:
-            require((CABIN_PROPS / asset).is_file(), f"required authored enterable-house prop missing: {asset}")
+            require((CABIN_PROPS / asset).is_file(), f"required authored rural prop missing: {asset}")
         require((CABIN_MODULAR / "Window_Frame_Part.uasset").is_file(),
                 "required authored museum window frame missing: Window_Frame_Part.uasset")
 
@@ -203,6 +207,19 @@ def main() -> int:
         require_text(museum_window_cpp, "GlassPane->SetMaterial(0, Glass);",
                      "museum breakable glass material preserved")
 
+        # The photo-supported utility pole at Silpo now uses the matching checked-in rural asset.
+        # Presentation remains no-collision; the old footprint is retained only as a hidden collision proxy.
+        # If the LFS payload is unavailable, the historical visible Cube pole remains the fallback.
+        require_text(silpo_detail_cpp, "Power_Pole_1.Power_Pole_1", "Silpo authored utility pole path")
+        require_text(silpo_detail_cpp, "AddFittedVerticalMesh", "Silpo utility-pole bounds fitting")
+        require_text(silpo_detail_cpp, "FQuat::FindBetweenNormals", "Silpo utility-pole axis normalization")
+        require_text(silpo_detail_cpp, "R141Silpo_AuthoredUtilityPole", "Silpo authored utility-pole owner")
+        require_text(silpo_detail_cpp, "PowerPoleMesh, nullptr", "Silpo authored materials preserved")
+        require_text(silpo_detail_cpp, "R141Silpo_UtilityPoleCollisionProxy", "Silpo pole collision proxy")
+        require_text(silpo_detail_cpp, "UtilityPoleCollision->SetHiddenInGame(true, true);",
+                     "Silpo pole hidden collision proxy")
+        require_text(silpo_detail_cpp, "AddLocalBox(Metal, UtilityPoleCenter", "Silpo pole unhydrated fallback")
+
     except AssertionError as exc:
         failures.append(str(exc))
 
@@ -222,6 +239,7 @@ def main() -> int:
     print("- Krushelnytska enterable-house gap and collision-aligned residential centers remain intact")
     print("- enterable house uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
     print("- museum breakable windows prefer authored frame geometry while preserving glass state/material")
+    print("- Silpo's photo-supported utility pole prefers the authored rural pole and preserves old collision/fallback")
     print("- cosmetic model layers do not leave invisible blocking collision")
     print("STATUS: CODED_UNTESTED; UE runtime acceptance is still required")
     return 0
