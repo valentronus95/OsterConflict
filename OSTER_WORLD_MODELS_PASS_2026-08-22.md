@@ -118,6 +118,34 @@ The visible debug label `S08 ENTERABLE HOUSE` is now hidden in game.
 
 Status: **CODED_UNTESTED**
 
+### Recovered environment cleanup
+
+`UOCRecoveredEnvironmentSubsystem` was still active and injected three `SM_Forest_Path` instances at raw local coordinates:
+
+- `(-92000, -69000)`
+- `(-80500, -61000)`
+- `(79000, 61000)`
+
+No photo, satellite, drone or `FOCGeoReference` evidence in the project ties those exact paths to real Oster geography. The project context explicitly requires evidence-backed geography rather than decorative invention.
+
+The subsystem is therefore retired with `ShouldCreateSubsystem() -> false`. Its historical implementation remains in source for audit/recovery, but it no longer mutates runtime worlds. This matches the already-retired `RecoveredBuildingDetails`, `RecoveredRoadsideProps` and duplicate recovered foliage layers.
+
+Status: **CODED_UNTESTED**
+
+### Museum breakable window frame model
+
+`AOCMuseumBreakableWindow` previously described itself as photo-styled while all six visible frame/mullion/transom pieces were still Engine Cube meshes.
+
+The class now prefers the checked-in authored:
+
+- `Modular_Rural_Cabin/Meshes/Modular/Window_Frame_Part`
+
+Frame pieces are fitted from the actual static-mesh bounds. The longest native axis is mapped onto the required horizontal or vertical axis with `FQuat::FindBetweenNormals`, then uniformly scaled so the authored profile is preserved rather than stretched as if it were a 100 cm cube.
+
+The real frame mesh keeps its authored materials. The old beige `BasicShapeMaterial` is applied only to Cube fallback geometry. Frame parts are visual-only/`NoCollision`; `GlassPane` remains the replicated break/collision owner and still uses `Glass_Window`.
+
+Status: **CODED_UNTESTED**
+
 ## Landmark model audit
 
 The current source audit found an important distinction between **photo-inspired runtime construction** and an actual Oster-specific production mesh.
@@ -125,6 +153,8 @@ The current source audit found an important distinction between **photo-inspired
 ### Museum
 
 The current museum presentation stack contains extensive photo-model/detail subsystems, but its main architecture is still assembled largely from Engine Cube/Cylinder primitives plus selected reusable roof/window/detail meshes. No checked-in exact Oster Museum production source model was found under `SourceAssets/Production`.
+
+The museum window frame is now a real reusable authored mesh, but that does **not** change the overall landmark status into an exact production museum model.
 
 ### Silpo
 
@@ -142,6 +172,14 @@ Therefore these landmark items are currently an **asset-source gap**, not merely
 
 Status: **AUDITED / ASSET GAP CONFIRMED / RUNTIME PRESENTATION STILL EXISTS**
 
+## Road / sidewalk audit
+
+The authoritative road/sidewalk geometry is still owned directly by `AOCWorldSectorOster` and uses `/Engine/BasicShapes/Cube.Cube` with blocking collision. `BuildRoadNetwork()` places road slabs around `RoadZ = 8 cm`; sidewalks are separate Cube slabs with their own raised Z and `BlockAll` collision.
+
+This means a new stone/asphalt mesh must **not** simply be overlaid on top. Doing so would create a second visual owner, z-fighting and mismatch between the visible road and collision slab. Road migration needs to happen coherently inside the geometry owner or by explicitly separating collision from presentation first.
+
+Status: **AUDITED / MIGRATION NOT YET CODED**
+
 ## Source verification
 
 The dedicated `VERIFY_OSTER_WORLD_MODELS_PASS.py` source contract now covers:
@@ -156,15 +194,17 @@ The dedicated `VERIFY_OSTER_WORLD_MODELS_PASS.py` source contract now covers:
 - real enterable-house prop asset presence and runtime paths;
 - bounds-based prop fitting;
 - removal of invisible cosmetic furniture/electronics collision;
-- preservation of interactive door/window/light/gate ownership.
+- preservation of interactive door/window/light/gate ownership;
+- retirement of unreferenced recovered forest paths;
+- authored museum window-frame path, bounds orientation, no-collision presentation and preserved breakable glass ownership/material.
 
 A green source run does not mean the models are visually approved in UE.
 
 ## Next model work in this branch
 
-1. Audit road/sidewalk presentation for raised/convex geometry, duplicate visual owners and z-fighting.
-2. Audit the current landmark stacks for duplicate/blockout layers and remove only confirmed redundant visual owners.
-3. Continue replacing repeated generic residential presentation without changing unverified geography.
+1. Continue the road/sidewalk owner migration without overlay/z-fighting.
+2. Audit the remaining museum/Silpo/Culture facade pieces for safe authored-mesh substitutions and duplicate blockout layers.
+3. Continue replacing repeated generic residential props without changing unverified geography.
 4. Expand the enterable-house shell/roof/material presentation using authored building modules without covering its real openings.
 5. Prepare an explicit production-world asset intake path for future exact Oster Museum/Silpo/Culture/other building meshes instead of pretending they already exist.
 6. Runtime-accept the complete world/model pass in UE before merging to `main`.
