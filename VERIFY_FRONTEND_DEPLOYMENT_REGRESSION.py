@@ -46,16 +46,26 @@ for token in [
     if token not in text["menu"]:
         fail(f"frontend marker missing: {token}")
 
-# World rendering may be hidden only before possession. This prevents the HUD-only black screen after deployment.
+# Pass 6 keeps the persistent GameViewportClient rendering flag enabled through async travel.
+# Startup isolation is instead owned by the opaque R13 blocker/background for the complete pawn-less shell.
 for token in [
     'const bool bHasGameplayPawn = IsValid(PC->GetPawn())',
-    'const bool bPreGamePresentationVisible = !bHasGameplayPawn',
-    'SetWorldRenderingSuppressed(bPreGamePresentationVisible)',
+    'const bool bStartupShell = !bHasGameplayPawn',
     'SetWorldRenderingSuppressed(false)',
     'GEngine->GameViewport->bDisableWorldRendering = bSuppress',
+    'R13_MenuWorldBlocker',
+    'R13_MenuBackground',
 ]:
     if token not in text["viewport"]:
         fail(f"viewport safety marker missing: {token}")
+
+for forbidden in [
+    'SetWorldRenderingSuppressed(bFrontendMenu)',
+    'SetWorldRenderingSuppressed(bPreGamePresentationVisible)',
+    'SetWorldRenderingSuppressed(true)',
+]:
+    if forbidden in text["viewport"]:
+        fail(f"persistent viewport rendering suppression returned: {forbidden}")
 
 # The recovered staged deployment must stay present and must make the legacy deployment widget inert.
 for token in [
@@ -97,4 +107,4 @@ for token in [
         fail(f"deployment compatibility marker missing: {token}")
 
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Approved frontend, staged deployment and post-possession world rendering safety are present.")
+print("Approved frontend, staged deployment and pawn-less travel-shell isolation are present without persistent viewport render suppression.")

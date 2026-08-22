@@ -55,6 +55,20 @@ namespace
         return true;
     }
 
+    FQuat ResolveLongAxisToForward(const FVector& NativeSize)
+    {
+        FVector NativeForward = FVector::ForwardVector;
+        if (NativeSize.Y >= NativeSize.X && NativeSize.Y >= NativeSize.Z)
+        {
+            NativeForward = FVector::RightVector;
+        }
+        else if (NativeSize.Z >= NativeSize.X && NativeSize.Z >= NativeSize.Y)
+        {
+            NativeForward = FVector::UpVector;
+        }
+        return FQuat::FindBetweenNormals(NativeForward, FVector::ForwardVector);
+    }
+
     UStaticMeshComponent* AddFittedTurretVisual(AActor* Owner, USceneComponent* Parent,
         UStaticMesh* Mesh, float DesiredLengthCm, const FName ComponentName, const FName VisualTag)
     {
@@ -67,19 +81,35 @@ namespace
         if (!Visual) return nullptr;
         const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
         const float UniformScale = DesiredLengthCm / NativeLength;
+        const FQuat AxisCorrection = ResolveLongAxisToForward(NativeSize);
+        const FVector ScaledOrigin = Bounds.Origin * UniformScale;
+
         Visual->SetupAttachment(Parent);
         Visual->SetStaticMesh(Mesh);
-        Visual->SetRelativeLocation(-Bounds.Origin * UniformScale);
-        Visual->SetRelativeRotation(FRotator::ZeroRotator);
+        Visual->SetRelativeRotation(AxisCorrection.Rotator());
+        Visual->SetRelativeLocation(-AxisCorrection.RotateVector(ScaledOrigin));
         Visual->SetRelativeScale3D(FVector(UniformScale));
         Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Visual->SetGenerateOverlapEvents(false);
         Visual->SetCanEverAffectNavigation(false);
         Visual->SetCastShadow(true);
+        // Keep authored M2/fallback materials. A white BasicShape override here would recreate the runtime defect.
+        Visual->EmptyOverrideMaterials();
         Visual->ComponentTags.Add(VisualTag);
         Owner->AddInstanceComponent(Visual);
         Visual->RegisterComponent();
         return Visual;
+    }
+
+    void DisableVisualProxy(UStaticMeshComponent* Component)
+    {
+        if (!Component) return;
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(false);
     }
 }
 
@@ -173,11 +203,11 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         };
         for (UStaticMeshComponent* Component : SourceOnlyPickupParts)
         {
-            if (Component) Component->SetVisibility(false, true);
+            DisableVisualProxy(Component);
         }
         for (UStaticMeshComponent* Wheel : WheelVisuals)
         {
-            if (Wheel) Wheel->SetVisibility(false, true);
+            DisableVisualProxy(Wheel);
         }
     }
 
@@ -197,8 +227,10 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
             FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
             bUsingMountedGunAsset = true;
-            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(118.0f, 0.0f, 0.0f));
-            UE_LOG(LogTemp, Display, TEXT("Gun truck uses production M2 Browning visual."));
+            // The visual is now centered and its longest authored axis is normalized to +X.
+            // Put the authoritative shot origin on the front bound instead of beyond the model.
+            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(82.5f, 0.0f, 0.0f));
+            UE_LOG(LogTemp, Display, TEXT("Gun truck uses production M2 Browning visual with normalized forward axis."));
         }
     }
 
@@ -211,17 +243,16 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
                 FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
             {
                 bUsingMountedGunAsset = true;
-                if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(108.0f, 0.0f, 0.0f));
+                if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(72.5f, 0.0f, 0.0f));
                 UE_LOG(LogTemp, Warning,
-                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback."));
+                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback with normalized axis."));
             }
         }
     }
 
-    // Never show the old primitive disc/bar turret in a runtime build. If both real gun assets are absent,
-    // the mount stays visually empty and logs a hard content warning instead of pretending the proxy is a Browning.
-    if (TurretBaseMesh) TurretBaseMesh->SetVisibility(false, true);
-    if (BarrelMesh) BarrelMesh->SetVisibility(false, true);
+    // Never show or collide against the old primitive disc/bar turret in a runtime build.
+    DisableVisualProxy(TurretBaseMesh);
+    DisableVisualProxy(BarrelMesh);
     if (!bUsingMountedGunAsset)
     {
         UE_LOG(LogTemp, Error,
@@ -231,19 +262,16 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
     InteriorCamera->SetFieldOfView(92.0f);
 
-    if (Windshield)
-    {
-        Windshield->SetVisibility(false, true);
-    }
+    DisableVisualProxy(Windshield);
 
     ThirdPersonSpringArm->TargetArmLength = bUsingHMMWV ? 660.0f : 620.0f;
 
     if (bUsingHMMWV)
     {
-        UE_LOG(LogTemp, Display, TEXT("HMMWV gun truck uses Ukrainian HMMWV production visual."));
+        UE_LOG(LogTemp, Display, TEXT("HMMWV gun truck uses Ukrainian HMMWV production visual; blockout proxies disabled."));
     }
     else if (bUsingProductionVehicle)
     {
-        UE_LOG(LogTemp, Display, TEXT("Pickup gun truck uses production pickup visual."));
+        UE_LOG(LogTemp, Display, TEXT("Pickup gun truck uses production pickup visual; blockout proxies disabled."));
     }
 }

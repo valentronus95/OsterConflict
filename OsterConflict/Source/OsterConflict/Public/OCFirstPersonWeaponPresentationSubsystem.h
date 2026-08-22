@@ -7,6 +7,7 @@
 class AOCCharacter;
 class AOCWeaponBase;
 class UAnimSequence;
+class UPrimitiveComponent;
 class USkeletalMeshComponent;
 
 struct FOCFirstPersonWeaponState
@@ -48,7 +49,12 @@ private:
     void ApplyArmsPose(AOCCharacter& Character, FOCFirstPersonWeaponState& State, bool bADS);
     void PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
         FOCFirstPersonWeaponState& State, double ResetDelaySeconds);
-    USkeletalMeshComponent* FindProductionWeaponVisual(AOCWeaponBase& Weapon) const;
+
+    /** Returns either a StaticMesh or SkeletalMesh production component. */
+    UPrimitiveComponent* FindProductionWeaponVisual(AOCWeaponBase& Weapon) const;
+
+    /** Animation-only path. Static production meshes intentionally return null here. */
+    USkeletalMeshComponent* FindProductionSkeletalWeaponVisual(AOCWeaponBase& Weapon) const;
 
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleIdleAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSIdleAnimation;
