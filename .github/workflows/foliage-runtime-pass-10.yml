@@ -1,0 +1,36 @@
+name: Foliage runtime acceptance pass 10
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_FOLIAGE_RUNTIME_PASS_10.py'
+      - '.github/workflows/foliage-runtime-pass-10.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_FOLIAGE_RUNTIME_PASS_10.py'
+      - '.github/workflows/foliage-runtime-pass-10.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify foliage runtime ownership contracts
+        run: python VERIFY_FOLIAGE_RUNTIME_PASS_10.py
