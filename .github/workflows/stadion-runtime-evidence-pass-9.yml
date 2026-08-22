@@ -1,0 +1,40 @@
+name: Stadion Oster runtime evidence pass 9
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumSurfaceSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13StadiumSurfaceSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13StadiumRuntimeValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd'
+      - 'STADION_OSTER_IMPLEMENTATION_STATUS.md'
+      - 'VERIFY_R13_STADION_OSTER.py'
+      - 'REFERENCE_PHOTOS/stadion_oster/**'
+      - '.github/workflows/stadion-runtime-evidence-pass-9.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumSurfaceSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13StadiumSurfaceSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13StadiumRuntimeValidationSubsystem.h'
+      - 'RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd'
+      - 'STADION_OSTER_IMPLEMENTATION_STATUS.md'
+      - 'VERIFY_R13_STADION_OSTER.py'
+      - '.github/workflows/stadion-runtime-evidence-pass-9.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Stadion Oster source and Pass 9 runtime evidence contracts
+        run: python VERIFY_R13_STADION_OSTER.py

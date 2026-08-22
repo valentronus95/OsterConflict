@@ -1,65 +1,61 @@
 # OSTER CONFLICT — STADION OSTER IMPLEMENTATION STATUS
 
-Статус: `CODED_UNTESTED`
+Статус: `SOURCE VERIFIED / RUNTIME EVIDENCE PENDING`
 Інтеграційна гілка: `main`
-Джерело forward-port: `stadion-oster`, Draft PR `#14`
-Дата: 2026-08-20
+Історичний Draft PR `#14`: `CLOSED / SUPERSEDED`
+Оновлено: `2026-08-22`
 
-## Уже реалізовано
+## Що вже є в актуальному `main`
 
-- canonical WGS84 anchor стадіону: `50.949360, 30.884660`;
-- один authoritative stadium site owner: `UOCR13StadiumSurfaceSubsystem`;
-- runtime site root: `R13_StadionOsterSiteRoot`;
-- retired старий delayed museum/stadium presentation pass;
-- legacy `StadiumGeometry` / `StadiumDetails` приховуються синхронно ще під час source-world build, а не залежать від порядку BeginPlay;
-- старі delayed `CivicLandscaping` і `LandmarkSiteDressing` більше не додають на стадіон окремі дерева, смітники або utility props через 2.05–2.35 с;
-- приховування legacy `StadiumGeometry` / `StadiumDetails` зі збереженням collision/backstop;
-- локальне видалення legacy fence instances у межах stadium site без вимкнення глобального `Fences` component;
-- основне поле 105 × 68 м зі штучним покриттям;
-- базова футбольна розмітка та повнорозмірні ворота 7.32 × 2.44 м;
-- restrained artificial running surface навколо поля;
-- додаткові тренувальні ворота;
-- баскетбольні стійки/щити;
-- група вуличних перекладин;
-- photo-derived синьо-жовта вхідна стела;
-- окремий `TextRenderComponent` із написом `СТАДІОН ОСТЕР`, прив'язаний до того самого authoritative site root;
-- actor-level collision увімкнено; visual-only grass/turf/track/path залишені `NoCollision`;
-- collision увімкнено для спортивних металевих елементів, несучої частини входу та replacement fence meshes;
-- природні сегментовані ґрунтові стежки замість прямих road-like смуг;
-- нерівномірний tree belt із наявних imported meshes;
-- прилеглі будинки та короткі секції парканів із наявних imported meshes;
-- `INDEX.md` для 17 референсів і збережений payload photo pack; під час інтеграції виявлено, що payload не проходить ZIP integrity test, тому потрібне відновлення з оригіналів;
-- окремий structural verifier `VERIFY_R13_STADION_OSTER.py`;
-- verifier підключений до `.github/workflows/source-verify.yml`.
+- canonical WGS84 anchor: `50.949360, 30.884660`;
+- один authoritative owner: `UOCR13StadiumSurfaceSubsystem`;
+- runtime tag/root: `R13_StadionOsterAuthoritative` / `R13_StadionOsterSiteRoot`;
+- старий delayed museum/stadium builder retired і більше не створює geometry;
+- legacy `StadiumGeometry` / `StadiumDetails` приховуються, а shared fences очищаються лише в stadium zone;
+- поле 105 × 68 м, розмітка, повнорозмірні ворота, тренувальні ворота, спортзона, вхідна синьо-жовта конструкція;
+- окремий `TextRenderComponent` з написом `СТАДІОН ОСТЕР`;
+- imported rural houses / trees / fences підключені до site owner;
+- сегментовані ґрунтові стежки замість road-like прямих смуг;
+- stadium XY береться з georeference, а Z підбирається runtime line trace по фактичному terrain;
+- стара гігантська зелена `GrassApron`-підкладка прибрана, щоб не перекривати terrain/foliage прямокутною плитою;
+- `VERIFY_R13_STADION_OSTER.py` підключений до source verification;
+- 17-frame reference index збережений; пошкоджений ZIP не маскується як валідний payload і позначений `RESTORE_REQUIRED`, доки його не відновлено з оригіналів.
 
-## CI
+## Pass 9 — runtime evidence
 
-- окремий `VERIFY_R13_STADION_OSTER.py` проходить локально та допускає повне видалення застарілих civic/landmark subsystems у `main`;
-- локально виправлено два stale regression-маркери: S16A тепер перевіряє актуальний canonical college anchor, а Silpo verifier перевіряє фактичну геометрію замість видалених коментарів;
-- legacy stadium verifiers переведено на новий exclusive-owner contract; окремо проходять stadium, landmark-dressing і retired R13.6 photo-fidelity checks;
-- exclusive-owner runtime handoff: commit `e836625`;
-- source-verification exit-code hardening та stale marker repairs: commit `292a114`;
-- виявлено false-green у `Source verification`: PowerShell продовжував виконання після ненульового exit code попереднього Python verifier і повертав успіх останнього stadium verifier;
-- workflow посилено явною перевіркою `$LASTEXITCODE` після кожного Python-прогону;
-- окремий `S01 location-first verification` має baseline-падіння в `VERIFY_R13_LOCATION_FIRST_S01_ROAD_TOPOLOGY.py` для `S01_KR_SPINE_SOUTH_SHARED`;
-- stadium branch не змінює `OCLocationSectorS01RoadData.cpp` або цей topology verifier, а серед geo anchors, що впливають на stadium diff, змінений тільки `Stadium()`. Тому S01 road geometry не виправляється всередині stadium task.
-- на вихідній стадіонній гілці після виправлення stale regression-маркерів повний локальний `RUN_ALL_VERIFY.py` доходив до відомого S01 baseline-падіння;
-- на інтегрованій базі `main` повний `RUN_ALL_VERIFY.py` зупиняється раніше на наявному R11 baseline-маркері `SetFogDensity(0.0085f)`: у поточному `main` і до, і після forward-port фактичне значення `0.0060f`, а `OCVisualEnvironment.cpp` цією інтеграцією не змінювався;
-- `stadion_oster_reference_pack_2026-08-20.zip` не проходить `unzip -t`; payload збережено без підміни, але canonical pack треба повторно зібрати з 17 оригіналів і перевірити.
+Гілка: `fix/runtime-acceptance-stadion-pass-9-20260822`
 
-## Ще не VERIFIED
+Додано `UOCR13StadiumRuntimeValidationSubsystem`, який у реальному gameplay world перевіряє:
 
-До статусу `VERIFIED` заборонено переходити без:
+1. рівно один actor з tag `R13_StadionOsterAuthoritative`;
+2. наявність основного pitch, running surface, pitch lines, sports metal, footpaths, entrance, houses, trees і replacement fences;
+3. відсутність obsolete `StadionOsterGrassApron`;
+4. наявність `StadionOsterEntranceText`;
+5. XY фактичного pitch відносно canonical georef;
+6. Z pitch відносно нового terrain line trace;
+7. що legacy `StadiumGeometry` / `StadiumDetails` не повернулися у visible state.
 
-1. успішного UE 5.8 compile/build;
-2. локального gameplay test;
-3. перевірки фактичного Z/terrain контакту на stadium anchor;
-4. runtime-перевірки collision воріт, огорож і entrance structure;
-5. перевірки, що немає z-fighting / duplicate surfaces / delayed flicker;
-6. візуального зіставлення входу, дерев, стежок, житлової межі та спортзон із canonical photo pack;
-7. візуальної перевірки напису `СТАДІОН ОСТЕР`: правильний бік, кириличні glyphs, відсутність mirrored rendering;
-8. уточнення трибун, роздягалень і санвузлів лише за підтвердженим візуальним матеріалом, без вигаданих великих споруд.
+Runtime markers:
 
-## Стан інтеграції
+- success: `PASS9_STADION_OSTER_READY`;
+- failure: `PASS9_STADION_OSTER_RUNTIME_FAIL`.
 
-За прямою вказівкою користувача реалізацію контрольовано перенесено в `main` без blind merge застарілої бази. Статус залишається `CODED_UNTESTED`: інтеграція в `main` не замінює UE 5.8 build і локальний gameplay test.
+Окремий Windows launcher: `RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd`.
+Він спочатку запускає повний strict `RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd`, а потім вимагає stadium READY marker і відхиляє stadium FAIL marker з того самого UE log.
+
+## Що все ще не можна називати VERIFIED
+
+До повного `VERIFIED` все ще потрібні:
+
+1. успішний UE 5.8 compile/build на Windows;
+2. локальний gameplay test через `RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd`;
+3. `PASS9_STADION_OSTER_READY` без `PASS9_STADION_OSTER_RUNTIME_FAIL`;
+4. ручна перевірка collision воріт, replacement fences та entrance structure;
+5. відсутність z-fighting / duplicate surfaces / delayed flicker;
+6. візуальне зіставлення входу, дерев, стежок, житлової межі та спортзон із canonical reference set;
+7. перевірка напису `СТАДІОН ОСТЕР`: правильний бік, кирилиця, без mirrored rendering;
+8. відновлення пошкодженого stadium reference ZIP з оригінальних 17 кадрів.
+
+## Історія інтеграції
+
+Старий Draft PR `#14` закрито як superseded. Його корисна stadium-реалізація вже була forward-ported у `main`, а `main` після цього отримав новіші fixes, зокрема terrain-Z snap і прибирання oversized green slab. Прямий merge старого PR тепер був би відкатом частини актуального stadium code.
