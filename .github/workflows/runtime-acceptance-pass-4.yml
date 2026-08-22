@@ -5,6 +5,7 @@ on:
     paths:
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/Scripts/verify_required_weapon_assets.py'
+      - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
       - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/Scripts/verify_required_weapon_assets.py'
+      - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
       - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
