@@ -13,6 +13,7 @@
 #include "Components/VerticalBox.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Styling/SlateTypes.h"
 #include "TimerManager.h"
 #include "UObject/UObjectIterator.h"
 
@@ -89,6 +90,18 @@ namespace
         }
         return nullptr;
     }
+
+    void ApplyDarkFieldStyle(UEditableTextBox* Field)
+    {
+        if (!Field) return;
+        FEditableTextBoxStyle Style = Field->GetWidgetStyle();
+        Style.SetBackgroundColor(FSlateColor(FLinearColor(0.055f, 0.065f, 0.075f, 1.0f)));
+        Style.SetForegroundColor(FSlateColor(FLinearColor(0.94f, 0.93f, 0.89f, 1.0f)));
+        Style.SetFocusedForegroundColor(FSlateColor(FLinearColor::White));
+        Style.SetReadOnlyForegroundColor(FSlateColor(FLinearColor(0.72f, 0.72f, 0.70f, 1.0f)));
+        Field->SetWidgetStyle(Style);
+        Field->SetForegroundColor(FLinearColor(0.94f, 0.93f, 0.89f, 1.0f));
+    }
 }
 
 bool UOCRuntimeRecoveryPass15Subsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -151,11 +164,7 @@ void UOCRuntimeRecoveryPass15Subsystem::ApplyFrontendRepairs()
 
     for (int32 Index = 0; Index < Fields->GetChildrenCount(); ++Index)
     {
-        if (UEditableTextBox* Field = Cast<UEditableTextBox>(Fields->GetChildAt(Index)))
-        {
-            Field->SetBackgroundColor(FLinearColor(0.055f, 0.065f, 0.075f, 1.0f));
-            Field->SetForegroundColor(FLinearColor(0.94f, 0.93f, 0.89f, 1.0f));
-        }
+        ApplyDarkFieldStyle(Cast<UEditableTextBox>(Fields->GetChildAt(Index)));
     }
 
     if (!bStylePassLogged)
@@ -204,9 +213,9 @@ void UOCRuntimeRecoveryPass15Subsystem::ApplyJoinPendingOverlay(UOCGameUIRootWid
             else if (DirectTextIndex == 3)
             {
                 FText Status = NSLOCTEXT("OCR13FrontendPass15", "ConnectingStatus", "ОЧІКУВАННЯ ВІДПОВІДІ СЕРВЕРА…");
-                if (UWorld* World = GetWorld())
+                if (UWorld* CurrentWorld = GetWorld())
                 {
-                    if (const UOCGameInstance* GI = Cast<UOCGameInstance>(World->GetGameInstance()))
+                    if (const UOCGameInstance* GI = Cast<UOCGameInstance>(CurrentWorld->GetGameInstance()))
                     {
                         Status = GI->GetConnectionStatusText();
                     }
