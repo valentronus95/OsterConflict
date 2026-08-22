@@ -12,6 +12,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
       - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py'
       - '.github/workflows/runtime-acceptance-pass-2.yml'
   push:
@@ -23,8 +24,12 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
       - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_2.py'
+      - '.github/workflows/runtime-acceptance-pass-2.yml'
 
 jobs:
   verify:
