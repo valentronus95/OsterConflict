@@ -110,8 +110,13 @@ for needle in (
     "ComponentName.Contains(TEXT(\"muzzle\")",
     "FMath::Min(DistanceToEnd, 900.0f)",
     "TryResolveSocketMuzzle",
+    "const FBoxSphereBounds LocalBounds = Component.GetLocalBounds();",
+    "LocalBounds.Origin - LocalBounds.BoxExtent",
+    "LocalBounds.Origin + LocalBounds.BoxExtent",
 ):
     require(fx, needle, "muzzle/tracer source")
+if "Component.GetLocalBounds(LocalMin, LocalMax)" in fx:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: obsolete two-argument GetLocalBounds call is incompatible with UE 5.8")
 
 for needle in (
     "AOCWorldSectorOster::MuseumAnchor()",
@@ -142,6 +147,7 @@ print("- HMMWV/M2/BTR source intake searches existing project sources and common
 print("- BTR production intake requires and restores the six known original texture files")
 print("- HMMWV/M2/BTR production ingest gate remains in the normal launcher")
 print("- local tracer can rebase its target-side network streak to the visible muzzle/barrel")
+print("- muzzle bounds fallback uses the UE 5.8 return-value GetLocalBounds API")
 print("- BASE source remains tied to the canonical Museum test hub")
 print("- dense foliage remains batched instead of blocking the deployment frame")
 print("- R10 retains the real UI shadow check without the unrelated global spelling false positive")
