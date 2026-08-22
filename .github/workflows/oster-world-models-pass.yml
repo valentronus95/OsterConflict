@@ -1,0 +1,53 @@
+name: Oster world models source contracts
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRecoveredEnvironmentSubsystem.cpp'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_House_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Tree_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Fence_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Bridge_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Well*.uasset'
+      - 'OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props/*.uasset'
+      - 'OsterConflict/Content/Modular_Rural_Cabin/Meshes/Modular/Window_Frame_Part.uasset'
+      - 'VERIFY_OSTER_WORLD_MODELS_PASS.py'
+      - 'OSTER_WORLD_MODELS_PASS_2026-08-22.md'
+      - '.github/workflows/oster-world-models-pass.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR141SilpoDetailSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRecoveredEnvironmentSubsystem.cpp'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Bridge_Var*.uasset'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Well*.uasset'
+      - 'OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.uasset'
+      - 'OsterConflict/Content/Modular_Rural_Cabin/Meshes/Modular/Window_Frame_Part.uasset'
+      - 'VERIFY_OSTER_WORLD_MODELS_PASS.py'
+      - '.github/workflows/oster-world-models-pass.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Oster world/model source contracts
+        run: python VERIFY_OSTER_WORLD_MODELS_PASS.py
