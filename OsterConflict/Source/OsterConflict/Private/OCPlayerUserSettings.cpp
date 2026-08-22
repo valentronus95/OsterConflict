@@ -10,6 +10,7 @@ UOCPlayerUserSettings* UOCPlayerUserSettings::Get()
 {
     UOCPlayerUserSettings* Settings = GetMutableDefault<UOCPlayerUserSettings>();
     Settings->ValidateSettingsSchema();
+    Settings->EnsureInitialGraphicsProfile();
     return Settings;
 }
 
@@ -73,35 +74,42 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
         SaveConfig();
 
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view=1 shadow=0 texture<=1 effects<=1 foliage=0 post<=1 aa<=1 shading<=1 gi=0 reflection=0 landscape<=1 resolution_scale<=75"));
+            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view<=1 shadow=0 texture<=1 effects<=1 foliage=0 post<=1 aa<=1 shading<=1 gi=0 reflection=0 landscape<=1 resolution_scale<=75"));
     }
 
-    float NormalizedScale = 1.0f;
-    float CurrentScale = 100.0f;
-    float MinScale = 50.0f;
-    float MaxScale = 100.0f;
-    GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
+    // Log actual gameplay renderer identity once the RHI exists. Get() is used from several UI/controller
+    // paths, so a first call that happens before RHI initialization simply waits for a later call.
+    static bool bRuntimeGraphicsIdentityLogged = false;
+    if (GDynamicRHI && !bRuntimeGraphicsIdentityLogged)
+    {
+        float NormalizedScale = 1.0f;
+        float CurrentScale = 100.0f;
+        float MinScale = 50.0f;
+        float MaxScale = 100.0f;
+        GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
 
-    const FString GPUBrand = FPlatformMisc::GetPrimaryGPUBrand();
-    const TCHAR* RHIName = GDynamicRHI ? GDynamicRHI->GetName() : TEXT("None");
-    UE_LOG(LogTemp, Display,
-        TEXT("PASS16_RUNTIME_GRAPHICS_IDENTITY gpu=%s rhi=%s resolution=%dx%d scale=%.0f view=%d shadow=%d texture=%d effects=%d foliage=%d post=%d aa=%d shading=%d gi=%d reflection=%d landscape=%d"),
-        *GPUBrand,
-        RHIName,
-        GameSettings->GetScreenResolution().X,
-        GameSettings->GetScreenResolution().Y,
-        CurrentScale,
-        GameSettings->GetViewDistanceQuality(),
-        GameSettings->GetShadowQuality(),
-        GameSettings->GetTextureQuality(),
-        GameSettings->GetVisualEffectQuality(),
-        GameSettings->GetFoliageQuality(),
-        GameSettings->GetPostProcessingQuality(),
-        GameSettings->GetAntiAliasingQuality(),
-        GameSettings->GetShadingQuality(),
-        GameSettings->GetGlobalIlluminationQuality(),
-        GameSettings->GetReflectionQuality(),
-        GameSettings->GetLandscapeQuality());
+        const FString GPUBrand = FPlatformMisc::GetPrimaryGPUBrand();
+        const TCHAR* RHIName = GDynamicRHI->GetName();
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS16_RUNTIME_GRAPHICS_IDENTITY gpu=%s rhi=%s resolution=%dx%d scale=%.0f view=%d shadow=%d texture=%d effects=%d foliage=%d post=%d aa=%d shading=%d gi=%d reflection=%d landscape=%d"),
+            *GPUBrand,
+            RHIName,
+            GameSettings->GetScreenResolution().X,
+            GameSettings->GetScreenResolution().Y,
+            CurrentScale,
+            GameSettings->GetViewDistanceQuality(),
+            GameSettings->GetShadowQuality(),
+            GameSettings->GetTextureQuality(),
+            GameSettings->GetVisualEffectQuality(),
+            GameSettings->GetFoliageQuality(),
+            GameSettings->GetPostProcessingQuality(),
+            GameSettings->GetAntiAliasingQuality(),
+            GameSettings->GetShadingQuality(),
+            GameSettings->GetGlobalIlluminationQuality(),
+            GameSettings->GetReflectionQuality(),
+            GameSettings->GetLandscapeQuality());
+        bRuntimeGraphicsIdentityLogged = true;
+    }
 }
 
 void UOCPlayerUserSettings::SavePlayerSettings()
