@@ -2,6 +2,10 @@
 setlocal EnableExtensions
 
 set "PROJECT_DIR=%~dp0"
+rem %~dp0 ends in a backslash. When that value is the final quoted native argument,
+rem Windows/PowerShell argument parsing can preserve the closing quote in the string.
+rem Pass a dot-qualified directory instead so GetFullPath receives a clean path.
+set "RECOVERY_PROJECT_DIR=%~dp0."
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "PY_SCRIPT=%PROJECT_DIR%Scripts\import_production_vehicle_assets.py"
 set "VERIFY_SCRIPT=%PROJECT_DIR%Scripts\verify_production_vehicle_fresh_load.py"
@@ -54,7 +58,8 @@ if not exist "%VERIFY_SCRIPT%" (
 
 rem Recover the user's previously downloaded real source files locally. BTR remains local-only.
 if exist "%SOURCE_RECOVERY%" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_RECOVERY%" -ProjectDir "%PROJECT_DIR%"
+    echo [SOURCE] Recovery project directory: %RECOVERY_PROJECT_DIR%
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_RECOVERY%" -ProjectDir "%RECOVERY_PROJECT_DIR%"
     set "SOURCE_RC=%ERRORLEVEL%"
     if not "%SOURCE_RC%"=="0" (
         echo.
