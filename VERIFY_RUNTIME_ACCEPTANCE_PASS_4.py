@@ -6,6 +6,7 @@ FILES = {
     "launcher": ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
     "weapon_preflight": ROOT / "OsterConflict/Scripts/verify_required_weapon_assets.py",
     "lfs_verify": ROOT / "OsterConflict/Scripts/verify_playtest_lfs_payloads.ps1",
+    "source_recovery": ROOT / "OsterConflict/Scripts/prepare_local_production_sources.ps1",
     "fx": ROOT / "OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp",
     "spawn": ROOT / "OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp",
     "foliage": ROOT / "OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp",
@@ -28,6 +29,7 @@ def require(text, needle, where):
 launcher = read("launcher")
 weapon_preflight = read("weapon_preflight")
 lfs_verify = read("lfs_verify")
+source_recovery = read("source_recovery")
 fx = read("fx")
 spawn = read("spawn")
 foliage = read("foliage")
@@ -65,6 +67,24 @@ for needle in (
     require(lfs_verify, needle, "PowerShell LFS payload verifier")
 if "^|" in lfs_verify:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: invalid cmd caret escaping present in PowerShell verifier")
+
+for needle in (
+    "$SourceRoot,",
+    "Join-Path $env:USERPROFILE 'Downloads'",
+    "Join-Path $env:USERPROFILE 'Desktop'",
+    "Join-Path $env:USERPROFILE 'Documents'",
+    "Restore-BtrTexturesFromRoots",
+    "Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.zip'",
+    "BTR texture ",
+    "Bahnya_low_albedo.png",
+    "Koleso_low_albedo.png",
+    "Korpus_low_albedo.png",
+    "Windows_low_albedo.png",
+    "interior.png",
+    "tire.png",
+    "required production model sources and BTR textures are now available locally",
+):
+    require(source_recovery, needle, "local production source recovery")
 
 for needle in (
     "/Game/AK-47/Mesh/SKM_AK-47",
@@ -118,6 +138,8 @@ require(r10, "UI Slot shadow names removed", "R10 file-specific UI shadow contra
 print("RUNTIME ACCEPTANCE PASS 4 SOURCE CONTRACT PASS")
 print("- normal gameplay hard-gates required real weapon assets in a fresh UE process")
 print("- Windows launcher uses Git LFS commands compatible with the playtest PC and a separate PowerShell verifier")
+print("- HMMWV/M2/BTR source intake searches existing project sources and common Windows download locations")
+print("- BTR production intake requires and restores the six known original texture files")
 print("- HMMWV/M2/BTR production ingest gate remains in the normal launcher")
 print("- local tracer can rebase its target-side network streak to the visible muzzle/barrel")
 print("- BASE source remains tied to the canonical Museum test hub")
