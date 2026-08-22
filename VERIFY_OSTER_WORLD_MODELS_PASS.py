@@ -15,6 +15,7 @@ HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator
 WORLD_OWNER = ROOT / "OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp"
 ENTERABLE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp"
 ENTERABLE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h"
+RECOVERED_ENV = ROOT / "OsterConflict/Source/OsterConflict/Private/OCRecoveredEnvironmentSubsystem.cpp"
 CONTENT = ROOT / "OsterConflict/Content/AdvancedVillagePack/Meshes"
 CABIN_PROPS = ROOT / "OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props"
 
@@ -37,12 +38,14 @@ def main() -> int:
         require(WORLD_OWNER.is_file(), "OCWorldAssetModelsSubsystem.cpp missing")
         require(ENTERABLE_CPP.is_file(), "OCEnterableHouse.cpp missing")
         require(ENTERABLE_H.is_file(), "OCEnterableHouse.h missing")
+        require(RECOVERED_ENV.is_file(), "OCRecoveredEnvironmentSubsystem.cpp missing")
 
         cpp = CPP.read_text(encoding="utf-8")
         header = HEADER.read_text(encoding="utf-8")
         owner = WORLD_OWNER.read_text(encoding="utf-8")
         enterable_cpp = ENTERABLE_CPP.read_text(encoding="utf-8")
         enterable_h = ENTERABLE_H.read_text(encoding="utf-8")
+        recovered_env = RECOVERED_ENV.read_text(encoding="utf-8")
 
         required_assets = [
             "SM_House_Var01.uasset",
@@ -154,6 +157,20 @@ def main() -> int:
         require_text(cpp, 'Component->SetCollisionProfileName(TEXT("NoCollision"));', "decorator no-collision contract")
         require_text(cpp, "Component->SetGenerateOverlapEvents(false);", "decorator overlap contract")
 
+        # Recovered environment must not inject arbitrary raw-coordinate forest-road geometry into the
+        # current Oster map. The old implementation may stay in source for history, but the subsystem
+        # itself remains retired until those sites have evidence-backed georeferences.
+        should_create = re.search(
+            r"bool UOCRecoveredEnvironmentSubsystem::ShouldCreateSubsystem\(UObject\* Outer\) const\s*\{(.*?)\n\}",
+            recovered_env,
+            flags=re.DOTALL,
+        )
+        require(should_create is not None, "recovered environment creation guard missing")
+        require("return false;" in should_create.group(1),
+                "unverified recovered environment layer became active again")
+        require_text(recovered_env, "SM_Forest_Path", "historical forest path implementation retained")
+        require_text(recovered_env, "No photo, satellite, drone or georeference", "retirement rationale")
+
         # Enterable-house owner now uses the already checked-in rural-cabin props instead of drawing
         # its sofa/table/chairs/fridge/fence/shed entirely from Engine Cube geometry.
         for prop_name in (
@@ -214,6 +231,7 @@ def main() -> int:
     print("- broadleaf families expand from 3 to 5 and yard fences from 1 to 5 selectable families")
     print("- four authored bridge meshes are wired while the two existing bridge sites remain unchanged")
     print("- the existing residential well now uses its authored base + matching Extra detail family")
+    print("- unreferenced recovered forest paths remain retired instead of inventing Oster geography")
     print("- Krushelnytska enterable-house gap and collision-aligned residential centers remain intact")
     print("- enterable house now uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
     print("- cosmetic household props do not leave invisible blocking collision")
