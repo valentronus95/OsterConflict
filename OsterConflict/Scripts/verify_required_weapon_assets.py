@@ -8,18 +8,18 @@ REPORT_DIR = PROJECT_DIR / "Saved" / "AutomationReports" / "ProductionModels"
 REPORT_PATH = REPORT_DIR / "required_weapon_asset_preflight.txt"
 SUCCESS_SENTINEL = REPORT_DIR / "required_weapon_asset_preflight_success.txt"
 
-# These are the minimum real visual assets needed by the normal playtest route. Exact production
-# identities remain stricter for the dedicated production validator, but normal gameplay must never
-# fall through to Engine/BasicShapes weapon geometry simply because Git LFS was not hydrated.
+# Runtime evidence from UE 5.8 is authoritative here. The restored Stein packages keep SKM_* object
+# names, but UE reports MP5/1911/M700/M14/Mac10/Tec9/LeverAction as StaticMesh assets. Treating the
+# filename prefix as a class contract blocked a valid local checkout and also disagreed with runtime.
 REQUIRED_ASSETS = (
     ("AK-47", "/Game/AK-47/Mesh/SKM_AK-47", unreal.SkeletalMesh),
-    ("MP5", "/Game/R13/Weapons/Stein/MP5/SKM_MP5", unreal.SkeletalMesh),
-    ("M1911", "/Game/R13/Weapons/Stein/1911/SKM_1911", unreal.SkeletalMesh),
-    ("M700", "/Game/R13/Weapons/Stein/M700/SKM_M700", unreal.SkeletalMesh),
-    ("M14", "/Game/R13/Weapons/Stein/M14/SKM_M14", unreal.SkeletalMesh),
-    ("MAC-10", "/Game/R13/Weapons/Stein/Mac10/SKM_Mac10", unreal.SkeletalMesh),
-    ("TEC-9", "/Game/R13/Weapons/Stein/Tec9/SKM_Tec9", unreal.SkeletalMesh),
-    ("Lever Action", "/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction", unreal.SkeletalMesh),
+    ("MP5", "/Game/R13/Weapons/Stein/MP5/SKM_MP5", unreal.StaticMesh),
+    ("M1911", "/Game/R13/Weapons/Stein/1911/SKM_1911", unreal.StaticMesh),
+    ("M700", "/Game/R13/Weapons/Stein/M700/SKM_M700", unreal.StaticMesh),
+    ("M14", "/Game/R13/Weapons/Stein/M14/SKM_M14", unreal.StaticMesh),
+    ("MAC-10", "/Game/R13/Weapons/Stein/Mac10/SKM_Mac10", unreal.StaticMesh),
+    ("TEC-9", "/Game/R13/Weapons/Stein/Tec9/SKM_Tec9", unreal.StaticMesh),
+    ("Lever Action", "/Game/R13/Weapons/Stein/LeverAction/SKM_LeverAction", unreal.StaticMesh),
     ("M249 real fallback", "/Game/R13/Weapons/machinegun", unreal.StaticMesh),
     ("Remington 870 real fallback", "/Game/R13/Weapons/shotgun", unreal.StaticMesh),
     ("Anti-Armor Launcher", "/Game/R13/Weapons/rocketlauncherModern", unreal.StaticMesh),
