@@ -63,6 +63,24 @@ namespace
         }
         return false;
     }
+
+    void QuarantineInvalidVehicle(AActor* Actor, const TCHAR* Identity, bool bBodyReady, bool bWeaponReady)
+    {
+        if (!Actor) return;
+
+        // A production-validation failure must never continue presenting the constructor proxy as if it were the
+        // requested vehicle. Hide it and disable collision so the failed visual cannot become an invisible blocker.
+        Actor->SetActorHiddenInGame(true);
+        Actor->SetActorEnableCollision(false);
+
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL identity=%s actor=%s bodyReady=%d weaponReady=%d location=%s"),
+            Identity,
+            *Actor->GetName(),
+            bBodyReady ? 1 : 0,
+            bWeaponReady ? 1 : 0,
+            *Actor->GetActorLocation().ToCompactString());
+    }
 }
 
 bool UOCProductionVehicleRuntimeValidationSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -116,18 +134,29 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
         if (!GunTruck) continue;
         ++GunTruckCount;
 
+        const bool bUsesM2 = GunTruckUsesProductionM2(GunTruck, M2);
+        if (bUsesM2) ++GunTrucksUsingM2;
+
         if (GunTruck->IsA<AOCHMMWVGunTruck>())
         {
             ++HMMWVGunTruckCount;
-            if (ActorUsesMesh(GunTruck, HMMWV)) ++HMMWVGunTrucksUsingHMMWV;
+            const bool bUsesHMMWV = ActorUsesMesh(GunTruck, HMMWV);
+            if (bUsesHMMWV) ++HMMWVGunTrucksUsingHMMWV;
+            if (!bUsesHMMWV || !bUsesM2)
+            {
+                QuarantineInvalidVehicle(GunTruck, TEXT("HMMWV_M2"), bUsesHMMWV, bUsesM2);
+            }
         }
         else
         {
             ++PickupGunTruckCount;
-            if (ActorUsesMesh(GunTruck, Pickup)) ++PickupGunTrucksUsingPickup;
+            const bool bUsesPickup = ActorUsesMesh(GunTruck, Pickup);
+            if (bUsesPickup) ++PickupGunTrucksUsingPickup;
+            if (!bUsesPickup || !bUsesM2)
+            {
+                QuarantineInvalidVehicle(GunTruck, TEXT("PICKUP_M2"), bUsesPickup, bUsesM2);
+            }
         }
-
-        if (GunTruckUsesProductionM2(GunTruck, M2)) ++GunTrucksUsingM2;
     }
 
     int32 BTRCount = 0;
@@ -137,35 +166,47 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
         AOCBTR* BTR = *It;
         if (!BTR) continue;
         ++BTRCount;
-        if (ActorUsesMesh(BTR, BTR4)) ++BTRsUsingProductionShell;
+        const bool bUsesBTR4 = ActorUsesMesh(BTR, BTR4);
+        if (bUsesBTR4)
+        {
+            ++BTRsUsingProductionShell;
+        }
+        else
+        {
+            QuarantineInvalidVehicle(BTR, TEXT("BTR4"), false, true);
+        }
     }
 
-    const bool bHMMWVRuntimePass = HMMWVGunTruckCount == 0 ||
+    // Normal gameplay seeds explicit HMMWV and BTR spawn points. Zero actors is therefore a failed runtime proof,
+    // not a vacuous success. The optional production pickup remains valid when absent from current fleet balance.
+    const bool bExpectedNormalFleetPresent = HMMWVGunTruckCount > 0 && BTRCount > 0 && GunTruckCount > 0;
+    const bool bHMMWVRuntimePass = HMMWVGunTruckCount > 0 &&
         HMMWVGunTrucksUsingHMMWV == HMMWVGunTruckCount;
     const bool bPickupRuntimePass = PickupGunTruckCount == 0 ||
-        PickupGunTrucksUsingPickup == PickupGunTruckCount;
-    const bool bM2RuntimePass = GunTruckCount == 0 || GunTrucksUsingM2 == GunTruckCount;
-    const bool bBTRRuntimePass = BTRCount == 0 || BTRsUsingProductionShell == BTRCount;
+        (bPickupAssetReady && PickupGunTrucksUsingPickup == PickupGunTruckCount);
+    const bool bM2RuntimePass = GunTruckCount > 0 && GunTrucksUsingM2 == GunTruckCount;
+    const bool bBTRRuntimePass = BTRCount > 0 && BTRsUsingProductionShell == BTRCount;
 
-    const bool bPass = bHMMWVAssetReady && bPickupAssetReady && bM2AssetReady && bBTR4AssetReady &&
+    const bool bPass = bExpectedNormalFleetPresent && bHMMWVAssetReady && bM2AssetReady && bBTR4AssetReady &&
         bHMMWVRuntimePass && bPickupRuntimePass && bM2RuntimePass && bBTRRuntimePass;
 
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("Production vehicle validation PASS: assets HMMWV/Pickup/M2/BTR4 ready; hmmwvTrucks=%d hmmwvShell=%d; pickupTrucks=%d pickupShell=%d; m2=%d/%d; btrs=%d productionShell=%d."),
-            HMMWVGunTruckCount, HMMWVGunTrucksUsingHMMWV,
-            PickupGunTruckCount, PickupGunTrucksUsingPickup,
+            TEXT("PASS7_PRODUCTION_VEHICLES_READY HMMWV=%d/%d M2=%d/%d BTR4=%d/%d pickup=%d/%d"),
+            HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
             GunTrucksUsingM2, GunTruckCount,
-            BTRCount, BTRsUsingProductionShell);
+            BTRsUsingProductionShell, BTRCount,
+            PickupGunTrucksUsingPickup, PickupGunTruckCount);
         return;
     }
 
-    UE_LOG(LogTemp, Warning,
-        TEXT("Production vehicle validation FAILED: assetReady HMMWV=%d Pickup=%d M2=%d BTR4=%d; hmmwvTrucks=%d hmmwvShell=%d; pickupTrucks=%d pickupShell=%d; m2=%d/%d; btrs=%d productionShell=%d. Distinct production vehicle identities must not silently substitute each other."),
+    UE_LOG(LogTemp, Error,
+        TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d"),
         bHMMWVAssetReady ? 1 : 0, bPickupAssetReady ? 1 : 0, bM2AssetReady ? 1 : 0, bBTR4AssetReady ? 1 : 0,
-        HMMWVGunTruckCount, HMMWVGunTrucksUsingHMMWV,
-        PickupGunTruckCount, PickupGunTrucksUsingPickup,
+        bExpectedNormalFleetPresent ? 1 : 0,
+        HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
+        PickupGunTrucksUsingPickup, PickupGunTruckCount,
         GunTrucksUsingM2, GunTruckCount,
-        BTRCount, BTRsUsingProductionShell);
+        BTRsUsingProductionShell, BTRCount);
 }
