@@ -82,11 +82,59 @@ namespace
             FVector(DiameterCm / 100.0f, DiameterCm / 100.0f, HeightCm / 100.0f)), false);
     }
 
-    void AddSideWindow(UInstancedStaticMeshComponent* Frames, UInstancedStaticMeshComponent* Glass,
+    void AddFittedFrameSegment(UInstancedStaticMeshComponent* Component, const FVector& Center,
+        const FVector& TargetDirection, const float DesiredLengthCm)
+    {
+        if (!Component || !Component->GetStaticMesh() || DesiredLengthCm <= 1.0f) return;
+
+        const FBoxSphereBounds Bounds = Component->GetStaticMesh()->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        const float NativeLengths[3] = { NativeSize.X, NativeSize.Y, NativeSize.Z };
+        int32 NativeLongestAxis = 0;
+        for (int32 Axis = 1; Axis < 3; ++Axis)
+        {
+            if (NativeLengths[Axis] > NativeLengths[NativeLongestAxis]) NativeLongestAxis = Axis;
+        }
+        if (NativeLengths[NativeLongestAxis] <= 1.0f || TargetDirection.IsNearlyZero()) return;
+
+        const FVector UnitAxes[3] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
+        const FQuat Rotation = FQuat::FindBetweenNormals(
+            UnitAxes[NativeLongestAxis], TargetDirection.GetSafeNormal());
+        const float UniformScale = DesiredLengthCm / NativeLengths[NativeLongestAxis];
+        const FVector CenterOffset = Rotation.RotateVector(Bounds.Origin * UniformScale);
+        Component->AddInstance(FTransform(Rotation, Center - CenterOffset, FVector(UniformScale)), false);
+    }
+
+    void AddAuthoredRectFrame(UInstancedStaticMeshComponent* AuthoredFrames, const FVector& Center,
+        const FVector& HorizontalDirection, const float WidthCm, const float HeightCm)
+    {
+        if (!AuthoredFrames || !AuthoredFrames->GetStaticMesh()) return;
+
+        const FVector Horizontal = HorizontalDirection.GetSafeNormal();
+        const FVector Vertical = FVector::UpVector;
+        const float HalfWidth = WidthCm * 0.5f;
+        const float HalfHeight = HeightCm * 0.5f;
+
+        AddFittedFrameSegment(AuthoredFrames, Center + Vertical * HalfHeight, Horizontal, WidthCm);
+        AddFittedFrameSegment(AuthoredFrames, Center - Vertical * HalfHeight, Horizontal, WidthCm);
+        AddFittedFrameSegment(AuthoredFrames, Center - Horizontal * HalfWidth, Vertical, HeightCm);
+        AddFittedFrameSegment(AuthoredFrames, Center + Horizontal * HalfWidth, Vertical, HeightCm);
+    }
+
+    void AddSideWindow(UInstancedStaticMeshComponent* FallbackFrames,
+        UInstancedStaticMeshComponent* AuthoredFrames, UInstancedStaticMeshComponent* Glass,
         const float X, const float Y, const float Z)
     {
-        AddBox(Frames, FVector(X, Y, Z), FVector(24.0f, 250.0f, 220.0f));
-        AddBox(Glass, FVector(X + (X < 0.0f ? -14.0f : 14.0f), Y, Z), FVector(8.0f, 205.0f, 176.0f));
+        const float OutwardX = X + (X < 0.0f ? -14.0f : 14.0f);
+        if (AuthoredFrames && AuthoredFrames->GetStaticMesh())
+        {
+            AddAuthoredRectFrame(AuthoredFrames, FVector(OutwardX, Y, Z), FVector::RightVector, 250.0f, 220.0f);
+        }
+        else
+        {
+            AddBox(FallbackFrames, FVector(X, Y, Z), FVector(24.0f, 250.0f, 220.0f));
+        }
+        AddBox(Glass, FVector(OutwardX, Y, Z), FVector(8.0f, 205.0f, 176.0f));
     }
 }
 
@@ -130,6 +178,8 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
 
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+    UStaticMesh* AuthoredWindowFrame = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Window_Frame_Part.Window_Frame_Part"));
     UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     UMaterialInterface* GlassAsset = LoadObject<UMaterialInterface>(nullptr,
@@ -179,6 +229,9 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
     UInstancedStaticMeshComponent* Trim = MakeISM(Model, Root, Cube, Classical, TEXT("R146Culture_Trim"), false);
     UInstancedStaticMeshComponent* Columns = MakeISM(Model, Root, Cylinder, Classical, TEXT("R146Culture_Columns"), false);
     UInstancedStaticMeshComponent* DoorFrames = MakeISM(Model, Root, Cube, Classical, TEXT("R146Culture_DoorFrames"), false);
+    UInstancedStaticMeshComponent* AuthoredWindowFrames = AuthoredWindowFrame
+        ? MakeISM(Model, Root, AuthoredWindowFrame, nullptr, TEXT("R146Culture_AuthoredWindowFrames"), false)
+        : nullptr;
     UInstancedStaticMeshComponent* Doors = MakeISM(Model, Root, Cube, DoorWood, TEXT("R146Culture_Doors"), false);
     UInstancedStaticMeshComponent* Glass = MakeISM(Model, Root, Cube, GlassMat, TEXT("R146Culture_Glass"), false);
     UInstancedStaticMeshComponent* RoundGlass = MakeISM(Model, Root, Cylinder, GlassMat, TEXT("R146Culture_ArchedGlass"), false);
@@ -228,15 +281,25 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
     AddBox(Stonework, FVector(0.0f, -1500.0f, 25.0f), FVector(2780.0f, 150.0f, 26.0f));
     AddBox(Ground, FVector(0.0f, -2450.0f, 10.0f), FVector(760.0f, 1900.0f, 20.0f));
 
-    // Conservative side/rear detail. These break the blank blockout silhouette without inventing an interior plan.
+    // Conservative side/rear detail. Where the authored modular frame is hydrated, use four genuine
+    // frame-profile segments around each glass pane instead of a solid Cube plate. Glass geometry and
+    // building collision remain owned exactly as before.
     for (const float Y : { -560.0f, 0.0f, 560.0f })
     {
-        AddSideWindow(DoorFrames, Glass, -1608.0f, Y, 390.0f);
-        AddSideWindow(DoorFrames, Glass, 1608.0f, Y, 390.0f);
+        AddSideWindow(DoorFrames, AuthoredWindowFrames, Glass, -1608.0f, Y, 390.0f);
+        AddSideWindow(DoorFrames, AuthoredWindowFrames, Glass, 1608.0f, Y, 390.0f);
     }
     for (const float X : { -1050.0f, -525.0f, 0.0f, 525.0f, 1050.0f })
     {
-        AddBox(DoorFrames, FVector(X, 938.0f, 390.0f), FVector(230.0f, 24.0f, 220.0f));
+        if (AuthoredWindowFrames && AuthoredWindowFrames->GetStaticMesh())
+        {
+            AddAuthoredRectFrame(AuthoredWindowFrames, FVector(X, 952.0f, 390.0f),
+                FVector::ForwardVector, 230.0f, 220.0f);
+        }
+        else
+        {
+            AddBox(DoorFrames, FVector(X, 938.0f, 390.0f), FVector(230.0f, 24.0f, 220.0f));
+        }
         AddBox(Glass, FVector(X, 952.0f, 390.0f), FVector(190.0f, 8.0f, 178.0f));
     }
     // Eaves and two downspouts make the long elevations read as one finished building rather than nested primitives.
