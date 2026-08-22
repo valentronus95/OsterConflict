@@ -21,7 +21,9 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     WidgetTree->RootWidget = Canvas;
 
     UBorder* Scrim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DeploymentLoadingScrim"));
-    Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 0.94f));
+    // The transition is intentionally fully blocking. A translucent scrim exposed the deployment panel changing
+    // underneath it and made the START -> spawn transition look like another broken intermediate screen.
+    Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));
     UCanvasPanelSlot* ScrimSlot = Canvas->AddChildToCanvas(Scrim);
     ScrimSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
     ScrimSlot->SetOffsets(FMargin(0.0f));
@@ -39,7 +41,7 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     Card->SetContent(Stack);
 
     UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeploymentLoadingTitle"));
-    Title->SetText(FText::FromString(TEXT("ЗАВАНТАЖЕННЯ СЕРВЕРА")));
+    Title->SetText(FText::FromString(TEXT("ЗАВАНТАЖЕННЯ")));
     Title->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.96f, 0.97f, 1.0f)));
     FSlateFontInfo TitleFont = Title->GetFont();
     TitleFont.Size = 22;
@@ -118,8 +120,8 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
     const double Now = FPlatformTime::Seconds();
     const double Elapsed = FMath::Max(0.0, Now - StartTimeSeconds);
 
-    // Deliberately leave the deployment panel untouched for a rendered frame. This removes the START-click
-    // layout jump and gives the player immediate visual feedback before the authoritative restart request.
+    // Keep the 0% loading frame visible before the authoritative restart request. The opaque transition layer
+    // prevents the underlying deployment panel from visibly shifting while the server changes possession state.
     if (!bReadySent && Elapsed >= 0.12)
     {
         bReadySent = true;

@@ -18,6 +18,7 @@ set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 set "WEAPON_PREFLIGHT_LOG=%LOG_DIR%\R14_REQUIRED_WEAPON_ASSETS.log"
 set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
+set "IS_ACCEPTANCE=0"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
@@ -63,41 +64,53 @@ if errorlevel 1 (
 )
 
 for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
-if /I not "%CURRENT_BRANCH%"=="main" (
-  echo [STOP] Normal gameplay playtest must run from branch main.
-  echo Current branch: %CURRENT_BRANCH%
-  echo Switch to main, then Fetch origin and Pull origin.
-  pause
-  exit /b 8
+set "FETCH_BRANCH="
+set "REMOTE_REF="
+if /I "%CURRENT_BRANCH%"=="main" (
+  set "FETCH_BRANCH=main"
+  set "REMOTE_REF=origin/main"
+) else (
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" >nul
+  if errorlevel 1 (
+    echo [STOP] Normal gameplay playtest is allowed only from main or an explicit fix/runtime-acceptance-* branch.
+    echo Current branch: %CURRENT_BRANCH%
+    pause
+    exit /b 8
+  )
+  set "FETCH_BRANCH=%CURRENT_BRANCH%"
+  set "REMOTE_REF=origin/%CURRENT_BRANCH%"
+  set "IS_ACCEPTANCE=1"
+  echo [ACCEPTANCE] Running isolated runtime acceptance branch: %CURRENT_BRANCH%
+  echo [ACCEPTANCE] main will remain untouched until this branch passes the UE runtime playtest.
 )
 
-echo [PRECHECK] Fetching origin/main so a stale local build cannot be tested...
-git fetch origin main
+echo [PRECHECK] Fetching origin/%FETCH_BRANCH% so a stale local build cannot be tested...
+git fetch origin "%FETCH_BRANCH%"
 if errorlevel 1 (
-  echo [STOP] Could not fetch origin/main. Playtest cancelled instead of testing unknown/stale code.
+  echo [STOP] Could not fetch origin/%FETCH_BRANCH%. Playtest cancelled instead of testing unknown/stale code.
   pause
   exit /b 9
 )
 for /f "delims=" %%H in ('git rev-parse HEAD') do set "LOCAL_HEAD=%%H"
-for /f "delims=" %%H in ('git rev-parse origin/main') do set "REMOTE_HEAD=%%H"
+for /f "delims=" %%H in ('git rev-parse "%REMOTE_REF%"') do set "REMOTE_HEAD=%%H"
 if /I not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
-  echo [STOP] Local main is not current GitHub main.
+  echo [STOP] Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%.
   echo Local : %LOCAL_HEAD%
   echo GitHub: %REMOTE_HEAD%
-  echo GitHub Desktop: Pull origin. Then start the playtest again.
+  echo GitHub Desktop: Fetch origin, then Pull origin. Then start the playtest again.
   pause
   exit /b 10
 )
 
 git merge-base --is-ancestor %R147_ASSET_COMMIT% HEAD >nul 2>nul
 if errorlevel 1 (
-  echo [STOP] Local main is missing the current R14 gameplay asset baseline.
+  echo [STOP] Current branch is missing the current R14 gameplay asset baseline.
   echo GitHub Desktop: Fetch origin, then Pull origin.
   pause
   exit /b 11
 )
 
-rem Hydrate the current main LFS payloads using only commands supported by older Git LFS releases.
+rem Hydrate the current branch LFS payloads using only commands supported by older Git LFS releases.
 rem The previous --include form is not accepted by the Git LFS build installed on the playtest PC.
 echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
 git lfs version >nul 2>nul
@@ -110,7 +123,7 @@ if errorlevel 1 (
 git lfs install >nul 2>nul
 git lfs pull origin
 if errorlevel 1 (
-  echo [STOP] Git LFS could not hydrate the current main assets.
+  echo [STOP] Git LFS could not hydrate the current branch assets.
   pause
   exit /b 13
 )
@@ -144,7 +157,17 @@ if exist "%VERIFY%" (
   echo [0/4] Verifying current R14 landmark ownership...
   %PY_CMD% "%VERIFY%"
   if errorlevel 1 (
-    echo [STOP] Current main source verification failed.
+    echo [STOP] Current source verification failed.
+    pause
+    exit /b 16
+  )
+)
+
+if exist "%~dp0VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py" (
+  echo [0b/4] Verifying runtime acceptance Pass 7 source contracts...
+  %PY_CMD% "%~dp0VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py"
+  if errorlevel 1 (
+    echo [STOP] Pass 7 source verification failed.
     pause
     exit /b 16
   )
@@ -203,15 +226,75 @@ echo.
 echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
+echo Branch: %CURRENT_BRANCH%
 echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
 echo.
 start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
+if "%IS_ACCEPTANCE%"=="1" (
+  echo.
+  echo [ACCEPTANCE] Inspecting runtime evidence from the exact branch playtest...
+  if not exist "%PLAYTEST_LOG%" (
+    echo [STOP] Acceptance log is missing: %PLAYTEST_LOG%
+    pause
+    exit /b 21
+  )
+
+  findstr /C:"PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] Production vehicle runtime validation failed. Proxy HMMWV/M2/BTR visuals are not accepted.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 22
+  )
+
+  findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] Production weapon runtime validation failed. Primitive Museum-rack weapon fallbacks are not accepted.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 23
+  )
+
+  findstr /C:"PASS7_PRODUCTION_VEHICLES_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No production vehicle READY marker was recorded.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 24
+  )
+
+  findstr /C:"PASS7_PRODUCTION_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No production weapon READY marker was recorded for the Museum 11-weapon rack.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 25
+  )
+
+  findstr /C:"PASS7_MUSEUM_BASES_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] No authoritative Museum BASE readiness marker was recorded.
+    echo The acceptance run did not prove the Museum spawn route.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 26
+  )
+
+  echo [ACCEPTANCE] PASS7_PRODUCTION_VEHICLES_READY found.
+  echo [ACCEPTANCE] PASS7_PRODUCTION_WEAPONS_READY found.
+  echo [ACCEPTANCE] PASS7_MUSEUM_BASES_READY found.
+  echo [ACCEPTANCE] Automated runtime evidence gates passed. Visual/UI checklist still requires direct observation.
+)
+
 echo.
 echo ============================================================
 echo CURRENT GAMEPLAY FINISHED - exit code %GAME_RC%
+echo Branch: %CURRENT_BRANCH%
 echo Source: %LOCAL_HEAD%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================

@@ -1,0 +1,44 @@
+name: Runtime acceptance pass 7 source contracts
+
+on:
+  push:
+    branches:
+      - fix/runtime-acceptance-pass-7-20260822
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDeploymentLoadingSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumSpawnGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCombatVehicleSpawnPoints.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py'
+      - '.github/workflows/runtime-acceptance-pass-7.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDeploymentLoadingSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumSpawnGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCombatVehicleSpawnPoints.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py'
+      - '.github/workflows/runtime-acceptance-pass-7.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass 7 source contracts
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py
