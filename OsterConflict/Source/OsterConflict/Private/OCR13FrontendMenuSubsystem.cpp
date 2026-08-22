@@ -63,7 +63,6 @@ namespace
         Button->AddChild(Text);
         Size->SetContent(Button);
 
-        // Approved direction: neutral almost-transparent controls. No khaki/green wash and no opaque tiles.
         FButtonStyle Style = Button->GetStyle();
         Style.Normal.TintColor = FSlateColor(FLinearColor(0.04f, 0.04f, 0.04f, 0.08f));
         Style.Hovered.TintColor = FSlateColor(FLinearColor(0.16f, 0.16f, 0.16f, 0.20f));
@@ -79,6 +78,20 @@ namespace
             Slot->SetHorizontalAlignment(HAlign_Left);
         }
         return Button;
+    }
+
+    UEditableTextBox* R13FrontendMakeField(UObject* Outer, UVerticalBox* Parent, const FText& Hint, const FString& Value)
+    {
+        if (!Outer || !Parent) return nullptr;
+        UEditableTextBox* Field = NewObject<UEditableTextBox>(Outer);
+        if (!Field) return nullptr;
+        Field->SetHintText(Hint);
+        Field->SetText(FText::FromString(Value));
+        if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Field))
+        {
+            Slot->SetPadding(FMargin(0.0f, 5.0f));
+        }
+        return Field;
     }
 
     void R13FrontendSetButtonLabel(UButton* Button, const FText& Label)
@@ -128,6 +141,26 @@ namespace
             Slot->SetSize(Size);
         }
     }
+
+    FString R13SanitizeTravelName(FString Value)
+    {
+        Value.TrimStartAndEndInline();
+        Value.ReplaceInline(TEXT("?"), TEXT(""));
+        Value.ReplaceInline(TEXT("&"), TEXT(""));
+        Value.ReplaceInline(TEXT("="), TEXT(""));
+        Value.ReplaceInline(TEXT(" "), TEXT("_"));
+        if (Value.IsEmpty()) Value = TEXT("Player");
+        return Value.Left(24);
+    }
+
+    FString R13NormalizeDifficulty(FString Value)
+    {
+        Value.TrimStartAndEndInline();
+        if (Value.Equals(TEXT("Easy"), ESearchCase::IgnoreCase)) return TEXT("Easy");
+        if (Value.Equals(TEXT("Hard"), ESearchCase::IgnoreCase)) return TEXT("Hard");
+        if (Value.Equals(TEXT("Veteran"), ESearchCase::IgnoreCase)) return TEXT("Veteran");
+        return TEXT("Normal");
+    }
 }
 
 bool UOCR13FrontendMenuSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -164,8 +197,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     const bool bDeploymentVisible = !bSettingsVisible && PC->IsDeploymentPanelVisible();
     const bool bLiveGameplay = bGameplayStarted || PC->GetPawn() != nullptr;
 
-    // A local `open` command does not replace the current world synchronously. Keep the approved frontend frame
-    // untouched during that short gap instead of marking gameplay started and briefly exposing the gray pause shell.
     if (bLocalTravelPending && PC->GetPawn() == nullptr && !bSettingsVisible && !bDeploymentVisible)
     {
         bPauseMenuActive = false;
@@ -183,8 +214,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
     if (bSettingsVisible)
     {
-        // Settings opened from the pre-game frontend must never reveal the live 3D world. A leaked/transient pawn
-        // is not sufficient evidence that this is a gameplay pause. Only the explicit pause-menu state may dim gameplay.
         const bool bSettingsOverGameplay = bPauseMenuActive && bLiveGameplay;
         if (UBorder* SettingsPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("SettingsPanel"))))
         {
@@ -232,6 +261,17 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     bPauseMenuActive = false;
     bLocalTravelPending = false;
     BuildFrontend(Root, PC);
+
+    // -Frontend belongs only to the startup shell. The same process keeps its command line after
+    // `open ?listen`, so the newly created listen/client controller used to resurrect the main menu
+    // over Deployment and produced a second START. Deployment owns all pre-spawn choices after travel.
+    if (PC->GetNetMode() != NM_Standalone && PC->IsFrontendMenuVisible() &&
+        PC->IsDeploymentPanelVisible() && PC->GetPawn() == nullptr)
+    {
+        PC->UIToggleFrontend();
+        SetPresentationVisibility(false, true, false);
+        UE_LOG(LogTemp, Display, TEXT("PASS14_FRONTEND_TRAVEL_HANDOFF_READY netmode=%d"), static_cast<int32>(PC->GetNetMode()));
+    }
 }
 
 void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPlayerController* PC)
@@ -255,7 +295,6 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UVerticalBox* Box = NewObject<UVerticalBox>(Root, TEXT("R13_PlayerFrontend"));
     if (!Blocker || !Background || !Shade || !Panel || !Box) return;
 
-    // Pure black fallback exists only behind the approved Oster image, preventing live-world bleed if texture streaming is late.
     Blocker->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     Blocker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     Blocker->SetIsEnabled(false);
@@ -270,25 +309,16 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Background->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Background), 71);
 
-    // Never tint the main-menu background. Full-frame dimming is reserved for pause only.
     Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.40f));
     Shade->SetVisibility(ESlateVisibility::Collapsed);
     Shade->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Shade), 72);
 
     MenuGradientLayers.Reset();
-    struct FGradientStrip
-    {
-        float Width;
-        float Alpha;
-    };
-    // Compact local feather: strong only behind the menu and effectively gone before the middle of a 16:9 frame.
+    struct FGradientStrip { float Width; float Alpha; };
     const FGradientStrip GradientStrips[] = {
-        { 420.0f, 0.23f },
-        { 520.0f, 0.15f },
-        { 620.0f, 0.09f },
-        { 730.0f, 0.05f },
-        { 850.0f, 0.02f },
+        { 420.0f, 0.23f }, { 520.0f, 0.15f }, { 620.0f, 0.09f },
+        { 730.0f, 0.05f }, { 850.0f, 0.02f },
     };
     for (int32 Index = UE_ARRAY_COUNT(GradientStrips) - 1; Index >= 0; --Index)
     {
@@ -304,14 +334,14 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Panel->SetContent(Box);
     Panel->SetIsEnabled(true);
     Panel->SetVisibility(ESlateVisibility::Visible);
-    Panel->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+    Panel->SetBrushColor(FLinearColor::Transparent);
     Panel->SetPadding(FMargin(0.0f));
     if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Panel))
     {
         PanelSlot->SetAnchors(FAnchors(0.0f, 0.0f));
         PanelSlot->SetAlignment(FVector2D::ZeroVector);
         PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));
-        PanelSlot->SetSize(FVector2D(440.0f, 760.0f));
+        PanelSlot->SetSize(FVector2D(470.0f, 760.0f));
         PanelSlot->SetZOrder(810);
     }
 
@@ -332,22 +362,28 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 24.0f));
 
     UButton* Primary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
-    UButton* Secondary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Local", "ЛОКАЛЬНА ГРА"));
+    UButton* Secondary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Back", "НАЗАД"));
     UButton* Network = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Network", "МЕРЕЖЕВА ГРА"));
 
     UVerticalBox* Fields = NewObject<UVerticalBox>(Root, TEXT("R13_FrontendFields"));
-    UEditableTextBox* Username = NewObject<UEditableTextBox>(Root, TEXT("R13_Username"));
-    UEditableTextBox* Address = NewObject<UEditableTextBox>(Root, TEXT("R13_ServerAddress"));
     UTextBlock* Status = R13FrontendMakeMenuText(Root, FText::GetEmpty(), 12, false);
-    if (!Fields || !Username || !Address || !Status) return;
+    if (!Fields || !Status) return;
 
     const UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get();
-    Username->SetHintText(NSLOCTEXT("OCR13Frontend", "UsernameHint", "Ім'я гравця"));
-    Username->SetText(FText::FromString(Prefs ? Prefs->GetSavedUsername() : FString(TEXT("Player"))));
-    Address->SetHintText(NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"));
-    Address->SetText(FText::FromString(Prefs ? Prefs->GetLastServerAddress() : FString(TEXT("127.0.0.1:7777"))));
-    Fields->AddChildToVerticalBox(Username)->SetPadding(FMargin(0.0f, 6.0f));
-    Fields->AddChildToVerticalBox(Address)->SetPadding(FMargin(0.0f, 6.0f));
+    UEditableTextBox* Username = R13FrontendMakeField(
+        Root, Fields, NSLOCTEXT("OCR13Frontend", "UsernameHint", "Ім'я гравця"),
+        Prefs ? Prefs->GetSavedUsername() : FString(TEXT("Player")));
+    UEditableTextBox* Address = R13FrontendMakeField(
+        Root, Fields, NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"),
+        Prefs ? Prefs->GetLastServerAddress() : FString(TEXT("127.0.0.1:7777")));
+    UEditableTextBox* MaxPlayers = R13FrontendMakeField(
+        Root, Fields, NSLOCTEXT("OCR13Frontend", "MaxPlayersHint", "Максимум гравців (2–64)"), TEXT("16"));
+    UEditableTextBox* Bots = R13FrontendMakeField(
+        Root, Fields, NSLOCTEXT("OCR13Frontend", "BotsHint", "Кількість ботів (0–63)"), TEXT("0"));
+    UEditableTextBox* Difficulty = R13FrontendMakeField(
+        Root, Fields, NSLOCTEXT("OCR13Frontend", "DifficultyHint", "Складність: Easy / Normal / Hard / Veteran"), TEXT("Normal"));
+    if (!Username || !Address || !MaxPlayers || !Bots || !Difficulty) return;
+
     Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 5.0f));
     Box->AddChildToVerticalBox(Fields)->SetPadding(FMargin(0.0f, 5.0f));
 
@@ -373,6 +409,9 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     FieldsBox = Fields;
     UsernameEntry = Username;
     AddressEntry = Address;
+    MaxPlayersEntry = MaxPlayers;
+    BotsEntry = Bots;
+    BotDifficultyEntry = Difficulty;
     StatusText = Status;
     PrimaryButton = Primary;
     SecondaryButton = Secondary;
@@ -392,12 +431,12 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
     {
         const bool bMainPage = Page == 0;
         MenuPanel->SetBrushColor(bMainPage
-            ? FLinearColor(0.0f, 0.0f, 0.0f, 0.0f)
-            : FLinearColor(0.0f, 0.0f, 0.0f, 0.30f));
+            ? FLinearColor::Transparent
+            : FLinearColor(0.0f, 0.0f, 0.0f, 0.36f));
         MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(22.0f));
         R13FrontendSetPanelGeometry(MenuPanel.Get(),
-            bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 126.0f),
-            bMainPage ? FVector2D(440.0f, 760.0f) : FVector2D(470.0f, 560.0f));
+            bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 106.0f),
+            bMainPage ? FVector2D(470.0f, 760.0f) : FVector2D(500.0f, 700.0f));
     }
 
     if (Page == 0)
@@ -409,55 +448,52 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         SubtitleText->SetVisibility(ESlateVisibility::Visible);
         FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
         R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainStart", "СТАРТ"));
-        R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainLocal", "ЛОКАЛЬНА ГРА"));
         R13FrontendSetButtonLabel(NetworkButton.Get(), NSLOCTEXT("OCR13Frontend", "MainNetwork", "МЕРЕЖЕВА ГРА"));
         R13FrontendSetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "MainSettings", "НАЛАШТУВАННЯ"));
         R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "MainQuit", "ВИЙТИ З ГРИ"));
         R13FrontendSetButtonState(PrimaryButton.Get(), true);
-        R13FrontendSetButtonState(SecondaryButton.Get(), true);
+        R13FrontendSetButtonState(SecondaryButton.Get(), false);
         R13FrontendSetButtonState(NetworkButton.Get(), true);
         R13FrontendSetButtonState(SettingsButton.Get(), true);
         R13FrontendSetButtonState(QuitButton.Get(), true);
+        return;
     }
-    else if (Page == 1)
+
+    if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
+    if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
+    TitleText->SetVisibility(ESlateVisibility::Visible);
+    SubtitleText->SetVisibility(ESlateVisibility::Visible);
+    FieldsBox->SetVisibility(ESlateVisibility::Visible);
+    UsernameEntry->SetVisibility(ESlateVisibility::Visible);
+    R13FrontendSetButtonState(PrimaryButton.Get(), true);
+    R13FrontendSetButtonState(SecondaryButton.Get(), true);
+    R13FrontendSetButtonState(NetworkButton.Get(), false);
+    R13FrontendSetButtonState(SettingsButton.Get(), false);
+    R13FrontendSetButtonState(QuitButton.Get(), false);
+
+    if (Page == 1)
     {
-        if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
-        if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
-        TitleText->SetText(NSLOCTEXT("OCR13Frontend", "LocalTitle", "ЛОКАЛЬНА ГРА"));
-        TitleText->SetVisibility(ESlateVisibility::Visible);
-        SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "LocalSubtitle", "ВКАЖІТЬ ІМ'Я ТА ЗАПУСТІТЬ МАТЧ"));
-        SubtitleText->SetVisibility(ESlateVisibility::Visible);
-        FieldsBox->SetVisibility(ESlateVisibility::Visible);
-        UsernameEntry->SetVisibility(ESlateVisibility::Visible);
+        TitleText->SetText(NSLOCTEXT("OCR13Frontend", "HostTitle", "СТВОРЕННЯ СЕРВЕРА"));
+        SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "HostSubtitle", "НАЛАШТУЙТЕ МАТЧ ПЕРЕД ЗАПУСКОМ"));
         AddressEntry->SetVisibility(ESlateVisibility::Collapsed);
-        StatusText->SetText(NSLOCTEXT("OCR13Frontend", "LocalStatus", "Огляд локації • без ботів і автотранспорту"));
-        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "StartLocal", "ПОЧАТИ ЛОКАЛЬНУ ГРУ"));
-        R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackLocal", "НАЗАД"));
-        R13FrontendSetButtonState(PrimaryButton.Get(), true);
-        R13FrontendSetButtonState(SecondaryButton.Get(), true);
-        R13FrontendSetButtonState(NetworkButton.Get(), false);
-        R13FrontendSetButtonState(SettingsButton.Get(), false);
-        R13FrontendSetButtonState(QuitButton.Get(), false);
+        MaxPlayersEntry->SetVisibility(ESlateVisibility::Visible);
+        BotsEntry->SetVisibility(ESlateVisibility::Visible);
+        BotDifficultyEntry->SetVisibility(ESlateVisibility::Visible);
+        StatusText->SetText(NSLOCTEXT("OCR13Frontend", "HostStatus", "Карта: Остер • Режим: Conquest • Після створення: TEAM → SQUAD → ROLE → SPAWN"));
+        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "CreateServer", "СТВОРИТИ СЕРВЕР"));
+        R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackHost", "НАЗАД"));
     }
     else
     {
-        if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
-        if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
         TitleText->SetText(NSLOCTEXT("OCR13Frontend", "NetworkTitle", "МЕРЕЖЕВА ГРА"));
-        TitleText->SetVisibility(ESlateVisibility::Visible);
         SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "NetworkSubtitle", "ПРЯМЕ ПІДКЛЮЧЕННЯ ДО СЕРВЕРА"));
-        SubtitleText->SetVisibility(ESlateVisibility::Visible);
-        FieldsBox->SetVisibility(ESlateVisibility::Visible);
-        UsernameEntry->SetVisibility(ESlateVisibility::Visible);
         AddressEntry->SetVisibility(ESlateVisibility::Visible);
+        MaxPlayersEntry->SetVisibility(ESlateVisibility::Collapsed);
+        BotsEntry->SetVisibility(ESlateVisibility::Collapsed);
+        BotDifficultyEntry->SetVisibility(ESlateVisibility::Collapsed);
         StatusText->SetText(NSLOCTEXT("OCR13Frontend", "NetworkStatus", "Формат адреси: 127.0.0.1:7777"));
         R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "Connect", "ПІДКЛЮЧИТИСЯ"));
         R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackNetwork", "НАЗАД"));
-        R13FrontendSetButtonState(PrimaryButton.Get(), true);
-        R13FrontendSetButtonState(SecondaryButton.Get(), true);
-        R13FrontendSetButtonState(NetworkButton.Get(), false);
-        R13FrontendSetButtonState(SettingsButton.Get(), false);
-        R13FrontendSetButtonState(QuitButton.Get(), false);
     }
 }
 
@@ -495,14 +531,11 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
 {
     const ESlateVisibility MenuVisibility = bShowMenu ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
     const ESlateVisibility BackdropVisibility = bShowBackdrop
-        ? ESlateVisibility::SelfHitTestInvisible
-        : ESlateVisibility::Collapsed;
+        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
     const ESlateVisibility ShadeVisibility = bDimGameplay
-        ? ESlateVisibility::SelfHitTestInvisible
-        : ESlateVisibility::Collapsed;
+        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
     const ESlateVisibility GradientVisibility = (bShowMenu && bShowBackdrop)
-        ? ESlateVisibility::SelfHitTestInvisible
-        : ESlateVisibility::Collapsed;
+        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
 
     if (WorldBlocker.IsValid())
     {
@@ -567,7 +600,7 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
     if (bLocalTravelPending)
     {
-        UE_LOG(LogTemp, Display, TEXT("R13 frontend: local travel already pending; duplicate primary press ignored"));
+        UE_LOG(LogTemp, Display, TEXT("R13 frontend: server travel already pending; duplicate primary press ignored"));
         return;
     }
 
@@ -585,31 +618,34 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
     if (Page == 0)
     {
-        StartLocalGameplay();
+        Page = 1;
+        ApplyPage();
+        ForceMenuInput();
+        UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
         return;
     }
 
-    if (Page == 2)
+    if (Page == 1)
     {
-        AOCPlayerController* PC = ActiveController.Get();
-        if (!PC) return;
-        const FString Username = UsernameEntry.IsValid() ? UsernameEntry->GetText().ToString() : FString(TEXT("Player"));
-        const FString Address = AddressEntry.IsValid() ? AddressEntry->GetText().ToString() : FString(TEXT("127.0.0.1:7777"));
-        bGameplayStarted = true;
-        ReleaseMenuInput();
-        SetPresentationVisibility(false, false, false);
-        PC->UIConnect(Address, Username);
+        StartHostedGameplay();
         return;
     }
 
-    StartLocalGameplay();
+    AOCPlayerController* PC = ActiveController.Get();
+    if (!PC) return;
+    const FString Username = UsernameEntry.IsValid() ? UsernameEntry->GetText().ToString() : FString(TEXT("Player"));
+    const FString Address = AddressEntry.IsValid() ? AddressEntry->GetText().ToString() : FString(TEXT("127.0.0.1:7777"));
+    if (UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get()) Prefs->SetFrontendIdentity(Username, Address);
+    bGameplayStarted = true;
+    ReleaseMenuInput();
+    SetPresentationVisibility(false, false, false);
+    PC->UIConnect(Address, Username);
 }
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
-    if (bPauseMenuActive || bLocalTravelPending) return;
-    UE_LOG(LogTemp, Display, TEXT("R13 frontend: secondary pressed, page=%d"), Page);
-    Page = (Page == 0) ? 1 : 0;
+    if (bPauseMenuActive || bLocalTravelPending || Page == 0) return;
+    Page = 0;
     ApplyPage();
     ForceMenuInput();
 }
@@ -617,7 +653,6 @@ void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
     if (bPauseMenuActive || bLocalTravelPending) return;
-    UE_LOG(LogTemp, Display, TEXT("R13 frontend: network pressed"));
     Page = 2;
     ApplyPage();
     ForceMenuInput();
@@ -626,12 +661,9 @@ void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
 {
     if (bLocalTravelPending) return;
-    UE_LOG(LogTemp, Display, TEXT("R13 frontend: settings pressed"));
     if (AOCPlayerController* PC = ActiveController.Get())
     {
         const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);
-        // Preserve the correct backing layer before UIOpenSettings flips the visibility state. Otherwise one rendered
-        // frame can expose the 3D world while the settings panel is being shown.
         SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);
         PC->UIOpenSettings();
     }
@@ -640,7 +672,6 @@ void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
 void UOCR13FrontendMenuSubsystem::OnQuitClicked()
 {
     if (bLocalTravelPending) return;
-    UE_LOG(LogTemp, Display, TEXT("R13 frontend: quit/leave pressed"));
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC) return;
 
@@ -658,33 +689,41 @@ void UOCR13FrontendMenuSubsystem::OnQuitClicked()
     UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false);
 }
 
-void UOCR13FrontendMenuSubsystem::StartLocalGameplay()
+void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
 {
     AOCPlayerController* PC = ActiveController.Get();
-    if (!PC || bLocalTravelPending) return;
+    if (!PC || bLocalTravelPending || PC->GetNetMode() != NM_Standalone) return;
 
-    if (UsernameEntry.IsValid()) PC->SetNickname(UsernameEntry->GetText().ToString());
-    bPauseMenuActive = false;
+    FString Username = UsernameEntry.IsValid() ? UsernameEntry->GetText().ToString() : FString(TEXT("Player"));
+    Username = R13SanitizeTravelName(Username);
+    const int32 MaxPlayers = FMath::Clamp(
+        FCString::Atoi(*(MaxPlayersEntry.IsValid() ? MaxPlayersEntry->GetText().ToString() : FString(TEXT("16")))), 2, 64);
+    const int32 Bots = FMath::Clamp(
+        FCString::Atoi(*(BotsEntry.IsValid() ? BotsEntry->GetText().ToString() : FString(TEXT("0")))), 0, MaxPlayers);
+    const FString Difficulty = R13NormalizeDifficulty(
+        BotDifficultyEntry.IsValid() ? BotDifficultyEntry->GetText().ToString() : FString(TEXT("Normal")));
 
-    if (PC->GetNetMode() != NM_Standalone)
+    if (UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get())
     {
-        bGameplayStarted = true;
-        ReleaseMenuInput();
-        SetPresentationVisibility(false, false, false);
-        if (PC->IsFrontendMenuVisible()) PC->UIToggleFrontend();
-        return;
+        Prefs->SetFrontendIdentity(Username,
+            Prefs->GetLastServerAddress().IsEmpty() ? FString(TEXT("127.0.0.1:7777")) : Prefs->GetLastServerAddress());
     }
+    PC->SetNickname(Username);
 
-    // Keep the current approved menu/background completely intact until `open` actually replaces this world.
-    // The old implementation set bGameplayStarted=true and collapsed the presentation first, which let one or more
-    // ticks render the gray pause/legacy shell before travel committed.
+    bPauseMenuActive = false;
     bLocalTravelPending = true;
     bGameplayStarted = false;
     SetPresentationVisibility(true, true, false);
     ForceMenuInput();
-    UE_LOG(LogTemp, Display, TEXT("R13 frontend: local gameplay travel BEGIN; holding frontend frame until world replacement"));
 
-    PC->ConsoleCommand(TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Bots=0?Population=1?BotFill=0?MaxPlayers=16?R13Gameplay=1?LocationTest=1"));
+    // Production host route. No LocationTest and no AutoDeploy: after server creation the human
+    // remains controller-only in Deployment until TEAM -> SQUAD -> ROLE -> SPAWN -> У БІЙ is committed.
+    const FString Travel = FString::Printf(
+        TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Name=%s?Bots=%d?Population=%d?BotFill=0?MaxPlayers=%d?BotDifficulty=%s?PerfProfile=LowCPU?R13Gameplay=1"),
+        *Username, Bots, Bots, MaxPlayers, *Difficulty);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS14_HOST_TRAVEL_BEGIN max_players=%d bots=%d difficulty=%s"), MaxPlayers, Bots, *Difficulty);
+    PC->ConsoleCommand(Travel);
 }
 
 void UOCR13FrontendMenuSubsystem::ForceMenuInput()
@@ -702,10 +741,7 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
 
     FInputModeUIOnly Mode;
     Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-    if (PrimaryButton.IsValid())
-    {
-        Mode.SetWidgetToFocus(PrimaryButton->TakeWidget());
-    }
+    if (PrimaryButton.IsValid()) Mode.SetWidgetToFocus(PrimaryButton->TakeWidget());
     PC->SetInputMode(Mode);
 }
 
@@ -719,13 +755,8 @@ void UOCR13FrontendMenuSubsystem::ReleaseMenuInput()
     PC->bShowMouseCursor = false;
     PC->bEnableClickEvents = false;
     PC->bEnableMouseOverEvents = false;
-    if (PC->PlayerInput)
-    {
-        PC->PlayerInput->FlushPressedKeys();
-    }
-
-    FInputModeGameOnly Mode;
-    PC->SetInputMode(Mode);
+    if (PC->PlayerInput) PC->PlayerInput->FlushPressedKeys();
+    PC->SetInputMode(FInputModeGameOnly());
 }
 
 TStatId UOCR13FrontendMenuSubsystem::GetStatId() const
