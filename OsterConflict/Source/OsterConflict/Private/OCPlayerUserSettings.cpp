@@ -1,6 +1,10 @@
 #include "OCPlayerUserSettings.h"
 
+#include "DynamicRHI.h"
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformMisc.h"
 
 UOCPlayerUserSettings* UOCPlayerUserSettings::Get()
 {
@@ -20,6 +24,84 @@ void UOCPlayerUserSettings::ValidateSettingsSchema()
     ResetPlayerDefaults();
     SettingsSchemaVersion = CurrentSettingsSchemaVersion;
     SaveConfig();
+}
+
+void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
+{
+    UGameUserSettings* GameSettings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+    if (!GameSettings) return;
+
+    GameSettings->LoadSettings(false);
+
+    if (!bInitialGraphicsProfileApplied)
+    {
+        // Pass 16: the failed laptop run proved that relying on whatever scalability UE happens to
+        // inherit on first launch can make the game start at ~5 FPS. Apply a one-time CEILING only:
+        // existing settings that are already cheaper are never raised, and after this flag is saved
+        // the player's manual graphics choices are never overwritten on future launches.
+        auto SafeQuality = [](int32 Current, int32 Ceiling)
+        {
+            return Current >= 0 ? FMath::Min(Current, Ceiling) : Ceiling;
+        };
+
+        GameSettings->SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 1));
+        GameSettings->SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 0));
+        GameSettings->SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 1));
+        GameSettings->SetVisualEffectQuality(SafeQuality(GameSettings->GetVisualEffectQuality(), 1));
+        GameSettings->SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 0));
+        GameSettings->SetPostProcessingQuality(SafeQuality(GameSettings->GetPostProcessingQuality(), 1));
+        GameSettings->SetAntiAliasingQuality(SafeQuality(GameSettings->GetAntiAliasingQuality(), 1));
+        GameSettings->SetShadingQuality(SafeQuality(GameSettings->GetShadingQuality(), 1));
+        GameSettings->SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 0));
+        GameSettings->SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 0));
+        GameSettings->SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 1));
+
+        float NormalizedScale = 1.0f;
+        float CurrentScale = 100.0f;
+        float MinScale = 50.0f;
+        float MaxScale = 100.0f;
+        GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
+        if (CurrentScale > 75.0f)
+        {
+            GameSettings->SetResolutionScaleValueEx(75.0f);
+        }
+
+        GameSettings->ApplySettings(false);
+        GameSettings->SaveSettings();
+
+        bInitialGraphicsProfileApplied = true;
+        SaveConfig();
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view=1 shadow=0 texture<=1 effects<=1 foliage=0 post<=1 aa<=1 shading<=1 gi=0 reflection=0 landscape<=1 resolution_scale<=75"));
+    }
+
+    float NormalizedScale = 1.0f;
+    float CurrentScale = 100.0f;
+    float MinScale = 50.0f;
+    float MaxScale = 100.0f;
+    GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
+
+    const FString GPUBrand = FPlatformMisc::GetPrimaryGPUBrand();
+    const TCHAR* RHIName = GDynamicRHI ? GDynamicRHI->GetName() : TEXT("None");
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS16_RUNTIME_GRAPHICS_IDENTITY gpu=%s rhi=%s resolution=%dx%d scale=%.0f view=%d shadow=%d texture=%d effects=%d foliage=%d post=%d aa=%d shading=%d gi=%d reflection=%d landscape=%d"),
+        *GPUBrand,
+        RHIName,
+        GameSettings->GetScreenResolution().X,
+        GameSettings->GetScreenResolution().Y,
+        CurrentScale,
+        GameSettings->GetViewDistanceQuality(),
+        GameSettings->GetShadowQuality(),
+        GameSettings->GetTextureQuality(),
+        GameSettings->GetVisualEffectQuality(),
+        GameSettings->GetFoliageQuality(),
+        GameSettings->GetPostProcessingQuality(),
+        GameSettings->GetAntiAliasingQuality(),
+        GameSettings->GetShadingQuality(),
+        GameSettings->GetGlobalIlluminationQuality(),
+        GameSettings->GetReflectionQuality(),
+        GameSettings->GetLandscapeQuality());
 }
 
 void UOCPlayerUserSettings::SavePlayerSettings()
@@ -53,7 +135,9 @@ void UOCPlayerUserSettings::ApplyPresentationCVars()
 
 void UOCPlayerUserSettings::ResetPlayerDefaults()
 {
-    // LastUsername and LastServerAddress deliberately survive Reset Defaults.
+    // LastUsername, LastServerAddress and bInitialGraphicsProfileApplied deliberately survive Reset Defaults.
+    // The graphics reset button stages UGameUserSettings separately; it must not make the next launch silently
+    // re-apply Pass 16 after the user intentionally chose/reset video settings.
     SettingsSchemaVersion = CurrentSettingsSchemaVersion;
     MouseSensitivity = 1.0f;
     AimSensitivityMultiplier = 0.72f;
