@@ -19,14 +19,18 @@ namespace
 {
     constexpr float PolishMapWidth = 1248.0f;
     constexpr float PolishMapHeight = 702.0f;
+    constexpr float EdgeSafePadding = 18.0f;
 
-    const FLinearColor PolishGrid(0.46f, 0.53f, 0.55f, 0.075f);
-    const FLinearColor PolishGridText(0.58f, 0.63f, 0.65f, 0.78f);
+    const FLinearColor PolishGrid(0.46f, 0.53f, 0.55f, 0.060f);
+    const FLinearColor PolishGridText(0.58f, 0.63f, 0.65f, 0.72f);
     const FLinearColor PolishMuted(0.58f, 0.63f, 0.65f, 0.92f);
     const FLinearColor PolishText(0.88f, 0.91f, 0.92f, 1.0f);
     const FLinearColor PolishAmber(0.95f, 0.55f, 0.12f, 1.0f);
     const FLinearColor PolishPlayer(0.50f, 0.90f, 0.32f, 1.0f);
     const FLinearColor PolishLive(0.34f, 0.82f, 0.48f, 1.0f);
+    const FLinearColor PolishPOI(0.82f, 0.87f, 0.89f, 0.96f);
+    const FLinearColor PolishPark(0.42f, 0.72f, 0.48f, 0.96f);
+    const FLinearColor PolishRetail(0.38f, 0.68f, 0.88f, 0.96f);
 
     void SetPolishTextSize(UTextBlock* Text, const int32 Size)
     {
@@ -102,25 +106,49 @@ namespace
             FPaths::ProjectContentDir(), TEXT("UI/TacticalMap/Icons"), FileName));
     }
 
-    void AddMapPinIcon(
+    void AddPOIIcon(
         UWidgetTree* Tree,
         UCanvasPanel* Canvas,
         const FName Name,
-        const FVector2D Position)
+        const FVector2D Position,
+        const TCHAR* FileName,
+        const FLinearColor& Tint)
     {
         if (!Tree || !Canvas) return;
-        const FString IconPath = ResolvePolishIconPath(TEXT("map-pin.svg"));
+        const FString IconPath = ResolvePolishIconPath(FileName);
         if (!IFileManager::Get().FileExists(*IconPath)) return;
+
+        const FVector2D SafePosition(
+            FMath::Clamp(Position.X, EdgeSafePadding, PolishMapWidth - EdgeSafePadding),
+            FMath::Clamp(Position.Y, EdgeSafePadding, PolishMapHeight - EdgeSafePadding));
 
         UImage* Icon = Tree->ConstructWidget<UImage>(UImage::StaticClass(), Name);
         FSlateVectorImageBrush VectorBrush(
             IconPath,
-            FVector2D(13.0f, 13.0f),
-            FLinearColor(0.82f, 0.87f, 0.89f, 0.95f),
+            FVector2D(15.0f, 15.0f),
+            Tint,
             ESlateBrushTileType::NoTile);
         Icon->SetBrush(VectorBrush);
         Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
-        AddPolishWidget(Canvas, Icon, Position, FVector2D(13.0f, 13.0f), 12, FVector2D(0.5f, 0.5f));
+        AddPolishWidget(Canvas, Icon, SafePosition, FVector2D(15.0f, 15.0f), 12, FVector2D(0.5f, 0.5f));
+    }
+
+    void DimOverviewResidentialNoise(UCanvasPanel* Canvas)
+    {
+        if (!Canvas) return;
+        for (int32 ChildIndex = 0; ChildIndex < Canvas->GetChildrenCount(); ++ChildIndex)
+        {
+            UWidget* Child = Canvas->GetChildAt(ChildIndex);
+            UBorder* Shape = Cast<UBorder>(Child);
+            const UCanvasPanelSlot* ShapeSlot = Shape ? Cast<UCanvasPanelSlot>(Shape->Slot) : nullptr;
+            if (!ShapeSlot || ShapeSlot->GetZOrder() != 2) continue;
+
+            const FVector2D Size = ShapeSlot->GetSize();
+            if (Size.X <= 6.0f && Size.Y <= 6.0f)
+                Shape->SetRenderOpacity(0.30f);
+            else if (Size.X <= 12.0f && Size.Y <= 12.0f)
+                Shape->SetRenderOpacity(0.52f);
+        }
     }
 }
 
@@ -128,7 +156,7 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
 {
     if (!WidgetTree || !MapCanvas || !MapContentCanvas) return;
 
-    // The grid remains useful for callouts, but it should sit behind roads, landmarks and objectives.
+    // The grid stays useful for callouts, but it should never compete with roads and objectives.
     for (int32 Index = 0; Index <= 10; ++Index)
     {
         if (UBorder* Vertical = Cast<UBorder>(WidgetTree->FindWidget(
@@ -155,6 +183,8 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
             }
         }
     }
+
+    DimOverviewResidentialNoise(MapContentCanvas);
 
     // Player gets the strongest friendly read on the map without turning into a glowing billboard.
     if (PlayerMarker)
@@ -195,7 +225,7 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
         FVector2D(BarLeft + BarPixels - 48.0f, BarTop - 22.0f), FVector2D(52.0f, 16.0f),
         9, PolishText, 31, ETextJustify::Right);
 
-    // The old bullet POI anchors are replaced with proper pin icons; labels stay where they are.
+    // Old bullet anchors are replaced with semantic vector icons; labels stay map-georeferenced.
     for (int32 ChildIndex = 0; ChildIndex < MapContentCanvas->GetChildrenCount(); ++ChildIndex)
     {
         UWidget* Child = MapContentCanvas->GetChildAt(ChildIndex);
@@ -208,20 +238,19 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
     }
 
     const FOCGeoReferencePoint SilpoRef = FOCGeoReference::Silpo();
-    AddMapPinIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconMuseum"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::MuseumAnchor())));
-    AddMapPinIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconStadium"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::StadiumAnchor())));
-    AddMapPinIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconPark"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::ParkAnchor())));
-    AddMapPinIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconCenter"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::FormerCityAdministrationAnchor())));
-    AddMapPinIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconSilpo"),
+    AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconMuseum"),
+        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::MuseumAnchor())), TEXT("landmark.svg"), PolishPOI);
+    AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconStadium"),
+        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::StadiumAnchor())), TEXT("goal.svg"), PolishPOI);
+    AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconPark"),
+        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::ParkAnchor())), TEXT("tree-pine.svg"), PolishPark);
+    AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconCenter"),
+        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::FormerCityAdministrationAnchor())), TEXT("map-pin.svg"), PolishPOI);
+    AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconSilpo"),
         WorldToMap(ResolveSectorWorldLocation(
-            FOCGeoReference::ToLocalCm(SilpoRef.Latitude, SilpoRef.Longitude, 0.0f))));
+            FOCGeoReference::ToLocalCm(SilpoRef.Latitude, SilpoRef.Longitude, 0.0f))), TEXT("shopping-basket.svg"), PolishRetail);
 
-    // Objective backplates give A/B/C a stable visual target while the existing replicated text
-    // continues to carry contested/owner/progress state above them.
+    // Objective backplates give A/B/C a stable visual target while replicated text carries state above them.
     if (UWorld* World = GetWorld())
     {
         for (TActorIterator<AOCCapturePoint> It(World); It; ++It)
@@ -230,16 +259,20 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
             if (!IsValid(Point) || Point->GetPointId().IsNone()) continue;
 
             const FString PointName = Point->GetPointId().ToString();
-            const FVector2D PointPosition = WorldToMap(Point->GetActorLocation());
+            const FVector2D RawPosition = WorldToMap(Point->GetActorLocation());
+            const FVector2D PointPosition(
+                FMath::Clamp(RawPosition.X, EdgeSafePadding + 4.0f, PolishMapWidth - EdgeSafePadding - 4.0f),
+                FMath::Clamp(RawPosition.Y, EdgeSafePadding + 4.0f, PolishMapHeight - EdgeSafePadding - 4.0f));
             const FName OuterName(*FString::Printf(TEXT("ObjectiveBackplateOuter_%s"), *PointName));
             const FName InnerName(*FString::Printf(TEXT("ObjectiveBackplateInner_%s"), *PointName));
 
             AddPolishBar(WidgetTree, MapContentCanvas, OuterName,
-                PointPosition, FVector2D(34.0f, 34.0f),
-                FLinearColor(0.010f, 0.016f, 0.020f, 0.96f), 20, 45.0f, FVector2D(0.5f, 0.5f));
+                PointPosition, FVector2D(38.0f, 38.0f),
+                FLinearColor(0.010f, 0.016f, 0.020f, 0.97f), 20, 45.0f, FVector2D(0.5f, 0.5f));
             AddPolishBar(WidgetTree, MapContentCanvas, InnerName,
-                PointPosition, FVector2D(27.0f, 27.0f),
-                FLinearColor(PolishAmber.R, PolishAmber.G, PolishAmber.B, 0.20f), 21, 45.0f, FVector2D(0.5f, 0.5f));
+                PointPosition, FVector2D(29.0f, 29.0f),
+                FLinearColor(PolishAmber.R, PolishAmber.G, PolishAmber.B, Point->IsContested() ? 0.42f : 0.22f),
+                21, 45.0f, FVector2D(0.5f, 0.5f));
         }
     }
 
@@ -253,5 +286,5 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Tactical Map production polish installed: quiet grid, hierarchy, scale bar, POI pins and objective backplates."));
+        TEXT("Tactical Map polish pass 2: quieter residential overview, semantic POI icons, edge-safe objectives and compact tactical chrome."));
 }

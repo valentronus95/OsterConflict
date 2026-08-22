@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 VISUAL = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp"
@@ -37,7 +38,10 @@ require("GetTacticalResidentialRoofs(), TacticalResidentialFill, TacticalResiden
         "residential geometry is not routed through the quieter style")
 
 # Grid hierarchy and player readability.
-require("PolishGrid" in polish and "0.075f" in polish, "grid was not visually reduced")
+grid_match = re.search(r"PolishGrid\([^;]*?,\s*([0-9.]+)f\);", polish)
+require(grid_match is not None, "PolishGrid declaration missing")
+grid_alpha = float(grid_match.group(1))
+require(grid_alpha <= 0.075, f"grid alpha regressed above 0.075: {grid_alpha}")
 require("MapGridV_%02d" in polish and "MapGridH_%02d" in polish, "grid line restyle loop missing")
 require("SetPolishTextSize(PlayerMarker, 24)" in polish, "player marker is not strengthened")
 require("SetShadowOffset" in polish and "SetShadowColorAndOpacity" in polish,
@@ -55,7 +59,7 @@ require("BarMeters = WidthMeters <= 1800.0f ? 250.0f : 500.0f" in polish,
 require("LegacyDot->SetVisibility(ESlateVisibility::Collapsed)" in polish,
         "old POI bullet anchors must be retired")
 for token in ("MapPOIIconMuseum", "MapPOIIconStadium", "MapPOIIconPark", "MapPOIIconCenter", "MapPOIIconSilpo"):
-    require(token in polish, f"POI vector pin missing: {token}")
+    require(token in polish, f"POI vector icon missing: {token}")
 require("TActorIterator<AOCCapturePoint>" in polish, "objective backplates are not derived from actual capture actors")
 require("ObjectiveBackplateOuter_" in polish and "ObjectiveBackplateInner_" in polish,
         "A/B/C objective backplates missing")
