@@ -63,41 +63,52 @@ if errorlevel 1 (
 )
 
 for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
-if /I not "%CURRENT_BRANCH%"=="main" (
-  echo [STOP] Normal gameplay playtest must run from branch main.
-  echo Current branch: %CURRENT_BRANCH%
-  echo Switch to main, then Fetch origin and Pull origin.
-  pause
-  exit /b 8
+set "FETCH_BRANCH="
+set "REMOTE_REF="
+if /I "%CURRENT_BRANCH%"=="main" (
+  set "FETCH_BRANCH=main"
+  set "REMOTE_REF=origin/main"
+) else (
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" >nul
+  if errorlevel 1 (
+    echo [STOP] Normal gameplay playtest is allowed only from main or an explicit fix/runtime-acceptance-* branch.
+    echo Current branch: %CURRENT_BRANCH%
+    pause
+    exit /b 8
+  )
+  set "FETCH_BRANCH=%CURRENT_BRANCH%"
+  set "REMOTE_REF=origin/%CURRENT_BRANCH%"
+  echo [ACCEPTANCE] Running isolated runtime acceptance branch: %CURRENT_BRANCH%
+  echo [ACCEPTANCE] main will remain untouched until this branch passes the UE runtime playtest.
 )
 
-echo [PRECHECK] Fetching origin/main so a stale local build cannot be tested...
-git fetch origin main
+echo [PRECHECK] Fetching origin/%FETCH_BRANCH% so a stale local build cannot be tested...
+git fetch origin "%FETCH_BRANCH%"
 if errorlevel 1 (
-  echo [STOP] Could not fetch origin/main. Playtest cancelled instead of testing unknown/stale code.
+  echo [STOP] Could not fetch origin/%FETCH_BRANCH%. Playtest cancelled instead of testing unknown/stale code.
   pause
   exit /b 9
 )
 for /f "delims=" %%H in ('git rev-parse HEAD') do set "LOCAL_HEAD=%%H"
-for /f "delims=" %%H in ('git rev-parse origin/main') do set "REMOTE_HEAD=%%H"
+for /f "delims=" %%H in ('git rev-parse "%REMOTE_REF%"') do set "REMOTE_HEAD=%%H"
 if /I not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
-  echo [STOP] Local main is not current GitHub main.
+  echo [STOP] Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%.
   echo Local : %LOCAL_HEAD%
   echo GitHub: %REMOTE_HEAD%
-  echo GitHub Desktop: Pull origin. Then start the playtest again.
+  echo GitHub Desktop: Fetch origin, then Pull origin. Then start the playtest again.
   pause
   exit /b 10
 )
 
 git merge-base --is-ancestor %R147_ASSET_COMMIT% HEAD >nul 2>nul
 if errorlevel 1 (
-  echo [STOP] Local main is missing the current R14 gameplay asset baseline.
+  echo [STOP] Current branch is missing the current R14 gameplay asset baseline.
   echo GitHub Desktop: Fetch origin, then Pull origin.
   pause
   exit /b 11
 )
 
-rem Hydrate the current main LFS payloads using only commands supported by older Git LFS releases.
+rem Hydrate the current branch LFS payloads using only commands supported by older Git LFS releases.
 rem The previous --include form is not accepted by the Git LFS build installed on the playtest PC.
 echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
 git lfs version >nul 2>nul
@@ -110,7 +121,7 @@ if errorlevel 1 (
 git lfs install >nul 2>nul
 git lfs pull origin
 if errorlevel 1 (
-  echo [STOP] Git LFS could not hydrate the current main assets.
+  echo [STOP] Git LFS could not hydrate the current branch assets.
   pause
   exit /b 13
 )
@@ -144,7 +155,17 @@ if exist "%VERIFY%" (
   echo [0/4] Verifying current R14 landmark ownership...
   %PY_CMD% "%VERIFY%"
   if errorlevel 1 (
-    echo [STOP] Current main source verification failed.
+    echo [STOP] Current source verification failed.
+    pause
+    exit /b 16
+  )
+)
+
+if exist "%~dp0VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py" (
+  echo [0b/4] Verifying runtime acceptance Pass 7 source contracts...
+  %PY_CMD% "%~dp0VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py"
+  if errorlevel 1 (
+    echo [STOP] Pass 7 source verification failed.
     pause
     exit /b 16
   )
@@ -203,6 +224,7 @@ echo.
 echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
+echo Branch: %CURRENT_BRANCH%
 echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
 echo.
@@ -212,6 +234,7 @@ set "GAME_RC=%ERRORLEVEL%"
 echo.
 echo ============================================================
 echo CURRENT GAMEPLAY FINISHED - exit code %GAME_RC%
+echo Branch: %CURRENT_BRANCH%
 echo Source: %LOCAL_HEAD%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================
