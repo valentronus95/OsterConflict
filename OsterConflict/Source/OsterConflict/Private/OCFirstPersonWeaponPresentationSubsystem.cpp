@@ -6,10 +6,17 @@
 #include "OCWeaponPresentationProfiles.h"
 
 #include "Animation/AnimSequence.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+
+namespace
+{
+    const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
+}
 
 bool UOCFirstPersonWeaponPresentationSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -60,8 +67,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
         }
         else if (FOCFirstPersonWeaponState* ExistingState = StateByCharacter.Find(CharacterKey))
         {
-            // Do not leave camera-space offsets or single-node animations parked on the character
-            // while vehicle presentation owns the local view.
             RestorePresentationState(Character, *ExistingState);
             StateByCharacter.Remove(CharacterKey);
         }
@@ -73,18 +78,23 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
     }
 }
 
-USkeletalMeshComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductionWeaponVisual(AOCWeaponBase& Weapon) const
+UPrimitiveComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductionWeaponVisual(AOCWeaponBase& Weapon) const
 {
-    TArray<USkeletalMeshComponent*> Components;
-    Weapon.GetComponents<USkeletalMeshComponent>(Components);
-    for (USkeletalMeshComponent* Component : Components)
+    TArray<UPrimitiveComponent*> Components;
+    Weapon.GetComponents<UPrimitiveComponent>(Components);
+    for (UPrimitiveComponent* Component : Components)
     {
-        if (Component && Component->ComponentHasTag(FName(TEXT("OC_ProductionWeaponVisual"))))
+        if (Component && Component->ComponentHasTag(ProductionWeaponVisualTag))
         {
             return Component;
         }
     }
     return nullptr;
+}
+
+USkeletalMeshComponent* UOCFirstPersonWeaponPresentationSubsystem::FindProductionSkeletalWeaponVisual(AOCWeaponBase& Weapon) const
+{
+    return Cast<USkeletalMeshComponent>(FindProductionWeaponVisual(Weapon));
 }
 
 void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCCharacter& Character,
@@ -94,10 +104,8 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     {
         if (State.bWeaponAnimationActive)
         {
-            if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*PreviousWeapon))
+            if (USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(*PreviousWeapon))
             {
-                // We only start single-node sequences when no AnimBlueprint is authoritative.
-                // If another system has since installed an AnimBlueprint, leave it alone.
                 if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
                 {
                     Visual->SetAnimation(nullptr);
@@ -105,8 +113,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
             }
         }
 
-        // A dropped weapon has already been detached and positioned in world space by gameplay code.
-        // Never reinterpret the old camera-relative base transform as a world transform.
         if (!PreviousWeapon->IsWorldPickup())
         {
             PreviousWeapon->SetActorRelativeLocation(State.BaseWeaponLocation);
@@ -133,12 +139,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBas
     FOCFirstPersonWeaponState& State, double ResetDelaySeconds)
 {
     if (!Sequence) return;
-    USkeletalMeshComponent* Visual = FindProductionWeaponVisual(Weapon);
+    USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(Weapon);
     USkeletalMesh* Mesh = Visual ? Visual->GetSkeletalMeshAsset() : nullptr;
     if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return;
 
-    // Production weapons may later gain their own animation blueprint. Do not replace an authored
-    // AnimInstance with this lightweight fallback sequence layer.
     if (Visual->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Visual->GetAnimClass()) return;
 
     Visual->PlayAnimation(Sequence, false);
@@ -153,8 +157,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Char
     USkeletalMesh* ArmsMesh = Arms ? Arms->GetSkeletalMeshAsset() : nullptr;
     if (!Arms || !ArmsMesh) return;
 
-    // CharacterVisualComponent may install a real first-person AnimBlueprint from the active profile.
-    // SampleAnimationPack is only a fallback and must never knock that AnimInstance out of blueprint mode.
     if (Arms->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Arms->GetAnimClass()) return;
 
     UAnimSequence* Desired = bADS ? RifleADSIdleAnimation.Get() : RifleIdleAnimation.Get();
@@ -190,8 +192,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     FOCFirstPersonWeaponState* ExistingState = StateByCharacter.Find(CharacterKey);
     if (ExistingState && ExistingState->Weapon.Get() != Weapon)
     {
-        // Weapon switches can happen while ADS/recoil/reload offsets are non-zero. Restore the old
-        // presentation before capturing the new weapon's base transform so offsets never accumulate.
         RestorePresentationState(Character, *ExistingState);
         StateByCharacter.Remove(CharacterKey);
         ExistingState = nullptr;
@@ -211,13 +211,24 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.bWasReloading = Weapon->IsReloading();
         State.ReloadStartTime = Now;
 
-        // R14: stop inheriting one anonymous transform from AOCWeaponBase. Every weapon id now
-        // resolves through an explicit profile. Values intentionally preserve the legacy baseline
-        // until that exact mesh has been visually calibrated in UE 5.8.
         State.BaseWeaponLocation = Profile.CameraLocation;
         State.BaseWeaponRotation = Profile.CameraRotation;
         State.BaseArmsLocation = Arms->GetRelativeLocation() + Profile.ArmsBaseOffset;
         State.BaseArmsRotation = Arms->GetRelativeRotation() + Profile.ArmsBaseRotationOffset;
+
+        UPrimitiveComponent* ProductionVisual = FindProductionWeaponVisual(*Weapon);
+        if (!ProductionVisual)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("Pass 8 first-person presentation has no production visual for weapon id %s."),
+                *WeaponId.ToString());
+        }
+        else if (Cast<UStaticMeshComponent>(ProductionVisual))
+        {
+            UE_LOG(LogTemp, Verbose,
+                TEXT("Pass 8 first-person presentation accepted StaticMesh production visual for %s."),
+                *WeaponId.ToString());
+        }
 
         if (!bDeclaredProfile)
         {
@@ -242,7 +253,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     }
     else if (State.bRiflePoseApplied && Arms->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
     {
-        // Covers a same-weapon-class/presentation mutation without waiting for a full state reset.
         Arms->SetAnimation(nullptr);
         State.bRiflePoseApplied = false;
     }
@@ -270,7 +280,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
     if (!bReloading && State.bWasReloading && State.bWeaponAnimationActive)
     {
-        if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*Weapon))
+        if (USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(*Weapon))
         {
             if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
             {
@@ -283,7 +293,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
     if (State.bWeaponAnimationActive && !bReloading && Now >= State.WeaponAnimationResetTime)
     {
-        if (USkeletalMeshComponent* Visual = FindProductionWeaponVisual(*Weapon))
+        if (USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(*Weapon))
         {
             if (Visual->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
             {
@@ -308,8 +318,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         ArmsRotation += Profile.ADSArmsRotationOffset;
     }
 
-    // Local recoil moves both the production weapon and hands together instead of letting the gun
-    // visually detach from the character during a shot. Values now belong to the weapon profile.
     WeaponLocation += Profile.RecoilWeaponLocation * State.RecoilAlpha;
     WeaponRotation += Profile.RecoilWeaponRotation * State.RecoilAlpha;
     ArmsLocation += Profile.RecoilArmsLocation * State.RecoilAlpha;
