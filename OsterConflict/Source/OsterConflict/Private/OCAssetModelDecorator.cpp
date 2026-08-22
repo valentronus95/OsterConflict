@@ -35,12 +35,29 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
 
     HouseA = MakeVisualISM(this, SceneRoot, TEXT("RealHouseA"));
     HouseB = MakeVisualISM(this, SceneRoot, TEXT("RealHouseB"));
+    HouseAExtra01 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra01"));
+    HouseAExtra02 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra02"));
+    HouseAExtra03 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra03"));
+    HouseAExtra04 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra04"));
+    HouseAExtra05 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra05"));
+    HouseAExtra06 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra06"));
+    HouseAExtra07 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra07"));
+    HouseAExtra08 = MakeVisualISM(this, SceneRoot, TEXT("RealHouseAExtra08"));
+    HouseBExtra = MakeVisualISM(this, SceneRoot, TEXT("RealHouseBExtra"));
+
     TreeA = MakeVisualISM(this, SceneRoot, TEXT("RealTreeA"));
     TreeB = MakeVisualISM(this, SceneRoot, TEXT("RealTreeB"));
     TreeC = MakeVisualISM(this, SceneRoot, TEXT("RealTreeC"));
+    TreeD = MakeVisualISM(this, SceneRoot, TEXT("RealTreeD"));
+    TreeE = MakeVisualISM(this, SceneRoot, TEXT("RealTreeE"));
     PineA = MakeVisualISM(this, SceneRoot, TEXT("RealPineA"));
     PineB = MakeVisualISM(this, SceneRoot, TEXT("RealPineB"));
+
     OldFence = MakeVisualISM(this, SceneRoot, TEXT("RealOldFence"));
+    VillageFenceA = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceA"));
+    VillageFenceB = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceB"));
+    VillageFenceC = MakeVisualISM(this, SceneRoot, TEXT("RealVillageFenceC"));
+
     StreetLight = MakeVisualISM(this, SceneRoot, TEXT("RealStreetLight"));
     PowerPole = MakeVisualISM(this, SceneRoot, TEXT("RealPowerPole"));
     Bridge = MakeVisualISM(this, SceneRoot, TEXT("RealBridge"));
@@ -57,18 +74,49 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01.SM_House_Var01"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshB(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var02.SM_House_Var02"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra01(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra01.SM_House_Var01_Extra01"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra02(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra02.SM_House_Var01_Extra02"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra03(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra03.SM_House_Var01_Extra03"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra04(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra04.SM_House_Var01_Extra04"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra05(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra05.SM_House_Var01_Extra05"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra06(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra06.SM_House_Var01_Extra06"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra07(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra07.SM_House_Var01_Extra07"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshAExtra08(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var01_Extra08.SM_House_Var01_Extra08"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> HouseMeshBExtra(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_House_Var02_Extra.SM_House_Var02_Extra"));
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> TreeMeshA(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> TreeMeshB(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var02.SM_Tree_Var02"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> TreeMeshC(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var03.SM_Tree_Var03"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> TreeMeshD(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> TreeMeshE(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var05.SM_Tree_Var05"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PineMeshA(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PineMeshB(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> FenceMesh(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> VillageFenceMeshA(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var01.SM_Fence_Var01"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> VillageFenceMeshB(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var02.SM_Fence_Var02"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> VillageFenceMeshC(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var03.SM_Fence_Var03"));
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> StreetLightMesh(
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_StreetLight.SM_StreetLight"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PowerPoleMesh(
@@ -94,12 +142,29 @@ AOCAssetModelDecorator::AOCAssetModelDecorator()
 
     if (HouseMeshA.Succeeded()) HouseA->SetStaticMesh(HouseMeshA.Object);
     if (HouseMeshB.Succeeded()) HouseB->SetStaticMesh(HouseMeshB.Object);
+    if (HouseMeshAExtra01.Succeeded()) HouseAExtra01->SetStaticMesh(HouseMeshAExtra01.Object);
+    if (HouseMeshAExtra02.Succeeded()) HouseAExtra02->SetStaticMesh(HouseMeshAExtra02.Object);
+    if (HouseMeshAExtra03.Succeeded()) HouseAExtra03->SetStaticMesh(HouseMeshAExtra03.Object);
+    if (HouseMeshAExtra04.Succeeded()) HouseAExtra04->SetStaticMesh(HouseMeshAExtra04.Object);
+    if (HouseMeshAExtra05.Succeeded()) HouseAExtra05->SetStaticMesh(HouseMeshAExtra05.Object);
+    if (HouseMeshAExtra06.Succeeded()) HouseAExtra06->SetStaticMesh(HouseMeshAExtra06.Object);
+    if (HouseMeshAExtra07.Succeeded()) HouseAExtra07->SetStaticMesh(HouseMeshAExtra07.Object);
+    if (HouseMeshAExtra08.Succeeded()) HouseAExtra08->SetStaticMesh(HouseMeshAExtra08.Object);
+    if (HouseMeshBExtra.Succeeded()) HouseBExtra->SetStaticMesh(HouseMeshBExtra.Object);
+
     if (TreeMeshA.Succeeded()) TreeA->SetStaticMesh(TreeMeshA.Object);
     if (TreeMeshB.Succeeded()) TreeB->SetStaticMesh(TreeMeshB.Object);
     if (TreeMeshC.Succeeded()) TreeC->SetStaticMesh(TreeMeshC.Object);
+    if (TreeMeshD.Succeeded()) TreeD->SetStaticMesh(TreeMeshD.Object);
+    if (TreeMeshE.Succeeded()) TreeE->SetStaticMesh(TreeMeshE.Object);
     if (PineMeshA.Succeeded()) PineA->SetStaticMesh(PineMeshA.Object);
     if (PineMeshB.Succeeded()) PineB->SetStaticMesh(PineMeshB.Object);
+
     if (FenceMesh.Succeeded()) OldFence->SetStaticMesh(FenceMesh.Object);
+    if (VillageFenceMeshA.Succeeded()) VillageFenceA->SetStaticMesh(VillageFenceMeshA.Object);
+    if (VillageFenceMeshB.Succeeded()) VillageFenceB->SetStaticMesh(VillageFenceMeshB.Object);
+    if (VillageFenceMeshC.Succeeded()) VillageFenceC->SetStaticMesh(VillageFenceMeshC.Object);
+
     if (StreetLightMesh.Succeeded()) StreetLight->SetStaticMesh(StreetLightMesh.Object);
     if (PowerPoleMesh.Succeeded()) PowerPole->SetStaticMesh(PowerPoleMesh.Object);
     if (BridgeMesh.Succeeded()) Bridge->SetStaticMesh(BridgeMesh.Object);
@@ -154,6 +219,49 @@ void AOCAssetModelDecorator::AddFenceLine(UInstancedStaticMeshComponent* Compone
     }
 }
 
+void AOCAssetModelDecorator::AddResidentialHouse(const FVector& Location, float YawDegrees,
+    const FVector& Scale, int32 VariantSeed)
+{
+    const int32 Seed = FMath::Abs(VariantSeed);
+    const bool bUseHouseB = (Seed % 5) == 1 || (Seed % 5) == 4;
+
+    if (bUseHouseB)
+    {
+        AddMeshInstance(HouseB, Location, YawDegrees, Scale);
+        if ((Seed % 3) != 0)
+        {
+            AddMeshInstance(HouseBExtra, Location, YawDegrees, Scale);
+        }
+        return;
+    }
+
+    AddMeshInstance(HouseA, Location, YawDegrees, Scale);
+
+    UInstancedStaticMeshComponent* Extras[] =
+    {
+        HouseAExtra01,
+        HouseAExtra02,
+        HouseAExtra03,
+        HouseAExtra04,
+        HouseAExtra05,
+        HouseAExtra06,
+        HouseAExtra07,
+        HouseAExtra08
+    };
+    AddMeshInstance(Extras[Seed % UE_ARRAY_COUNT(Extras)], Location, YawDegrees, Scale);
+}
+
+UInstancedStaticMeshComponent* AOCAssetModelDecorator::SelectResidentialFence(int32 VariantSeed) const
+{
+    switch (FMath::Abs(VariantSeed) % 4)
+    {
+        case 1: return VillageFenceA && VillageFenceA->GetStaticMesh() ? VillageFenceA : OldFence;
+        case 2: return VillageFenceB && VillageFenceB->GetStaticMesh() ? VillageFenceB : OldFence;
+        case 3: return VillageFenceC && VillageFenceC->GetStaticMesh() ? VillageFenceC : OldFence;
+        default: return OldFence;
+    }
+}
+
 void AOCAssetModelDecorator::HideReplacedProxyComponents(AActor* SectorActor) const
 {
     TArray<UActorComponent*> Components;
@@ -187,7 +295,8 @@ void AOCAssetModelDecorator::HideReplacedProxyComponents(AActor* SectorActor) co
 
 void AOCAssetModelDecorator::BuildResidentialModels()
 {
-    // Solomii Krushelnytskoi: reuse the exact authored house rhythm, but put real meshes over the collision cores.
+    // Solomii Krushelnytskoi keeps the authored street rhythm and the enterable-house gap.
+    // The pass changes only the visual family/details, not the road or collision ownership.
     constexpr float WestHouseX = -39200.0f;
     constexpr float EastHouseX = -27800.0f;
     constexpr float StartY = 20500.0f;
@@ -200,16 +309,28 @@ void AOCAssetModelDecorator::BuildResidentialModels()
 
         if (Index != 2)
         {
-            AddMeshInstance((Index % 2 == 0) ? HouseA : HouseB,
-                FVector(EastHouseX, Y, 0.0f), EastYaw, FVector(0.95f + 0.04f * (Index % 3)));
+            const float EastScale = 0.94f + 0.025f * static_cast<float>((Index * 5 + 2) % 5);
+            AddResidentialHouse(
+                FVector(EastHouseX, Y, 0.0f),
+                EastYaw,
+                FVector(EastScale, EastScale * (0.97f + 0.015f * static_cast<float>(Index % 3)), EastScale),
+                110 + Index * 7);
         }
-        AddMeshInstance((Index % 2 == 0) ? HouseB : HouseA,
-            FVector(WestHouseX, Y + 700.0f, 0.0f), WestYaw, FVector(0.94f + 0.03f * (Index % 2)));
 
-        AddMeshInstance(SideShed, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 0.0f), WestYaw);
-        AddMeshInstance(SideShed, FVector(EastHouseX + 1600.0f, Y + 1750.0f, 0.0f), EastYaw);
-        AddFenceLine(OldFence, FVector(-37100.0f, Y - 1200.0f, 0.0f), 3200.0f, 90.0f);
-        AddFenceLine(OldFence, FVector(-29900.0f, Y - 1200.0f, 0.0f), 3200.0f, 90.0f);
+        const float WestScale = 0.93f + 0.03f * static_cast<float>((Index * 3 + 1) % 4);
+        AddResidentialHouse(
+            FVector(WestHouseX, Y + 700.0f, 0.0f),
+            WestYaw,
+            FVector(WestScale * (0.98f + 0.01f * static_cast<float>(Index % 2)), WestScale, WestScale),
+            210 + Index * 11);
+
+        AddMeshInstance(SideShed, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 0.0f), WestYaw,
+            FVector(0.88f + 0.03f * static_cast<float>(Index % 3)));
+        AddMeshInstance(SideShed, FVector(EastHouseX + 1600.0f, Y + 1750.0f, 0.0f), EastYaw,
+            FVector(0.86f + 0.025f * static_cast<float>((Index + 1) % 3)));
+
+        AddFenceLine(SelectResidentialFence(Index), FVector(-37100.0f, Y - 1200.0f, 0.0f), 3200.0f, 90.0f);
+        AddFenceLine(SelectResidentialFence(Index + 5), FVector(-29900.0f, Y - 1200.0f, 0.0f), 3200.0f, 90.0f);
     }
 
     struct FBlockSeed
@@ -243,28 +364,33 @@ void AOCAssetModelDecorator::BuildResidentialModels()
         {
             for (int32 Col = 0; Col < Block.Columns; ++Col)
             {
-                const float OffsetJitter = static_cast<float>((HouseCounter % 3) - 1) * 170.0f;
+                const int32 Seed = HouseCounter * 37 + Row * 13 + Col * 19;
+                // Keep imported visual shells aligned with the existing collision cores. Variety comes
+                // from authored mesh details, yaw and restrained proportions rather than meter-scale jitter.
                 const FVector Center = Block.Origin + FVector(
-                    Col * Block.Spacing.X + OffsetJitter,
-                    Row * Block.Spacing.Y - OffsetJitter,
+                    Col * Block.Spacing.X,
+                    Row * Block.Spacing.Y,
                     0.0f);
-                const float HouseYaw = Block.Yaw + (HouseCounter % 2 == 0 ? -5.0f : 5.0f);
-                const float UniformScale = 0.92f + static_cast<float>(HouseCounter % 4) * 0.045f;
+                const float HouseYaw = Block.Yaw + static_cast<float>((Seed % 15) - 7);
+                const float BaseScale = 0.91f + static_cast<float>(Seed % 7) * 0.025f;
+                const float WidthScale = BaseScale * (0.96f + static_cast<float>((Seed / 3) % 5) * 0.018f);
+                const float DepthScale = BaseScale * (0.97f + static_cast<float>((Seed / 5) % 4) * 0.017f);
 
-                AddMeshInstance((HouseCounter % 2 == 0) ? HouseA : HouseB,
-                    Center, HouseYaw, FVector(UniformScale));
+                AddResidentialHouse(Center, HouseYaw, FVector(WidthScale, DepthScale, BaseScale), Seed);
 
-                const float Width = 1600.0f + static_cast<float>((HouseCounter % 4) * 180);
-                const float Depth = 1050.0f + static_cast<float>((HouseCounter % 3) * 130);
+                const float Width = 1600.0f + static_cast<float>((Seed % 4) * 180);
+                const float Depth = 1050.0f + static_cast<float>((Seed % 3) * 130);
                 const FVector ShedOffset = FRotator(0.0f, HouseYaw, 0.0f).RotateVector(
                     FVector(-Width * 0.32f, Depth * 1.35f, 0.0f));
-                AddMeshInstance(SideShed, Center + ShedOffset, HouseYaw + 90.0f, FVector(0.88f));
+                AddMeshInstance(SideShed, Center + ShedOffset, HouseYaw + 90.0f,
+                    FVector(0.82f + 0.035f * static_cast<float>(Seed % 4)));
 
-                if ((HouseCounter % 11) != 0)
+                if ((Seed % 11) != 0)
                 {
-                    const float FenceLength = (HouseCounter % 3 == 0) ? 2100.0f : 2850.0f;
-                    const FVector FrontOffset = FRotator(0.0f, HouseYaw, 0.0f).RotateVector(FVector(0.0f, -1500.0f, 0.0f));
-                    AddFenceLine(OldFence, Center + FrontOffset, FenceLength, HouseYaw);
+                    const float FenceLength = (Seed % 3 == 0) ? 2100.0f : 2850.0f;
+                    const FVector FrontOffset = FRotator(0.0f, HouseYaw, 0.0f).RotateVector(
+                        FVector(0.0f, -1500.0f, 0.0f));
+                    AddFenceLine(SelectResidentialFence(Seed), Center + FrontOffset, FenceLength, HouseYaw);
                 }
 
                 ++HouseCounter;
@@ -282,18 +408,23 @@ void AOCAssetModelDecorator::BuildVegetationModels()
 
     auto AddBroadleaf = [this](const FVector& Location, int32 Seed, float Scale = 1.0f)
     {
-        UInstancedStaticMeshComponent* Family = (Seed % 3 == 0) ? TreeA : ((Seed % 3 == 1) ? TreeB : TreeC);
-        AddMeshInstance(Family, Location, static_cast<float>((Seed * 47) % 360), FVector(Scale));
+        UInstancedStaticMeshComponent* Families[] = { TreeA, TreeB, TreeC, TreeD, TreeE };
+        const int32 FamilyIndex = FMath::Abs(Seed) % UE_ARRAY_COUNT(Families);
+        AddMeshInstance(Families[FamilyIndex], Location, static_cast<float>((Seed * 47) % 360), FVector(Scale));
     };
 
     auto AddPoplar = [this](const FVector& Location, int32 Seed, float Scale = 1.0f)
     {
-        AddMeshInstance(TreeB, Location, static_cast<float>((Seed * 61) % 360), FVector(0.76f * Scale, 0.76f * Scale, 1.28f * Scale));
+        UInstancedStaticMeshComponent* Family = (FMath::Abs(Seed) % 2 == 0) ? TreeB : TreeD;
+        AddMeshInstance(Family, Location, static_cast<float>((Seed * 61) % 360),
+            FVector(0.76f * Scale, 0.76f * Scale, 1.28f * Scale));
     };
 
     auto AddBirchLike = [this](const FVector& Location, int32 Seed, float Scale = 1.0f)
     {
-        AddMeshInstance(TreeC, Location, static_cast<float>((Seed * 53) % 360), FVector(0.82f * Scale, 0.82f * Scale, 1.02f * Scale));
+        UInstancedStaticMeshComponent* Family = (FMath::Abs(Seed) % 2 == 0) ? TreeC : TreeE;
+        AddMeshInstance(Family, Location, static_cast<float>((Seed * 53) % 360),
+            FVector(0.82f * Scale, 0.82f * Scale, 1.02f * Scale));
     };
 
     auto AddPine = [this](const FVector& Location, int32 Seed, float Scale = 1.0f)
@@ -407,7 +538,8 @@ void AOCAssetModelDecorator::BuildAmbientProps()
     for (int32 I = 0; I < 10; ++I)
     {
         const float Angle = static_cast<float>(I) * 36.0f;
-        const FVector Offset = FRotator(0.0f, Angle, 0.0f).RotateVector(FVector(5700.0f + (I % 3) * 350.0f, 0.0f, 0.0f));
+        const FVector Offset = FRotator(0.0f, Angle, 0.0f).RotateVector(
+            FVector(5700.0f + (I % 3) * 350.0f, 0.0f, 0.0f));
         AddMeshInstance(Bush, Park + Offset, Angle + 25.0f, FVector(0.8f + 0.08f * (I % 3)));
     }
 
