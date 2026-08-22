@@ -29,25 +29,23 @@ namespace
 
     FVector ResolveCanonicalBaseLocation(EOCTeam Team, bool bSecondary)
     {
-        // RUNTIME 2026-08-22: deployment is intentionally staged around the museum test hub.
-        // Keep the player outside the museum footprint while making the verified museum landmark,
-        // the test weapon rack and nearby vehicle checks immediately reachable after deployment.
+        // Runtime acceptance: BASE means the museum test hub, not the old map-edge base. Keep both
+        // teams outside the building footprint but close enough that the museum is immediately visible.
         const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
         if (Team == EOCTeam::TeamTwo)
         {
             return Museum + (bSecondary
-                ? FVector(3200.0f, 1000.0f, 120.0f)
-                : FVector(2200.0f, 1700.0f, 120.0f));
+                ? FVector(2200.0f, 1500.0f, 120.0f)
+                : FVector(1450.0f, 900.0f, 120.0f));
         }
         return Museum + (bSecondary
-            ? FVector(-3200.0f, -1000.0f, 120.0f)
-            : FVector(-2200.0f, -1700.0f, 120.0f));
+            ? FVector(-2200.0f, -1500.0f, 120.0f)
+            : FVector(-1450.0f, -900.0f, 120.0f));
     }
 
     float ResolveCanonicalBaseYaw(EOCTeam Team)
     {
-        // Spawn groups face back toward the museum/test hub rather than toward the map edge.
-        return Team == EOCTeam::TeamTwo ? -142.0f : 38.0f;
+        return Team == EOCTeam::TeamTwo ? -148.0f : 32.0f;
     }
 
     bool HasRackForTeam(UWorld* World, EOCTeam Team)
@@ -99,9 +97,9 @@ namespace
         {
             const int32 Row = Index / 6;
             const int32 Column = Index % 6;
-            const float Along = 650.0f + Column * 185.0f;
-            const float AwayFromRoad = 360.0f + Row * 230.0f;
-            FVector Desired = Base + Forward * Along + Right * AwayFromRoad;
+            const float Along = 420.0f + Column * 150.0f;
+            const float Side = 430.0f + Row * 230.0f;
+            FVector Desired = Base + Forward * Along + Right * Side;
             Desired = SnapLocationToWalkableSurface(World, Desired, 72.0f);
 
             AOCWeaponBase* Weapon = World->SpawnActor<AOCWeaponBase>(WeaponClasses[Index], Desired, FacingRotation, SpawnParams);
@@ -113,7 +111,7 @@ namespace
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("Runtime BASE spawn rack created: team=%s weapons=%d location=%s"),
+            TEXT("Runtime BASE spawn rack created beside museum: team=%s weapons=%d location=%s"),
             *OCTeamToString(Team), Spawned, *Base.ToCompactString());
     }
 }
@@ -129,11 +127,8 @@ void AOCTeamSpawnPoint::BeginPlay()
 
     if (!HasAuthority() || !bBaseSpawn || TeamId == EOCTeam::None || !GetWorld()) return;
 
-    // Serialized PlayerStarts can enter play without being rebuilt through ConfigureServer. That was
-    // the reason an old far-away BASE could survive source-side relocation code. Runtime now treats
-    // the museum anchor as authoritative too, not merely the source builder that created the actor.
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
-    if (FVector::DistSquared2D(GetActorLocation(), Museum) > FMath::Square(6000.0f))
+    if (FVector::DistSquared2D(GetActorLocation(), Museum) > FMath::Square(3500.0f))
     {
         ConfigureServer(TeamId, true, NAME_None);
     }
@@ -152,8 +147,6 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
 
     if (bBaseSpawn && TeamId != EOCTeam::None && GetWorld())
     {
-        // Preserve the old pair ordering only to choose primary/secondary. The actual legacy coordinates
-        // are no longer authoritative after this point.
         const FVector LegacyLocation = GetActorLocation();
         const bool bSecondary = TeamId == EOCTeam::TeamTwo
             ? LegacyLocation.Y > 92000.0f
@@ -165,9 +158,10 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
         SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 
         UE_LOG(LogTemp, Display,
-            TEXT("BASE spawn relocated to museum test hub: team=%s secondary=%d old=%s new=%s"),
+            TEXT("BASE spawn relocated beside museum: team=%s secondary=%d old=%s new=%s museum=%s"),
             *OCTeamToString(TeamId), bSecondary ? 1 : 0,
-            *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString());
+            *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString(),
+            *AOCWorldSectorOster::MuseumAnchor().ToCompactString());
 
         if (!bSecondary)
         {
