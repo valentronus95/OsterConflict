@@ -351,7 +351,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         const float Arc = FMath::Sin(Alpha * PI);
         WeaponLocation += Profile.ReloadWeaponLocation * Arc;
         WeaponRotation += Profile.ReloadWeaponRotation * Arc;
-        ArmsLocation += Profile.ReloadArmsOffset * Arc;
+        ArmsLocation += Profile.ReloadArmsLocation * Arc;
         ArmsRotation += Profile.ReloadArmsRotation * Arc;
     }
 
