@@ -79,14 +79,82 @@ AdvancedVillagePack tree variants 04 and 05 are now integrated, increasing broad
 
 Status: **CODED_UNTESTED**
 
+### Enterable-house interior and yard props
+
+`AOCEnterableHouse` was still constructing almost all ordinary household dressing from `/Engine/BasicShapes/Cube.Cube` even though the checked-in `Modular_Rural_Cabin` pack already contains suitable real props.
+
+The existing house owner now integrates these authored meshes when available:
+
+- `Old_Sofa`
+- `Wooden_Table_Small`
+- `Plastic_Chair`
+- `Office_Chair`
+- `Refrigerator_Old`
+- `Wooden_Crate`
+- `Metal_Barrel`
+- `Wheel_Barrow`
+- `Fence_Old_1_2m`
+- `Side_Shed`
+
+A shared bounds-fitting helper calculates uniform scale from the actual mesh bounds and grounds the result at the requested local floor/yard height. This avoids hard-coding an assumed import scale for each pack asset.
+
+Dining furniture, work-corner furniture, sofa, refrigerator, clutter, yard fence and backyard shed now prefer the authored model. Cube fallback remains only where the corresponding real asset cannot be loaded or where no checked-in authored model exists yet, such as the current TV/monitor/PC/laptop and some cabinets.
+
+Cosmetic furniture/electronics are `NoCollision` in this model pass so that hidden or partially replaced blockout geometry cannot leave invisible obstacles. Building shell/interior collision, interactive door, windows, light and yard gate remain owned by the existing house systems.
+
+The visible debug label `S08 ENTERABLE HOUSE` is now hidden in game.
+
+Status: **CODED_UNTESTED**
+
+## Landmark model audit
+
+The current source audit found an important distinction between **photo-inspired runtime construction** and an actual Oster-specific production mesh.
+
+### Museum
+
+The current museum presentation stack contains extensive photo-model/detail subsystems, but its main architecture is still assembled largely from Engine Cube/Cylinder primitives plus selected reusable roof/window/detail meshes. No checked-in exact Oster Museum production source model was found under `SourceAssets/Production`.
+
+### Silpo
+
+The current Silpo photo-model stack is also primarily runtime-built geometry plus materials/detail layers. No checked-in exact Oster Silpo production source model was found under `SourceAssets/Production`.
+
+### Culture House
+
+The current Culture House photo-model owner is runtime Cube/Cylinder architecture with photo-inspired proportions/materials. No checked-in exact Oster Culture House production source model was found under `SourceAssets/Production`.
+
+### Production source tree
+
+`OsterConflict/SourceAssets/Production` currently contains production source families for **Vehicles** and **Weapons**, but no checked-in `World`/`Buildings` family containing exact Oster landmark meshes.
+
+Therefore these landmark items are currently an **asset-source gap**, not merely an integration bug. The project must not falsely relabel the existing runtime primitive construction as an exact production mesh.
+
+Status: **AUDITED / ASSET GAP CONFIRMED / RUNTIME PRESENTATION STILL EXISTS**
+
+## Source verification
+
+The dedicated `VERIFY_OSTER_WORLD_MODELS_PASS.py` source contract now covers:
+
+- residential model ownership;
+- all nine newly used house detail assets;
+- added tree and fence families;
+- collision-aligned house placement;
+- preserved Krushelnytskoi enterable-house gap;
+- real enterable-house prop asset presence and runtime paths;
+- bounds-based prop fitting;
+- removal of invisible cosmetic furniture/electronics collision;
+- preservation of interactive door/window/light/gate ownership.
+
+A green source run does not mean the models are visually approved in UE.
+
 ## Next model work in this branch
 
-1. Run source-contract verification for the newly integrated house/fence/tree assets.
-2. Audit landmark ownership and model completeness for Museum, Silpo, Culture House, Stadium and College.
-3. Continue replacing repeated generic residential presentation without changing unverified geography.
+1. Audit the current landmark stacks for duplicate/blockout layers and remove only confirmed redundant visual owners.
+2. Continue replacing repeated generic residential presentation without changing unverified geography.
+3. Expand the enterable-house shell/roof/material presentation using authored building modules without covering its real openings.
 4. Audit road/sidewalk presentation for raised/convex geometry and duplicate visual owners.
 5. Audit visible blockout geometry and z-fighting after the model-owner pass.
-6. Runtime-accept the complete world/model pass in UE before merging to `main`.
+6. Prepare an explicit production-world asset intake path for future exact Oster Museum/Silpo/Culture/other building meshes instead of pretending they already exist.
+7. Runtime-accept the complete world/model pass in UE before merging to `main`.
 
 ## Merge rule
 
