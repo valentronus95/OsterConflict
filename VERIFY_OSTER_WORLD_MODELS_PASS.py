@@ -15,9 +15,11 @@ HEADER = ROOT / "OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator
 WORLD_OWNER = ROOT / "OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp"
 ENTERABLE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp"
 ENTERABLE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h"
+MUSEUM_WINDOW_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp"
 RECOVERED_ENV = ROOT / "OsterConflict/Source/OsterConflict/Private/OCRecoveredEnvironmentSubsystem.cpp"
 CONTENT = ROOT / "OsterConflict/Content/AdvancedVillagePack/Meshes"
 CABIN_PROPS = ROOT / "OsterConflict/Content/Modular_Rural_Cabin/Meshes/Props"
+CABIN_MODULAR = ROOT / "OsterConflict/Content/Modular_Rural_Cabin/Meshes/Modular"
 
 
 def require(condition: bool, message: str) -> None:
@@ -33,18 +35,23 @@ def main() -> int:
     failures = []
 
     try:
-        require(CPP.is_file(), "OCAssetModelDecorator.cpp missing")
-        require(HEADER.is_file(), "OCAssetModelDecorator.h missing")
-        require(WORLD_OWNER.is_file(), "OCWorldAssetModelsSubsystem.cpp missing")
-        require(ENTERABLE_CPP.is_file(), "OCEnterableHouse.cpp missing")
-        require(ENTERABLE_H.is_file(), "OCEnterableHouse.h missing")
-        require(RECOVERED_ENV.is_file(), "OCRecoveredEnvironmentSubsystem.cpp missing")
+        for path, label in (
+            (CPP, "OCAssetModelDecorator.cpp"),
+            (HEADER, "OCAssetModelDecorator.h"),
+            (WORLD_OWNER, "OCWorldAssetModelsSubsystem.cpp"),
+            (ENTERABLE_CPP, "OCEnterableHouse.cpp"),
+            (ENTERABLE_H, "OCEnterableHouse.h"),
+            (MUSEUM_WINDOW_CPP, "OCMuseumBreakableWindow.cpp"),
+            (RECOVERED_ENV, "OCRecoveredEnvironmentSubsystem.cpp"),
+        ):
+            require(path.is_file(), f"{label} missing")
 
         cpp = CPP.read_text(encoding="utf-8")
         header = HEADER.read_text(encoding="utf-8")
         owner = WORLD_OWNER.read_text(encoding="utf-8")
         enterable_cpp = ENTERABLE_CPP.read_text(encoding="utf-8")
         enterable_h = ENTERABLE_H.read_text(encoding="utf-8")
+        museum_window_cpp = MUSEUM_WINDOW_CPP.read_text(encoding="utf-8")
         recovered_env = RECOVERED_ENV.read_text(encoding="utf-8")
 
         required_assets = [
@@ -54,10 +61,7 @@ def main() -> int:
             "SM_House_Var02_Extra.uasset",
             "SM_Tree_Var04.uasset",
             "SM_Tree_Var05.uasset",
-            "SM_Fence_Var01.uasset",
-            "SM_Fence_Var02.uasset",
-            "SM_Fence_Var03.uasset",
-            "SM_Fence_Var04.uasset",
+            *[f"SM_Fence_Var{i:02d}.uasset" for i in range(1, 5)],
             *[f"SM_Bridge_Var{i:02d}.uasset" for i in range(1, 5)],
             "SM_Well.uasset",
             *[f"SM_Well_Extra{i:02d}.uasset" for i in range(1, 5)],
@@ -79,6 +83,8 @@ def main() -> int:
         ]
         for asset in required_house_props:
             require((CABIN_PROPS / asset).is_file(), f"required authored enterable-house prop missing: {asset}")
+        require((CABIN_MODULAR / "Window_Frame_Part.uasset").is_file(),
+                "required authored museum window frame missing: Window_Frame_Part.uasset")
 
         require_text(owner, "AOCAssetModelDecorator", "single residential presentation owner")
         require_text(owner, "HideLegacyVisualProxies", "legacy proxy visibility owner")
@@ -108,13 +114,11 @@ def main() -> int:
             require_text(cpp, f"SM_Bridge_Var{index:02d}", "bridge runtime path")
             require_text(cpp, f"SM_Well_Extra{index:02d}", "well extra runtime path")
 
-        # Authored family detail meshes share their base model transform rather than becoming new map sites.
         require_text(cpp, "AddMeshInstance(Extras[Seed % UE_ARRAY_COUNT(Extras)], Location, YawDegrees, Scale);",
                      "authored extra alignment")
         require_text(cpp, "AddMeshInstance(HouseBExtra, Location, YawDegrees, Scale);",
                      "House B extra alignment")
 
-        # Existing bridge geography is immutable in this pass. Only the presentation family may change.
         infrastructure_match = re.search(
             r"void AOCAssetModelDecorator::BuildInfrastructureModels\(\).*?void AOCAssetModelDecorator::BuildAmbientProps",
             cpp,
@@ -129,11 +133,8 @@ def main() -> int:
         require(infrastructure.count("SelectBridge(") == 2,
                 "bridge pass must not invent additional bridge sites")
 
-        # The enterable-house gap on Krushelnytskoi must remain reserved.
         require_text(cpp, "if (Index != 2)", "Krushelnytskoi enterable-house gap")
 
-        # Residential visual placement must stay aligned with collision cores. Do not revive the old
-        # arbitrary per-house XY jitter while collision is owned elsewhere.
         residential_match = re.search(
             r"void AOCAssetModelDecorator::BuildResidentialModels\(\).*?void AOCAssetModelDecorator::BuildVegetationModels",
             cpp,
@@ -143,23 +144,16 @@ def main() -> int:
         residential = residential_match.group(0)
         require("OffsetJitter" not in residential, "meter-scale/legacy residential jitter returned")
         require_text(residential, "const FVector Center = Block.Origin + FVector(", "collision-aligned residential centers")
-
-        # Variety may not regress to the previous simple A/B parity placement.
         require("(HouseCounter % 2 == 0) ? HouseA : HouseB" not in residential,
                 "residential visual family regressed to two-house parity")
         require_text(cpp, "switch (FMath::Abs(VariantSeed) % 5)", "five-family residential fence selector")
 
-        # The existing residential well stays at its old site; the authored Extra is layered at the same transform.
         require_text(cpp, "AddAuthoredWell(YardB + FVector(1100, 1150, 0)", "existing well site preserved")
         require_text(cpp, "WellExtra01, WellExtra02, WellExtra03, WellExtra04", "well authored extra family")
 
-        # All decorator ISMs remain presentation-only; collision stays with the authoritative world owner.
         require_text(cpp, 'Component->SetCollisionProfileName(TEXT("NoCollision"));', "decorator no-collision contract")
         require_text(cpp, "Component->SetGenerateOverlapEvents(false);", "decorator overlap contract")
 
-        # Recovered environment must not inject arbitrary raw-coordinate forest-road geometry into the
-        # current Oster map. The old implementation may stay in source for history, but the subsystem
-        # itself remains retired until those sites have evidence-backed georeferences.
         should_create = re.search(
             r"bool UOCRecoveredEnvironmentSubsystem::ShouldCreateSubsystem\(UObject\* Outer\) const\s*\{(.*?)\n\}",
             recovered_env,
@@ -171,36 +165,16 @@ def main() -> int:
         require_text(recovered_env, "SM_Forest_Path", "historical forest path implementation retained")
         require_text(recovered_env, "No photo, satellite, drone or georeference", "retirement rationale")
 
-        # Enterable-house owner now uses the already checked-in rural-cabin props instead of drawing
-        # its sofa/table/chairs/fridge/fence/shed entirely from Engine Cube geometry.
         for prop_name in (
-            "Old_Sofa",
-            "Wooden_Table_Small",
-            "Plastic_Chair",
-            "Office_Chair",
-            "Refrigerator_Old",
-            "Wooden_Crate",
-            "Metal_Barrel",
-            "Wheel_Barrow",
-            "Fence_Old_1_2m",
-            "Side_Shed",
+            "Old_Sofa", "Wooden_Table_Small", "Plastic_Chair", "Office_Chair", "Refrigerator_Old",
+            "Wooden_Crate", "Metal_Barrel", "Wheel_Barrow", "Fence_Old_1_2m", "Side_Shed",
         ):
             require_text(enterable_cpp, prop_name, "enterable-house authored prop path")
-
         for member in (
-            "RealSofa",
-            "RealTable",
-            "RealPlasticChair",
-            "RealOfficeChair",
-            "RealFridge",
-            "RealCrate",
-            "RealMetalBarrel",
-            "RealWheelBarrow",
-            "RealYardFence",
-            "RealSideShed",
+            "RealSofa", "RealTable", "RealPlasticChair", "RealOfficeChair", "RealFridge",
+            "RealCrate", "RealMetalBarrel", "RealWheelBarrow", "RealYardFence", "RealSideShed",
         ):
             require_text(enterable_h, member, "enterable-house model owner")
-
         require_text(enterable_h, "AddFittedGroundProp", "prop bounds-fitting helper")
         require_text(enterable_h, "AddFittedFenceLine", "real fence line helper")
         require_text(enterable_cpp, "const FBoxSphereBounds Bounds = Component->GetStaticMesh()->GetBounds();",
@@ -216,6 +190,19 @@ def main() -> int:
         require_text(enterable_cpp, "SpawnInteractiveOpeningsServer();", "doors/windows interaction owner preserved")
         require_text(enterable_cpp, "AOCInteractableGate", "yard gate interaction owner preserved")
 
+        # Museum styled windows keep the replicated AOCBreakableWindow glass state, but their visible
+        # frame now prefers a checked-in authored frame profile rather than six BasicShape cubes.
+        require_text(museum_window_cpp, "Window_Frame_Part.Window_Frame_Part", "museum authored frame path")
+        require_text(museum_window_cpp, "FitAuthoredFramePart", "museum frame bounds-fitting helper")
+        require_text(museum_window_cpp, "FQuat::FindBetweenNormals", "museum frame longest-axis orientation")
+        require_text(museum_window_cpp, "OC_AuthoredMuseumWindowFrame", "museum authored frame tag")
+        require_text(museum_window_cpp, "Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);",
+                     "museum frame visual-only collision")
+        require_text(museum_window_cpp, "!Component->ComponentHasTag(AuthoredMuseumFrameTag)",
+                     "museum authored materials preserved")
+        require_text(museum_window_cpp, "GlassPane->SetMaterial(0, Glass);",
+                     "museum breakable glass material preserved")
+
     except AssertionError as exc:
         failures.append(str(exc))
 
@@ -230,12 +217,12 @@ def main() -> int:
     print("- 9 authored house-detail assets are integrated over the two base house families")
     print("- broadleaf families expand from 3 to 5 and yard fences from 1 to 5 selectable families")
     print("- four authored bridge meshes are wired while the two existing bridge sites remain unchanged")
-    print("- the existing residential well now uses its authored base + matching Extra detail family")
+    print("- the existing residential well uses its authored base + matching Extra detail family")
     print("- unreferenced recovered forest paths remain retired instead of inventing Oster geography")
     print("- Krushelnytska enterable-house gap and collision-aligned residential centers remain intact")
-    print("- enterable house now uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
-    print("- cosmetic household props do not leave invisible blocking collision")
-    print("- interactive door/window/light/gate ownership remains intact")
+    print("- enterable house uses real sofa/table/chair/fridge/crate/barrel/fence/shed props when hydrated")
+    print("- museum breakable windows prefer authored frame geometry while preserving glass state/material")
+    print("- cosmetic model layers do not leave invisible blocking collision")
     print("STATUS: CODED_UNTESTED; UE runtime acceptance is still required")
     return 0
 
