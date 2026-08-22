@@ -1,118 +1,188 @@
-# OSTER CONFLICT — RUNTIME ACCEPTANCE PASS 7 — 2026-08-22
+# OSTER CONFLICT — RUNTIME ACCEPTANCE STATUS — 2026-08-22
 
-## Scope
+## Current source state
 
-Branch: `fix/runtime-acceptance-pass-7-20260822`
-Base: `main` at `d9c0a859a5273cec9499e794e5efaac531ddbfb5`
-PR: #38 (Draft)
+The original Pass 7 branch is no longer the active source of truth.
 
-This pass exists because repeated runtime defects must not be marked done from source inspection alone.
-`SOURCE VERIFIED` is not `VERIFIED RUNTIME`.
+Merged into `main`:
 
-## Source changes in Pass 7
+- PR #38 / Pass 7 → merge commit `bd633bfa3ed0b06aae06d1e0cf1e4d08e5c95952`;
+- PR #39 / Pass 8 reconciliation → merge commit `d75d646840ad0fd788b7d9b134b5b5703536126a`;
+- PR #40 / strict main runtime-acceptance launcher → merge commit `69b375a9ec91f5532b57442b1e1eee3527f2ab46`.
 
-### P7-UI-001 — settings world bleed
-- pre-game Settings keeps the frontend backdrop instead of exposing the 3D world;
-- SettingsPanel is forced fully opaque while visible;
-- the presentation backing layer is selected before `UIOpenSettings()` changes visibility state, preventing a one-frame world flash;
-- pause-menu Settings may still dim live gameplay intentionally.
+Old conflicting Pass 6 PR #36 was closed as superseded after its still-useful runtime changes were selectively reconciled through PR #39.
+
+`SOURCE VERIFIED` is still not `VERIFIED RUNTIME`.
+
+## Runtime-critical corrections now in main
+
+### Settings world bleed
+- pre-game Settings preserves the frontend backdrop;
+- visible SettingsPanel is forced opaque;
+- opening Settings must not expose the live 3D world for one frame;
+- pause-menu Settings may still dim actual gameplay intentionally.
 
 Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-### P7-START-001 — double START semantics
+### START / deployment semantics
 - main-menu action remains `СТАРТ`;
-- final deployment action is now `У БІЙ`;
-- the deployment presentation must not rewrite the final action back to a second `СТАРТ`.
+- final deployment action is `У БІЙ`;
+- deployment must not present a second `СТАРТ`.
 
 Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-### P7-LOAD-001 — deployment loading transition
-- deployment loading is a full-screen blocking presentation;
-- underlying deployment layout must not be visible while possession changes;
+### Deployment loading
+- full-screen opaque loading presentation;
 - visible progress starts at `0%` and reaches `100%`;
-- completion remains gated by a possessed pawn plus closed deployment UI;
-- the loading title is distinct from START/deployment actions.
+- underlying deployment layout must not visibly move through the loading layer;
+- completion is gated by player possession plus deployment UI release.
 
 Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-### P7-SPAWN-001 — Museum BASE guarantee
-- the canonical `AOCTeamSpawnPoint` path remains Museum-relative and still owns ground snap plus the 11-weapon rack;
-- a server-side gameplay-world guard repairs a stale map-edge BASE through the same canonical `ConfigureServer()` path;
-- if either team BASE is missing, the guard creates it at the Museum anchor and lets `ConfigureServer()` apply the canonical team offset;
+### Museum BASE / spawn
+- canonical BASE is Museum-relative;
+- server-side Museum guard repairs stale map-edge BASE actors through canonical `ConfigureServer()`;
+- missing team BASE is created through the same canonical path;
+- canonical BASE retains ground snap plus the 11-weapon rack;
 - successful authoritative BASE readiness emits `PASS7_MUSEUM_BASES_READY`;
-- the old GameMode map-origin fallback remains tracked as emergency-only code and must not be the accepted player route.
+- old GameMode map-origin fallback is emergency-only and must not be the accepted runtime spawn route;
+- obsolete generated map-edge BASE presentation is removed by the reconciled compatibility correction.
 
 Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-### P7-VEHICLE-001 — production HMMWV + M2 + BTR4 must fail closed
-Normal gameplay fleet slots are confirmed to create `AOCHMMWVGunTruck` and `AOCBTR` actors. A zero-count runtime check is therefore not valid evidence.
+### 11-weapon Museum rack
+The runtime rack contains these required classes:
 
-Pass 7 vehicle gate now requires:
-- at least one runtime HMMWV gun truck;
-- at least one runtime BTR;
-- exact production HMMWV body on every HMMWV actor;
-- exact tagged production M2 Browning on every runtime gun truck;
-- exact production BTR4 shell on every BTR actor;
-- `PASS7_PRODUCTION_VEHICLES_READY` only when those conditions pass;
-- `PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL` on mismatch or missing expected fleet;
-- an invalid proxy actor is hidden and collision-disabled instead of remaining in the world as a fake final vehicle.
+1. AK-47
+2. MP5
+3. M1911
+4. M700
+5. Remington 870
+6. M249
+7. M14
+8. MAC-10
+9. TEC-9
+10. Lever Action
+11. Anti-Armor Launcher
 
-The normal fleet does not currently require the optional production pickup actor to exist. If one exists, it must still use its expected body plus production M2.
+Every rack actor must expose a visible `OC_ProductionWeaponVisual` component. StaticMesh production weapons are now accepted by the first-person presentation path instead of being treated as missing skeletal visuals.
 
-Status: `SOURCE VERIFIED / UE COMPILE NOT VERIFIED / RUNTIME NOT VERIFIED`.
+Runtime markers:
+- success: `PASS7_PRODUCTION_WEAPONS_READY`;
+- failure: `PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL`.
 
-### P7-LAUNCH-001 — test the branch that actually contains the fix
-Previous launcher behavior allowed normal frontend playtest only from `main`. That made the intended workflow impossible: a correction branch could not be runtime-tested before merge, so an operator could unknowingly test stale `main` again.
+Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-Pass 7 changes the normal gameplay launcher contract:
-- `main` still requires local HEAD == `origin/main`;
-- `fix/runtime-acceptance-*` branches may run the same normal frontend flow before merge;
-- an acceptance branch must match its own `origin/<branch>` HEAD;
-- unrelated feature/backup branches remain blocked;
-- Pass 7 source verifier runs before the UE build when present;
-- after an acceptance-branch playtest, the launcher rejects any `PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL` marker;
-- after an acceptance-branch playtest, the launcher requires both `PASS7_PRODUCTION_VEHICLES_READY` and `PASS7_MUSEUM_BASES_READY` before the automated runtime evidence gate can pass.
+### HMMWV + M2 Browning + BTR4
+Normal gameplay requires:
+- at least one HMMWV gun-truck actor;
+- exact production HMMWV body;
+- exact tagged production M2 Browning on every gun truck;
+- at least one BTR actor;
+- exact production BTR4 shell;
+- production visual proxies fully inert when replaced, not merely invisible;
+- M2 imported long axis normalized to Unreal forward convention;
+- M2 muzzle presentation tied to the actual normalized production gun.
 
-Status: `SOURCE VERIFIED / LOCAL WINDOWS EXECUTION NOT YET VERIFIED`.
+Runtime markers:
+- success: `PASS7_PRODUCTION_VEHICLES_READY`;
+- failure: `PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL`.
 
-## Exact UE 5.8 acceptance sequence
+Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-Run from `fix/runtime-acceptance-pass-7-20260822` using the existing user-facing launcher:
+### First-person weapons / muzzle / tracer
+Reconciled Pass 8 source now requires:
+- StaticMesh and SkeletalMesh production weapon visuals both participate in first-person presentation;
+- skeletal-only animation calls remain isolated to skeletal components;
+- muzzle/tracer FX resolves the actual firing character's `CurrentWeapon`;
+- remote actors are considered, not only the first local pawn;
+- socket muzzle is preferred; production component bounds are the fallback;
+- target-side network tracer is rebound to the actual weapon muzzle and rendered as a short streak.
 
-`START_HERE.cmd` → `1. ЗВИЧАЙНА ГРА`
+Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
 
-Acceptance order:
+### Minimap / chat / foliage / frontend travel
+Reconciled Pass 8 source includes:
+- compact minimap;
+- compact Y team-chat / U global-chat UI;
+- denser foliage with bounded incremental generation rather than synchronous whole-map population;
+- pawn-less frontend travel isolation using the approved menu blocker/background;
+- persistent `GameViewportClient::bDisableWorldRendering` is not used as the travel transition mechanism.
 
-1. Launcher builds the exact current acceptance-branch HEAD successfully in UE 5.8.
-2. Main menu appears with the approved Oster background and no 3D-world bleed.
-3. Open `НАЛАШТУВАННЯ` from the main menu.
-   - no transparent world behind the settings panel;
-   - no one-frame flash of the 3D world;
-   - close Settings and return to the same frontend state.
-4. Press the main-menu `СТАРТ` once.
+Status: `SOURCE VERIFIED / RUNTIME NOT VERIFIED`.
+
+## GitHub verification completed
+
+Before PR #39 merged, all 9 relevant workflows passed on its exact head:
+- Runtime reconcile Pass 8 source contracts;
+- Source verification;
+- Production model integration contracts;
+- R14 weapon model contracts;
+- R14 vehicle identity contracts;
+- Museum source contracts;
+- Frontend and deployment regression guard;
+- Runtime acceptance Pass 3 source contracts;
+- Runtime acceptance Pass 4 source contracts.
+
+Before PR #40 merged, all relevant launcher/source workflows passed, including:
+- Main runtime acceptance launcher contracts;
+- Source verification;
+- Runtime acceptance Pass 3;
+- Runtime acceptance Pass 4;
+- Runtime acceptance Pass 7.
+
+The repository currently has no Windows or self-hosted UE 5.8 GitHub runner, so those workflows cannot prove compilation or gameplay runtime.
+
+## Exact strict UE 5.8 acceptance route from main
+
+Use the dedicated root launcher:
+
+`RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd`
+
+It delegates to the normal gameplay launcher but forces strict evidence mode on current `main`.
+
+The launcher:
+1. requires local `main` HEAD to equal `origin/main`;
+2. hydrates required Git LFS payloads;
+3. runs source verifiers, including Pass 7 and Pass 8 when present;
+4. builds `OsterConflictEditor` with local UE 5.8;
+5. opens every required real weapon asset in a fresh UE process;
+6. imports and validates production HMMWV + M2 + BTR4 assets;
+7. launches the normal frontend/gameplay route;
+8. after the game closes, rejects any vehicle or weapon runtime FAIL marker;
+9. requires all three READY markers:
+   - `PASS7_PRODUCTION_VEHICLES_READY`;
+   - `PASS7_PRODUCTION_WEAPONS_READY`;
+   - `PASS7_MUSEUM_BASES_READY`.
+
+## Visual/runtime acceptance sequence
+
+1. Main menu shows the approved Oster background with no 3D-world bleed.
+2. Open `НАЛАШТУВАННЯ`:
+   - no transparent world behind the panel;
+   - no one-frame 3D-world flash;
+   - closing Settings returns to the same frontend state.
+3. Press main-menu `СТАРТ` once:
    - no gray intermediate shell;
    - deployment flow appears normally.
-5. Complete Team → Squad → Role → Spawn.
+4. Complete Team → Squad → Role → Spawn:
    - final action reads `У БІЙ`, not a second `СТАРТ`.
-6. Press `У БІЙ`.
-   - loading presentation covers the full frame immediately;
-   - deployment panel does not visibly shift underneath;
+5. Press `У БІЙ`:
+   - loading covers the full frame immediately;
    - percentage is visible from the start and reaches `100%`;
-   - overlay disappears only after gameplay possession/deployment release.
-7. Confirm actual spawn is near the canonical Museum site, not the empty field.
-8. Confirm the 11-weapon test rack is reachable from the actual spawn.
-9. Confirm HMMWV uses the real production HMMWV body and real M2 Browning, with no civilian pickup/proxy turret substitute.
-10. Confirm BTR uses the real production BTR4 shell, with no primitive/proxy body substitute.
-11. Remain in gameplay long enough for runtime validation to execute; no vehicle `FAIL` marker may exist and the launcher must later find `PASS7_PRODUCTION_VEHICLES_READY`.
-12. Confirm HUD minimap is present after gameplay entry.
-13. Exit the game normally and let the acceptance launcher inspect the log.
-   - `PASS7_PRODUCTION_VEHICLES_READY` required;
-   - `PASS7_MUSEUM_BASES_READY` required;
-   - any `PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL` rejects the run.
+   - deployment UI is not visible moving underneath;
+   - loading disappears only after gameplay possession/release.
+6. Actual player spawn is near the canonical Museum site, not the empty field.
+7. The 11-weapon rack is reachable and all 11 weapons show real production visuals.
+8. First-person weapons are positioned correctly; muzzle flash/tracer originates from the actual firing weapon.
+9. HMMWV shows the production HMMWV body and production M2 Browning with no proxy/civilian substitute.
+10. BTR shows the production BTR4 shell with no primitive/proxy substitute.
+11. Compact minimap is visible in gameplay.
+12. Y opens team chat; U opens global chat.
+13. Foliage is denser without a deployment freeze.
+14. Remain in gameplay long enough for runtime validation to execute.
+15. Exit normally and allow `RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd` to inspect the log.
 
-## Merge gate
+## Current status
 
-Do not merge PR #38 only because GitHub source CI passes.
-Merge gate remains a successful UE 5.8 compile plus fresh runtime evidence for steps 2–13 above.
-
-Current status: `IN PROGRESS · SOURCE VERIFIED · UE COMPILE NOT VERIFIED · RUNTIME NOT VERIFIED · MAIN NOT MERGED`.
+`MAIN UPDATED` · `SOURCE VERIFIED` · `STRICT MAIN ACCEPTANCE LAUNCHER READY` · `WINDOWS UE 5.8 COMPILE NOT YET EXECUTED` · `RUNTIME NOT VERIFIED`.
