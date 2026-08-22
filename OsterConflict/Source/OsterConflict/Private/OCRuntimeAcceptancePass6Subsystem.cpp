@@ -142,7 +142,7 @@ void UOCRuntimeAcceptancePass6Subsystem::RemoveLegacyGameplayBaseInstances()
             for (int32 InstanceIndex = Component->GetInstanceCount() - 1; InstanceIndex >= 0; --InstanceIndex)
             {
                 FTransform InstanceTransform;
-                if (!Component->GetInstanceTransform(InstanceIndex, InstanceTransform, false)) continue;
+                if (!Component->GetInstanceTransform(InstanceIndex, InstanceTransform, true)) continue;
 
                 const FVector Location = InstanceTransform.GetLocation();
                 bool bInsideLegacyBase = false;
