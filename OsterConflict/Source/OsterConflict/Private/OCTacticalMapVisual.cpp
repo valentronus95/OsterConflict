@@ -22,14 +22,17 @@ namespace
     const FLinearColor TacticalPanel(0.018f, 0.025f, 0.031f, 0.985f);
     const FLinearColor TacticalField(0.020f, 0.030f, 0.034f, 1.0f);
     const FLinearColor TacticalFrame(0.22f, 0.27f, 0.29f, 1.0f);
-    const FLinearColor TacticalRoad(0.31f, 0.36f, 0.38f, 0.92f);
-    const FLinearColor TacticalSidewalk(0.22f, 0.27f, 0.29f, 0.62f);
-    const FLinearColor TacticalBuildingOutline(0.31f, 0.36f, 0.38f, 0.90f);
-    const FLinearColor TacticalBuildingFill(0.050f, 0.066f, 0.076f, 0.98f);
-    const FLinearColor TacticalLandmarkOutline(0.92f, 0.58f, 0.18f, 0.72f);
+    const FLinearColor TacticalRoadPrimary(0.46f, 0.52f, 0.55f, 0.96f);
+    const FLinearColor TacticalRoadSecondary(0.30f, 0.35f, 0.37f, 0.82f);
+    const FLinearColor TacticalSidewalk(0.18f, 0.22f, 0.24f, 0.36f);
+    const FLinearColor TacticalBuildingOutline(0.28f, 0.33f, 0.35f, 0.78f);
+    const FLinearColor TacticalBuildingFill(0.045f, 0.058f, 0.068f, 0.96f);
+    const FLinearColor TacticalResidentialOutline(0.19f, 0.23f, 0.25f, 0.56f);
+    const FLinearColor TacticalResidentialFill(0.030f, 0.041f, 0.048f, 0.92f);
+    const FLinearColor TacticalLandmarkOutline(0.92f, 0.58f, 0.18f, 0.78f);
     const FLinearColor TacticalLandmarkFill(0.12f, 0.10f, 0.060f, 0.98f);
-    const FLinearColor TacticalPark(0.055f, 0.105f, 0.088f, 0.88f);
-    const FLinearColor TacticalStadium(0.050f, 0.085f, 0.100f, 0.90f);
+    const FLinearColor TacticalPark(0.055f, 0.105f, 0.088f, 0.82f);
+    const FLinearColor TacticalStadium(0.050f, 0.085f, 0.100f, 0.86f);
     const FLinearColor TacticalAmber(0.95f, 0.55f, 0.12f, 1.0f);
     const FLinearColor TacticalText(0.86f, 0.90f, 0.92f, 1.0f);
     const FLinearColor TacticalMuted(0.50f, 0.57f, 0.61f, 1.0f);
@@ -83,6 +86,7 @@ void UOCTacticalMapWidget::NativeConstruct()
     RestyleStaticTacticalChrome();
     BuildProductionVisualLayer();
     InstallTacticalIconography();
+    ApplyProductionPolish();
 }
 
 bool UOCTacticalMapWidget::ReframeProjectionForCentralOster()
@@ -305,13 +309,39 @@ void UOCTacticalMapWidget::BuildProductionVisualLayer()
         }
     };
 
-    // Area fills first, then roads, then building footprints. Existing grid remains above these at Z 3/4.
+    auto AddRoadComponent = [&AddRect, ProjectionWidth, ProjectionHeight](const UInstancedStaticMeshComponent* Component)
+    {
+        if (!IsValid(Component)) return;
+        const int32 Count = FMath::Min(Component->GetInstanceCount(), 768);
+        for (int32 InstanceIndex = 0; InstanceIndex < Count; ++InstanceIndex)
+        {
+            FTransform WorldTransform;
+            if (!Component->GetInstanceTransform(InstanceIndex, WorldTransform, true)) continue;
+
+            const FVector Scale = WorldTransform.GetScale3D().GetAbs();
+            const FVector2D NaturalPixels(
+                Scale.X * 100.0f / ProjectionWidth * TacticalMapWidth,
+                Scale.Y * 100.0f / ProjectionHeight * TacticalMapHeight);
+            const float NaturalThickness = FMath::Min(NaturalPixels.X, NaturalPixels.Y);
+            const bool bPrimaryRoad = NaturalThickness >= 2.25f;
+            AddRect(
+                WorldTransform,
+                bPrimaryRoad ? TacticalRoadPrimary : TacticalRoadSecondary,
+                bPrimaryRoad ? TacticalRoadPrimary : TacticalRoadSecondary,
+                2,
+                false,
+                bPrimaryRoad ? 3.0f : 1.45f);
+        }
+    };
+
+    // Areas first, then transport hierarchy, then structures. Residential footprints remain real,
+    // but are deliberately quieter at overview scale so roads/objectives win the first visual read.
     AddComponent(Sector->GetTacticalParkGeometry(), TacticalPark, TacticalPark, 1, false, 2.0f, 256);
     AddComponent(Sector->GetTacticalStadiumGeometry(), TacticalStadium, TacticalStadium, 1, false, 2.0f, 256);
-    AddComponent(Sector->GetTacticalSidewalks(), TacticalSidewalk, TacticalSidewalk, 1, false, 1.0f, 768);
-    AddComponent(Sector->GetTacticalRoads(), TacticalRoad, TacticalRoad, 2, false, 2.0f, 768);
-    AddComponent(Sector->GetTacticalBuildings(), TacticalBuildingFill, TacticalBuildingOutline, 2, true, 2.0f, 768);
-    AddComponent(Sector->GetTacticalResidentialRoofs(), TacticalBuildingFill, TacticalBuildingOutline, 2, true, 2.0f, 768);
+    AddComponent(Sector->GetTacticalSidewalks(), TacticalSidewalk, TacticalSidewalk, 1, false, 0.8f, 768);
+    AddRoadComponent(Sector->GetTacticalRoads());
+    AddComponent(Sector->GetTacticalBuildings(), TacticalBuildingFill, TacticalBuildingOutline, 2, true, 1.8f, 768);
+    AddComponent(Sector->GetTacticalResidentialRoofs(), TacticalResidentialFill, TacticalResidentialOutline, 2, true, 1.4f, 768);
     AddComponent(Sector->GetTacticalLandmarkBlocks(), TacticalLandmarkFill, TacticalLandmarkOutline, 2, true, 3.0f, 256);
     AddComponent(Sector->GetTacticalLandmarkRoofs(), TacticalLandmarkFill, TacticalLandmarkOutline, 2, true, 3.0f, 256);
 
@@ -328,5 +358,5 @@ void UOCTacticalMapWidget::BuildProductionVisualLayer()
     ApplyMapViewTransform();
 
     UE_LOG(LogTemp, Display,
-        TEXT("Tactical Map production vector layer built from actual Oster Roads/Buildings/Landmarks/Park/Stadium geometry."));
+        TEXT("Tactical Map production vector layer built with primary/secondary road hierarchy and quiet residential detail."));
 }
