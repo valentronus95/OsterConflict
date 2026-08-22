@@ -35,6 +35,11 @@ function Missing-Targets {
     if (-not (Test-Path -LiteralPath $HmmwvTarget)) { $missing += 'HMMWV GLB' }
     if (-not (Test-Path -LiteralPath $M2Target)) { $missing += 'M2 Browning GLB' }
     if (-not (Test-Path -LiteralPath $BtrTarget)) { $missing += 'BTR-4 FBX' }
+    foreach ($textureName in $BtrTextures) {
+        if (-not (Test-Path -LiteralPath (Join-Path $BtrTextureTarget $textureName))) {
+            $missing += ('BTR texture ' + $textureName)
+        }
+    }
     return $missing
 }
 
@@ -75,6 +80,23 @@ function Copy-IfMissing {
     Write-Host ('[SOURCE] Restored: ' + $Target)
 }
 
+function Restore-BtrTexturesFromRoots {
+    param([string[]]$Roots)
+
+    if (-not (Test-Path -LiteralPath $BtrTextureTarget)) {
+        New-Item -ItemType Directory -Path $BtrTextureTarget -Force | Out-Null
+    }
+    foreach ($textureName in $BtrTextures) {
+        $textureTarget = Join-Path $BtrTextureTarget $textureName
+        if (Test-Path -LiteralPath $textureTarget) { continue }
+        $texture = Find-FirstMatchingFile -Roots $Roots -ExactName $textureName -Regex ('(?i)^' + [regex]::Escape($textureName) + '$')
+        if ($texture) {
+            Copy-Item -LiteralPath $texture.FullName -Destination $textureTarget -Force
+            Write-Host ('[SOURCE] Restored BTR texture: ' + $textureName)
+        }
+    }
+}
+
 function Expand-ArchiveSafe {
     param(
         [System.IO.FileInfo]$Archive,
@@ -92,17 +114,22 @@ function Expand-ArchiveSafe {
 
 $missing = Missing-Targets
 if ($missing.Count -eq 0) {
-    Write-Host '[SOURCE] PASS: local HMMWV, M2 Browning and BTR-4 source files are already present.'
+    Write-Host '[SOURCE] PASS: local HMMWV, M2 Browning, BTR-4 source and BTR textures are already present.'
     exit 0
 }
 
 Write-Host ('[SOURCE] Missing local production source(s): ' + ($missing -join ', '))
 Write-Host '[SOURCE] Searching previously downloaded model files and archives. Nothing is uploaded or committed.'
 
+# Search the canonical source tree too. This catches a user dropping an original model into the project
+# under its download filename rather than our canonical filename. Downloads/Desktop/Documents cover the
+# usual Windows intake locations without crawling the entire user profile.
 $searchRoots = @(
+    $SourceRoot,
     (Join-Path $env:USERPROFILE 'Downloads'),
-    (Join-Path $env:USERPROFILE 'Desktop')
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+    (Join-Path $env:USERPROFILE 'Desktop'),
+    (Join-Path $env:USERPROFILE 'Documents')
+) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique
 
 $hmmwv = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee).*\.glb$'
 $m2 = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|50.?cal).*\.glb$'
@@ -111,6 +138,7 @@ $btr = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'BTR4_Bucephalus.fb
 Copy-IfMissing -Target $HmmwvTarget -Source $hmmwv
 Copy-IfMissing -Target $M2Target -Source $m2
 Copy-IfMissing -Target $BtrTarget -Source $btr
+Restore-BtrTexturesFromRoots -Roots $searchRoots
 
 $missing = Missing-Targets
 if ($missing.Count -gt 0) {
@@ -128,7 +156,9 @@ if ($missing.Count -gt 0) {
             }
         }
 
-        $archives += Get-ChildItem -LiteralPath $root -File -Filter '*.zip' -ErrorAction SilentlyContinue |
+        # Model downloads are often placed one or two folders below Downloads. Search recursively so
+        # an otherwise valid ZIP is not missed merely because Explorer created a containing folder.
+        $archives += Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.zip' -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -match '(?i)(oster|vehicle|model|модел|btr|hmmwv|m2)' }
     }
 
@@ -163,19 +193,7 @@ if ($missing.Count -gt 0) {
         Copy-IfMissing -Target $HmmwvTarget -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee).*\.glb$')
         Copy-IfMissing -Target $M2Target -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|50.?cal).*\.glb$')
         Copy-IfMissing -Target $BtrTarget -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus).*\.fbx$')
-
-        if (Test-Path -LiteralPath $BtrTarget) {
-            New-Item -ItemType Directory -Path $BtrTextureTarget -Force | Out-Null
-            foreach ($textureName in $BtrTextures) {
-                $textureTarget = Join-Path $BtrTextureTarget $textureName
-                if (Test-Path -LiteralPath $textureTarget) { continue }
-                $texture = Find-FirstMatchingFile -Roots $roots -ExactName $textureName -Regex ('(?i)^' + [regex]::Escape($textureName) + '$')
-                if ($texture) {
-                    Copy-Item -LiteralPath $texture.FullName -Destination $textureTarget -Force
-                    Write-Host ('[SOURCE] Restored BTR texture: ' + $textureName)
-                }
-            }
-        }
+        Restore-BtrTexturesFromRoots -Roots $roots
     }
 }
 
@@ -187,9 +205,12 @@ if ($missing.Count -gt 0) {
     Write-Host ('  ' + $HmmwvTarget)
     Write-Host ('  ' + $M2Target)
     Write-Host ('  ' + $BtrTarget)
-    Write-Host '[SOURCE] Put the original model ZIP in Downloads/Desktop, or restore those three source files, then run START_HERE.cmd again.'
+    foreach ($textureName in $BtrTextures) {
+        Write-Host ('  ' + (Join-Path $BtrTextureTarget $textureName))
+    }
+    Write-Host '[SOURCE] Put the original model ZIP/files in Downloads/Desktop/Documents or SourceAssets, then run START_HERE.cmd again.'
     exit 20
 }
 
-Write-Host '[SOURCE] PASS: required production model sources are now available locally.'
+Write-Host '[SOURCE] PASS: required production model sources and BTR textures are now available locally.'
 exit 0
