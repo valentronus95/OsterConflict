@@ -1,0 +1,32 @@
+name: Main runtime acceptance launcher contracts
+
+on:
+  push:
+    branches:
+      - fix/runtime-acceptance-main-launcher-20260822
+    paths:
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py'
+      - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
+      - '.github/workflows/main-runtime-acceptance-launcher.yml'
+  pull_request:
+    paths:
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py'
+      - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
+      - '.github/workflows/main-runtime-acceptance-launcher.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify strict main acceptance launcher
+        run: python VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py
