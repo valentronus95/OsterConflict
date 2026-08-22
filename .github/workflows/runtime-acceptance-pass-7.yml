@@ -8,6 +8,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDeploymentLoadingSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py'
       - '.github/workflows/runtime-acceptance-pass-7.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13DeploymentPresentationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDeploymentLoadingSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py'
       - '.github/workflows/runtime-acceptance-pass-7.yml'
 
