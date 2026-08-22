@@ -47,9 +47,9 @@ The repository already contains authored AdvancedVillagePack variation assets th
 - `SM_House_Var02_Extra`
 - `SM_Tree_Var04`
 - `SM_Tree_Var05`
-- `SM_Fence_Var01`
-- `SM_Fence_Var02`
-- `SM_Fence_Var03`
+- `SM_Fence_Var01` … `SM_Fence_Var04`
+- `SM_Bridge_Var01` … `SM_Bridge_Var04`
+- `SM_Well_Extra01` … `SM_Well_Extra04`
 
 These files are Git LFS managed; repository pointer presence alone does not prove the playtest machine has hydrated payloads.
 
@@ -69,13 +69,25 @@ Status: **CODED_UNTESTED**
 
 ### Residential fences
 
-Three AdvancedVillagePack fence families were added alongside the existing old rural fence. Yard fence selection is deterministic instead of one fence repeated everywhere.
+Four AdvancedVillagePack fence families are now available alongside the existing old rural fence. Yard fence selection is deterministic across five visual families instead of one repeated fence.
 
 Status: **CODED_UNTESTED**
 
 ### Trees
 
 AdvancedVillagePack tree variants 04 and 05 are now integrated, increasing broadleaf selection from three to five families. Existing pine families remain.
+
+Status: **CODED_UNTESTED**
+
+### Bridges and authored well details
+
+The two existing bridge sites remain at their previous coordinates and rotations. This pass does not invent new bridge geography.
+
+`AOCAssetModelDecorator` now owns four authored bridge mesh families (`SM_Bridge_Var01` … `SM_Bridge_Var04`) behind a deterministic selector with hydrated-asset fallback. The first and second existing bridge sites can therefore use different authored bridge presentation instead of both being forced to `Var01`.
+
+The existing residential well site also remains unchanged. `SM_Well` is now paired with one of its authored `SM_Well_Extra01` … `Extra04` detail meshes at the exact same transform rather than treating an Extra as a separate map object.
+
+All of these decorator meshes remain presentation-only/`NoCollision`; authoritative bridge/world collision stays with the existing world owner.
 
 Status: **CODED_UNTESTED**
 
@@ -136,7 +148,9 @@ The dedicated `VERIFY_OSTER_WORLD_MODELS_PASS.py` source contract now covers:
 
 - residential model ownership;
 - all nine newly used house detail assets;
-- added tree and fence families;
+- added tree and five fence families;
+- all four bridge assets while preserving the two existing bridge sites;
+- authored well base/detail alignment at the existing yard site;
 - collision-aligned house placement;
 - preserved Krushelnytskoi enterable-house gap;
 - real enterable-house prop asset presence and runtime paths;
@@ -148,13 +162,12 @@ A green source run does not mean the models are visually approved in UE.
 
 ## Next model work in this branch
 
-1. Audit the current landmark stacks for duplicate/blockout layers and remove only confirmed redundant visual owners.
-2. Continue replacing repeated generic residential presentation without changing unverified geography.
-3. Expand the enterable-house shell/roof/material presentation using authored building modules without covering its real openings.
-4. Audit road/sidewalk presentation for raised/convex geometry and duplicate visual owners.
-5. Audit visible blockout geometry and z-fighting after the model-owner pass.
-6. Prepare an explicit production-world asset intake path for future exact Oster Museum/Silpo/Culture/other building meshes instead of pretending they already exist.
-7. Runtime-accept the complete world/model pass in UE before merging to `main`.
+1. Audit road/sidewalk presentation for raised/convex geometry, duplicate visual owners and z-fighting.
+2. Audit the current landmark stacks for duplicate/blockout layers and remove only confirmed redundant visual owners.
+3. Continue replacing repeated generic residential presentation without changing unverified geography.
+4. Expand the enterable-house shell/roof/material presentation using authored building modules without covering its real openings.
+5. Prepare an explicit production-world asset intake path for future exact Oster Museum/Silpo/Culture/other building meshes instead of pretending they already exist.
+6. Runtime-accept the complete world/model pass in UE before merging to `main`.
 
 ## Merge rule
 
