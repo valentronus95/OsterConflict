@@ -62,17 +62,19 @@ req('GetNetMode() == NM_Standalone' in pc and
 req('Frontend-only standalone session' in gm and 'bFrontendOnlySession' in gm,
     'frontend-only gameplay suppression retained')
 
-# START_HERE is intentionally a small user-facing launcher, not the historical R8/R11 test-kit menu.
+# START_HERE is intentionally the only user-facing launcher.
 req('OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК' in start,
     'START_HERE identifies current Oster Conflict launcher')
 req('choice /C 1230' in start,
-    'START_HERE exposes normal game, technical test, editor and exit')
+    'START_HERE exposes normal game, full runtime test, editor and exit')
 req('call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in start,
     'START_HERE normal-game route uses current R14 gameplay launcher')
-req('call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"' in start,
-    'START_HERE technical route uses current R14 sandbox launcher')
-req('UnrealEditor.exe' in start and 'OsterConflict.uproject' in start,
-    'START_HERE editor route is explicit')
+req('call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"' in start,
+    'START_HERE full-test route uses current Pass 21 runtime acceptance wrapper')
+req('RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
+    'technical sandbox is not exposed in the user-facing START_HERE menu')
+req('UnrealEditor.exe' in start and 'OsterConflict.uproject' in start and '-d3d11' in start,
+    'START_HERE editor route is explicit and uses the current safe D3D11 renderer')
 req('& goto menu' not in start,
     'START_HERE does not detach goto from IF blocks with ampersand chaining')
 req(start.count('goto menu') >= 3 and start.count('call "%~dp0') >= 2,
@@ -100,6 +102,7 @@ for marker in [
     'Exact HMMWV/M2/BTR production source files remain an open content gap',
     '/Game/Maps/OsterConflict_Runtime',
     '-Frontend',
+    '-d3d11',
 ]:
     req(marker in normal, f'current normal-game launcher marker: {marker}')
 
