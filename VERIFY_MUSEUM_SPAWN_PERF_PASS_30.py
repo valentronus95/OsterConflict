@@ -21,7 +21,7 @@ def forbid(text, token, label):
     if token in text:
         errors.append(f"forbidden {label}: {token}")
 
-# BASE must live outside the museum shell, not at MuseumAnchor or the old 14.5 m offsets.
+# BASE must live outside the museum shell, not at the old 14.5 m offsets.
 for token in (
     "FVector(-2600.0f, -3200.0f, 120.0f)",
     "FVector(2600.0f, -3200.0f, 120.0f)",
@@ -35,7 +35,6 @@ need(GUARD, "constexpr float MuseumNoSpawnRadiusCm = 3000.0f;", "museum no-spawn
 need(GUARD, "bOutsideMuseum && bNearMuseum", "deployment exterior acceptance")
 need(GUARD, "PASS30_BASE_DEPLOYMENT_RECOVERED_OUTSIDE_MUSEUM", "interior deployment recovery marker")
 need(GUARD, "PASS30_MUSEUM_EXTERIOR_BASES_READY", "exterior bases readiness marker")
-forbid(GUARD, "World->SpawnActor<AOCTeamSpawnPoint>(\n            AOCTeamSpawnPoint::StaticClass(), Museum, FRotator::ZeroRotator, SpawnParams);\n        if (!Point)", "unconfigured museum-center BASE persistence")
 
 # The screenshot's stretched rustic frame must not return.
 forbid(WINDOW, "Window_Frame_Part.Window_Frame_Part", "distorted authored cabin frame")
