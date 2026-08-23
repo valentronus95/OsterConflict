@@ -13,9 +13,13 @@
 #include "OCWorldSectorOster.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -49,6 +53,146 @@ namespace
         return nullptr;
     }
 
+    UMaterialInstanceDynamic* MakeRecoveryMID(
+        AActor* Owner,
+        UMaterialInterface* Base,
+        const FName Name,
+        const FLinearColor& Color)
+    {
+        if (!Owner || !Base) return nullptr;
+        UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(Base, Owner, Name);
+        if (Material) Material->SetVectorParameterValue(TEXT("Color"), Color);
+        return Material;
+    }
+
+    UStaticMeshComponent* AddRecoveryBox(
+        AActor* Owner,
+        USceneComponent* Root,
+        UStaticMesh* Cube,
+        UMaterialInterface* Material,
+        const FName Name,
+        const FVector& Location,
+        const FVector& SizeCm,
+        const FRotator& Rotation = FRotator::ZeroRotator,
+        const bool bCollision = false)
+    {
+        if (!Owner || !Root || !Cube || SizeCm.GetMin() <= 0.0f) return nullptr;
+        UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(Owner, Name);
+        if (!Component) return nullptr;
+        Component->SetupAttachment(Root);
+        Component->SetStaticMesh(Cube);
+        if (Material) Component->SetMaterial(0, Material);
+        Component->SetRelativeLocation(Location);
+        Component->SetRelativeRotation(Rotation);
+        Component->SetRelativeScale3D(SizeCm / 100.0f);
+        Component->SetMobility(EComponentMobility::Static);
+        Component->SetCollisionEnabled(bCollision ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+        Component->SetCollisionProfileName(FName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision")));
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(bCollision);
+        Component->SetCastShadow(false);
+        Owner->AddInstanceComponent(Component);
+        Component->RegisterComponent();
+        return Component;
+    }
+
+    UStaticMeshComponent* AddRecoveryFittedMesh(
+        AActor* Owner,
+        USceneComponent* Root,
+        UStaticMesh* Mesh,
+        UMaterialInterface* Material,
+        const FName Name,
+        const FVector& Center,
+        const FVector& DesiredSizeCm,
+        const float YawDegrees = 0.0f)
+    {
+        if (!Owner || !Root || !Mesh) return nullptr;
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return nullptr;
+
+        const FVector Scale(
+            DesiredSizeCm.X / NativeSize.X,
+            DesiredSizeCm.Y / NativeSize.Y,
+            DesiredSizeCm.Z / NativeSize.Z);
+        const FQuat Rotation = FRotator(0.0f, YawDegrees, 0.0f).Quaternion();
+        const FVector Location = Center - Rotation.RotateVector(Bounds.Origin * Scale);
+
+        UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(Owner, Name);
+        if (!Component) return nullptr;
+        Component->SetupAttachment(Root);
+        Component->SetStaticMesh(Mesh);
+        if (Material) Component->SetMaterial(0, Material);
+        Component->SetRelativeLocation(Location);
+        Component->SetRelativeRotation(Rotation.Rotator());
+        Component->SetRelativeScale3D(Scale);
+        Component->SetMobility(EComponentMobility::Static);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(false);
+        Owner->AddInstanceComponent(Component);
+        Component->RegisterComponent();
+        return Component;
+    }
+
+    void BuildRecoveryPresentation(AActor& Carrier, USceneComponent& Root)
+    {
+        UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+        UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
+            TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+        if (!Cube || !Basic) return;
+
+        UMaterialInstanceDynamic* Plinth = MakeRecoveryMID(
+            &Carrier, Basic, TEXT("PASS35MuseumMID_Plinth"), FLinearColor(0.07f, 0.065f, 0.06f, 1.0f));
+        UMaterialInstanceDynamic* RoofFallback = MakeRecoveryMID(
+            &Carrier, Basic, TEXT("PASS35MuseumMID_Roof"), FLinearColor(0.16f, 0.19f, 0.20f, 1.0f));
+
+        AddRecoveryBox(
+            &Carrier, &Root, Cube, Plinth, TEXT("PASS35Museum_RecoveryPlinth"),
+            FVector(0.0f, 0.0f, 35.0f), FVector(1760.0f, 900.0f, 70.0f), FRotator::ZeroRotator, true);
+
+        UStaticMesh* RoofMesh = LoadObject<UStaticMesh>(nullptr,
+            TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m"));
+        UMaterialInterface* MetalRoof = LoadObject<UMaterialInterface>(nullptr,
+            TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Metal_Roof.Metal_Roof"));
+
+        if (RoofMesh)
+        {
+            AddRecoveryFittedMesh(
+                &Carrier, &Root, RoofMesh, MetalRoof ? MetalRoof : RoofFallback,
+                TEXT("PASS35Museum_RecoveryRoofMain"),
+                FVector(0.0f, 0.0f, 505.0f), FVector(1840.0f, 1010.0f, 270.0f));
+            AddRecoveryFittedMesh(
+                &Carrier, &Root, RoofMesh, MetalRoof ? MetalRoof : RoofFallback,
+                TEXT("PASS35Museum_RecoveryRoofUpper"),
+                FVector(0.0f, -35.0f, 690.0f), FVector(660.0f, 570.0f, 190.0f));
+            AddRecoveryFittedMesh(
+                &Carrier, &Root, RoofMesh, MetalRoof ? MetalRoof : RoofFallback,
+                TEXT("PASS35Museum_RecoveryRoofEntrance"),
+                FVector(0.0f, -535.0f, 415.0f), FVector(610.0f, 340.0f, 145.0f));
+            UE_LOG(LogTemp, Display, TEXT("PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=authored_asset"));
+            return;
+        }
+
+        // Last-resort silhouette only. The real roof asset is always attempted first; these thin slabs exist
+        // solely so a missing optional LFS presentation asset can never erase the entire museum from gameplay.
+        for (const float Side : { -1.0f, 1.0f })
+        {
+            AddRecoveryBox(
+                &Carrier, &Root, Cube, RoofFallback,
+                FName(*FString::Printf(TEXT("PASS35Museum_RecoveryRoofMain_%s"), Side < 0.0f ? TEXT("L") : TEXT("R"))),
+                FVector(0.0f, Side * 235.0f, 505.0f), FVector(1840.0f, 555.0f, 24.0f),
+                FRotator(0.0f, 0.0f, Side * 18.0f));
+            AddRecoveryBox(
+                &Carrier, &Root, Cube, RoofFallback,
+                FName(*FString::Printf(TEXT("PASS35Museum_RecoveryRoofUpper_%s"), Side < 0.0f ? TEXT("L") : TEXT("R"))),
+                FVector(0.0f, -35.0f + Side * 130.0f, 690.0f), FVector(660.0f, 315.0f, 20.0f),
+                FRotator(0.0f, 0.0f, Side * 20.0f));
+        }
+        UE_LOG(LogTemp, Warning, TEXT("PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=fallback_slabs"));
+    }
+
     AActor* EnsurePrototypeCarrier(UWorld& World)
     {
         if (AActor* Existing = FindActorWithTag(World, MuseumPrototypeTag)) return Existing;
@@ -78,6 +222,8 @@ namespace
         Carrier->SetRootComponent(Root);
         Carrier->AddInstanceComponent(Root);
         Root->RegisterComponent();
+
+        BuildRecoveryPresentation(*Carrier, *Root);
 
         UE_LOG(LogTemp, Warning,
             TEXT("PASS35_MUSEUM_OWNER_CARRIER_RECOVERED location=%s reason=R137_owner_missing"),
