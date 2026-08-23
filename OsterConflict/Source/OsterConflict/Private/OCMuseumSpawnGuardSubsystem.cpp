@@ -190,6 +190,11 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS7_MUSEUM_BASES_READY museum=%s team1=1 team2=1"), *Museum.ToCompactString());
+        // Compatibility marker retained for Pass 15 focused recovery. The semantics are stronger now:
+        // both physical racks are ready at exterior BASE positions rather than inside the museum shell.
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS15_MUSEUM_BASES_WEAPONS_READY team1_rack=%d team2_rack=%d distance_m=%.1f/%.1f"),
+            TeamOneRack, TeamTwoRack, TeamOneDistanceM, TeamTwoDistanceM);
         UE_LOG(LogTemp, Display,
             TEXT("PASS30_MUSEUM_EXTERIOR_BASES_READY team1_rack=%d team2_rack=%d team1=%s team2=%s distance_m=%.1f/%.1f"),
             TeamOneRack, TeamTwoRack,
@@ -237,16 +242,22 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         const bool bNearMuseum = DistanceSq <= FMath::Square(BaseDeploymentAcceptanceRadiusCm);
         if (bOutsideMuseum && bNearMuseum)
         {
+            const float DistanceM = FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f;
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM team=%s pawn=%s location=%s distance_m=%.1f"),
+                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(), DistanceM);
             UE_LOG(LogTemp, Display,
                 TEXT("PASS30_BASE_DEPLOYMENT_OUTSIDE_MUSEUM team=%s pawn=%s location=%s distance_m=%.1f"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(),
-                FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f);
+                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(), DistanceM);
             continue;
         }
 
         AOCTeamSpawnPoint* Base = FindPrimaryMuseumBase(World, Team);
         if (!Base)
         {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_exterior_base=1 location=%s"),
+                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
             UE_LOG(LogTemp, Error,
                 TEXT("PASS30_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_exterior_base=1 location=%s"),
                 *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
@@ -259,11 +270,15 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         Pawn->SetActorLocationAndRotation(
             Corrected.GetLocation(), Corrected.Rotator(), false, nullptr, ETeleportType::TeleportPhysics);
 
+        const float DistanceM = FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f;
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS15_BASE_DEPLOYMENT_RECOVERED team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f"),
+            *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
+            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(), DistanceM);
         UE_LOG(LogTemp, Warning,
             TEXT("PASS30_BASE_DEPLOYMENT_RECOVERED_OUTSIDE_MUSEUM team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f"),
             *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
-            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(),
-            FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f);
+            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(), DistanceM);
     }
 }
 
