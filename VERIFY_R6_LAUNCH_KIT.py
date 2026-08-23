@@ -62,15 +62,18 @@ req('GetNetMode() == NM_Standalone' in pc and
 req('Frontend-only standalone session' in gm and 'bFrontendOnlySession' in gm,
     'frontend-only gameplay suppression retained')
 
-# START_HERE is intentionally the only user-facing launcher.
+# START_HERE is intentionally the only user-facing launcher. The full-test action uses R15;
+# Pass 21 remains an internal landmark-ownership acceptance helper and must not leak into the menu.
 req('OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК' in start,
     'START_HERE identifies current Oster Conflict launcher')
 req('choice /C 1230' in start,
     'START_HERE exposes normal game, full runtime test, editor and exit')
 req('call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in start,
     'START_HERE normal-game route uses current R14 gameplay launcher')
-req('call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"' in start,
-    'START_HERE full-test route uses current Pass 21 runtime acceptance wrapper')
+req('call "%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"' in start,
+    'START_HERE full-test route uses focused R15 runtime acceptance')
+req('RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start,
+    'internal Pass 21 runtime acceptance is not exposed in START_HERE')
 req('RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
     'technical sandbox is not exposed in the user-facing START_HERE menu')
 req('UnrealEditor.exe' in start and 'OsterConflict.uproject' in start and '-d3d11' in start,
