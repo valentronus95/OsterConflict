@@ -1,0 +1,41 @@
+name: Runtime location and map Pass 35
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumCoreRecoverySubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumCoreRecoverySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapPlayerMarkerGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapPlayerMarkerGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'VERIFY_RUNTIME_LOCATION_MAP_PASS_35.py'
+      - '.github/workflows/runtime-location-map-pass-35.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumCoreRecoverySubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumCoreRecoverySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTacticalMapPlayerMarkerGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapPlayerMarkerGuardSubsystem.cpp'
+      - 'VERIFY_RUNTIME_LOCATION_MAP_PASS_35.py'
+      - '.github/workflows/runtime-location-map-pass-35.yml'
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify museum presence and tactical player marker contracts
+        run: python VERIFY_RUNTIME_LOCATION_MAP_PASS_35.py
+      - name: Re-run museum layer budget contract
+        run: python VERIFY_MUSEUM_LAYER_BUDGET_PASS_32.py
+      - name: Re-run current runtime acceptance contract
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_33.py
