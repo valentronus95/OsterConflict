@@ -16,6 +16,9 @@ namespace
     const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
     const FName PaletteAuditedTag(TEXT("OC_Pass37WeaponPaletteAudited"));
+    constexpr int32 RequiredRackWeaponCountPerTeam = 11;
+    constexpr int32 MaxExpectedRackWeapons = 22;
+    constexpr int32 MaxAuditPasses = 12;
 
     bool IsAK(const FString& Name)
     {
@@ -25,8 +28,9 @@ namespace
 
     bool IsRestoredSteinPayload(const FString& Name)
     {
-        // These exact restored folders contain mesh/WPN payloads but no standalone authored material/
-        // texture payload beside them in the repository. The latest UE runtime also showed them white/grey.
+        // Repository inventory for these restored folders contains mesh/WPN payloads but no separate
+        // material/texture payloads beside them. That is a content gap, not permission to overwrite a
+        // non-placeholder material that the imported mesh already carries internally.
         return Name.Contains(TEXT("MP5"), ESearchCase::IgnoreCase) ||
             Name.Contains(TEXT("M1911"), ESearchCase::IgnoreCase) ||
             Name.Contains(TEXT("M700"), ESearchCase::IgnoreCase) ||
@@ -56,18 +60,18 @@ namespace
         {
             return bAlternate
                 ? FLinearColor(0.055f, 0.065f, 0.075f, 1.0f)
-                : FLinearColor(0.30f, 0.12f, 0.035f, 1.0f);
+                : FLinearColor(0.16f, 0.075f, 0.025f, 1.0f);
         }
         if (Name.Contains(TEXT("M700"), ESearchCase::IgnoreCase))
         {
             return bAlternate
                 ? FLinearColor(0.050f, 0.058f, 0.065f, 1.0f)
-                : FLinearColor(0.12f, 0.15f, 0.075f, 1.0f);
+                : FLinearColor(0.09f, 0.11f, 0.055f, 1.0f);
         }
         if (Name.Contains(TEXT("M1911"), ESearchCase::IgnoreCase))
         {
             return bAlternate
-                ? FLinearColor(0.24f, 0.075f, 0.030f, 1.0f)
+                ? FLinearColor(0.12f, 0.045f, 0.020f, 1.0f)
                 : FLinearColor(0.045f, 0.052f, 0.060f, 1.0f);
         }
         if (Name.Contains(TEXT("MP5"), ESearchCase::IgnoreCase) ||
@@ -76,12 +80,12 @@ namespace
         {
             return bAlternate
                 ? FLinearColor(0.025f, 0.028f, 0.032f, 1.0f)
-                : FLinearColor(0.070f, 0.080f, 0.090f, 1.0f);
+                : FLinearColor(0.055f, 0.062f, 0.070f, 1.0f);
         }
         if (Name.Contains(TEXT("Remington"), ESearchCase::IgnoreCase))
         {
             return bAlternate
-                ? FLinearColor(0.28f, 0.105f, 0.030f, 1.0f)
+                ? FLinearColor(0.15f, 0.065f, 0.022f, 1.0f)
                 : FLinearColor(0.050f, 0.058f, 0.065f, 1.0f);
         }
         if (Name.Contains(TEXT("M249"), ESearchCase::IgnoreCase) ||
@@ -90,25 +94,25 @@ namespace
         {
             return bAlternate
                 ? FLinearColor(0.040f, 0.045f, 0.045f, 1.0f)
-                : FLinearColor(0.13f, 0.17f, 0.075f, 1.0f);
+                : FLinearColor(0.10f, 0.13f, 0.060f, 1.0f);
         }
         return bAlternate
             ? FLinearColor(0.030f, 0.035f, 0.040f, 1.0f)
-            : FLinearColor(0.070f, 0.080f, 0.090f, 1.0f);
+            : FLinearColor(0.060f, 0.070f, 0.080f, 1.0f);
     }
 
     int32 ApplyPalette(
         AOCWeaponBase& Weapon,
         UMaterialInterface* BaseMaterial,
-        int32& OutForcedSlots,
-        int32& OutPlaceholderSlots)
+        int32& OutRestoredPlaceholderSlots,
+        int32& OutOtherPlaceholderSlots)
     {
-        OutForcedSlots = 0;
-        OutPlaceholderSlots = 0;
+        OutRestoredPlaceholderSlots = 0;
+        OutOtherPlaceholderSlots = 0;
         if (!BaseMaterial) return 0;
 
         const FString Name = Weapon.GetWeaponDisplayName();
-        const bool bForceRestoredPalette = IsRestoredSteinPayload(Name);
+        const bool bKnownRestoredPayload = IsRestoredSteinPayload(Name);
         TInlineComponentArray<UMeshComponent*> Components;
         Weapon.GetComponents(Components);
 
@@ -131,7 +135,11 @@ namespace
             {
                 UMaterialInterface* Current = Component->GetMaterial(Slot);
                 const bool bPlaceholder = IsClearlyPlaceholderMaterial(Current);
-                if (!bForceRestoredPalette && !bPlaceholder) continue;
+
+                // Pass 38: never repaint a real non-placeholder material. The Pass 37 forced path caused
+                // the flat orange Lever Action and other toy-like screenshots by replacing valid imported
+                // assignments merely because the asset came from a known incomplete restored folder.
+                if (!bPlaceholder) continue;
 
                 UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(
                     BaseMaterial,
@@ -139,13 +147,13 @@ namespace
                     MakeUniqueObjectName(
                         &Weapon,
                         UMaterialInstanceDynamic::StaticClass(),
-                        FName(*FString::Printf(TEXT("PASS37_WeaponPalette_%d"), Slot))));
+                        FName(*FString::Printf(TEXT("PASS38_WeaponPlaceholder_%d"), Slot))));
                 if (!MID) continue;
 
                 MID->SetVectorParameterValue(TEXT("Color"), ResolvePaletteColor(Name, Slot));
                 Component->SetMaterial(Slot, MID);
-                if (bForceRestoredPalette) ++OutForcedSlots;
-                else ++OutPlaceholderSlots;
+                if (bKnownRestoredPayload) ++OutRestoredPlaceholderSlots;
+                else ++OutOtherPlaceholderSlots;
             }
         }
         return RelevantVisuals;
@@ -177,7 +185,7 @@ void UOCWeaponPalettePass37Subsystem::OnWorldBeginPlay(UWorld& InWorld)
         AuditTimer,
         this,
         &UOCWeaponPalettePass37Subsystem::AuditRackWeapons,
-        0.25f,
+        0.50f,
         true,
         0.35f);
 }
@@ -186,6 +194,7 @@ void UOCWeaponPalettePass37Subsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(AuditTimer);
     PaletteBaseMaterial = nullptr;
+    AuditPassCount = 0;
     Super::Deinitialize();
 }
 
@@ -194,10 +203,12 @@ void UOCWeaponPalettePass37Subsystem::AuditRackWeapons()
     UWorld* World = GetWorld();
     if (!World || !PaletteBaseMaterial) return;
 
+    ++AuditPassCount;
+
     int32 RackWeapons = 0;
     int32 AuditedWeapons = 0;
-    int32 ForcedRestoredSlots = 0;
-    int32 PlaceholderSlots = 0;
+    int32 RestoredPlaceholderSlots = 0;
+    int32 OtherPlaceholderSlots = 0;
 
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
@@ -214,36 +225,49 @@ void UOCWeaponPalettePass37Subsystem::AuditRackWeapons()
         const FString Name = Weapon->GetWeaponDisplayName();
         if (IsAK(Name))
         {
-            // The user runtime proves AK already carries its authored appearance. Do not "fix" the one thing
-            // that is actually correct.
             Weapon->Tags.Add(PaletteAuditedTag);
             ++AuditedWeapons;
             continue;
         }
 
-        int32 ForcedSlots = 0;
-        int32 RepairedPlaceholderSlots = 0;
-        const int32 Visuals = ApplyPalette(*Weapon, PaletteBaseMaterial, ForcedSlots, RepairedPlaceholderSlots);
+        int32 RestoredSlots = 0;
+        int32 OtherSlots = 0;
+        const int32 Visuals = ApplyPalette(*Weapon, PaletteBaseMaterial, RestoredSlots, OtherSlots);
         if (Visuals <= 0) continue;
 
-        ForcedRestoredSlots += ForcedSlots;
-        PlaceholderSlots += RepairedPlaceholderSlots;
+        RestoredPlaceholderSlots += RestoredSlots;
+        OtherPlaceholderSlots += OtherSlots;
         Weapon->Tags.Add(PaletteAuditedTag);
         ++AuditedWeapons;
 
-        if (ForcedSlots > 0 || RepairedPlaceholderSlots > 0)
+        if (RestoredSlots > 0 || OtherSlots > 0)
         {
             UE_LOG(LogTemp, Warning,
-                TEXT("PASS37_WEAPON_VISIBLE_PALETTE_APPLIED weapon=%s forced_restored_slots=%d placeholder_slots=%d"),
-                *Name, ForcedSlots, RepairedPlaceholderSlots);
+                TEXT("PASS37_WEAPON_VISIBLE_PALETTE_APPLIED weapon=%s restored_placeholder_slots=%d other_placeholder_slots=%d authored_materials_preserved=1"),
+                *Name, RestoredSlots, OtherSlots);
         }
     }
 
-    if (RackWeapons >= 11 && AuditedWeapons == RackWeapons)
+    const bool bRackReady = RackWeapons >= RequiredRackWeaponCountPerTeam &&
+        RackWeapons <= MaxExpectedRackWeapons && AuditedWeapons == RackWeapons;
+
+    if (bRackReady)
     {
         World->GetTimerManager().ClearTimer(AuditTimer);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS37_WEAPON_VISIBLE_PALETTE_READY rack_weapons=%d audited=%d forced_restored_slots_last_pass=%d placeholder_slots_last_pass=%d ak_authored_preserved=1"),
-            RackWeapons, AuditedWeapons, ForcedRestoredSlots, PlaceholderSlots);
+            TEXT("PASS37_WEAPON_VISIBLE_PALETTE_READY rack_weapons=%d audited=%d restored_placeholder_slots_last_pass=%d other_placeholder_slots_last_pass=%d ak_authored_preserved=1 authored_materials_preserved=1"),
+            RackWeapons, AuditedWeapons, RestoredPlaceholderSlots, OtherPlaceholderSlots);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS38_WEAPON_PALETTE_SCAN_STOPPED reason=ready passes=%d rack_weapons=%d audited=%d permanent_scan=0"),
+            AuditPassCount, RackWeapons, AuditedWeapons);
+        return;
+    }
+
+    if (AuditPassCount >= MaxAuditPasses)
+    {
+        World->GetTimerManager().ClearTimer(AuditTimer);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS38_WEAPON_PALETTE_SCAN_BOUNDED_STOP passes=%d max_passes=%d rack_weapons=%d audited=%d permanent_scan=0"),
+            AuditPassCount, MaxAuditPasses, RackWeapons, AuditedWeapons);
     }
 }
