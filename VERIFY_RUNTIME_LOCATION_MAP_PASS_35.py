@@ -44,20 +44,20 @@ for needle in (
 ):
     require(museum_guard, needle, "museum presence recovery")
 
-# Preserve the exact evidence explaining the latest empty-field runtime: R13.7 can still abort on an optional
-# roof asset, but Pass 35 must no longer let that erase the authoritative R13.8 core. Recovery attempts the
-# existing authored roof first and uses a minimal silhouette only as the last-resort carrier presentation.
+# Pass 35 still owns the optional-asset owner/core recovery. Pass 37 adds a stronger visible-structure
+# guard because the latest runtime proved that actor tags alone can pass while the site is visually empty.
 require(r137, "if (!Cube || !Basic || !RoofMesh) return;", "known R13.7 optional-asset failure path")
 require(r138, 'TEXT("R138_MuseumHighFidelityArchitecture")', "R13.8 architecture ownership")
 require(r138, "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED", "museum interior cleanup regression")
 
-# BASE stays outside the 30 m collision exclusion while remaining visibly near the museum site.
+# Pass 37 supersedes only the BASE distance presentation: primary BASE is now ~27.8 m from the anchor,
+# still outside the authored shell, and faces the museum directly. Pass 35 map-marker ownership remains.
 for needle in (
-    "FVector(-2600.0f, -3200.0f, 120.0f)",
-    "FVector(2600.0f, -3200.0f, 120.0f)",
-    "Runtime BASE weapon rack rebuilt outside museum",
+    "FVector(-1400.0f, -2400.0f, 120.0f)",
+    "FVector(1400.0f, -2400.0f, 120.0f)",
+    "PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM",
 ):
-    require(spawn, needle, "near-museum BASE contract")
+    require(spawn, needle, "Pass 37 near-museum BASE compatibility")
 
 require(map_guard_h, "UOCTacticalMapPlayerMarkerGuardSubsystem", "map marker guard class")
 for needle in (
@@ -74,9 +74,8 @@ require(tactical, "MarkerSlot->SetPosition(WorldToMap(Location))", "player map p
 require(tactical, "FVector2D(0.5f, 0.5f), 22", "objective marker z-order evidence")
 
 print("RUNTIME LOCATION + MAP PASS 35 SOURCE CONTRACT PASS")
-print("- missing R13.7 presentation assets can no longer leave the museum site completely empty")
-print("- recovery tries the existing authored roof first, then uses only a minimal fallback silhouette if it cannot load")
-print("- R13.8 remains the authoritative enterable museum core and R14 detail stages are replayed once on recovery")
-print("- BASE remains outside the 30 m exclusion and within the 60 m near-museum acceptance radius")
+print("- Pass 35 optional-asset museum owner/core recovery remains present")
+print("- Pass 37 supersedes the old 30-60 m BASE presentation with a closer visible approach")
+print("- R13.8 remains the authoritative enterable museum core")
 print("- Tactical Map player marker is forced above objective/POI labels without duplicating map projection ownership")
 print("STATUS: SOURCE VERIFIED; local UE 5.8 runtime remains required")
