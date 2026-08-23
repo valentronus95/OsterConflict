@@ -20,7 +20,7 @@ public:
 
 private:
     bool RetireSourceGroundCoverProxies();
-    bool ValidateDenseFoliage(int32& OutGrassInstances, int32& OutDenseGrassComponents) const;
+    bool ValidateDenseFoliage(int32 MinGrassInstances, int32& OutGrassInstances, int32& OutDenseGrassComponents) const;
     void FailValidation(const FString& Reason);
 
     float ElapsedSeconds = 0.0f;
