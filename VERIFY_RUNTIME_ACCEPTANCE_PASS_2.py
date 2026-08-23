@@ -106,13 +106,22 @@ for needle in (
 if "Bounds.Origin + SafeDirection * Support" in fx:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: muzzle resolver still uses world-AABB centre projection")
 
+# Pass 38 supersedes the old permanent fallback timer contract. Runtime proved that a 4 Hz world-wide
+# scan can remain active while FPS/thermals collapse. Fallback startup is now finite and must stop on
+# convergence or after a hard budget; an immediate pre-timer RefreshWeaponFallbacks() call is no longer required.
 for needle in (
-    "RefreshWeaponFallbacks();",
     "SetTimer(",
     "GenericPistol",
     "OC_ProductionWeaponVisual",
+    "MaxRefreshPasses = 12",
+    "RefreshPassCount",
+    "ClearTimer(RefreshTimer)",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+    "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
 ):
-    require(fallback, needle, "real weapon fallback runtime")
+    require(fallback, needle, "bounded real weapon fallback runtime")
+if "0.25f,\n        true,\n        0.0f" in fallback:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: old permanent 4 Hz fallback timer returned")
 if "if (GameMode->IsFrontendOnlySession()) return;" in fallback:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: real weapon fallback still dies permanently in frontend world")
 
@@ -201,7 +210,7 @@ print("RUNTIME ACCEPTANCE PASS 3 SOURCE CONTRACT PASS")
 print("- BASE is placed on the closer exterior Museum approach accepted by Pass 37")
 print("- dense foliage is generated incrementally with a bounded per-frame batch instead of freezing deployment")
 print("- restored weapon and foliage LFS payloads are hydrated before playtest using Windows-compatible commands")
-print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend")
+print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend but their startup scan is bounded by Pass 38")
 print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon and socket/local-mesh barrel geometry")
 print("- normal gameplay is not blocked by missing exact HMMWV/M2/BTR sources; strict acceptance still requires fresh production ingest")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
