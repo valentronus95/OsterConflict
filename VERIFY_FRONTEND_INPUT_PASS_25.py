@@ -21,7 +21,14 @@ need(cpp, 'bMenuInputArmed = true;', 'input armed state')
 need(cpp, 'PASS25_MENU_INPUT_ARMED', 'runtime input marker')
 need(cpp, 'void UOCR13FrontendMenuSubsystem::ReleaseMenuInput()', 'release helper')
 need(cpp, 'Primary->OnClicked.AddDynamic', 'stable OnClicked primary binding')
-need(cpp, 'PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'Pass 24 deferred transition compatibility')
+
+pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in cpp
+if pass29_static:
+    need(cpp, 'PASS29_MAIN_START_DIRECT_HOST_QUEUED', 'Pass 29 static START compatibility')
+    need(cpp, 'PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'Pass 29 page-mutation block')
+    forbid(cpp, 'PendingPage = 1;', 'removed crash-prone START page transition')
+else:
+    need(cpp, 'PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'Pass 24 deferred transition compatibility')
 
 forbid(cpp, '->OnPressed.AddDynamic', 'OnPressed frontend mutation path')
 forbid(cpp, 'Mode.SetWidgetToFocus(PrimaryButton->TakeWidget())', 'per-tick TakeWidget focus churn')
@@ -55,5 +62,8 @@ if errors:
 print('FRONTEND INPUT PASS 25: SUCCESS')
 print('- UI input mode is armed once per menu/controller lifecycle instead of every Tick')
 print('- OnClicked mouse release can survive without per-frame capture reset')
-print('- Pass 24 deferred Slate transition behavior remains intact')
+if pass29_static:
+    print('- Pass 29 replaces the unsafe page transition with a static later-frame START path')
+else:
+    print('- Pass 24 deferred Slate transition behavior remains intact')
 print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 button click confirmation still required')
