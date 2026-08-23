@@ -1,0 +1,31 @@
+name: Frontend input Pass 25
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
+      - 'VERIFY_FRONTEND_INPUT_PASS_25.py'
+      - 'VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py'
+      - '.github/workflows/frontend-input-pass-25.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-pass-25:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify Pass 24 compatibility
+        run: python VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py
+
+      - name: Verify frontend input Pass 25
+        run: python VERIFY_FRONTEND_INPUT_PASS_25.py
