@@ -2,10 +2,13 @@
 
 #include "OCWeaponBase.h"
 
+#include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -13,6 +16,8 @@ namespace
     const FName RealFallbackTag(TEXT("OC_RealMeshFallbackApplied"));
     const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
+    const FName MaterialAuditCompleteTag(TEXT("OC_WeaponMaterialAuditComplete"));
+    const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
 
     bool HasProductionVisual(const AOCWeaponBase& Weapon)
     {
@@ -23,6 +28,31 @@ namespace
             if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;
         }
         return false;
+    }
+
+    bool IsMissingOrDefaultMaterial(const UMaterialInterface* Material)
+    {
+        if (!Material) return true;
+        const FString Path = Material->GetPathName();
+        return Path.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial"), ESearchCase::IgnoreCase) ||
+            Material->GetName().Equals(TEXT("DefaultMaterial"), ESearchCase::IgnoreCase);
+    }
+
+    FLinearColor ResolveRecoveryColor(const FString& WeaponName)
+    {
+        if (WeaponName.Contains(TEXT("M14"), ESearchCase::IgnoreCase) ||
+            WeaponName.Contains(TEXT("Lever"), ESearchCase::IgnoreCase) ||
+            WeaponName.Contains(TEXT("Remington"), ESearchCase::IgnoreCase) ||
+            WeaponName.Contains(TEXT("M700"), ESearchCase::IgnoreCase))
+        {
+            return FLinearColor(0.20f, 0.095f, 0.035f, 1.0f);
+        }
+        if (WeaponName.Contains(TEXT("Launcher"), ESearchCase::IgnoreCase) ||
+            WeaponName.Contains(TEXT("RPG"), ESearchCase::IgnoreCase))
+        {
+            return FLinearColor(0.10f, 0.15f, 0.075f, 1.0f);
+        }
+        return FLinearColor(0.055f, 0.065f, 0.075f, 1.0f);
     }
 }
 
@@ -44,6 +74,8 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     GenericPistol = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/pistol.pistol"));
     GenericSMG = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/uzi.uzi"));
     GenericShotgun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/shotgun.shotgun"));
+    MaterialRecoveryBase = LoadObject<UMaterialInterface>(nullptr,
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
     RefreshWeaponFallbacks();
 
@@ -63,7 +95,77 @@ void UOCRealWeaponFallbackSubsystem::Deinitialize()
     GenericPistol = nullptr;
     GenericSMG = nullptr;
     GenericShotgun = nullptr;
+    MaterialRecoveryBase = nullptr;
+    bRackMaterialAuditReadyLogged = false;
     Super::Deinitialize();
+}
+
+int32 UOCRealWeaponFallbackSubsystem::AuditAndRepairWeaponMaterials(AOCWeaponBase& Weapon)
+{
+    if (Weapon.ActorHasTag(MaterialAuditCompleteTag)) return 0;
+
+    TInlineComponentArray<UMeshComponent*> MeshComponents;
+    Weapon.GetComponents(MeshComponents);
+
+    int32 VisualComponents = 0;
+    int32 RepairedSlots = 0;
+    UMaterialInstanceDynamic* RecoveryMaterial = nullptr;
+
+    for (UMeshComponent* Component : MeshComponents)
+    {
+        if (!IsValid(Component)) continue;
+        const bool bRelevantVisual = Component->ComponentHasTag(ProductionVisualTag) ||
+            Component->ComponentHasTag(RealFallbackComponentTag);
+        if (!bRelevantVisual) continue;
+
+        ++VisualComponents;
+        if (Weapon.ActorHasTag(RuntimeBaseRackTag))
+        {
+            // The rack is static presentation content. Eleven shadow casters per BASE are a fairly extravagant
+            // way to display pickups while the runtime is already below 10 FPS.
+            Component->SetCastShadow(false);
+            Component->SetCanEverAffectNavigation(false);
+        }
+
+        const int32 SlotCount = FMath::Max(1, Component->GetNumMaterials());
+        for (int32 Slot = 0; Slot < SlotCount; ++Slot)
+        {
+            UMaterialInterface* Current = Component->GetMaterial(Slot);
+            if (!IsMissingOrDefaultMaterial(Current)) continue;
+            if (!MaterialRecoveryBase) continue;
+
+            if (!RecoveryMaterial)
+            {
+                RecoveryMaterial = UMaterialInstanceDynamic::Create(
+                    MaterialRecoveryBase,
+                    &Weapon,
+                    MakeUniqueObjectName(
+                        &Weapon,
+                        UMaterialInstanceDynamic::StaticClass(),
+                        FName(TEXT("PASS36_WeaponMaterialRecovery"))));
+                if (RecoveryMaterial)
+                {
+                    RecoveryMaterial->SetVectorParameterValue(
+                        TEXT("Color"), ResolveRecoveryColor(Weapon.GetWeaponDisplayName()));
+                }
+            }
+            if (!RecoveryMaterial) continue;
+
+            Component->SetMaterial(Slot, RecoveryMaterial);
+            ++RepairedSlots;
+        }
+    }
+
+    if (VisualComponents <= 0) return 0;
+
+    Weapon.Tags.Add(MaterialAuditCompleteTag);
+    if (RepairedSlots > 0)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS36_WEAPON_MATERIAL_RECOVERED weapon=%s repaired_slots=%d authored_materials_preserved=1"),
+            *Weapon.GetWeaponDisplayName(), RepairedSlots);
+    }
+    return RepairedSlots;
 }
 
 void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
@@ -71,10 +173,20 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     UWorld* World = GetWorld();
     if (!World) return;
 
+    int32 RackWeapons = 0;
+    int32 RackAudited = 0;
+    int32 RepairedSlotsThisPass = 0;
+
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
         AOCWeaponBase* Weapon = *It;
         if (!IsValid(Weapon) || Weapon->IsActorBeingDestroyed()) continue;
+
+        if (Weapon->ActorHasTag(RuntimeBaseRackTag)) ++RackWeapons;
+
+        RepairedSlotsThisPass += AuditAndRepairWeaponMaterials(*Weapon);
+        if (Weapon->ActorHasTag(RuntimeBaseRackTag) && Weapon->ActorHasTag(MaterialAuditCompleteTag)) ++RackAudited;
+
         if (Weapon->ActorHasTag(RealFallbackTag) || HasProductionVisual(*Weapon)) continue;
 
         const FString Name = Weapon->GetWeaponDisplayName();
@@ -94,6 +206,16 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
         {
             ApplyRealFallback(*Weapon, GenericShotgun.Get(), 103.0f, TEXT("R13 generic shotgun"));
         }
+    }
+
+    // A newly-created fallback component is intentionally audited on the next 0.25 s pass. This prevents the
+    // fallback creation path and material repair path from fighting over component registration in one call.
+    if (!bRackMaterialAuditReadyLogged && RackWeapons >= 11 && RackAudited == RackWeapons)
+    {
+        bRackMaterialAuditReadyLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS36_WEAPON_MATERIAL_AUDIT_READY rack_weapons=%d audited=%d repaired_slots_last_pass=%d authored_materials_preserved=1"),
+            RackWeapons, RackAudited, RepairedSlotsThisPass);
     }
 }
 
@@ -139,6 +261,7 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Visual->SetGenerateOverlapEvents(false);
     Visual->SetCanEverAffectNavigation(false);
+    Visual->SetCastShadow(false);
     Visual->ComponentTags.Add(RealFallbackComponentTag);
     Weapon.AddInstanceComponent(Visual);
     Visual->RegisterComponent();
