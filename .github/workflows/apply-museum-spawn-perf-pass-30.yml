@@ -1,0 +1,31 @@
+name: Apply museum spawn perf Pass 30
+
+on:
+  push:
+    branches:
+      - fix/museum-spawn-perf-pass-30-20260823
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'Apply Pass 30 museum spawn/perf fix') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/museum-spawn-perf-pass-30-20260823
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply Pass 30
+        run: python APPLY_MUSEUM_SPAWN_PERF_PASS_30.py
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCR143MuseumSiteVegetationSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCR145MuseumTreeLayoutSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp OSTER_CONFLICT_WORK_LEDGER.md
+          git commit -m "Apply Pass 30 museum spawn/perf fix"
+          git push origin HEAD:fix/museum-spawn-perf-pass-30-20260823
