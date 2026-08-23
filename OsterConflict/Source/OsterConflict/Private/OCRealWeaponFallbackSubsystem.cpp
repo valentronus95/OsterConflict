@@ -40,9 +40,6 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Frontend and gameplay can both use OsterConflict_Runtime. Do not permanently opt out when the
-    // first world frame is still presenting the frontend. Weapons are spawned later by deployment,
-    // the world builder and admin/test tools, so the periodic pass must stay alive for the whole world.
     GenericMachineGun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/machinegun.machinegun"));
     GenericPistol = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/pistol.pistol"));
     GenericSMG = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/uzi.uzi"));
@@ -143,13 +140,12 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     Visual->SetGenerateOverlapEvents(false);
     Visual->SetCanEverAffectNavigation(false);
     Visual->ComponentTags.Add(RealFallbackComponentTag);
-    Visual->ComponentTags.Add(ProductionVisualTag);
     Weapon.AddInstanceComponent(Visual);
     Visual->RegisterComponent();
 
     Weapon.Tags.Add(RealFallbackTag);
     UE_LOG(LogTemp, Warning,
-        TEXT("Weapon '%s' exact production visual is unavailable; primitive hidden and %s real-mesh fallback applied. Production verification remains OPEN."),
+        TEXT("Weapon '%s' exact production visual is unavailable; primitive hidden and %s real-mesh fallback applied. exact_production=0 playable_fallback=1"),
         *Weapon.GetWeaponDisplayName(), FallbackLabel);
     return true;
 }

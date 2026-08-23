@@ -116,16 +116,16 @@ echo [5/6] Launching focused runtime recovery test...
 echo ------------------------------------------------------------
 echo 1. Main menu - press START.
 echo 2. Confirm server fields are DARK/readable and panel is opaque.
-echo 3. Press CREATE SERVER. If the old open command stalls, Pass 15 uses OpenLevel fallback.
+echo 3. Press CREATE SERVER.
 echo 4. Complete TEAM - SQUAD - ROLE - SPAWN - У БІЙ.
-echo 5. You MUST appear beside Museum and see the 11-weapon rack nearby.
+echo 5. You MUST appear beside Museum and see 11 PLAYABLE real-mesh weapons nearby.
 echo 6. Stay in gameplay at least 15 seconds for GPU/RHI + FPS evidence.
 echo 7. Exit the game. This launcher checks the log automatically.
 echo.
-echo NOTE: BTR/HMMWV production intake is intentionally NOT part of this focused recovery run.
+echo NOTE: exact production-art certification and BTR/HMMWV/M2 production intake are separate strict gates.
 echo ------------------------------------------------------------
 
-start /wait "Oster Conflict Pass 15-16 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start /wait "Oster Conflict Pass 15-19 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not exist "%LOG%" (
@@ -141,7 +141,7 @@ for %%M in (
   PASS14_HOST_TRAVEL_BEGIN
   PASS14_FRONTEND_TRAVEL_HANDOFF_READY
   PASS15_MUSEUM_BASES_WEAPONS_READY
-  PASS7_PRODUCTION_WEAPONS_READY
+  PASS19_PLAYABLE_WEAPON_SET_READY
   PASS16_RUNTIME_GRAPHICS_IDENTITY
   PASS15_PERF_SAMPLE
 ) do (
@@ -157,7 +157,6 @@ for %%M in (
 findstr /C:"PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
   echo [STOP] BASE deployment recovery failed to find a primary Museum BASE.
-  findstr /C:"PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%"
   pause
   exit /b 22
 )
@@ -165,15 +164,14 @@ if not errorlevel 1 (
 findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%" >nul
 if errorlevel 1 (
   echo [STOP] No evidence that the actual player pawn deployed at Museum BASE.
-  echo The existence of BASE actors alone is not accepted anymore.
   pause
   exit /b 23
 )
 
-findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%LOG%" >nul
+findstr /C:"PASS19_PLAYABLE_WEAPON_SET_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
-  echo [STOP] Production weapon visuals failed runtime validation.
-  findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%LOG%"
+  echo [STOP] The Museum rack contains missing/primitive-only weapon visuals.
+  findstr /C:"PASS19_PLAYABLE_WEAPON_SET_FAIL" "%LOG%"
   pause
   exit /b 24
 )
@@ -181,7 +179,6 @@ if not errorlevel 1 (
 findstr /C:"PASS15_MUSEUM_BASES_WEAPONS_NOT_READY" "%LOG%" >nul
 if not errorlevel 1 (
   echo [STOP] Museum BASE or physical 11-weapon rack did not become ready.
-  findstr /C:"PASS15_MUSEUM_BASES_WEAPONS_NOT_READY" "%LOG%"
   pause
   exit /b 25
 )
@@ -203,13 +200,15 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo PASS 15-16 RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
+echo PASS 15-19 FOCUSED RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
 echo Source: %LOCAL_HEAD%
 echo ============================================================
 findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" "%LOG%"
+findstr /C:"PASS19_PLAYABLE_WEAPON_SET_READY" "%LOG%"
 findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%"
 findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
 echo.
+echo Exact production-art readiness is intentionally NOT certified by this focused recovery launcher.
 echo Manual visual confirmation still required for exact Museum appearance and weapon placement.
 pause
 exit /b %GAME_RC%
