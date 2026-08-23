@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
-
-SETTINGS_H = SRC / "Public" / "OCPlayerUserSettings.h"
-SETTINGS = SRC / "Private" / "OCPlayerUserSettings.cpp"
+HEADER = SRC / "Public" / "OCPlayerUserSettings.h"
+CPP = SRC / "Private" / "OCPlayerUserSettings.cpp"
 BUILD = SRC / "OsterConflict.Build.cs"
 UI = SRC / "Private" / "OCGameUIRootWidget.cpp"
 LAUNCHER = ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"
@@ -27,30 +27,43 @@ def forbid(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS16 VERIFY FAIL: {label}: forbidden {needle!r}")
 
 
-settings_h = read(SETTINGS_H)
-settings = read(SETTINGS)
+header = read(HEADER)
+cpp = read(CPP)
 build = read(BUILD)
 ui = read(UI)
 launcher = read(LAUNCHER)
 
-# One-time initialization must be persisted separately from UGameUserSettings.
+# Persistent Oster-owned first-run flag. It is false only for a genuinely fresh local profile.
 for needle in (
-    "EnsureInitialGraphicsProfile",
-    "bInitialGraphicsProfileApplied = false",
+    "void EnsureInitialGraphicsProfile();",
+    "bool bInitialGraphicsProfileApplied = false;",
     "UPROPERTY(Config",
 ):
-    require(settings_h, needle, "graphics initialization flag/header")
+    require(header, needle, "persistent first-run graphics contract")
 
-# Get() must activate the first-run initialization, while disk reload is strictly inside the false-flag branch.
-require(settings, "Settings->EnsureInitialGraphicsProfile();", "settings activation")
-require(settings, "if (!bInitialGraphicsProfileApplied)", "one-time graphics guard")
-require(settings, "GameSettings->LoadSettings(false);", "first initialization persisted settings load")
-load_pos = settings.find("GameSettings->LoadSettings(false);")
-guard_pos = settings.find("if (!bInitialGraphicsProfileApplied)")
+# Every normal settings access initializes the safe ceiling after schema validation, before UI consumers read values.
+get_match = re.search(
+    r"UOCPlayerUserSettings\*\s+UOCPlayerUserSettings::Get\(\)\s*\{(?P<body>.*?)\n\}",
+    cpp,
+    re.S,
+)
+if not get_match:
+    raise SystemExit("PASS16 VERIFY FAIL: could not locate UOCPlayerUserSettings::Get")
+get_body = get_match.group("body")
+require(get_body, "ValidateSettingsSchema();", "settings Get schema validation")
+require(get_body, "EnsureInitialGraphicsProfile();", "settings Get first-run graphics initialization")
+if get_body.index("ValidateSettingsSchema();") > get_body.index("EnsureInitialGraphicsProfile();"):
+    raise SystemExit("PASS16 VERIFY FAIL: graphics initialization must run after schema validation")
+
+# The disk reload must remain inside the one-time branch. Re-loading on every Get() would destroy pending UI edits.
+require(cpp, "if (!bInitialGraphicsProfileApplied)", "one-time graphics guard")
+require(cpp, "GameSettings->LoadSettings(false);", "first initialization persisted settings load")
+load_pos = cpp.find("GameSettings->LoadSettings(false);")
+guard_pos = cpp.find("if (!bInitialGraphicsProfileApplied)")
 if load_pos < guard_pos:
     raise SystemExit("PASS16 VERIFY FAIL: LoadSettings runs outside the one-time initialization guard")
 
-# Pass 16 applies ceilings, never a blind higher preset. Existing cheaper values remain cheaper.
+# Apply ceilings, never a blind upgrade. Existing cheaper values stay cheaper.
 for needle in (
     "auto SafeQuality",
     "FMath::Min(Current, Ceiling)",
@@ -67,18 +80,28 @@ for needle in (
     "SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 1))",
     "if (CurrentScale > 75.0f)",
     "SetResolutionScaleValueEx(75.0f)",
+    "GameSettings->ApplySettings(false);",
+    "GameSettings->SaveSettings();",
+    "bInitialGraphicsProfileApplied = true;",
     "PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED",
 ):
-    require(settings, needle, "one-time safe renderer ceiling")
-forbid(settings, "SetOverallScalabilityLevel(3)", "Epic first-run preset")
-forbid(settings, "SetOverallScalabilityLevel(4)", "Cinematic first-run preset")
+    require(cpp, needle, "one-time safe graphics ceiling")
+forbid(cpp, "SetOverallScalabilityLevel(3)", "Epic first-run preset")
+forbid(cpp, "SetOverallScalabilityLevel(4)", "Cinematic first-run preset")
 
-# User choices must become authoritative after initialization.
-require(settings, "bInitialGraphicsProfileApplied = true;", "persist first-run completion")
-require(settings, "GameSettings->SaveSettings();", "persist engine video settings")
-require(settings, "bInitialGraphicsProfileApplied deliberately survive Reset Defaults", "reset does not arm silent next-launch override")
+# Reset Defaults must not silently re-arm Pass 16 after a player intentionally changes/reset video settings.
+reset_match = re.search(
+    r"void\s+UOCPlayerUserSettings::ResetPlayerDefaults\(\)\s*\{(?P<body>.*?)\n\}",
+    cpp,
+    re.S,
+)
+if not reset_match:
+    raise SystemExit("PASS16 VERIFY FAIL: could not locate ResetPlayerDefaults")
+reset_body = reset_match.group("body")
+forbid(reset_body, "bInitialGraphicsProfileApplied = false", "Reset Defaults re-arming first-run graphics")
+forbid(reset_body, "bInitialGraphicsProfileApplied = true", "Reset Defaults mutating first-run graphics flag")
 
-# Existing graphics menu remains fully functional and can replace Pass 16 values when the user presses Apply/Save.
+# Existing graphics menu remains authoritative after initialization.
 for needle in (
     "SetOverallScalabilityLevel(Preset)",
     "SetShadowQuality(QualityFromString(ShadowCombo->GetSelectedOption()))",
@@ -88,27 +111,34 @@ for needle in (
 ):
     require(ui, needle, "manual graphics controls remain authoritative")
 
-# Runtime evidence must identify the renderer from the real RHI process, not the null-RHI preflight log.
+# Runtime evidence must reveal the real GPU/RHI and effective scalability values.
 for needle in (
     '#include "DynamicRHI.h"',
+    '#include "HAL/PlatformMisc.h"',
+    "GDynamicRHI && !bRuntimeGraphicsIdentityLogged",
     "FPlatformMisc::GetPrimaryGPUBrand()",
     "GDynamicRHI->GetName()",
-    "PASS16_RUNTIME_GRAPHICS_IDENTITY",
+    "PASS16_RUNTIME_GRAPHICS_IDENTITY gpu=%s rhi=%s",
 ):
-    require(settings, needle, "runtime GPU/RHI identity")
+    require(cpp, needle, "runtime GPU/RHI identity")
 require(build, '"RHI"', "RHI module dependency")
 
-# Focused launcher must demand renderer identity in the same gameplay log as spawn/weapons/FPS evidence.
+# Focused Windows recovery launcher runs Pass 15 + 16 and refuses a runtime without real renderer evidence.
 for needle in (
-    "VERIFY_RUNTIME_GRAPHICS_PASS_16.py",
+    'set "VERIFY16=%~dp0VERIFY_RUNTIME_GRAPHICS_PASS_16.py"',
+    '%PY_CMD% "%VERIFY16%"',
     "PASS16_RUNTIME_GRAPHICS_IDENTITY",
-    "R14_CURRENT_GAMEPLAY.log",
+    "Pass 15-16 Recovery",
+    "PASS 15-16 RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED",
 ):
-    require(launcher, needle, "Pass 16 focused runtime evidence")
+    require(launcher, needle, "Pass 16 runtime launcher integration")
+forbid(launcher.lower(), "-nullrhi", "focused runtime launcher must use a real renderer")
 
 print("RUNTIME GRAPHICS PASS 16 SOURCE CONTRACT PASS")
-print("- first run applies only safe graphics ceilings; lower existing values are never raised")
-print("- the initialization flag persists and manual graphics settings remain authoritative afterwards")
-print("- graphics UI still controls full UGameUserSettings scalability after first-run initialization")
-print("- gameplay log records primary GPU brand + actual dynamic RHI name")
-print("STATUS: SOURCE CONTRACT ONLY; UE 5.8 compile and measured runtime still required")
+print("- fresh profiles receive a one-time low-risk graphics CEILING, never a forced forever-preset")
+print("- existing cheaper values are never raised and Reset Defaults does not re-arm Pass 16")
+print("- shadows/GI/reflections/foliage are capped at 0; resolution scale is capped at 75%")
+print("- manual graphics UI remains authoritative after initialization")
+print("- gameplay logs expose actual GPU brand, RHI and effective scalability values")
+print("- focused recovery launcher runs Pass 15 + 16 and requires real GPU/RHI evidence")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile/runtime FPS acceptance still required")
