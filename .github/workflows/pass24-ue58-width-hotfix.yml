@@ -1,0 +1,36 @@
+name: Pass 24 UE5.8 width hotfix
+
+on:
+  push:
+    branches:
+      - fix/pass24-ue58-editable-width-hotfix-20260823
+
+permissions:
+  contents: write
+
+jobs:
+  apply-hotfix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/pass24-ue58-editable-width-hotfix-20260823
+          fetch-depth: 0
+
+      - name: Apply exact UE 5.8 hotfix
+        run: python tools/pass24_ue58_width_hotfix.py
+
+      - name: Verify Pass 24 contract
+        run: python VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py
+
+      - name: Commit patched source and verifier
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix Pass 24 UE 5.8 EditableTextBox width API"
+          git push origin HEAD:fix/pass24-ue58-editable-width-hotfix-20260823
