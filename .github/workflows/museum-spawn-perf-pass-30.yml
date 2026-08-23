@@ -1,0 +1,26 @@
+name: Museum spawn/perf Pass 30
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR143MuseumSiteVegetationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR145MuseumTreeLayoutSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'VERIFY_MUSEUM_SPAWN_PERF_PASS_30.py'
+      - '.github/workflows/museum-spawn-perf-pass-30.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify Pass 30 museum runtime contracts
+        run: python VERIFY_MUSEUM_SPAWN_PERF_PASS_30.py
