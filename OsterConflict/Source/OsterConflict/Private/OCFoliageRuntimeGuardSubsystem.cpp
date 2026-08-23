@@ -19,6 +19,12 @@ namespace
         TEXT("GrassWetland")
     };
 
+    bool IsLowCPUProfile(const UWorld& World)
+    {
+        const TCHAR* Value = World.URL.GetOption(TEXT("PerfProfile="), TEXT(""));
+        return Value && FString(Value).Equals(TEXT("LowCPU"), ESearchCase::IgnoreCase);
+    }
+
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
         if (!Actor) return nullptr;
@@ -106,7 +112,9 @@ bool UOCFoliageRuntimeGuardSubsystem::RetireSourceGroundCoverProxies()
 }
 
 bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
-    int32& OutGrassInstances, int32& OutDenseGrassComponents) const
+    int32 MinGrassInstances,
+    int32& OutGrassInstances,
+    int32& OutDenseGrassComponents) const
 {
     OutGrassInstances = 0;
     OutDenseGrassComponents = 0;
@@ -145,7 +153,7 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
         }
     }
 
-    return OutDenseGrassComponents > 0 && OutGrassInstances >= 250;
+    return OutDenseGrassComponents > 0 && OutGrassInstances >= MinGrassInstances;
 }
 
 void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
@@ -164,22 +172,34 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
     const bool bProxiesRetired = RetireSourceGroundCoverProxies();
 
-    if (ElapsedSeconds < 4.0f) return;
+    if (ElapsedSeconds < 2.0f) return;
 
+    const bool bLowCPU = IsLowCPUProfile(*World);
+    const int32 MinGrassInstances = bLowCPU ? 48 : 250;
     int32 GrassInstances = 0;
     int32 DenseGrassComponents = 0;
-    const bool bDenseReady = ValidateDenseFoliage(GrassInstances, DenseGrassComponents);
+    const bool bDenseReady = ValidateDenseFoliage(MinGrassInstances, GrassInstances, DenseGrassComponents);
 
     if (bProxiesRetired && bDenseReady)
     {
         bFinished = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS10_FOLIAGE_RUNTIME_READY proxyComponents=3 denseGrassComponents=%d grassInstances=%d owner=OC_DenseGroundFoliage"),
-            DenseGrassComponents, GrassInstances);
+            TEXT("PASS10_FOLIAGE_RUNTIME_READY proxyComponents=3 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s owner=OC_DenseGroundFoliage"),
+            DenseGrassComponents,
+            GrassInstances,
+            MinGrassInstances,
+            bLowCPU ? TEXT("LowCPU") : TEXT("Full"));
+        if (bLowCPU)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS36_LOWCPU_FOLIAGE_RUNTIME_READY grassInstances=%d minRequired=%d full_sector_population=0"),
+                GrassInstances,
+                MinGrassInstances);
+        }
         return;
     }
 
-    if (ElapsedSeconds < 25.0f) return;
+    if (ElapsedSeconds < (bLowCPU ? 8.0f : 25.0f)) return;
 
     if (!bProxiesRetired)
     {
@@ -191,9 +211,9 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
         FailValidation(TEXT("dense_grass_components_missing"));
         return;
     }
-    if (GrassInstances < 250)
+    if (GrassInstances < MinGrassInstances)
     {
-        FailValidation(FString::Printf(TEXT("dense_grass_instances_%d_lt_250"), GrassInstances));
+        FailValidation(FString::Printf(TEXT("dense_grass_instances_%d_lt_%d"), GrassInstances, MinGrassInstances));
         return;
     }
 
