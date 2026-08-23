@@ -36,9 +36,16 @@ private:
     FRandomStream RandomStream;
     float CursorX = -96000.0f;
     float CursorY = -96000.0f;
+    float PopulationMinX = -96000.0f;
+    float PopulationMaxX = 96000.0f;
+    float PopulationMinY = -96000.0f;
+    float PopulationMaxY = 96000.0f;
+    float ActiveGridStep = 4000.0f;
+    int32 ActiveCellsPerBatch = 4;
     int32 GrassInstances = 0;
     int32 PlantInstances = 0;
     int32 FlowerInstances = 0;
+    bool bLowCPUProfile = false;
     bool bPopulationStarted = false;
     bool bPopulated = false;
 };

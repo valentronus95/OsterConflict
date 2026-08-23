@@ -1,0 +1,42 @@
+name: Weapon material and LowCPU performance Pass 36
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRealWeaponFallbackSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp'
+      - 'VERIFY_WEAPON_MATERIAL_LOWCPU_PERF_PASS_36.py'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/weapon-material-lowcpu-perf-pass-36.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRealWeaponFallbackSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp'
+      - 'VERIFY_WEAPON_MATERIAL_LOWCPU_PERF_PASS_36.py'
+      - '.github/workflows/weapon-material-lowcpu-perf-pass-36.yml'
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass 36 source contracts
+        run: python VERIFY_WEAPON_MATERIAL_LOWCPU_PERF_PASS_36.py
+      - name: Re-run playflow and performance compatibility
+        run: python VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py
+      - name: Re-run current runtime acceptance contract
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_33.py
