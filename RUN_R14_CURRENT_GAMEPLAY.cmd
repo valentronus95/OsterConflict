@@ -201,7 +201,7 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/4] Opening every required REAL weapon visual in a fresh UE process...
+echo [2/4] Opening every required REAL/playable weapon visual in a fresh UE process...
 if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
 "%EDITOR_CMD%" "%PROJECT%" -run=pythonscript -script="%WEAPON_VERIFY%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%WEAPON_PREFLIGHT_LOG%"
 set "WEAPON_RC=%ERRORLEVEL%"
@@ -212,30 +212,36 @@ if not "%WEAPON_RC%"=="0" (
   exit /b 17
 )
 if not exist "%WEAPON_SENTINEL%" (
-  echo [STOP] One or more required weapon models could not be opened by Unreal.
-  echo Primitive weapon boxes are not accepted as a fallback for the normal playtest.
+  echo [STOP] One or more required playable weapon models could not be opened by Unreal.
+  echo Primitive-only weapon boxes are not accepted for the normal playtest.
   echo Log: %WEAPON_PREFLIGHT_LOG%
   pause
   exit /b 18
 )
 
 echo.
-echo [3/4] Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets...
-if not exist "%PRODUCTION_IMPORT%" (
-  echo [STOP] Full production vehicle importer is missing: %PRODUCTION_IMPORT%
-  pause
-  exit /b 19
-)
-call "%PRODUCTION_IMPORT%"
-if errorlevel 1 (
-  echo [STOP] Production model ingest failed.
-  echo The game will not launch with civilian pickup/proxy turret/proxy BTR geometry pretending to be final assets.
-  echo Required local sources include:
-  echo   OsterConflict\SourceAssets\Production\Vehicles\HMMWV\ukrainian_hmmwv_mk_19.glb
-  echo   OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb
-  echo   OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx
-  pause
-  exit /b 20
+if "%IS_ACCEPTANCE%"=="1" (
+  echo [3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets...
+  if not exist "%PRODUCTION_IMPORT%" (
+    echo [STOP] Full production vehicle importer is missing: %PRODUCTION_IMPORT%
+    pause
+    exit /b 19
+  )
+  call "%PRODUCTION_IMPORT%"
+  if errorlevel 1 (
+    echo [STOP] Production model ingest failed.
+    echo Strict acceptance will not accept civilian pickup/proxy turret/proxy BTR geometry as final assets.
+    echo Required local sources include:
+    echo   OsterConflict\SourceAssets\Production\Vehicles\HMMWV\ukrainian_hmmwv_mk_19.glb
+    echo   OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb
+    echo   OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx
+    pause
+    exit /b 20
+  )
+) else (
+  echo [3/4] NORMAL GAME: skipping strict production vehicle intake.
+  echo [INFO] Exact HMMWV/M2/BTR production source files remain an open content gap and do not block the normal frontend.
+  echo [INFO] Use strict acceptance when those exact source files are installed locally.
 )
 
 echo.
@@ -268,7 +274,7 @@ if "%IS_ACCEPTANCE%"=="1" (
 
   findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
   if not errorlevel 1 (
-    echo [STOP] Production weapon runtime validation failed. Primitive Museum-rack weapon fallbacks are not accepted.
+    echo [STOP] Production weapon runtime validation failed. Generic fallback weapons are playable but do not satisfy exact production-art acceptance.
     echo Log: %PLAYTEST_LOG%
     pause
     exit /b 23
@@ -285,7 +291,7 @@ if "%IS_ACCEPTANCE%"=="1" (
 
   findstr /C:"PASS7_PRODUCTION_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
   if errorlevel 1 (
-    echo [STOP] No production weapon READY marker was recorded for the Museum 11-weapon rack.
+    echo [STOP] No exact production weapon READY marker was recorded for the Museum 11-weapon rack.
     echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
     echo Log: %PLAYTEST_LOG%
     pause

@@ -62,7 +62,7 @@ req('GetNetMode() == NM_Standalone' in pc and
 req('Frontend-only standalone session' in gm and 'bFrontendOnlySession' in gm,
     'frontend-only gameplay suppression retained')
 
-# START_HERE is now intentionally a small user-facing launcher, not the historical R8/R11 test-kit menu.
+# START_HERE is intentionally a small user-facing launcher, not the historical R8/R11 test-kit menu.
 req('OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК' in start,
     'START_HERE identifies current Oster Conflict launcher')
 req('choice /C 1230' in start,
@@ -78,8 +78,8 @@ req('& goto menu' not in start,
 req(start.count('goto menu') >= 3 and start.count('call "%~dp0') >= 2,
     'START_HERE dispatches its active actions through explicit conditional blocks')
 
-# Normal playtest must never silently run stale source or a proxy-content acceptance build.
-# main remains a strict origin/main check, while fix/runtime-acceptance-* may be tested pre-merge against its own remote head.
+# Normal playtest must never silently run stale source. Pass 20 separates playable normal launch from
+# strict exact-production acceptance instead of making missing HMMWV/M2/BTR source binaries a menu blocker.
 req('set "FETCH_BRANCH=main"' in normal and 'set "REMOTE_REF=origin/main"' in normal,
     'main normal-game route still verifies origin/main')
 req('findstr /B /I /C:"fix/runtime-acceptance-"' in normal and
@@ -92,15 +92,26 @@ for marker in [
     'git rev-parse "%REMOTE_REF%"',
     'Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%.',
     'Building current OsterConflictEditor',
+    'Opening every required REAL/playable weapon visual in a fresh UE process',
     'IMPORT_PRODUCTION_VEHICLES_UE58.cmd',
-    'Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets',
-    'The game will not launch with civilian pickup/proxy turret/proxy BTR geometry pretending to be final assets.',
+    'if "%IS_ACCEPTANCE%"=="1" (',
+    '[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets',
+    '[3/4] NORMAL GAME: skipping strict production vehicle intake.',
+    'Exact HMMWV/M2/BTR production source files remain an open content gap',
     '/Game/Maps/OsterConflict_Runtime',
     '-Frontend',
 ]:
     req(marker in normal, f'current normal-game launcher marker: {marker}')
 
-# Full production importer remains the only normal-game asset gate.
+strict_stage = normal.find('[3/4] STRICT ACCEPTANCE')
+acceptance_gate = normal.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
+import_call = normal.find('call "%PRODUCTION_IMPORT%"', strict_stage)
+normal_else = normal.find(') else (', strict_stage)
+req(strict_stage >= 0 and acceptance_gate >= 0 and import_call >= 0 and normal_else >= 0 and
+    acceptance_gate < strict_stage < import_call < normal_else,
+    'production vehicle ingest stays inside strict acceptance branch')
+
+# Full production importer remains the exact-art acceptance gate.
 for marker in [
     'import_production_vehicle_assets.py',
     'production_import_success.txt',
