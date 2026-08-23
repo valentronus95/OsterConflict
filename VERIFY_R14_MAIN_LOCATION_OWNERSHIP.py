@@ -24,6 +24,7 @@ required_files = [
     ROOT / "START_HERE.cmd",
     ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
     ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd",
+    ROOT / "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd",
 ]
 
 forbidden_legacy_files = [
@@ -108,17 +109,20 @@ launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
 
-    # START_HERE.cmd is deliberately version-neutral for the user. The
-    # implementation version belongs to the internal launch scripts, not to the
-    # public entry point. Verify routing/intent instead of brittle R14.x labels.
+    # Pass 22 makes START_HERE the only user-facing entry point. The old sandbox
+    # remains available internally, but it is intentionally not exposed in the menu.
     if "OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК" not in launcher:
         errors.append("START_HERE.cmd is not the canonical user launcher")
-    if "ТЕСТ ГРИ" not in launcher or "ЗВИЧАЙНА ГРА" not in launcher:
-        errors.append("START_HERE.cmd is missing the two supported user launch modes")
+    if "ЗВИЧАЙНА ГРА" not in launcher or "ПОВНИЙ RUNTIME-ТЕСТ" not in launcher:
+        errors.append("START_HERE.cmd is missing the supported normal/full runtime launch modes")
     if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in launcher:
         errors.append("START_HERE.cmd does not route normal playtest to RUN_R14_CURRENT_GAMEPLAY.cmd")
-    if 'call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"' not in launcher:
-        errors.append("START_HERE.cmd does not retain the current-main sandbox diagnostic route")
+    if 'call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"' not in launcher:
+        errors.append("START_HERE.cmd does not route full runtime test to the current Pass 21 acceptance wrapper")
+    if 'RUN_R14_MAIN_SANDBOX_TEST.cmd' in launcher:
+        errors.append("START_HERE.cmd regressed by exposing the internal sandbox diagnostic route")
+    if "-d3d11" not in launcher:
+        errors.append("START_HERE.cmd is missing the current D3D11 safe-renderer route")
     if "Launch R11 local listen-server visual test" in launcher:
         errors.append("START_HERE.cmd regressed to the legacy R11 playtest route")
 
@@ -131,5 +135,5 @@ if errors:
 print("R14 MAIN LOCATION OWNERSHIP: PASS")
 print("Museum, Silpo, Culture House and Stadium are bound to separate current-main site owners.")
 print("Culture House uses Hranovskoho 3 and cannot inherit Museum/Silpo coordinates.")
-print("START_HERE.cmd is the single version-neutral user entry point; internal R14 scripts keep the implementation routes.")
+print("START_HERE.cmd is the single user entry point with normal/full runtime routes on the D3D11 safe renderer.")
 print("Legacy R13 Silpo/Culture House photo-model owners are absent and synthetic north-civic map geometry is guarded.")
