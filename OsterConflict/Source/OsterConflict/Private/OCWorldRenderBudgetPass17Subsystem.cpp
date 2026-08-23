@@ -144,5 +144,5 @@ void UOCWorldRenderBudgetPass17Subsystem::TryApplyBudget()
         TEXT("PASS17_WORLD_ISM_BUDGET_READY tuned=%d nav_disabled=%d families=%d"),
         TunedCount,
         NavigationDisabledCount,
-        UE_ARRAY_COUNT(Budgets));
+        static_cast<int32>(UE_ARRAY_COUNT(Budgets)));
 }
