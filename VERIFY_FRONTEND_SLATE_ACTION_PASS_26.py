@@ -66,6 +66,8 @@ unsafe = [
     'UIConnect(',
 ]
 
+pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in cpp
+
 for name, next_name in callbacks:
     start = cpp.find(f'void UOCR13FrontendMenuSubsystem::{name}()')
     end = cpp.find(f'void UOCR13FrontendMenuSubsystem::{next_name}()', start + 1)
@@ -73,21 +75,45 @@ for name, next_name in callbacks:
         errors.append(f'cannot isolate callback {name}')
         continue
     body = cpp[start:end]
-    if 'ArmDeferredActionFence();' not in body:
+
+    # Pass 29 intentionally turns Secondary into a no-op because there is no longer a mutable
+    # server-setup page to navigate back from. Every callback that still performs an action must
+    # retain the Pass 26 engine-frame fence; a no-op callback is safer than queuing fake work.
+    is_pass29_noop = name == 'OnSecondaryClicked' and 'PASS29_SECONDARY_IGNORED_STATIC_FRONTEND' in body
+    if not is_pass29_noop and 'ArmDeferredActionFence();' not in body:
         errors.append(f'{name} must only queue a fenced action')
+
     for token in unsafe:
         if token in body:
             errors.append(f'{name} performs unsafe Slate/input/travel work inside OnClicked: {token}')
 
-# Pass 24/25 contracts must remain present while Pass 26 strengthens the timing boundary.
+# Pass 25 input protection remains mandatory. Pass 24's original page mutation contract is superseded
+# by Pass 29 when the static frontend is present: START/NETWORK still queue work and still wait for
+# Pass 26's later-frame execution fence, but they no longer mutate the live Slate page hierarchy.
 for token, label in [
     ('Primary->OnClicked.AddDynamic', 'OnClicked binding'),
-    ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'Pass 24 navigation marker'),
-    ('PASS24_HOST_START_DEFERRED_QUEUED', 'Pass 24 host marker'),
     ('PASS25_MENU_INPUT_ARMED', 'Pass 25 input marker'),
     ('if (bMenuInputArmed) return;', 'Pass 25 input dedupe'),
 ]:
     need(cpp, token, label)
+
+if pass29_static:
+    for token, label in [
+        ('PASS29_MAIN_START_DIRECT_HOST_QUEUED', 'Pass 29 direct host queue marker'),
+        ('PASS29_NETWORK_DIRECT_CONNECT_QUEUED', 'Pass 29 direct network queue marker'),
+        ('PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'Pass 29 fail-closed page guard'),
+        ('PASS24_HOST_START_DEFERRED_EXECUTE', 'deferred host execution compatibility'),
+        ('PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE', 'deferred network execution compatibility'),
+    ]:
+        need(cpp, token, label)
+    forbid(cpp, 'PendingPage = 1;', 'removed main START page mutation')
+    forbid(cpp, 'PendingPage = 2;', 'removed network page mutation')
+else:
+    for token, label in [
+        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'Pass 24 navigation marker'),
+        ('PASS24_HOST_START_DEFERRED_QUEUED', 'Pass 24 host marker'),
+    ]:
+        need(cpp, token, label)
 
 forbid(cpp, '->OnPressed.AddDynamic', 'OnPressed mutation path')
 forbid(cpp, 'Mode.SetWidgetToFocus(PrimaryButton->TakeWidget())', 'TakeWidget focus churn')
@@ -99,8 +125,10 @@ if errors:
     raise SystemExit(1)
 
 print('FRONTEND SLATE ACTION PASS 26: SUCCESS')
-print('- every frontend OnClicked callback only queues work')
+print('- every actionable frontend OnClicked callback only queues work; Pass 29 Secondary is an inert no-op')
 print('- widget/input/travel/settings/quit mutations wait for a later engine frame')
 print('- repeated presentation/pause Slate invalidations are deduplicated')
 print('- legacy frontend suppression is no longer executed every Tick')
+if pass29_static:
+    print('- Pass 29 supersedes crash-prone page mutation while preserving the Pass 26 action fence')
 print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime confirmation is still required')

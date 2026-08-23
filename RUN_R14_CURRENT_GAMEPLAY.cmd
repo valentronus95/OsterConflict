@@ -263,7 +263,7 @@ if not "%GAME_RC%"=="0" (
   echo.
   echo [CRASH-DIAGNOSTICS] Unreal exited with code %GAME_RC%.
   echo [CRASH-DIAGNOSTICS] Relevant frontend markers:
-  if exist "%PLAYTEST_LOG%" findstr /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
+  if exist "%PLAYTEST_LOG%" findstr /C:"PASS29_" /C:"PASS28_" /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
   echo [CRASH-DIAGNOSTICS] Last 180 gameplay-log lines:
   if exist "%PLAYTEST_LOG%" powershell -NoProfile -Command "Get-Content -LiteralPath $env:PLAYTEST_LOG -Tail 180"
 )

@@ -234,22 +234,14 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
         if (PendingPage != INDEX_NONE)
         {
-            const int32 NewPage = PendingPage;
+            // Pass 29: runtime repeatedly crashed inside Slate immediately after the main-menu START
+            // path changed the live widget hierarchy. Page transitions are now forbidden in the R13
+            // startup shell. Keep the frontend structurally static and route actions directly instead.
+            const int32 BlockedPage = PendingPage;
             PendingPage = INDEX_NONE;
-            Page = NewPage;
-            LastAppliedPage = INDEX_NONE;
-            bPausePageApplied = false;
-            UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_BEGIN page=%d"), Page);
-            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=page_%d"), Page);
-            ApplyPage();
-            ForceMenuInput();
-            if (Page == 1)
-            {
-                UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
-            }
-            UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_READY page=%d"), Page);
+            UE_LOG(LogTemp, Error, TEXT("PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED page=%d"), BlockedPage);
         }
-        else if (bPendingHostedStart)
+        if (bPendingHostedStart)
         {
             bPendingHostedStart = false;
             UE_LOG(LogTemp, Display, TEXT("PASS24_HOST_START_DEFERRED_EXECUTE"));
@@ -781,10 +773,14 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
     if (Page == 0)
     {
-        PendingPage = 1;
+        // Pass 29: START no longer turns the already-live Slate tree into a different page. The
+        // repeated crash is synchronized with that structural transition, not with compilation.
+        // Start the local hosted session directly from the stable main menu using the already-created
+        // default/saved fields (16 max, 0 bots, Normal unless later changed by a dedicated safe UI).
+        bPendingHostedStart = true;
         ArmDeferredActionFence();
-        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1"));
-        UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=page_1"));
+        UE_LOG(LogTemp, Display, TEXT("PASS29_MAIN_START_DIRECT_HOST_QUEUED"));
+        UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=start_host"));
         return;
     }
 
@@ -805,20 +801,20 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
-    if (bPauseMenuActive || bLocalTravelPending || Page == 0 || HasPendingFrontendAction()) return;
-    PendingPage = 0;
-    ArmDeferredActionFence();
-    UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=0"));
-    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=page_0"));
+    // Pass 29: no runtime page mutation exists in the startup shell anymore. Secondary is retained
+    // only for compatibility with old constructed widgets and must never alter the live Slate tree.
+    UE_LOG(LogTemp, Display, TEXT("PASS29_SECONDARY_IGNORED_STATIC_FRONTEND"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
     if (bPauseMenuActive || bLocalTravelPending || HasPendingFrontendAction()) return;
-    PendingPage = 2;
+    // Pass 29: keep the startup Slate hierarchy immutable. Network uses the saved/default address
+    // already present in AddressEntry instead of opening the crash-prone structural page transition.
+    bPendingNetworkConnect = true;
     ArmDeferredActionFence();
-    UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2"));
-    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=page_2"));
+    UE_LOG(LogTemp, Display, TEXT("PASS29_NETWORK_DIRECT_CONNECT_QUEUED"));
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=network_connect"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
@@ -886,6 +882,7 @@ void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
         *Username, Bots, Bots, MaxPlayers, *Difficulty);
     UE_LOG(LogTemp, Display,
         TEXT("PASS14_HOST_TRAVEL_BEGIN max_players=%d bots=%d difficulty=%s"), MaxPlayers, Bots, *Difficulty);
+    UE_LOG(LogTemp, Display, TEXT("PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE"));
     PC->ConsoleCommand(Travel);
 }
 

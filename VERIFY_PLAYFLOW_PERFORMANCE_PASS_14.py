@@ -44,16 +44,30 @@ importer = read(IMPORTER)
 main_launcher = read(MAIN_LAUNCHER)
 runtime_launcher = read(RUNTIME_LAUNCHER)
 
-# Main START is navigation, not an implicit local/test match. Hosting has its own explicit confirmation.
+# Host setup state remains available, but Pass 29 may bypass the crash-prone live server-setup page.
 for needle in ("StartHostedGameplay", "MaxPlayersEntry", "BotsEntry", "BotDifficultyEntry"):
     require(header, needle, "frontend host setup header")
-for needle in (
-    'if (Page == 0)', 'Page = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP',
-    '"HostTitle", "СТВОРЕННЯ СЕРВЕРА"', '"CreateServer", "СТВОРИТИ СЕРВЕР"',
-    'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
-    '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
-):
-    require(frontend, needle, "explicit server creation flow")
+
+pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in frontend
+if pass29_static:
+    for needle in (
+        'if (Page == 0)', 'PASS29_MAIN_START_DIRECT_HOST_QUEUED',
+        'PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE',
+        'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
+        '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
+    ):
+        require(frontend, needle, "static safe server creation flow")
+    for needle in ('PendingPage = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP'):
+        forbid(frontend, needle, "Pass 29 must not restore crash-prone server-setup page")
+else:
+    for needle in (
+        'if (Page == 0)', 'Page = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP',
+        '"HostTitle", "СТВОРЕННЯ СЕРВЕРА"', '"CreateServer", "СТВОРИТИ СЕРВЕР"',
+        'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
+        '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
+    ):
+        require(frontend, needle, "explicit server creation flow")
+
 forbid(frontend, "LocationTest=1", "normal frontend must not open technical LocationTest")
 forbid(frontend, "AutoDeploy=1", "normal frontend must not bypass deployment")
 forbid(frontend, "StartLocalGameplay", "obsolete direct local-start helper")
@@ -112,16 +126,23 @@ for needle in ('set "RECOVERY_PROJECT_DIR=%~dp0."', '-ProjectDir "%RECOVERY_PROJ
 for needle in ('call "%PRODUCTION_IMPORT%"', 'if errorlevel 1 (', 'exit /b 20'):
     require(main_launcher, needle, "production importer fail-closed launcher")
 
-for needle in (
-    'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS14_MAIN_START_OPENS_SERVER_SETUP',
-    'PASS14_HOST_TRAVEL_BEGIN', 'PASS14_FRONTEND_TRAVEL_HANDOFF_READY',
-    'PASS14_PERF_SAMPLE', 'PASS14_PERF_BELOW_TARGET', 'PASS14_PERF_30FPS_READY',
-    'R14_CURRENT_GAMEPLAY.log',
-):
+runtime_markers = [
+    'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS14_HOST_TRAVEL_BEGIN',
+    'PASS14_FRONTEND_TRAVEL_HANDOFF_READY', 'PASS14_PERF_SAMPLE',
+    'PASS14_PERF_BELOW_TARGET', 'PASS14_PERF_30FPS_READY', 'R14_CURRENT_GAMEPLAY.log',
+]
+if pass29_static:
+    runtime_markers.append('PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE')
+else:
+    runtime_markers.append('PASS14_MAIN_START_OPENS_SERVER_SETUP')
+for needle in runtime_markers:
     require(runtime_launcher, needle, "Pass 14 runtime launcher")
 
 print("PLAYFLOW + PERFORMANCE PASS 14 SOURCE CONTRACT PASS")
-print("- explicit server setup and Deployment ownership remain intact")
+if pass29_static:
+    print("- Pass 29 static START replaces the disproven live server-setup page while preserving hosted travel and Deployment ownership")
+else:
+    print("- explicit server setup and Deployment ownership remain intact")
 print("- foliage remains bounded/incremental while later passes may reduce its cost further")
 print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime acceptance still required")

@@ -1,0 +1,29 @@
+name: Frontend static-start Pass 29
+
+on:
+  push:
+    branches:
+      - fix/frontend-static-start-pass-29-20260823
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_FRONTEND_STATIC_START_PASS_29.py'
+      - '.github/workflows/frontend-static-start-pass-29.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify Pass 29 static frontend contracts
+        run: python VERIFY_FRONTEND_STATIC_START_PASS_29.py
+      - name: Verify prior frontend protections
+        run: |
+          python VERIFY_FRONTEND_WIDGETTREE_PASS_27.py
+          python VERIFY_FRONTEND_SINGLE_OWNER_PASS_28.py
+          python VERIFY_FRONTEND_SLATE_ACTION_PASS_26.py
