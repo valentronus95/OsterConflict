@@ -107,8 +107,6 @@ for needle in (
 if "if (GameMode->IsFrontendOnlySession()) return;" in fallback:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: real weapon fallback still dies permanently in frontend world")
 
-# The approved shell was widened from 440 to 470 px only so the explicit server setup can fit
-# MaxPlayers/Bots/BotDifficulty without changing its canonical left/top position or height.
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
 panel_size = re.search(r"PanelSlot->SetSize\(FVector2D\((440\.0f|470\.0f), 760\.0f\)\);", frontend)
 if not panel_size:
@@ -120,15 +118,27 @@ for forbidden in (
     if forbidden in stabilizer:
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: stabilizer still overrides menu geometry: {forbidden}")
 
+# Pass 20 separates normal playability from exact vehicle-art acceptance. LFS/playable weapon
+# preflight remains mandatory for normal play; HMMWV/M2/BTR production ingest remains mandatory
+# only when IS_ACCEPTANCE=1.
 for needle in (
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
-    "Importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
-    "The game will not launch with civilian pickup/proxy turret/proxy BTR geometry pretending to be final assets.",
+    'if "%IS_ACCEPTANCE%"=="1" (',
+    "[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
+    'call "%PRODUCTION_IMPORT%"',
+    "[3/4] NORMAL GAME: skipping strict production vehicle intake.",
+    "Exact HMMWV/M2/BTR production source files remain an open content gap",
     "git lfs pull origin",
     "git lfs checkout >nul",
     "verify_playtest_lfs_payloads.ps1",
 ):
-    require(launcher, needle, "normal gameplay production/LFS gate")
+    require(launcher, needle, "normal/strict gameplay production-LFS split")
+strict_stage = launcher.find("[3/4] STRICT ACCEPTANCE")
+acceptance_gate = launcher.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
+import_call = launcher.find('call "%PRODUCTION_IMPORT%"', strict_stage)
+normal_else = launcher.find(") else (", strict_stage)
+if strict_stage < 0 or acceptance_gate < 0 or import_call < 0 or normal_else < 0 or not (acceptance_gate < strict_stage < import_call < normal_else):
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: production vehicle ingest is not isolated inside strict acceptance")
 if "--include=" in launcher:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: unsupported Git LFS --include flag returned")
 if "^|" in launcher:
@@ -184,5 +194,5 @@ print("- dense foliage is generated incrementally with a bounded per-frame batch
 print("- restored weapon and foliage LFS payloads are hydrated before playtest using Windows-compatible commands")
 print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend")
 print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon and socket/local-mesh barrel geometry")
-print("- HMMWV + M2 + BTR are reopened in a fresh UE process before gameplay starts")
+print("- normal gameplay is not blocked by missing exact HMMWV/M2/BTR sources; strict acceptance still requires fresh production ingest")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
