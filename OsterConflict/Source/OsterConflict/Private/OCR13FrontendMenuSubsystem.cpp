@@ -102,7 +102,6 @@ namespace
         FieldStyle.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.040f, 0.046f, 0.054f, 1.0f));
         FieldStyle.Padding = FMargin(14.0f, 10.0f);
         Field->SetWidgetStyle(FieldStyle);
-        Field->SetMinimumDesiredWidth(420.0f);
 
         if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Field))
         {
