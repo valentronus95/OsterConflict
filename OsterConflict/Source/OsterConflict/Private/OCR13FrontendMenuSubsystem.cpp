@@ -416,7 +416,9 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        LegacyFrontend->RemoveFromParent();
+        // Pass 27: keep the native frontend attached to its original WidgetTree. Detaching a widget
+        // after UUserWidget::RebuildWidget has already produced Slate children creates an avoidable
+        // structural lifetime edge; collapsed + disabled is sufficient to suppress it.
     }
 
     UBorder* Blocker = Tree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_MenuWorldBlocker"));
@@ -717,7 +719,7 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        if (LegacyFrontend->GetParent()) LegacyFrontend->RemoveFromParent();
+        // Pass 27: never detach the root-owned legacy frontend after Slate has been built.
     }
 
     if (UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root"))))
