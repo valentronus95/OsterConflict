@@ -5,13 +5,13 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/frontend-slate-crash-pass-26-20260823` → `main`
+- Active correction branch: `fix/frontend-widgettree-pass-27-20260823` → `main`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **тільки `START_HERE.cmd`**.
 - `RUN_*.cmd` — внутрішні helper scripts. Не створювати новий user-facing launcher під кожну R-версію.
 - Persistent evidence: `RUNTIME_AUDIT_2026-08-21.md`, `LEGACY_BLOCKOUT_AUDIT_2026-08-21.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-21_1744.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-22.md`.
-- User playtest 2026-08-23 на `main` commit `6d1ff2605573c4a1cdcf51e132ac56f986db216a` є authoritative evidence для frontend crash: UE 5.8 assertion у Slate/SlateCore після Pass 25, `Array index out of bounds: -808103970 into an array of size 0`.
+- User playtest 2026-08-23 повторив той самий Slate/SlateCore assertion уже на `main` commit `f2d397f8b9a2348576dcf96b0c20522a8a8c8d8f` після Pass 26: `Array index out of bounds: -808103970 into an array of size 0`. Pass 26 lifecycle fence не усунув crash, тому ця runtime evidence має пріоритет над зеленим CI.
 - Не створювати нові декоративні R15/R16 layers, доки поточний runtime backlog не закритий.
 
 ## 2. Статусні правила
@@ -29,7 +29,7 @@
 | ID | Вимога | Repeat | Status | Фактичний стан / що лишилось |
 |---|---|---:|---|---|
 | UI-BOOT-001 | Splash → main menu без чорної паузи | 1 | CODED_UNTESTED | MoviePlayer startup loading screen coded; потрібен UE 5.8 startup acceptance. |
-| UI-MENU-001 | Головне меню стабільне | ≥4 | IN_PROGRESS | 2026-08-23 runtime на Pass 25 (`6d1ff260...`) зібрався і відкрив frontend, але frontend interaction завершилась assertion crash у Slate/SlateCore: negative array index into size 0. Pass 26 source hardening coded; потрібен новий UE 5.8 build/runtime. |
+| UI-MENU-001 | Головне меню стабільне | ≥5 | IN_PROGRESS | 2026-08-23 runtime повторив той самий Slate/SlateCore array assertion вже на Pass 26 (`f2d397f8...`). Новий concrete suspect: R13 overlay створював live UMG widgets через `NewObject` після побудови native `WidgetTree`, тоді як стабільний `UOCGameUIRootWidget` всюди використовує `WidgetTree->ConstructWidget`. Pass 27 переводить весь R13 frontend на WidgetTree ownership; runtime acceptance обов’язковий. |
 | UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | 2026-08-22 runtime повторно показав підвисання. `OCDeploymentLoadingSubsystem` дає blocking 0–100 overlay; dense foliage більше не робить десятки тисяч traces/HISM inserts одним синхронним кадром, а розноситься batch-ами. Новий UE runtime acceptance обов’язковий. |
 | UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | CODED_UNTESTED | Runtime chat layer coded; acceptance pending. |
 | GAME-SPAWN-001 | Фактичний spawn біля Museum, не порожнє поле | ≥5 | CODED_UNTESTED | User повторив дефект. Поточний source BASE прив’язаний до `MuseumAnchor()`; primary offset ≈17 m, ground snap, secondary також лишається біля Museum. Новий runtime має підтвердити, що саме цей transform використовується після deployment. |
@@ -71,7 +71,7 @@
 | CRASH-OBJECTNAME-001 | Bus-station object-name crash | VERIFIED RUNTIME FOR REPORTED CRASH | Старий name collision не повторився. |
 | ASSET-LFS-PREFLIGHT-001 | Git LFS hydration | VERIFIED FOR PREFLIGHT | `54b8c2cd...`. |
 | CRASH-WEAPON-FALLBACK-001 | `Pure virtual` у `ApplyRealFallback()` | RUNTIME DID NOT RECUR IN LATEST RUN | GC-safe refs + guards. |
-| CRASH-FRONTEND-SLATE-20260823 | Pass 25 frontend click → Slate/SlateCore array assertion | CODED_UNTESTED | Pass 26: усі `OnClicked` лише ставлять action у чергу; виконання fenced мінімум на наступний engine frame; legacy suppression більше не кожен Tick; presentation/pause invalidation dedupe. Runtime acceptance pending. |
+| CRASH-FRONTEND-SLATE-20260823 | Frontend interaction → Slate/SlateCore array assertion | CODED_UNTESTED | Pass 26 runtime FAILED: exact assertion repeated on `f2d397f8...`. Pass 27 aligns the R13 overlay with the native root lifecycle by constructing every UMG widget through `Root->WidgetTree->ConstructWidget`; direct `NewObject<UWidget>` construction is forbidden in this frontend. Launcher also auto-prints PASS markers + last 180 gameplay-log lines on non-zero exit. Runtime acceptance pending. |
 | VEHICLE-EXIT-RECOVERY-001 | Restore input stack after vehicle exit | CODED_UNTESTED | Existing source recovery. |
 | TACTICAL-MAP-SOURCE-001 | `M` map / `V` trap canonical | CODED_UNTESTED | Existing source/input CI passed previously; actual UE runtime still pending. |
 | LANDMARK-STARTUP-001 | Museum/Silpo/Culture без late startup rebuild | CODED_UNTESTED | Coordinator/source cleanup exists; 2026-08-22 runtime still rejects result. |
