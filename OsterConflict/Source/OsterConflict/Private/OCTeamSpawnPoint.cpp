@@ -31,27 +31,26 @@ namespace
 
     FVector ResolveCanonicalBaseLocation(EOCTeam Team, bool bSecondary)
     {
-        // Pass 30: BASE must be NEAR the museum, never inside the museum shell. The previous
-        // primary offsets (14.5 m from MuseumAnchor) intersected the authored museum footprint and
-        // could possess the player between structural collision components. Keep both team bases on
-        // the open front-side approach, beyond the R13.8 building/vestibule footprint and beyond the
-        // R14.3 museum vegetation X range. Secondary bases are farther out but still visibly near site.
+        // Pass 37: the 41 m Pass 30 BASE was collision-safe but the user runtime still read as an
+        // empty distant field. Put the primary deployment on the open front approach at ~27.8 m from
+        // MuseumAnchor: outside the authored shell/vestibule, but close enough that the museum must
+        // dominate the initial view. Secondary remains farther out as a fallback, not the preferred BASE.
         const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
         if (Team == EOCTeam::TeamTwo)
         {
             return Museum + (bSecondary
-                ? FVector(3600.0f, -3900.0f, 120.0f)
-                : FVector(2600.0f, -3200.0f, 120.0f));
+                ? FVector(2300.0f, -3100.0f, 120.0f)
+                : FVector(1400.0f, -2400.0f, 120.0f));
         }
         return Museum + (bSecondary
-            ? FVector(-3600.0f, -3900.0f, 120.0f)
-            : FVector(-2600.0f, -3200.0f, 120.0f));
+            ? FVector(-2300.0f, -3100.0f, 120.0f)
+            : FVector(-1400.0f, -2400.0f, 120.0f));
     }
 
     float ResolveCanonicalBaseYaw(EOCTeam Team)
     {
-        // Face back toward the museum from the front-side exterior bases.
-        return Team == EOCTeam::TeamTwo ? 142.0f : 38.0f;
+        // Face the museum directly from the front-side exterior BASE.
+        return Team == EOCTeam::TeamTwo ? 120.0f : 60.0f;
     }
 
     int32 CollectRackWeaponsNear(UWorld* World, const FVector& BaseLocation, TArray<AOCWeaponBase*>* OutWeapons = nullptr)
@@ -128,8 +127,9 @@ namespace
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("Runtime BASE weapon rack rebuilt outside museum: team=%s removed_partial=%d weapons=%d location=%s"),
-            *OCTeamToString(Team), ExistingCount, Spawned, *Base.ToCompactString());
+            TEXT("PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM team=%s removed_partial=%d weapons=%d location=%s museum_distance_m=%.1f"),
+            *OCTeamToString(Team), ExistingCount, Spawned, *Base.ToCompactString(),
+            FVector::Dist2D(Base, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
     }
 }
 
@@ -144,8 +144,7 @@ void AOCTeamSpawnPoint::BeginPlay()
 
     if (!HasAuthority() || !bBaseSpawn || TeamId == EOCTeam::None || !GetWorld()) return;
 
-    // Every serialized/legacy BASE is normalized through ConfigureServer. Pass 30 canonical locations
-    // deliberately sit >35 m from MuseumAnchor, so distance is no longer used as evidence of correctness.
+    // Every serialized/legacy BASE is normalized through the single canonical resolver above.
     ConfigureServer(TeamId, true, NAME_None);
 }
 
@@ -172,6 +171,14 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
         const FRotator NewRotation(0.0f, ResolveCanonicalBaseYaw(TeamId), 0.0f);
         SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH team=%s secondary=%d old=%s new=%s museum=%s distance_m=%.1f"),
+            *OCTeamToString(TeamId), bSecondary ? 1 : 0,
+            *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString(),
+            *AOCWorldSectorOster::MuseumAnchor().ToCompactString(),
+            FVector::Dist2D(NewLocation, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
+
+        // Keep the Pass 30 compatibility breadcrumb for older runtime parsers.
         UE_LOG(LogTemp, Display,
             TEXT("PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM team=%s secondary=%d old=%s new=%s museum=%s distance_m=%.1f"),
             *OCTeamToString(TeamId), bSecondary ? 1 : 0,
