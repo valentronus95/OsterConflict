@@ -71,7 +71,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
   set "FETCH_BRANCH=main"
   set "REMOTE_REF=origin/main"
 ) else (
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Normal gameplay playtest is allowed only from main or an explicit runtime-fix branch.
     echo Current branch: %CURRENT_BRANCH%
@@ -249,14 +249,14 @@ if "%IS_ACCEPTANCE%"=="1" (
 echo.
 echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
-echo Safe renderer: DirectX 11 ^(-d3d11^).
-echo D3D12 is temporarily disabled after the confirmed D3D12RHI startup crash.
+echo Safe renderer: DirectX 11 + SM5 ^(-d3d11 -sm5 -nohdr -norhithread^).
+echo D3D12/SM6 is temporarily disabled after the confirmed startup renderer crashes.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Branch: %CURRENT_BRANCH%
 echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
 echo.
-start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -norhithread -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if "%IS_ACCEPTANCE%"=="1" (
