@@ -13,9 +13,8 @@ class UStaticMesh;
  * production asset is missing or fails to load. This does NOT mark the weapon production-verified:
  * exact asset validation remains authoritative and must still fail for a generic fallback.
  *
- * Pass 36 also audits material slots on real weapon meshes. Authored materials are never overwritten;
- * only null/Engine DefaultMaterial slots receive a lightweight dark runtime recovery material so a
- * hydrated mesh cannot silently render as the white/grey unmaterialized rack seen in playtest.
+ * Pass 36 audits missing/default material slots. Pass 38 bounds the startup scan so this helper cannot
+ * remain on a permanent 4 Hz world-wide weapon iterator after the rack has converged.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCRealWeaponFallbackSubsystem : public UWorldSubsystem
@@ -31,8 +30,7 @@ private:
     FTimerHandle RefreshTimer;
 
     // These meshes are loaded once and then used later from a timer. They MUST be
-    // reflected UObject references so UE garbage collection cannot reclaim them
-    // between OnWorldBeginPlay() and RefreshWeaponFallbacks().
+    // reflected UObject references so UE garbage collection cannot reclaim them.
     UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericMachineGun;
 
@@ -49,6 +47,7 @@ private:
     TObjectPtr<UMaterialInterface> MaterialRecoveryBase;
 
     bool bRackMaterialAuditReadyLogged = false;
+    int32 RefreshPassCount = 0;
 
     void RefreshWeaponFallbacks();
     int32 AuditAndRepairWeaponMaterials(class AOCWeaponBase& Weapon);

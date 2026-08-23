@@ -5,13 +5,14 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/museum-visible-spawn-weapon-palette-pass-37-20260823` → `main`
+- Active correction branch: `fix/runtime-runaway-heat-pass-38-20260824` → `main`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **тільки `START_HERE.cmd`**.
 - `RUN_*.cmd` — внутрішні helper scripts. Не створювати новий user-facing launcher під кожну R-версію.
 - Persistent evidence: `RUNTIME_AUDIT_2026-08-21.md`, `LEGACY_BLOCKOUT_AUDIT_2026-08-21.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-21_1744.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-22.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-23_PASS35.md`, `OsterConflict/Docs/WorkReports/RUNTIME_PLAYTEST_AUDIT_2026-08-23_PASS37.md`.
-- Latest user playtest 2026-08-23 is authoritative over green Pass 35/36 CI: gameplay still opens beside the physical BASE rack in an empty/flat field, Museum is not visibly present in the initial view, most rack weapons are still white/grey while AK is textured, and the supplied screenshot shows `FPS 27` below the 30 FPS target.
+- Latest user playtest 2026-08-24 is authoritative over green Pass 37 source CI: gameplay still opens into a flat/empty field with no visible Museum; rack weapons have mixed presentation (some textured, some grey/blank, some flat fallback colours); screenshots show FPS falling `26 → 10 → 8`, and the user reports roughly `60 → 5` within about five seconds together with rapid laptop heating.
+- Pass 38 priority is runtime lifecycle stabilization. Do not add decorative content while any recovery subsystem can repeatedly rebuild/scan the world.
 - Не створювати нові декоративні R15/R16 layers, доки поточний runtime backlog не закритий.
 
 ## 2. Статусні правила
@@ -30,10 +31,10 @@
 |---|---|---:|---|---|
 | UI-BOOT-001 | Splash → main menu без чорної паузи | 1 | CODED_UNTESTED | MoviePlayer startup loading screen coded; потрібен UE 5.8 startup acceptance. |
 | UI-MENU-001 | Головне меню стабільне | ≥7 | CODED_UNTESTED | Pass 29 static START route дозволив останнім playtest дійти до gameplay; старий Slate START crash у цьому run не повторився, але окремий повний frontend acceptance ще потрібний. |
-| UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | Останній run дійшов до gameplay. Blocking loading + batched startup збережені; Pass 36 прибрав progressive full-sector foliage population у normal LowCPU flow. |
+| UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | Останній run дійшов до gameplay. Blocking loading + batched startup збережені; тепер Pass 38 прибирає безкінечні post-spawn recovery scans/rebuild churn. |
 | UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | CODED_UNTESTED | Runtime chat layer coded; acceptance pending. |
-| GAME-SPAWN-001 | Фактичний spawn біля Museum, не порожнє поле | ≥7 | CODED_UNTESTED | Pass 36 runtime знову відхилений: BASE/rack візуально читається як поле далеко від Museum. Pass 37 переносить primary BASE з ≈41 m на ≈27.8 m front-side approach, вирівнює yaw прямо на Museum та guard приймає 20–45 m band. Runtime acceptance pending. |
-| GAME-WEAPONS-001 | 11 pickup classes біля фактичного spawn | ≥7 | CODED_UNTESTED | 11-class rack фізично є, але Pass 36 runtime знову показує більшість real meshes білими/сірими. Pass 37 окремо палітрує known incomplete restored Stein payloads; AK authored appearance не чіпається. Exact missing texture payload не підміняти твердженням про texture restoration. |
+| GAME-SPAWN-001 | Фактичний spawn біля Museum, не порожнє поле | ≥8 | CODED_UNTESTED | Pass 37 runtime знову відхилений: координатно BASE лишається ≈27.8 m від `MuseumAnchor`, але Museum в кадрі відсутній. Pass 38 не маскує це новим offset: він обмежує R13.8 recovery одним rebuild і fail-closed, щоб зупинити destructive churn та отримати чесний visible-core результат. |
+| GAME-WEAPONS-001 | 11 pickup classes біля фактичного spawn | ≥8 | CODED_UNTESTED | 11-class rack фізично є. Pass 37 forced-palette покращив частину grey meshes, але зіпсував інші flat-colour presentation (зокрема Lever Action). Pass 38 більше не перезаписує non-placeholder imported materials; only explicit placeholder slots receive fallback. Exact missing texture payload лишається окремим content gap. |
 | HUD-MINIMAP-001 | Постійна minimap на HUD + `M` full tactical map | 1 | CODED_UNTESTED | Доданий `OCMinimapSubsystem`; використовує той самий `OCTacticalMapSubsystem` render target/projection, player heading marker, приховується при blocking UI/full map. |
 | UI-TACTICAL-MAP-001 | `M` tactical map без конфлікту та з видимим player marker | 2 | CODED_UNTESTED | Pass 35 піднімає існуючий player marker до Z=60/size26; новий runtime acceptance лишається обов’язковим. |
 | GAME-VEHICLE-INPUT-001 | Після exit з авто повертаються WASD/sprint/mouse | 1 | IN_PROGRESS | Recovery coded; новий acceptance pending. |
@@ -43,19 +44,19 @@
 | VEH-PICKUP-SPEED-001 | Pickup max speed 120 км/год | 1 | CODED_UNTESTED | Server/standalone speed contract coded; speed test pending. |
 | ASSET-BTR-001 | BTR production model без proxy | ≥4 | CODED_UNTESTED / ASSET IMPORT CHECK | Normal launcher не допускає playtest, доки canonical BTR asset не відкрився у fresh UE process; runtime scale/material/ground-contact acceptance ще потрібний. |
 | VEH-BTR-SPEED-001 | BTR max speed 90 км/год | 1 | CODED_UNTESTED | Runtime speed contract coded; speed test pending. |
-| VIS-FP-001 | Production/real weapon visuals без primitive/white material presentation | ≥7 | CODED_UNTESTED / ASSET PREFLIGHT | Pass 36 припустив, що будь-який non-null/non-Default material valid; runtime це спростував. Restored Stein folders мають mesh/WPN payloads без standalone material/texture payload beside them. Pass 37 forces visible metal/wood/polymer palette only for those known incomplete restored models and preserves AK. |
+| VIS-FP-001 | Production/real weapon visuals без primitive/white material presentation | ≥8 | CODED_UNTESTED / ASSET PREFLIGHT | Latest Pass 37 runtime shows mixed results: AK and some models carry usable presentation, several remain grey/blank, while forced palette made Lever Action visibly flat/orange. Pass 38 removes forced overwrite of valid materials, bounds palette/fallback scans, and keeps exact authored texture restoration separate from fallback colour. |
 | WEAPON-MUZZLE-001 | Visible shot FX стартує з дула | 2 | CODED_UNTESTED | Muzzle/socket rebase coded; runtime acceptance pending. |
 | WEAPON-TRACER-001 | Немає жовтої круглої «кулі» | 1 | CODED_UNTESTED | Thin directional tracer coded; runtime acceptance pending. |
 | ASSET-CHARACTER-001 | Production character/skins | ≥2 | IN_PROGRESS | Real character model є, final combat profile/skins pending. |
 | DEBUG-FLIGHT-001 | Керований spectator/free-fly test mode | 1 | IN_PROGRESS | Not final. |
-| LOC-MUSEUM-001 | Museum окремо від Silpo/Culture і реально присутній у runtime | ≥7 | IN_PROGRESS | Pass 35 owner-count recovery passed CI but user runtime again shows no visible Museum. Concrete false-positive: Pass 35 proves only R137/R138 actor counts. Pass 37 requires >=12 registered visible `MuseumStructural` components near `MuseumAnchor`, rebuilds stale/empty R138 and retires late duplicate R138 owners through >5.35 s startup window. Broader photo fidelity remains IN_PROGRESS. |
+| LOC-MUSEUM-001 | Museum окремо від Silpo/Culture і реально присутній у runtime | ≥8 | IN_PROGRESS | Pass 37 visible-component guard still failed user runtime. Root lifecycle bug found in source: while evidence stayed below threshold it could retire and rebuild the complete R13.8 architecture every 0.35 s, up to 24 polls. Pass 38 caps destructive recovery at one rebuild, observes through the late-start window, then fails closed instead of rebuilding again. Broader photo fidelity remains IN_PROGRESS. |
 | LOC-SILPO-001 | Silpo лише на своїй реальній локації | ≥5 | IN_PROGRESS | 2026-08-22 still wrong/under-detailed. Canonical geo retained; detailed rebuild і runtime transform acceptance pending. |
 | LOC-CULTURE-001 | Culture House лише на своїй реальній локації | ≥5 | IN_PROGRESS | 2026-08-22 still overlaps/wrong. Canonical geo retained; dedicated detail branch + runtime acceptance pending. |
 | LOC-STADIUM-001 | Stadion Oster georeferenced, правильно орієнтований | ≥4 | IN_PROGRESS | Existing geo anchor remains authority; detailed stadium reconstruction needs dedicated branch and real-site acceptance. |
 | LOC-TERRAIN-001 | Реальний relief, не плоска площина | ≥3 | IN_PROGRESS / DATA BLOCKED | Base still lacks verified terrain heightmap/Landscape elevation data. Не вигадувати relief формулою. |
 | VIS-HOUSES-001 | Реальні Oster houses, не однакові huts | ≥4 | IN_PROGRESS | Requires broader real-house content pass and placement variation. |
-| VIS-GRASS-001 | Натуральне покриття травою без progressive FPS collapse | 3 | CODED_UNTESTED | Pass 36 LowCPU scopes grass to ±75 m around Museum, 15 m grid, 8 cells/batch. Latest supplied Pass 36 screenshot shows FPS 27, so >=30 target is still not runtime-verified. |
-| VIS-FLICKER-001 | Без distant flicker/z-fighting/late rebuild | ≥4 | IN_PROGRESS | Duplicate/late-owner cleanup remains suspect; Pass 37 now explicitly retires late duplicate R138 Museum architecture owners. |
+| VIS-GRASS-001 | Натуральне покриття травою без progressive FPS collapse | 4 | CODED_UNTESTED | Pass 36 LowCPU foliage already bounded population, yet Pass 37 runtime still collapses to single-digit FPS. Pass 38 treats museum rebuild churn and permanent weapon scans as higher-confidence new sources; foliage threshold remains unchanged until runtime isolates it. |
+| VIS-FLICKER-001 | Без distant flicker/z-fighting/late rebuild | ≥4 | IN_PROGRESS | Duplicate/late-owner cleanup remains suspect; Pass 38 forbids repeated museum rebuild and only allows one duplicate cleanup after delayed startup settle. |
 | VIS-ROADS-001 | Roads/sidewalks не надмірно випуклі | 1 | IN_PROGRESS | Geometry pass pending. |
 | VIS-LARGE-BUILDING-001 | Marked large building/stairs geometrically clean | 1 | IN_PROGRESS | Dedicated geometry/detail correction pending. |
 | LEGACY-BLOCKOUT-001 | Legacy blockout не перекриває current locations/assets | ≥3 | IN_PROGRESS | Runtime still shows generic/overlapping content. Cleanup source passes exist but are not accepted. |
@@ -74,7 +75,7 @@
 | CRASH-FRONTEND-SLATE-20260823 | Frontend interaction → Slate/SlateCore array assertion | RUNTIME DID NOT RECUR IN LATEST GAMEPLAY RUN | Pass 29 static START route reached gameplay in latest run. Keep full acceptance gate. |
 | VEHICLE-EXIT-RECOVERY-001 | Restore input stack after vehicle exit | CODED_UNTESTED | Existing source recovery. |
 | TACTICAL-MAP-SOURCE-001 | `M` map / `V` trap canonical | CODED_UNTESTED | Pass 35 marker foreground fix; runtime acceptance pending. |
-| LANDMARK-STARTUP-001 | Museum/Silpo/Culture без late startup rebuild | CODED_UNTESTED | Pass 37 adds actual visible-component proof + late duplicate R138 retirement for Museum only. |
+| LANDMARK-STARTUP-001 | Museum/Silpo/Culture без late startup rebuild | CODED_UNTESTED | Pass 38 bounds Museum destructive recovery to one rebuild + one late duplicate cleanup. Silpo/Culture ownership still pending. |
 | DEPLOY-LOADING-20260822 | Deployment START → blocking 0–100 overlay | CODED_UNTESTED | `OCDeploymentLoadingSubsystem`; routed from `UICommitDeployment()`. |
 | START-FOLIAGE-BATCH-20260822 | Dense foliage не блокує один deployment frame | RUNTIME INSUFFICIENT | Superseded for LowCPU by bounded Pass 36 scope. |
 | BASE-SPAWN-MUSEUM-20260822 | BASE spawn near canonical Museum | CODED_UNTESTED | Pass 37 primary ≈27.8 m, secondary ≈38.6 m, primary yaw faces Museum; 20–45 m guard band. |
@@ -88,42 +89,46 @@
 | WEAPON-FX-20260822 | Thin tracer + directional muzzle presentation | CODED_UNTESTED | Existing source fix. |
 | SOURCE-R10-FALSEPOSITIVE-20260822 | R10 verifier false positive removed | CODED_UNTESTED | Dedicated UI shadow check retained. |
 | LAUNCHER-UX-001 | Один user launcher | VERIFIED ENTRY POINT | `START_HERE.cmd` remains only user-facing entry point. |
-| MUSEUM-CORE-PRESENCE-20260823 | Empty field despite near-museum BASE | CODED_UNTESTED | Pass 35 actor-owner check is now known insufficient; Pass 37 proves visible structural components near anchor and rebuilds stale core. |
+| MUSEUM-CORE-PRESENCE-20260823 | Empty field despite near-museum BASE | CODED_UNTESTED | Pass 37 visible-component proof remains, but Pass 38 stops repeated destructive rebuild when that proof fails. |
 | TACTICAL-MAP-MARKER-20260823 | Player marker hidden under objective A | CODED_UNTESTED | Pass 35 raises canonical player marker to Z60/size26. |
-| WEAPON-MATERIAL-20260823 | Real weapon silhouettes render white/grey | CODED_UNTESTED | Pass 36 default-only audit failed user runtime; Pass 37 explicitly palettes known incomplete restored Stein payloads while preserving AK. |
-| PERF-PROGRESSIVE-FOLIAGE-20260823 | FPS ~32 → 8 → 7–4 during old ongoing population | CODED_UNTESTED | Pass 36 bounded LowCPU source fix exists; latest screenshot is 27 FPS and still below target. |
-| MUSEUM-VISIBLE-CORE-PASS37-20260823 | Owner tags without visible Museum are no longer accepted | CODED_UNTESTED | New `OCMuseumVisibilityPass37Subsystem`: >=12 visible registered `MuseumStructural` components within 26 m of anchor, stale rebuild, duplicate retirement through delayed startup. |
-| WEAPON-PALETTE-PASS37-20260823 | Non-null blank Stein materials no longer accepted as good presentation | CODED_UNTESTED | New `OCWeaponPalettePass37Subsystem`: weapon-specific metal/wood/polymer palette on known incomplete restored payloads; AK authored visual preserved. |
-| BASE-VISIBLE-APPROACH-PASS37-20260823 | Spawn must visually read as “біля музею” | CODED_UNTESTED | Primary BASE moved to ≈27.8 m and faces Museum; deployment guard accepts 20–45 m exterior band. |
+| WEAPON-MATERIAL-20260823 | Real weapon silhouettes render white/grey | CODED_UNTESTED | Pass 38 supersedes Pass 37 forced recolour: preserve any non-placeholder imported assignment; only explicit placeholder slots receive recovery. |
+| PERF-PROGRESSIVE-FOLIAGE-20260823 | FPS ~32 → 8 → 7–4 during old ongoing population | CODED_UNTESTED | Pass 36 bounded LowCPU source fix exists; Pass 37 runtime still collapses, so foliage is no longer assumed to be the only cause. |
+| MUSEUM-VISIBLE-CORE-PASS37-20260823 | Owner tags without visible Museum are no longer accepted | CODED_UNTESTED | Visible `MuseumStructural` proof retained; Pass 38 caps R13.8 recovery to one attempt and records destructive-loop budget. |
+| WEAPON-PALETTE-PASS37-20260823 | Non-null blank Stein materials no longer accepted as good presentation | SUPERSEDED BY PASS38 | Forced full-slot palette produced flat/orange presentation on valid imported material assignments. |
+| BASE-VISIBLE-APPROACH-PASS37-20260823 | Spawn must visually read as “біля музею” | CODED_UNTESTED | Primary BASE remains ≈27.8 m and faces Museum; missing visible building must fail instead of being hidden by distance-only acceptance. |
+| PERF-RUNAWAY-RECOVERY-PASS38-20260824 | Rapid FPS/heat collapse from repeated recovery/scanning must stop | CODED_UNTESTED | Museum rebuild capped at one; fallback and palette world scans have finite 12-pass budgets and stop on convergence; acceptance fails on any budget exhaustion and retains >=30 FPS. |
 
-## 5. Останній фактичний user run — 2026-08-23
+## 5. Останній фактичний user run — 2026-08-24
 
-Підтверджено runtime після merge Pass 36 (`ea81b01d...`):
-- gameplay відкривається і фізичний 11-weapon BASE rack присутній;
-- початковий кадр усе ще показує плоске/порожнє поле, Museum не видно, тому користувач повторно відхилив spawn як «досі дуже далеко»;
-- більшість rack weapon meshes знову білі/сірі; AK-47 має нормальну authored/textured presentation;
-- supplied screenshot shows `FPS 27`, тобто поточний >=30 FPS acceptance не виконаний;
-- user explicitly reports visual presentation regression («зіпсувалась графіка»).
+Підтверджено runtime після merge Pass 37 (`3041fd94...`):
+- gameplay відкривається і фізичний weapon BASE rack присутній;
+- Museum знову не видно прямо перед spawn, попри nominal ≈27.8 m canonical BASE distance;
+- weapon presentation змішана: AK і частина моделей виглядають краще, деякі лишаються grey/blank, а Lever Action отримав неприродний flat orange/brown вигляд від forced palette;
+- screenshots show `FPS 26`, потім `10`, потім `8`; user reports приблизно `60 → 5` за ~5 секунд;
+- user reports різке нагрівання комп'ютера разом із падінням FPS;
+- цей runtime повністю відхиляє Pass 37 як runtime solution, незалежно від green source CI.
 
 Source diagnosis after this run:
-- Pass 35 `PASS35_MUSEUM_CORE_READY` could be a false positive because it counted only R137/R138 owners and did not inspect actual visible `MuseumStructural` components;
-- R13.8 still has a normal delayed 5.35 s startup, so early recovered architecture can later gain a duplicate owner unless ownership is stabilized through that window;
-- Pass 36 `IsMissingOrDefaultMaterial()` preserved any non-null/non-Default material, but runtime proves some restored Stein assignments are still visually blank; repository folders show mesh/WPN payloads without standalone material/texture assets beside these restored meshes;
-- 41 m was technically near by code, but the user has now rejected it twice as visually too far. Runtime requirement therefore supersedes the old 30–60 m acceptance band.
+- `UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()` міг заходити в destructive recovery кожні `0.35 s`, якщо visible-core threshold не досягався: retire all R13.8 owners → rebuild complete architecture → repeat. Максимум був 24 polls. Це найсильніший source-side збіг із швидким `60 → 5` FPS/heat collapse;
+- `UOCRealWeaponFallbackSubsystem` додатково мав permanent `0.25 s` world-wide weapon scan навіть після convergence;
+- `UOCWeaponPalettePass37Subsystem` polling завершувався тільки при повному rack audit, без hard upper bound;
+- Pass 37 forced recolour intentionally replaced every material slot on known restored Stein payloads, що пояснює flat orange Lever Action. Repository inventory confirms these restored folders do not provide separate standalone material/texture payloads, тому fallback colour не можна називати exact skin restoration;
+- Pass 36 bounded LowCPU foliage лишається під підозрою лише якщо FPS після усунення lifecycle churn все одно падає; threshold не послаблювати.
 
-Pass 37 is **CODED_UNTESTED** until a new UE 5.8 run confirms the visible Museum, ~27.8 m BASE, non-grey restored weapon presentation, and >=30 FPS.
+Pass 38 is **CODED_UNTESTED** until a new UE 5.8 run confirms: no rapid heat/FPS collapse, no repeated museum rebuild, weapon scans stop, Museum visible, and >=30 FPS sustained acceptance.
 
 ## 6. Наступна черга
 
-1. Pass 37 source/CI: visible Museum structural guard, closer canonical BASE and Stein palette recovery. Merge only after all relevant checks are green.
-2. `START_HERE.cmd → 2. ПОВНИЙ RUNTIME-ТЕСТ`: Museum must be physically visible in front of spawn; BASE deployment must emit `PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH`.
-3. Keep gameplay >=20 s so the guard runs past the historical R13.8 5.35 s delayed startup and can detect/retire duplicate architecture.
-4. Rack must emit `PASS37_WEAPON_VISIBLE_PALETTE_READY`; visually inspect that restored Stein weapons are no longer white/blank while AK stays unchanged.
-5. FPS acceptance stays >=30. Do not lower the threshold to make a bad run green.
-6. Exact authored textures for incomplete restored payloads remain a separate content gap; runtime palette is not exact texture restoration.
-7. Global landmark separation acceptance at canonical Museum/Silpo/Culture anchors.
-8. Separate detail branches: Museum, Stadium, Silpo, Culture House; merge without moving canonical geo anchors.
-9. Distant flicker/duplicate geometry, roads/sidewalk geometry, real Oster house variation and large-building/stairs detail remain after the current regression is closed.
+1. Pass 38 source/CI: one-rebuild Museum budget, bounded weapon fallback/palette scans, placeholder-only material recovery. Merge only after all relevant checks are green.
+2. `START_HERE.cmd → 2. ПОВНИЙ RUNTIME-ТЕСТ`: Museum must be physically visible in front of spawn and runtime must emit `PASS38_MUSEUM_REBUILD_BUDGET_READY`.
+3. Keep gameplay >=20 s only if thermals/FPS remain sane. If FPS rapidly falls or the machine heats sharply, exit immediately; a failed runtime is sufficient evidence.
+4. Require `PASS38_WEAPON_FALLBACK_SCAN_STOPPED` and `PASS38_WEAPON_PALETTE_SCAN_STOPPED`; any `*_BOUNDED_STOP` is an acceptance failure, not a reason to extend polling.
+5. Rack must still emit `PASS37_WEAPON_VISIBLE_PALETTE_READY`, but valid imported materials must not be overwritten by a forced flat palette.
+6. FPS acceptance stays >=30. Do not lower the threshold to make a bad run green.
+7. Exact authored textures for incomplete restored payloads remain a separate content gap; fallback colour is not exact skin restoration.
+8. Global landmark separation acceptance at canonical Museum/Silpo/Culture anchors.
+9. Separate detail branches: Museum, Stadium, Silpo, Culture House; merge without moving canonical geo anchors.
+10. Distant flicker/duplicate geometry, roads/sidewalk geometry, real Oster house variation and large-building/stairs detail remain after the current regression is closed.
 
 **Заборона:** ніяких нових декоративних R15/R16 layers до закриття цього backlog.
 
@@ -147,14 +152,23 @@ Pass 37 is **CODED_UNTESTED** until a new UE 5.8 run confirms the visible Museum
 ## 2026-08-23 — Pass 36 weapon materials / progressive FPS recovery
 
 - Pass 36 added default-material audit and bounded LowCPU foliage; PR #70 merged as `ea81b01d28bd0a49a0333afa5ebe753ff0e73c10` with green source CI.
-- Latest runtime still shows grey/white rack weapons and 27 FPS. Green source CI did not constitute visual runtime acceptance.
+- Later runtime still showed grey/white rack weapons and sub-target FPS. Green source CI did not constitute visual runtime acceptance.
 - Status remains CODED_UNTESTED.
 
 ## 2026-08-23 — Pass 37 visible Museum / closer BASE / weapon presentation
 
-- User repeated the same three visual regressions after Pass 36: no visible Museum in the spawn view, BASE reads as too far, and most rack weapons remain grey/white.
-- Primary canonical BASE moves to approximately 27.8 m from `MuseumAnchor`; camera/base yaw faces the Museum. Guard band becomes 20–45 m.
-- New Museum guard validates actual registered visible `MuseumStructural` components near the anchor. It can rebuild an empty/stale R13.8 owner and retires duplicate late architecture owners through the historical 5.35 s delayed startup.
-- New weapon presentation pass forces a deterministic visible palette only for known incomplete restored Stein payloads and preserves the correctly textured AK.
-- Full runtime acceptance now requires Pass 37 visible-core/base/palette markers and keeps the existing >=30 FPS floor.
-- Status: CODED_UNTESTED until UE 5.8 runtime.
+- User repeated visual regressions after Pass 36: no visible Museum in the spawn view, BASE reads as too far, and most rack weapons remain grey/white.
+- Primary canonical BASE moved to approximately 27.8 m from `MuseumAnchor`; camera/base yaw faces the Museum. Guard band became 20–45 m.
+- Museum guard validated registered visible `MuseumStructural` components near the anchor, but its recovery branch was not bounded and could repeatedly rebuild the full architecture while evidence remained false.
+- Weapon presentation pass forced a deterministic palette on known restored Stein payloads. Latest runtime proved this overreach visually damaged valid assignments.
+- PR #71 merged as `3041fd94d4c4ae560aa82bd92513b0312bc626cd`; latest runtime rejects it as a complete fix.
+
+## 2026-08-24 — Pass 38 runtime runaway / heat stabilization
+
+- User runtime after Pass 37 shows empty Museum view, mixed/flat weapon presentation, FPS screenshots `26 → 10 → 8`, plus reported `60 → 5` in about five seconds and rapid laptop heating.
+- Root lifecycle defect localized in Pass 37 museum guard: destructive full-architecture recovery could repeat every 0.35 s while visible-core evidence stayed below threshold.
+- Pass 38 caps Museum destructive recovery at exactly one attempt; later polling is observational and final duplicate retirement occurs once after the historical delayed startup window.
+- `OCRealWeaponFallbackSubsystem` no longer scans every weapon forever at 4 Hz: finite 12-pass / 0.5 s warm-up, stop on convergence, fail marker on budget exhaustion.
+- `OCWeaponPalettePass37Subsystem` gets the same finite startup budget and no longer overwrites any non-placeholder material. Only explicit placeholder slots may receive fallback colour.
+- Full runtime acceptance requires all Pass 38 stop/budget markers, fails on any bounded-stop/budget-fail marker, and keeps the existing >=30 FPS threshold.
+- Status: CODED_UNTESTED pending UE 5.8 runtime.

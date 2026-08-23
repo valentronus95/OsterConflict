@@ -18,6 +18,9 @@ namespace
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
     const FName MaterialAuditCompleteTag(TEXT("OC_WeaponMaterialAuditComplete"));
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
+    constexpr int32 RequiredRackWeaponCountPerTeam = 11;
+    constexpr int32 MaxExpectedRackWeapons = 22;
+    constexpr int32 MaxRefreshPasses = 12;
 
     bool HasProductionVisual(const AOCWeaponBase& Weapon)
     {
@@ -77,15 +80,16 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     MaterialRecoveryBase = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-    RefreshWeaponFallbacks();
-
+    // Pass 38: startup warm-up only. The old timer ran forever at 4 Hz even after every BASE weapon had
+    // converged. Twelve half-second passes are ample for delayed component registration while placing a hard
+    // ceiling on world-wide actor/material scanning if some unrelated weapon never becomes auditable.
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
         &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
-        0.25f,
+        0.50f,
         true,
-        0.0f);
+        0.05f);
 }
 
 void UOCRealWeaponFallbackSubsystem::Deinitialize()
@@ -97,6 +101,7 @@ void UOCRealWeaponFallbackSubsystem::Deinitialize()
     GenericShotgun = nullptr;
     MaterialRecoveryBase = nullptr;
     bRackMaterialAuditReadyLogged = false;
+    RefreshPassCount = 0;
     Super::Deinitialize();
 }
 
@@ -121,8 +126,6 @@ int32 UOCRealWeaponFallbackSubsystem::AuditAndRepairWeaponMaterials(AOCWeaponBas
         ++VisualComponents;
         if (Weapon.ActorHasTag(RuntimeBaseRackTag))
         {
-            // The rack is static presentation content. Eleven shadow casters per BASE are a fairly extravagant
-            // way to display pickups while the runtime is already below 10 FPS.
             Component->SetCastShadow(false);
             Component->SetCanEverAffectNavigation(false);
         }
@@ -173,6 +176,8 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     UWorld* World = GetWorld();
     if (!World) return;
 
+    ++RefreshPassCount;
+
     int32 RackWeapons = 0;
     int32 RackAudited = 0;
     int32 RepairedSlotsThisPass = 0;
@@ -208,14 +213,32 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
         }
     }
 
-    // A newly-created fallback component is intentionally audited on the next 0.25 s pass. This prevents the
-    // fallback creation path and material repair path from fighting over component registration in one call.
-    if (!bRackMaterialAuditReadyLogged && RackWeapons >= 11 && RackAudited == RackWeapons)
+    const bool bRackReady = RackWeapons >= RequiredRackWeaponCountPerTeam &&
+        RackWeapons <= MaxExpectedRackWeapons && RackAudited == RackWeapons;
+
+    if (bRackReady)
     {
-        bRackMaterialAuditReadyLogged = true;
+        if (!bRackMaterialAuditReadyLogged)
+        {
+            bRackMaterialAuditReadyLogged = true;
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS36_WEAPON_MATERIAL_AUDIT_READY rack_weapons=%d audited=%d repaired_slots_last_pass=%d authored_materials_preserved=1"),
+                RackWeapons, RackAudited, RepairedSlotsThisPass);
+        }
+
+        World->GetTimerManager().ClearTimer(RefreshTimer);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS36_WEAPON_MATERIAL_AUDIT_READY rack_weapons=%d audited=%d repaired_slots_last_pass=%d authored_materials_preserved=1"),
-            RackWeapons, RackAudited, RepairedSlotsThisPass);
+            TEXT("PASS38_WEAPON_FALLBACK_SCAN_STOPPED reason=ready passes=%d rack_weapons=%d audited=%d permanent_scan=0"),
+            RefreshPassCount, RackWeapons, RackAudited);
+        return;
+    }
+
+    if (RefreshPassCount >= MaxRefreshPasses)
+    {
+        World->GetTimerManager().ClearTimer(RefreshTimer);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP passes=%d max_passes=%d rack_weapons=%d audited=%d permanent_scan=0"),
+            RefreshPassCount, MaxRefreshPasses, RackWeapons, RackAudited);
     }
 }
 
