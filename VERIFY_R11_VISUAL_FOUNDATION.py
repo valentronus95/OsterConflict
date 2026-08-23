@@ -66,9 +66,12 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-# Pass 22: START_HERE is now the only user-facing launcher. Sandbox remains an internal diagnostic file.
-req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' in start and
+# Current single-launcher contract: normal play is R14 current gameplay, while option 2 is the
+# Pass 14/29 playflow+performance wrapper. Focused Pass 15 and landmark Pass 21 stay internal.
+req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in start and
     'ЗВИЧАЙНА ГРА' in start and 'ПОВНИЙ RUNTIME-ТЕСТ' in start and '-d3d11' in start and
+    'RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd' not in start and
+    'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start and
     'RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
     'START_HERE exposes canonical normal/full-test routes on the safe D3D11 renderer')
 req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')

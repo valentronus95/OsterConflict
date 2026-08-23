@@ -126,3 +126,15 @@ Pass 26 після цього crash є лише `CODED_UNTESTED`, доки но�
 - Pass 29 removes runtime page transitions from the startup shell. START queues hosted travel directly from the static main menu; NETWORK queues direct connect from the saved/default address. `PendingPage` execution is fail-closed and logs `PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED` instead of mutating Slate.
 - `UOCGameUIRootWidget::RefreshAll()` now freezes every legacy panel while R13 owns the frontend, eliminating the remaining 0.20 s hidden-tree churn in the same UUserWidget.
 - Status: CODED_UNTESTED until UE 5.8 runtime confirms `PASS29_MAIN_START_DIRECT_HOST_QUEUED` -> `PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE` without the Slate assertion.
+
+
+## 2026-08-23 — Pass 30 museum spawn / overlap / FPS correction
+
+- Runtime after Pass 29 reached gameplay, proving the reported START Slate crash no longer blocks this route.
+- New runtime evidence: BASE spawned the player inside/against museum geometry; movement was effectively blocked; FPS fell from ~45 to ~8; provisional pale interior slabs and distorted window-frame geometry were visible.
+- Root cause in source: canonical primary BASE was only 14.5 m from `MuseumAnchor`, while the authored museum footprint and vestibule occupy that same area. The museum guard also accepted any BASE pawn within 35 m, including the building interior.
+- Pass 30 moves primary BASE spawns to ~41 m exterior front-side positions and secondary bases farther out, adds a 30 m museum no-spawn exclusion radius, and recovers any BASE deployment that appears inside that radius.
+- Distorted stretched rural-cabin window-frame meshes are removed from museum windows in favor of lightweight clean frame geometry until a museum-specific authored frame exists.
+- Unsupported R13.8 interior partition slabs are removed. Generic landmark shell cleanup around the museum is widened to 50 m.
+- Museum structural/detail shadows, tree shadow/nav cost, museum vegetation cull ranges, and global dense-foliage density/batching are reduced for the current LowCPU runtime.
+- Status remains CODED_UNTESTED until the next UE 5.8 playtest confirms exterior spawn, movement, no duplicate shell/slabs and measured FPS.

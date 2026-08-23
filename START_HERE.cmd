@@ -29,7 +29,7 @@ if errorlevel 3 (
   goto menu
 )
 if errorlevel 2 (
-  call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"
+  call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
   goto menu
 )
 if errorlevel 1 (

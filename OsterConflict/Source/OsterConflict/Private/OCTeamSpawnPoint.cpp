@@ -31,23 +31,27 @@ namespace
 
     FVector ResolveCanonicalBaseLocation(EOCTeam Team, bool bSecondary)
     {
-        // Runtime acceptance: BASE means the museum test hub, not the old map-edge base. Keep both
-        // teams outside the building footprint but close enough that the museum is immediately visible.
+        // Pass 30: BASE must be NEAR the museum, never inside the museum shell. The previous
+        // primary offsets (14.5 m from MuseumAnchor) intersected the authored museum footprint and
+        // could possess the player between structural collision components. Keep both team bases on
+        // the open front-side approach, beyond the R13.8 building/vestibule footprint and beyond the
+        // R14.3 museum vegetation X range. Secondary bases are farther out but still visibly near site.
         const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
         if (Team == EOCTeam::TeamTwo)
         {
             return Museum + (bSecondary
-                ? FVector(2200.0f, 1500.0f, 120.0f)
-                : FVector(1450.0f, 900.0f, 120.0f));
+                ? FVector(3600.0f, -3900.0f, 120.0f)
+                : FVector(2600.0f, -3200.0f, 120.0f));
         }
         return Museum + (bSecondary
-            ? FVector(-2200.0f, -1500.0f, 120.0f)
-            : FVector(-1450.0f, -900.0f, 120.0f));
+            ? FVector(-3600.0f, -3900.0f, 120.0f)
+            : FVector(-2600.0f, -3200.0f, 120.0f));
     }
 
     float ResolveCanonicalBaseYaw(EOCTeam Team)
     {
-        return Team == EOCTeam::TeamTwo ? -148.0f : 32.0f;
+        // Face back toward the museum from the front-side exterior bases.
+        return Team == EOCTeam::TeamTwo ? 142.0f : 38.0f;
     }
 
     int32 CollectRackWeaponsNear(UWorld* World, const FVector& BaseLocation, TArray<AOCWeaponBase*>* OutWeapons = nullptr)
@@ -124,7 +128,7 @@ namespace
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("Runtime BASE weapon rack rebuilt beside museum: team=%s removed_partial=%d weapons=%d location=%s"),
+            TEXT("Runtime BASE weapon rack rebuilt outside museum: team=%s removed_partial=%d weapons=%d location=%s"),
             *OCTeamToString(Team), ExistingCount, Spawned, *Base.ToCompactString());
     }
 }
@@ -140,11 +144,9 @@ void AOCTeamSpawnPoint::BeginPlay()
 
     if (!HasAuthority() || !bBaseSpawn || TeamId == EOCTeam::None || !GetWorld()) return;
 
-    const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
-    if (FVector::DistSquared2D(GetActorLocation(), Museum) > FMath::Square(3500.0f))
-    {
-        ConfigureServer(TeamId, true, NAME_None);
-    }
+    // Every serialized/legacy BASE is normalized through ConfigureServer. Pass 30 canonical locations
+    // deliberately sit >35 m from MuseumAnchor, so distance is no longer used as evidence of correctness.
+    ConfigureServer(TeamId, true, NAME_None);
 }
 
 void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName InLinkedCapturePointId)
@@ -171,10 +173,11 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
         SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 
         UE_LOG(LogTemp, Display,
-            TEXT("BASE spawn relocated beside museum: team=%s secondary=%d old=%s new=%s museum=%s"),
+            TEXT("PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM team=%s secondary=%d old=%s new=%s museum=%s distance_m=%.1f"),
             *OCTeamToString(TeamId), bSecondary ? 1 : 0,
             *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString(),
-            *AOCWorldSectorOster::MuseumAnchor().ToCompactString());
+            *AOCWorldSectorOster::MuseumAnchor().ToCompactString(),
+            FVector::Dist2D(NewLocation, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
 
         if (!bSecondary)
         {

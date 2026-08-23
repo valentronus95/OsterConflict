@@ -16,8 +16,8 @@ namespace
     constexpr float SectorMax = 96000.0f;
     // Pass 15 laptop recovery: Pass 14 was still visually unplayable at ~5 FPS in the real acceptance run.
     // Keep HISM ground cover, but stop treating every few meters of a 1.92 km sector as a mandatory grass cell.
-    constexpr float GridStep = 2200.0f;
-    constexpr int32 CellsPerBatch = 12;
+    constexpr float GridStep = 4000.0f;
+    constexpr int32 CellsPerBatch = 4;
 
     UHierarchicalInstancedStaticMeshComponent* MakeFoliageHISM(
         AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh, const FName Name, int32 CullEndCm)
@@ -218,10 +218,10 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
         GrassComponents.Add(MakeFoliageHISM(
-            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 9000));
+            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 6000));
     }
-    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 6500);
-    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), 4500);
+    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 5000);
+    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), 3500);
 
     FoliageActor = Owner;
     RandomStream.Initialize(20260822);
@@ -232,7 +232,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     FlowerInstances = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS15_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=9000"),
+        TEXT("PASS30_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=6000"),
         GridStep, CellsPerBatch);
     return true;
 }

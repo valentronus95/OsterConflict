@@ -29,9 +29,9 @@ namespace
         Component->SetCollisionProfileName(TEXT("BlockAll"));
         Component->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Component->SetGenerateOverlapEvents(false);
-        Component->SetCanEverAffectNavigation(true);
-        Component->SetCastShadow(true);
-        Component->SetCullDistances(0, CullEndCm);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(false);
+        Component->SetCullDistances(0, FMath::Min(CullEndCm, 45000));
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;

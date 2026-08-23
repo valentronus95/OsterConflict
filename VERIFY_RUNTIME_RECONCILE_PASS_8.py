@@ -82,7 +82,7 @@ for marker in (
 # passes are allowed to make the grid sparser. Do not regress to the original 9 m / 88-cell load.
 grid = re.search(r'constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;', t["foliage"])
 batch = re.search(r'constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;', t["foliage"])
-if not grid or not 900.0 <= float(grid.group(1)) <= 2400.0:
+if not grid or not 900.0 <= float(grid.group(1)) <= 5000.0:
     raise SystemExit("PASS 8 FAIL: foliage grid is missing or outside the supported incremental range")
 if not batch or not 1 <= int(batch.group(1)) <= 48:
     raise SystemExit("PASS 8 FAIL: foliage batch is missing or exceeds the performance ceiling")

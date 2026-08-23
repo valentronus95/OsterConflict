@@ -26,6 +26,7 @@ pc = ptext('Source/OsterConflict/Private/OCPlayerController.cpp')
 gm = ptext('Source/OsterConflict/Private/OCGameMode.cpp')
 start = text('START_HERE.cmd')
 normal = text('RUN_R14_CURRENT_GAMEPLAY.cmd')
+playflow = text('RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd')
 production_import = ptext('IMPORT_PRODUCTION_VEHICLES_UE58.cmd')
 all_verify = text('RUN_ALL_VERIFY.py')
 
@@ -62,15 +63,20 @@ req('GetNetMode() == NM_Standalone' in pc and
 req('Frontend-only standalone session' in gm and 'bFrontendOnlySession' in gm,
     'frontend-only gameplay suppression retained')
 
-# START_HERE is intentionally the only user-facing launcher.
+# START_HERE is intentionally the only user-facing launcher. The full-test action is the current
+# Pass 14/29 playflow+performance wrapper; focused Pass 15 and landmark Pass 21 remain internal.
 req('OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК' in start,
     'START_HERE identifies current Oster Conflict launcher')
 req('choice /C 1230' in start,
     'START_HERE exposes normal game, full runtime test, editor and exit')
 req('call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in start,
     'START_HERE normal-game route uses current R14 gameplay launcher')
-req('call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"' in start,
-    'START_HERE full-test route uses current Pass 21 runtime acceptance wrapper')
+req('call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' in start,
+    'START_HERE full-test route uses current Pass 14/29 playflow acceptance wrapper')
+req('RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start,
+    'internal Pass 21 runtime acceptance is not exposed in START_HERE')
+req('RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd' not in start,
+    'focused Pass 15 runtime acceptance is not exposed in START_HERE')
 req('RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
     'technical sandbox is not exposed in the user-facing START_HERE menu')
 req('UnrealEditor.exe' in start and 'OsterConflict.uproject' in start and '-d3d11' in start,
@@ -79,6 +85,15 @@ req('& goto menu' not in start,
     'START_HERE does not detach goto from IF blocks with ampersand chaining')
 req(start.count('goto menu') >= 3 and start.count('call "%~dp0') >= 2,
     'START_HERE dispatches its active actions through explicit conditional blocks')
+
+for marker in [
+    'RUN_R14_CURRENT_GAMEPLAY.cmd',
+    'PASS29_MAIN_START_DIRECT_HOST_QUEUED',
+    'PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE',
+    'PASS14_PERF_SAMPLE',
+    'PASS14_PERF_30FPS_READY',
+]:
+    req(marker in playflow, f'full runtime playflow wrapper marker: {marker}')
 
 # Normal playtest must never silently run stale source. Pass 20 separates playable normal launch from
 # strict exact-production acceptance instead of making missing HMMWV/M2/BTR source binaries a menu blocker.

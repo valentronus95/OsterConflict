@@ -16,7 +16,7 @@
 namespace
 {
     constexpr float MuseumPhotoModelDelaySeconds = 5.10f;
-    constexpr float SourceMuseumCleanupRadiusCm = 3600.0f;
+    constexpr float SourceMuseumCleanupRadiusCm = 5000.0f;
 
     UMaterialInstanceDynamic* MakeColorMaterial(AActor* Owner, UMaterialInterface* Base,
         const FName Name, const FLinearColor& Color)

@@ -197,16 +197,18 @@ def main() -> int:
         require_text(enterable_cpp, "SpawnInteractiveOpeningsServer();", "doors/windows interaction owner preserved")
         require_text(enterable_cpp, "AOCInteractableGate", "yard gate interaction owner preserved")
 
-        # Museum styled windows keep the replicated AOCBreakableWindow glass state, but their visible
-        # frame now prefers a checked-in authored frame profile rather than six BasicShape cubes.
-        require_text(museum_window_cpp, "Window_Frame_Part.Window_Frame_Part", "museum authored frame path")
-        require_text(museum_window_cpp, "FitAuthoredFramePart", "museum frame bounds-fitting helper")
-        require_text(museum_window_cpp, "FQuat::FindBetweenNormals", "museum frame longest-axis orientation")
-        require_text(museum_window_cpp, "OC_AuthoredMuseumWindowFrame", "museum authored frame tag")
+        # Pass 30 supersedes the generic rural-cabin frame for Museum only. Runtime screenshots proved
+        # longest-axis fitting produced oversized/rusty strips, so the museum window now uses a clean,
+        # lightweight collision-free frame while keeping the replicated breakable glass state.
+        require_text(museum_window_cpp, "PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY", "museum clean frame marker")
+        require("Window_Frame_Part.Window_Frame_Part" not in museum_window_cpp,
+                "museum must not reuse the distorted rural-cabin frame")
+        require("FitAuthoredFramePart" not in museum_window_cpp,
+                "museum must not restore axis-stretched frame fitting")
         require_text(museum_window_cpp, "Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);",
                      "museum frame visual-only collision")
-        require_text(museum_window_cpp, "!Component->ComponentHasTag(AuthoredMuseumFrameTag)",
-                     "museum authored materials preserved")
+        require_text(museum_window_cpp, "Component->SetCastShadow(false);",
+                     "museum frame lightweight shadow contract")
         require_text(museum_window_cpp, "GlassPane->SetMaterial(0, Glass);",
                      "museum breakable glass material preserved")
 
