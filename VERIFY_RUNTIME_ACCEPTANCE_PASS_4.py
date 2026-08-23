@@ -141,12 +141,19 @@ if "Component.GetLocalBounds(LocalMin, LocalMax)" in fx:
 
 for needle in (
     "AOCWorldSectorOster::MuseumAnchor()",
-    "FVector(-1450.0f, -900.0f, 120.0f)",
-    "FVector(1450.0f, 900.0f, 120.0f)",
+    "FVector(-2600.0f, -3200.0f, 120.0f)",
+    "FVector(2600.0f, -3200.0f, 120.0f)",
+    "PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM",
     "SpawnRuntimeBaseWeaponRack",
     "SnapLocationToWalkableSurface",
 ):
-    require(spawn, needle, "museum base spawn")
+    require(spawn, needle, "museum exterior base spawn")
+for forbidden in (
+    "FVector(-1450.0f, -900.0f, 120.0f)",
+    "FVector(1450.0f, 900.0f, 120.0f)",
+):
+    if forbidden in spawn:
+        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 4 FAIL: old interior-adjacent Museum BASE returned: {forbidden}")
 
 for needle in (
     "PopulateBatch",
@@ -172,7 +179,7 @@ print("- BTR production intake requires and restores the six known original text
 print("- HMMWV/M2/BTR production ingest remains mandatory in strict acceptance but no longer blocks normal frontend launch")
 print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon, not only the first local pawn")
 print("- muzzle bounds fallback uses the UE 5.8 return-value GetLocalBounds API")
-print("- BASE source remains tied to the canonical Museum test hub")
+print("- BASE source remains tied to the canonical Museum exterior approach")
 print("- dense foliage remains batched with an explicit non-blocking batch-size ceiling")
 print("- R10 retains the real UI shadow check without the unrelated global spelling false positive")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
