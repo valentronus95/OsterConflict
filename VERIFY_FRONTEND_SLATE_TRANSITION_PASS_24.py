@@ -15,8 +15,8 @@ def forbid(text: str, token: str, label: str):
         errors.append(f'forbidden {label}: {token}')
 
 for token, label in [
-    ('int32 PendingPage = INDEX_NONE', 'deferred page state'),
-    ('int32 LastAppliedPage = INDEX_NONE', 'page application cache'),
+    ('int32 PendingPage = INDEX_NONE', 'fail-closed page state'),
+    ('int32 LastAppliedPage = INDEX_NONE', 'legacy page application cache'),
     ('bool bPendingHostedStart = false', 'deferred host state'),
     ('bool bPendingNetworkConnect = false', 'deferred connect state'),
     ('void StartNetworkGameplay();', 'deferred network helper'),
@@ -29,21 +29,47 @@ for token, label in [
     ('Network->OnClicked.AddDynamic', 'network OnClicked binding'),
     ('Settings->OnClicked.AddDynamic', 'settings OnClicked binding'),
     ('Quit->OnClicked.AddDynamic', 'quit OnClicked binding'),
-    ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'queued page marker'),
-    ('PASS24_FRONTEND_PAGE_TRANSITION_BEGIN', 'transition begin marker'),
-    ('PASS24_FRONTEND_PAGE_TRANSITION_READY', 'transition ready marker'),
-    ('PASS24_HOST_START_DEFERRED_QUEUED', 'deferred host queued marker'),
     ('PASS24_HOST_START_DEFERRED_EXECUTE', 'deferred host execute marker'),
-    ('PASS24_NETWORK_CONNECT_DEFERRED_QUEUED', 'deferred connect queued marker'),
     ('PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE', 'deferred connect execute marker'),
-    ('if (!MenuBox.IsValid() || LastAppliedPage == Page) return;', 'page dedupe guard'),
-    ('LastAppliedPage = Page;', 'page applied state'),
-    ('FLinearColor(0.025f, 0.030f, 0.036f, 0.96f)', 'opaque server/network panel'),
-    ('FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f))', 'dark field background'),
-    ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'Pass 14 compatibility marker'),
+    ('if (!MenuBox.IsValid() || LastAppliedPage == Page) return;', 'legacy page dedupe guard'),
+    ('LastAppliedPage = Page;', 'legacy page applied state'),
+    ('FLinearColor(0.025f, 0.030f, 0.036f, 0.96f)', 'opaque server/network panel style retained'),
+    ('FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f))', 'dark field background retained'),
     ('PASS14_HOST_TRAVEL_BEGIN', 'host travel compatibility marker'),
 ]:
     need(cpp, token, label)
+
+pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in cpp
+
+if pass29_static:
+    # Pass 24's deferred concept remains valid, but its Page 0 -> Page 1 live Slate mutation was
+    # disproven by repeated runtime crashes. Pass 29 is the stronger contract: defer the action,
+    # keep the startup hierarchy static, then enter host/network directly on the later frame.
+    for token, label in [
+        ('PASS29_MAIN_START_DIRECT_HOST_QUEUED', 'static START queue marker'),
+        ('PASS29_NETWORK_DIRECT_CONNECT_QUEUED', 'static NETWORK queue marker'),
+        ('PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'fail-closed page transition guard'),
+        ('PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE', 'static host travel marker'),
+    ]:
+        need(cpp, token, label)
+    for token, label in [
+        ('PendingPage = 1;', 'main START page mutation'),
+        ('PendingPage = 2;', 'network page mutation'),
+        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1', 'obsolete main page transition marker'),
+        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2', 'obsolete network page transition marker'),
+        ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'obsolete server-setup page marker'),
+    ]:
+        forbid(cpp, token, label)
+else:
+    for token, label in [
+        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'queued page marker'),
+        ('PASS24_FRONTEND_PAGE_TRANSITION_BEGIN', 'transition begin marker'),
+        ('PASS24_FRONTEND_PAGE_TRANSITION_READY', 'transition ready marker'),
+        ('PASS24_HOST_START_DEFERRED_QUEUED', 'deferred host queued marker'),
+        ('PASS24_NETWORK_CONNECT_DEFERRED_QUEUED', 'deferred connect queued marker'),
+        ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'Pass 14 compatibility marker'),
+    ]:
+        need(cpp, token, label)
 
 for token, label in [
     ('->OnPressed.AddDynamic', 'input mutation from OnPressed'),
@@ -61,8 +87,11 @@ if errors:
     raise SystemExit(1)
 
 print('FRONTEND SLATE TRANSITION PASS 24: SUCCESS')
-print('- frontend navigation is deferred out of Slate input callbacks')
-print('- server host/network travel is deferred to world Tick')
-print('- unchanged pages are not rebuilt every frame and TakeWidget focus churn is removed')
-print('- server/network panel is opaque and editable fields use explicit dark styling')
+if pass29_static:
+    print('- Pass 24 deferred action boundary is retained, but crash-prone live page transitions are retired by Pass 29')
+    print('- START/NETWORK queue direct later-frame actions against a structurally static startup menu')
+else:
+    print('- frontend navigation is deferred out of Slate input callbacks')
+print('- server host/network travel remains deferred to world Tick')
+print('- TakeWidget focus churn remains removed and field styling contracts remain intact')
 print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 click-through runtime confirmation is still required')
