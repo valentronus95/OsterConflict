@@ -81,6 +81,7 @@ private:
     int32 LastAppliedPage = INDEX_NONE;
     bool bPendingHostedStart = false;
     bool bPendingNetworkConnect = false;
+    bool bMenuInputArmed = false; // Pass 25: SetInputMode is armed once, never reset every Tick
     bool bGameplayStarted = false;
     bool bPauseMenuActive = false;
     bool bLocalTravelPending = false; // keep approved frontend intact until the server world replaces it

@@ -300,6 +300,7 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
 
     if (ActiveRoot.Get() == Root && MenuBox.IsValid() && MenuPanel.IsValid())
     {
+        if (ActiveController.Get() != PC) bMenuInputArmed = false;
         ActiveController = PC;
         return;
     }
@@ -311,6 +312,7 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     LastAppliedPage = INDEX_NONE;
     bPendingHostedStart = false;
     bPendingNetworkConnect = false;
+    bMenuInputArmed = false;
     bGameplayStarted = false;
     bPauseMenuActive = false;
     bLocalTravelPending = false;
@@ -793,6 +795,11 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC || !MenuBox.IsValid()) return;
 
+    // Pass 25: OnClicked fires on mouse release. Re-applying SetInputMode every world Tick
+    // can reset Slate mouse capture between press and release, leaving every button visually
+    // present but inert. Arm UI input once per menu/controller lifecycle instead.
+    if (bMenuInputArmed) return;
+
     PC->ResetIgnoreMoveInput();
     PC->ResetIgnoreLookInput();
     PC->SetIgnoreMoveInput(true);
@@ -803,13 +810,14 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
 
     FInputModeUIOnly Mode;
     Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-    // Pass 24: do not recreate/focus an SWidget every Tick. Mouse input remains UI-only;
-    // focus is acquired naturally by the clicked control.
     PC->SetInputMode(Mode);
+    bMenuInputArmed = true;
+    UE_LOG(LogTemp, Display, TEXT("PASS25_MENU_INPUT_ARMED"));
 }
 
 void UOCR13FrontendMenuSubsystem::ReleaseMenuInput()
 {
+    bMenuInputArmed = false;
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC) return;
 
