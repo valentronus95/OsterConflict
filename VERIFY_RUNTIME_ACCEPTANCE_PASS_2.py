@@ -53,16 +53,19 @@ for needle in (
     "ConfigureServer(TeamId, true, NAME_None);",
     "SpawnRuntimeBaseWeaponRack",
     "PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM",
-    "FVector(-2600.0f, -3200.0f, 120.0f)",
-    "FVector(2600.0f, -3200.0f, 120.0f)",
+    "PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH",
+    "FVector(-1400.0f, -2400.0f, 120.0f)",
+    "FVector(1400.0f, -2400.0f, 120.0f)",
 ):
-    require(spawn_cpp, needle, "runtime museum exterior spawn")
+    require(spawn_cpp, needle, "runtime museum visible exterior spawn")
 for forbidden in (
     "FVector(-1450.0f, -900.0f, 120.0f)",
     "FVector(1450.0f, 900.0f, 120.0f)",
+    "FVector(-2600.0f, -3200.0f, 120.0f)",
+    "FVector(2600.0f, -3200.0f, 120.0f)",
 ):
     if forbidden in spawn_cpp:
-        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: old interior-adjacent BASE returned: {forbidden}")
+        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: superseded Museum BASE returned: {forbidden}")
 
 for needle in (
     "TryPopulateWhenGameplayReady",
@@ -195,7 +198,7 @@ for needle in (
     require(source_recovery, needle, "local production source recovery")
 
 print("RUNTIME ACCEPTANCE PASS 3 SOURCE CONTRACT PASS")
-print("- BASE is placed on the exterior Museum approach, outside the building exclusion radius")
+print("- BASE is placed on the closer exterior Museum approach accepted by Pass 37")
 print("- dense foliage is generated incrementally with a bounded per-frame batch instead of freezing deployment")
 print("- restored weapon and foliage LFS payloads are hydrated before playtest using Windows-compatible commands")
 print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend")
