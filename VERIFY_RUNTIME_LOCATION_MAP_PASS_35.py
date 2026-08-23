@@ -37,11 +37,16 @@ for needle in (
     'PASS35_MUSEUM_BASE_DISTANCE_READY',
     'MuseumNoSpawnRadiusCm = 3000.0f',
     'MuseumNearbyBaseRadiusCm = 6000.0f',
+    'Roof_Both_Ends_4m.Roof_Both_Ends_4m',
+    'PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=authored_asset',
+    'PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=fallback_slabs',
+    'PASS35Museum_RecoveryPlinth',
 ):
     require(museum_guard, needle, "museum presence recovery")
 
 # Preserve the exact evidence explaining the latest empty-field runtime: R13.7 can still abort on an optional
-# roof asset, but Pass 35 must no longer let that erase the authoritative R13.8 core.
+# roof asset, but Pass 35 must no longer let that erase the authoritative R13.8 core. Recovery attempts the
+# existing authored roof first and uses a minimal silhouette only as the last-resort carrier presentation.
 require(r137, "if (!Cube || !Basic || !RoofMesh) return;", "known R13.7 optional-asset failure path")
 require(r138, 'TEXT("R138_MuseumHighFidelityArchitecture")', "R13.8 architecture ownership")
 require(r138, "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED", "museum interior cleanup regression")
@@ -70,6 +75,7 @@ require(tactical, "FVector2D(0.5f, 0.5f), 22", "objective marker z-order evidenc
 
 print("RUNTIME LOCATION + MAP PASS 35 SOURCE CONTRACT PASS")
 print("- missing R13.7 presentation assets can no longer leave the museum site completely empty")
+print("- recovery tries the existing authored roof first, then uses only a minimal fallback silhouette if it cannot load")
 print("- R13.8 remains the authoritative enterable museum core and R14 detail stages are replayed once on recovery")
 print("- BASE remains outside the 30 m exclusion and within the 60 m near-museum acceptance radius")
 print("- Tactical Map player marker is forced above objective/POI labels without duplicating map projection ownership")
