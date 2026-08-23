@@ -85,7 +85,8 @@ require("PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED" in r138,
         "speculative museum interior partitions must remain removed")
 require("HideR137MuseumTrees" in r145 and "SetCollisionEnabled(ECollisionEnabled::NoCollision)" in r145,
         "R14.5 must continue suppressing the old R13.7 tree pass")
-require("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY" in window and "Window_Frame_Part" not in window,
+require("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY" in window and
+        "Window_Frame_Part.Window_Frame_Part" not in window,
         "clean lightweight museum window frame must remain authoritative")
 
 print("MUSEUM LAYER / RENDER BUDGET PASS 32 SOURCE CONTRACT PASS")
