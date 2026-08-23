@@ -40,7 +40,6 @@ for token, label in [
     ('LastAppliedPage = Page;', 'page applied state'),
     ('FLinearColor(0.025f, 0.030f, 0.036f, 0.96f)', 'opaque server/network panel'),
     ('FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f))', 'dark field background'),
-    ('Field->SetMinimumDesiredWidth(420.0f);', 'stable field width'),
     ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'Pass 14 compatibility marker'),
     ('PASS14_HOST_TRAVEL_BEGIN', 'host travel compatibility marker'),
 ]:
@@ -51,6 +50,7 @@ for token, label in [
     ('Mode.SetWidgetToFocus(PrimaryButton->TakeWidget())', 'per-tick TakeWidget focus'),
     ('Page = 1;\n        ApplyPage();', 'immediate page mutation in click callback'),
     ('FLinearColor(0.0f, 0.0f, 0.0f, 0.36f)', 'old translucent setup panel'),
+    ('Field->SetMinimumDesiredWidth(', 'unsupported UEditableTextBox width API'),
 ]:
     forbid(cpp, token, label)
 
