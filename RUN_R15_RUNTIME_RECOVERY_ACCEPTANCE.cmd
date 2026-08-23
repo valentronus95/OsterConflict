@@ -42,9 +42,9 @@ for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRA
 if /I "%CURRENT_BRANCH%"=="main" (
   set "REMOTE_REF=origin/main"
 ) else (
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" >nul
   if errorlevel 1 (
-    echo [STOP] Focused recovery launcher accepts only main or fix/runtime-acceptance-*.
+    echo [STOP] Focused recovery launcher accepts only main or explicit runtime-fix branches.
     pause
     exit /b 6
   )
@@ -60,10 +60,12 @@ if /I not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
   echo [STOP] Local source is stale.
   echo Local : %LOCAL_HEAD%
   echo GitHub: %REMOTE_HEAD%
-  echo Pull origin, then run this file again.
+  echo Pull origin, then run START_HERE.cmd again.
   pause
   exit /b 8
 )
+
+for /f "delims=" %%D in ('git status --porcelain --untracked-files=all') do echo [LOCAL CHANGE] %%D
 
 echo [2/6] Hydrating Git LFS assets...
 git lfs pull origin
@@ -114,6 +116,8 @@ if errorlevel 1 (
 echo.
 echo [5/6] Launching focused runtime recovery test...
 echo ------------------------------------------------------------
+echo Safe renderer: DirectX 11 ^(-d3d11^).
+echo D3D12 is temporarily disabled after the confirmed D3D12RHI startup crash.
 echo 1. Main menu - press START.
 echo 2. Confirm server fields are DARK/readable and panel is opaque.
 echo 3. Press CREATE SERVER.
@@ -125,7 +129,7 @@ echo.
 echo NOTE: exact production-art certification and BTR/HMMWV/M2 production intake are separate strict gates.
 echo ------------------------------------------------------------
 
-start /wait "Oster Conflict Pass 15-19 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start /wait "Oster Conflict Pass 15-19 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not exist "%LOG%" (
