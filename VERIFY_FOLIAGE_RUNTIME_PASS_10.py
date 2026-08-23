@@ -38,8 +38,8 @@ for needle in (
 ):
     require(world, needle, "source ground-cover zoning")
 
-# Real visible runtime grass must remain the batched mesh/HISM owner. Pass 14 may lower the
-# batch/density budget after measured performance problems, but must never return to an unbounded pass.
+# Real visible runtime grass must remain the batched mesh/HISM owner. Pass 36 may reduce the
+# LowCPU spatial budget after measured performance collapse, but it must remain bounded/batched.
 for needle in (
     "UHierarchicalInstancedStaticMeshComponent",
     'TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh")',
@@ -74,12 +74,20 @@ for needle in (
     "Proxy->SetCastShadow(false);",
     'TEXT("OC_DenseGroundFoliage")',
     'Name.StartsWith(TEXT("DenseGrass_"))',
-    "OutGrassInstances >= 250",
+    "OutGrassInstances >= MinGrassInstances",
+    "const int32 MinGrassInstances = bLowCPU ? 48 : 250;",
     "PASS10_GROUND_COVER_PROXY_RETIRED",
     "PASS10_FOLIAGE_RUNTIME_READY",
     "PASS10_FOLIAGE_RUNTIME_FAIL",
+    "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
 ):
     require(guard, needle, "runtime foliage guard")
+
+# Pass 10 still protects the original full-profile >=250 contract. Pass 36 deliberately gives the
+# measured LowCPU acceptance path its own lower floor so the guard does not force the expensive
+# full-sector population back into a laptop/safe-renderer playtest.
+require(guard, 'bLowCPU ? TEXT("LowCPU") : TEXT("Full")', "runtime profile evidence")
+require(guard, 'full_sector_population=0', "bounded LowCPU evidence")
 
 for needle in (
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
@@ -94,6 +102,6 @@ print("FOLIAGE RUNTIME PASS 10 SOURCE CONTRACT PASS")
 print("- source zoning cubes remain authoring data, not accepted gameplay presentation")
 print("- real batched DenseGrass HISM remains the visible runtime owner with a bounded performance budget")
 print("- runtime guard retires GrassMown/GrassRough/GrassWetland proxy slabs")
-print("- runtime evidence requires one dense foliage actor and >=250 real grass instances")
+print("- full profile preserves >=250 real grass instances; LowCPU uses its explicit bounded >=48 contract")
 print("- strict Windows launcher requires Pass 10 proxy-retired + foliage-ready markers")
 print("STATUS: SOURCE CONTRACT ONLY; UE 5.8 visual/runtime acceptance still required")
