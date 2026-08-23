@@ -259,6 +259,15 @@ echo.
 start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -norhithread -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
+if not "%GAME_RC%"=="0" (
+  echo.
+  echo [CRASH-DIAGNOSTICS] Unreal exited with code %GAME_RC%.
+  echo [CRASH-DIAGNOSTICS] Relevant frontend markers:
+  if exist "%PLAYTEST_LOG%" findstr /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
+  echo [CRASH-DIAGNOSTICS] Last 180 gameplay-log lines:
+  if exist "%PLAYTEST_LOG%" powershell -NoProfile -Command "Get-Content -LiteralPath $env:PLAYTEST_LOG -Tail 180"
+)
+
 if "%IS_ACCEPTANCE%"=="1" (
   echo.
   echo [ACCEPTANCE] Inspecting runtime evidence from the exact playtest source...

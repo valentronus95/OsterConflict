@@ -1,5 +1,7 @@
 #include "OCR13FrontendMenuSubsystem.h"
 
+#include "Blueprint/WidgetTree.h"
+
 #include "OCGameUIRootWidget.h"
 #include "OCPlayerController.h"
 #include "OCPlayerUserSettings.h"
@@ -24,9 +26,10 @@
 
 namespace
 {
-    UTextBlock* R13FrontendMakeMenuText(UObject* Outer, const FText& Text, int32 FontSize, bool bBright = true)
+    UTextBlock* R13FrontendMakeMenuText(UWidgetTree* Tree, const FText& Text, int32 FontSize, bool bBright = true)
     {
-        UTextBlock* Block = NewObject<UTextBlock>(Outer);
+        if (!Tree) return nullptr;
+        UTextBlock* Block = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
         if (!Block) return nullptr;
         Block->SetText(Text);
         Block->SetColorAndOpacity(FSlateColor(bBright
@@ -47,13 +50,13 @@ namespace
         Text->SetFont(Font);
     }
 
-    UButton* R13FrontendMakeMenuButton(UObject* Outer, UVerticalBox* Parent, const FText& Label)
+    UButton* R13FrontendMakeMenuButton(UWidgetTree* Tree, UVerticalBox* Parent, const FText& Label)
     {
-        if (!Outer || !Parent) return nullptr;
+        if (!Tree || !Parent) return nullptr;
 
-        USizeBox* Size = NewObject<USizeBox>(Outer);
-        UButton* Button = NewObject<UButton>(Outer);
-        UTextBlock* Text = R13FrontendMakeMenuText(Outer, Label, 16, true);
+        USizeBox* Size = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+        UButton* Button = Tree->ConstructWidget<UButton>(UButton::StaticClass());
+        UTextBlock* Text = R13FrontendMakeMenuText(Tree, Label, 16, true);
         if (!Size || !Button || !Text) return nullptr;
 
         Size->SetHeightOverride(50.0f);
@@ -81,10 +84,10 @@ namespace
         return Button;
     }
 
-    UEditableTextBox* R13FrontendMakeField(UObject* Outer, UVerticalBox* Parent, const FText& Hint, const FString& Value)
+    UEditableTextBox* R13FrontendMakeField(UWidgetTree* Tree, UVerticalBox* Parent, const FText& Hint, const FString& Value)
     {
-        if (!Outer || !Parent) return nullptr;
-        UEditableTextBox* Field = NewObject<UEditableTextBox>(Outer);
+        if (!Tree || !Parent) return nullptr;
+        UEditableTextBox* Field = Tree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass());
         if (!Field) return nullptr;
         Field->SetHintText(Hint);
         Field->SetText(FText::FromString(Value));
@@ -399,6 +402,13 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
 {
     if (!Root || !PC) return;
 
+    UWidgetTree* Tree = Root->WidgetTree;
+    if (!Tree)
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS27_FRONTEND_WIDGETTREE_MISSING"));
+        return;
+    }
+
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
 
@@ -406,14 +416,16 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        LegacyFrontend->RemoveFromParent();
+        // Pass 27: keep the native frontend attached to its original WidgetTree. Detaching a widget
+        // after UUserWidget::RebuildWidget has already produced Slate children creates an avoidable
+        // structural lifetime edge; collapsed + disabled is sufficient to suppress it.
     }
 
-    UBorder* Blocker = NewObject<UBorder>(Root, TEXT("R13_MenuWorldBlocker"));
-    UImage* Background = NewObject<UImage>(Root, TEXT("R13_MenuBackground"));
-    UBorder* Shade = NewObject<UBorder>(Root, TEXT("R13_MenuShade"));
-    UBorder* Panel = NewObject<UBorder>(Root, TEXT("R13_MenuPanel"));
-    UVerticalBox* Box = NewObject<UVerticalBox>(Root, TEXT("R13_PlayerFrontend"));
+    UBorder* Blocker = Tree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_MenuWorldBlocker"));
+    UImage* Background = Tree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("R13_MenuBackground"));
+    UBorder* Shade = Tree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_MenuShade"));
+    UBorder* Panel = Tree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_MenuPanel"));
+    UVerticalBox* Box = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("R13_PlayerFrontend"));
     if (!Blocker || !Background || !Shade || !Panel || !Box) return;
 
     Blocker->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
@@ -443,7 +455,7 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     };
     for (int32 Index = UE_ARRAY_COUNT(GradientStrips) - 1; Index >= 0; --Index)
     {
-        UBorder* Gradient = NewObject<UBorder>(Root);
+        UBorder* Gradient = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
         if (!Gradient) continue;
         Gradient->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, GradientStrips[Index].Alpha));
         Gradient->SetVisibility(ESlateVisibility::Collapsed);
@@ -466,10 +478,10 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
         PanelSlot->SetZOrder(810);
     }
 
-    UTextBlock* BrandOster = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "BrandOster", "OSTER"), 50, true);
-    UTextBlock* BrandConflict = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "BrandConflict", "CONFLICT"), 64, true);
-    UTextBlock* Title = R13FrontendMakeMenuText(Root, FText::GetEmpty(), 32, true);
-    UTextBlock* Subtitle = R13FrontendMakeMenuText(Root, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 14, false);
+    UTextBlock* BrandOster = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "BrandOster", "OSTER"), 50, true);
+    UTextBlock* BrandConflict = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "BrandConflict", "CONFLICT"), 64, true);
+    UTextBlock* Title = R13FrontendMakeMenuText(Tree, FText::GetEmpty(), 32, true);
+    UTextBlock* Subtitle = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 14, false);
     if (!BrandOster || !BrandConflict || !Title || !Subtitle) return;
 
     R13FrontendApplyTypeface(BrandOster, FName(TEXT("Light")), 180);
@@ -482,34 +494,34 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Box->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 7.0f));
     Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 24.0f));
 
-    UButton* Primary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
-    UButton* Secondary = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Back", "НАЗАД"));
-    UButton* Network = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Network", "МЕРЕЖЕВА ГРА"));
+    UButton* Primary = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
+    UButton* Secondary = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Back", "НАЗАД"));
+    UButton* Network = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Network", "МЕРЕЖЕВА ГРА"));
 
-    UVerticalBox* Fields = NewObject<UVerticalBox>(Root, TEXT("R13_FrontendFields"));
-    UTextBlock* Status = R13FrontendMakeMenuText(Root, FText::GetEmpty(), 12, false);
+    UVerticalBox* Fields = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("R13_FrontendFields"));
+    UTextBlock* Status = R13FrontendMakeMenuText(Tree, FText::GetEmpty(), 12, false);
     if (!Fields || !Status) return;
 
     const UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get();
     UEditableTextBox* Username = R13FrontendMakeField(
-        Root, Fields, NSLOCTEXT("OCR13Frontend", "UsernameHint", "Ім'я гравця"),
+        Tree, Fields, NSLOCTEXT("OCR13Frontend", "UsernameHint", "Ім'я гравця"),
         Prefs ? Prefs->GetSavedUsername() : FString(TEXT("Player")));
     UEditableTextBox* Address = R13FrontendMakeField(
-        Root, Fields, NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"),
+        Tree, Fields, NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"),
         Prefs ? Prefs->GetLastServerAddress() : FString(TEXT("127.0.0.1:7777")));
     UEditableTextBox* MaxPlayers = R13FrontendMakeField(
-        Root, Fields, NSLOCTEXT("OCR13Frontend", "MaxPlayersHint", "Максимум гравців (2–64)"), TEXT("16"));
+        Tree, Fields, NSLOCTEXT("OCR13Frontend", "MaxPlayersHint", "Максимум гравців (2–64)"), TEXT("16"));
     UEditableTextBox* Bots = R13FrontendMakeField(
-        Root, Fields, NSLOCTEXT("OCR13Frontend", "BotsHint", "Кількість ботів (0–63)"), TEXT("0"));
+        Tree, Fields, NSLOCTEXT("OCR13Frontend", "BotsHint", "Кількість ботів (0–63)"), TEXT("0"));
     UEditableTextBox* Difficulty = R13FrontendMakeField(
-        Root, Fields, NSLOCTEXT("OCR13Frontend", "DifficultyHint", "Складність: Easy / Normal / Hard / Veteran"), TEXT("Normal"));
+        Tree, Fields, NSLOCTEXT("OCR13Frontend", "DifficultyHint", "Складність: Easy / Normal / Hard / Veteran"), TEXT("Normal"));
     if (!Username || !Address || !MaxPlayers || !Bots || !Difficulty) return;
 
     Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 5.0f));
     Box->AddChildToVerticalBox(Fields)->SetPadding(FMargin(0.0f, 5.0f));
 
-    UButton* Settings = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Settings", "НАЛАШТУВАННЯ"));
-    UButton* Quit = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
+    UButton* Settings = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Settings", "НАЛАШТУВАННЯ"));
+    UButton* Quit = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
     if (!Primary || !Secondary || !Network || !Settings || !Quit) return;
 
     Primary->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnPrimaryClicked);
@@ -541,6 +553,7 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     QuitButton = Quit;
 
     ApplyPage();
+    UE_LOG(LogTemp, Display, TEXT("PASS27_FRONTEND_WIDGETTREE_OWNED"));
 }
 
 void UOCR13FrontendMenuSubsystem::ApplyPage()
@@ -706,7 +719,7 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        if (LegacyFrontend->GetParent()) LegacyFrontend->RemoveFromParent();
+        // Pass 27: never detach the root-owned legacy frontend after Slate has been built.
     }
 
     if (UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root"))))
