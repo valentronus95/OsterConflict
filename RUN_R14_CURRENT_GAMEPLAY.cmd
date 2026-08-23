@@ -52,7 +52,7 @@ if not exist "%WEAPON_VERIFY%" (
   exit /b 6
 )
 if not exist "%LFS_VERIFY_PS%" (
-  echo [ERROR] Required LFS payload verifier is missing: %LFS_VERIFY_PS%
+  echo [ERROR] Git LFS payload verifier is missing: %LFS_VERIFY_PS%
   pause
   exit /b 6
 )
@@ -81,17 +81,19 @@ if /I "%CURRENT_BRANCH%"=="main" (
   set "FETCH_BRANCH=%CURRENT_BRANCH%"
   set "REMOTE_REF=origin/%CURRENT_BRANCH%"
   set "IS_ACCEPTANCE=1"
-  echo [ACCEPTANCE] Running isolated runtime-fix branch: %CURRENT_BRANCH%
+  echo [ACCEPTANCE] Running isolated runtime acceptance branch: %CURRENT_BRANCH%
+  echo [ACCEPTANCE] main will remain untouched until this branch passes the UE runtime playtest.
 )
 
 if "%IS_ACCEPTANCE%"=="1" if /I "%CURRENT_BRANCH%"=="main" (
   echo [ACCEPTANCE] Running strict runtime acceptance from current main.
+  echo [ACCEPTANCE] The launcher will reject missing Museum / weapon / vehicle READY evidence after the game closes.
 )
 
 echo [PRECHECK] Fetching origin/%FETCH_BRANCH% so a stale local build cannot be tested...
 git fetch origin "%FETCH_BRANCH%"
 if errorlevel 1 (
-  echo [STOP] Could not fetch origin/%FETCH_BRANCH%.
+  echo [STOP] Could not fetch origin/%FETCH_BRANCH%. Playtest cancelled instead of testing unknown/stale code.
   pause
   exit /b 9
 )
@@ -101,26 +103,28 @@ if /I not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
   echo [STOP] Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%.
   echo Local : %LOCAL_HEAD%
   echo GitHub: %REMOTE_HEAD%
-  echo GitHub Desktop: Fetch origin, then Pull origin.
+  echo GitHub Desktop: Fetch origin, then Pull origin. Then start the playtest again.
   pause
   exit /b 10
 )
 
-for /f "delims=" %%D in ('git status --porcelain --untracked-files=all') do (
-  echo [LOCAL CHANGE] %%D
-)
+for /f "delims=" %%D in ('git status --porcelain --untracked-files=all') do echo [LOCAL CHANGE] %%D
 
 git merge-base --is-ancestor %R147_ASSET_COMMIT% HEAD >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Current branch is missing the current R14 gameplay asset baseline.
+  echo GitHub Desktop: Fetch origin, then Pull origin.
   pause
   exit /b 11
 )
 
+rem Hydrate the current branch LFS payloads using only commands supported by older Git LFS releases.
+rem The previous --include form is not accepted by the Git LFS build installed on the playtest PC.
 echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
 git lfs version >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Git LFS is not installed or not available in PATH.
+  echo Install Git LFS, then run START_HERE.cmd again.
   pause
   exit /b 12
 )
@@ -211,6 +215,7 @@ if not "%WEAPON_RC%"=="0" (
 )
 if not exist "%WEAPON_SENTINEL%" (
   echo [STOP] One or more required playable weapon models could not be opened by Unreal.
+  echo Primitive-only weapon boxes are not accepted for the normal playtest.
   echo Log: %WEAPON_PREFLIGHT_LOG%
   pause
   exit /b 18
@@ -227,18 +232,26 @@ if "%IS_ACCEPTANCE%"=="1" (
   call "%PRODUCTION_IMPORT%"
   if errorlevel 1 (
     echo [STOP] Production model ingest failed.
+    echo Strict acceptance will not accept civilian pickup/proxy turret/proxy BTR geometry as final assets.
+    echo Required local sources include:
+    echo   OsterConflict\SourceAssets\Production\Vehicles\HMMWV\ukrainian_hmmwv_mk_19.glb
+    echo   OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb
+    echo   OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx
     pause
     exit /b 20
   )
 ) else (
   echo [3/4] NORMAL GAME: skipping strict production vehicle intake.
-  echo [INFO] Exact HMMWV/M2/BTR production source files do not block the normal frontend.
+  echo [INFO] Exact HMMWV/M2/BTR production source files remain an open content gap and do not block the normal frontend.
+  echo [INFO] Use strict acceptance when those exact source files are installed locally.
 )
 
 echo.
 echo [4/4] Launching CURRENT NORMAL GAME frontend...
+echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Safe renderer: DirectX 11 ^(-d3d11^).
-echo D3D12 is temporarily disabled after the confirmed D3D12RHI access-violation startup crash.
+echo D3D12 is temporarily disabled after the confirmed D3D12RHI startup crash.
+echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Branch: %CURRENT_BRANCH%
 echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
@@ -256,15 +269,52 @@ if "%IS_ACCEPTANCE%"=="1" (
   )
 
   findstr /C:"PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
-  if not errorlevel 1 exit /b 22
+  if not errorlevel 1 (
+    echo [STOP] Production vehicle runtime validation failed. Proxy HMMWV/M2/BTR visuals are not accepted.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 22
+  )
+
   findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
-  if not errorlevel 1 exit /b 23
+  if not errorlevel 1 (
+    echo [STOP] Production weapon runtime validation failed. Generic fallback weapons are playable but do not satisfy exact production-art acceptance.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 23
+  )
+
   findstr /C:"PASS7_PRODUCTION_VEHICLES_READY" "%PLAYTEST_LOG%" >nul
-  if errorlevel 1 exit /b 24
+  if errorlevel 1 (
+    echo [STOP] No production vehicle READY marker was recorded.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 24
+  )
+
   findstr /C:"PASS7_PRODUCTION_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
-  if errorlevel 1 exit /b 25
+  if errorlevel 1 (
+    echo [STOP] No exact production weapon READY marker was recorded for the Museum 11-weapon rack.
+    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 25
+  )
+
   findstr /C:"PASS7_MUSEUM_BASES_READY" "%PLAYTEST_LOG%" >nul
-  if errorlevel 1 exit /b 26
+  if errorlevel 1 (
+    echo [STOP] No authoritative Museum BASE readiness marker was recorded.
+    echo The acceptance run did not prove the Museum spawn route.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 26
+  )
+
+  echo [ACCEPTANCE] PASS7_PRODUCTION_VEHICLES_READY found.
+  echo [ACCEPTANCE] PASS7_PRODUCTION_WEAPONS_READY found.
+  echo [ACCEPTANCE] PASS7_MUSEUM_BASES_READY found.
+  echo [ACCEPTANCE] Automated runtime evidence gates passed. Visual/UI checklist still requires direct observation.
 )
 
 echo.
