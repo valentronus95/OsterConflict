@@ -29,10 +29,9 @@ start = read(START)
 require(start, '2. ПОВНИЙ RUNTIME-ТЕСТ', "START_HERE full-test label")
 require(start, 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"', "START_HERE full-test route")
 
-# The compatibility verifier keeps the original Pass 33 contract and now also proves the later Pass 35/36
-# evidence is part of the same one-click runtime path.
+# Pass 37 supersedes only evidence that latest user runtime disproved. Keep one canonical acceptance path.
 for needle in (
-    "PASS 29-36 RUNTIME ACCEPTANCE",
+    "PASS 29-37 RUNTIME ACCEPTANCE",
     'set "OC_FORCE_ACCEPTANCE=1"',
     'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
     'set "LOG=%~dp0Logs\\R14_CURRENT_GAMEPLAY.log"',
@@ -40,11 +39,11 @@ for needle in (
     "WASD + mouse",
     "Натисніть M один раз",
     "weapon pickups",
-    "не менше 16 секунд",
+    "не менше 20 секунд",
 ):
-    require(launcher, needle, "Pass 29-36 acceptance flow")
+    require(launcher, needle, "Pass 29-37 acceptance flow")
 
-# Preserve the proven frontend/travel/foliage evidence before evaluating newer museum/input/material gates.
+# Preserve proven frontend/travel/startup evidence.
 for marker in (
     "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
     "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
@@ -54,35 +53,39 @@ for marker in (
 ):
     require(launcher, marker, f"legacy runtime evidence {marker}")
 
+# Current runtime acceptance must prove what the latest screenshots actually rejected: a real visible
+# museum, the closer BASE, the map marker, released input, non-blank weapon presentation and bounded LowCPU foliage.
 for marker in (
     "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED",
     "PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY",
-    "PASS30_BASE_DEPLOYMENT_OUTSIDE_MUSEUM",
     "PASS31_GAMEPLAY_INPUT_READY",
     "PASS32_MUSEUM_LAYER_BUDGET_READY",
-    "PASS35_MUSEUM_CORE_READY",
-    "PASS35_MUSEUM_BASE_DISTANCE_READY",
     "PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND",
     "PASS36_LOWCPU_FOLIAGE_SCOPE_READY",
     "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
     "PASS36_WEAPON_MATERIAL_AUDIT_READY",
+    "PASS37_MUSEUM_VISIBLE_CORE_READY",
+    "PASS37_MUSEUM_VISIBLE_BASES_READY",
+    "PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH",
+    "PASS37_WEAPON_VISIBLE_PALETTE_READY",
     "PASS14_PERF_SAMPLE",
     "PASS14_PERF_30FPS_READY",
 ):
-    require(launcher, marker, f"runtime evidence {marker}")
+    require(launcher, marker, f"current runtime evidence {marker}")
 
 # A marker alone is not enough for input. The emitted state must explicitly show that both stacks are clear.
 require(launcher,
         'findstr /C:"PASS31_GAMEPLAY_INPUT_READY" "%LOG%" | findstr /C:"moveIgnored=0 lookIgnored=0" >nul',
         "released gameplay input state")
 
-# The wrapper must fail closed if any known museum/spawn/foliage/performance failure is recorded.
+# The wrapper must fail closed on current known regressions. Pass 35 owner-count/base-distance failures are
+# deliberately no longer authoritative: user runtime proved owner counts and the old 30-60 m band could be green
+# while the Museum was not visible. Pass 37 visible components + 20-45 m deployment are the stronger contract.
 for failure_marker in (
     "PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED",
-    "PASS30_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL",
     "PASS32_MUSEUM_LAYER_BUDGET_FAIL",
-    "PASS35_MUSEUM_CORE_FAIL",
-    "PASS35_MUSEUM_BASE_DISTANCE_FAIL",
+    "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
     "PASS10_FOLIAGE_RUNTIME_FAIL",
     "PASS14_PERF_BELOW_TARGET",
 ):
@@ -90,17 +93,19 @@ for failure_marker in (
 
 for exit_code in (
     "exit /b 33", "exit /b 34", "exit /b 35", "exit /b 36", "exit /b 37", "exit /b 38",
-    "exit /b 40", "exit /b 41", "exit /b 42"
+    "exit /b 40", "exit /b 42"
 ):
     require(launcher, exit_code, f"distinct acceptance failure {exit_code}")
 
-# Never weaken performance acceptance just to make a bad runtime look green. Humanity has enough dashboards like that.
+# Never weaken performance acceptance just to make a bad runtime look green.
 require(launcher, "30 FPS acceptance target", "explicit FPS floor")
 forbid(launcher, "PASS14_PERF_30FPS_READY" + " >nul\nif not errorlevel 1", "30 FPS readiness must not be inverted")
+require(launcher, "20-45 m museum approach", "Pass 37 closer Museum deployment band")
 
-print("RUNTIME ACCEPTANCE PASS 33/35/36 SOURCE CONTRACT PASS")
+print("RUNTIME ACCEPTANCE PASS 33/35/36/37 SOURCE CONTRACT PASS")
 print("- START_HERE full runtime test reaches the canonical normal-game launcher under acceptance mode")
-print("- exterior near-museum BASE, visible museum core/map marker, released gameplay input and weapon material audit are mandatory")
+print("- visible Museum structural core and a 20-45 m BASE deployment replace disproven owner-count/distance-only evidence")
+print("- tactical player marker, released input and visible weapon palette are mandatory")
 print("- LowCPU foliage must remain bounded and actual sampled gameplay must still reach >=30 FPS")
-print("- known frontend/spawn/layer/foliage/performance failure markers fail closed")
+print("- known current frontend/spawn/layer/foliage/performance failure markers fail closed")
 print("STATUS: SOURCE VERIFIED; the actual UE 5.8 run remains the runtime authority")
