@@ -8,6 +8,7 @@ set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "VERIFY=%~dp0VERIFY_RUNTIME_RECOVERY_PASS_15.py"
+set "VERIFY16=%~dp0VERIFY_RUNTIME_GRAPHICS_PASS_16.py"
 set "LOG_DIR=%~dp0Logs"
 set "LOG=%LOG_DIR%\R14_CURRENT_GAMEPLAY.log"
 
@@ -43,7 +44,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
 ) else (
   echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" >nul
   if errorlevel 1 (
-    echo [STOP] Pass 15 launcher accepts only main or fix/runtime-acceptance-*.
+    echo [STOP] Focused recovery launcher accepts only main or fix/runtime-acceptance-*.
     pause
     exit /b 6
   )
@@ -83,10 +84,21 @@ if not defined PY_CMD (
   exit /b 10
 )
 
-echo [3/6] Verifying Pass 15 source contract...
+echo [3/6] Verifying Pass 15 + Pass 16 source contracts...
 %PY_CMD% "%VERIFY%"
 if errorlevel 1 (
   echo [STOP] Pass 15 source verification failed.
+  pause
+  exit /b 11
+)
+if not exist "%VERIFY16%" (
+  echo [STOP] Pass 16 graphics verifier is missing: %VERIFY16%
+  pause
+  exit /b 11
+)
+%PY_CMD% "%VERIFY16%"
+if errorlevel 1 (
+  echo [STOP] Pass 16 graphics verification failed.
   pause
   exit /b 11
 )
@@ -107,13 +119,13 @@ echo 2. Confirm server fields are DARK/readable and panel is opaque.
 echo 3. Press CREATE SERVER. If the old open command stalls, Pass 15 uses OpenLevel fallback.
 echo 4. Complete TEAM - SQUAD - ROLE - SPAWN - У БІЙ.
 echo 5. You MUST appear beside Museum and see the 11-weapon rack nearby.
-echo 6. Stay in gameplay at least 15 seconds for FPS probe + final sample.
+echo 6. Stay in gameplay at least 15 seconds for GPU/RHI + FPS evidence.
 echo 7. Exit the game. This launcher checks the log automatically.
 echo.
 echo NOTE: BTR/HMMWV production intake is intentionally NOT part of this focused recovery run.
 echo ------------------------------------------------------------
 
-start /wait "Oster Conflict Pass 15 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start /wait "Oster Conflict Pass 15-16 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not exist "%LOG%" (
@@ -130,6 +142,7 @@ for %%M in (
   PASS14_FRONTEND_TRAVEL_HANDOFF_READY
   PASS15_MUSEUM_BASES_WEAPONS_READY
   PASS7_PRODUCTION_WEAPONS_READY
+  PASS16_RUNTIME_GRAPHICS_IDENTITY
   PASS15_PERF_SAMPLE
 ) do (
   findstr /C:"%%M" "%LOG%" >nul
@@ -176,7 +189,7 @@ if not errorlevel 1 (
 findstr /C:"PASS15_PERF_BELOW_TARGET" "%LOG%" >nul
 if not errorlevel 1 (
   echo [STOP] Gameplay is still below the 30 FPS recovery target.
-  findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_BELOW_TARGET" "%LOG%"
+  findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_BELOW_TARGET" "%LOG%"
   pause
   exit /b 26
 )
@@ -190,9 +203,10 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo PASS 15 RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
+echo PASS 15-16 RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
 echo Source: %LOCAL_HEAD%
 echo ============================================================
+findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" "%LOG%"
 findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%"
 findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
 echo.

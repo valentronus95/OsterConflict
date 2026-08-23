@@ -15,8 +15,9 @@ enum class EOCColorVisionMode : uint8
 };
 
 /**
- * S17B persistent non-renderer preferences. Engine video/scalability settings remain in UGameUserSettings;
- * this object stores Oster-specific controls, HUD and accessibility choices.
+ * S17B persistent Oster-specific preferences. Engine video/scalability settings remain in
+ * UGameUserSettings; this object only records whether Oster has initialized a safe first-run
+ * graphics baseline so later launches never overwrite the player's manual graphics choices.
  */
 UCLASS(Config=GameUserSettings, ConfigDoNotCheckDefaults, BlueprintType)
 class OSTERCONFLICT_API UOCPlayerUserSettings : public UObject
@@ -30,12 +31,18 @@ public:
     UFUNCTION(BlueprintCallable, Category="Settings") void ApplyPresentationCVars();
     UFUNCTION(BlueprintCallable, Category="Settings") void ValidateSettingsSchema();
 
+    /** Apply Oster's low-risk renderer baseline once, then permanently respect the user's own video choices. */
+    void EnsureInitialGraphicsProfile();
+
     UFUNCTION(BlueprintCallable, Category="Frontend") void SetFrontendIdentity(const FString& Username, const FString& ServerAddress);
     UFUNCTION(BlueprintPure, Category="Frontend") FString GetSavedUsername() const { return LastUsername.IsEmpty() ? TEXT("Гравець") : LastUsername; }
     UFUNCTION(BlueprintPure, Category="Frontend") FString GetLastServerAddress() const { return LastServerAddress.IsEmpty() ? TEXT("127.0.0.1:7777") : LastServerAddress; }
 
     static constexpr int32 CurrentSettingsSchemaVersion = 1;
     UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Settings") int32 SettingsSchemaVersion = CurrentSettingsSchemaVersion;
+
+    /** Pass 16: false only until Oster has initialized UGameUserSettings for this local profile once. */
+    UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Settings") bool bInitialGraphicsProfileApplied = false;
 
     // S19A: identity/last endpoint are user convenience data and intentionally survive Reset Defaults.
     UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Frontend") FString LastUsername = TEXT("Гравець");
