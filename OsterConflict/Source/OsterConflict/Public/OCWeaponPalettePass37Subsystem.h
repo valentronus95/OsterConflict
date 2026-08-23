@@ -8,12 +8,12 @@
 class UMaterialInterface;
 
 /**
- * Pass 37 presentation recovery for restored weapon payloads that still render white/grey.
+ * Pass 37/38 presentation recovery for restored weapon payloads.
  *
- * Pass 36 only treated null/Engine DefaultMaterial as broken. Runtime proved that some restored
- * Stein meshes carry non-null but visually blank placeholder assignments. This pass is explicit:
- * it leaves the textured AK alone, gives the known incomplete restored payloads a weapon-specific
- * metal/wood/polymer palette, and only uses placeholder recovery on other rack weapons.
+ * The Pass 37 forced-palette path overwrote every material slot on some restored meshes, which produced
+ * the flat orange/black toy-like presentation visible in the latest runtime screenshots. Pass 38 never
+ * overwrites a non-placeholder material. It only repairs clearly missing/default/basic placeholder slots,
+ * and its startup audit is bounded so it cannot poll the world forever.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCWeaponPalettePass37Subsystem final : public UWorldSubsystem
@@ -27,6 +27,7 @@ public:
 
 private:
     FTimerHandle AuditTimer;
+    int32 AuditPassCount = 0;
 
     UPROPERTY(Transient)
     TObjectPtr<UMaterialInterface> PaletteBaseMaterial;
