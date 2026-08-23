@@ -15,11 +15,11 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
+#include "CoreGlobals.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerInput.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Misc/CoreGlobals.h"
 #include "Styling/SlateTypes.h"
 
 namespace
