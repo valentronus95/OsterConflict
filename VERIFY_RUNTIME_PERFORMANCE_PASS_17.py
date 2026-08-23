@@ -8,6 +8,7 @@ HEADER = SRC / "Public" / "OCWorldRenderBudgetPass17Subsystem.h"
 CPP = SRC / "Private" / "OCWorldRenderBudgetPass17Subsystem.cpp"
 WORLD = SRC / "Private" / "OCWorldSectorOster.cpp"
 PASS16 = ROOT / "VERIFY_RUNTIME_GRAPHICS_PASS_16.py"
+LAUNCHER = ROOT / "RUN_R17_RUNTIME_PERFORMANCE_ACCEPTANCE.cmd"
 
 
 def read(path: Path) -> str:
@@ -30,6 +31,7 @@ header = read(HEADER)
 cpp = read(CPP)
 world = read(WORLD)
 read(PASS16)
+launcher = read(LAUNCHER)
 
 for needle in (
     "UOCWorldRenderBudgetPass17Subsystem",
@@ -99,10 +101,24 @@ for needle in (
 ):
     require(world, needle, "gameplay collision remains in world source")
 
+# Runtime acceptance must first pass the existing frontend/Museum/weapons/GPU/FPS run, then prove Pass 17 actually attached.
+for needle in (
+    'set "BASE_LAUNCHER=%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"',
+    'set "VERIFY17=%~dp0VERIFY_RUNTIME_PERFORMANCE_PASS_17.py"',
+    'call "%BASE_LAUNCHER%"',
+    "PASS17_WORLD_ISM_BUDGET_NOT_APPLIED",
+    "PASS17_WORLD_ISM_BUDGET_READY",
+    "PASS16_RUNTIME_GRAPHICS_IDENTITY",
+    "PASS15_PERF_30FPS_READY",
+    "PASS 17 RUNTIME PERFORMANCE ACCEPTANCE: PASSED",
+):
+    require(launcher, needle, "Pass 17 runtime acceptance launcher")
+
 print("RUNTIME PERFORMANCE PASS 17 SOURCE CONTRACT PASS")
 print("- 31 source-world ISM families receive explicit distance culling budgets")
 print("- flat/detail/fence/proxy vegetation families stop casting redundant shadows")
 print("- major building/landmark/bridge silhouettes keep longer draw distance and shadows")
 print("- NoCollision decoration is removed from dynamic navigation participation")
 print("- gameplay collision profiles are not modified or disabled by Pass 17")
+print("- runtime acceptance requires Pass 15-16 success plus proof that Pass 17 actually attached")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile and measured runtime FPS still required")
