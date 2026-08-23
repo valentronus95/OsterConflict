@@ -36,7 +36,7 @@ for token in [
     'TEXT("R13_MenuPanel")',
     'TEXT("FrontendPanel")',
     'LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed)',
-    'LegacyFrontend->RemoveFromParent()',
+    'LegacyFrontend->SetIsEnabled(false)',
     'bLocalTravelPending = true',
     'SetPresentationVisibility(true, true, false)',
     'open /Game/Maps/OsterConflict_Runtime',
@@ -44,6 +44,12 @@ for token in [
 ]:
     if token not in text["menu"]:
         fail(f"frontend marker missing: {token}")
+
+# Pass 27: UOCGameUIRootWidget owns the native frontend in its WidgetTree. Collapsing/disabling is
+# sufficient suppression; detaching it after RebuildWidget recreates the exact structural lifetime
+# edge that the Slate crash hardening is removing.
+if 'LegacyFrontend->RemoveFromParent()' in text["menu"]:
+    fail('frontend must not detach the root-owned legacy panel after WidgetTree rebuild')
 
 for token in [
     'const bool bHasGameplayPawn = IsValid(PC->GetPawn())',
@@ -102,4 +108,4 @@ for token in [
         fail(f"deployment compatibility marker missing: {token}")
 
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Approved frontend, staged deployment and pawn-less travel-shell isolation are present without persistent viewport render suppression.")
+print("Approved frontend, staged deployment and pawn-less travel-shell isolation are present without persistent viewport render suppression or post-rebuild legacy-panel detachment.")
