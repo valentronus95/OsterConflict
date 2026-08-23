@@ -1,0 +1,32 @@
+name: Frontend single-owner Pass 28
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'VERIFY_FRONTEND_SINGLE_OWNER_PASS_28.py'
+      - '.github/workflows/frontend-single-owner-pass-28.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'VERIFY_FRONTEND_SINGLE_OWNER_PASS_28.py'
+      - '.github/workflows/frontend-single-owner-pass-28.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify one frontend owner
+        run: python VERIFY_FRONTEND_SINGLE_OWNER_PASS_28.py
+      - name: Preserve frontend/deployment regression guard
+        run: python VERIFY_FRONTEND_DEPLOYMENT_REGRESSION.py
+      - name: Preserve Pass 27 lifecycle guard
+        run: python VERIFY_FRONTEND_WIDGETTREE_PASS_27.py

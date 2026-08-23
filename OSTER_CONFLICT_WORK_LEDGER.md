@@ -5,7 +5,7 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/frontend-widgettree-pass-27-20260823` → `main`
+- Active correction branch: `fix/frontend-single-owner-pass-28-20260823` → `main`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **тільки `START_HERE.cmd`**.

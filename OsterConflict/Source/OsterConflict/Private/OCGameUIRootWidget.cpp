@@ -701,14 +701,25 @@ void UOCGameUIRootWidget::RefreshAll()
 {
     AOCPlayerController* PC=Cast<AOCPlayerController>(GetOwningPlayer());if(!PC)return;
     const bool bSettings=PC->IsSettingsVisible(); const bool bFrontend=PC->IsFrontendMenuVisible()&&!bSettings;
+    // Pass 28: -Frontend is owned exclusively by OCR13FrontendMenuSubsystem. Pass 27 kept the legacy
+    // FrontendPanel attached to its WidgetTree, but this 0.20s RefreshAll loop immediately made it
+    // visible again after the subsystem collapsed it. That produced the exact double-menu screenshot
+    // and reintroduced two simultaneously live frontend widget paths. Keep the legacy panel structurally
+    // attached but permanently collapsed/disabled while the R13 frontend shell owns presentation/input.
+    const bool bR13OwnsFrontend = FParse::Param(FCommandLine::Get(), TEXT("Frontend"));
+    const bool bShowLegacyFrontend = bFrontend && !bR13OwnsFrontend;
     SettingsPanel->SetVisibility(bSettings?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
-    FrontendPanel->SetVisibility(bFrontend?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
+    if (FrontendPanel)
+    {
+        FrontendPanel->SetVisibility(bShowLegacyFrontend?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
+        FrontendPanel->SetIsEnabled(bShowLegacyFrontend);
+    }
     DeploymentPanel->SetVisibility(!bFrontend&&!bSettings&&PC->IsDeploymentPanelVisible()?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
     ScoreboardPanel->SetVisibility(!bFrontend&&!bSettings&&PC->IsScoreboardVisible()?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
     ChatPanel->SetVisibility(!bFrontend&&!bSettings&&!PC->IsDeploymentPanelVisible()?(PC->IsChatInputActive()?ESlateVisibility::Visible:ESlateVisibility::SelfHitTestInvisible):ESlateVisibility::Collapsed);
     if(ChatEntry)ChatEntry->SetVisibility(PC->IsChatInputActive()?ESlateVisibility::Visible:ESlateVisibility::Collapsed);if(ChatChannelButton)ChatChannelButton->SetVisibility(PC->IsChatInputActive()?ESlateVisibility::Visible:ESlateVisibility::Collapsed);if(ChatSendButton)ChatSendButton->SetVisibility(PC->IsChatInputActive()?ESlateVisibility::Visible:ESlateVisibility::Collapsed);if(PC->IsChatInputActive()&&ChatEntry&&!ChatEntry->HasKeyboardFocus())ChatEntry->SetKeyboardFocus();
     AdminPanel->SetVisibility(!bFrontend&&!bSettings&&PC->IsAdminPanelVisible()?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
-    UpdateFocusForVisibleContext(PC, bFrontend, bSettings);
+    UpdateFocusForVisibleContext(PC, bShowLegacyFrontend, bSettings);
     RefreshFrontend(PC);RefreshDeployment(PC);RefreshScoreboard(PC);RefreshChat(PC);RefreshAdmin(PC);if(bSettings)RefreshSettingsLabels();
 }
 
