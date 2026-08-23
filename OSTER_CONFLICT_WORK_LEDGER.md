@@ -5,7 +5,7 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/frontend-single-owner-pass-28-20260823` → `main`
+- Active correction branch: `fix/frontend-static-start-pass-29-20260823` → `main`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **тільки `START_HERE.cmd`**.
@@ -29,7 +29,7 @@
 | ID | Вимога | Repeat | Status | Фактичний стан / що лишилось |
 |---|---|---:|---|---|
 | UI-BOOT-001 | Splash → main menu без чорної паузи | 1 | CODED_UNTESTED | MoviePlayer startup loading screen coded; потрібен UE 5.8 startup acceptance. |
-| UI-MENU-001 | Головне меню стабільне | ≥5 | IN_PROGRESS | 2026-08-23 runtime повторив той самий Slate/SlateCore array assertion вже на Pass 26 (`f2d397f8...`). Новий concrete suspect: R13 overlay створював live UMG widgets через `NewObject` після побудови native `WidgetTree`, тоді як стабільний `UOCGameUIRootWidget` всюди використовує `WidgetTree->ConstructWidget`. Pass 27 переводить весь R13 frontend на WidgetTree ownership; runtime acceptance обов’язковий. |
+| UI-MENU-001 | Головне меню стабільне | ≥7 | IN_PROGRESS | 2026-08-23 runtime повторив той самий Slate/SlateCore array assertion вже на Pass 26 (`f2d397f8...`). Новий concrete suspect: R13 overlay створював live UMG widgets через `NewObject` після побудови native `WidgetTree`, тоді як стабільний `UOCGameUIRootWidget` всюди використовує `WidgetTree->ConstructWidget`. Pass 27 переводить весь R13 frontend на WidgetTree ownership; runtime acceptance обов’язковий. |
 | UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | 2026-08-22 runtime повторно показав підвисання. `OCDeploymentLoadingSubsystem` дає blocking 0–100 overlay; dense foliage більше не робить десятки тисяч traces/HISM inserts одним синхронним кадром, а розноситься batch-ами. Новий UE runtime acceptance обов’язковий. |
 | UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | CODED_UNTESTED | Runtime chat layer coded; acceptance pending. |
 | GAME-SPAWN-001 | Фактичний spawn біля Museum, не порожнє поле | ≥5 | CODED_UNTESTED | User повторив дефект. Поточний source BASE прив’язаний до `MuseumAnchor()`; primary offset ≈17 m, ground snap, secondary також лишається біля Museum. Новий runtime має підтвердити, що саме цей transform використовується після deployment. |
@@ -117,3 +117,12 @@ Pass 26 після цього crash є лише `CODED_UNTESTED`, доки но�
 9. Real Oster house variation and large-building/stairs detail pass.
 
 **Заборона:** ніяких нових декоративних R15/R16 layers до закриття цього backlog.
+
+
+## 2026-08-23 — Pass 29 frontend crash localization
+
+- Pass 28 runtime again reproduced the exact Slate/SlateCore `Array index out of bounds: -808103970 into an array of size 0` immediately after pressing main-menu START.
+- The repeat now isolates the failing pre-travel path to R13 `Page 0 -> Page 1`: `ApplyPage()` performs many live `SetVisibility`, parent `Collapsed`, editable-field activation, panel padding/geometry and label mutations inside one already-built Slate hierarchy. No gameplay/server travel has started yet at that point.
+- Pass 29 removes runtime page transitions from the startup shell. START queues hosted travel directly from the static main menu; NETWORK queues direct connect from the saved/default address. `PendingPage` execution is fail-closed and logs `PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED` instead of mutating Slate.
+- `UOCGameUIRootWidget::RefreshAll()` now freezes every legacy panel while R13 owns the frontend, eliminating the remaining 0.20 s hidden-tree churn in the same UUserWidget.
+- Status: CODED_UNTESTED until UE 5.8 runtime confirms `PASS29_MAIN_START_DIRECT_HOST_QUEUED` -> `PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE` without the Slate assertion.

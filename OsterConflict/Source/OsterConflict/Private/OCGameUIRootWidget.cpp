@@ -708,6 +708,32 @@ void UOCGameUIRootWidget::RefreshAll()
     // attached but permanently collapsed/disabled while the R13 frontend shell owns presentation/input.
     const bool bR13OwnsFrontend = FParse::Param(FCommandLine::Get(), TEXT("Frontend"));
     const bool bShowLegacyFrontend = bFrontend && !bR13OwnsFrontend;
+
+    // Pass 29: while the R13 startup shell owns the frontend, the native root must not mutate hidden
+    // legacy Slate subtrees every 0.20 s. Pass 28 hid the duplicate panel, but RefreshAll still touched
+    // settings/deployment/scoreboard/chat/admin and refreshed their text while the R13 click transition
+    // was running in the same UUserWidget. Freeze that entire legacy branch until settings/travel takes
+    // ownership again. Only collapse a panel if its state actually differs, then leave Slate alone.
+    if (bR13OwnsFrontend && bFrontend)
+    {
+        auto FreezeLegacyPanel = [](UWidget* Widget)
+        {
+            if (!Widget) return;
+            if (Widget->GetVisibility() != ESlateVisibility::Collapsed)
+                Widget->SetVisibility(ESlateVisibility::Collapsed);
+            if (Widget->GetIsEnabled())
+                Widget->SetIsEnabled(false);
+        };
+        FreezeLegacyPanel(SettingsPanel);
+        FreezeLegacyPanel(FrontendPanel);
+        FreezeLegacyPanel(DeploymentPanel);
+        FreezeLegacyPanel(ScoreboardPanel);
+        FreezeLegacyPanel(ChatPanel);
+        FreezeLegacyPanel(AdminPanel);
+        LastFocusContext = 0;
+        return;
+    }
+
     SettingsPanel->SetVisibility(bSettings?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
     if (FrontendPanel)
     {
