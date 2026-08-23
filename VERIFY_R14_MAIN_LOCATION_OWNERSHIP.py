@@ -24,7 +24,7 @@ required_files = [
     ROOT / "START_HERE.cmd",
     ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
     ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd",
-    ROOT / "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd",
+    ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd",
 ]
 
 forbidden_legacy_files = [
@@ -109,16 +109,18 @@ launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
 
-    # Pass 22 makes START_HERE the only user-facing entry point. The old sandbox
-    # remains available internally, but it is intentionally not exposed in the menu.
+    # START_HERE remains the only user-facing entry point. Historical acceptance wrappers
+    # (including Pass 21) are internal and must not be hard-coded as the current full-test route.
     if "OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК" not in launcher:
         errors.append("START_HERE.cmd is not the canonical user launcher")
     if "ЗВИЧАЙНА ГРА" not in launcher or "ПОВНИЙ RUNTIME-ТЕСТ" not in launcher:
         errors.append("START_HERE.cmd is missing the supported normal/full runtime launch modes")
     if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in launcher:
         errors.append("START_HERE.cmd does not route normal playtest to RUN_R14_CURRENT_GAMEPLAY.cmd")
-    if 'call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"' not in launcher:
-        errors.append("START_HERE.cmd does not route full runtime test to the current Pass 21 acceptance wrapper")
+    if 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' not in launcher:
+        errors.append("START_HERE.cmd does not route full runtime test to the current Pass 29-33 acceptance wrapper")
+    if 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' in launcher:
+        errors.append("START_HERE.cmd regressed to the obsolete Pass 21 acceptance wrapper")
     if 'RUN_R14_MAIN_SANDBOX_TEST.cmd' in launcher:
         errors.append("START_HERE.cmd regressed by exposing the internal sandbox diagnostic route")
     if "-d3d11" not in launcher:
