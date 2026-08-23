@@ -15,6 +15,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
+#include "CoreGlobals.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerInput.h"
@@ -206,40 +207,90 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     if (!Root) return;
 
     EnsureFrontend(Root, PC);
-    SuppressLegacyFrontendLayers(Root);
 
-    // Pass 24: never rebuild Slate hierarchy from UButton input delegates. Apply queued navigation
-    // on the next world Tick, after Slate has finished routing the click that requested it.
-    if (PendingPage != INDEX_NONE)
+    // Pass 26: a UButton::OnClicked delegate fires inside Slate's mouse-up routing. Merely setting
+    // a flag and consuming it later in the same engine frame is not a strong enough lifetime fence.
+    // Every frontend action now waits until at least the following engine frame before it is allowed
+    // to touch widget visibility, input modes, travel, settings or quit/disconnect state.
+    const bool bDeferredActionReady = PendingActionEarliestFrame != 0 && GFrameCounter >= PendingActionEarliestFrame;
+    if (bDeferredActionReady)
     {
-        const int32 NewPage = PendingPage;
-        PendingPage = INDEX_NONE;
-        Page = NewPage;
-        LastAppliedPage = INDEX_NONE;
-        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_BEGIN page=%d"), Page);
-        ApplyPage();
-        ForceMenuInput();
-        if (Page == 1)
+        PendingActionEarliestFrame = 0;
+
+        if (bPendingPauseResume)
         {
-            UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
+            bPendingPauseResume = false;
+            bPauseMenuActive = false;
+            bPausePageApplied = false;
+            if (PC->IsFrontendMenuVisible()) PC->UIToggleFrontend();
+            ReleaseMenuInput();
+            SetPresentationVisibility(false, false, false);
+            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=pause_resume"));
+            return;
         }
-        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_READY page=%d"), Page);
-    }
 
-    if (bPendingHostedStart)
-    {
-        bPendingHostedStart = false;
-        UE_LOG(LogTemp, Display, TEXT("PASS24_HOST_START_DEFERRED_EXECUTE"));
-        StartHostedGameplay();
-        return;
-    }
+        if (PendingPage != INDEX_NONE)
+        {
+            const int32 NewPage = PendingPage;
+            PendingPage = INDEX_NONE;
+            Page = NewPage;
+            LastAppliedPage = INDEX_NONE;
+            bPausePageApplied = false;
+            UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_BEGIN page=%d"), Page);
+            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=page_%d"), Page);
+            ApplyPage();
+            ForceMenuInput();
+            if (Page == 1)
+            {
+                UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
+            }
+            UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_READY page=%d"), Page);
+        }
+        else if (bPendingHostedStart)
+        {
+            bPendingHostedStart = false;
+            UE_LOG(LogTemp, Display, TEXT("PASS24_HOST_START_DEFERRED_EXECUTE"));
+            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=start_host"));
+            StartHostedGameplay();
+            return;
+        }
+        else if (bPendingNetworkConnect)
+        {
+            bPendingNetworkConnect = false;
+            UE_LOG(LogTemp, Display, TEXT("PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE"));
+            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=network_connect"));
+            StartNetworkGameplay();
+            return;
+        }
+        else if (bPendingSettingsOpen)
+        {
+            bPendingSettingsOpen = false;
+            const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);
+            SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);
+            PC->UIOpenSettings();
+            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=settings"));
+            return;
+        }
+        else if (bPendingQuit)
+        {
+            bPendingQuit = false;
+            UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_EXECUTE action=quit"));
+            if (bPauseMenuActive || bGameplayStarted || PC->GetPawn() != nullptr)
+            {
+                bPauseMenuActive = false;
+                bPausePageApplied = false;
+                bGameplayStarted = false;
+                Page = 0;
+                LastAppliedPage = INDEX_NONE;
+                ReleaseMenuInput();
+                SetPresentationVisibility(false, false, false);
+                PC->DisconnectFromServer();
+                return;
+            }
 
-    if (bPendingNetworkConnect)
-    {
-        bPendingNetworkConnect = false;
-        UE_LOG(LogTemp, Display, TEXT("PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE"));
-        StartNetworkGameplay();
-        return;
+            UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false);
+            return;
+        }
     }
 
     const bool bSettingsVisible = PC->IsSettingsVisible();
@@ -250,6 +301,7 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     if (bLocalTravelPending && PC->GetPawn() == nullptr && !bSettingsVisible && !bDeploymentVisible)
     {
         bPauseMenuActive = false;
+        bPausePageApplied = false;
         SetPresentationVisibility(true, true, false);
         ForceMenuInput();
         return;
@@ -258,6 +310,7 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     if (bDeploymentVisible && !bFrontendVisible)
     {
         bPauseMenuActive = false;
+        bPausePageApplied = false;
         SetPresentationVisibility(false, true, false);
         return;
     }
@@ -276,6 +329,7 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     if (!bFrontendVisible)
     {
         bPauseMenuActive = false;
+        bPausePageApplied = false;
         SetPresentationVisibility(false, false, false);
         return;
     }
@@ -312,11 +366,22 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     LastAppliedPage = INDEX_NONE;
     bPendingHostedStart = false;
     bPendingNetworkConnect = false;
+    bPendingSettingsOpen = false;
+    bPendingQuit = false;
+    bPendingPauseResume = false;
+    PendingActionEarliestFrame = 0;
     bMenuInputArmed = false;
     bGameplayStarted = false;
     bPauseMenuActive = false;
+    bPausePageApplied = false;
     bLocalTravelPending = false;
+    bPresentationStateValid = false;
     BuildFrontend(Root, PC);
+
+    // Pass 26: legacy-layer suppression mutates widget state. Do it once for a newly built root,
+    // not on every world Tick while Slate is painting/processing input.
+    SuppressLegacyFrontendLayers(Root);
+    UE_LOG(LogTemp, Display, TEXT("PASS26_LEGACY_FRONTEND_SUPPRESSED_ONCE"));
 
     // -Frontend belongs only to the startup shell. The same process keeps its command line after
     // `open ?listen`, so the newly created listen/client controller used to resurrect the main menu
@@ -482,6 +547,7 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
 {
     if (!MenuBox.IsValid() || LastAppliedPage == Page) return;
     bPauseMenuActive = false;
+    bPausePageApplied = false;
 
     if (MenuPanel.IsValid())
     {
@@ -558,9 +624,10 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
 
 void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 {
-    if (!MenuBox.IsValid()) return;
+    if (!MenuBox.IsValid() || bPausePageApplied) return;
     LastAppliedPage = INDEX_NONE;
     bPauseMenuActive = true;
+    bPausePageApplied = true;
 
     if (MenuPanel.IsValid())
     {
@@ -589,6 +656,13 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 
 void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay)
 {
+    // Pass 26: do not invalidate the same Slate visibility tree every Tick when nothing changed.
+    if (bPresentationStateValid && bLastShowMenu == bShowMenu &&
+        bLastShowBackdrop == bShowBackdrop && bLastDimGameplay == bDimGameplay)
+    {
+        return;
+    }
+
     const ESlateVisibility MenuVisibility = bShowMenu ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
     const ESlateVisibility BackdropVisibility = bShowBackdrop
         ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
@@ -617,6 +691,11 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
         MenuPanel->SetVisibility(MenuVisibility);
         MenuPanel->SetIsEnabled(bShowMenu);
     }
+
+    bPresentationStateValid = true;
+    bLastShowMenu = bShowMenu;
+    bLastShowBackdrop = bShowBackdrop;
+    bLastDimGameplay = bDimGameplay;
 }
 
 void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidget* Root)
@@ -654,6 +733,20 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
     }
 }
 
+bool UOCR13FrontendMenuSubsystem::HasPendingFrontendAction() const
+{
+    return PendingPage != INDEX_NONE || bPendingHostedStart || bPendingNetworkConnect ||
+        bPendingSettingsOpen || bPendingQuit || bPendingPauseResume;
+}
+
+void UOCR13FrontendMenuSubsystem::ArmDeferredActionFence()
+{
+    PendingActionEarliestFrame = GFrameCounter + 1;
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_FENCE armed=%llu execute_after=%llu"),
+        static_cast<unsigned long long>(GFrameCounter),
+        static_cast<unsigned long long>(PendingActionEarliestFrame));
+}
+
 void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 {
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: primary pressed, page=%d pause=%d"), Page, bPauseMenuActive ? 1 : 0);
@@ -663,80 +756,72 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
         UE_LOG(LogTemp, Display, TEXT("R13 frontend: server travel already pending; duplicate primary press ignored"));
         return;
     }
+    if (HasPendingFrontendAction()) return;
 
     if (bPauseMenuActive)
     {
-        if (AOCPlayerController* PC = ActiveController.Get())
-        {
-            bPauseMenuActive = false;
-            if (PC->IsFrontendMenuVisible()) PC->UIToggleFrontend();
-            ReleaseMenuInput();
-            SetPresentationVisibility(false, false, false);
-        }
+        bPendingPauseResume = true;
+        ArmDeferredActionFence();
+        UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=pause_resume"));
         return;
     }
 
     if (Page == 0)
     {
         PendingPage = 1;
+        ArmDeferredActionFence();
         UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1"));
+        UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=page_1"));
         return;
     }
 
     if (Page == 1)
     {
         bPendingHostedStart = true;
+        ArmDeferredActionFence();
         UE_LOG(LogTemp, Display, TEXT("PASS24_HOST_START_DEFERRED_QUEUED"));
+        UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=start_host"));
         return;
     }
 
     bPendingNetworkConnect = true;
+    ArmDeferredActionFence();
     UE_LOG(LogTemp, Display, TEXT("PASS24_NETWORK_CONNECT_DEFERRED_QUEUED"));
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=network_connect"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
-    if (bPauseMenuActive || bLocalTravelPending || Page == 0) return;
+    if (bPauseMenuActive || bLocalTravelPending || Page == 0 || HasPendingFrontendAction()) return;
     PendingPage = 0;
+    ArmDeferredActionFence();
     UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=0"));
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=page_0"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
-    if (bPauseMenuActive || bLocalTravelPending) return;
+    if (bPauseMenuActive || bLocalTravelPending || HasPendingFrontendAction()) return;
     PendingPage = 2;
+    ArmDeferredActionFence();
     UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2"));
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=page_2"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
 {
-    if (bLocalTravelPending) return;
-    if (AOCPlayerController* PC = ActiveController.Get())
-    {
-        const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);
-        SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);
-        PC->UIOpenSettings();
-    }
+    if (bLocalTravelPending || HasPendingFrontendAction()) return;
+    bPendingSettingsOpen = true;
+    ArmDeferredActionFence();
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=settings"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnQuitClicked()
 {
-    if (bLocalTravelPending) return;
-    AOCPlayerController* PC = ActiveController.Get();
-    if (!PC) return;
-
-    if (bPauseMenuActive || bGameplayStarted || PC->GetPawn() != nullptr)
-    {
-        bPauseMenuActive = false;
-        bGameplayStarted = false;
-        Page = 0;
-        ReleaseMenuInput();
-        SetPresentationVisibility(false, false, false);
-        PC->DisconnectFromServer();
-        return;
-    }
-
-    UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false);
+    if (bLocalTravelPending || HasPendingFrontendAction()) return;
+    bPendingQuit = true;
+    ArmDeferredActionFence();
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=quit"));
 }
 
 void UOCR13FrontendMenuSubsystem::StartNetworkGameplay()
@@ -775,6 +860,7 @@ void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
     PC->SetNickname(Username);
 
     bPauseMenuActive = false;
+    bPausePageApplied = false;
     bLocalTravelPending = true;
     bGameplayStarted = false;
     SetPresentationVisibility(true, true, false);

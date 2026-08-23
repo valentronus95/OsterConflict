@@ -1,0 +1,30 @@
+name: Frontend Slate action Pass 26
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
+      - 'VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py'
+      - 'VERIFY_FRONTEND_INPUT_PASS_25.py'
+      - 'VERIFY_FRONTEND_SLATE_ACTION_PASS_26.py'
+      - '.github/workflows/frontend-slate-action-pass-26.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Pass 24 frontend transition compatibility
+        run: python VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py
+      - name: Pass 25 input lifecycle compatibility
+        run: python VERIFY_FRONTEND_INPUT_PASS_25.py
+      - name: Pass 26 frontend action fence
+        run: python VERIFY_FRONTEND_SLATE_ACTION_PASS_26.py

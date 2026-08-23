@@ -48,6 +48,8 @@ private:
     void StartNetworkGameplay();
     void ForceMenuInput();
     void ReleaseMenuInput();
+    bool HasPendingFrontendAction() const;
+    void ArmDeferredActionFence();
 
     TWeakObjectPtr<UOCGameUIRootWidget> ActiveRoot;
     TWeakObjectPtr<AOCPlayerController> ActiveController;
@@ -77,12 +79,21 @@ private:
     TWeakObjectPtr<UButton> QuitButton;
 
     int32 Page = 0; // 0 main, 1 create server, 2 join server
-    int32 PendingPage = INDEX_NONE; // Pass 24: structural Slate changes are applied from Tick, never inside input callbacks
+    int32 PendingPage = INDEX_NONE; // Pass 24: structural Slate changes are applied outside input callbacks
     int32 LastAppliedPage = INDEX_NONE;
     bool bPendingHostedStart = false;
     bool bPendingNetworkConnect = false;
+    bool bPendingSettingsOpen = false;
+    bool bPendingQuit = false;
+    bool bPendingPauseResume = false;
+    uint64 PendingActionEarliestFrame = 0; // Pass 26: never execute a frontend action in the click's engine frame
     bool bMenuInputArmed = false; // Pass 25: SetInputMode is armed once, never reset every Tick
     bool bGameplayStarted = false;
     bool bPauseMenuActive = false;
+    bool bPausePageApplied = false;
     bool bLocalTravelPending = false; // keep approved frontend intact until the server world replaces it
+    bool bPresentationStateValid = false;
+    bool bLastShowMenu = false;
+    bool bLastShowBackdrop = false;
+    bool bLastDimGameplay = false;
 };
