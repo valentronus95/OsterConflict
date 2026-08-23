@@ -1,0 +1,49 @@
+name: Visible museum and weapon palette Pass 37
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumVisibilityPass37Subsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumVisibilityPass37Subsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPalettePass37Subsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPalettePass37Subsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp'
+      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'VERIFY_RUNTIME_LOCATION_MAP_PASS_35.py'
+      - 'VERIFY_VISIBLE_MUSEUM_WEAPON_PALETTE_PASS_37.py'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/visible-museum-weapon-palette-pass-37.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumVisibilityPass37Subsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumVisibilityPass37Subsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponPalettePass37Subsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponPalettePass37Subsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp'
+      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'VERIFY_VISIBLE_MUSEUM_WEAPON_PALETTE_PASS_37.py'
+      - '.github/workflows/visible-museum-weapon-palette-pass-37.yml'
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass 37 source contracts
+        run: python VERIFY_VISIBLE_MUSEUM_WEAPON_PALETTE_PASS_37.py
+      - name: Re-run Pass 35 location and map compatibility
+        run: python VERIFY_RUNTIME_LOCATION_MAP_PASS_35.py
+      - name: Re-run Pass 36 weapon and LowCPU compatibility
+        run: python VERIFY_WEAPON_MATERIAL_LOWCPU_PERF_PASS_36.py
+      - name: Re-run runtime acceptance compatibility
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_33.py
+      - name: Re-run playflow/performance compatibility
+        run: python VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py
