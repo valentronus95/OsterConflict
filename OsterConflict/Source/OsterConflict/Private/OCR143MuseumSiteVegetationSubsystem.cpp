@@ -121,13 +121,13 @@ void UOCR143MuseumSiteVegetationSubsystem::BuildSiteVegetation(UWorld& World) co
     Root->RegisterComponent();
 
     UInstancedStaticMeshComponent* GrassAISM = MakeISM(SiteActor, Root, GrassA,
-        TEXT("R143Museum_GrassA"), 38000);
+        TEXT("R143Museum_GrassA"), 15000);
     UInstancedStaticMeshComponent* GrassBISM = MakeISM(SiteActor, Root, GrassB,
-        TEXT("R143Museum_GrassB"), 38000);
+        TEXT("R143Museum_GrassB"), 15000);
     UInstancedStaticMeshComponent* GroundAISM = MakeISM(SiteActor, Root, GroundA,
-        TEXT("R143Museum_GroundPlantA"), 32000);
+        TEXT("R143Museum_GroundPlantA"), 12000);
     UInstancedStaticMeshComponent* GroundBISM = MakeISM(SiteActor, Root, GroundB,
-        TEXT("R143Museum_GroundPlantB"), 32000);
+        TEXT("R143Museum_GroundPlantB"), 12000);
 
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
     FRandomStream Random(14032026);

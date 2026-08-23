@@ -79,6 +79,7 @@ namespace
         Component->SetCollisionEnabled(bCollision ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(bCollision);
+        Component->SetCastShadow(false);
         Component->ComponentTags.Add(TEXT("MuseumStructural"));
         Component->ComponentTags.Add(FName(*FString::Printf(TEXT("Section:%s"), *SectionId)));
         Owner->AddInstanceComponent(Component);
@@ -102,6 +103,8 @@ namespace
         Component->SetCollisionEnabled(bCollision ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(bCollision);
+        Component->SetCastShadow(false);
+        Component->SetCullDistances(0, 30000);
         Owner->AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;
@@ -435,12 +438,9 @@ void UOCR138MuseumInteractiveArchitectureSubsystem::BuildSegmentedArchitecture(U
     // Walkable ground floor. The interior plan is deliberately conservative until interior references arrive.
     AddSection(Architecture, Root, Cube, Concrete, TEXT("GroundFloor"),
         Museum + FVector(0.0f, 0.0f, 76.0f), FVector(1660.0f, 800.0f, 12.0f));
-    AddSection(Architecture, Root, Cube, Interior, TEXT("InteriorPartitionLeft"),
-        Museum + FVector(-480.0f, 80.0f, 225.0f), FVector(700.0f, 18.0f, 300.0f));
-    AddSection(Architecture, Root, Cube, Interior, TEXT("InteriorPartitionRight"),
-        Museum + FVector(480.0f, 80.0f, 225.0f), FVector(700.0f, 18.0f, 300.0f));
-    AddSection(Architecture, Root, Cube, Interior, TEXT("InteriorPartitionHeader"),
-        Museum + FVector(0.0f, 80.0f, 350.0f), FVector(260.0f, 18.0f, 80.0f));
+    // Pass 30: no speculative interior partitions. Runtime showed these pale slabs as false walls that
+    // trapped/obscured the player. Interior room geometry must wait for actual interior references.
+    UE_LOG(LogTemp, Display, TEXT("PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED"));
 
     // Central blue-grey upper room. It is now a hollow shell rather than a window painted onto a solid box.
     constexpr float UpperBottom = 390.0f;
