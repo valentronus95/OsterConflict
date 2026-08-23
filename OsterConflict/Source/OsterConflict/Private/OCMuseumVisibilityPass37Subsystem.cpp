@@ -13,8 +13,9 @@ namespace
 {
     constexpr float FirstPollDelaySeconds = 0.85f;
     constexpr float PollIntervalSeconds = 0.35f;
-    constexpr float LateStartupSettleSeconds = 6.40f;
-    constexpr int32 MaxPollCount = 24;
+    constexpr float LateStartupSettleSeconds = 5.80f;
+    constexpr int32 MaxPollCount = 20;
+    constexpr int32 MaxRebuildAttempts = 1;
     constexpr int32 MinVisibleStructuralComponents = 12;
     constexpr float MuseumStructureRadiusCm = 2600.0f;
 
@@ -174,39 +175,49 @@ void UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()
     ElapsedPollSeconds += PollIntervalSeconds;
 
     FArchitectureSnapshot Snapshot = SnapshotArchitecture(*World);
-    const bool bVisibleCoreReady = Snapshot.BestActor &&
+    bool bVisibleCoreReady = Snapshot.BestActor &&
         Snapshot.VisibleNearAnchor >= MinVisibleStructuralComponents;
 
-    if (!bVisibleCoreReady && HasPrototypeOwner(*World))
+    // Pass 38: one destructive recovery attempt, maximum. Pass 37 could enter this block every 0.35 s
+    // while visible evidence stayed below threshold, repeatedly destroying and reconstructing an entire
+    // building plus materials/components. The user's 60 -> 5 FPS collapse over a few seconds matches that
+    // exact lifecycle churn. If one rebuild does not produce a valid core, keep observing and fail closed.
+    if (!bVisibleCoreReady && HasPrototypeOwner(*World) && RebuildAttemptCount < MaxRebuildAttempts)
     {
+        ++RebuildAttemptCount;
         const int32 Retired = RetireAllArchitectureOwners(*World);
         if (UOCR138MuseumInteractiveArchitectureSubsystem* Architecture =
             World->GetSubsystem<UOCR138MuseumInteractiveArchitectureSubsystem>())
         {
             Architecture->RunAuthoritativeUpgradeNow(*World);
-            bRebuildAttempted = true;
             UE_LOG(LogTemp, Warning,
                 TEXT("PASS37_MUSEUM_VISIBLE_CORE_REBUILD retired_owners=%d prior_visible=%d prior_near_anchor=%d"),
                 Retired, Snapshot.VisibleStructural, Snapshot.VisibleNearAnchor);
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS38_MUSEUM_SINGLE_REBUILD_EXECUTED attempt=%d max_attempts=%d retired_owners=%d"),
+                RebuildAttemptCount, MaxRebuildAttempts, Retired);
         }
 
         Snapshot = SnapshotArchitecture(*World);
+        bVisibleCoreReady = Snapshot.BestActor &&
+            Snapshot.VisibleNearAnchor >= MinVisibleStructuralComponents;
     }
 
-    if (Snapshot.BestActor && Snapshot.VisibleNearAnchor >= MinVisibleStructuralComponents)
+    if (bVisibleCoreReady && Snapshot.BestActor)
     {
         ForceStructuralVisibility(*Snapshot.BestActor);
-        const int32 RetiredDuplicates = RetireOtherArchitectureOwners(*World, Snapshot.BestActor);
-        if (RetiredDuplicates > 0)
-        {
-            UE_LOG(LogTemp, Warning,
-                TEXT("PASS37_MUSEUM_DUPLICATE_ARCHITECTURE_RETIRED count=%d"), RetiredDuplicates);
-        }
 
-        // Keep polling through the historical R13.8 5.35 s delayed startup. It can otherwise create
-        // a second owner after an early recovery and recreate the old building-inside-building problem.
+        // Wait only to catch the historical 5.35 s delayed R13.8 startup. We do not destroy/rebuild during
+        // this window. At settle time a duplicate owner may be retired once, after which the timer ends.
         if (ElapsedPollSeconds >= LateStartupSettleSeconds)
         {
+            const int32 RetiredDuplicates = RetireOtherArchitectureOwners(*World, Snapshot.BestActor);
+            if (RetiredDuplicates > 0)
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("PASS37_MUSEUM_DUPLICATE_ARCHITECTURE_RETIRED count=%d"), RetiredDuplicates);
+            }
+
             const FArchitectureSnapshot FinalSnapshot = SnapshotArchitecture(*World);
             if (FinalSnapshot.OwnerCount == 1 &&
                 FinalSnapshot.VisibleNearAnchor >= MinVisibleStructuralComponents)
@@ -219,8 +230,11 @@ void UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()
                     FinalSnapshot.VisibleStructural,
                     FinalSnapshot.VisibleNearAnchor,
                     MinVisibleStructuralComponents,
-                    bRebuildAttempted ? 1 : 0,
+                    RebuildAttemptCount > 0 ? 1 : 0,
                     *AOCWorldSectorOster::MuseumAnchor().ToCompactString());
+                UE_LOG(LogTemp, Display,
+                    TEXT("PASS38_MUSEUM_REBUILD_BUDGET_READY rebuild_attempts=%d max_attempts=%d polls=%d destructive_loop=0"),
+                    RebuildAttemptCount, MaxRebuildAttempts, PollCount);
                 return;
             }
         }
@@ -238,5 +252,12 @@ void UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()
             FinalSnapshot.VisibleNearAnchor,
             MinVisibleStructuralComponents,
             HasPrototypeOwner(*World) ? 1 : 0);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS38_MUSEUM_REBUILD_BUDGET_FAIL rebuild_attempts=%d max_attempts=%d polls=%d structural_total=%d near_anchor=%d destructive_loop=0"),
+            RebuildAttemptCount,
+            MaxRebuildAttempts,
+            PollCount,
+            FinalSnapshot.TotalStructural,
+            FinalSnapshot.VisibleNearAnchor);
     }
 }
