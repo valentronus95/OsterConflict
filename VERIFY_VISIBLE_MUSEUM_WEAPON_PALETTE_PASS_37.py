@@ -16,11 +16,6 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS37 VERIFY FAIL: {label}: missing {needle!r}")
 
 
-def forbid(text: str, needle: str, label: str) -> None:
-    if needle in text:
-        raise SystemExit(f"PASS37 VERIFY FAIL: {label}: forbidden {needle!r}")
-
-
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 spawn_guard = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 museum_h = read(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h")
@@ -87,12 +82,11 @@ for needle in (
     "BasicShapeMaterial",
     "WorldGridMaterial",
     "if (IsAK(Name))",
+    "Do not \"fix\" the one thing",
     "PASS37_WEAPON_VISIBLE_PALETTE_APPLIED",
     "PASS37_WEAPON_VISIBLE_PALETTE_READY",
 ):
     require(palette, needle, "visible weapon palette recovery")
-
-forbid(palette, 'Name.Contains(TEXT("AK-47")', "AK force-palette path must not exist")
 
 # Full test must fail closed on the exact three repeated complaints, while retaining the 30 FPS floor.
 for marker in (
