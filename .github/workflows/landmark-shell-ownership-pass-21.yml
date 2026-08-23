@@ -1,0 +1,60 @@
+name: Landmark shell ownership Pass 21
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCLandmarkShellOwnershipGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkShellOwnershipGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
+      - 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_LANDMARK_SHELL_OWNERSHIP_PASS_21.py'
+      - '.github/workflows/landmark-shell-ownership-pass-21.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCLandmarkShellOwnershipGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkShellOwnershipGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
+      - 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_LANDMARK_SHELL_OWNERSHIP_PASS_21.py'
+      - '.github/workflows/landmark-shell-ownership-pass-21.yml'
+
+jobs:
+  verify-pass-21:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify Pass 20 launch compatibility
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8='1'
+          $env:PYTHONIOENCODING='utf-8'
+          python .\VERIFY_NORMAL_GAME_ROUTE_PASS_20.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify landmark shell ownership Pass 21
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8='1'
+          $env:PYTHONIOENCODING='utf-8'
+          python .\VERIFY_LANDMARK_SHELL_OWNERSHIP_PASS_21.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
