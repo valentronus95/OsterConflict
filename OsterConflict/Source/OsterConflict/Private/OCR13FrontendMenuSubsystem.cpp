@@ -87,6 +87,23 @@ namespace
         if (!Field) return nullptr;
         Field->SetHintText(Hint);
         Field->SetText(FText::FromString(Value));
+
+        // Pass 24: use an explicit game-owned dark style instead of the editor/default white field look.
+        // Keeping all brushes resource-stable while tinting them avoids constructing transient Slate resources
+        // during the main-menu -> server-setup transition.
+        FEditableTextBoxStyle FieldStyle = Field->GetWidgetStyle();
+        FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f));
+        FieldStyle.ForegroundColor = FSlateColor(FLinearColor(0.93f, 0.93f, 0.91f, 1.0f));
+        FieldStyle.FocusedForegroundColor = FSlateColor(FLinearColor::White);
+        FieldStyle.ReadOnlyForegroundColor = FSlateColor(FLinearColor(0.62f, 0.62f, 0.60f, 1.0f));
+        FieldStyle.BackgroundImageNormal.TintColor = FSlateColor(FLinearColor(0.055f, 0.062f, 0.072f, 1.0f));
+        FieldStyle.BackgroundImageHovered.TintColor = FSlateColor(FLinearColor(0.075f, 0.085f, 0.098f, 1.0f));
+        FieldStyle.BackgroundImageFocused.TintColor = FSlateColor(FLinearColor(0.085f, 0.098f, 0.115f, 1.0f));
+        FieldStyle.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.040f, 0.046f, 0.054f, 1.0f));
+        FieldStyle.Padding = FMargin(14.0f, 10.0f);
+        Field->SetWidgetStyle(FieldStyle);
+        Field->SetMinimumDesiredWidth(420.0f);
+
         if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Field))
         {
             Slot->SetPadding(FMargin(0.0f, 5.0f));
@@ -192,6 +209,40 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
     EnsureFrontend(Root, PC);
     SuppressLegacyFrontendLayers(Root);
 
+    // Pass 24: never rebuild Slate hierarchy from UButton input delegates. Apply queued navigation
+    // on the next world Tick, after Slate has finished routing the click that requested it.
+    if (PendingPage != INDEX_NONE)
+    {
+        const int32 NewPage = PendingPage;
+        PendingPage = INDEX_NONE;
+        Page = NewPage;
+        LastAppliedPage = INDEX_NONE;
+        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_BEGIN page=%d"), Page);
+        ApplyPage();
+        ForceMenuInput();
+        if (Page == 1)
+        {
+            UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
+        }
+        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_READY page=%d"), Page);
+    }
+
+    if (bPendingHostedStart)
+    {
+        bPendingHostedStart = false;
+        UE_LOG(LogTemp, Display, TEXT("PASS24_HOST_START_DEFERRED_EXECUTE"));
+        StartHostedGameplay();
+        return;
+    }
+
+    if (bPendingNetworkConnect)
+    {
+        bPendingNetworkConnect = false;
+        UE_LOG(LogTemp, Display, TEXT("PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE"));
+        StartNetworkGameplay();
+        return;
+    }
+
     const bool bSettingsVisible = PC->IsSettingsVisible();
     const bool bFrontendVisible = PC->IsFrontendMenuVisible() && !bSettingsVisible;
     const bool bDeploymentVisible = !bSettingsVisible && PC->IsDeploymentPanelVisible();
@@ -257,6 +308,10 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     ActiveRoot = Root;
     ActiveController = PC;
     Page = 0;
+    PendingPage = INDEX_NONE;
+    LastAppliedPage = INDEX_NONE;
+    bPendingHostedStart = false;
+    bPendingNetworkConnect = false;
     bGameplayStarted = false;
     bPauseMenuActive = false;
     bLocalTravelPending = false;
@@ -391,11 +446,11 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     UButton* Quit = R13FrontendMakeMenuButton(Root, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
     if (!Primary || !Secondary || !Network || !Settings || !Quit) return;
 
-    Primary->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnPrimaryClicked);
-    Secondary->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnSecondaryClicked);
-    Network->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnNetworkClicked);
-    Settings->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnSettingsClicked);
-    Quit->OnPressed.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnQuitClicked);
+    Primary->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnPrimaryClicked);
+    Secondary->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnSecondaryClicked);
+    Network->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnNetworkClicked);
+    Settings->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnSettingsClicked);
+    Quit->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnQuitClicked);
 
     WorldBlocker = Blocker;
     MenuBackground = Background;
@@ -424,7 +479,7 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
 
 void UOCR13FrontendMenuSubsystem::ApplyPage()
 {
-    if (!MenuBox.IsValid()) return;
+    if (!MenuBox.IsValid() || LastAppliedPage == Page) return;
     bPauseMenuActive = false;
 
     if (MenuPanel.IsValid())
@@ -432,7 +487,7 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         const bool bMainPage = Page == 0;
         MenuPanel->SetBrushColor(bMainPage
             ? FLinearColor::Transparent
-            : FLinearColor(0.0f, 0.0f, 0.0f, 0.36f));
+            : FLinearColor(0.025f, 0.030f, 0.036f, 0.96f));
         MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(22.0f));
         R13FrontendSetPanelGeometry(MenuPanel.Get(),
             bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 106.0f),
@@ -456,6 +511,7 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         R13FrontendSetButtonState(NetworkButton.Get(), true);
         R13FrontendSetButtonState(SettingsButton.Get(), true);
         R13FrontendSetButtonState(QuitButton.Get(), true);
+        LastAppliedPage = Page;
         return;
     }
 
@@ -495,11 +551,14 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "Connect", "ПІДКЛЮЧИТИСЯ"));
         R13FrontendSetButtonLabel(SecondaryButton.Get(), NSLOCTEXT("OCR13Frontend", "BackNetwork", "НАЗАД"));
     }
+
+    LastAppliedPage = Page;
 }
 
 void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 {
     if (!MenuBox.IsValid()) return;
+    LastAppliedPage = INDEX_NONE;
     bPauseMenuActive = true;
 
     if (MenuPanel.IsValid())
@@ -618,44 +677,34 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
     if (Page == 0)
     {
-        Page = 1;
-        ApplyPage();
-        ForceMenuInput();
-        UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
+        PendingPage = 1;
+        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1"));
         return;
     }
 
     if (Page == 1)
     {
-        StartHostedGameplay();
+        bPendingHostedStart = true;
+        UE_LOG(LogTemp, Display, TEXT("PASS24_HOST_START_DEFERRED_QUEUED"));
         return;
     }
 
-    AOCPlayerController* PC = ActiveController.Get();
-    if (!PC) return;
-    const FString Username = UsernameEntry.IsValid() ? UsernameEntry->GetText().ToString() : FString(TEXT("Player"));
-    const FString Address = AddressEntry.IsValid() ? AddressEntry->GetText().ToString() : FString(TEXT("127.0.0.1:7777"));
-    if (UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get()) Prefs->SetFrontendIdentity(Username, Address);
-    bGameplayStarted = true;
-    ReleaseMenuInput();
-    SetPresentationVisibility(false, false, false);
-    PC->UIConnect(Address, Username);
+    bPendingNetworkConnect = true;
+    UE_LOG(LogTemp, Display, TEXT("PASS24_NETWORK_CONNECT_DEFERRED_QUEUED"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
     if (bPauseMenuActive || bLocalTravelPending || Page == 0) return;
-    Page = 0;
-    ApplyPage();
-    ForceMenuInput();
+    PendingPage = 0;
+    UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=0"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
     if (bPauseMenuActive || bLocalTravelPending) return;
-    Page = 2;
-    ApplyPage();
-    ForceMenuInput();
+    PendingPage = 2;
+    UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
@@ -687,6 +736,20 @@ void UOCR13FrontendMenuSubsystem::OnQuitClicked()
     }
 
     UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false);
+}
+
+void UOCR13FrontendMenuSubsystem::StartNetworkGameplay()
+{
+    AOCPlayerController* PC = ActiveController.Get();
+    if (!PC || bLocalTravelPending) return;
+
+    const FString Username = UsernameEntry.IsValid() ? UsernameEntry->GetText().ToString() : FString(TEXT("Player"));
+    const FString Address = AddressEntry.IsValid() ? AddressEntry->GetText().ToString() : FString(TEXT("127.0.0.1:7777"));
+    if (UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get()) Prefs->SetFrontendIdentity(Username, Address);
+    bGameplayStarted = true;
+    ReleaseMenuInput();
+    SetPresentationVisibility(false, false, false);
+    PC->UIConnect(Address, Username);
 }
 
 void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
@@ -741,7 +804,8 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
 
     FInputModeUIOnly Mode;
     Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-    if (PrimaryButton.IsValid()) Mode.SetWidgetToFocus(PrimaryButton->TakeWidget());
+    // Pass 24: do not recreate/focus an SWidget every Tick. Mouse input remains UI-only;
+    // focus is acquired naturally by the clicked control.
     PC->SetInputMode(Mode);
 }
 

@@ -45,6 +45,7 @@ private:
     void SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay = false);
     void SuppressLegacyFrontendLayers(UOCGameUIRootWidget* Root);
     void StartHostedGameplay();
+    void StartNetworkGameplay();
     void ForceMenuInput();
     void ReleaseMenuInput();
 
@@ -76,6 +77,10 @@ private:
     TWeakObjectPtr<UButton> QuitButton;
 
     int32 Page = 0; // 0 main, 1 create server, 2 join server
+    int32 PendingPage = INDEX_NONE; // Pass 24: structural Slate changes are applied from Tick, never inside input callbacks
+    int32 LastAppliedPage = INDEX_NONE;
+    bool bPendingHostedStart = false;
+    bool bPendingNetworkConnect = false;
     bool bGameplayStarted = false;
     bool bPauseMenuActive = false;
     bool bLocalTravelPending = false; // keep approved frontend intact until the server world replaces it
