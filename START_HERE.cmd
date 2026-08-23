@@ -11,25 +11,20 @@ echo ============================================================
 echo.
 echo 1. ЗВИЧАЙНА ГРА
 echo 2. ПОВНИЙ RUNTIME-ТЕСТ
-echo 3. ТЕХНІЧНИЙ SANDBOX
-echo 4. ВІДКРИТИ UNREAL EDITOR
+echo 3. ВІДКРИТИ UNREAL EDITOR
 echo 0. ВИХІД
 echo.
-echo Для щоденного запуску завжди використовуйте тільки START_HERE.cmd.
+echo Для запуску проєкту завжди використовуйте тільки START_HERE.cmd.
 echo Інші RUN_*.cmd - внутрішні технічні скрипти, вручну їх запускати не потрібно.
 echo.
 echo Поточний safe renderer: DirectX 11.
-echo D3D12 тимчасово не використовується через підтверджений startup crash у D3D12RHI.
+echo D3D12 тимчасово вимкнений через підтверджений startup crash у D3D12RHI.
 echo.
-choice /C 12340 /N /M "Оберіть: "
+choice /C 1230 /N /M "Оберіть: "
 
-if errorlevel 5 goto end
-if errorlevel 4 (
-  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" -d3d11
-  goto menu
-)
+if errorlevel 4 goto end
 if errorlevel 3 (
-  call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"
+  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" -d3d11
   goto menu
 )
 if errorlevel 2 (
