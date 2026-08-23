@@ -58,27 +58,30 @@ require(loading, 'if (!bReadySent && Elapsed >= 0.12)', "rendered zero-percent f
 require(loading, 'Widget->SetLoadingProgress(1.0f);', "loading reaches 100 before removal")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
 
-# BASE spawn now has three layers of protection: canonical relocation, automatic authoritative BASE creation,
-# and a persistent server-side check of each newly possessed human pawn that selected BASE. The old world-sector
-# timing dependency is intentionally gone because it failed in the real laptop playtest.
+# BASE spawn keeps three protection layers: canonical relocation, authoritative BASE creation and
+# persistent validation of each BASE-selected pawn. Pass 37 supersedes the old 30 m exclusion because
+# the user rejected the 41 m deployment twice as visually too far. The new primary is still outside the
+# authored shell at ~27.8 m and must stay within the explicit 20-45 m visible-approach band.
 require(team_spawn, 'const FVector Museum = AOCWorldSectorOster::MuseumAnchor();', "canonical Museum BASE anchor")
 require(team_spawn, 'SpawnRuntimeBaseWeaponRack(*this, TeamId);', "Museum BASE weapon rack")
 require(game_mode, 'const FVector FallbackLocation = bTeamTwo ? FVector(2800.0f, 0.0f, 120.0f) : FVector(-2800.0f, 0.0f, 120.0f);', "legacy fallback is explicitly tracked")
 require(spawn_guard_h, 'class OSTERCONFLICT_API UOCMuseumSpawnGuardSubsystem : public UTickableWorldSubsystem', "Museum spawn guard subsystem")
 require(spawn_guard_h, 'ValidateBaseDeployments', "persistent deployed-pawn validation")
 require(spawn_guard, 'GameMode->IsFrontendOnlySession()', "frontend/gameplay authority gate")
-require(spawn_guard, 'constexpr float MuseumNoSpawnRadiusCm = 3000.0f;', "Museum no-spawn exclusion")
+require(spawn_guard, 'constexpr float MuseumNoSpawnRadiusCm = 2000.0f;', "Pass 37 Museum no-spawn exclusion")
+require(spawn_guard, 'constexpr float PrimaryBaseRadiusCm = 4500.0f;', "Pass 37 visible Museum primary band")
 require(spawn_guard, 'Point->ConfigureServer(Team, true, NAME_None);', "canonical BASE repair path")
 require(spawn_guard, 'EnsurePrimary(EOCTeam::TeamOne, TeamOnePrimary);', "TeamOne primary BASE guarantee")
 require(spawn_guard, 'EnsurePrimary(EOCTeam::TeamTwo, TeamTwoPrimary);', "TeamTwo primary BASE guarantee")
 require(spawn_guard, 'GetRequestedDeploymentSpawn()', "actual BASE-selected pawn validation")
-require(spawn_guard, 'PASS30_MUSEUM_EXTERIOR_BASES_READY', "exterior Museum BASE evidence")
-require(spawn_guard, 'PASS30_BASE_DEPLOYMENT_OUTSIDE_MUSEUM', "actual exterior pawn evidence")
-require(spawn_guard, 'PASS30_BASE_DEPLOYMENT_RECOVERED_OUTSIDE_MUSEUM', "interior BASE recovery path")
+require(spawn_guard, 'PASS30_MUSEUM_EXTERIOR_BASES_READY', "exterior Museum BASE compatibility evidence")
+require(spawn_guard, 'PASS37_MUSEUM_VISIBLE_BASES_READY', "Pass 37 visible Museum BASE evidence")
+require(spawn_guard, 'PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH', "actual visible-approach pawn evidence")
+require(spawn_guard, 'PASS37_BASE_DEPLOYMENT_RECOVERED_VISIBLE_MUSEUM_APPROACH', "visible-approach BASE recovery path")
 require(spawn_guard, 'PASS7_MUSEUM_BASES_READY', "Pass 7 compatibility readiness marker")
-require(team_spawn, 'PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM', "canonical exterior BASE relocation")
-require(team_spawn, 'FVector(-2600.0f, -3200.0f, 120.0f)', "TeamOne exterior BASE offset")
-require(team_spawn, 'FVector(2600.0f, -3200.0f, 120.0f)', "TeamTwo exterior BASE offset")
+require(team_spawn, 'PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH', "canonical visible Museum BASE relocation")
+require(team_spawn, 'FVector(-1400.0f, -2400.0f, 120.0f)', "TeamOne visible Museum BASE offset")
+require(team_spawn, 'FVector(1400.0f, -2400.0f, 120.0f)', "TeamTwo visible Museum BASE offset")
 if 'bGameplaySectorPresent' in spawn_guard:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: Museum guard still depends on delayed world-sector actor timing")
 
@@ -127,7 +130,7 @@ print("- one main START meaning; final deployment action is У БІЙ")
 print("- pre-game settings keep the frontend backdrop and use an opaque panel")
 print("- deployment transition fully blocks the underlying panel and reaches 100% after possession")
 print("- Museum BASE creation no longer depends on delayed world-sector timing")
-print("- actual BASE-selected pawns are verified/recovered to Museum if legacy fallback ever fires")
+print("- actual BASE-selected pawns are verified/recovered to the 20-45 m visible Museum approach")
 print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; invalid proxies fail closed instead of being accepted")
 print("- acceptance launcher requires runtime READY evidence and rejects vehicle FAIL evidence")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance is still required")
