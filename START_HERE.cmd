@@ -9,12 +9,14 @@ echo ============================================================
 echo OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК
 echo ============================================================
 echo.
-echo 1. ЗВИЧАЙНА ГРА - головне меню, потім START / TEAM gameplay
+echo 1. ЗВИЧАЙНА ГРА - головне меню, створення сервера, TEAM/SQUAD/ROLE/SPAWN
 echo 2. ТЕХНІЧНИЙ ТЕСТ ГРИ - прямий LocationTest БЕЗ головного меню
 echo 3. ВІДКРИТИ UNREAL EDITOR
 echo 0. ВИХІД
 echo.
 echo Для звичайного запуску гри обирай 1.
+echo Пункт 1 використовує playable runtime route і НЕ блокує запуск через відсутні exact HMMWV/M2/BTR source-файли.
+echo Strict production-art acceptance залишається окремим технічним gate.
 echo Пункт 2 потрібен тільки для швидкої діагностики runtime і навмисно обходить головне меню.
 echo Інші RUN_*.cmd - внутрішні технічні скрипти, їх запускати не потрібно.
 echo.
@@ -30,7 +32,7 @@ if errorlevel 2 (
   goto menu
 )
 if errorlevel 1 (
-  call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
+  call "%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"
   goto menu
 )
 
