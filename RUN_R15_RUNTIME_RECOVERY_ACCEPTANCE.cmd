@@ -42,7 +42,7 @@ for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRA
 if /I "%CURRENT_BRANCH%"=="main" (
   set "REMOTE_REF=origin/main"
 ) else (
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Focused recovery launcher accepts only main or explicit runtime-fix branches.
     pause
@@ -116,8 +116,9 @@ if errorlevel 1 (
 echo.
 echo [5/6] Launching focused runtime recovery test...
 echo ------------------------------------------------------------
-echo Safe renderer: DirectX 11 ^(-d3d11^).
-echo D3D12 is temporarily disabled after the confirmed D3D12RHI startup crash.
+echo Safe renderer: DirectX 11 + Shader Model 5.
+echo Safe-start flags: -d3d11 -sm5 -nohdr -norhithread.
+echo D3D12/SM6 is temporarily disabled after the confirmed startup renderer crashes.
 echo 1. Main menu - press START.
 echo 2. Confirm server fields are DARK/readable and panel is opaque.
 echo 3. Press CREATE SERVER.
@@ -129,7 +130,7 @@ echo.
 echo NOTE: exact production-art certification and BTR/HMMWV/M2 production intake are separate strict gates.
 echo ------------------------------------------------------------
 
-start /wait "Oster Conflict Pass 15-19 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start /wait "Oster Conflict Pass 15-19 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -norhithread -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not exist "%LOG%" (
