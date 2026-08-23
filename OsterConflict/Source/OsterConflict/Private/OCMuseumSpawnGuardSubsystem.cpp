@@ -15,9 +15,10 @@ namespace
 {
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
     constexpr int32 RequiredRackWeaponCount = 11;
-    constexpr float PrimaryBaseRadiusCm = 2200.0f;
+    constexpr float PrimaryBaseRadiusCm = 6500.0f;
     constexpr float RackRadiusCm = 1800.0f;
-    constexpr float BaseDeploymentAcceptanceRadiusCm = 3500.0f;
+    constexpr float MuseumNoSpawnRadiusCm = 3000.0f;
+    constexpr float BaseDeploymentAcceptanceRadiusCm = 8000.0f;
 
     int32 CountRackWeaponsNear(UWorld* World, const FVector& BaseLocation)
     {
@@ -46,6 +47,7 @@ namespace
             AOCTeamSpawnPoint* Point = *It;
             if (!Point || !Point->IsBaseSpawn() || Point->GetTeamId() != Team) continue;
             const double DistanceSq = FVector::DistSquared2D(Point->GetActorLocation(), Museum);
+            if (DistanceSq < FMath::Square(MuseumNoSpawnRadiusCm)) continue;
             if (DistanceSq <= FMath::Square(PrimaryBaseRadiusCm) && DistanceSq < BestSq)
             {
                 BestSq = DistanceSq;
@@ -74,9 +76,6 @@ void UOCMuseumSpawnGuardSubsystem::Tick(float DeltaTime)
     if (ValidationAccumulator < 0.25f) return;
     ValidationAccumulator = 0.0f;
 
-    // Pass 15: do not wait on AOCWorldSectorOster actor existence. The failed laptop playtest proved
-    // that this guard can otherwise remain inert even though gameplay/deployment is already visible.
-    // GameMode is the authoritative distinction between the startup frontend shell and a real match.
     const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
     if (!GameMode || GameMode->IsFrontendOnlySession()) return;
 
@@ -102,8 +101,10 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
     double TeamOneBestSq = TNumericLimits<double>::Max();
     double TeamTwoBestSq = TNumericLimits<double>::Max();
 
-    // Repair stale map-edge BASE actors first, then explicitly identify a PRIMARY Museum BASE.
-    // A secondary base alone is no longer enough to claim the deployment route is ready.
+    // Pass 30: AOCTeamSpawnPoint::BeginPlay already canonicalizes serialized BASE actors. Do not
+    // repeatedly call ConfigureServer here based on distance: the new safe exterior bases are
+    // intentionally 41+ metres from MuseumAnchor, and reconfiguring them would collapse secondary
+    // bases onto the primary location. Only accept BASE actors outside the museum exclusion radius.
     for (TActorIterator<AOCTeamSpawnPoint> It(World); It; ++It)
     {
         AOCTeamSpawnPoint* Point = *It;
@@ -112,16 +113,12 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
         const EOCTeam Team = Point->GetTeamId();
         if (Team != EOCTeam::TeamOne && Team != EOCTeam::TeamTwo) continue;
 
-        if (FVector::DistSquared2D(Point->GetActorLocation(), Museum) > FMath::Square(3500.0f))
-        {
-            UE_LOG(LogTemp, Warning,
-                TEXT("Pass15 spawn guard repairing stale BASE: team=%s old=%s museum=%s"),
-                *OCTeamToString(Team), *Point->GetActorLocation().ToCompactString(), *Museum.ToCompactString());
-            Point->ConfigureServer(Team, true, NAME_None);
-        }
-
         const double DistanceSq = FVector::DistSquared2D(Point->GetActorLocation(), Museum);
-        if (DistanceSq > FMath::Square(PrimaryBaseRadiusCm)) continue;
+        if (DistanceSq < FMath::Square(MuseumNoSpawnRadiusCm) ||
+            DistanceSq > FMath::Square(PrimaryBaseRadiusCm))
+        {
+            continue;
+        }
 
         if (Team == EOCTeam::TeamOne && DistanceSq < TeamOneBestSq)
         {
@@ -147,23 +144,31 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
         if (!Point)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("Pass15 spawn guard FAILED to create primary Museum BASE for team=%s"), *OCTeamToString(Team));
+                TEXT("PASS30_MUSEUM_EXTERIOR_BASE_CREATE_FAIL team=%s"), *OCTeamToString(Team));
             return;
         }
 
         Point->ConfigureServer(Team, true, NAME_None);
+        const float DistanceM = FVector::Dist2D(Point->GetActorLocation(), Museum) / 100.0f;
+        if (DistanceM < MuseumNoSpawnRadiusCm / 100.0f)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS30_MUSEUM_EXTERIOR_BASE_CREATE_FAIL team=%s distance_m=%.1f location=%s"),
+                *OCTeamToString(Team), DistanceM, *Point->GetActorLocation().ToCompactString());
+            Point->Destroy();
+            return;
+        }
+
         Primary = Point;
-        UE_LOG(LogTemp, Warning,
-            TEXT("Pass15 spawn guard created missing primary Museum BASE: team=%s location=%s"),
-            *OCTeamToString(Team), *Point->GetActorLocation().ToCompactString());
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS30_MUSEUM_EXTERIOR_BASE_CREATED team=%s location=%s distance_m=%.1f"),
+            *OCTeamToString(Team), *Point->GetActorLocation().ToCompactString(), DistanceM);
     };
 
     EnsurePrimary(EOCTeam::TeamOne, TeamOnePrimary);
     EnsurePrimary(EOCTeam::TeamTwo, TeamTwoPrimary);
     if (!TeamOnePrimary || !TeamTwoPrimary) return false;
 
-    // A spawn-point tag is not rack evidence. If fewer than 11 physical tagged weapons exist near
-    // the primary BASE, reconfigure that BASE so OCTeamSpawnPoint rebuilds the rack from scratch.
     int32 TeamOneRack = CountRackWeaponsNear(World, TeamOnePrimary->GetActorLocation());
     int32 TeamTwoRack = CountRackWeaponsNear(World, TeamTwoPrimary->GetActorLocation());
     if (TeamOneRack < RequiredRackWeaponCount)
@@ -177,20 +182,26 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
         TeamTwoRack = CountRackWeaponsNear(World, TeamTwoPrimary->GetActorLocation());
     }
 
-    if (TeamOneRack >= RequiredRackWeaponCount && TeamTwoRack >= RequiredRackWeaponCount)
+    const float TeamOneDistanceM = FVector::Dist2D(TeamOnePrimary->GetActorLocation(), Museum) / 100.0f;
+    const float TeamTwoDistanceM = FVector::Dist2D(TeamTwoPrimary->GetActorLocation(), Museum) / 100.0f;
+    if (TeamOneRack >= RequiredRackWeaponCount && TeamTwoRack >= RequiredRackWeaponCount &&
+        TeamOneDistanceM >= MuseumNoSpawnRadiusCm / 100.0f &&
+        TeamTwoDistanceM >= MuseumNoSpawnRadiusCm / 100.0f)
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS7_MUSEUM_BASES_READY museum=%s team1=1 team2=1"), *Museum.ToCompactString());
         UE_LOG(LogTemp, Display,
-            TEXT("PASS15_MUSEUM_BASES_WEAPONS_READY team1_rack=%d team2_rack=%d team1=%s team2=%s"),
+            TEXT("PASS30_MUSEUM_EXTERIOR_BASES_READY team1_rack=%d team2_rack=%d team1=%s team2=%s distance_m=%.1f/%.1f"),
             TeamOneRack, TeamTwoRack,
             *TeamOnePrimary->GetActorLocation().ToCompactString(),
-            *TeamTwoPrimary->GetActorLocation().ToCompactString());
+            *TeamTwoPrimary->GetActorLocation().ToCompactString(),
+            TeamOneDistanceM, TeamTwoDistanceM);
         return true;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("PASS15_MUSEUM_BASES_WEAPONS_NOT_READY team1_rack=%d team2_rack=%d"), TeamOneRack, TeamTwoRack);
+        TEXT("PASS30_MUSEUM_EXTERIOR_BASES_NOT_READY team1_rack=%d team2_rack=%d distance_m=%.1f/%.1f"),
+        TeamOneRack, TeamTwoRack, TeamOneDistanceM, TeamTwoDistanceM);
     return false;
 }
 
@@ -222,11 +233,14 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         if (Team == EOCTeam::None) continue;
 
         const double DistanceSq = FVector::DistSquared2D(Pawn->GetActorLocation(), Museum);
-        if (DistanceSq <= FMath::Square(BaseDeploymentAcceptanceRadiusCm))
+        const bool bOutsideMuseum = DistanceSq >= FMath::Square(MuseumNoSpawnRadiusCm);
+        const bool bNearMuseum = DistanceSq <= FMath::Square(BaseDeploymentAcceptanceRadiusCm);
+        if (bOutsideMuseum && bNearMuseum)
         {
             UE_LOG(LogTemp, Display,
-                TEXT("PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM team=%s pawn=%s location=%s"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
+                TEXT("PASS30_BASE_DEPLOYMENT_OUTSIDE_MUSEUM team=%s pawn=%s location=%s distance_m=%.1f"),
+                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(),
+                FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f);
             continue;
         }
 
@@ -234,7 +248,7 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         if (!Base)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_primary_base=1 location=%s"),
+                TEXT("PASS30_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_exterior_base=1 location=%s"),
                 *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
             continue;
         }
@@ -246,9 +260,10 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
             Corrected.GetLocation(), Corrected.Rotator(), false, nullptr, ETeleportType::TeleportPhysics);
 
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS15_BASE_DEPLOYMENT_RECOVERED team=%s pawn=%s old=%s new=%s museum=%s"),
+            TEXT("PASS30_BASE_DEPLOYMENT_RECOVERED_OUTSIDE_MUSEUM team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f"),
             *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
-            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString());
+            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(),
+            FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f);
     }
 }
 
