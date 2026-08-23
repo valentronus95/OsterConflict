@@ -1,0 +1,24 @@
+name: Runtime runaway heat Pass 38
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass 38 bounded lifecycle contracts
+        run: python VERIFY_RUNTIME_RUNAWAY_HEAT_PASS_38.py
+      - name: Re-run Pass 37 museum and weapon presentation contracts
+        run: python VERIFY_VISIBLE_MUSEUM_WEAPON_PALETTE_PASS_37.py
+      - name: Re-run canonical runtime acceptance contract
+        run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_33.py
+      - name: Re-run Pass 36 weapon and performance compatibility
+        run: python VERIFY_WEAPON_MATERIAL_LOWCPU_PERF_PASS_36.py
