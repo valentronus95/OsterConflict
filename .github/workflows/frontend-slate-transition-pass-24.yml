@@ -1,0 +1,36 @@
+name: Frontend Slate transition Pass 24
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
+      - 'VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py'
+      - '.github/workflows/frontend-slate-transition-pass-24.yml'
+      - 'VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py'
+      - 'VERIFY_RUNTIME_RECOVERY_PASS_15.py'
+      - 'VERIFY_SINGLE_LAUNCHER_D3D11_PASS_22.py'
+      - 'VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Pass 24 frontend transition contract
+        run: python VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py
+      - name: Pass 14 playflow compatibility
+        run: python VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py
+      - name: Pass 15 recovery compatibility
+        run: python VERIFY_RUNTIME_RECOVERY_PASS_15.py
+      - name: Pass 22 launcher compatibility
+        run: python VERIFY_SINGLE_LAUNCHER_D3D11_PASS_22.py
+      - name: Pass 23 renderer compatibility
+        run: python VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py
