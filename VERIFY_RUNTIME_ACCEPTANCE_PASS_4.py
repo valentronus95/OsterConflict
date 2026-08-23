@@ -39,11 +39,27 @@ r10 = read("r10")
 for needle in (
     "verify_required_weapon_assets.py",
     "required_weapon_asset_preflight_success.txt",
-    "Opening every required REAL weapon visual in a fresh UE process",
-    "Primitive weapon boxes are not accepted as a fallback for the normal playtest.",
+    "Opening every required REAL/playable weapon visual in a fresh UE process",
+    "Primitive-only weapon boxes are not accepted for the normal playtest.",
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
 ):
     require(launcher, needle, "normal gameplay launcher gate")
+
+# Pass 20 keeps the production intake but moves it behind strict acceptance rather than blocking normal play.
+for needle in (
+    'if "%IS_ACCEPTANCE%"=="1" (',
+    "[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
+    'call "%PRODUCTION_IMPORT%"',
+    "[3/4] NORMAL GAME: skipping strict production vehicle intake.",
+    "Exact HMMWV/M2/BTR production source files remain an open content gap",
+):
+    require(launcher, needle, "Pass 20 strict/normal production split")
+strict_stage = launcher.find("[3/4] STRICT ACCEPTANCE")
+acceptance_gate = launcher.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
+import_call = launcher.find('call "%PRODUCTION_IMPORT%"', strict_stage)
+normal_else = launcher.find(") else (", strict_stage)
+if strict_stage < 0 or acceptance_gate < 0 or import_call < 0 or normal_else < 0 or not (acceptance_gate < strict_stage < import_call < normal_else):
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: production importer escaped strict acceptance")
 
 for needle in (
     "verify_playtest_lfs_payloads.ps1",
@@ -149,11 +165,11 @@ if "'if (UVerticalBoxSlot* Slot'," in r10 or "'if (UCanvasPanelSlot* Slot'," in 
 require(r10, "UI Slot shadow names removed", "R10 file-specific UI shadow contract")
 
 print("RUNTIME ACCEPTANCE PASS 4 SOURCE CONTRACT PASS")
-print("- normal gameplay hard-gates required real weapon assets in a fresh UE process")
+print("- normal gameplay hard-gates required real/playable weapon assets in a fresh UE process")
 print("- Windows launcher uses Git LFS commands compatible with the playtest PC and a separate PowerShell verifier")
 print("- HMMWV/M2/BTR source intake searches existing project sources and common Windows download locations")
 print("- BTR production intake requires and restores the six known original texture files")
-print("- HMMWV/M2/BTR production ingest gate remains in the normal launcher")
+print("- HMMWV/M2/BTR production ingest remains mandatory in strict acceptance but no longer blocks normal frontend launch")
 print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon, not only the first local pawn")
 print("- muzzle bounds fallback uses the UE 5.8 return-value GetLocalBounds API")
 print("- BASE source remains tied to the canonical Museum test hub")
