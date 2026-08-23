@@ -16,6 +16,11 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS37 VERIFY FAIL: {label}: missing {needle!r}")
 
 
+def forbid(text: str, needle: str, label: str) -> None:
+    if needle in text:
+        raise SystemExit(f"PASS37 VERIFY FAIL: {label}: forbidden {needle!r}")
+
+
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 spawn_guard = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 museum_h = read(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h")
@@ -24,8 +29,6 @@ palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
 palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 
-# Latest runtime rejected the 41 m BASE as visually too far. Canonical placement must now be the
-# closer front-side approach and must face back toward the museum.
 for needle in (
     "FVector(-1400.0f, -2400.0f, 120.0f)",
     "FVector(1400.0f, -2400.0f, 120.0f)",
@@ -47,48 +50,47 @@ for needle in (
 ):
     require(spawn_guard, needle, "deployment guard aligned with closer BASE")
 
-# An R13.8 owner tag is no longer enough. We require visible registered structural components near
-# MuseumAnchor and keep polling beyond the old delayed R13.8 5.35 s startup to retire duplicates.
+# Runtime after Pass 37 showed a catastrophic 60 -> 5 FPS fall. Visible-component proof remains, but the
+# destructive recovery path is now limited to one attempt instead of running every 0.35 s.
 require(museum_h, "UOCMuseumVisibilityPass37Subsystem", "visible museum guard class")
 for needle in (
     "MinVisibleStructuralComponents = 12",
-    "LateStartupSettleSeconds = 6.40f",
+    "LateStartupSettleSeconds = 5.80f",
+    "MaxRebuildAttempts = 1",
     'MuseumStructuralTag(TEXT("MuseumStructural"))',
     "Component->IsRegistered()",
     "Component->IsVisible()",
     "Component->Bounds.Origin",
+    "RebuildAttemptCount < MaxRebuildAttempts",
     "RunAuthoritativeUpgradeNow(*World)",
     "RetireOtherArchitectureOwners",
     "PASS37_MUSEUM_VISIBLE_CORE_REBUILD",
     "PASS37_MUSEUM_DUPLICATE_ARCHITECTURE_RETIRED",
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
+    "PASS38_MUSEUM_SINGLE_REBUILD_EXECUTED",
+    "PASS38_MUSEUM_REBUILD_BUDGET_READY",
 ):
-    require(museum, needle, "actual visible museum structural proof")
+    require(museum, needle, "bounded visible museum structural proof")
 
-# Runtime screenshot proves non-null restored Stein materials can still be visually blank. Pass 37
-# explicitly palettes those known incomplete restored payloads while preserving the already-correct AK.
+# Pass 37's forced recolouring is disproven by the flat orange Lever Action screenshot. Exact/source materials
+# are preserved whenever they are not obvious placeholders; only placeholder slots may receive a recovery MID.
 require(palette_h, "UOCWeaponPalettePass37Subsystem", "weapon palette class")
 for needle in (
     "IsRestoredSteinPayload",
-    'Name.Contains(TEXT("MP5")',
-    'Name.Contains(TEXT("M1911")',
-    'Name.Contains(TEXT("M700")',
-    'Name.Contains(TEXT("M14")',
-    'Name.Contains(TEXT("MAC-10")',
-    'Name.Contains(TEXT("TEC-9")',
-    'Name.Contains(TEXT("Lever")',
     "IsClearlyPlaceholderMaterial",
-    "BasicShapeMaterial",
-    "WorldGridMaterial",
+    "if (!bPlaceholder) continue;",
+    "authored_materials_preserved=1",
     "if (IsAK(Name))",
-    "Do not \"fix\" the one thing",
     "PASS37_WEAPON_VISIBLE_PALETTE_APPLIED",
     "PASS37_WEAPON_VISIBLE_PALETTE_READY",
+    "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
 ):
-    require(palette, needle, "visible weapon palette recovery")
+    require(palette, needle, "placeholder-only weapon presentation recovery")
+forbid(palette, "if (!bForceRestoredPalette && !bPlaceholder) continue;",
+       "forced restored-payload material overwrite must stay removed")
+forbid(palette, "forced_restored_slots=", "old forced-palette evidence is no longer valid")
 
-# Full test must fail closed on the exact three repeated complaints, while retaining the 30 FPS floor.
 for marker in (
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS37_MUSEUM_VISIBLE_BASES_READY",
@@ -102,10 +104,10 @@ for marker in (
 require(acceptance, "20-45 m museum approach", "explicit closer spawn acceptance")
 require(acceptance, "30 FPS acceptance target", "performance floor remains 30 FPS")
 
-print("VISIBLE MUSEUM + WEAPON PALETTE PASS 37 SOURCE CONTRACT PASS")
-print("- primary BASE is ~27.8 m from MuseumAnchor and faces the museum")
-print("- museum acceptance proves visible structural components near the anchor, not actor tags")
-print("- late duplicate R13.8 owners are retired through the delayed startup window")
-print("- known blank restored Stein weapon payloads receive a visible weapon-specific palette; AK remains authored")
+print("VISIBLE MUSEUM + WEAPON PALETTE PASS 37/38 SOURCE CONTRACT PASS")
+print("- primary BASE stays ~27.8 m from MuseumAnchor and faces the museum")
+print("- museum visibility proof remains but destructive rebuilding is bounded to one attempt")
+print("- late duplicate R13.8 owners are retired once after the delayed startup window")
+print("- non-placeholder imported weapon materials are preserved; only obvious placeholders may be recovered")
 print("- runtime acceptance still fails below 30 FPS")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 visual/runtime acceptance remains required")
