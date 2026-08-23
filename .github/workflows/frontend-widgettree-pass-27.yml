@@ -1,0 +1,31 @@
+name: Frontend WidgetTree Pass 27
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_FRONTEND_WIDGETTREE_PASS_27.py'
+      - 'VERIFY_FRONTEND_SLATE_ACTION_PASS_26.py'
+      - 'VERIFY_FRONTEND_INPUT_PASS_25.py'
+      - 'VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py'
+      - '.github/workflows/frontend-widgettree-pass-27.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Pass 24 compatibility
+        run: python VERIFY_FRONTEND_SLATE_TRANSITION_PASS_24.py
+      - name: Pass 25 compatibility
+        run: python VERIFY_FRONTEND_INPUT_PASS_25.py
+      - name: Pass 26 compatibility
+        run: python VERIFY_FRONTEND_SLATE_ACTION_PASS_26.py
+      - name: Pass 27 WidgetTree ownership
+        run: python VERIFY_FRONTEND_WIDGETTREE_PASS_27.py
