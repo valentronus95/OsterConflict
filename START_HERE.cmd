@@ -9,26 +9,31 @@ echo ============================================================
 echo OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК
 echo ============================================================
 echo.
-echo 1. ЗВИЧАЙНА ГРА - головне меню, створення сервера, TEAM/SQUAD/ROLE/SPAWN
-echo 2. ТЕХНІЧНИЙ ТЕСТ ГРИ - прямий LocationTest БЕЗ головного меню
-echo 3. ВІДКРИТИ UNREAL EDITOR
+echo 1. ЗВИЧАЙНА ГРА
+echo 2. ПОВНИЙ RUNTIME-ТЕСТ
+echo 3. ТЕХНІЧНИЙ SANDBOX
+echo 4. ВІДКРИТИ UNREAL EDITOR
 echo 0. ВИХІД
 echo.
-echo Для звичайного запуску гри обирай 1.
-echo Пункт 1 використовує canonical normal-game launcher і НЕ блокує меню через відсутні exact HMMWV/M2/BTR source-файли.
-echo Strict production-art acceptance залишається окремим технічним режимом цього launcher.
-echo Пункт 2 потрібен тільки для швидкої діагностики runtime і навмисно обходить головне меню.
-echo Інші RUN_*.cmd - внутрішні технічні скрипти, їх запускати не потрібно.
+echo Для щоденного запуску завжди використовуйте тільки START_HERE.cmd.
+echo Інші RUN_*.cmd - внутрішні технічні скрипти, вручну їх запускати не потрібно.
 echo.
-choice /C 1230 /N /M "Оберіть: "
+echo Поточний safe renderer: DirectX 11.
+echo D3D12 тимчасово не використовується через підтверджений startup crash у D3D12RHI.
+echo.
+choice /C 12340 /N /M "Оберіть: "
 
-if errorlevel 4 goto end
+if errorlevel 5 goto end
+if errorlevel 4 (
+  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" -d3d11
+  goto menu
+)
 if errorlevel 3 (
-  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject"
+  call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"
   goto menu
 )
 if errorlevel 2 (
-  call "%~dp0RUN_R14_MAIN_SANDBOX_TEST.cmd"
+  call "%~dp0RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"
   goto menu
 )
 if errorlevel 1 (
