@@ -1,8 +1,73 @@
 #include "OCPerformanceSampleSubsystem.h"
 
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/PlatformMemory.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "NavigationSystem.h"
+
+namespace
+{
+    void LogPass18WorldDiagnostics(UWorld* World, APlayerController* PC)
+    {
+        if (!World || !PC || !PC->GetPawn()) return;
+
+        int32 ActorCount = 0;
+        int32 ISMComponentCount = 0;
+        int32 ISMInstanceCount = 0;
+        int32 VisibleISMInstanceCount = 0;
+        int32 CollidingISMInstanceCount = 0;
+
+        for (TActorIterator<AActor> It(World); It; ++It)
+        {
+            AActor* Actor = *It;
+            if (!Actor) continue;
+            ++ActorCount;
+
+            TInlineComponentArray<UInstancedStaticMeshComponent*> Components;
+            Actor->GetComponents(Components);
+            for (UInstancedStaticMeshComponent* Component : Components)
+            {
+                if (!Component) continue;
+
+                const int32 InstanceCount = Component->GetInstanceCount();
+                ++ISMComponentCount;
+                ISMInstanceCount += InstanceCount;
+                if (Component->IsVisible())
+                {
+                    VisibleISMInstanceCount += InstanceCount;
+                }
+                if (Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+                {
+                    CollidingISMInstanceCount += InstanceCount;
+                }
+            }
+        }
+
+        const FPlatformMemoryStats Memory = FPlatformMemory::GetStats();
+        constexpr double BytesPerMiB = 1024.0 * 1024.0;
+        const double UsedPhysicalMiB = static_cast<double>(Memory.UsedPhysical) / BytesPerMiB;
+        const double AvailablePhysicalMiB = static_cast<double>(Memory.AvailablePhysical) / BytesPerMiB;
+        const bool bNavigationSystemPresent = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World) != nullptr;
+        const FVector PlayerLocation = PC->GetPawn()->GetActorLocation();
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS18_WORLD_PERF_DIAGNOSTICS actors=%d ism_components=%d ism_instances=%d visible_ism_instances=%d colliding_ism_instances=%d nav_system=%d ram_used_mib=%.0f ram_available_mib=%.0f player_x=%.0f player_y=%.0f player_z=%.0f"),
+            ActorCount,
+            ISMComponentCount,
+            ISMInstanceCount,
+            VisibleISMInstanceCount,
+            CollidingISMInstanceCount,
+            bNavigationSystemPresent ? 1 : 0,
+            UsedPhysicalMiB,
+            AvailablePhysicalMiB,
+            PlayerLocation.X,
+            PlayerLocation.Y,
+            PlayerLocation.Z);
+    }
+}
 
 bool UOCPerformanceSampleSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -69,6 +134,10 @@ void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
         ? static_cast<float>(SampleFrames) / AccumulatedFrameSeconds : 0.0f;
     const float WorstFrameFps = WorstFrameSeconds > KINDA_SMALL_NUMBER
         ? 1.0f / WorstFrameSeconds : 0.0f;
+
+    // Pass 18 is diagnostics-only. Capture world density/memory evidence once, beside the final FPS sample,
+    // so the next optimization decision is based on the same settled gameplay window.
+    LogPass18WorldDiagnostics(World, PC);
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS15_PERF_SAMPLE avg_fps=%.1f worst_frame_fps=%.1f frames=%d window_seconds=%.2f emergency=%d"),

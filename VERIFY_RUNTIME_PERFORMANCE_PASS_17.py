@@ -101,16 +101,17 @@ for needle in (
 ):
     require(world, needle, "gameplay collision remains in world source")
 
-# Runtime acceptance must first pass the existing frontend/Museum/weapons/GPU/FPS run, then prove Pass 17 actually attached.
+# Runtime acceptance must still prove Pass 17 after the stronger Pass 18 diagnostics extension.
 for needle in (
     'set "BASE_LAUNCHER=%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"',
     'set "VERIFY17=%~dp0VERIFY_RUNTIME_PERFORMANCE_PASS_17.py"',
+    'set "VERIFY18=%~dp0VERIFY_RUNTIME_DIAGNOSTICS_PASS_18.py"',
     'call "%BASE_LAUNCHER%"',
     "PASS17_WORLD_ISM_BUDGET_NOT_APPLIED",
     "PASS17_WORLD_ISM_BUDGET_READY",
     "PASS16_RUNTIME_GRAPHICS_IDENTITY",
     "PASS15_PERF_30FPS_READY",
-    "PASS 17 RUNTIME PERFORMANCE ACCEPTANCE: PASSED",
+    "PASS 17-18 RUNTIME PERFORMANCE ACCEPTANCE: PASSED",
 ):
     require(launcher, needle, "Pass 17 runtime acceptance launcher")
 
@@ -120,5 +121,5 @@ print("- flat/detail/fence/proxy vegetation families stop casting redundant shad
 print("- major building/landmark/bridge silhouettes keep longer draw distance and shadows")
 print("- NoCollision decoration is removed from dynamic navigation participation")
 print("- gameplay collision profiles are not modified or disabled by Pass 17")
-print("- runtime acceptance requires Pass 15-16 success plus proof that Pass 17 actually attached")
+print("- runtime acceptance still requires Pass 17 attachment, now alongside Pass 18 diagnostics")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile and measured runtime FPS still required")

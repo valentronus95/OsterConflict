@@ -1,0 +1,48 @@
+name: Runtime diagnostics Pass 18
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'feat/runtime-performance-diagnostics-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-diagnostics-pass-18-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-pass-18:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify Pass 17 compatibility
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8='1'
+          $env:PYTHONIOENCODING='utf-8'
+          python .\VERIFY_RUNTIME_PERFORMANCE_PASS_17.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify runtime diagnostics Pass 18 source contracts
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8='1'
+          $env:PYTHONIOENCODING='utf-8'
+          python .\VERIFY_RUNTIME_DIAGNOSTICS_PASS_18.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
