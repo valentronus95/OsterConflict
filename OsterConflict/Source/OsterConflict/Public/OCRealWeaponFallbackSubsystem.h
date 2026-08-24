@@ -5,7 +5,6 @@
 #include "TimerManager.h"
 #include "OCRealWeaponFallbackSubsystem.generated.h"
 
-class UMaterialInterface;
 class UStaticMesh;
 
 /**
@@ -13,8 +12,8 @@ class UStaticMesh;
  * production asset is missing or fails to load. This does NOT mark the weapon production-verified:
  * exact asset validation remains authoritative and must still fail for a generic fallback.
  *
- * Pass 36 audits missing/default material slots. Pass 38 bounds the startup scan so this helper cannot
- * remain on a permanent 4 Hz world-wide weapon iterator after the rack has converged.
+ * Pass 44 changes the material audit to truth-only: a missing/default authored material is reported
+ * as a content gap and is never painted over with BasicShapeMaterial and mislabeled as ready.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCRealWeaponFallbackSubsystem : public UWorldSubsystem
@@ -29,8 +28,6 @@ public:
 private:
     FTimerHandle RefreshTimer;
 
-    // These meshes are loaded once and then used later from a timer. They MUST be
-    // reflected UObject references so UE garbage collection cannot reclaim them.
     UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericMachineGun;
 
@@ -42,9 +39,6 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericShotgun;
-
-    UPROPERTY(Transient)
-    TObjectPtr<UMaterialInterface> MaterialRecoveryBase;
 
     bool bRackMaterialAuditReadyLogged = false;
     int32 RefreshPassCount = 0;

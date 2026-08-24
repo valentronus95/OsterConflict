@@ -107,7 +107,13 @@ public:
     void ToggleMap(AOCPlayerController& PlayerController);
 
     /** Shared source used by the always-on HUD minimap and the M tactical map. */
-    bool EnsureMapSnapshot() { return CaptureWorldMap(); }
+    bool EnsureMapSnapshot()
+    {
+        // Pass 44: the old projection was resolved before the central-playable-area trim and then cached,
+        // so a one-shot minimap could still inherit giant legacy sector bounds. Re-resolve immediately
+        // before capture so the snapshot follows the actual trimmed world.
+        return ResolveWorldMapSource() && CaptureWorldMap();
+    }
     UTextureRenderTarget2D* GetMapRenderTarget() const { return MapRenderTarget; }
     const FOCTacticalMapProjection& GetMapProjection() const { return MapProjection; }
 

@@ -45,15 +45,15 @@ for needle in (
 ):
     require(launcher, needle, "normal gameplay launcher gate")
 
-# Pass 20 keeps the production intake but moves it behind strict acceptance rather than blocking normal play.
+# Pass 44 preserves strict exact-production acceptance, but optional intake may happen before this launcher in normal mode.
 for needle in (
     'if "%IS_ACCEPTANCE%"=="1" (',
     "[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
     'call "%PRODUCTION_IMPORT%"',
-    "[3/4] NORMAL GAME: skipping strict production vehicle intake.",
-    "Exact HMMWV/M2/BTR production source files remain an open content gap",
+    "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
+    "Missing exact production models remain visible content gaps; no proxy is called production-ready.",
 ):
-    require(launcher, needle, "Pass 20 strict/normal production split")
+    require(launcher, needle, "Pass 44 strict/normal production split")
 strict_stage = launcher.find("[3/4] STRICT ACCEPTANCE")
 acceptance_gate = launcher.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
 import_call = launcher.find('call "%PRODUCTION_IMPORT%"', strict_stage)
@@ -92,6 +92,7 @@ for needle in (
     "Join-Path $env:USERPROFILE 'Documents'",
     "Restore-BtrTexturesFromRoots",
     "Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.zip'",
+    "Find-BtrFbxInNamedArchive",
     "BTR texture ",
     "Bahnya_low_albedo.png",
     "Koleso_low_albedo.png",
@@ -99,10 +100,12 @@ for needle in (
     "Windows_low_albedo.png",
     "interior.png",
     "tire.png",
-    "required production model sources and BTR textures are now available locally",
+    "Available models may still be imported independently; missing models remain explicit content gaps.",
 ):
     require(source_recovery, needle, "local production source recovery")
 
+# Pass 44 separates geometry readiness from authored-material readiness. Mesh success lets the gameplay geometry
+# test proceed; Default/BasicShape authored material gaps stay explicitly non-production and are checked separately.
 for needle in (
     "/Game/AK-47/Mesh/SKM_AK-47",
     "/Game/R13/Weapons/Stein/1911/SKM_1911",
@@ -115,9 +118,12 @@ for needle in (
     "/Game/R13/Weapons/machinegun",
     "/Game/R13/Weapons/shotgun",
     "/Game/R13/Weapons/rocketlauncherModern",
-    "REQUIRED_REAL_WEAPON_ASSETS=PASS",
+    "REQUIRED_REAL_WEAPON_MESHES=PASS",
+    "REQUIRED_WEAPON_AUTHORED_MATERIALS=PASS",
+    "AUTHORED MATERIAL GAP",
+    "grey/default slots are NOT production-ready",
 ):
-    require(weapon_preflight, needle, "required real weapon preflight")
+    require(weapon_preflight, needle, "required real weapon mesh/material truth preflight")
 
 for needle in (
     "IsOnAimRay",
@@ -139,8 +145,8 @@ for needle in (
 if "Component.GetLocalBounds(LocalMin, LocalMax)" in fx:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: obsolete two-argument GetLocalBounds call is incompatible with UE 5.8")
 
-# Pass 37 supersedes the technically safe but visually rejected 41 m BASE. Keep the canonical Museum
-# anchor and the ground-snap/rack ownership, but require the closer ~27.8 m front-side approach.
+# Keep the canonical source BASE/rack placement contract. Pass 44 actual-pawn runtime proof is an additional,
+# stronger acceptance layer and does not require deleting the underlying Museum spawn geometry.
 for needle in (
     "AOCWorldSectorOster::MuseumAnchor()",
     "FVector(-1400.0f, -2400.0f, 120.0f)",
@@ -149,7 +155,7 @@ for needle in (
     "SpawnRuntimeBaseWeaponRack",
     "SnapLocationToWalkableSurface",
 ):
-    require(spawn, needle, "museum visible exterior base spawn")
+    require(spawn, needle, "museum visible exterior base source")
 for forbidden in (
     "FVector(-1450.0f, -900.0f, 120.0f)",
     "FVector(1450.0f, 900.0f, 120.0f)",
@@ -175,15 +181,11 @@ if "'if (UVerticalBoxSlot* Slot'," in r10 or "'if (UCanvasPanelSlot* Slot'," in 
     raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: R10 global Slot false-positive tokens returned")
 require(r10, "UI Slot shadow names removed", "R10 file-specific UI shadow contract")
 
-print("RUNTIME ACCEPTANCE PASS 4 SOURCE CONTRACT PASS")
-print("- normal gameplay hard-gates required real/playable weapon assets in a fresh UE process")
+print("RUNTIME ACCEPTANCE PASS 4 + PASS 44 CONTENT TRUTH SOURCE CONTRACT PASS")
+print("- normal gameplay hard-gates required real/playable weapon meshes in a fresh UE process")
+print("- authored weapon material readiness is separate and Default/BasicShape gaps remain non-production")
 print("- Windows launcher uses Git LFS commands compatible with the playtest PC and a separate PowerShell verifier")
-print("- HMMWV/M2/BTR source intake searches existing project sources and common Windows download locations")
-print("- BTR production intake requires and restores the six known original texture files")
-print("- HMMWV/M2/BTR production ingest remains mandatory in strict acceptance but no longer blocks normal frontend launch")
-print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon, not only the first local pawn")
-print("- muzzle bounds fallback uses the UE 5.8 return-value GetLocalBounds API")
-print("- BASE source remains tied to the canonical, closer Museum exterior approach")
-print("- dense foliage remains batched with an explicit non-blocking batch-size ceiling")
-print("- R10 retains the real UI shadow check without the unrelated global spelling false positive")
+print("- production source recovery supports independent HMMWV/M2/BTR intake and broader BTR archive discovery")
+print("- strict acceptance still rejects incomplete production vehicles")
+print("- tracer/muzzle, source Museum BASE and batched foliage structural contracts remain intact")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")

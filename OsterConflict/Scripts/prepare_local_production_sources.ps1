@@ -77,7 +77,7 @@ function Copy-IfMissing {
     if ((Test-Path -LiteralPath $Target) -or -not $Source) { return }
     Ensure-Parent $Target
     Copy-Item -LiteralPath $Source.FullName -Destination $Target -Force
-    Write-Host ('[SOURCE] Restored: ' + $Target)
+    Write-Host ('[SOURCE] Restored: ' + $Target + ' <= ' + $Source.FullName)
 }
 
 function Restore-BtrTexturesFromRoots {
@@ -112,6 +112,34 @@ function Expand-ArchiveSafe {
     Expand-Archive -LiteralPath $Archive.FullName -DestinationPath $Destination -Force
 }
 
+function Find-BtrFbxInNamedArchive {
+    param(
+        [System.IO.FileInfo]$Archive,
+        [string]$Stage
+    )
+
+    if (-not $Archive -or -not (Test-Path -LiteralPath $Stage)) { return $null }
+
+    $targeted = Find-FirstMatchingFile -Roots @($Stage) -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus).*\.fbx$'
+    if ($targeted) { return $targeted }
+
+    # Pass 44: the user's local archive is explicitly named btr-4e-bucephalus.zip, but many downloaded
+    # model packs call the mesh itself source.fbx/model.fbx/untitled.fbx. The old filename-only rule found
+    # the correct archive and then ignored its only FBX. Trust the BTR-labelled archive context, not a generic
+    # FBX from unrelated test archives.
+    if ($Archive.Name -match '(?i)(btr.?4|bucephalus)') {
+        $genericFbx = Get-ChildItem -LiteralPath $Stage -Recurse -File -Filter '*.fbx' -ErrorAction SilentlyContinue |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+        if ($genericFbx) {
+            Write-Host ('[SOURCE] BTR-labelled archive contains generic FBX: ' + $genericFbx.FullName)
+            return $genericFbx
+        }
+    }
+
+    return $null
+}
+
 $missing = Missing-Targets
 if ($missing.Count -eq 0) {
     Write-Host '[SOURCE] PASS: local HMMWV, M2 Browning, BTR-4 source and BTR textures are already present.'
@@ -121,8 +149,6 @@ if ($missing.Count -eq 0) {
 Write-Host ('[SOURCE] Missing local production source(s): ' + ($missing -join ', '))
 Write-Host '[SOURCE] Searching previously downloaded model files and archives. Nothing is uploaded or committed.'
 
-# Search the canonical source tree too. This catches original downloads copied into the project under
-# their source filenames. The three common Windows folders cover local intake without crawling the profile.
 $searchRoots = @(
     $SourceRoot,
     (Join-Path $env:USERPROFILE 'Downloads'),
@@ -174,7 +200,6 @@ if ($missing.Count -gt 0) {
             continue
         }
 
-        # Some user packages contain the BTR package as a ZIP inside the outer archive.
         $nestedIndex = 0
         foreach ($nested in (Get-ChildItem -LiteralPath $stage -Recurse -File -Filter '*.zip' -ErrorAction SilentlyContinue)) {
             $nestedIndex++
@@ -189,7 +214,9 @@ if ($missing.Count -gt 0) {
         $roots = @($stage)
         Copy-IfMissing -Target $HmmwvTarget -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee).*\.glb$')
         Copy-IfMissing -Target $M2Target -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|50.?cal).*\.glb$')
-        Copy-IfMissing -Target $BtrTarget -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus).*\.fbx$')
+        if (-not (Test-Path -LiteralPath $BtrTarget)) {
+            Copy-IfMissing -Target $BtrTarget -Source (Find-BtrFbxInNamedArchive -Archive $archive -Stage $stage)
+        }
         Restore-BtrTexturesFromRoots -Roots $roots
     }
 }
@@ -197,15 +224,15 @@ if ($missing.Count -gt 0) {
 $missing = Missing-Targets
 if ($missing.Count -gt 0) {
     Write-Host ''
-    Write-Host ('[SOURCE] STOP: still missing ' + ($missing -join ', ')) -ForegroundColor Red
-    Write-Host '[SOURCE] Expected local files:'
+    Write-Host ('[SOURCE] CONTENT GAP: still missing ' + ($missing -join ', ')) -ForegroundColor Yellow
+    Write-Host '[SOURCE] Expected canonical local files:'
     Write-Host ('  ' + $HmmwvTarget)
     Write-Host ('  ' + $M2Target)
     Write-Host ('  ' + $BtrTarget)
     foreach ($textureName in $BtrTextures) {
         Write-Host ('  ' + (Join-Path $BtrTextureTarget $textureName))
     }
-    Write-Host '[SOURCE] Put the original model ZIP/files in Downloads/Desktop/Documents or SourceAssets, then run START_HERE.cmd again.'
+    Write-Host '[SOURCE] Available models may still be imported independently; missing models remain explicit content gaps.'
     exit 20
 }
 

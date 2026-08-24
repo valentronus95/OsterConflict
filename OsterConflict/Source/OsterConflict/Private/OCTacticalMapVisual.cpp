@@ -16,7 +16,14 @@ namespace
 {
     constexpr float TacticalMapWidth = 1248.0f;
     constexpr float TacticalMapHeight = 702.0f;
-    constexpr float TacticalMapAspect = TacticalMapWidth / TacticalMapHeight;
+
+    // Pass 44: user-approved central Oster battlefield. These are sector-local centimetres and are
+    // intentionally identical to OCCentralPlayableAreaSubsystem. The tactical map must never grow
+    // beyond these limits merely because an old procedural component or debug anchor exists elsewhere.
+    constexpr float Pass44PlayableMinX = -78000.0f;
+    constexpr float Pass44PlayableMaxX =  18000.0f;
+    constexpr float Pass44PlayableMinY = -12000.0f;
+    constexpr float Pass44PlayableMaxY =  82000.0f;
 
     const FLinearColor TacticalBackdrop(0.008f, 0.012f, 0.016f, 1.0f);
     const FLinearColor TacticalPanel(0.018f, 0.025f, 0.031f, 0.985f);
@@ -65,15 +72,6 @@ namespace
             Text->SetColorAndOpacity(FSlateColor(Color));
         }
     }
-
-    void AccumulateComponentBounds2D(const UInstancedStaticMeshComponent* Component, FBox2D& Bounds)
-    {
-        if (!IsValid(Component) || Component->GetInstanceCount() <= 0) return;
-        const FBox WorldBounds = Component->Bounds.GetBox();
-        if (!WorldBounds.IsValid) return;
-        Bounds += FVector2D(WorldBounds.Min.X, WorldBounds.Min.Y);
-        Bounds += FVector2D(WorldBounds.Max.X, WorldBounds.Max.Y);
-    }
 }
 
 void UOCTacticalMapWidget::NativeConstruct()
@@ -94,49 +92,28 @@ bool UOCTacticalMapWidget::ReframeProjectionForCentralOster()
     AOCWorldSectorOster* Sector = WorldSector.Get();
     if (!IsValid(Sector)) return false;
 
-    FBox2D CoreBounds(ForceInit);
-    AccumulateComponentBounds2D(Sector->GetTacticalBuildings(), CoreBounds);
-    AccumulateComponentBounds2D(Sector->GetTacticalResidentialRoofs(), CoreBounds);
-    AccumulateComponentBounds2D(Sector->GetTacticalLandmarkBlocks(), CoreBounds);
-    AccumulateComponentBounds2D(Sector->GetTacticalLandmarkRoofs(), CoreBounds);
-    AccumulateComponentBounds2D(Sector->GetTacticalParkGeometry(), CoreBounds);
-    AccumulateComponentBounds2D(Sector->GetTacticalStadiumGeometry(), CoreBounds);
-
-    auto AddAnchor = [&CoreBounds, Sector](const FVector& SectorLocal)
+    // Pass 44 replaces the old component auto-fit + 800 m half-width minimum. That historical clamp
+    // forced a ~1.6 km map even after the user explicitly reduced the battlefield. Build the world
+    // projection from the four corners of the authoritative compact playable area instead.
+    FBox2D CompactWorldBounds(ForceInit);
+    const FTransform SectorTransform = Sector->GetActorTransform();
+    const FVector LocalCorners[] =
     {
-        const FVector World = Sector->GetActorTransform().TransformPosition(SectorLocal);
-        CoreBounds += FVector2D(World.X, World.Y);
+        FVector(Pass44PlayableMinX, Pass44PlayableMinY, 0.0f),
+        FVector(Pass44PlayableMinX, Pass44PlayableMaxY, 0.0f),
+        FVector(Pass44PlayableMaxX, Pass44PlayableMinY, 0.0f),
+        FVector(Pass44PlayableMaxX, Pass44PlayableMaxY, 0.0f),
     };
+    for (const FVector& LocalCorner : LocalCorners)
+    {
+        const FVector WorldCorner = SectorTransform.TransformPosition(LocalCorner);
+        CompactWorldBounds += FVector2D(WorldCorner.X, WorldCorner.Y);
+    }
 
-    AddAnchor(AOCWorldSectorOster::MuseumAnchor());
-    AddAnchor(AOCWorldSectorOster::StadiumAnchor());
-    AddAnchor(AOCWorldSectorOster::ParkAnchor());
-    AddAnchor(AOCWorldSectorOster::CollegeAnchor());
-    AddAnchor(AOCWorldSectorOster::FormerCityAdministrationAnchor());
+    if (!CompactWorldBounds.bIsValid) return false;
 
-    const FOCGeoReferencePoint SilpoRef = FOCGeoReference::Silpo();
-    AddAnchor(FOCGeoReference::ToLocalCm(SilpoRef.Latitude, SilpoRef.Longitude, 0.0f));
-
-    if (!CoreBounds.bIsValid) return false;
-
-    FVector2D Center = CoreBounds.GetCenter();
-    FVector2D HalfSize = CoreBounds.GetExtent();
-
-    // The M map opens on the actual playable city core, not the distant hydrography/debug extents.
-    HalfSize += FVector2D(30000.0f, 26000.0f);
-    HalfSize.X = FMath::Clamp(HalfSize.X, 80000.0f, 120000.0f);
-    HalfSize.Y = FMath::Clamp(HalfSize.Y, 45000.0f, 67500.0f);
-
-    if (HalfSize.X / HalfSize.Y < TacticalMapAspect)
-        HalfSize.X = HalfSize.Y * TacticalMapAspect;
-    else
-        HalfSize.Y = HalfSize.X / TacticalMapAspect;
-
-    HalfSize.X = FMath::Min(HalfSize.X, 120000.0f);
-    HalfSize.Y = HalfSize.X / TacticalMapAspect;
-
-    Projection.WorldMin = Center - HalfSize;
-    Projection.WorldMax = Center + HalfSize;
+    Projection.WorldMin = CompactWorldBounds.Min;
+    Projection.WorldMax = CompactWorldBounds.Max;
     Projection.bInvertX = false;
     Projection.bInvertY = true;
 
@@ -144,16 +121,17 @@ bool UOCTacticalMapWidget::ReframeProjectionForCentralOster()
     MapPan = FVector2D::ZeroVector;
     ApplyMapViewTransform();
 
+    const float WidthMeters = (Projection.WorldMax.X - Projection.WorldMin.X) / 100.0f;
+    const float HeightMeters = (Projection.WorldMax.Y - Projection.WorldMin.Y) / 100.0f;
     if (UTextBlock* ScaleText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("TacticalMapScale"))))
     {
-        const float WidthMeters = (Projection.WorldMax.X - Projection.WorldMin.X) / 100.0f;
-        ScaleText->SetText(FText::FromString(FString::Printf(TEXT("МАСШТАБ · %.0f м"), WidthMeters)));
+        ScaleText->SetText(FText::FromString(FString::Printf(TEXT("МАСШТАБ · %.0f × %.0f м"), WidthMeters, HeightMeters)));
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Tactical Map production framing: central Oster %.0fm x %.0fm."),
-        (Projection.WorldMax.X - Projection.WorldMin.X) / 100.0f,
-        (Projection.WorldMax.Y - Projection.WorldMin.Y) / 100.0f);
+        TEXT("PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY bounds_m=%.0fx%.0f x_m=[-780,180] y_m=[-120,820] auto_component_fit=0 old_min_halfwidth_800m=0 reference=oster_central_playable_area_20260824"),
+        WidthMeters,
+        HeightMeters);
     return Projection.IsValid();
 }
 

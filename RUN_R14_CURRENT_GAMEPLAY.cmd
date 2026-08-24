@@ -71,7 +71,9 @@ if /I "%CURRENT_BRANCH%"=="main" (
   set "FETCH_BRANCH=main"
   set "REMOTE_REF=origin/main"
 ) else (
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
+  rem Runtime correction branches are explicitly testable before merge. The launcher must fetch/compare
+  rem that exact branch instead of forcing main and accidentally making pre-merge acceptance impossible.
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Normal gameplay playtest is allowed only from main or an explicit runtime-fix branch.
     echo Current branch: %CURRENT_BRANCH%
@@ -119,7 +121,6 @@ if errorlevel 1 (
 )
 
 rem Hydrate the current branch LFS payloads using only commands supported by older Git LFS releases.
-rem The previous --include form is not accepted by the Git LFS build installed on the playtest PC.
 echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
 git lfs version >nul 2>nul
 if errorlevel 1 (
@@ -231,19 +232,15 @@ if "%IS_ACCEPTANCE%"=="1" (
   )
   call "%PRODUCTION_IMPORT%"
   if errorlevel 1 (
-    echo [STOP] Production model ingest failed.
+    echo [STOP] Production model ingest failed or remains incomplete.
     echo Strict acceptance will not accept civilian pickup/proxy turret/proxy BTR geometry as final assets.
-    echo Required local sources include:
-    echo   OsterConflict\SourceAssets\Production\Vehicles\HMMWV\ukrainian_hmmwv_mk_19.glb
-    echo   OsterConflict\SourceAssets\Production\Weapons\M2\m2_50cal_machinegun_cc0.glb
-    echo   OsterConflict\SourceAssets\Production\Vehicles\BTR4\BTR4_Bucephalus.fbx
+    echo Normal gameplay may continue only outside strict acceptance; missing models remain explicit content gaps.
     pause
     exit /b 20
   )
 ) else (
-  echo [3/4] NORMAL GAME: skipping strict production vehicle intake.
-  echo [INFO] Exact HMMWV/M2/BTR production source files remain an open content gap and do not block the normal frontend.
-  echo [INFO] Use strict acceptance when those exact source files are installed locally.
+  echo [3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.
+  echo [INFO] Missing exact production models remain visible content gaps; no proxy is called production-ready.
 )
 
 echo.
@@ -263,7 +260,7 @@ if not "%GAME_RC%"=="0" (
   echo.
   echo [CRASH-DIAGNOSTICS] Unreal exited with code %GAME_RC%.
   echo [CRASH-DIAGNOSTICS] Relevant frontend markers:
-  if exist "%PLAYTEST_LOG%" findstr /C:"PASS29_" /C:"PASS28_" /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
+  if exist "%PLAYTEST_LOG%" findstr /C:"PASS44_" /C:"PASS43_" /C:"PASS29_" /C:"PASS28_" /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
   echo [CRASH-DIAGNOSTICS] Last 180 gameplay-log lines:
   if exist "%PLAYTEST_LOG%" powershell -NoProfile -Command "Get-Content -LiteralPath $env:PLAYTEST_LOG -Tail 180"
 )
