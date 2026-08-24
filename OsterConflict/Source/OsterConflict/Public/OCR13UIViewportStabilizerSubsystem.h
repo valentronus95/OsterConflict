@@ -5,6 +5,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13UIViewportStabilizerSubsystem.generated.h"
 
+class AOCPlayerController;
 class UOCGameUIRootWidget;
 class UWidget;
 
@@ -21,9 +22,16 @@ public:
 
 private:
     TMap<TWeakObjectPtr<UWidget>, ESlateVisibility> StartupSuppressedWidgets;
+    TWeakObjectPtr<UOCGameUIRootWidget> CachedRoot;
+    TWeakObjectPtr<AOCPlayerController> CachedController;
+    float UpdateAccumulator = 0.0f;
     bool bStartupIsolationActive = false;
     bool bWorldRenderingSuppressed = false;
+    bool bDeploymentStabilized = false;
+    bool bLastDeploymentVisible = false;
+    bool bUpdateBudgetLogged = false;
 
+    UOCGameUIRootWidget* ResolveRoot(UWorld* World, AOCPlayerController* PC);
     void StabilizeDeployment(UOCGameUIRootWidget* Root) const;
     void ApplyStartupIsolation(UOCGameUIRootWidget* Root, bool bEnable);
     void SetWorldRenderingSuppressed(bool bSuppress);
