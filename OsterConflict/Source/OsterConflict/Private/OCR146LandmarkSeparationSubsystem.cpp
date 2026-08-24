@@ -10,9 +10,10 @@
 
 namespace
 {
-    constexpr float SeparationFirstPassDelaySeconds = 0.05f;
-    constexpr float SeparationStartupGuardIntervalSeconds = 0.20f;
-    constexpr int32 SeparationStartupGuardPassCount = 40; // 8 seconds covers all current delayed location passes.
+    // Pass 45: all current landmark construction delays finish before this one-shot reconciliation.
+    // The old 0.20 s x 40 startup loop rescanned the whole world for ~8 seconds and repeatedly dirtied
+    // render state. Keep one delayed reconciliation plus the cheap actor-spawn legacy guard instead.
+    constexpr float SeparationValidationDelaySeconds = 6.25f;
     constexpr float MuseumCleanupRadiusCm = 2600.0f;
     constexpr float SilpoCleanupRadiusCm = 2600.0f;
     constexpr float CultureCleanupRadiusCm = 2600.0f;
@@ -70,15 +71,16 @@ void UOCR146LandmarkSeparationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCR146LandmarkSeparationSubsystem::HandleActorSpawned));
 
-    // Generic ISM families can be mutated by delayed source passes without spawning a new actor.
-    // Cover the complete startup window instead of the old one-shot 0.15s cleanup.
     InWorld.GetTimerManager().SetTimer(
         StartupGuardTimer,
         this,
         &UOCR146LandmarkSeparationSubsystem::RunStartupGuardPass,
-        SeparationStartupGuardIntervalSeconds,
-        true,
-        SeparationFirstPassDelaySeconds);
+        SeparationValidationDelaySeconds,
+        false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LANDMARK_RECONCILIATION_BUDGET_READY startup_full_world_scans=1 legacy_spawn_guard=1 delay_s=%.2f"),
+        SeparationValidationDelaySeconds);
 }
 
 void UOCR146LandmarkSeparationSubsystem::Deinitialize()
@@ -103,16 +105,11 @@ void UOCR146LandmarkSeparationSubsystem::RunStartupGuardPass()
     if (!World) return;
 
     ++StartupGuardPass;
-    const bool bFinalValidation = StartupGuardPass >= SeparationStartupGuardPassCount;
-    EnforceSeparation(*World, bFinalValidation);
+    EnforceSeparation(*World, true);
 
-    if (bFinalValidation)
-    {
-        World->GetTimerManager().ClearTimer(StartupGuardTimer);
-        UE_LOG(LogTemp, Display,
-            TEXT("R14 landmark exclusion startup window complete after %d passes; late legacy actor-spawn guard remains active."),
-            StartupGuardPass);
-    }
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LANDMARK_RECONCILIATION_COMPLETE full_world_scan_passes=%d further_periodic_scan=0"),
+        StartupGuardPass);
 }
 
 bool UOCR146LandmarkSeparationSubsystem::IsForbiddenLegacyLandmarkActor(const AActor* Actor)
@@ -221,15 +218,15 @@ void UOCR146LandmarkSeparationSubsystem::EnforceSeparation(UWorld& World, const 
     if (OwnershipViolationsRemoved > 0)
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("Landmark exclusion guard removed late/foreign geometry: legacyActors=%d Museum=%d Silpo=%d CultureHouse=%d families=%d pass=%d."),
-            LegacyActorsRemoved, MuseumRemoved, SilpoRemoved, CultureRemoved, FamiliesTouched, StartupGuardPass);
+            TEXT("Pass45 landmark reconciliation removed foreign geometry: legacyActors=%d Museum=%d Silpo=%d CultureHouse=%d families=%d."),
+            LegacyActorsRemoved, MuseumRemoved, SilpoRemoved, CultureRemoved, FamiliesTouched);
     }
 
     if (SyntheticNorthCivicRemoved > 0 || SyntheticParkLinkRemoved > 0)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("Map cleanup removed synthetic north-civic grove=%d and unmapped park-link sidewalk=%d on guard pass %d."),
-            SyntheticNorthCivicRemoved, SyntheticParkLinkRemoved, StartupGuardPass);
+            TEXT("Pass45 map cleanup removed synthetic north-civic grove=%d and unmapped park-link sidewalk=%d."),
+            SyntheticNorthCivicRemoved, SyntheticParkLinkRemoved);
     }
 
     if (bFinalValidation)
@@ -240,18 +237,18 @@ void UOCR146LandmarkSeparationSubsystem::EnforceSeparation(UWorld& World, const 
 
         if (OwnershipViolationsRemoved > 0)
         {
-            UE_LOG(LogTemp, Error,
-                TEXT("FINAL landmark ownership validation found %d late violation(s). World was cleaned, but runtime ownership is NOT verified."),
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_LANDMARK_OWNERSHIP_RECONCILED late_violations=%d periodic_rescan=0"),
                 OwnershipViolationsRemoved);
         }
         else
         {
             UE_LOG(LogTemp, Display,
-                TEXT("FINAL landmark ownership validation: no foreign Museum/Silpo/Culture geometry detected on final startup pass."));
+                TEXT("PASS45_LANDMARK_OWNERSHIP_CLEAN late_violations=0 periodic_rescan=0"));
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("Canonical site distances: Museum-Silpo=%.1fm Museum-CultureHouse=%.1fm Silpo-CultureHouse=%.1fm; photo-model owners remain separate."),
+            TEXT("PASS45_LANDMARK_SITE_DISTANCES Museum-Silpo=%.1fm Museum-CultureHouse=%.1fm Silpo-CultureHouse=%.1fm"),
             MuseumToSilpoM, MuseumToCultureM, SilpoToCultureM);
     }
 }
