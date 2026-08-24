@@ -1,7 +1,7 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date: 2026-08-24
-Status: **ACTIVE / IMPLEMENTATION STARTED**
+Status: **ACTIVE / SOURCE IMPLEMENTATION IN PROGRESS / RUNTIME UNTESTED**
 Branch: `fix/runtime-recovery-pass-45-20260824`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
@@ -53,35 +53,26 @@ Therefore the root performance investigation must start before gameplay-only sys
 
 High-priority suspects requiring factual A/B measurement:
 
-1. **Renderer/RHI compatibility launch path.** Current normal launch still forces `-d3d11 -sm5 -nohdr -norhithread`. `-norhithread` was retained as a crash-recovery compatibility measure and must not silently become the permanent performance baseline. Pass 45 must compare RHI-thread enabled vs compatibility mode without re-enabling D3D12/SM6.
+1. **Renderer/RHI compatibility launch path.** The rejected run used `-d3d11 -sm5 -nohdr -norhithread`. `-norhithread` was retained as a crash-recovery compatibility measure and must not silently become the permanent performance baseline. Pass 45 now provides normal DX11/SM5 RHI threading plus an explicit `-norhithread` compatibility route for factual A/B measurement.
 2. **Editor runtime overhead.** Current playtest is `UnrealEditor.exe -game`, not a packaged Shipping/Development game executable. Editor-mode overhead must be distinguished from project GameThread/Draw/RHI/GPU cost.
 3. **Accumulated delayed runtime mutation subsystems.** The project contains multiple post-BeginPlay scanners/rebuilders/recovery guards. Repeated world scans, instance removal, `MarkRenderStateDirty`, delayed landmark reconstruction and compatibility ownership checks can create frame spikes and long startup degradation.
-4. **Overlarge cull distances relative to the new compact battlefield.** Several world families can remain visible across most or all of the 960×940 m sector.
+4. **Overlarge cull distances relative to the new compact battlefield.** Several world families previously remained visible across most or all of the 960×940 m sector. Pass 45 source now rebudgets those family distances for the compact map.
 5. **Primitive world authoring still creates large quantities of generic ISM geometry.** Compact bounds reduced extent, not necessarily frame cost per visible sector.
 
-Pass 45 must collect frame-domain evidence, not only FPS:
-
-- Game thread frame time;
-- Draw thread frame time;
-- GPU frame time;
-- RHI thread / render submission behavior where available;
-- actor/component/ISM counts at stabilized gameplay;
-- delayed subsystem activity during the first 10 seconds.
+Pass 45 must collect frame-domain evidence, not only FPS. Current source adds separate frontend/gameplay sampling and world-density evidence; factual UE runtime is still required.
 
 ## 2.2 Primitive world is still the visible production world
 
-`OCWorldSectorOster` still uses engine BasicShapes for major semantic families:
+`OCWorldSectorOster` still retains engine BasicShapes as historical/source authoring for major semantic families. Pass 45 does not pretend those assets became production art merely because they compile.
 
-- Cube: ground, roads, buildings, fences, grass and many landmark/park/stadium elements;
-- Cylinder: tree trunks;
-- Sphere: tree crowns;
-- BasicShapeMaterial tinting for many world families.
+Current corrective source behavior:
 
-This explains the visibly flat/blockout presentation. Pass 45 must stop treating these proxy families as acceptable production visuals.
+- primitive Cylinder/Sphere tree families are explicitly hidden/retired from normal runtime;
+- real `SM_Pine_Tree_01` and `SM_Pine_Tree_03` are verified content candidates already used by the Museum tree owner;
+- no separately verified oak asset has been found, therefore oak remains a named content gap rather than a fabricated claim;
+- other visible BasicShape world families remain subject to the production-asset inventory and runtime screenshot gate.
 
 ## 2.3 Tree vegetation is wrong by construction
-
-Current source retains generic `Tree*`, `SovietPoplar*`, `Birch*`, and `Pine*` families using primitive Cylinder/Sphere geometry. The latest runtime screenshot visibly exposes this proxy forest.
 
 Required current vegetation identity:
 
@@ -90,47 +81,52 @@ Required current vegetation identity:
 - no fantasy-like swollen trunks / spherical crowns;
 - no primitive Cylinder/Sphere tree family visible in normal gameplay.
 
-If a suitable real oak/pine asset is absent, it is a named content gap. Do not synthesize a “production” tree from BasicShapes.
+Source implementation now retires all eight primitive trunk/crown visual families from normal runtime. This is **CODED_UNTESTED** until a factual screenshot proves they are absent and real foliage reads correctly.
 
 ## 2.4 Tactical map was bounded but not rebuilt from correct topology
 
-Pass 44 correctly reduced projection bounds, but `BuildRoadNetwork()` still authors a hand-built procedural network of large straight/diagonal segments. The `M` map visualizes those source components as vector rectangles.
+Pass 44 correctly reduced projection bounds, but the rejected `M` view still inherited old procedural world geometry.
 
-Result: the map is smaller, but the topology remains wrong.
+Pass 45 source correction now:
 
-Pass 45 requirement:
+- keeps the compact 960×940 m projection;
+- traces a dedicated north-up street skeleton from `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg` (640×630 reference raster);
+- converts those reference pixels into compact sector coordinates;
+- no longer reads `Roads`, `Sidewalks`, `Buildings`, `ResidentialRoofs`, `LandmarkBlocks` or `LandmarkRoofs` procedural ISMs as tactical-map truth;
+- places Museum / Culture House / Silpo / central park / Stadium markers from the common `FOCGeoReference` authority;
+- emits `PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY`.
 
-- tactical map road topology must originate from the authoritative compact central-Oster map/reference, not from the old procedural blockout;
-- real landmark positions must project consistently through the same geo reference;
-- no road/block visible on `M` may exist solely because an obsolete blockout component happens to be inside the new bounds;
-- raw component extents may not define map truth.
+This is a reference-traced topology approximation, not a cadastral/GIS survey. A new runtime `M` screenshot remains mandatory.
 
 ## 2.5 Weapon mesh load is not material readiness
 
-Pass 44 correctly stopped painting missing materials with a grey BasicShape fallback, but the latest rack proves several models still lack intended authored materials/textures.
+Pass 45 now audits the complete fresh-load chain for all 11 required weapon visuals:
 
-Pass 45 requires a per-weapon dependency audit:
+`weapon -> exact mesh -> material slots -> material assets -> used texture dependencies -> fresh dependency load result`
 
-`weapon class -> exact mesh -> material slot(s) -> material asset(s) -> texture dependency/dependencies -> runtime visible result`
+The NullRHI preflight now writes:
 
-All 11 required pickup classes must have explicit status. A white/default slot is failure.
+- mesh report;
+- authored material report;
+- machine-readable `required_weapon_material_texture_dependencies.json`;
+- separate mesh/material/texture dependency status;
+- `PASS45_WEAPON_DEPENDENCY_AUDIT_COMPLETE`.
 
-Do not claim M16/M4 connected without a verified real payload.
+A null/default/BasicShape material, a default/white placeholder texture, a missing texture dependency, or a material with no discoverable texture dependency remains a visible gap rather than being painted over. M16/M4 are not added because no verified payload exists.
 
 ## 2.6 Museum / Culture House / Silpo ownership is over-layered
 
-Source geo references for Museum and Culture House are distinct, yet runtime still fails to present two clearly separated landmarks. This indicates a runtime ownership/presentation problem, not merely one equal coordinate constant.
+Pass 45 source audit identified a concrete contract defect: historical Pass 21 treated both R13.7 and R13.8 as simultaneous Museum shell owners even though R13.8 suppresses R13.7 solid prototype components and builds a second segmented architecture actor.
 
-The project currently has many late landmark replacement/recovery/detail subsystems. Pass 45 must enforce one current placement/visibility owner per site.
+The current single-shell contract is now:
 
-Required site ownership:
+- **Museum shell owner:** `R138_MuseumHighFidelityArchitecture`;
+- **Museum reference/detail/interactivity parent:** `R137_MuseumPhotoModel` (not a second shell);
+- **Silpo shell owner:** `R140_SilpoPhotoModel`;
+- **Culture House shell owner:** `R146_CultureHouseAuthoritative`;
+- Stadium authority unchanged.
 
-- Museum: one authoritative shell/location owner;
-- Culture House: one authoritative shell/location owner;
-- Silpo: one authoritative shell/location owner;
-- Stadium: dedicated Stadion Oster authority remains unchanged.
-
-Historical compatibility subsystems may observe or become inert, but may not repeatedly mutate the same site after the authoritative owner has built it.
+The ownership guard repairs duplicate actors per canonical tag and validates exactly one current shell per site after the startup window. It emits `PASS45_SINGLE_LANDMARK_SHELL_OWNERS_READY` or a fail marker. Runtime visual separation is still unverified.
 
 ---
 
@@ -140,60 +136,48 @@ Historical compatibility subsystems may observe or become inert, but may not rep
 
 ### A1. RHI-thread A/B launch path
 
-- Keep DirectX 11 + SM5 + no HDR for the first recovery pass.
-- Normal game must no longer silently hard-code `-norhithread` as the only route.
-- Provide an explicit compatibility/recovery launch route that retains `-norhithread` for crash comparison.
-- Normal route should test DX11/SM5 with normal RHI threading after Pass 43 renderer-lifecycle fixes.
+Source implementation: **CODED_UNTESTED**.
+
+- DirectX 11 + SM5 + no HDR retained.
+- Normal game uses normal RHI threading.
+- `START_HERE.cmd` exposes an explicit compatibility route that adds `-norhithread`.
 - D3D12/SM6 remains disabled until DX11 baseline is stable.
-- Launcher/log must print exactly which renderer mode was used.
+- launcher/log prints the selected renderer mode.
 
-Acceptance:
+Acceptance remains runtime-only:
 
-- main menu remains open without the historical RenderTargetPool crash;
-- compare frontend FPS/frame times between normal RHI-thread and compatibility `-norhithread` route;
-- if RHI-thread route crashes, preserve crash evidence and revert only that route, not unrelated fixes.
+- main menu remains open without historical RenderTargetPool crash;
+- compare frontend FPS/frame times normal vs compatibility route;
+- if normal RHI threading crashes, preserve crash evidence and revert only that route.
 
 ### A2. Runtime performance instrumentation
 
-Add a lightweight Pass 45 marker/report that samples stabilized frame domains instead of only instantaneous FPS.
+Source implementation: **CODED_UNTESTED**.
 
-Required markers should make it possible to distinguish:
+Required markers are implemented:
 
 - `PASS45_FRONTEND_PERF_BASELINE`
 - `PASS45_GAMEPLAY_PERF_BASELINE`
 - `PASS45_RHI_MODE`
-- delayed mutation activity during first 10 s
 
-No per-frame spam.
+Sampling is one-shot/bounded and does not mutate graphics quality to disguise low FPS.
 
 ### A3. Stop repeated full-world repair loops
 
-Audit all runtime subsystems that:
+Source implementation: **CODED_UNTESTED**.
 
-- iterate all actors/components repeatedly;
-- remove ISM instances after BeginPlay;
-- rebuild landmark shells after another subsystem already built them;
-- call `MarkRenderStateDirty` repeatedly;
-- poll hundreds of times for compatibility state.
-
-For Museum/Culture/Silpo placement, convert repeated mutation loops to one-shot authority or inert compatibility observers.
-
-Acceptance:
-
-- no current landmark owner performs a 0.2 s × dozens-of-attempts world mutation loop after the site has stabilized;
-- no duplicate shell is rebuilt later by a historical subsystem.
+- old landmark-separation 0.20 s × 40 full-world scan loop retired;
+- one delayed reconciliation remains;
+- actor-spawn guard handles late forbidden legacy owners;
+- final shell ownership validation is one-shot;
+- startup coordinator cancels historical delayed landmark timers and runs current stages in one coordinated startup window;
+- one shell owner per Museum/Silpo/Culture site is now explicit.
 
 ### A4. Compact-sector render budget
 
-Recalculate cull distances for the 960×940 m battlefield.
+Source implementation: **CODED_UNTESTED**.
 
-Rules:
-
-- small residential details/fences/grass: aggressively local;
-- trees: visible at credible distance but not essentially across the full sector by default;
-- landmark silhouette may use longer distance where needed;
-- no shadow budget for decorative grass/proxy detail;
-- culling must not create obvious pop-in at ordinary infantry sight lines.
+Cull distances have been recalculated for the 960×940 m battlefield. Runtime pop-in/performance still requires factual observation.
 
 ---
 
@@ -201,28 +185,16 @@ Rules:
 
 ### B1. Retire primitive tree generator from normal gameplay
 
-- Primitive Cylinder/Sphere tree families must not render in normal game.
-- Prefer existing real imported foliage assets after content inventory.
-- Place tall pines/conifers according to reference character.
-- Use oak only from a real suitable asset; otherwise keep it as a content gap.
-- Do not restore birch/poplar proxy families merely to satisfy an old verifier.
+Source implementation: **CODED_UNTESTED**.
 
-Acceptance:
-
-- screenshot from the former “Warcraft tree” area contains no primitive bulbous/spherical proxy trees.
+- all eight primitive Cylinder/Sphere tree families are hidden in normal runtime;
+- verified real pines remain available;
+- oak remains an explicit content gap until a real suitable asset is verified;
+- old birch/poplar proxy families are not restored merely to satisfy historical source checks.
 
 ### B2. World proxy truth
 
-Inventory existing imported environment assets before adding any new primitive replacement.
-
-Classify visible world families:
-
-- production asset ready;
-- acceptable temporary gameplay collision only and hidden visually;
-- content gap;
-- obsolete and removable.
-
-Primitive collision helpers may remain only if invisible and required for gameplay.
+**IN_PROGRESS.** Tree proxies are classified/retired. Other BasicShape world families still require production-asset inventory and factual visual replacement decisions. Invisible gameplay collision helpers may remain where necessary.
 
 ---
 
@@ -230,24 +202,16 @@ Primitive collision helpers may remain only if invisible and required for gamepl
 
 ### C1. Real compact-Oster topology
 
-Use `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg` and current geo anchors as the authoritative topology basis.
+Source implementation: **CODED_UNTESTED**.
 
-- replace hand-authored oversized straight/diagonal road blockout used by the tactical map;
-- map must show the central street network in recognizably correct relative geometry;
-- Museum / Culture House / Silpo / central park / Stadium anchors must appear in correct distinct positions;
-- player marker must remain foreground-visible;
+- tactical map uses a dedicated reference-traced street layer from the retained central-Oster image;
+- procedural world road/building ISMs no longer define `M` topology;
+- POIs use one geo-reference authority;
 - projection remains north-up and bounded by compact playable area.
 
 ### C2. Tactical map acceptance screenshot
 
-A new runtime screenshot of `M` is mandatory before acceptance.
-
-Reject if:
-
-- giant X-shaped/diagonal synthetic roads remain;
-- POIs overlap because of wrong source ownership;
-- map must zoom out to display obsolete procedural components;
-- player marker is missing/hidden.
+**PENDING RUNTIME.** Reject if giant synthetic X/diagonal roads remain, POIs overlap, obsolete geometry expands the map, or player marker is hidden/missing.
 
 ---
 
@@ -255,42 +219,48 @@ Reject if:
 
 ### D1. Museum
 
-- choose one current authoritative visible shell/model owner;
-- retire or make inert historical runtime rebuilders that mutate the same shell;
-- spawn approach must visually identify the Museum itself;
-- no Culture House shell may appear at/inside Museum site ownership radius.
+Source implementation: **CODED_UNTESTED**.
+
+- R13.8 is the single current shell owner;
+- R13.7 is a reference/detail/interactivity parent only;
+- duplicate current R13.8 shell actors are rejected/repaired;
+- visual identity near spawn remains a runtime screenshot gate.
 
 ### D2. Culture House
 
-- maintain its distinct geo anchor;
-- visible model must build at that anchor only;
-- no Museum-coordinate inheritance;
-- no duplicate columned shell at Museum.
+Source implementation: **CODED_UNTESTED**.
+
+- R14.6 is the single shell owner;
+- distinct `FOCGeoReference::CultureHouse()` anchor retained;
+- no Museum-coordinate inheritance is accepted;
+- duplicate R14.6 owners are rejected/repaired.
 
 ### D3. Silpo
 
-- one authoritative site/model owner;
-- late detail subsystems may decorate only the current model and must not rescan/rebuild the whole source site repeatedly;
-- stale signage/legacy source geometry must not survive beside the authoritative Silpo result.
+Source implementation: **CODED_UNTESTED**.
+
+- R14.0 is the single shell owner;
+- R14.1–R14.3 remain detail-only stages and do not satisfy the shell-owner tag;
+- duplicate R14.0 shells are rejected/repaired;
+- stale visual identity still requires factual runtime inspection.
 
 ---
 
 ## Phase E — weapon material dependency closure
 
-Create a table/report for all 11 required pickup weapons.
+Audit implementation: **CODED_UNTESTED**. Dependency closure: **IN_PROGRESS** until the next fresh UE preflight produces the actual report.
 
-For each weapon verify:
+For each of 11 required weapon visuals the fresh-load preflight now records:
 
 - exact visual asset path;
 - material slot count;
 - every material path;
-- texture dependencies load;
-- no Engine BasicShape material;
-- no null/default white slot;
-- fresh-load UE preflight passes material truth, not only mesh load;
-- runtime rack screenshot shows intended authored appearance.
+- used texture paths;
+- missing/placeholder texture dependencies;
+- material result;
+- texture dependency result.
 
-Any gap remains explicit `CONTENT GAP` / `IN_PROGRESS`.
+Any gap remains explicit `CONTENT GAP` / `IN_PROGRESS`. A new rack screenshot is still required before visual acceptance.
 
 ---
 
@@ -353,6 +323,7 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 
 - all required rack weapons have authored material truth or an explicit named content gap;
 - no white/default slot accepted;
+- fresh texture dependencies must load;
 - screenshot evidence required.
 
 ## Gate 7 — evidence and CI
@@ -365,18 +336,18 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 
 # 6. Execution order
 
-1. Lock this TZ + runtime evidence into the branch.
-2. Update `OSTER_CONFLICT_WORK_LEDGER.md` to mark Pass 44 `RUNTIME REJECTED` and Pass 45 active.
-3. Implement RHI-thread A/B route and performance markers.
-4. Retire repeated landmark world-mutation loops / enforce single ownership.
-5. Recalculate render/cull budgets for compact map.
-6. Remove primitive tree families from normal visual runtime and bind real foliage assets where verified available.
-7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout.
-8. Run per-weapon material dependency audit and close real asset/material gaps that can be closed from existing content.
-9. Update/retire conflicting historical verifiers.
-10. Run full source CI.
-11. Merge only after source checks are green.
-12. After local pull, perform **frontend performance test first**, then gameplay. Stop immediately if thermals/FPS become unsafe; that failure is sufficient evidence.
+1. Lock this TZ + runtime evidence into the branch. **DONE**.
+2. Update ledger to mark Pass 44 `RUNTIME REJECTED` and Pass 45 active. **DONE**.
+3. Implement RHI-thread A/B route and performance markers. **CODED_UNTESTED**.
+4. Retire repeated landmark world-mutation loop / enforce single ownership. **CODED_UNTESTED**.
+5. Recalculate render/cull budgets for compact map. **CODED_UNTESTED**.
+6. Remove primitive tree families from normal visual runtime and bind verified real foliage where available. **CODED_UNTESTED; OAK CONTENT GAP**.
+7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**.
+8. Run per-weapon material/texture dependency audit and close real asset/material gaps. **AUDIT CODED_UNTESTED; CLOSURE IN_PROGRESS**.
+9. Update/retire conflicting historical verifiers. **IN_PROGRESS**.
+10. Run full source CI. **IN_PROGRESS**.
+11. Merge only after fresh current-head source checks are green. **NOT YET**.
+12. After local pull, perform frontend performance test first, then gameplay. **PENDING**.
 
 ---
 
@@ -385,13 +356,16 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 - [x] Pass 44 latest runtime classified as **RUNTIME REJECTED**.
 - [x] User screenshots archived as Pass 45 evidence sheet + manifest.
 - [x] Pass 45 corrective TZ created.
-- [ ] Ledger updated for Pass 45.
-- [ ] RHI-thread A/B launcher implemented.
-- [ ] Performance baseline instrumentation implemented.
-- [ ] Repeated landmark mutation loops consolidated.
-- [ ] Compact render budgets recalculated.
-- [ ] Primitive tree production visuals retired/replaced.
-- [ ] Tactical map rebuilt from authoritative topology.
-- [ ] 11-weapon authored material dependency audit closed.
-- [ ] Full source CI green.
+- [x] Ledger updated for Pass 45.
+- [x] RHI-thread A/B launcher source implemented (**CODED_UNTESTED**).
+- [x] Frontend/gameplay performance baseline instrumentation implemented (**CODED_UNTESTED**).
+- [x] 40-pass landmark mutation loop consolidated and single-shell ownership source contract added (**CODED_UNTESTED**).
+- [x] Compact render budgets recalculated (**CODED_UNTESTED**).
+- [x] Primitive Cylinder/Sphere tree visuals retired from normal runtime; real pines verified; oak remains content gap (**CODED_UNTESTED**).
+- [x] Tactical map source rebuilt from the authoritative retained reference topology rather than procedural world ISMs (**CODED_UNTESTED**).
+- [x] 11-weapon mesh → material → texture dependency audit implemented (**fresh UE report pending**).
+- [ ] Actual authored material/texture gaps from the next fresh preflight closed.
+- [ ] Other visible BasicShape world families inventoried/replaced where real content exists.
+- [ ] Conflicting historical verifiers fully forward-ported/retired.
+- [ ] Full fresh-head source CI green.
 - [ ] Local UE 5.8 runtime accepted.
