@@ -45,14 +45,16 @@ for getter in (
 require("GetInstanceTransform" in visual, "vector map is not built from actual instance transforms")
 require("WorldToMap(WorldLocation)" in visual, "world geometry is not projected through the tactical-map projection")
 
-# Start framing must target central Oster rather than distant hydro/debug extents.
+# Start framing remains central-Oster focused. Pass 44 additionally trims the world before snapshot capture,
+# so this presentation framing is no longer permission to re-expand gameplay to old peripheral geometry.
 require("ReframeProjectionForCentralOster" in map_h and "ReframeProjectionForCentralOster" in visual,
         "central-Oster production framing is missing")
 for anchor in ("MuseumAnchor", "StadiumAnchor", "ParkAnchor", "CollegeAnchor", "FormerCityAdministrationAnchor"):
     require(anchor in visual, f"core framing is missing anchor: {anchor}")
 require("FOCGeoReference::Silpo" in visual, "Silpo is missing from central-Oster framing")
-require("120000.0f" in visual and "TacticalMapAspect" in visual,
-        "production framing needs a bounded north-up 16:9 city-core extent")
+require("TacticalMapAspect" in visual, "production north-up aspect framing is missing")
+require("ResolveWorldMapSource() && CaptureWorldMap()" in map_h,
+        "Pass 44 map snapshot does not re-resolve trimmed central-Oster bounds before capture")
 
 # Decluttering / production chrome.
 require("TacticalMapPlayerCoordinates" in visual and "Collapsed" in visual,
@@ -66,12 +68,27 @@ require("ПКМ  ПОСТАВИТИ МІТКУ" in visual,
 require("AddLandmarkMarker(TEXT(\"МУЗЕЙ\")" in visual and "AddLandmarkMarker(TEXT(\"СТАДІОН\")" in visual,
         "POI chips are not rebuilt against the production projection")
 
-# Prevent the exact stale-runtime failure demonstrated by the playtest screenshots.
-for launcher_name, launcher in (("normal", normal_run), ("sandbox", sandbox_run)):
-    require("git fetch origin main" in launcher, f"{launcher_name} launcher does not fetch origin/main before playtest")
-    require("LOCAL_HEAD" in launcher and "REMOTE_HEAD" in launcher,
-            f"{launcher_name} launcher does not compare local and GitHub main")
-    require("Local main is not current GitHub main" in launcher or "LOCAL MAIN" in launcher.upper(),
-            f"{launcher_name} launcher does not block stale source playtests")
+# Prevent stale-runtime testing without forbidding legitimate pre-merge runtime-fix branches.
+# Normal gameplay fetches/compares the exact current allowed branch; Sandbox remains intentionally main-only.
+for marker in (
+    'set "FETCH_BRANCH="',
+    'set "REMOTE_REF="',
+    'git fetch origin "%FETCH_BRANCH%"',
+    'git rev-parse "%REMOTE_REF%"',
+    'Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%',
+    '/C:"fix/runtime-map-spawn-fps-assets-"',
+):
+    require(marker in normal_run, f"normal launcher branch-aware stale-source guard missing: {marker}")
+require("LOCAL_HEAD" in normal_run and "REMOTE_HEAD" in normal_run,
+        "normal launcher does not compare local and exact remote branch")
 
-print("Tactical Map production visual design contracts: PASS")
+for marker in (
+    "git fetch origin main",
+    "git rev-parse origin/main",
+    "Local main is not current GitHub main",
+):
+    require(marker in sandbox_run, f"sandbox main-only stale-source guard missing: {marker}")
+require("LOCAL_HEAD" in sandbox_run and "REMOTE_HEAD" in sandbox_run,
+        "sandbox launcher does not compare local and GitHub main")
+
+print("Tactical Map production visual design + Pass 44 branch-aware launch contracts: PASS")
