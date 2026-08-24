@@ -50,6 +50,15 @@ require(get_body, "EnsureInitialGraphicsProfile();", "settings Get graphics init
 if get_body.index("ValidateSettingsSchema();") > get_body.index("EnsureInitialGraphicsProfile();"):
     raise SystemExit("PASS16 VERIFY FAIL: graphics initialization must run after schema validation")
 
+ensure_match = re.search(
+    r"void\s+UOCPlayerUserSettings::EnsureInitialGraphicsProfile\(\)\s*\{(?P<body>.*?)\n\}\n\nvoid\s+UOCPlayerUserSettings::SavePlayerSettings",
+    cpp,
+    re.S,
+)
+if not ensure_match:
+    raise SystemExit("PASS16 VERIFY FAIL: could not isolate EnsureInitialGraphicsProfile")
+ensure_body = ensure_match.group("body")
+
 require(cpp, "if (!bInitialGraphicsProfileApplied)", "one-time graphics guard")
 require(cpp, "GameSettings->LoadSettings(false);", "persisted settings load")
 
@@ -69,13 +78,19 @@ for needle in (
     "SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 1))",
     "SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 2))",
     "SetResolutionScaleValueEx(100.0f)",
-    "GameSettings->ApplySettings(false);", "GameSettings->SaveSettings();",
+    "GameSettings->SaveSettings();",
     "bInitialGraphicsProfileApplied = true;",
     "bPass42GraphicsClarityRecoveryApplied = true;",
     "PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED",
     "PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED mode=new_profile scale=100 texture_ceiling=3",
+    "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY",
 ):
-    require(cpp, needle, "Pass 42 balanced native-scale graphics ceiling")
+    require(cpp, needle, "Pass 42/43 balanced native-scale graphics ceiling")
+
+# Pass 43: Get() is reached from frontend NativeConstruct. Automatic migrations must never execute a live
+# UGameUserSettings apply there; that can invalidate Slate's backbuffer while SlateRHIRenderer is building it.
+forbid(ensure_body, "GameSettings->ApplySettings(", "automatic startup graphics must not live-apply inside Slate construction")
+require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass 43 startup persistence marker")
 
 # Existing users may still carry the old Pass 16 signature. Pass 39 can recognize/migrate that family,
 # then Pass 42 upgrades only the recognizable automatic Pass 39 family to 100% + Texture 3.
@@ -110,6 +125,7 @@ forbid(reset_body, "bInitialGraphicsProfileApplied = false", "Reset Defaults re-
 forbid(reset_body, "bPass39GraphicsQualityRecoveryApplied = false", "Reset Defaults re-arming Pass 39 migration")
 forbid(reset_body, "bPass42GraphicsClarityRecoveryApplied = false", "Reset Defaults re-arming Pass 42 migration")
 
+# Explicit settings UI remains the only live apply route. The user action occurs after the viewport is valid.
 for needle in (
     "SetOverallScalabilityLevel(Preset)",
     "SetShadowQuality(QualityFromString(ShadowCombo->GetSelectedOption()))",
@@ -136,9 +152,11 @@ for needle in (
     require(launcher, needle, "Pass 16 runtime launcher integration")
 forbid(launcher.lower(), "-nullrhi", "focused runtime launcher must use a real renderer")
 
-print("RUNTIME GRAPHICS PASS 16/39/42 SOURCE CONTRACT PASS")
+print("RUNTIME GRAPHICS PASS 16/39/42/43 SOURCE CONTRACT PASS")
 print("- automatic first-run profile uses native 100% scale + Texture Quality 3 with conservative expensive lighting")
+print("- automatic startup migrations persist settings without live ApplySettings during Slate construction")
 print("- legacy Pass 16 / automatic Pass 39 profiles receive controlled one-time migrations")
+print("- explicit settings UI remains the only live graphics apply path")
 print("- user-customized graphics profiles remain authoritative")
 print("- real GPU/RHI evidence and manual graphics controls remain intact")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 visual/FPS acceptance still required")
+print("STATUS: CODED_UNTESTED; local UE 5.8 startup runtime remains authoritative")

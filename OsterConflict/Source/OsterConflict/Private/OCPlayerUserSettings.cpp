@@ -59,7 +59,11 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
         GameSettings->SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 2));
         GameSettings->SetResolutionScaleValueEx(100.0f);
 
-        GameSettings->ApplySettings(false);
+        // Pass 43: Get() is called from UOCGameUIRootWidget::NativeConstruct while Slate is still building
+        // the frontend widget tree. ApplySettings() here can recreate the viewport/backbuffer underneath
+        // SlateRHIRenderer and leave RenderTargetPool with a null RHI texture. Persist the automatic profile
+        // only; the engine applies it safely on the next boot, while the explicit Settings UI remains the
+        // only path allowed to perform a live ApplySettings() after the viewport is fully initialized.
         GameSettings->SaveSettings();
 
         bInitialGraphicsProfileApplied = true;
@@ -73,6 +77,8 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
             TEXT("PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED mode=new_profile old_pass16_profile=0"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED mode=new_profile scale=100 texture_ceiling=3 quality_mutation_on_low_fps=0"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY mode=new_profile live_apply=0 slate_construction_safe=1"));
     }
     else if (!bPass39GraphicsQualityRecoveryApplied)
     {
@@ -115,11 +121,12 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
             GameSettings->SetReflectionQuality(1);
             GameSettings->SetLandscapeQuality(2);
             GameSettings->SetResolutionScaleValueEx(85.0f);
-            GameSettings->ApplySettings(false);
             GameSettings->SaveSettings();
 
             UE_LOG(LogTemp, Warning,
                 TEXT("PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED mode=legacy_pass16 scale=85 view=2 shadow=1 texture=2 effects=2 foliage=1 post=2 aa=2 shading=2 gi=1 reflection=1 landscape=2"));
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY mode=legacy_pass16 live_apply=0 slate_construction_safe=1"));
         }
         else
         {
@@ -162,10 +169,11 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
         {
             GameSettings->SetTextureQuality(3);
             GameSettings->SetResolutionScaleValueEx(100.0f);
-            GameSettings->ApplySettings(false);
             GameSettings->SaveSettings();
             UE_LOG(LogTemp, Display,
                 TEXT("PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED mode=pass39_auto scale=100 texture=3 expensive_lighting_unchanged=1"));
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY mode=pass39_auto live_apply=0 slate_construction_safe=1"));
         }
         else
         {

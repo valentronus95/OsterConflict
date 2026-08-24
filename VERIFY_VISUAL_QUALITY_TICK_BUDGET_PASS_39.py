@@ -56,9 +56,13 @@ for needle in (
     require(settings_h + settings, needle, "graphics quality recovery")
 
 # Historical Pass 39's 85% migration remains recognizable only as an intermediate one-time legacy migration;
-# Pass 42 must immediately upgrade that exact automatic family to native 100% scale + texture quality 3.
+# Pass 42 must upgrade that exact automatic family to native 100% scale + texture quality 3.
 require(settings, "GameSettings->SetTextureQuality(3);", "Pass 42 automatic profile texture recovery")
 require(settings, "expensive_lighting_unchanged=1", "Pass 42 must not re-enable costly lighting")
+
+# Pass 43 keeps those migrations persistence-only during frontend construction. A live ApplySettings here
+# can invalidate Slate's backbuffer/render target before the frontend is fully established.
+require(settings, "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY", "Pass 43 startup persistence evidence")
 
 # Low FPS must never trigger another hidden scalability mutation. It is diagnostic evidence only.
 for needle in (
@@ -81,15 +85,22 @@ for forbidden in (
 require(foliage_h, "virtual bool IsTickable() const override { return !bFinished; }",
         "completed foliage guard must stop ticking")
 
-# Minimap scene capture stays one-shot. Only the marker/visibility UI updates at 10 Hz, with visibility writes deduped.
+# Minimap scene capture stays one-shot and its marker/visibility UI stays at 10 Hz. Pass 43 also defers
+# creation of the render target/Slate brush until an actual unblocked gameplay Pawn exists.
 for needle in (
     "MinimapUpdateIntervalSeconds = 0.10f",
     "UpdateAccumulator",
-    "DesiredVisibility != LastWidgetVisibility",
+    "LastWidgetVisibility != ESlateVisibility::Collapsed",
+    "LastWidgetVisibility != ESlateVisibility::HitTestInvisible",
     "PASS39_MINIMAP_UPDATE_BUDGET_READY",
+    "PASS43_MINIMAP_RENDER_TARGET_GAMEPLAY_ONLY_READY",
+    "if (bBlocked)",
+    "EnsureMinimap(*PlayerController);",
     "hz=10",
 ):
-    require(minimap_h + minimap, needle, "minimap update budget")
+    require(minimap_h + minimap, needle, "minimap update/render-target budget")
+if minimap.index("if (bBlocked)") > minimap.index("EnsureMinimap(*PlayerController);"):
+    raise SystemExit("PASS39 VERIFY FAIL: minimap render target can still be created before blocked frontend/deployment state is rejected")
 for needle in (
     "bCaptureEveryFrame = false",
     "bCaptureOnMovement = false",
@@ -119,12 +130,13 @@ for marker in (
 require(acceptance, "PASS15_EMERGENCY_PERF_PROFILE_APPLIED", "stale emergency marker rejection")
 require(acceptance, "30 FPS acceptance target", "30 FPS floor remains unchanged")
 
-print("VISUAL QUALITY + TICK BUDGET PASS 39/42 SOURCE CONTRACT PASS")
-print("- old 75% mostly-low automatic profile gets one-time recovery while custom profiles stay authoritative")
-print("- Pass 42 restores automatic profiles to 100% resolution scale and texture quality 3 without raising costly lighting")
+print("VISUAL QUALITY + TICK BUDGET PASS 39/42/43 SOURCE CONTRACT PASS")
+print("- automatic clarity recovery remains 100% scale / Texture 3 without expensive-lighting escalation")
+print("- automatic graphics migration is persistence-only during frontend Slate construction")
 print("- low FPS is diagnostic evidence only; no hidden mid-session graphics downgrade survives")
 print("- finished performance/foliage guards stop ticking")
-print("- minimap Slate updates are capped at 10 Hz while tactical-map capture remains one-shot")
+print("- minimap render target is deferred until stable gameplay and Slate updates remain capped at 10 Hz")
+print("- tactical-map capture remains one-shot")
 print("- first-person presentation resolves the local pawn directly instead of scanning all characters every frame")
 print("- runtime acceptance still requires >=30 FPS")
-print("STATUS: CODED_UNTESTED; local UE 5.8 visual/FPS/temperature playtest remains authoritative")
+print("STATUS: CODED_UNTESTED; local UE 5.8 visual/FPS/startup/temperature playtest remains authoritative")
