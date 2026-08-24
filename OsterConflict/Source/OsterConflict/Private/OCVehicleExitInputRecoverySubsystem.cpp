@@ -9,6 +9,12 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
+namespace
+{
+    constexpr float TransitionPollSeconds = 0.05f;
+    constexpr float StablePollSeconds = 0.10f;
+}
+
 bool UOCVehicleExitInputRecoverySubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
     if (!Super::ShouldCreateSubsystem(Outer)) return false;
@@ -22,13 +28,14 @@ void UOCVehicleExitInputRecoverySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
 
-    InWorld.GetTimerManager().SetTimer(
-        PossessionPollTimer,
-        this,
-        &UOCVehicleExitInputRecoverySubsystem::PollLocalPossession,
-        0.05f,
-        true,
-        0.05f);
+    ScheduleNextPoll(TransitionPollSeconds);
+
+    if (!bPollBudgetLogged)
+    {
+        bPollBudgetLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS41_INPUT_RECOVERY_POLL_BUDGET_READY transition_hz=20 stable_hz=10 repeating_timer=0"));
+    }
 }
 
 void UOCVehicleExitInputRecoverySubsystem::Deinitialize()
@@ -43,13 +50,30 @@ void UOCVehicleExitInputRecoverySubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
+void UOCVehicleExitInputRecoverySubsystem::ScheduleNextPoll(const float DelaySeconds)
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            PossessionPollTimer,
+            this,
+            &UOCVehicleExitInputRecoverySubsystem::PollLocalPossession,
+            FMath::Max(0.01f, DelaySeconds),
+            false);
+    }
+}
+
 void UOCVehicleExitInputRecoverySubsystem::PollLocalPossession()
 {
     UWorld* World = GetWorld();
     if (!World) return;
 
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
+    if (!PC || !PC->IsLocalController())
+    {
+        ScheduleNextPoll(StablePollSeconds);
+        return;
+    }
 
     APawn* CurrentPawn = PC->GetPawn();
     if (CurrentPawn != LastLocalPawn.Get())
@@ -67,20 +91,31 @@ void UOCVehicleExitInputRecoverySubsystem::PollLocalPossession()
     }
 
     AOCCharacter* Character = Cast<AOCCharacter>(CurrentPawn);
-    if (!Character) return;
+    if (!Character)
+    {
+        ScheduleNextPoll(bLastPawnWasVehicle ? TransitionPollSeconds : StablePollSeconds);
+        return;
+    }
 
-    // Do not fight legitimate UI locks. This is intentionally evaluated every poll instead of
-    // only on the exact possession frame: the character can be possessed slightly before the
-    // deployment/loading widget releases its input lock.
+    // Do not fight legitimate UI locks. While a deployment/settings transition is active, keep the
+    // original 20 Hz response so input is restored promptly after the UI releases its lock.
     const bool bIntentionalUILock =
         PC->IsFrontendMenuVisible() ||
         PC->IsDeploymentPanelVisible() ||
         PC->IsAdminPanelVisible() ||
         PC->IsChatInputActive() ||
         PC->IsSettingsVisible();
-    if (bIntentionalUILock) return;
+    if (bIntentionalUILock)
+    {
+        ScheduleNextPoll(TransitionPollSeconds);
+        return;
+    }
 
-    if (LastRecoveredCharacterPawn.Get() == Character) return;
+    if (LastRecoveredCharacterPawn.Get() == Character)
+    {
+        ScheduleNextPoll(StablePollSeconds);
+        return;
+    }
 
     RestoreCharacterInput(*PC);
     LastRecoveredCharacterPawn = Character;
@@ -90,6 +125,8 @@ void UOCVehicleExitInputRecoverySubsystem::PollLocalPossession()
         *GetNameSafe(Character),
         PC->IsMoveInputIgnored() ? 1 : 0,
         PC->IsLookInputIgnored() ? 1 : 0);
+
+    ScheduleNextPoll(StablePollSeconds);
 }
 
 void UOCVehicleExitInputRecoverySubsystem::RestoreCharacterInput(AOCPlayerController& PlayerController)
