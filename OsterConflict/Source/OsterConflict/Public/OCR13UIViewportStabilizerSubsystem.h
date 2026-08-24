@@ -32,7 +32,7 @@ private:
     bool bUpdateBudgetLogged = false;
 
     UOCGameUIRootWidget* ResolveRoot(UWorld* World, AOCPlayerController* PC);
-    void StabilizeDeployment(UOCGameUIRootWidget* Root) const;
+    bool StabilizeDeployment(UOCGameUIRootWidget* Root) const;
     void ApplyStartupIsolation(UOCGameUIRootWidget* Root, bool bEnable);
     void SetWorldRenderingSuppressed(bool bSuppress);
 };
