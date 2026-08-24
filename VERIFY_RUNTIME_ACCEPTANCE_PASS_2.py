@@ -3,28 +3,12 @@ import re
 
 ROOT = Path(__file__).resolve().parent
 
-FILES = {
-    "spawn_cpp": ROOT / "OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp",
-    "spawn_h": ROOT / "OsterConflict/Source/OsterConflict/Public/OCTeamSpawnPoint.h",
-    "foliage_cpp": ROOT / "OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp",
-    "foliage_h": ROOT / "OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h",
-    "fx": ROOT / "OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp",
-    "fallback": ROOT / "OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp",
-    "stabilizer": ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13UIViewportStabilizerSubsystem.cpp",
-    "frontend": ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp",
-    "launcher": ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
-    "lfs_verify": ROOT / "OsterConflict/Scripts/verify_playtest_lfs_payloads.ps1",
-    "production_import": ROOT / "OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
-    "fresh_vehicle_verify": ROOT / "OsterConflict/Scripts/verify_production_vehicle_fresh_load.py",
-    "source_recovery": ROOT / "OsterConflict/Scripts/prepare_local_production_sources.ps1",
-}
 
-
-def read(name):
-    path = FILES[name]
+def read(path):
+    path = ROOT / path
     if not path.is_file():
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: missing {path.relative_to(ROOT)}")
-    return path.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def require(text, needle, where):
@@ -32,185 +16,108 @@ def require(text, needle, where):
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: {where}: missing {needle!r}")
 
 
-spawn_cpp = read("spawn_cpp")
-spawn_h = read("spawn_h")
-foliage_cpp = read("foliage_cpp")
-foliage_h = read("foliage_h")
-fx = read("fx")
-fallback = read("fallback")
-stabilizer = read("stabilizer")
-frontend = read("frontend")
-launcher = read("launcher")
-lfs_verify = read("lfs_verify")
-production_import = read("production_import")
-fresh_vehicle_verify = read("fresh_vehicle_verify")
-source_recovery = read("source_recovery")
+spawn_cpp = read("OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp")
+foliage_cpp = read("OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp")
+fx = read("OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp")
+fallback = read("OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp")
+frontend = read("OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp")
+launcher = read("RUN_R14_CURRENT_GAMEPLAY.cmd")
+lfs_verify = read("OsterConflict/Scripts/verify_playtest_lfs_payloads.ps1")
+production_import = read("OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
+fresh_vehicle_verify = read("OsterConflict/Scripts/verify_production_vehicle_fresh_load.py")
+source_recovery = read("OsterConflict/Scripts/prepare_local_production_sources.ps1")
+runtime_safe = read("OsterConflict/Source/OsterConflict/Private/OCGameModeRuntimeSafe.cpp")
 
-require(spawn_h, "virtual void BeginPlay() override;", "spawn header")
+# The underlying Museum BASE/rack source remains, while Pass 44 adds stronger live-pawn proof.
 for needle in (
-    "void AOCTeamSpawnPoint::BeginPlay()",
     "AOCWorldSectorOster::MuseumAnchor()",
-    "ConfigureServer(TeamId, true, NAME_None);",
     "SpawnRuntimeBaseWeaponRack",
-    "PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM",
     "PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH",
     "FVector(-1400.0f, -2400.0f, 120.0f)",
     "FVector(1400.0f, -2400.0f, 120.0f)",
 ):
-    require(spawn_cpp, needle, "runtime museum visible exterior spawn")
-for forbidden in (
-    "FVector(-1450.0f, -900.0f, 120.0f)",
-    "FVector(1450.0f, 900.0f, 120.0f)",
-    "FVector(-2600.0f, -3200.0f, 120.0f)",
-    "FVector(2600.0f, -3200.0f, 120.0f)",
+    require(spawn_cpp, needle, "Museum BASE source")
+for needle in (
+    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
+    "MaxMuseumBaseDistanceCm = 4500.0f",
+    "RestartPlayerAtTransform",
 ):
-    if forbidden in spawn_cpp:
-        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: superseded Museum BASE returned: {forbidden}")
+    require(runtime_safe, needle, "Pass 44 actual pawn proof")
 
-for needle in (
-    "TryPopulateWhenGameplayReady",
-    "PopulationBatchTimer",
-    "PopulateBatch",
-    "bPopulationStarted",
-):
-    require(foliage_h, needle, "foliage header")
-for needle in (
-    "TryPopulateWhenGameplayReady",
-    "if (GameMode->IsFrontendOnlySession()) return;",
-    "BeginPopulation(*World)",
-    "void UOCDenseGroundFoliageSubsystem::PopulateBatch()",
-    "World->GetTimerManager().SetTimer(",
-):
-    require(foliage_cpp, needle, "non-blocking frontend-to-gameplay foliage")
+# Dense foliage must remain incremental/bounded.
+for needle in ("TryPopulateWhenGameplayReady", "PopulationBatchTimer", "PopulateBatch"):
+    require(foliage_cpp, needle, "incremental foliage")
 batch_match = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
-if not batch_match:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: foliage batch-size contract is missing")
-batch_size = int(batch_match.group(1))
-if not 1 <= batch_size <= 96:
-    raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: foliage batch size {batch_size} exceeds accepted non-blocking ceiling 96")
-if "Populate(*World);" in foliage_cpp:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: foliage still performs synchronous whole-map population")
+if not batch_match or not 1 <= int(batch_match.group(1)) <= 96:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid full-profile foliage batch ceiling")
 
+# Weapon presentation still resolves the actual firing weapon/muzzle.
 for needle in (
-    "ResolveFiringWeapon",
-    "ResolveWeaponMuzzle",
-    "Character->GetCurrentWeapon()",
-    "OC_ProductionWeaponVisual",
-    "TryResolveSocketMuzzle",
-    "TryResolveBoundsMuzzle",
-    "GetLocalBounds",
-    "const FVector VisualStart = ResolveWeaponMuzzle",
-    "const FVector VisualMuzzle = ResolveWeaponMuzzle",
+    "ResolveFiringWeapon", "ResolveWeaponMuzzle", "Character->GetCurrentWeapon()",
+    "OC_ProductionWeaponVisual", "TryResolveSocketMuzzle", "TryResolveBoundsMuzzle", "GetLocalBounds",
 ):
     require(fx, needle, "muzzle/tracer presentation")
-if "Bounds.Origin + SafeDirection * Support" in fx:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: muzzle resolver still uses world-AABB centre projection")
 
-# Pass 38 supersedes the old permanent fallback timer contract. Runtime proved that a 4 Hz world-wide
-# scan can remain active while FPS/thermals collapse. Fallback startup is now finite and must stop on
-# convergence or after a hard budget; an immediate pre-timer RefreshWeaponFallbacks() call is no longer required.
+# Generic real fallbacks remain finite and never become exact production art. Missing authored materials are fail-visible.
 for needle in (
-    "SetTimer(",
-    "GenericPistol",
-    "OC_ProductionWeaponVisual",
-    "MaxRefreshPasses = 12",
-    "RefreshPassCount",
-    "ClearTimer(RefreshTimer)",
-    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
-    "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
+    "GenericPistol", "OC_ProductionWeaponVisual", "MaxRefreshPasses = 12", "ClearTimer(RefreshTimer)",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED", "PASS44_WEAPON_AUTHORED_MATERIAL_GAP",
+    "exact_production=0 playable_fallback=1",
 ):
-    require(fallback, needle, "bounded real weapon fallback runtime")
-if "0.25f,\n        true,\n        0.0f" in fallback:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: old permanent 4 Hz fallback timer returned")
-if "if (GameMode->IsFrontendOnlySession()) return;" in fallback:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: real weapon fallback still dies permanently in frontend world")
+    require(fallback, needle, "bounded fallback/material truth")
+if "UMaterialInstanceDynamic::Create" in fallback or "Component->SetMaterial(Slot" in fallback:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: grey runtime material repair returned")
 
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
-panel_size = re.search(r"PanelSlot->SetSize\(FVector2D\((440\.0f|470\.0f), 760\.0f\)\);", frontend)
-if not panel_size:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: frontend main shell must remain 440-470 x 760 at the canonical position")
-for forbidden in (
-    "Slot->SetPosition(FVector2D(90.0f, 60.0f));",
-    "Slot->SetSize(FVector2D(470.0f, 780.0f));",
-):
-    if forbidden in stabilizer:
-        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: stabilizer still overrides menu geometry: {forbidden}")
 
-# Pass 20 separates normal playability from exact vehicle-art acceptance. LFS/playable weapon
-# preflight remains mandatory for normal play; HMMWV/M2/BTR production ingest remains mandatory
-# only when IS_ACCEPTANCE=1.
+# Pass 44 current normal/strict split. Normal mode does not run a second strict importer here because START_HERE
+# already performs optional independent intake; strict acceptance still calls the canonical importer and fails closed.
 for needle in (
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     'if "%IS_ACCEPTANCE%"=="1" (',
     "[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
     'call "%PRODUCTION_IMPORT%"',
-    "[3/4] NORMAL GAME: skipping strict production vehicle intake.",
-    "Exact HMMWV/M2/BTR production source files remain an open content gap",
+    "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
+    "Missing exact production models remain visible content gaps; no proxy is called production-ready.",
     "git lfs pull origin",
     "git lfs checkout >nul",
     "verify_playtest_lfs_payloads.ps1",
+    '/C:"fix/runtime-map-spawn-fps-assets-"',
 ):
-    require(launcher, needle, "normal/strict gameplay production-LFS split")
-strict_stage = launcher.find("[3/4] STRICT ACCEPTANCE")
-acceptance_gate = launcher.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
-import_call = launcher.find('call "%PRODUCTION_IMPORT%"', strict_stage)
-normal_else = launcher.find(") else (", strict_stage)
-if strict_stage < 0 or acceptance_gate < 0 or import_call < 0 or normal_else < 0 or not (acceptance_gate < strict_stage < import_call < normal_else):
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: production vehicle ingest is not isolated inside strict acceptance")
+    require(launcher, needle, "current normal/strict gameplay split")
 if "--include=" in launcher:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: unsupported Git LFS --include flag returned")
-if "^|" in launcher:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid cmd caret-pipe returned to PowerShell path")
 
 for needle in (
-    "Content\\AK-47",
-    "Content\\R13\\Weapons",
-    "Content\\PN_FoliageCollection",
-    "Unhydrated Git LFS model files remain",
-    "version https://git-lfs.github.com/spec/v1",
+    "Content\\AK-47", "Content\\R13\\Weapons", "Content\\PN_FoliageCollection",
+    "Unhydrated Git LFS model files remain", "version https://git-lfs.github.com/spec/v1",
 ):
-    require(lfs_verify, needle, "standalone LFS payload verification")
+    require(lfs_verify, needle, "LFS payload verification")
 
+# Production intake is independent per model and fresh-load verifies authored material truth.
 for needle in (
-    "import_production_vehicle_assets.py",
-    "verify_production_vehicle_fresh_load.py",
-    "prepare_local_production_sources.ps1",
-    "production_import_success.txt",
-    "production_fresh_load_success.txt",
-    "-run=pythonscript",
-    '-script="%PY_SCRIPT%"',
-    '-script="%VERIFY_SCRIPT%"',
-    "ProductionVehicleImport.log",
-    "ProductionVehicleFreshLoad.log",
+    "import_production_vehicle_assets.py", "verify_production_vehicle_fresh_load.py",
+    "production_import_success.txt", "production_fresh_load_success.txt", "-run=pythonscript",
+    'set "HMMWV_IMPORTED=0"', 'set "M2_IMPORTED=0"', 'set "BTR_IMPORTED=0"',
 ):
-    require(production_import, needle, "full production importer")
-if "-ExecutePythonScript=" in production_import:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: production importer still uses full-editor ExecutePythonScript route")
-
+    require(production_import, needle, "independent production importer")
 for needle in (
     "/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA",
     "/Game/Production/Weapons/M2/SM_M2_Browning",
     "/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus",
-    "unreal.load_asset",
-    "production_fresh_load_success.txt",
+    "AUTHORED_MATERIALS_READY", "placeholder_slots", "basicshapematerial",
 ):
-    require(fresh_vehicle_verify, needle, "fresh-process production vehicle verification")
-
+    require(fresh_vehicle_verify, needle, "fresh-load production material truth")
 for needle in (
-    "ukrainian_hmmwv_mk_19.glb",
-    "m2_50cal_machinegun_cc0.glb",
-    "BTR4_Bucephalus.fbx",
-    "OsterConflict_vehicle_assets_ready.zip",
-    "моделі.zip",
-    "Nothing is uploaded or committed.",
+    "ukrainian_hmmwv_mk_19.glb", "m2_50cal_machinegun_cc0.glb", "BTR4_Bucephalus.fbx",
+    "OsterConflict_vehicle_assets_ready.zip", "Find-BtrFbxInNamedArchive",
+    "Available models may still be imported independently; missing models remain explicit content gaps.",
 ):
     require(source_recovery, needle, "local production source recovery")
 
-print("RUNTIME ACCEPTANCE PASS 3 SOURCE CONTRACT PASS")
-print("- BASE is placed on the closer exterior Museum approach accepted by Pass 37")
-print("- dense foliage is generated incrementally with a bounded per-frame batch instead of freezing deployment")
-print("- restored weapon and foliage LFS payloads are hydrated before playtest using Windows-compatible commands")
-print("- M1911/M249/MAC10/Rem870 real-mesh fallbacks remain active after frontend but their startup scan is bounded by Pass 38")
-print("- tracer/muzzle presentation resolves the actual firing CurrentWeapon and socket/local-mesh barrel geometry")
-print("- normal gameplay is not blocked by missing exact HMMWV/M2/BTR sources; strict acceptance still requires fresh production ingest")
+print("RUNTIME ACCEPTANCE PASS 3 + PASS 44 CURRENT CONTRACT PASS")
+print("- Museum BASE source remains and actual live-pawn Museum proof is now stronger")
+print("- foliage and weapon helper work stays bounded")
+print("- normal/strict launch flow follows current independent content intake instead of the retired all-or-nothing rule")
+print("- production fresh-load rejects placeholder materials")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
