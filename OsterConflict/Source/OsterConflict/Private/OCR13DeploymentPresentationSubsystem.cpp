@@ -16,6 +16,8 @@
 
 namespace
 {
+    constexpr float DeploymentPresentationIntervalSeconds = 0.10f;
+
     void FillCanvas(UCanvasPanelSlot* Slot, const int32 ZOrder)
     {
         if (!Slot) return;
@@ -54,8 +56,6 @@ namespace
         }
         else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
         {
-            // Keep the final deployment action distinct from the main-menu START action.
-            // Reusing START here made the normal flow read as if the player had to start the game twice.
             if (Text->GetText().ToString().Equals(TEXT("ПОЯВИТИСЯ"), ESearchCase::CaseSensitive))
             {
                 Text->SetText(NSLOCTEXT("OCR13DeploymentPresentation", "DeployEnterBattle", "У БІЙ"));
@@ -84,6 +84,10 @@ void UOCR13DeploymentPresentationSubsystem::Tick(float DeltaTime)
     UWorld* World = GetWorld();
     if (!World || DeltaTime <= 0.0f) return;
 
+    UpdateAccumulator += DeltaTime;
+    if (UpdateAccumulator < DeploymentPresentationIntervalSeconds) return;
+    UpdateAccumulator = FMath::Fmod(UpdateAccumulator, DeploymentPresentationIntervalSeconds);
+
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     if (!PC || !PC->IsLocalController())
     {
@@ -91,15 +95,7 @@ void UOCR13DeploymentPresentationSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    UOCGameUIRootWidget* Root = nullptr;
-    for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
-    {
-        if (IsValid(*It) && It->GetWorld() == World && It->GetOwningPlayer() == PC)
-        {
-            Root = *It;
-            break;
-        }
-    }
+    UOCGameUIRootWidget* Root = ResolveRoot(World, PC);
     if (!Root)
     {
         SetPresentationVisible(false);
@@ -108,23 +104,55 @@ void UOCR13DeploymentPresentationSubsystem::Tick(float DeltaTime)
 
     EnsurePresentation(Root);
     SetPresentationVisible(PC->IsDeploymentPanelVisible() && !PC->IsSettingsVisible());
+
+    if (!bUpdateBudgetLogged)
+    {
+        bUpdateBudgetLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY update_hz=10 root_scan=cache_miss visibility_writes=deduped style_writes=once_per_root"));
+    }
+}
+
+UOCGameUIRootWidget* UOCR13DeploymentPresentationSubsystem::ResolveRoot(UWorld* World, AOCPlayerController* PC)
+{
+    if (!World || !PC) return nullptr;
+
+    if (UOCGameUIRootWidget* ExistingRoot = ActiveRoot.Get())
+    {
+        if (ActiveController.Get() == PC && ExistingRoot->GetWorld() == World && ExistingRoot->GetOwningPlayer() == PC)
+        {
+            return ExistingRoot;
+        }
+    }
+
+    ActiveRoot.Reset();
+    ActiveController.Reset();
+    BackdropBlur.Reset();
+    BackdropShade.Reset();
+    StyledFlowPanel.Reset();
+    bStyleApplied = false;
+    bPresentationVisibilityValid = false;
+    bLastPresentationVisible = false;
+
+    for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
+    {
+        if (IsValid(*It) && It->GetWorld() == World && It->GetOwningPlayer() == PC)
+        {
+            ActiveRoot = *It;
+            ActiveController = PC;
+            return *It;
+        }
+    }
+    return nullptr;
 }
 
 void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidget* Root)
 {
     if (!Root) return;
+    if (StyledFlowPanel.IsValid() && BackdropBlur.IsValid() && BackdropShade.IsValid() && bStyleApplied) return;
 
     UBorder* FlowPanel = FindObjectFast<UBorder>(Root, TEXT("R13_DeploymentFlowPanel"));
     if (!FlowPanel) return;
-
-    if (ActiveRoot.Get() != Root)
-    {
-        ActiveRoot = Root;
-        BackdropBlur.Reset();
-        BackdropShade.Reset();
-        StyledFlowPanel.Reset();
-        bStyleApplied = false;
-    }
 
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
@@ -134,8 +162,6 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
         UBackgroundBlur* Blur = NewObject<UBackgroundBlur>(Root, TEXT("R13_DeploymentBackdropBlur"));
         if (Blur)
         {
-            // Keep the legacy widget object for layout compatibility, but never blur the full viewport.
-            // It was both visually destructive and needlessly expensive on the current playtest machine.
             Blur->SetBlurStrength(0.0f);
             Blur->SetOverrideAutoRadiusCalculation(true);
             Blur->SetBlurRadius(0);
@@ -178,14 +204,17 @@ void UOCR13DeploymentPresentationSubsystem::ApplyWidgetStyle(UBorder* FlowPanel)
 
 void UOCR13DeploymentPresentationSubsystem::SetPresentationVisible(const bool bVisible)
 {
+    if (bPresentationVisibilityValid && bLastPresentationVisible == bVisible) return;
+
     const ESlateVisibility Visibility = bVisible
         ? ESlateVisibility::SelfHitTestInvisible
         : ESlateVisibility::Collapsed;
 
-    // Full-screen blur is deliberately disabled. A flat translucent shade is enough to separate the UI
-    // and cannot leak a blurred frame back into the main menu during travel/visibility transitions.
     if (BackdropBlur.IsValid()) BackdropBlur->SetVisibility(ESlateVisibility::Collapsed);
     if (BackdropShade.IsValid()) BackdropShade->SetVisibility(Visibility);
+
+    bPresentationVisibilityValid = true;
+    bLastPresentationVisible = bVisible;
 }
 
 TStatId UOCR13DeploymentPresentationSubsystem::GetStatId() const

@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCR13DeploymentPresentationSubsystem.generated.h"
 
+class AOCPlayerController;
 class UBackgroundBlur;
 class UBorder;
 class UOCGameUIRootWidget;
@@ -20,13 +21,19 @@ public:
     virtual TStatId GetStatId() const override;
 
 private:
+    UOCGameUIRootWidget* ResolveRoot(UWorld* World, AOCPlayerController* PC);
     void EnsurePresentation(UOCGameUIRootWidget* Root);
     void ApplyWidgetStyle(UBorder* FlowPanel);
     void SetPresentationVisible(bool bVisible);
 
     TWeakObjectPtr<UOCGameUIRootWidget> ActiveRoot;
+    TWeakObjectPtr<AOCPlayerController> ActiveController;
     TWeakObjectPtr<UBackgroundBlur> BackdropBlur;
     TWeakObjectPtr<UBorder> BackdropShade;
     TWeakObjectPtr<UBorder> StyledFlowPanel;
+    float UpdateAccumulator = 0.0f;
     bool bStyleApplied = false;
+    bool bPresentationVisibilityValid = false;
+    bool bLastPresentationVisible = false;
+    bool bUpdateBudgetLogged = false;
 };
