@@ -54,4 +54,5 @@ private:
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> AKReloadAnimation;
 
     TMap<TWeakObjectPtr<AOCCharacter>, FOCFirstPersonWeaponState> StateByCharacter;
+    bool bLocalPawnFastPathLogged = false;
 };
