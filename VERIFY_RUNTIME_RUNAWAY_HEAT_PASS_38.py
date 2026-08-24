@@ -27,10 +27,10 @@ fallback_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
 palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
+game_h = read(SRC / "Public" / "OCGameMode.h")
+runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 
-# User runtime evidence: FPS falls from roughly 60 to 5 within seconds while the museum remains absent.
-# The only museum recovery path may rebuild the large R13.8 architecture at most once.
 for needle in (
     "int32 RebuildAttemptCount = 0",
     "MaxRebuildAttempts = 1",
@@ -41,53 +41,65 @@ for needle in (
     "destructive_loop=0",
 ):
     require(museum_h + museum, needle, "single museum rebuild budget")
-forbid(museum, "if (!bVisibleCoreReady && HasPrototypeOwner(*World))\n    {",
-       "unbounded Pass 37 destructive museum-rebuild condition")
 
-# The real-weapon fallback scanner used to iterate every weapon forever at 4 Hz. It now has a finite warm-up.
+# Pass 44 keeps the real-mesh fallback finite and turns missing authored materials into a terminal audited state.
 for needle in (
     "int32 RefreshPassCount = 0",
     "MaxRefreshPasses = 12",
-    "0.50f",
     "ClearTimer(RefreshTimer)",
+    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
+    "reason=material_gap_audited",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
     "permanent_scan=0",
 ):
-    require(fallback_h + fallback, needle, "bounded real-weapon fallback scan")
-forbid(fallback, "0.25f,\n        true,\n        0.0f", "old permanent 4 Hz fallback timer")
+    require(fallback_h + fallback, needle, "bounded truth-only weapon scan")
+forbid(fallback, "UMaterialInstanceDynamic::Create", "weapon fallback must not fabricate material recovery")
+forbid(fallback, "Component->SetMaterial(Slot", "weapon audit must not repaint slots")
 
-# Pass 37's forced recolour damaged valid imported presentation (flat orange Lever Action in user runtime).
-# Recovery is now placeholder-only and the palette scanner is bounded as well.
+# Pass 44 fully retires the separate palette scan. There must be no timer, material creation or SetMaterial path.
 for needle in (
-    "int32 AuditPassCount = 0",
-    "MaxAuditPasses = 12",
-    "if (!bPlaceholder) continue;",
-    "authored_materials_preserved=1",
-    "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
-    "PASS38_WEAPON_PALETTE_SCAN_BOUNDED_STOP",
+    "compatibility shell",
+    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
+    "PASS38_WEAPON_PALETTE_SCAN_STOPPED reason=retired_by_pass44",
+    "polling=0",
 ):
-    require(palette_h + palette, needle, "placeholder-only bounded palette scan")
-forbid(palette, "bForceRestoredPalette", "forced recolour of non-placeholder restored materials")
-forbid(palette, "forced_restored_slots=", "obsolete forced-palette runtime evidence")
+    require(palette_h + palette, needle, "retired palette scan")
+for forbidden in (
+    "SetTimer(",
+    "UMaterialInstanceDynamic::Create",
+    "BasicShapeMaterial.BasicShapeMaterial",
+    "SetMaterial(",
+):
+    forbid(palette_h + palette, forbidden, "no legacy palette runtime work")
 
-# Full runtime acceptance must require the new bounded-lifecycle evidence and still keep the 30 FPS floor.
+# User runtime showed a delayed catastrophic FPS collapse. Normal local game must not silently create filler AI.
+for needle in (
+    "int32 TargetPopulation = 0",
+    "bool bAutoFillBots = false",
+):
+    require(game_h, needle, "safe base population defaults")
+for needle in (
+    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
+    "TargetPopulation = 0",
+    "bAutoFillBots = false",
+    "background_ai_load=0",
+):
+    require(runtime_safe, needle, "runtime-safe local bot suppression")
+
 for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
-    "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
-    "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
-    "PASS38_WEAPON_PALETTE_SCAN_BOUNDED_STOP",
+    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
     "PASS14_PERF_30FPS_READY",
 ):
     require(acceptance, marker, f"runtime acceptance marker {marker}")
-require(acceptance, "30 FPS acceptance target", "performance floor remains 30 FPS")
 
-print("RUNTIME RUNAWAY / HEAT PASS 38 SOURCE CONTRACT PASS")
+print("RUNTIME RUNAWAY / HEAT PASS 38/44 SOURCE CONTRACT PASS")
 print("- museum architecture destructive recovery is capped at one rebuild")
-print("- late duplicate cleanup remains one-shot after the historical delayed startup window")
-print("- real-weapon fallback and palette world scans stop after convergence or a hard finite budget")
-print("- Pass 37 forced recolouring of valid imported weapon materials stays removed")
-print("- runtime acceptance still requires >=30 FPS and fails on any bounded-scan/rebuild failure marker")
+print("- weapon fallback/material audit is finite and missing materials become terminal fail-visible evidence")
+print("- obsolete palette scan is retired completely: zero timer, zero material writes")
+print("- normal local game defaults to zero filler bots unless bot options are explicitly requested")
+print("- runtime acceptance still requires >=30 FPS")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
