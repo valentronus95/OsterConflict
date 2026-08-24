@@ -20,6 +20,29 @@ def fail(message):
     raise RuntimeError(message)
 
 
+def is_placeholder_material(material):
+    if material is None:
+        return True
+    path = str(material.get_path_name()).lower()
+    name = str(material.get_name()).lower()
+    return (
+        "/engine/enginematerials/defaultmaterial" in path
+        or "/engine/basicshapes/basicshapematerial" in path
+        or "/engine/enginematerials/worldgridmaterial" in path
+        or name in ("defaultmaterial", "basicshapematerial", "worldgridmaterial")
+    )
+
+
+def static_material_interfaces(asset):
+    result = []
+    for slot in list(asset.get_editor_property("static_materials") or []):
+        try:
+            result.append(slot.get_editor_property("material_interface"))
+        except Exception:
+            result.append(None)
+    return result
+
+
 def main():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if SENTINEL.exists():
@@ -48,19 +71,33 @@ def main():
         if not isinstance(asset, unreal.StaticMesh):
             fail(f"Canonical production asset is not a StaticMesh: {object_path} -> {asset.get_class().get_name()}")
 
-        materials = list(asset.get_editor_property("static_materials") or [])
+        materials = static_material_interfaces(asset)
         if not materials:
-            fail(f"Canonical production mesh has no material slots: {object_path}")
+            fail(f"Canonical production mesh has no material interfaces: {object_path}")
+
+        placeholder_slots = [index for index, material in enumerate(materials) if is_placeholder_material(material)]
+        material_paths = [material.get_path_name() if material is not None else "NULL" for material in materials]
+        if placeholder_slots:
+            fail(
+                f"Canonical production mesh is not authored-material ready: {object_path} "
+                f"placeholder_slots={placeholder_slots} materials={material_paths}"
+            )
 
         loaded.append(object_path)
-        unreal.log(f"[OC Fresh Production Load] PASS {object_path} materials={len(materials)}")
+        unreal.log(
+            f"[OC Fresh Production Load] AUTHORED_MATERIALS_READY {label} path={object_path} "
+            f"slots={len(materials)} materials={material_paths} placeholder_slots=0"
+        )
 
     if set(loaded) != imported_paths:
         missing = sorted(imported_paths.difference(loaded))
         fail(f"Fresh-load verification did not reopen every imported canonical asset: {missing}")
 
     SENTINEL.write_text("\n".join(loaded) + "\n", encoding="utf-8")
-    unreal.log(f"[OC Fresh Production Load] PASS imported={len(loaded)} sentinel={SENTINEL}")
+    unreal.log(
+        f"[OC Fresh Production Load] PASS imported={len(loaded)} authored_materials_ready={len(loaded)} "
+        f"sentinel={SENTINEL}"
+    )
 
 
 if __name__ == "__main__":
