@@ -33,6 +33,29 @@ if errorlevel 2 (
   goto menu
 )
 if errorlevel 1 (
+  rem Pass 42: if the real HMMWV / M2 / BTR source package is already on this PC, import it before
+  rem normal gameplay too. Do not make a missing optional local source package block the normal frontend.
+  set "PRODUCTION_HMMWV=%~dp0OsterConflict\Content\Production\Vehicles\HMMWV\SM_HMMWV_UA.uasset"
+  set "PRODUCTION_M2=%~dp0OsterConflict\Content\Production\Weapons\M2\SM_M2_Browning.uasset"
+  set "PRODUCTION_BTR=%~dp0OsterConflict\Content\Production\Vehicles\BTR4\SM_BTR4_Bucephalus.uasset"
+  if not exist "%PRODUCTION_HMMWV%" goto try_production_intake
+  if not exist "%PRODUCTION_M2%" goto try_production_intake
+  if not exist "%PRODUCTION_BTR%" goto try_production_intake
+  goto production_ready
+
+  :try_production_intake
+  if exist "%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd" (
+    echo.
+    echo [ASSETS] Шукаю та підключаю локальні HMMWV + M2 Browning + BTR-4...
+    call "%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
+    if errorlevel 1 (
+      echo [ASSETS] Точний production-пакет ще неповний. Звичайна гра продовжить запуск із доступними моделями.
+    ) else (
+      echo [ASSETS] Production HMMWV + M2 Browning + BTR-4 підключені.
+    )
+  )
+
+  :production_ready
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
   goto menu
 )
