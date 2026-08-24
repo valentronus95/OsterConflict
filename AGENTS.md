@@ -56,6 +56,8 @@ When two instructions conflict, the higher item wins. A lower historical rule mu
 18. **Normal local game must not silently auto-fill a heavy bot population.** Bots/population are opt-in through explicit server/test options. Local visual/playtest launch should start without background filler bots so performance evidence measures the map/content rather than an unrequested AI load.
 19. **Verifier truth follows current behavior, not history.** A verifier that requires a superseded constant, fallback, map extent, bot default, palette mutation, spawn proxy or old timing must be updated/retired before merge. Green CI is not allowed to depend on restoring a known regression.
 20. **One runtime responsibility has one current owner.** If a newer subsystem takes ownership of spawn, material truth, map bounds or landmark placement, older subsystems may only observe or become inert; they must not mutate the same state later.
+21. **Compact playable bounds apply at primary authoring time.** Do not create the old 2.4 km ground, far BASE compounds, peripheral hydrography, roads, residential grids or vegetation instances and rely on a later subsystem to delete them. Primary world generation must create/filter geometry against the current compact reference before `BeginPlay`; `OCCentralPlayableAreaSubsystem` is only a safety net for late/legacy instances.
+22. **Tactical-map projection is bounded by the current playable-area reference.** Do not auto-fit the `M` map from arbitrary procedural component extents and do not restore historical minimum-size clamps that expand the map beyond the authoritative playable area. A component outside the hard reference must not make the tactical map zoom farther out.
 
 ### Hard playable-area map reference — 2026-08-24
 
