@@ -341,5 +341,4 @@ void UOCPlayerUserSettings::SetKeyName(FName ActionId, FName KeyName)
     else if (ActionId == TEXT("ThrowGrenade")) KeyThrowGrenade = KeyName;
     else if (ActionId == TEXT("Scoreboard")) KeyScoreboard = KeyName;
     else if (ActionId == TEXT("Chat")) KeyChat = KeyName;
-    return NAME_None;
 }
