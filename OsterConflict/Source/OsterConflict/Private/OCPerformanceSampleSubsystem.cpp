@@ -5,7 +5,6 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/PlatformMemory.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "NavigationSystem.h"
 
 namespace
@@ -107,7 +106,7 @@ void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
 
         if (ProbeFps < 20.0f)
         {
-            ApplyEmergencyPlaytestProfile(ProbeFps);
+            ReportLowFpsProbe(ProbeFps);
         }
 
         bProbeComplete = true;
@@ -115,7 +114,7 @@ void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    // Let streaming/scalability settle after the probe or emergency profile before final evidence.
+    // Let startup activity settle after the probe before final evidence.
     if (WarmupSeconds < 2.0f)
     {
         WarmupSeconds += DeltaTime;
@@ -140,8 +139,8 @@ void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
     LogPass18WorldDiagnostics(World, PC);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS15_PERF_SAMPLE avg_fps=%.1f worst_frame_fps=%.1f frames=%d window_seconds=%.2f emergency=%d"),
-        AverageFps, WorstFrameFps, SampleFrames, SampleSeconds, bEmergencyProfileApplied ? 1 : 0);
+        TEXT("PASS15_PERF_SAMPLE avg_fps=%.1f worst_frame_fps=%.1f frames=%d window_seconds=%.2f quality_mutation=0"),
+        AverageFps, WorstFrameFps, SampleFrames, SampleSeconds);
 
     // Preserve the Pass 14 marker for existing acceptance tooling while recording the stricter Pass 15 sample above.
     UE_LOG(LogTemp, Display,
@@ -153,54 +152,29 @@ void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
         UE_LOG(LogTemp, Warning,
             TEXT("PASS14_PERF_BELOW_TARGET avg_fps=%.1f target_fps=30.0"), AverageFps);
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS15_PERF_BELOW_TARGET avg_fps=%.1f target_fps=30.0 emergency=%d"),
-            AverageFps, bEmergencyProfileApplied ? 1 : 0);
+            TEXT("PASS15_PERF_BELOW_TARGET avg_fps=%.1f target_fps=30.0 quality_mutation=0"),
+            AverageFps);
     }
     else
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS14_PERF_30FPS_READY avg_fps=%.1f"), AverageFps);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS15_PERF_30FPS_READY avg_fps=%.1f emergency=%d"),
-            AverageFps, bEmergencyProfileApplied ? 1 : 0);
+            TEXT("PASS15_PERF_30FPS_READY avg_fps=%.1f quality_mutation=0"), AverageFps);
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS39_PERF_SAMPLER_IDLE_READY finished=1 further_tick=0"));
 }
 
-void UOCPerformanceSampleSubsystem::ApplyEmergencyPlaytestProfile(float ProbeFps)
+void UOCPerformanceSampleSubsystem::ReportLowFpsProbe(float ProbeFps) const
 {
-    UWorld* World = GetWorld();
-    if (!World || bEmergencyProfileApplied) return;
-
-    // This is deliberately runtime-only and not saved to the user's graphics settings. It exists so a
-    // 5 FPS acceptance run can become diagnostically playable instead of spending the entire session
-    // rendering expensive features that are irrelevant to gameplay verification.
-    static const TCHAR* Commands[] =
-    {
-        TEXT("sg.ViewDistanceQuality 1"),
-        TEXT("sg.AntiAliasingQuality 1"),
-        TEXT("sg.ShadowQuality 0"),
-        TEXT("sg.GlobalIlluminationQuality 0"),
-        TEXT("sg.ReflectionQuality 0"),
-        TEXT("sg.PostProcessQuality 1"),
-        TEXT("sg.TextureQuality 1"),
-        TEXT("sg.EffectsQuality 1"),
-        TEXT("sg.FoliageQuality 0"),
-        TEXT("sg.ShadingQuality 1"),
-        TEXT("r.ScreenPercentage 65"),
-        TEXT("r.MotionBlurQuality 0"),
-        TEXT("r.VolumetricFog 0"),
-        TEXT("r.ViewDistanceScale 0.70"),
-        TEXT("r.StaticMeshLODDistanceScale 1.50")
-    };
-
-    for (const TCHAR* Command : Commands)
-    {
-        UKismetSystemLibrary::ExecuteConsoleCommand(World, Command, nullptr);
-    }
-
-    bEmergencyProfileApplied = true;
+    // Pass 15 used to react to a low startup probe by dropping resolution to 65%, zeroing several
+    // graphics features and changing LOD distances for the rest of the session. That made screenshots
+    // visibly worse while hiding the real runtime bottleneck. Keep the probe as evidence only.
     UE_LOG(LogTemp, Warning,
-        TEXT("PASS15_EMERGENCY_PERF_PROFILE_APPLIED probe_fps=%.1f screen_percentage=65"), ProbeFps);
+        TEXT("PASS39_LOW_FPS_PROBE_DIAGNOSTIC avg_fps=%.1f quality_mutation=0 preserve_user_graphics=1"),
+        ProbeFps);
 }
 
 TStatId UOCPerformanceSampleSubsystem::GetStatId() const
