@@ -6,6 +6,7 @@ START = ROOT / "START_HERE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 PLAYABLE = ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"
 IMPORTER = ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
+IMPORT_PY = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
 SOURCE_RECOVERY = ROOT / "OsterConflict" / "Scripts" / "prepare_local_production_sources.ps1"
 
 
@@ -24,6 +25,7 @@ start = read(START)
 normal = read(NORMAL)
 playable = read(PLAYABLE)
 importer = read(IMPORTER)
+import_py = read(IMPORT_PY)
 source_recovery = read(SOURCE_RECOVERY)
 
 require(start, 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"', "START_HERE normal-game route")
@@ -40,7 +42,6 @@ for needle in (
 ):
     require(normal, needle, "normal playable route")
 
-# Strict acceptance still owns fail-closed exact fleet validation.
 strict_stage = normal.find("[3/4] STRICT ACCEPTANCE")
 if strict_stage < 0:
     raise SystemExit("PASS20 VERIFY FAIL: strict production stage is missing")
@@ -57,19 +58,32 @@ for needle in (
 ):
     require(normal, needle, "strict production runtime route")
 
-# Pass 44 intentionally moves literal local source filenames back to the source/intake owner instead of duplicating
-# those details in the gameplay launcher. Missing BTR must not block available HMMWV/M2.
+# Concrete local source filenames are owned by source recovery / Python import, not by the gameplay launcher
+# or the command wrapper. The command wrapper owns independent per-model results.
+for needle in (
+    'set "HMMWV_IMPORTED=0"',
+    'set "M2_IMPORTED=0"',
+    'set "BTR_IMPORTED=0"',
+    "Continuing independent intake for any available source files",
+):
+    require(importer, needle, "independent production intake command")
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
     "BTR4_Bucephalus.fbx",
-    'set "HMMWV_IMPORTED=0"',
-    'set "M2_IMPORTED=0"',
-    'set "BTR_IMPORTED=0"',
+    'attempt("HMMWV"',
+    'attempt("M2"',
+    'attempt("BTR4"',
 ):
-    require(importer, needle, "independent production intake owner")
-require(source_recovery, "Find-BtrFbxInNamedArchive", "BTR archive recovery")
-require(source_recovery, "Available models may still be imported independently", "partial-source truth")
+    require(import_py, needle, "independent production asset implementation")
+for needle in (
+    "ukrainian_hmmwv_mk_19.glb",
+    "m2_50cal_machinegun_cc0.glb",
+    "BTR4_Bucephalus.fbx",
+    "Find-BtrFbxInNamedArchive",
+    "Available models may still be imported independently",
+):
+    require(source_recovery, needle, "production source recovery truth")
 
 for needle in (
     "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
@@ -88,6 +102,6 @@ for needle in (
 print("NORMAL GAME ROUTE PASS 20 + PASS 44 SOURCE CONTRACT PASS")
 print("- START_HERE option 1 stays on the canonical normal-game launcher")
 print("- normal gameplay keeps the real/playable weapon preflight and branch-aware pre-merge test route")
-print("- local source filenames belong to the independent production importer/source-recovery scripts")
+print("- exact source filenames belong to source-recovery/Python import; command wrapper owns per-model outcomes")
 print("- missing BTR cannot block available HMMWV/M2, but strict acceptance still rejects incomplete exact fleet art")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime still required")
