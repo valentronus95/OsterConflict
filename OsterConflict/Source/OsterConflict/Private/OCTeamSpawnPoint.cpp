@@ -18,7 +18,6 @@ namespace
     FVector SnapLocationToWalkableSurface(UWorld* World, const FVector& DesiredLocation, float HeightAboveSurfaceCm)
     {
         if (!World) return DesiredLocation;
-
         FHitResult Hit;
         FCollisionQueryParams Params(SCENE_QUERY_STAT(OCBaseSpawnGround), false);
         const FVector Start(DesiredLocation.X, DesiredLocation.Y, 8000.0f);
@@ -192,10 +191,22 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
 
     if (bBaseSpawn && TeamId != EOCTeam::None && GetWorld())
     {
-        const FVector LegacyLocation = GetActorLocation();
-        const bool bSecondary = TeamId == EOCTeam::TeamTwo
-            ? LegacyLocation.Y > 92000.0f
-            : LegacyLocation.Y < -92000.0f;
+        const FVector SeedLocation = GetActorLocation();
+
+        // Pass 44: the old primary/secondary discriminator depended on the retired ±920 m map edges.
+        // The first already-configured BASE for a team owns the primary slot; any later BASE is the
+        // secondary fallback. Base identity is therefore independent of obsolete world coordinates.
+        bool bSecondary = false;
+        for (TActorIterator<AOCTeamSpawnPoint> It(GetWorld()); It; ++It)
+        {
+            const AOCTeamSpawnPoint* Other = *It;
+            if (!IsValid(Other) || Other == this) continue;
+            if (Other->bBaseSpawn && Other->TeamId == TeamId)
+            {
+                bSecondary = true;
+                break;
+            }
+        }
 
         FVector NewLocation = ResolveCanonicalBaseLocation(TeamId, bSecondary);
         NewLocation = SnapLocationToWalkableSurface(GetWorld(), NewLocation, 95.0f);
@@ -203,9 +214,16 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
         SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 
         UE_LOG(LogTemp, Display,
+            TEXT("PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY team=%s secondary=%d seed=%s new=%s museum=%s distance_m=%.1f legacy_edge_test=0"),
+            *OCTeamToString(TeamId), bSecondary ? 1 : 0,
+            *SeedLocation.ToCompactString(), *NewLocation.ToCompactString(),
+            *AOCWorldSectorOster::MuseumAnchor().ToCompactString(),
+            FVector::Dist2D(NewLocation, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
+
+        UE_LOG(LogTemp, Display,
             TEXT("PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH team=%s secondary=%d old=%s new=%s museum=%s distance_m=%.1f"),
             *OCTeamToString(TeamId), bSecondary ? 1 : 0,
-            *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString(),
+            *SeedLocation.ToCompactString(), *NewLocation.ToCompactString(),
             *AOCWorldSectorOster::MuseumAnchor().ToCompactString(),
             FVector::Dist2D(NewLocation, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
 
@@ -213,7 +231,7 @@ void AOCTeamSpawnPoint::ConfigureServer(EOCTeam InTeam, bool bInBaseSpawn, FName
         UE_LOG(LogTemp, Display,
             TEXT("PASS30_BASE_RELOCATED_OUTSIDE_MUSEUM team=%s secondary=%d old=%s new=%s museum=%s distance_m=%.1f"),
             *OCTeamToString(TeamId), bSecondary ? 1 : 0,
-            *LegacyLocation.ToCompactString(), *NewLocation.ToCompactString(),
+            *SeedLocation.ToCompactString(), *NewLocation.ToCompactString(),
             *AOCWorldSectorOster::MuseumAnchor().ToCompactString(),
             FVector::Dist2D(NewLocation, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
 
