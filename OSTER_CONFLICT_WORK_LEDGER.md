@@ -5,15 +5,15 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/visual-quality-tick-budget-pass-39-20260824` → `main`
+- Active correction branch: `fix/poststart-frame-budget-pass-40-20260824` → `main`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **тільки `START_HERE.cmd`**.
 - `RUN_*.cmd` — внутрішні helper scripts. Не створювати новий user-facing launcher під кожну R-версію.
 - Persistent evidence: `RUNTIME_AUDIT_2026-08-21.md`, `LEGACY_BLOCKOUT_AUDIT_2026-08-21.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-21_1744.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-22.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-23_PASS35.md`, `OsterConflict/Docs/WorkReports/RUNTIME_PLAYTEST_AUDIT_2026-08-23_PASS37.md`.
 - Latest user playtest 2026-08-24 is authoritative over green Pass 37 source CI: gameplay still opens into a flat/empty field with no visible Museum; rack weapons have mixed presentation (some textured, some grey/blank, some flat fallback colours); screenshots show FPS falling `26 → 10 → 8`, and the user reports roughly `60 → 5` within about five seconds together with rapid laptop heating.
-- Pass 38 is merged in `main` as `f622b3dd04debe8aad78621d731ba15e7e3802f1` but remains `CODED_UNTESTED` until local UE runtime.
-- Pass 39 priority is to remove source-side visual degradation and remaining unnecessary post-start work without weakening the >=30 FPS acceptance floor.
+- Pass 38 is merged as `f622b3dd04debe8aad78621d731ba15e7e3802f1`; Pass 39 is merged as `827d586b882dc56242044cc4d4af66133a6b2db2`. Both remain `CODED_UNTESTED` until local UE runtime.
+- Pass 40 priority is remaining render-frame UI work: remove global UI-root scans and repeated Slate/layout writes from steady gameplay without weakening startup/deployment correctness or the >=30 FPS acceptance floor.
 - Не створювати нові декоративні R15/R16 layers, доки поточний runtime backlog не закритий.
 
 ## 2. Статусні правила
@@ -32,7 +32,8 @@
 |---|---|---:|---|---|
 | UI-BOOT-001 | Splash → main menu без чорної паузи | 1 | CODED_UNTESTED | MoviePlayer startup loading screen coded; потрібен UE 5.8 startup acceptance. |
 | UI-MENU-001 | Головне меню стабільне | ≥7 | CODED_UNTESTED | Pass 29 static START route дозволив останнім playtest дійти до gameplay; старий Slate START crash у цьому run не повторився, але окремий повний frontend acceptance ще потрібний. |
-| UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | Останній run дійшов до gameplay. Blocking loading + batched startup збережені; Pass 38 прибирає безкінечні post-spawn recovery scans/rebuild churn. |
+| UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | Blocking loading + batched startup збережені. Pass 40 не змінює flow, лише переводить viewport/deployment presentation зі щокадрових global scan/layout writes на cached 10 Hz observation + transition-only mutation. |
+| UI-PERF-001 | UI helper subsystems не витрачають render-frame budget у gameplay | 1 | CODED_UNTESTED | Source audit found `OCR13UIViewportStabilizerSubsystem` і `OCR13DeploymentPresentationSubsystem` робили `TObjectIterator<UOCGameUIRootWidget>` та Slate/layout work кожен render frame. Pass 40 caches root, caps observation at 10 Hz and dedupes structural/visibility writes. Runtime acceptance pending. |
 | UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | CODED_UNTESTED | Runtime chat layer coded; acceptance pending. |
 | GAME-SPAWN-001 | Фактичний spawn біля Museum, не порожнє поле | ≥8 | CODED_UNTESTED | Pass 37 runtime знову відхилений: координатно BASE лишається ≈27.8 m від `MuseumAnchor`, але Museum в кадрі відсутній. Pass 38 не маскує це новим offset: він обмежує R13.8 recovery одним rebuild і fail-closed, щоб зупинити destructive churn та отримати чесний visible-core результат. |
 | GAME-WEAPONS-001 | 11 pickup classes біля фактичного spawn | ≥8 | CODED_UNTESTED | 11-class rack фізично є. Pass 37 forced-palette покращив частину grey meshes, але зіпсував інші flat-colour presentation (зокрема Lever Action). Pass 38 більше не перезаписує non-placeholder imported materials; only explicit placeholder slots receive fallback. Exact missing texture payload лишається окремим content gap. |
@@ -101,6 +102,7 @@
 | PERF-RUNAWAY-RECOVERY-PASS38-20260824 | Rapid FPS/heat collapse from repeated recovery/scanning must stop | CODED_UNTESTED | Museum rebuild capped at one; fallback and palette world scans have finite 12-pass budgets and stop on convergence; acceptance fails on any budget exhaustion and retains >=30 FPS. |
 | GRAPHICS-QUALITY-PASS39-20260824 | Remove automatic blurry/low graphics regression | CODED_UNTESTED | First-run ceiling now balanced (85% scale, medium-ish view/texture/AA, low expensive lighting); exact old Pass 16 signature migrates once; custom profile preserved; low-FPS sampler cannot mutate graphics. |
 | POSTSTART-TICK-BUDGET-PASS39-20260824 | Remove avoidable permanent/per-frame work | CODED_UNTESTED | Performance + foliage guards stop ticking when finished; minimap Slate update capped at 10 Hz; FP presentation resolves local pawn directly instead of `TActorIterator<AOCCharacter>` every frame. |
+| POSTSTART-UI-FRAME-BUDGET-PASS40-20260824 | Remove render-frame UI root scans / repeated Slate writes | CODED_UNTESTED | Viewport stabilizer and deployment presentation cache `UOCGameUIRootWidget`, observe at 10 Hz, retry only until layout exists, and mutate layout/visibility on transitions instead of every frame. |
 
 ## 5. Останній фактичний user run — 2026-08-24
 
@@ -121,14 +123,15 @@ Source diagnosis after this run:
 - separate graphics regression found in `UOCPlayerUserSettings`: Pass 16 persisted a one-time ceiling of resolution scale `75`, shadow/foliage/GI/reflection `0` and most remaining groups `<=1`;
 - separate mid-session graphics regression found in `UOCPerformanceSampleSubsystem`: when the 2 s probe fell below 20 FPS, Pass 15 executed another emergency profile (`r.ScreenPercentage 65`, shadows/GI/reflections/foliage off, reduced LOD/view distance). This could make the picture visibly worse after the FPS collapse without fixing its cause;
 - minimap scene capture itself is one-shot (`bCaptureEveryFrame=false`), but marker/visibility were still mutating Slate every frame; FP presentation also scanned every `AOCCharacter` every frame. Pass 39 budgets these paths without deleting features;
-- Pass 36 bounded LowCPU foliage лишається під підозрою лише якщо FPS після усунення lifecycle/tick churn все одно падає; threshold не послаблювати.
+- Pass 40 follow-up found two additional render-frame UI paths: `UOCR13UIViewportStabilizerSubsystem` globally searched all `UOCGameUIRootWidget` objects and rewrote deployment clipping/column sizing/startup visibility/Z-order every frame; `UOCR13DeploymentPresentationSubsystem` performed another global root search and repeated visibility calls every frame. These are source-side inefficiencies, not proof they alone caused the thermal collapse;
+- Pass 36 bounded LowCPU foliage лишається під підозрою лише якщо FPS після усунення lifecycle/tick/UI churn все одно падає; threshold не послаблювати.
 
-Pass 38 and Pass 39 remain **CODED_UNTESTED** until a new UE 5.8 run confirms: no rapid heat/FPS collapse, no repeated museum rebuild, weapon scans stop, graphics no longer auto-degrade, Museum visible, and >=30 FPS sustained acceptance.
+Pass 38, Pass 39 and Pass 40 remain **CODED_UNTESTED** until a new UE 5.8 run confirms: no rapid heat/FPS collapse, no repeated museum rebuild, weapon scans stop, graphics no longer auto-degrade, UI remains stable with bounded presentation work, Museum visible, and >=30 FPS sustained acceptance.
 
 ## 6. Наступна черга
 
-1. Pass 39 source/CI: balanced graphics migration, diagnostic-only FPS probe, completed-guard tick retirement, 10 Hz minimap UI budget, local-pawn FP fast path. Merge only after all relevant checks are green.
-2. `START_HERE.cmd → 2. ПОВНИЙ RUNTIME-ТЕСТ`: require Pass 38 lifecycle markers plus Pass 39 graphics/minimap/FP/sampler markers.
+1. Pass 40 source/CI: cached UI root lookup, 10 Hz viewport/deployment presentation observation, transition-only Slate/layout writes. Merge only after all relevant checks are green.
+2. `START_HERE.cmd → 2. ПОВНИЙ RUNTIME-ТЕСТ`: require Pass 38 lifecycle markers + Pass 39 graphics/minimap/FP/sampler markers + `PASS40_UI_STABILIZER_BUDGET_READY` and `PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY`.
 3. Keep gameplay >=20 s only if thermals/FPS remain sane. If FPS rapidly falls or the machine heats sharply, exit immediately; a failed runtime is sufficient evidence.
 4. Old `PASS15_EMERGENCY_PERF_PROFILE_APPLIED` in a new run is a hard stale-binary failure. Pass 39 must emit `PASS39_GRAPHICS_QUALITY_PROFILE_READY` and never mutate quality after a low probe.
 5. Require `PASS38_WEAPON_FALLBACK_SCAN_STOPPED` and `PASS38_WEAPON_PALETTE_SCAN_STOPPED`; any `*_BOUNDED_STOP` is an acceptance failure, not a reason to extend polling.
@@ -192,4 +195,14 @@ Pass 38 and Pass 39 remain **CODED_UNTESTED** until a new UE 5.8 run confirms: n
 - Minimap keeps the existing one-shot tactical-map render target but updates marker/Slate visibility at 10 Hz instead of every rendered frame.
 - First-person weapon presentation resolves the single local pawn directly and no longer iterates all `AOCCharacter` actors every frame.
 - Full runtime acceptance rejects stale `PASS15_EMERGENCY_PERF_PROFILE_APPLIED`, requires Pass 39 graphics/minimap/FP/sampler markers, and keeps >=30 FPS.
+- PR #73 merged as `827d586b882dc56242044cc4d4af66133a6b2db2` with green source/regression CI.
+- Status: CODED_UNTESTED pending UE 5.8 runtime.
+
+## 2026-08-24 — Pass 40 post-start UI frame budget
+
+- Follow-up audit after Pass 39 found that two UI helper subsystems still ran at render-frame cadence even during steady gameplay.
+- `OCR13UIViewportStabilizerSubsystem` previously performed a global `TObjectIterator<UOCGameUIRootWidget>` every frame, then repeatedly rewrote deployment clipping/column sizing and startup menu visibility/Z-order even when state had not changed.
+- Pass 40 caches the current UI root/controller, only falls back to the global iterator on cache miss/root replacement, observes state at 10 Hz, retries deployment stabilization only until the panel exists or reopens, and applies startup isolation only on transitions.
+- `OCR13DeploymentPresentationSubsystem` now uses the same cache-miss root strategy, 10 Hz observation, one style pass per root and deduplicated presentation visibility writes.
+- Full runtime acceptance requires both Pass 40 budget markers and still keeps every Pass 38/39 gate plus >=30 FPS.
 - Status: CODED_UNTESTED pending UE 5.8 runtime.
