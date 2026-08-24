@@ -26,6 +26,7 @@ recovery = read(SRC / "Private" / "OCRuntimeRecoveryPass15Subsystem.cpp")
 museum = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 foliage = read(SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp")
+perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
 perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
 launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
 
@@ -55,8 +56,22 @@ for needle in (
 grid = re.search(r"constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;", foliage)
 if not grid or float(grid.group(1)) < 2000.0:
     raise SystemExit("PASS15 VERIFY FAIL: foliage grid exceeds low-cost recovery density")
-for needle in ("PASS15_PERF_PROBE", "PASS15_EMERGENCY_PERF_PROFILE_APPLIED", "PASS15_PERF_SAMPLE", "PASS15_PERF_BELOW_TARGET", "PASS15_PERF_30FPS_READY"):
-    require(perf, needle, "adaptive performance recovery")
+
+# Pass 39 keeps the probe but removes the old mid-session graphics destruction. Low FPS is evidence,
+# not permission to turn resolution/lighting/LOD into a second regression.
+for needle in (
+    "PASS15_PERF_PROBE", "PASS39_LOW_FPS_PROBE_DIAGNOSTIC", "quality_mutation=0",
+    "PASS15_PERF_SAMPLE", "PASS15_PERF_BELOW_TARGET", "PASS15_PERF_30FPS_READY",
+    "ReportLowFpsProbe", "virtual bool IsTickable() const override { return !bFinished; }",
+):
+    require(perf_h + perf, needle, "diagnostic-only performance sampling")
+for forbidden in (
+    "PASS15_EMERGENCY_PERF_PROFILE_APPLIED",
+    "UKismetSystemLibrary::ExecuteConsoleCommand",
+    "r.ScreenPercentage 65",
+    "sg.ShadowQuality 0",
+):
+    forbid(perf, forbidden, "performance sampler must not mutate graphics quality")
 
 # Focused recovery proves playability, not exact final art. Pass 7 exact-production certification is a separate strict gate.
 for needle in (
@@ -72,6 +87,8 @@ forbid(launcher, 'findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL"', "focused l
 
 print("RUNTIME RECOVERY PASS 15 SOURCE CONTRACT PASS")
 print("- frontend/server recovery, Museum BASE, physical rack and FPS evidence remain required")
-print("- focused recovery now requires Pass 19 playable real-mesh rack readiness")
+print("- low-FPS probe is diagnostic-only and no longer destroys graphics quality mid-session")
+print("- completed performance sampling retires its world tick")
+print("- focused recovery still requires Pass 19 playable real-mesh rack readiness")
 print("- Pass 7 exact-production-art certification remains separate and may correctly fail")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile/runtime acceptance still required")

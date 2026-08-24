@@ -17,6 +17,7 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
+    virtual bool IsTickable() const override { return !bFinished; }
 
 private:
     bool RetireSourceGroundCoverProxies();

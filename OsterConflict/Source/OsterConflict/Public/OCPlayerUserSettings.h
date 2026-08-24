@@ -16,8 +16,8 @@ enum class EOCColorVisionMode : uint8
 
 /**
  * S17B persistent Oster-specific preferences. Engine video/scalability settings remain in
- * UGameUserSettings; this object only records whether Oster has initialized a safe first-run
- * graphics baseline so later launches never overwrite the player's manual graphics choices.
+ * UGameUserSettings; this object records one-time Oster migrations while later manual video
+ * choices remain authoritative.
  */
 UCLASS(Config=GameUserSettings, ConfigDoNotCheckDefaults, BlueprintType)
 class OSTERCONFLICT_API UOCPlayerUserSettings : public UObject
@@ -31,7 +31,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="Settings") void ApplyPresentationCVars();
     UFUNCTION(BlueprintCallable, Category="Settings") void ValidateSettingsSchema();
 
-    /** Apply Oster's low-risk renderer baseline once, then permanently respect the user's own video choices. */
+    /** Apply Oster's safe first-run renderer baseline once and migrate the old over-degraded Pass 16 profile once. */
     void EnsureInitialGraphicsProfile();
 
     UFUNCTION(BlueprintCallable, Category="Frontend") void SetFrontendIdentity(const FString& Username, const FString& ServerAddress);
@@ -43,6 +43,9 @@ public:
 
     /** Pass 16: false only until Oster has initialized UGameUserSettings for this local profile once. */
     UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Settings") bool bInitialGraphicsProfileApplied = false;
+
+    /** Pass 39: one-time migration away from the old 75%/mostly-low automatic profile. */
+    UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Settings") bool bPass39GraphicsQualityRecoveryApplied = false;
 
     // S19A: identity/last endpoint are user convenience data and intentionally survive Reset Defaults.
     UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Frontend") FString LastUsername = TEXT("Гравець");

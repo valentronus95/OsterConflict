@@ -5,14 +5,15 @@
 ## 1. Поточний контекст
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/runtime-runaway-heat-pass-38-20260824` → `main`
+- Active correction branch: `fix/visual-quality-tick-budget-pass-39-20260824` → `main`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **тільки `START_HERE.cmd`**.
 - `RUN_*.cmd` — внутрішні helper scripts. Не створювати новий user-facing launcher під кожну R-версію.
 - Persistent evidence: `RUNTIME_AUDIT_2026-08-21.md`, `LEGACY_BLOCKOUT_AUDIT_2026-08-21.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-21_1744.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-22.md`, `RUNTIME_PLAYTEST_AUDIT_2026-08-23_PASS35.md`, `OsterConflict/Docs/WorkReports/RUNTIME_PLAYTEST_AUDIT_2026-08-23_PASS37.md`.
 - Latest user playtest 2026-08-24 is authoritative over green Pass 37 source CI: gameplay still opens into a flat/empty field with no visible Museum; rack weapons have mixed presentation (some textured, some grey/blank, some flat fallback colours); screenshots show FPS falling `26 → 10 → 8`, and the user reports roughly `60 → 5` within about five seconds together with rapid laptop heating.
-- Pass 38 priority is runtime lifecycle stabilization. Do not add decorative content while any recovery subsystem can repeatedly rebuild/scan the world.
+- Pass 38 is merged in `main` as `f622b3dd04debe8aad78621d731ba15e7e3802f1` but remains `CODED_UNTESTED` until local UE runtime.
+- Pass 39 priority is to remove source-side visual degradation and remaining unnecessary post-start work without weakening the >=30 FPS acceptance floor.
 - Не створювати нові декоративні R15/R16 layers, доки поточний runtime backlog не закритий.
 
 ## 2. Статусні правила
@@ -31,11 +32,11 @@
 |---|---|---:|---|---|
 | UI-BOOT-001 | Splash → main menu без чорної паузи | 1 | CODED_UNTESTED | MoviePlayer startup loading screen coded; потрібен UE 5.8 startup acceptance. |
 | UI-MENU-001 | Головне меню стабільне | ≥7 | CODED_UNTESTED | Pass 29 static START route дозволив останнім playtest дійти до gameplay; старий Slate START crash у цьому run не повторився, але окремий повний frontend acceptance ще потрібний. |
-| UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | Останній run дійшов до gameplay. Blocking loading + batched startup збережені; тепер Pass 38 прибирає безкінечні post-spawn recovery scans/rebuild churn. |
+| UI-TRAVEL-001 | Deployment START без freeze/layout jump, 0–100 loading → gameplay | ≥5 | CODED_UNTESTED | Останній run дійшов до gameplay. Blocking loading + batched startup збережені; Pass 38 прибирає безкінечні post-spawn recovery scans/rebuild churn. |
 | UI-CHAT-001 | Team chat `Y`, global chat `U`, панель прихована без вводу | 1 | CODED_UNTESTED | Runtime chat layer coded; acceptance pending. |
 | GAME-SPAWN-001 | Фактичний spawn біля Museum, не порожнє поле | ≥8 | CODED_UNTESTED | Pass 37 runtime знову відхилений: координатно BASE лишається ≈27.8 m від `MuseumAnchor`, але Museum в кадрі відсутній. Pass 38 не маскує це новим offset: він обмежує R13.8 recovery одним rebuild і fail-closed, щоб зупинити destructive churn та отримати чесний visible-core результат. |
 | GAME-WEAPONS-001 | 11 pickup classes біля фактичного spawn | ≥8 | CODED_UNTESTED | 11-class rack фізично є. Pass 37 forced-palette покращив частину grey meshes, але зіпсував інші flat-colour presentation (зокрема Lever Action). Pass 38 більше не перезаписує non-placeholder imported materials; only explicit placeholder slots receive fallback. Exact missing texture payload лишається окремим content gap. |
-| HUD-MINIMAP-001 | Постійна minimap на HUD + `M` full tactical map | 1 | CODED_UNTESTED | Доданий `OCMinimapSubsystem`; використовує той самий `OCTacticalMapSubsystem` render target/projection, player heading marker, приховується при blocking UI/full map. |
+| HUD-MINIMAP-001 | Постійна minimap на HUD + `M` full tactical map | 1 | CODED_UNTESTED | Pass 39 зберігає one-shot tactical map capture, але throttles minimap marker/Slate updates до 10 Hz і dedupes visibility writes. Runtime acceptance pending. |
 | UI-TACTICAL-MAP-001 | `M` tactical map без конфлікту та з видимим player marker | 2 | CODED_UNTESTED | Pass 35 піднімає існуючий player marker до Z=60/size26; новий runtime acceptance лишається обов’язковим. |
 | GAME-VEHICLE-INPUT-001 | Після exit з авто повертаються WASD/sprint/mouse | 1 | IN_PROGRESS | Recovery coded; новий acceptance pending. |
 | VEH-REVERSE-STEER-001 | Нормальний руль на малому ходу і заднім ходом | 1 | CODED_UNTESTED | 2026-08-22 runtime: reverse майже прямо. Root cause: steering authority → 0 при low speed. Доданий мінімальний steering authority, stronger reverse floor + reverse torque boost. |
@@ -44,7 +45,8 @@
 | VEH-PICKUP-SPEED-001 | Pickup max speed 120 км/год | 1 | CODED_UNTESTED | Server/standalone speed contract coded; speed test pending. |
 | ASSET-BTR-001 | BTR production model без proxy | ≥4 | CODED_UNTESTED / ASSET IMPORT CHECK | Normal launcher не допускає playtest, доки canonical BTR asset не відкрився у fresh UE process; runtime scale/material/ground-contact acceptance ще потрібний. |
 | VEH-BTR-SPEED-001 | BTR max speed 90 км/год | 1 | CODED_UNTESTED | Runtime speed contract coded; speed test pending. |
-| VIS-FP-001 | Production/real weapon visuals без primitive/white material presentation | ≥8 | CODED_UNTESTED / ASSET PREFLIGHT | Latest Pass 37 runtime shows mixed results: AK and some models carry usable presentation, several remain grey/blank, while forced palette made Lever Action visibly flat/orange. Pass 38 removes forced overwrite of valid materials, bounds palette/fallback scans, and keeps exact authored texture restoration separate from fallback colour. |
+| VIS-FP-001 | Production/real weapon visuals без primitive/white material presentation | ≥8 | CODED_UNTESTED / ASSET PREFLIGHT | Latest Pass 37 runtime shows mixed results: AK and some models carry usable presentation, several remain grey/blank, while forced palette made Lever Action visibly flat/orange. Pass 38 removes forced overwrite of valid materials, bounds palette/fallback scans, and keeps exact authored texture restoration separate from fallback colour. Pass 39 also removes the per-frame all-character scan from local first-person presentation. |
+| VIS-GRAPHICS-QUALITY-001 | Графіка не розмита/спрощена автоматично під час gameplay | ≥3 | CODED_UNTESTED | Root source found: Pass 16 persisted 75% resolution + mostly Low/Off quality, and Pass 15 could drop runtime again to 65% with shadows/GI/reflections/foliage disabled after a low probe. Pass 39 replaces first-run ceiling with conservative balanced quality, migrates only recognizable legacy Pass 16 profile once, preserves custom user profile, and makes low-FPS probe diagnostic-only. |
 | WEAPON-MUZZLE-001 | Visible shot FX стартує з дула | 2 | CODED_UNTESTED | Muzzle/socket rebase coded; runtime acceptance pending. |
 | WEAPON-TRACER-001 | Немає жовтої круглої «кулі» | 1 | CODED_UNTESTED | Thin directional tracer coded; runtime acceptance pending. |
 | ASSET-CHARACTER-001 | Production character/skins | ≥2 | IN_PROGRESS | Real character model є, final combat profile/skins pending. |
@@ -55,7 +57,7 @@
 | LOC-STADIUM-001 | Stadion Oster georeferenced, правильно орієнтований | ≥4 | IN_PROGRESS | Existing geo anchor remains authority; detailed stadium reconstruction needs dedicated branch and real-site acceptance. |
 | LOC-TERRAIN-001 | Реальний relief, не плоска площина | ≥3 | IN_PROGRESS / DATA BLOCKED | Base still lacks verified terrain heightmap/Landscape elevation data. Не вигадувати relief формулою. |
 | VIS-HOUSES-001 | Реальні Oster houses, не однакові huts | ≥4 | IN_PROGRESS | Requires broader real-house content pass and placement variation. |
-| VIS-GRASS-001 | Натуральне покриття травою без progressive FPS collapse | 4 | CODED_UNTESTED | Pass 36 LowCPU foliage already bounded population, yet Pass 37 runtime still collapses to single-digit FPS. Pass 38 treats museum rebuild churn and permanent weapon scans as higher-confidence new sources; foliage threshold remains unchanged until runtime isolates it. |
+| VIS-GRASS-001 | Натуральне покриття травою без progressive FPS collapse | 4 | CODED_UNTESTED | Pass 36 LowCPU foliage already bounded population, yet Pass 37 runtime still collapses to single-digit FPS. Pass 38 treats museum rebuild churn and permanent weapon scans as higher-confidence new sources; Pass 39 also stops foliage validation tick after success/fail. Foliage threshold remains unchanged until runtime isolates it. |
 | VIS-FLICKER-001 | Без distant flicker/z-fighting/late rebuild | ≥4 | IN_PROGRESS | Duplicate/late-owner cleanup remains suspect; Pass 38 forbids repeated museum rebuild and only allows one duplicate cleanup after delayed startup settle. |
 | VIS-ROADS-001 | Roads/sidewalks не надмірно випуклі | 1 | IN_PROGRESS | Geometry pass pending. |
 | VIS-LARGE-BUILDING-001 | Marked large building/stairs geometrically clean | 1 | IN_PROGRESS | Dedicated geometry/detail correction pending. |
@@ -79,7 +81,7 @@
 | DEPLOY-LOADING-20260822 | Deployment START → blocking 0–100 overlay | CODED_UNTESTED | `OCDeploymentLoadingSubsystem`; routed from `UICommitDeployment()`. |
 | START-FOLIAGE-BATCH-20260822 | Dense foliage не блокує один deployment frame | RUNTIME INSUFFICIENT | Superseded for LowCPU by bounded Pass 36 scope. |
 | BASE-SPAWN-MUSEUM-20260822 | BASE spawn near canonical Museum | CODED_UNTESTED | Pass 37 primary ≈27.8 m, secondary ≈38.6 m, primary yaw faces Museum; 20–45 m guard band. |
-| HUD-MINIMAP-20260822 | Runtime minimap | CODED_UNTESTED | `OCMinimapSubsystem` + Tactical Map render/projection getters. |
+| HUD-MINIMAP-20260822 | Runtime minimap | CODED_UNTESTED | Pass 39 marker UI update budget 10 Hz; Tactical Map capture remains `bCaptureEveryFrame=false`. |
 | VEH-REVERSE-20260822 | Low-speed/reverse steering authority | CODED_UNTESTED | `OCVehicleBase.cpp` steering floor/boost. |
 | VEH-GUNNER-20260822 | Rear-side gunner entry + solo operation | CODED_UNTESTED | `OCArmedVehicleBase.cpp`. |
 | MOUNTED-GUN-PROXY-20260822 | Primitive fake Browning hidden | CODED_UNTESTED | `OCPickupGunTruck.cpp`. |
@@ -97,6 +99,8 @@
 | WEAPON-PALETTE-PASS37-20260823 | Non-null blank Stein materials no longer accepted as good presentation | SUPERSEDED BY PASS38 | Forced full-slot palette produced flat/orange presentation on valid imported material assignments. |
 | BASE-VISIBLE-APPROACH-PASS37-20260823 | Spawn must visually read as “біля музею” | CODED_UNTESTED | Primary BASE remains ≈27.8 m and faces Museum; missing visible building must fail instead of being hidden by distance-only acceptance. |
 | PERF-RUNAWAY-RECOVERY-PASS38-20260824 | Rapid FPS/heat collapse from repeated recovery/scanning must stop | CODED_UNTESTED | Museum rebuild capped at one; fallback and palette world scans have finite 12-pass budgets and stop on convergence; acceptance fails on any budget exhaustion and retains >=30 FPS. |
+| GRAPHICS-QUALITY-PASS39-20260824 | Remove automatic blurry/low graphics regression | CODED_UNTESTED | First-run ceiling now balanced (85% scale, medium-ish view/texture/AA, low expensive lighting); exact old Pass 16 signature migrates once; custom profile preserved; low-FPS sampler cannot mutate graphics. |
+| POSTSTART-TICK-BUDGET-PASS39-20260824 | Remove avoidable permanent/per-frame work | CODED_UNTESTED | Performance + foliage guards stop ticking when finished; minimap Slate update capped at 10 Hz; FP presentation resolves local pawn directly instead of `TActorIterator<AOCCharacter>` every frame. |
 
 ## 5. Останній фактичний user run — 2026-08-24
 
@@ -106,29 +110,34 @@
 - weapon presentation змішана: AK і частина моделей виглядають краще, деякі лишаються grey/blank, а Lever Action отримав неприродний flat orange/brown вигляд від forced palette;
 - screenshots show `FPS 26`, потім `10`, потім `8`; user reports приблизно `60 → 5` за ~5 секунд;
 - user reports різке нагрівання комп'ютера разом із падінням FPS;
+- user repeatedly rejects current graphics quality as visibly bad/degraded;
 - цей runtime повністю відхиляє Pass 37 як runtime solution, незалежно від green source CI.
 
 Source diagnosis after this run:
-- `UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()` міг заходити в destructive recovery кожні `0.35 s`, якщо visible-core threshold не досягався: retire all R13.8 owners → rebuild complete architecture → repeat. Максимум був 24 polls. Це найсильніший source-side збіг із швидким `60 → 5` FPS/heat collapse;
-- `UOCRealWeaponFallbackSubsystem` додатково мав permanent `0.25 s` world-wide weapon scan навіть після convergence;
-- `UOCWeaponPalettePass37Subsystem` polling завершувався тільки при повному rack audit, без hard upper bound;
-- Pass 37 forced recolour intentionally replaced every material slot on known restored Stein payloads, що пояснює flat orange Lever Action. Repository inventory confirms these restored folders do not provide separate standalone material/texture payloads, тому fallback colour не можна називати exact skin restoration;
-- Pass 36 bounded LowCPU foliage лишається під підозрою лише якщо FPS після усунення lifecycle churn все одно падає; threshold не послаблювати.
+- `UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()` міг заходити в destructive recovery кожні `0.35 s`, якщо visible-core threshold не досягався: retire all R13.8 owners → rebuild complete architecture → repeat. Максимум був 24 polls. Це найсильніший source-side збіг із швидким `60 → 5` FPS/heat collapse; Pass 38 bounds this path;
+- `UOCRealWeaponFallbackSubsystem` додатково мав permanent `0.25 s` world-wide weapon scan навіть після convergence; Pass 38 bounds it;
+- `UOCWeaponPalettePass37Subsystem` polling завершувався тільки при повному rack audit, без hard upper bound; Pass 38 bounds it;
+- Pass 37 forced recolour intentionally replaced every material slot on known restored Stein payloads, що пояснює flat orange Lever Action. Pass 38 removes this overwrite;
+- separate graphics regression found in `UOCPlayerUserSettings`: Pass 16 persisted a one-time ceiling of resolution scale `75`, shadow/foliage/GI/reflection `0` and most remaining groups `<=1`;
+- separate mid-session graphics regression found in `UOCPerformanceSampleSubsystem`: when the 2 s probe fell below 20 FPS, Pass 15 executed another emergency profile (`r.ScreenPercentage 65`, shadows/GI/reflections/foliage off, reduced LOD/view distance). This could make the picture visibly worse after the FPS collapse without fixing its cause;
+- minimap scene capture itself is one-shot (`bCaptureEveryFrame=false`), but marker/visibility were still mutating Slate every frame; FP presentation also scanned every `AOCCharacter` every frame. Pass 39 budgets these paths without deleting features;
+- Pass 36 bounded LowCPU foliage лишається під підозрою лише якщо FPS після усунення lifecycle/tick churn все одно падає; threshold не послаблювати.
 
-Pass 38 is **CODED_UNTESTED** until a new UE 5.8 run confirms: no rapid heat/FPS collapse, no repeated museum rebuild, weapon scans stop, Museum visible, and >=30 FPS sustained acceptance.
+Pass 38 and Pass 39 remain **CODED_UNTESTED** until a new UE 5.8 run confirms: no rapid heat/FPS collapse, no repeated museum rebuild, weapon scans stop, graphics no longer auto-degrade, Museum visible, and >=30 FPS sustained acceptance.
 
 ## 6. Наступна черга
 
-1. Pass 38 source/CI: one-rebuild Museum budget, bounded weapon fallback/palette scans, placeholder-only material recovery. Merge only after all relevant checks are green.
-2. `START_HERE.cmd → 2. ПОВНИЙ RUNTIME-ТЕСТ`: Museum must be physically visible in front of spawn and runtime must emit `PASS38_MUSEUM_REBUILD_BUDGET_READY`.
+1. Pass 39 source/CI: balanced graphics migration, diagnostic-only FPS probe, completed-guard tick retirement, 10 Hz minimap UI budget, local-pawn FP fast path. Merge only after all relevant checks are green.
+2. `START_HERE.cmd → 2. ПОВНИЙ RUNTIME-ТЕСТ`: require Pass 38 lifecycle markers plus Pass 39 graphics/minimap/FP/sampler markers.
 3. Keep gameplay >=20 s only if thermals/FPS remain sane. If FPS rapidly falls or the machine heats sharply, exit immediately; a failed runtime is sufficient evidence.
-4. Require `PASS38_WEAPON_FALLBACK_SCAN_STOPPED` and `PASS38_WEAPON_PALETTE_SCAN_STOPPED`; any `*_BOUNDED_STOP` is an acceptance failure, not a reason to extend polling.
-5. Rack must still emit `PASS37_WEAPON_VISIBLE_PALETTE_READY`, but valid imported materials must not be overwritten by a forced flat palette.
-6. FPS acceptance stays >=30. Do not lower the threshold to make a bad run green.
-7. Exact authored textures for incomplete restored payloads remain a separate content gap; fallback colour is not exact skin restoration.
-8. Global landmark separation acceptance at canonical Museum/Silpo/Culture anchors.
-9. Separate detail branches: Museum, Stadium, Silpo, Culture House; merge without moving canonical geo anchors.
-10. Distant flicker/duplicate geometry, roads/sidewalk geometry, real Oster house variation and large-building/stairs detail remain after the current regression is closed.
+4. Old `PASS15_EMERGENCY_PERF_PROFILE_APPLIED` in a new run is a hard stale-binary failure. Pass 39 must emit `PASS39_GRAPHICS_QUALITY_PROFILE_READY` and never mutate quality after a low probe.
+5. Require `PASS38_WEAPON_FALLBACK_SCAN_STOPPED` and `PASS38_WEAPON_PALETTE_SCAN_STOPPED`; any `*_BOUNDED_STOP` is an acceptance failure, not a reason to extend polling.
+6. Rack must still emit `PASS37_WEAPON_VISIBLE_PALETTE_READY`, but valid imported materials must not be overwritten by a forced flat palette.
+7. FPS acceptance stays >=30. Do not lower the threshold to make a bad run green.
+8. Exact authored textures for incomplete restored payloads remain a separate content gap; fallback colour is not exact skin restoration.
+9. Global landmark separation acceptance at canonical Museum/Silpo/Culture anchors.
+10. Separate detail branches: Museum, Stadium, Silpo, Culture House; merge without moving canonical geo anchors.
+11. Distant flicker/duplicate geometry, roads/sidewalk geometry, real Oster house variation and large-building/stairs detail remain after the current regression is closed.
 
 **Заборона:** ніяких нових декоративних R15/R16 layers до закриття цього backlog.
 
@@ -171,4 +180,16 @@ Pass 38 is **CODED_UNTESTED** until a new UE 5.8 run confirms: no rapid heat/FPS
 - `OCRealWeaponFallbackSubsystem` no longer scans every weapon forever at 4 Hz: finite 12-pass / 0.5 s warm-up, stop on convergence, fail marker on budget exhaustion.
 - `OCWeaponPalettePass37Subsystem` gets the same finite startup budget and no longer overwrites any non-placeholder material. Only explicit placeholder slots may receive fallback colour.
 - Full runtime acceptance requires all Pass 38 stop/budget markers, fails on any bounded-stop/budget-fail marker, and keeps the existing >=30 FPS threshold.
+- PR #72 merged as `f622b3dd04debe8aad78621d731ba15e7e3802f1` with green source/regression CI.
+- Status: CODED_UNTESTED pending UE 5.8 runtime.
+
+## 2026-08-24 — Pass 39 visual quality / post-start tick budget
+
+- Source audit found that poor graphics were not only missing weapon materials: Pass 16 itself persisted an aggressive 75% mostly-Low/Off profile, and Pass 15 could later reduce the session to 65% screen percentage after a low FPS probe.
+- Pass 39 changes the first-run ceiling to a conservative balanced profile: 85% scale, medium-ish view/texture/AA/landscape, Low expensive shadows/GI/reflections/foliage. Existing users migrate only if their current settings still match the recognizable legacy Pass 16 signature; any customized profile is preserved.
+- Low-FPS probe is now diagnostic-only (`quality_mutation=0`); it cannot execute hidden scalability/LOD commands.
+- Completed performance and foliage guards leave the tick manager through `IsTickable() == false` after finishing.
+- Minimap keeps the existing one-shot tactical-map render target but updates marker/Slate visibility at 10 Hz instead of every rendered frame.
+- First-person weapon presentation resolves the single local pawn directly and no longer iterates all `AOCCharacter` actors every frame.
+- Full runtime acceptance rejects stale `PASS15_EMERGENCY_PERF_PROFILE_APPLIED`, requires Pass 39 graphics/minimap/FP/sampler markers, and keeps >=30 FPS.
 - Status: CODED_UNTESTED pending UE 5.8 runtime.

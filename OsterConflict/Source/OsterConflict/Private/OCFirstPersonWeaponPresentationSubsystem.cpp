@@ -11,7 +11,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -55,26 +55,34 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    for (TActorIterator<AOCCharacter> It(World); It; ++It)
+    // Pass 39: this is first-person LOCAL presentation. Iterating every AOCCharacter in the world every
+    // frame was needless work and scales with bots/respawned pawns. Resolve exactly one local pawn directly.
+    APlayerController* LocalPC = World->GetFirstPlayerController();
+    AOCCharacter* Character = LocalPC ? Cast<AOCCharacter>(LocalPC->GetPawn()) : nullptr;
+    if (Character && Character->IsLocallyControlled())
     {
-        AOCCharacter& Character = **It;
-        if (!Character.IsLocallyControlled()) continue;
-
-        const TWeakObjectPtr<AOCCharacter> CharacterKey(&Character);
-        if (!Character.IsInVehicle())
+        const TWeakObjectPtr<AOCCharacter> CharacterKey(Character);
+        if (!Character->IsInVehicle())
         {
-            UpdateLocalCharacter(Character, DeltaTime);
+            UpdateLocalCharacter(*Character, DeltaTime);
         }
         else if (FOCFirstPersonWeaponState* ExistingState = StateByCharacter.Find(CharacterKey))
         {
-            RestorePresentationState(Character, *ExistingState);
+            RestorePresentationState(*Character, *ExistingState);
             StateByCharacter.Remove(CharacterKey);
+        }
+
+        if (!bLocalPawnFastPathLogged)
+        {
+            bLocalPawnFastPathLogged = true;
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS39_FP_LOCAL_PAWN_FAST_PATH_READY world_character_scan=0 local_pawn_only=1"));
         }
     }
 
     for (auto It = StateByCharacter.CreateIterator(); It; ++It)
     {
-        if (!It.Key().IsValid()) It.RemoveCurrent();
+        if (!It.Key().IsValid() || It.Key().Get() != Character) It.RemoveCurrent();
     }
 }
 

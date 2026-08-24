@@ -53,19 +53,23 @@ for needle in (
 ):
     require(perf, needle, "world performance evidence")
 
-# Pass 18 must remain diagnostic-only: no runtime destruction, scalability mutation or collision changes here.
+# Pass 18 remains diagnostic-only: no runtime destruction, scalability mutation or collision changes here.
 forbid(perf, "PASS18_EMERGENCY", "Pass 18 changing scalability")
 forbid(perf, "PASS18_WORLD_PERF_DIAGNOSTICS_FAIL", "Pass 18 inventing a performance verdict")
 
-# Keep the exact existing FPS acceptance markers intact.
+# Pass 39 deliberately supersedes Pass 15's hidden emergency graphics downgrade. Preserve the FPS
+# verdict markers, but the low probe is evidence-only and must never mutate rendering quality.
 for needle in (
     "PASS15_PERF_PROBE",
-    "PASS15_EMERGENCY_PERF_PROFILE_APPLIED",
+    "PASS39_LOW_FPS_PROBE_DIAGNOSTIC",
+    "quality_mutation=0",
     "PASS15_PERF_SAMPLE",
     "PASS15_PERF_BELOW_TARGET",
     "PASS15_PERF_30FPS_READY",
 ):
-    require(perf, needle, "existing FPS contract remains intact")
+    require(perf, needle, "current FPS contract remains intact")
+forbid(perf, "PASS15_EMERGENCY_PERF_PROFILE_APPLIED", "obsolete emergency graphics downgrade")
+forbid(perf, "r.ScreenPercentage 65", "obsolete emergency screen percentage")
 
 # The existing R17 launcher is the single entry point and now requires/prints the diagnostic line.
 for needle in (
@@ -73,14 +77,16 @@ for needle in (
     '%PY_CMD% "%VERIFY18%"',
     "PASS18_WORLD_PERF_DIAGNOSTICS",
     "Missing Pass 18 world performance diagnostics",
+    "PASS39_LOW_FPS_PROBE_DIAGNOSTIC",
     "PASS 17-18 RUNTIME PERFORMANCE ACCEPTANCE: PASSED",
 ):
     require(launcher, needle, "single performance acceptance launcher")
+forbid(launcher, '/C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED"', "launcher printing obsolete emergency profile as valid evidence")
 
-print("RUNTIME DIAGNOSTICS PASS 18 SOURCE CONTRACT PASS")
+print("RUNTIME DIAGNOSTICS PASS 18/39 SOURCE CONTRACT PASS")
 print("- final settled FPS window also records actor and ISM world density")
 print("- visible/colliding ISM instance counts expose render/collision pressure")
 print("- navigation-system presence and physical RAM usage are captured")
 print("- player world coordinates tie diagnostics to the sampled gameplay location")
-print("- Pass 18 is diagnostic-only and does not change the existing 30 FPS verdict")
+print("- low-FPS probe is diagnostic-only; the obsolete emergency quality mutation stays removed")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime log is required for actual measurements")

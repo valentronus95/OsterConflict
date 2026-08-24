@@ -17,6 +17,7 @@ namespace
 {
     constexpr float MinimapOuterSize = 184.0f;
     constexpr float MinimapInnerSize = 172.0f;
+    constexpr float MinimapUpdateIntervalSeconds = 0.10f;
 }
 
 void UOCMinimapWidget::NativeConstruct()
@@ -119,6 +120,14 @@ void UOCMinimapSubsystem::EnsureMinimap(AOCPlayerController& PlayerController)
     Widget->AddToViewport(120);
     Widget->Configure(TacticalMap->GetMapRenderTarget(), TacticalMap->GetMapProjection());
     MinimapWidget = Widget;
+    bVisibilityInitialized = false;
+
+    if (!bUpdateBudgetLogged)
+    {
+        bUpdateBudgetLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS39_MINIMAP_UPDATE_BUDGET_READY hz=10 scene_capture_every_frame=0"));
+    }
 }
 
 void UOCMinimapSubsystem::Tick(float DeltaTime)
@@ -131,13 +140,26 @@ void UOCMinimapSubsystem::Tick(float DeltaTime)
     UOCMinimapWidget* Widget = MinimapWidget.Get();
     if (!Widget) return;
 
+    UpdateAccumulator += FMath::Max(0.0f, DeltaTime);
+    if (UpdateAccumulator < MinimapUpdateIntervalSeconds) return;
+    UpdateAccumulator = FMath::Fmod(UpdateAccumulator, MinimapUpdateIntervalSeconds);
+
     UOCTacticalMapSubsystem* TacticalMap = World->GetSubsystem<UOCTacticalMapSubsystem>();
     APawn* Pawn = PlayerController->GetPawn();
     const bool bBlocked = !Pawn || PlayerController->IsFrontendMenuVisible() || PlayerController->IsDeploymentPanelVisible() ||
         PlayerController->IsAdminPanelVisible() || PlayerController->IsChatInputActive() || PlayerController->IsSettingsVisible() ||
         (TacticalMap && TacticalMap->IsMapOpen());
 
-    Widget->SetVisibility(bBlocked ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+    const ESlateVisibility DesiredVisibility = bBlocked
+        ? ESlateVisibility::Collapsed
+        : ESlateVisibility::HitTestInvisible;
+    if (!bVisibilityInitialized || DesiredVisibility != LastWidgetVisibility)
+    {
+        Widget->SetVisibility(DesiredVisibility);
+        LastWidgetVisibility = DesiredVisibility;
+        bVisibilityInitialized = true;
+    }
+
     if (!bBlocked)
     {
         Widget->UpdatePlayerMarker(Pawn->GetActorLocation(), Pawn->GetActorRotation().Yaw);
