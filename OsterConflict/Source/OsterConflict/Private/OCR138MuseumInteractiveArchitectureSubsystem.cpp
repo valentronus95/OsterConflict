@@ -20,7 +20,9 @@
 
 namespace
 {
-    constexpr float R138MuseumDelaySeconds = 5.35f;
+    // Pass 42: the BASE is already beside MuseumAnchor, so a 5.35 s delayed architecture reveal meant
+    // the player could spawn into an apparently empty site. Build shortly after the R13.7 exterior instead.
+    constexpr float R138MuseumDelaySeconds = 1.10f;
     constexpr float WallBottomZ = 70.0f;
     constexpr float WallTopZ = 390.0f;
     constexpr float WallThickness = 28.0f;
@@ -314,6 +316,7 @@ void UOCR138MuseumInteractiveArchitectureSubsystem::OnWorldBeginPlay(UWorld& InW
         {
             if (UWorld* World = WeakWorld.Get()) UpgradeMuseum(*World);
         }), R138MuseumDelaySeconds, false);
+    UE_LOG(LogTemp, Display, TEXT("PASS42_MUSEUM_ARCHITECTURE_EARLY_SCHEDULED delay=%.2f"), R138MuseumDelaySeconds);
 }
 
 AActor* UOCR138MuseumInteractiveArchitectureSubsystem::FindR137MuseumActor(UWorld& World) const
