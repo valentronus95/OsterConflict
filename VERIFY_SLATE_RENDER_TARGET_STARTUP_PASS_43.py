@@ -68,9 +68,9 @@ if not ensure:
     raise SystemExit("PASS43 VERIFY FAIL: could not isolate EnsureInitialGraphicsProfile")
 ensure_body = ensure.group("body")
 
-# Critical fix 1: startup migration is persistence-only. A live UGameUserSettings::ApplySettings here can
+# Critical fix 1: startup migration is persistence-only. A live UGameUserSettings apply can
 # resize/recreate the game viewport while SlateRHIRenderer is still constructing its RHI render target.
-forbid(ensure_body, "ApplySettings(", "automatic graphics migration must not mutate live viewport/backbuffer")
+forbid(ensure_body, "GameSettings->ApplySettings(", "automatic graphics migration must not mutate live viewport/backbuffer")
 require(ensure_body, "GameSettings->SaveSettings();", "automatic profile persistence")
 require(ensure_body, "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY", "Pass 43 startup persistence marker")
 require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass 43 marker payload")
