@@ -47,7 +47,9 @@ for %%M in (
     PASS14_HOST_TRAVEL_BEGIN
     PASS14_FRONTEND_TRAVEL_HANDOFF_READY
     PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY
+    PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY
     PASS44_COMPACT_PLAYABLE_AREA_READY
+    PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY
     PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY
     PASS14_FOLIAGE_BUDGET_READY
     PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED
@@ -199,7 +201,9 @@ if errorlevel 1 (
 echo.
 echo [PASS] Frontend START/travel path is stable.
 echo [PASS] Normal local run did not silently auto-fill filler bots.
-echo [PASS] Playable/tactical-map world is trimmed to the user-approved compact central Oster reference.
+echo [PASS] Primary world was authored directly inside the user-approved compact central Oster bounds.
+echo [PASS] Runtime playable-area safety net retained the same compact bounds.
+echo [PASS] Tactical M map used the hard compact bounds without the old 1600 m minimum/auto-fit.
 echo [PASS] Actual live pawn, not merely a spawn actor, is within the Museum BASE acceptance radius.
 echo [PASS] Museum has a visible structural core and recovery stayed inside one destructive rebuild.
 echo [PASS] All 11 Museum BASE pickups are grounded.
@@ -209,7 +213,7 @@ echo [PASS] Tactical Map marker and character input passed.
 echo [PASS] Startup scanners/ticks are bounded or retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
-findstr /C:"PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY" /C:"PASS44_COMPACT_PLAYABLE_AREA_READY" /C:"PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" "%LOG%"
+findstr /C:"PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY" /C:"PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY" /C:"PASS44_COMPACT_PLAYABLE_AREA_READY" /C:"PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY" /C:"PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" "%LOG%"
 findstr /C:"PASS37_MUSEUM_VISIBLE_CORE_READY" /C:"PASS38_MUSEUM_REBUILD_BUDGET_READY" "%LOG%"
 findstr /C:"PASS42_BASE_RACK_GROUNDED_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS44_WEAPON_PALETTE_MUTATION_DISABLED" "%LOG%"
 findstr /C:"PASS42_PRODUCTION_MATERIALS_RESTORED" /C:"PASS42_PRODUCTION_VEHICLE_VISUALS_READY" "%LOG%"
