@@ -51,11 +51,14 @@ for needle in (
     require(spawn_guard, needle, "deployment guard aligned with closer BASE")
 
 # Runtime after Pass 37 showed a catastrophic 60 -> 5 FPS fall. Visible-component proof remains, but the
-# destructive recovery path is now limited to one attempt instead of running every 0.35 s.
+# destructive recovery path is limited to one attempt. Pass 42 moves normal R13.7/R13.8 construction earlier,
+# so the guard starts after the normal build rather than waiting through the old 5.8 second settle window.
 require(museum_h, "UOCMuseumVisibilityPass37Subsystem", "visible museum guard class")
 for needle in (
     "MinVisibleStructuralComponents = 12",
-    "LateStartupSettleSeconds = 5.80f",
+    "FirstPollDelaySeconds = 1.45f",
+    "PollIntervalSeconds = 0.35f",
+    "LateStartupSettleSeconds = 2.20f",
     "MaxRebuildAttempts = 1",
     'MuseumStructuralTag(TEXT("MuseumStructural"))',
     "Component->IsRegistered()",
@@ -70,6 +73,7 @@ for needle in (
     "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
     "PASS38_MUSEUM_SINGLE_REBUILD_EXECUTED",
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
+    "PASS42_MUSEUM_EARLY_VISIBILITY_READY",
 ):
     require(museum, needle, "bounded visible museum structural proof")
 
@@ -104,10 +108,10 @@ for marker in (
 require(acceptance, "20-45 m museum approach", "explicit closer spawn acceptance")
 require(acceptance, "30 FPS acceptance target", "performance floor remains 30 FPS")
 
-print("VISIBLE MUSEUM + WEAPON PALETTE PASS 37/38 SOURCE CONTRACT PASS")
+print("VISIBLE MUSEUM + WEAPON PALETTE PASS 37/38/42 SOURCE CONTRACT PASS")
 print("- primary BASE stays ~27.8 m from MuseumAnchor and faces the museum")
 print("- museum visibility proof remains but destructive rebuilding is bounded to one attempt")
-print("- late duplicate R13.8 owners are retired once after the delayed startup window")
+print("- Pass 42 starts visibility proof after the earlier one-shot museum build and settles by 2.20 seconds")
 print("- non-placeholder imported weapon materials are preserved; only obvious placeholders may be recovered")
 print("- runtime acceptance still fails below 30 FPS")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 visual/runtime acceptance remains required")
