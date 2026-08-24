@@ -11,32 +11,43 @@ echo ============================================================
 echo.
 echo 1. ЗВИЧАЙНА ГРА
 echo 2. ПОВНИЙ RUNTIME-ТЕСТ
-echo 3. ВІДКРИТИ UNREAL EDITOR
+echo 3. SAFE СУМІСНІСТЬ ^(RHI THREAD OFF^)
+echo 4. ВІДКРИТИ UNREAL EDITOR
 echo 0. ВИХІД
 echo.
 echo Для запуску проєкту завжди використовуйте тільки START_HERE.cmd.
 echo Інші RUN_*.cmd - внутрішні технічні скрипти, вручну їх запускати не потрібно.
 echo.
-echo Поточний safe renderer: DirectX 11 + Shader Model 5.
-echo Safe-start flags: -d3d11 -sm5 -nohdr -norhithread.
+echo Pass 45 normal renderer: DirectX 11 + Shader Model 5 + HDR off, normal RHI threading.
+echo Compatibility route adds -norhithread only for A/B crash/performance diagnosis.
 echo D3D12/SM6 тимчасово не використовується після підтверджених startup renderer crashes.
 echo.
-choice /C 1230 /N /M "Оберіть: "
+choice /C 12340 /N /M "Оберіть: "
 
-if errorlevel 4 goto end
+if errorlevel 5 goto end
+if errorlevel 4 (
+  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" -d3d11 -sm5 -nohdr
+  goto menu
+)
 if errorlevel 3 (
-  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" -d3d11 -sm5 -nohdr -norhithread
+  set "OC_RHI_COMPAT=1"
+  call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
+  set "OC_RHI_COMPAT="
   goto menu
 )
 if errorlevel 2 (
+  set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
+  set "OC_RHI_COMPAT="
   goto menu
 )
 if errorlevel 1 (
   rem Pass 42: normal game also attempts exact vehicle intake when the local source package exists.
   rem Missing local production source remains a content gap and does not block the normal frontend.
   if exist "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd" call "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd"
+  set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
+  set "OC_RHI_COMPAT="
   goto menu
 )
 
