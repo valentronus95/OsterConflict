@@ -93,12 +93,16 @@ for marker in (
     "PASS14_PERF_30FPS_READY",
 ):
     require(launcher, marker, f"runtime acceptance marker {marker}")
-require(launcher, "PASS 29-40 RUNTIME ACCEPTANCE", "Pass 40 runtime acceptance title")
+
+# Do not pin Pass 40's verifier to the latest terminal pass number. Later passes extend the same
+# canonical acceptance launcher and must not make an older, still-valid Pass 40 contract fail.
+require(launcher, "PASS 29-", "canonical cumulative runtime acceptance prefix")
+require(launcher, "RUNTIME ACCEPTANCE", "cumulative runtime acceptance title")
 require(launcher, "30 FPS acceptance target", "30 FPS floor remains unchanged")
 
 print("POST-START FRAME BUDGET PASS 40 SOURCE CONTRACT PASS")
 print("- viewport stabilizer no longer scans all UObjects or rewrites Slate layout every rendered frame")
 print("- deployment presentation caches its root and deduplicates visibility/style writes")
 print("- both UI guards run at 10 Hz instead of render-frame cadence")
-print("- full runtime acceptance requires Pass 40 markers and still requires >=30 FPS")
+print("- cumulative runtime acceptance requires Pass 40 markers and still requires >=30 FPS")
 print("STATUS: CODED_UNTESTED; local UE 5.8 UI/playflow/FPS/thermal runtime remains authoritative")
