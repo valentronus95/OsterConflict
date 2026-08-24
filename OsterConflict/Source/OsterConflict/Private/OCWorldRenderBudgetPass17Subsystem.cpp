@@ -15,39 +15,43 @@ namespace
         bool bCastShadow;
     };
 
+    // Pass 45: Pass 17 budgets were authored for the historical much larger sector. On the current
+    // 960 x 940 m battlefield, 700-1300 m cull distances effectively kept almost every source family
+    // alive at once. These values preserve long landmark/road silhouette only where useful and keep
+    // small detail, fences, proxy vegetation and park/stadium detail local to infantry sight lines.
     constexpr FISMRenderBudget Budgets[] =
     {
-        { TEXT("Roads"),                  0, 130000, false },
-        { TEXT("Sidewalks"),          10000,  70000, false },
-        { TEXT("Buildings"),          60000, 130000, true  },
-        { TEXT("ResidentialRoofs"),   45000,  95000, false },
-        { TEXT("ResidentialDetails"), 10000,  35000, false },
-        { TEXT("LandmarkBlocks"),     60000, 130000, true  },
-        { TEXT("LandmarkRoofs"),      50000, 100000, false },
-        { TEXT("LandmarkWindows"),    10000,  50000, false },
-        { TEXT("LandmarkDetails"),    15000,  60000, false },
-        { TEXT("Fences"),             10000,  50000, false },
-        { TEXT("WoodFences"),         10000,  50000, false },
-        { TEXT("MetalFences"),        10000,  50000, false },
-        { TEXT("LightSheetFences"),   10000,  50000, false },
-        { TEXT("TreeTrunks"),         25000,  70000, false },
-        { TEXT("TreeCrowns"),         25000,  70000, false },
-        { TEXT("SovietPoplarTrunks"), 25000,  70000, false },
-        { TEXT("SovietPoplarCrowns"), 25000,  70000, false },
-        { TEXT("BirchTrunks"),        25000,  70000, false },
-        { TEXT("BirchCrowns"),        25000,  70000, false },
-        { TEXT("PineTrunks"),         25000,  70000, false },
-        { TEXT("PineCrowns"),         25000,  70000, false },
-        { TEXT("GrassMown"),              0,  35000, false },
-        { TEXT("GrassRough"),             0,  35000, false },
-        { TEXT("GrassWetland"),           0,  45000, false },
-        { TEXT("StadiumGeometry"),         0,  80000, false },
-        { TEXT("StadiumDetails"),      10000,  50000, false },
-        { TEXT("ParkGeometry"),            0,  80000, false },
-        { TEXT("ParkDetails"),         10000,  50000, false },
-        { TEXT("Waterways"),               0, 100000, false },
-        { TEXT("Bridges"),             40000, 120000, true  },
-        { TEXT("ReferenceMarkers"),        0,   5000, false },
+        { TEXT("Roads"),                  0,  90000, false },
+        { TEXT("Sidewalks"),           8000,  42000, false },
+        { TEXT("Buildings"),          40000,  78000, true  },
+        { TEXT("ResidentialRoofs"),   30000,  58000, false },
+        { TEXT("ResidentialDetails"),  6000,  24000, false },
+        { TEXT("LandmarkBlocks"),     50000,  95000, true  },
+        { TEXT("LandmarkRoofs"),      40000,  76000, false },
+        { TEXT("LandmarkWindows"),     6000,  30000, false },
+        { TEXT("LandmarkDetails"),    10000,  40000, false },
+        { TEXT("Fences"),              6000,  28000, false },
+        { TEXT("WoodFences"),          6000,  28000, false },
+        { TEXT("MetalFences"),         6000,  28000, false },
+        { TEXT("LightSheetFences"),    6000,  28000, false },
+        { TEXT("TreeTrunks"),         12000,  36000, false },
+        { TEXT("TreeCrowns"),         12000,  36000, false },
+        { TEXT("SovietPoplarTrunks"), 12000,  36000, false },
+        { TEXT("SovietPoplarCrowns"), 12000,  36000, false },
+        { TEXT("BirchTrunks"),        12000,  36000, false },
+        { TEXT("BirchCrowns"),        12000,  36000, false },
+        { TEXT("PineTrunks"),         12000,  36000, false },
+        { TEXT("PineCrowns"),         12000,  36000, false },
+        { TEXT("GrassMown"),              0,  16000, false },
+        { TEXT("GrassRough"),             0,  18000, false },
+        { TEXT("GrassWetland"),           0,  20000, false },
+        { TEXT("StadiumGeometry"),         0,  55000, false },
+        { TEXT("StadiumDetails"),       6000,  32000, false },
+        { TEXT("ParkGeometry"),            0,  52000, false },
+        { TEXT("ParkDetails"),          6000,  30000, false },
+        { TEXT("Waterways"),               0,  60000, false },
+        { TEXT("Bridges"),             30000,  75000, true  },
+        { TEXT("ReferenceMarkers"),        0,   3000, false },
     };
 }
 
@@ -124,7 +128,6 @@ void UOCWorldRenderBudgetPass17Subsystem::TryApplyBudget()
             Component->SetCullDistances(Budget.StartCullCm, Budget.EndCullCm);
             Component->SetCastShadow(Budget.bCastShadow);
 
-            // Non-colliding decoration must not participate in dynamic navigation generation.
             if (Component->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
             {
                 Component->SetCanEverAffectNavigation(false);
@@ -140,6 +143,11 @@ void UOCWorldRenderBudgetPass17Subsystem::TryApplyBudget()
     bApplied = true;
     World->GetTimerManager().ClearTimer(RetryHandle);
 
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_COMPACT_WORLD_CULL_BUDGET_READY tuned=%d nav_disabled=%d families=%d map_m=960x940 max_landmark_cull_m=950 small_detail_cull_m=240_400"),
+        TunedCount,
+        NavigationDisabledCount,
+        static_cast<int32>(UE_ARRAY_COUNT(Budgets)));
     UE_LOG(LogTemp, Display,
         TEXT("PASS17_WORLD_ISM_BUDGET_READY tuned=%d nav_disabled=%d families=%d"),
         TunedCount,
