@@ -18,6 +18,23 @@ Before editing the project, read these files in this order:
 
 The WORK LEDGER and dedicated location TZ/status files are persistent living documents. Update them whenever the user adds/changes a requirement, repeats an unresolved requirement, a meaningful code block is committed, or build/playtest changes the status of a task.
 
+## Authority / conflict resolution
+The project has accumulated historical passes, verifiers and reports. They are evidence, not equal-priority rules.
+
+Current authority order is:
+1. **Latest explicit user requirement and latest user-observed runtime evidence.**
+2. **Current `AGENTS.md`.**
+3. **Current `OSTER_CONFLICT_WORK_LEDGER.md`.**
+4. **Current dedicated TZ / implementation-status file for the location or feature.**
+5. Source implementation and active acceptance scripts.
+6. Historical verifier scripts, old reports, old pass notes and old implementation assumptions.
+
+When two instructions conflict, the higher item wins. A lower historical rule must never silently undo a newer accepted change.
+
+**Mandatory stale-rule retirement:** whenever a newer user requirement/runtime result disproves an older rule, invariant, verifier expectation, fallback or compatibility path, update or delete the conflicting old requirement in the same work pass. Do not keep a stale behavior merely so an old verifier remains green. Update/retire the verifier instead. Historical reports may remain as chronology, but must be clearly non-authoritative for current behavior.
+
+**No compatibility resurrection:** a deprecated runtime mutation/fallback that caused a confirmed regression must not survive in a second subsystem under a different marker/name. Compatibility shells may remain only when they perform no conflicting mutation/work.
+
 ## Mandatory workflow
 1. Work directly in this GitHub repository. Do not create replacement ZIP archives as the default delivery method.
 2. Before editing, verify the current branch and read all mandatory context files listed above.
@@ -37,6 +54,8 @@ The WORK LEDGER and dedicated location TZ/status files are persistent living doc
 16. **Museum BASE means actual pawn placement, not a source-only marker.** For a normal local deployment the live player pawn must spawn on the Museum BASE approach and the runtime must prove its 2D distance to the Museum anchor. A verifier that only proves an `AOCTeamSpawnPoint` exists near the Museum is insufficient.
 17. **Runtime content truth is fail-visible.** A missing HMMWV/M2/BTR source, missing weapon authored material, or fallback BasicShape material must never be printed/accepted as production-ready. Source/fresh-load checks must distinguish `mesh loads` from `authored materials ready`.
 18. **Normal local game must not silently auto-fill a heavy bot population.** Bots/population are opt-in through explicit server/test options. Local visual/playtest launch should start without background filler bots so performance evidence measures the map/content rather than an unrequested AI load.
+19. **Verifier truth follows current behavior, not history.** A verifier that requires a superseded constant, fallback, map extent, bot default, palette mutation, spawn proxy or old timing must be updated/retired before merge. Green CI is not allowed to depend on restoring a known regression.
+20. **One runtime responsibility has one current owner.** If a newer subsystem takes ownership of spawn, material truth, map bounds or landmark placement, older subsystems may only observe or become inert; they must not mutate the same state later.
 
 ### Hard playable-area map reference — 2026-08-24
 
