@@ -20,11 +20,14 @@ def forbid(text: str, needle: str, label: str) -> None:
     if needle in text:
         raise SystemExit(f"PASS19 VERIFY FAIL: {label}: forbidden {needle!r}")
 
+
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 pass19 = read(SRC / "Private" / "OCContentReadinessPass19Subsystem.cpp")
 strict = read(SRC / "Private" / "OCProductionVehicleRuntimeValidationSubsystem.cpp")
 launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
 vehicle_import = read(ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py")
+vehicle_cmd = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
+vehicle_fresh = read(ROOT / "OsterConflict" / "Scripts" / "verify_production_vehicle_fresh_load.py")
 m2_launcher = read(ROOT / "RUN_IMPORT_M2_PRODUCTION.cmd")
 btr_launcher = read(ROOT / "RUN_IMPORT_BTR4_PRODUCTION.cmd")
 
@@ -47,23 +50,49 @@ for needle in (
 ):
     require(pass19, needle, "playable weapon readiness")
 
-# Focused Museum/FPS recovery must not claim exact production readiness.
 require(launcher, "PASS19_PLAYABLE_WEAPON_SET_READY", "focused launcher playable gate")
 require(launcher, "PASS19_PLAYABLE_WEAPON_SET_FAIL", "focused launcher failure gate")
 forbid(launcher, "PASS7_PRODUCTION_WEAPONS_READY", "focused launcher exact-art false certification")
 
-# Production fleet source intake is intentionally strict and requires real local source binaries.
+# Pass 44 supersedes the old all-or-nothing ensure_sources_exist() rule. Every production source remains real,
+# but an absent BTR is a named content gap and must not prevent an available HMMWV or M2 from importing.
 for needle in (
-    "ukrainian_hmmwv_mk_19.glb", "m2_50cal_machinegun_cc0.glb", "BTR4_Bucephalus.fbx",
-    "ensure_sources_exist()",
+    "ukrainian_hmmwv_mk_19.glb",
+    "m2_50cal_machinegun_cc0.glb",
+    "BTR4_Bucephalus.fbx",
+    'attempt("HMMWV"',
+    'attempt("M2"',
+    'attempt("BTR4"',
+    "other independent assets will continue",
+    "CONTENT_GAP=",
 ):
-    require(vehicle_import, needle, "production vehicle source truth")
+    require(vehicle_import, needle, "independent production vehicle source truth")
+forbid(vehicle_import, "ensure_sources_exist()", "obsolete all-or-nothing production source gate")
+
+for needle in (
+    'set "HMMWV_IMPORTED=0"',
+    'set "M2_IMPORTED=0"',
+    'set "BTR_IMPORTED=0"',
+    "Continuing independent intake for any available source files",
+    "CONTENT GAP: BTR-4 production source/import is still unavailable",
+):
+    require(vehicle_cmd, needle, "independent production vehicle command truth")
+
+for needle in (
+    "AUTHORED_MATERIALS_READY",
+    "placeholder_slots",
+    "basicshapematerial",
+    "defaultmaterial",
+):
+    require(vehicle_fresh, needle, "fresh-load authored material truth")
+
 require(m2_launcher, "source_kind=downloaded", "real M2 source requirement")
 require(btr_launcher, "source_kind=local_user_fbx", "real BTR4 source requirement")
 
-print("CONTENT READINESS PASS 19 SOURCE CONTRACT PASS")
-print("- generic M249/Remington/etc fallback meshes no longer impersonate production art")
+print("CONTENT READINESS PASS 19 + PASS 44 INDEPENDENT INTAKE CONTRACT PASS")
+print("- generic weapon fallback meshes do not impersonate production art")
 print("- Pass 7 remains strict exact-production certification")
 print("- Pass 19 separately proves an 11-class playable real-mesh rack")
-print("- HMMWV/M2/BTR4 production intake still requires real source binaries")
+print("- HMMWV/M2/BTR4 each still require a real source, but missing BTR cannot block available HMMWV/M2")
+print("- imported vehicle meshes must reopen with authored materials, not Default/BasicShape placeholders")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime and exact asset intake remain required")
