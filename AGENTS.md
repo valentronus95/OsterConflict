@@ -33,14 +33,28 @@ The WORK LEDGER and dedicated location TZ/status files are persistent living doc
 12. Do not let independent late runtime subsystems silently overwrite an already visible landmark. One site/landmark should have a clear placement owner.
 13. Reference-photo retention is mandatory: when the user supplies images specifically to create a 3D model or location, preserve them in a named `REFERENCE_PHOTOS/<location>/` pack even if the user did not separately ask to save them. Ordinary bug/test screenshots are not automatically archived unless requested.
 14. Every preserved photo pack needs an index/manifest linking it to its TZ and explaining chronology/role. Do not discard older references after a model is built; they are regression evidence.
+15. **Playable-map size is user-authoritative.** Do not expand Oster to a full-town/procedural 2.4 km square simply because old blockout code can generate it. The hard current playable-area reference is `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg` and its manifest. The intended battlefield is the compact central Oster area shown there, covering the user-visible central street network and landmarks around Silpo / central park / Culture House through Stadium Oster and the Oster Local History Museum. Legacy peripheral BASE geometry, hydrography, roads or residential seeds outside that reference must not inflate gameplay/tactical-map bounds or consume runtime budget.
+16. **Museum BASE means actual pawn placement, not a source-only marker.** For a normal local deployment the live player pawn must spawn on the Museum BASE approach and the runtime must prove its 2D distance to the Museum anchor. A verifier that only proves an `AOCTeamSpawnPoint` exists near the Museum is insufficient.
+17. **Runtime content truth is fail-visible.** A missing HMMWV/M2/BTR source, missing weapon authored material, or fallback BasicShape material must never be printed/accepted as production-ready. Source/fresh-load checks must distinguish `mesh loads` from `authored materials ready`.
+18. **Normal local game must not silently auto-fill a heavy bot population.** Bots/population are opt-in through explicit server/test options. Local visual/playtest launch should start without background filler bots so performance evidence measures the map/content rather than an unrequested AI load.
+
+### Hard playable-area map reference — 2026-08-24
+
+![User-approved compact central Oster playable area](REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg)
+
+This image is a boundary/topology reference, not decorative documentation. When an old coordinate, generated road, base, water proxy, residential seed, tactical-map auto-fit or other blockout feature expands the visible/playable map beyond this compact central area, the old blockout loses. Do not “fix” this by zooming the tactical UI out farther.
 
 ## Current priority
 R13 location repair, visual/gameplay stabilization, and replacement of placeholders with existing real assets. Highest-priority tracked work is maintained in `OSTER_CONFLICT_WORK_LEDGER.md`, currently centered on:
+- forcing the **actual live player pawn** to the Museum BASE and proving the runtime distance;
+- shrinking gameplay/tactical-map bounds to the user-approved compact central Oster reference above;
+- stopping the `120 FPS → ~4 FPS` startup collapse before adding more scenery;
 - separating and correctly placing Museum / Silpo / Culture House / water tower;
 - museum stadium-left + rear-slope + lower-residential topology;
 - photo-driven location fidelity;
 - eliminating late runtime rebuild/flicker;
 - using existing imported houses/fences/lights/weapons/vehicles instead of visible primitive placeholders;
+- refusing to call grey BasicShape weapon fallback or missing HMMWV/M2/BTR sources production-ready;
 - validating the complete spawn-relative weapon test rack.
 
 For the current Stadion Oster integration in `main`, the dedicated priority is the hard-georeferenced site defined by `STADION_OSTER_TZ.md`, `STADION_OSTER_IMPLEMENTATION_STATUS.md`, and `REFERENCE_PHOTOS/stadion_oster/`.
