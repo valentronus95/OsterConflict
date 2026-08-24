@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private"
 SETTINGS = SRC / "OCPlayerUserSettings.cpp"
 UI = SRC / "OCGameUIRootWidget.cpp"
+MINIMAP = SRC / "OCMinimapSubsystem.cpp"
+TACTICAL = SRC / "OCTacticalMapSubsystem.cpp"
 LAUNCHER = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 PASS23 = ROOT / "VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py"
 
@@ -28,10 +30,12 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 settings = read(SETTINGS)
 ui = read(UI)
+minimap = read(MINIMAP)
+tactical = read(TACTICAL)
 launcher = read(LAUNCHER)
 pass23 = read(PASS23)
 
-# Reproduce the exact startup call chain that was active in the reported RenderTargetPool/SlateRHIRenderer crash.
+# Reproduce the exact startup call chain active in the reported RenderTargetPool/SlateRHIRenderer crash.
 native_construct = re.search(
     r"void\s+UOCGameUIRootWidget::NativeConstruct\(\)\s*\{(?P<body>.*?)\n\}", ui, re.S
 )
@@ -64,11 +68,11 @@ if not ensure:
     raise SystemExit("PASS43 VERIFY FAIL: could not isolate EnsureInitialGraphicsProfile")
 ensure_body = ensure.group("body")
 
-# Critical fix: startup migration is persistence-only. A live UGameUserSettings::ApplySettings here can
+# Critical fix 1: startup migration is persistence-only. A live UGameUserSettings::ApplySettings here can
 # resize/recreate the game viewport while SlateRHIRenderer is still constructing its RHI render target.
 forbid(ensure_body, "ApplySettings(", "automatic graphics migration must not mutate live viewport/backbuffer")
 require(ensure_body, "GameSettings->SaveSettings();", "automatic profile persistence")
-require(ensure_body, "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY", "Pass 43 runtime evidence marker")
+require(ensure_body, "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY", "Pass 43 startup persistence marker")
 require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass 43 marker payload")
 
 # Manual graphics changes remain live and explicit after the UI/viewport is established.
@@ -82,22 +86,69 @@ if not manual:
 require(manual.group("body"), "GU->ApplySettings(false);", "explicit settings UI live apply")
 require(manual.group("body"), "GU->ConfirmVideoMode();", "explicit settings UI video mode confirmation")
 
+# Critical fix 2: the old minimap path created/captured a 1600x900 UTextureRenderTarget2D and published it
+# into a Slate UImage even while the frontend had no Pawn. Reject blocked UI/no-pawn states before any
+# EnsureMapSnapshot()/SceneCapture/Slate-brush creation.
+ensure_minimap = re.search(
+    r"void\s+UOCMinimapSubsystem::EnsureMinimap\(AOCPlayerController& PlayerController\)\s*\{(?P<body>.*?)\n\}\n\nvoid\s+UOCMinimapSubsystem::Tick",
+    minimap,
+    re.S,
+)
+if not ensure_minimap:
+    raise SystemExit("PASS43 VERIFY FAIL: could not isolate UOCMinimapSubsystem::EnsureMinimap")
+ensure_minimap_body = ensure_minimap.group("body")
+for needle in (
+    "APawn* Pawn = PlayerController.GetPawn();",
+    "!Pawn || PlayerController.IsFrontendMenuVisible()",
+    "PlayerController.IsDeploymentPanelVisible()",
+    "PlayerController.IsSettingsVisible()",
+    "if (TacticalMap && TacticalMap->IsMapOpen()) return;",
+    "TacticalMap->EnsureMapSnapshot()",
+    "PASS43_MINIMAP_RENDER_TARGET_GAMEPLAY_ONLY_READY",
+):
+    require(ensure_minimap_body, needle, "gameplay-only minimap render target")
+if ensure_minimap_body.index("!Pawn || PlayerController.IsFrontendMenuVisible()") > ensure_minimap_body.index("TacticalMap->EnsureMapSnapshot()"):
+    raise SystemExit("PASS43 VERIFY FAIL: minimap still creates its render target before no-pawn/frontend rejection")
+
+minimap_tick = re.search(
+    r"void\s+UOCMinimapSubsystem::Tick\(float DeltaTime\)\s*\{(?P<body>.*?)\n\}\n\nvoid\s+UOCMinimapSubsystem::Deinitialize",
+    minimap,
+    re.S,
+)
+if not minimap_tick:
+    raise SystemExit("PASS43 VERIFY FAIL: could not isolate UOCMinimapSubsystem::Tick")
+minimap_tick_body = minimap_tick.group("body")
+require(minimap_tick_body, "if (bBlocked)", "blocked minimap startup gate")
+require(minimap_tick_body, "EnsureMinimap(*PlayerController);", "gameplay minimap creation")
+if minimap_tick_body.index("if (bBlocked)") > minimap_tick_body.index("EnsureMinimap(*PlayerController);"):
+    raise SystemExit("PASS43 VERIFY FAIL: Tick can still create the minimap render target before blocked-state rejection")
+
+# Tactical map capture stays one-shot once gameplay is allowed to create it.
+for needle in (
+    "MapRenderTarget->UpdateResourceImmediate(true);",
+    "CaptureComponent->bCaptureEveryFrame = false;",
+    "CaptureComponent->bCaptureOnMovement = false;",
+    "CaptureComponent->CaptureScene();",
+):
+    require(tactical, needle, "one-shot tactical map render target")
+
 # Keep the already-established DX11/SM5/no-HDR/no-RHI-thread startup isolation from Pass 23.
 for token in ("-d3d11", "-sm5", "-nohdr", "-norhithread"):
     require(launcher, token, f"normal launcher safe renderer flag {token}")
 require(pass23, "DefaultGraphicsRHI=DefaultGraphicsRHI_DX11", "Pass 23 DX11 contract")
 require(pass23, "+D3D11TargetedShaderFormats=PCD3D_SM5", "Pass 23 SM5 contract")
 
-# Do not silently turn the weapon preflight into the suspected game process. It stays an isolated NullRHI
-# commandlet and the actual frontend launches only after that process exits successfully.
+# Weapon preflight is a separate NullRHI commandlet. The attached launch transcript proves it completed
+# before the real normal-game process started, so do not conflate its harmless editor modules with the crash.
 require(launcher, "-run=pythonscript", "isolated weapon preflight")
 require(launcher, "-nullrhi", "weapon preflight NullRHI isolation")
 require(launcher, "[4/4] Launching CURRENT NORMAL GAME frontend", "normal frontend starts after preflight")
 
 print("SLATE RENDER TARGET STARTUP PASS 43 SOURCE CONTRACT PASS")
-print("- reported crash is localized to the frontend startup settings -> Slate/backbuffer lifecycle")
-print("- automatic graphics migrations no longer call live ApplySettings during NativeConstruct")
-print("- automatic profile changes are persisted for safe boot-time application")
-print("- explicit user graphics Apply remains available after the viewport is initialized")
+print("- startup settings sync no longer performs live renderer ApplySettings during NativeConstruct")
+print("- automatic graphics changes are persisted for safe boot-time application")
+print("- minimap SceneCapture/render target/Slate brush is not created in frontend, deployment or settings UI")
+print("- minimap render target is first allowed only with an actual unblocked gameplay Pawn")
+print("- explicit user graphics Apply remains available after viewport initialization")
 print("- DX11 + SM5 + no HDR + no RHI thread startup isolation remains intact")
 print("STATUS: CODED_UNTESTED; the next local UE 5.8 normal-game launch is authoritative")
