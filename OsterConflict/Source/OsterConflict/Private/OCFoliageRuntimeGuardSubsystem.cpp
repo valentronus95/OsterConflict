@@ -170,7 +170,15 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     }
 
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    const bool bProxiesRetired = RetireSourceGroundCoverProxies();
+    ValidationAccumulator += FMath::Max(0.0f, DeltaTime);
+
+    // Pass 42: this is an acceptance guard, not gameplay. It previously walked the sector and
+    // its ISM components every rendered frame for up to eight seconds. Sample at 4 Hz instead,
+    // and once the proxy retirement is proven never rescan those source components again.
+    if (ValidationAccumulator < 0.25f) return;
+    ValidationAccumulator = 0.0f;
+
+    const bool bProxiesRetired = bProxyRetirementObserved || RetireSourceGroundCoverProxies();
 
     if (ElapsedSeconds < 2.0f) return;
 
@@ -184,7 +192,7 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     {
         bFinished = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS10_FOLIAGE_RUNTIME_READY proxyComponents=3 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s owner=OC_DenseGroundFoliage"),
+            TEXT("PASS10_FOLIAGE_RUNTIME_READY proxyComponents=3 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s"),
             DenseGrassComponents,
             GrassInstances,
             MinGrassInstances,
@@ -196,6 +204,8 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
                 GrassInstances,
                 MinGrassInstances);
         }
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS42_FOLIAGE_GUARD_THROTTLED_READY sample_hz=4 proxy_rescan_after_ready=0"));
         return;
     }
 

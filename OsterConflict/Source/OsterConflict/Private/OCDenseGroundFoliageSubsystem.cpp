@@ -20,13 +20,16 @@ namespace
     constexpr float GridStep = 4000.0f;
     constexpr int32 CellsPerBatch = 4;
 
-    // Pass 36: the user's latest runtime started near 32 FPS and then collapsed to 7-4 while this subsystem
-    // was still adding HISM instances across the whole sector for ~30 seconds. LowCPU is a recovery profile,
-    // not a challenge to see how much vegetation a laptop can regret. Keep real imported grass around the
-    // current museum playtest area, finish in well under the old population window, and stop there.
-    constexpr float LowCPUHalfExtentCm = 7500.0f;
+    // Pass 42: keep the safe bounded LowCPU design from Pass 36, but grow the useful museum/BASE play area
+    // from 150 x 150 m to 200 x 200 m. This is still only ~1.1% of the 1.92 km sector area and cannot recreate
+    // the old full-sector 30-second population flood. A slightly longer cull radius makes the grass read as
+    // continuous around BASE without turning thousands of distant clumps into rendered work.
+    constexpr float LowCPUHalfExtentCm = 10000.0f;
     constexpr float LowCPUGridStepCm = 1500.0f;
     constexpr int32 LowCPUCellsPerBatch = 8;
+    constexpr int32 LowCPUGrassCullEndCm = 8500;
+    constexpr int32 LowCPUPlantCullEndCm = 6500;
+    constexpr int32 LowCPUFlowerCullEndCm = 4500;
 
     bool IsLowCPUProfile(const UWorld& World)
     {
@@ -132,6 +135,8 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
             LowCPUHalfExtentCm / 100.0f,
             LowCPUGridStepCm / 100.0f,
             LowCPUCellsPerBatch);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS42_LOWCPU_FOLIAGE_SCOPE_EXPANDED area_m=200x200 grass_cull_m=85 full_sector_population=0"));
     }
     else
     {
@@ -257,14 +262,18 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     Root->RegisterComponent();
     Owner->SetRootComponent(Root);
 
+    const int32 GrassCullEnd = bLowCPUProfile ? LowCPUGrassCullEndCm : 6000;
+    const int32 PlantCullEnd = bLowCPUProfile ? LowCPUPlantCullEndCm : 5000;
+    const int32 FlowerCullEnd = bLowCPUProfile ? LowCPUFlowerCullEndCm : 3500;
+
     GrassComponents.Reset();
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
     {
         GrassComponents.Add(MakeFoliageHISM(
-            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), 6000));
+            Owner, Root, GrassMeshes[Index], FName(*FString::Printf(TEXT("DenseGrass_%d"), Index)), GrassCullEnd));
     }
-    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), 5000);
-    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), 3500);
+    GroundPlants = MakeFoliageHISM(Owner, Root, GroundPlantMesh, TEXT("DenseGroundPlants"), PlantCullEnd);
+    Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), FlowerCullEnd);
 
     FoliageActor = Owner;
     RandomStream.Initialize(20260822);
@@ -275,8 +284,8 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     FlowerInstances = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS30_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=6000 profile=%s"),
-        ActiveGridStep, ActiveCellsPerBatch, bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"));
+        TEXT("PASS30_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d profile=%s"),
+        ActiveGridStep, ActiveCellsPerBatch, GrassCullEnd, bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"));
     return true;
 }
 

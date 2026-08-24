@@ -6,10 +6,10 @@ cd /d "%~dp0"
 set "LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 
 echo ============================================================
-echo OSTER CONFLICT - PASS 29-41 RUNTIME ACCEPTANCE
+echo OSTER CONFLICT - PASS 29-42 RUNTIME ACCEPTANCE
 echo ============================================================
 echo.
-echo Перевіряється останній playtest: музей реально видимий, BASE близько, зброя не біла/сіра, графіка не деградує автоматично, runtime не накопичує rebuild/scan/tick/Slate work, input recovery не крутиться зайво на 20 Hz, map marker, input та FPS.
+echo Перевіряється останній playtest: музей реально видимий, BASE близько, 11 одиниць зброї лежать на землі, production HMMWV/M2/BTR мають authored materials, графіка не деградує автоматично, runtime не накопичує rebuild/scan/tick/Slate work, map marker, input та FPS.
 echo.
 echo Послідовність:
 echo   1. У головному меню натисніть START.
@@ -18,12 +18,13 @@ echo   3. SPAWN обов'язково виберіть BASE біля музею 
 echo   4. Одразу після spawn музей має бути перед вами приблизно за 20-30 метрів, а не за горизонтом.
 echo   5. Перевірте WASD + mouse.
 echo   6. Натисніть M один раз, переконайтесь що зелений маркер гравця видно над точками карти, потім закрийте M.
-echo   7. Подивіться на 11 weapon pickups біля BASE. Valid imported materials не повинні бути перемальовані flat-color fallback-ом.
-echo   8. Графіка не повинна через кілька секунд сама падати до розмитого 65%% emergency-профілю.
-echo   9. Deployment/main-menu UI не повинні дьоргати layout або продовжувати глобальні WidgetTree/Slate rewrites у gameplay.
-echo  10. Залишайтесь у gameplay не менше 20 секунд для FPS sample, late-startup museum check і bounded-lifecycle evidence.
-echo  11. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має залишитись FAIL, а не змушувати залізо терпіти.
-echo  12. Вийдіть з гри нормально. Це вікно автоматично перевірить runtime log.
+echo   7. Подивіться на 11 weapon pickups біля BASE: вони мають лежати на поверхні, а не висіти приблизно на 70 см.
+echo   8. Перевірте HMMWV + M2 Browning та BTR-4: production mesh/material slots не повинні бути замінені BasicShapeMaterial.
+echo   9. Графіка не повинна через кілька секунд сама падати до розмитого 65%% emergency-профілю.
+echo  10. Deployment/main-menu UI не повинні дьоргати layout або продовжувати глобальні WidgetTree/Slate rewrites у gameplay.
+echo  11. Залишайтесь у gameplay не менше 20 секунд для FPS sample, late-startup museum check і bounded-lifecycle evidence.
+echo  12. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має залишитись FAIL, а не змушувати залізо терпіти.
+echo  13. Вийдіть з гри нормально. Це вікно автоматично перевірить runtime log.
 echo.
 
 set "OC_FORCE_ACCEPTANCE=1"
@@ -51,6 +52,8 @@ for %%M in (
     PASS37_MUSEUM_VISIBLE_CORE_READY
     PASS37_MUSEUM_VISIBLE_BASES_READY
     PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH
+    PASS42_BASE_RACK_GROUNDED_READY
+    PASS42_PRODUCTION_VEHICLE_VISUALS_READY
     PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND
     PASS31_GAMEPLAY_INPUT_READY
     PASS41_INPUT_RECOVERY_POLL_BUDGET_READY
@@ -96,6 +99,20 @@ if not errorlevel 1 (
     echo [SPAWN] BASE deployment could not recover to the visible museum approach.
     findstr /C:"PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%"
     exit /b 37
+)
+
+findstr /C:"PASS42_BASE_RACK_GROUNDING_INCOMPLETE" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [RACK] One or more Museum BASE weapons are still not grounded.
+    findstr /C:"PASS42_BASE_RACK_GROUNDING_INCOMPLETE" "%LOG%"
+    exit /b 47
+)
+
+findstr /C:"PASS42_PRODUCTION_VEHICLE_CONTENT_GAP" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [VEHICLES] Exact HMMWV / M2 Browning / BTR-4 production visual did not appear in the strict runtime.
+    findstr /C:"PASS42_PRODUCTION_VEHICLE_CONTENT_GAP" "%LOG%"
+    exit /b 48
 )
 
 findstr /C:"PASS32_MUSEUM_LAYER_BUDGET_FAIL" "%LOG%" >nul
@@ -151,7 +168,7 @@ findstr /C:"PASS14_PERF_BELOW_TARGET" "%LOG%" >nul
 if not errorlevel 1 (
     echo [PERF] Gameplay remained below the current 30 FPS acceptance target.
     findstr /C:"PASS39_LOW_FPS_PROBE_DIAGNOSTIC" /C:"PASS14_PERF_SAMPLE" /C:"PASS14_PERF_BELOW_TARGET" "%LOG%"
-    echo [STOP] Museum/spawn/material/UI/input-budget gates may pass, but optimization is not finished.
+    echo [STOP] Museum/spawn/material/vehicle/UI/input-budget gates may pass, but optimization is not finished.
     exit /b 33
 )
 
@@ -166,6 +183,8 @@ echo [PASS] Frontend START/travel path is stable.
 echo [PASS] Museum has a real visible structural core near MuseumAnchor, not merely an owner tag.
 echo [PASS] Museum recovery stayed inside a one-rebuild destructive budget; no repeated architecture churn survived.
 echo [PASS] Preferred BASE is in the 20-45 m museum approach and deployment landed there.
+echo [PASS] All 11 Museum BASE pickups are grounded with the Pass 42 low-clearance layout.
+echo [PASS] HMMWV + M2 Browning + BTR-4 production visuals were present with authored material overrides restored.
 echo [PASS] Tactical Map player marker is above objective labels.
 echo [PASS] Character input is GameOnly with move/look ignore stacks released.
 echo [PASS] Vehicle/deployment input recovery uses one-shot polling: 20 Hz only around transitions, 10 Hz in stable gameplay.
@@ -181,7 +200,8 @@ echo [PASS] LowCPU foliage stayed inside the bounded museum-area population wind
 echo [PASS] Gameplay reached the current 30 FPS acceptance target.
 echo.
 findstr /C:"PASS37_MUSEUM_VISIBLE_CORE_READY" /C:"PASS38_MUSEUM_REBUILD_BUDGET_READY" "%LOG%"
-findstr /C:"PASS37_MUSEUM_VISIBLE_BASES_READY" /C:"PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH" "%LOG%"
+findstr /C:"PASS37_MUSEUM_VISIBLE_BASES_READY" /C:"PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH" /C:"PASS42_BASE_RACK_GROUNDED_READY" "%LOG%"
+findstr /C:"PASS42_PRODUCTION_MATERIALS_RESTORED" /C:"PASS42_PRODUCTION_VEHICLE_VISUALS_READY" "%LOG%"
 findstr /C:"PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND" /C:"PASS39_MINIMAP_UPDATE_BUDGET_READY" "%LOG%"
 findstr /C:"PASS31_GAMEPLAY_INPUT_READY" /C:"PASS41_INPUT_RECOVERY_POLL_BUDGET_READY" /C:"PASS39_FP_LOCAL_PAWN_FAST_PATH_READY" "%LOG%"
 findstr /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS37_WEAPON_VISIBLE_PALETTE_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" /C:"PASS38_WEAPON_PALETTE_SCAN_STOPPED" "%LOG%"
@@ -189,5 +209,5 @@ findstr /C:"PASS39_GRAPHICS_QUALITY_PROFILE_READY" /C:"PASS39_GRAPHICS_QUALITY_R
 findstr /C:"PASS40_UI_STABILIZER_BUDGET_READY" /C:"PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY" "%LOG%"
 findstr /C:"PASS36_LOWCPU_FOLIAGE_SCOPE_READY" /C:"PASS36_LOWCPU_FOLIAGE_RUNTIME_READY" "%LOG%"
 findstr /C:"PASS39_PERF_SAMPLER_IDLE_READY" /C:"PASS14_PERF_SAMPLE" /C:"PASS14_PERF_30FPS_READY" "%LOG%"
-echo [PASS] Pass 29-41 automated runtime acceptance completed.
+echo [PASS] Pass 29-42 automated runtime acceptance completed.
 exit /b 0

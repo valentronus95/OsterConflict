@@ -13,6 +13,7 @@ namespace
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
     constexpr int32 RequiredRackWeaponCount = 11;
     constexpr float RackRecoveryRadiusCm = 1800.0f;
+    constexpr float RackGroundClearanceCm = 12.0f;
 
     FVector SnapLocationToWalkableSurface(UWorld* World, const FVector& DesiredLocation, float HeightAboveSurfaceCm)
     {
@@ -109,6 +110,8 @@ namespace
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
         int32 Spawned = 0;
+        int32 Grounded = 0;
+        float WorstClearanceCm = 0.0f;
         for (int32 Index = 0; Index < UE_ARRAY_COUNT(WeaponClasses); ++Index)
         {
             const int32 Row = Index / 6;
@@ -116,20 +119,48 @@ namespace
             const float Along = 420.0f + Column * 150.0f;
             const float Side = 430.0f + Row * 230.0f;
             FVector Desired = Base + Forward * Along + Right * Side;
-            Desired = SnapLocationToWalkableSurface(World, Desired, 72.0f);
+            Desired = SnapLocationToWalkableSurface(World, Desired, RackGroundClearanceCm);
 
-            AOCWeaponBase* Weapon = World->SpawnActor<AOCWeaponBase>(WeaponClasses[Index], Desired, FacingRotation, SpawnParams);
+            // Keep every pickup lying horizontally on the walkable surface. Small alternating yaw offsets
+            // prevent identical silhouettes from visually clipping while preserving the two-row layout.
+            const float RackYaw = ResolveCanonicalBaseYaw(Team) + ((Index % 2 == 0) ? -7.0f : 7.0f);
+            const FRotator RackRotation(0.0f, RackYaw, 0.0f);
+            AOCWeaponBase* Weapon = World->SpawnActor<AOCWeaponBase>(WeaponClasses[Index], Desired, RackRotation, SpawnParams);
             if (!Weapon) continue;
 
             Weapon->Tags.Add(RuntimeBaseRackTag);
-            Weapon->DropToWorldServer(Desired, FacingRotation);
+            Weapon->DropToWorldServer(Desired, RackRotation);
             ++Spawned;
+
+            FHitResult GroundHit;
+            FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(OCBaseRackGroundAudit), false, Weapon);
+            const FVector TraceStart = Weapon->GetActorLocation() + FVector(0.0f, 0.0f, 80.0f);
+            const FVector TraceEnd = Weapon->GetActorLocation() - FVector(0.0f, 0.0f, 160.0f);
+            if (World->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, GroundParams))
+            {
+                const float Clearance = FMath::Abs(Weapon->GetActorLocation().Z - GroundHit.ImpactPoint.Z);
+                WorstClearanceCm = FMath::Max(WorstClearanceCm, Clearance);
+                if (Clearance <= RackGroundClearanceCm + 3.0f) ++Grounded;
+            }
         }
 
         UE_LOG(LogTemp, Display,
             TEXT("PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM team=%s removed_partial=%d weapons=%d location=%s museum_distance_m=%.1f"),
             *OCTeamToString(Team), ExistingCount, Spawned, *Base.ToCompactString(),
             FVector::Dist2D(Base, AOCWorldSectorOster::MuseumAnchor()) / 100.0f);
+
+        if (Spawned == RequiredRackWeaponCount && Grounded == Spawned)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS42_BASE_RACK_GROUNDED_READY team=%s weapons=%d clearance_cm=%.1f worst_cm=%.1f layout=two_rows"),
+                *OCTeamToString(Team), Grounded, RackGroundClearanceCm, WorstClearanceCm);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS42_BASE_RACK_GROUNDING_INCOMPLETE team=%s spawned=%d grounded=%d worst_cm=%.1f"),
+                *OCTeamToString(Team), Spawned, Grounded, WorstClearanceCm);
+        }
     }
 }
 

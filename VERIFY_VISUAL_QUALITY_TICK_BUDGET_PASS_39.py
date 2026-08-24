@@ -31,24 +31,34 @@ tactical = read(SRC / "Private" / "OCTacticalMapSubsystem.cpp")
 fp = read(SRC / "Private" / "OCFirstPersonWeaponPresentationSubsystem.cpp")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 
-# Old Pass 16 automatic profile visibly degraded the user's playtest. New installs use a balanced ceiling,
-# and existing installs migrate only if they still match the recognizable old automatic signature.
+# Pass 39 removed the hidden low-quality emergency path. Pass 42 keeps the same conservative expensive
+# lighting ceilings but restores native internal resolution and full texture quality for automatic profiles.
 for needle in (
     "bPass39GraphicsQualityRecoveryApplied = false",
+    "bPass42GraphicsClarityRecoveryApplied = false",
     "SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 2))",
     "SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 1))",
-    "SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 2))",
+    "SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 3))",
     "SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 1))",
     "SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 1))",
     "SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 1))",
-    "if (CurrentScale > 85.0f)",
+    "SetResolutionScaleValueEx(100.0f)",
     "const bool bLooksLikeLegacyPass16",
     "CurrentScale <= 75.5f",
+    "const bool bLooksLikeAutomaticPass39",
+    "CurrentScale <= 85.5f",
     "PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED",
     "PASS39_GRAPHICS_CUSTOM_PROFILE_PRESERVED",
     "PASS39_GRAPHICS_QUALITY_PROFILE_READY",
+    "PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED",
+    "PASS42_GRAPHICS_CUSTOM_PROFILE_PRESERVED",
 ):
     require(settings_h + settings, needle, "graphics quality recovery")
+
+# Historical Pass 39's 85% migration remains recognizable only as an intermediate one-time legacy migration;
+# Pass 42 must immediately upgrade that exact automatic family to native 100% scale + texture quality 3.
+require(settings, "GameSettings->SetTextureQuality(3);", "Pass 42 automatic profile texture recovery")
+require(settings, "expensive_lighting_unchanged=1", "Pass 42 must not re-enable costly lighting")
 
 # Low FPS must never trigger another hidden scalability mutation. It is diagnostic evidence only.
 for needle in (
@@ -97,7 +107,7 @@ for needle in (
     require(fp, needle, "local-pawn first-person presentation fast path")
 forbid(fp, "TActorIterator<AOCCharacter>", "per-frame world character scan")
 
-# Full runtime acceptance must prove the new profile and tick-budget paths and reject stale emergency downgrade code.
+# Full runtime acceptance must prove the profile/tick-budget paths and reject stale emergency downgrade code.
 for marker in (
     "PASS39_GRAPHICS_QUALITY_PROFILE_READY",
     "PASS39_MINIMAP_UPDATE_BUDGET_READY",
@@ -109,8 +119,9 @@ for marker in (
 require(acceptance, "PASS15_EMERGENCY_PERF_PROFILE_APPLIED", "stale emergency marker rejection")
 require(acceptance, "30 FPS acceptance target", "30 FPS floor remains unchanged")
 
-print("VISUAL QUALITY + TICK BUDGET PASS 39 SOURCE CONTRACT PASS")
-print("- old 75% mostly-low automatic graphics profile gets a one-time balanced quality recovery")
+print("VISUAL QUALITY + TICK BUDGET PASS 39/42 SOURCE CONTRACT PASS")
+print("- old 75% mostly-low automatic profile gets one-time recovery while custom profiles stay authoritative")
+print("- Pass 42 restores automatic profiles to 100% resolution scale and texture quality 3 without raising costly lighting")
 print("- low FPS is diagnostic evidence only; no hidden mid-session graphics downgrade survives")
 print("- finished performance/foliage guards stop ticking")
 print("- minimap Slate updates are capped at 10 Hz while tactical-map capture remains one-shot")

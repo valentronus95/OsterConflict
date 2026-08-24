@@ -15,7 +15,9 @@
 
 namespace
 {
-    constexpr float MuseumPhotoModelDelaySeconds = 5.10f;
+    // Pass 42: BASE is already beside MuseumAnchor. The old 5.10 s delay made the player arrive before
+    // the reference building existed. Keep a short startup yield, then create the exterior once.
+    constexpr float MuseumPhotoModelDelaySeconds = 0.75f;
     constexpr float SourceMuseumCleanupRadiusCm = 5000.0f;
 
     UMaterialInstanceDynamic* MakeColorMaterial(AActor* Owner, UMaterialInterface* Base,
@@ -184,6 +186,7 @@ void UOCR137MuseumPhotoModelSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         {
             if (UWorld* World = WeakWorld.Get()) ReplaceMuseum(*World);
         }), MuseumPhotoModelDelaySeconds, false);
+    UE_LOG(LogTemp, Display, TEXT("PASS42_MUSEUM_EXTERIOR_EARLY_SCHEDULED delay=%.2f"), MuseumPhotoModelDelaySeconds);
 }
 
 void UOCR137MuseumPhotoModelSubsystem::ReplaceMuseum(UWorld& World)

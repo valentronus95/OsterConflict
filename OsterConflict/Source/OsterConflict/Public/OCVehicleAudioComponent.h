@@ -12,6 +12,7 @@ public:
     virtual void BeginPlay() override;
     virtual void TickComponent(float DeltaTime,ELevelTick TickType,FActorComponentTickFunction* ThisTickFunction) override;
     void PlayCollisionServer(float ImpactStrength,const FVector& Location);
+    void SetAudioProfile(UOCVehicleAudioProfile* InProfile);
 protected:
     UPROPERTY(EditAnywhere,BlueprintReadOnly,Category="Audio") TObjectPtr<UOCVehicleAudioProfile> AudioProfile;
     UFUNCTION(NetMulticast,Unreliable) void MulticastCollisionAudio(bool bHeavy,FVector_NetQuantize Location,int32 Seed);

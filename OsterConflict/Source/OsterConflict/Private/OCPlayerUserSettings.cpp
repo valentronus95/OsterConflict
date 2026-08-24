@@ -38,10 +38,9 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
         // from every Get() would overwrite pending changes while the graphics menu is open.
         GameSettings->LoadSettings(false);
 
-        // Pass 39 replaces the old emergency-looking Pass 16 profile. The previous 75% screen scale,
-        // zero shadows/GI/reflections and mostly quality-1 ceiling made the user's runtime visibly blurry
-        // while the real FPS collapse was caused elsewhere. Keep a conservative balanced ceiling instead:
-        // expensive lighting remains Low, while textures, AA, landscape and view distance are readable.
+        // Pass 42 keeps the conservative expensive-lighting ceiling from Pass 39, but stops deliberately
+        // making the image soft. The previous automatic 85% render scale and medium texture ceiling were
+        // still visible quality degradations while the real progressive FPS collapse was CPU/runtime work.
         auto SafeQuality = [](int32 Current, int32 Ceiling)
         {
             return Current >= 0 ? FMath::Min(Current, Ceiling) : Ceiling;
@@ -49,7 +48,7 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
 
         GameSettings->SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 2));
         GameSettings->SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 1));
-        GameSettings->SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 2));
+        GameSettings->SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 3));
         GameSettings->SetVisualEffectQuality(SafeQuality(GameSettings->GetVisualEffectQuality(), 2));
         GameSettings->SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 1));
         GameSettings->SetPostProcessingQuality(SafeQuality(GameSettings->GetPostProcessingQuality(), 2));
@@ -58,28 +57,22 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
         GameSettings->SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 1));
         GameSettings->SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 1));
         GameSettings->SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 2));
-
-        float NormalizedScale = 1.0f;
-        float CurrentScale = 100.0f;
-        float MinScale = 50.0f;
-        float MaxScale = 100.0f;
-        GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
-        if (CurrentScale > 85.0f)
-        {
-            GameSettings->SetResolutionScaleValueEx(85.0f);
-        }
+        GameSettings->SetResolutionScaleValueEx(100.0f);
 
         GameSettings->ApplySettings(false);
         GameSettings->SaveSettings();
 
         bInitialGraphicsProfileApplied = true;
         bPass39GraphicsQualityRecoveryApplied = true;
+        bPass42GraphicsClarityRecoveryApplied = true;
         SaveConfig();
 
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view<=2 shadow<=1 texture<=2 effects<=2 foliage<=1 post<=2 aa<=2 shading<=2 gi<=1 reflection<=1 landscape<=2 resolution_scale<=85"));
+            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view<=2 shadow<=1 texture<=3 effects<=2 foliage<=1 post<=2 aa<=2 shading<=2 gi<=1 reflection<=1 landscape<=2 resolution_scale=100"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED mode=new_profile old_pass16_profile=0"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED mode=new_profile scale=100 texture_ceiling=3 quality_mutation_on_low_fps=0"));
     }
     else if (!bPass39GraphicsQualityRecoveryApplied)
     {
@@ -135,6 +128,52 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
         }
 
         bPass39GraphicsQualityRecoveryApplied = true;
+        SaveConfig();
+    }
+
+    if (!bPass42GraphicsClarityRecoveryApplied)
+    {
+        // Pass 42 only upgrades the exact family of automatic Pass 39 settings. If the user has already
+        // customized video quality, that choice stays authoritative. This migration restores native
+        // internal resolution and full texture quality without turning expensive GI/shadows back up.
+        GameSettings->LoadSettings(false);
+
+        float NormalizedScale = 1.0f;
+        float CurrentScale = 100.0f;
+        float MinScale = 50.0f;
+        float MaxScale = 100.0f;
+        GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
+
+        const bool bLooksLikeAutomaticPass39 =
+            CurrentScale <= 85.5f &&
+            GameSettings->GetViewDistanceQuality() <= 2 &&
+            GameSettings->GetShadowQuality() <= 1 &&
+            GameSettings->GetTextureQuality() <= 2 &&
+            GameSettings->GetVisualEffectQuality() <= 2 &&
+            GameSettings->GetFoliageQuality() <= 1 &&
+            GameSettings->GetPostProcessingQuality() <= 2 &&
+            GameSettings->GetAntiAliasingQuality() <= 2 &&
+            GameSettings->GetShadingQuality() <= 2 &&
+            GameSettings->GetGlobalIlluminationQuality() <= 1 &&
+            GameSettings->GetReflectionQuality() <= 1 &&
+            GameSettings->GetLandscapeQuality() <= 2;
+
+        if (bLooksLikeAutomaticPass39)
+        {
+            GameSettings->SetTextureQuality(3);
+            GameSettings->SetResolutionScaleValueEx(100.0f);
+            GameSettings->ApplySettings(false);
+            GameSettings->SaveSettings();
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED mode=pass39_auto scale=100 texture=3 expensive_lighting_unchanged=1"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS42_GRAPHICS_CUSTOM_PROFILE_PRESERVED automatic_pass39_profile=0"));
+        }
+
+        bPass42GraphicsClarityRecoveryApplied = true;
         SaveConfig();
     }
 

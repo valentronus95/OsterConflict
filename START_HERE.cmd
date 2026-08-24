@@ -33,6 +33,9 @@ if errorlevel 2 (
   goto menu
 )
 if errorlevel 1 (
+  rem Pass 42: normal game also attempts exact vehicle intake when the local source package exists.
+  rem Missing local production source remains a content gap and does not block the normal frontend.
+  if exist "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd" call "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd"
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
   goto menu
 )

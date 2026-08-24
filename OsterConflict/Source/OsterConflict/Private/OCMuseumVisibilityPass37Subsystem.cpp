@@ -11,9 +11,11 @@
 
 namespace
 {
-    constexpr float FirstPollDelaySeconds = 0.85f;
+    // Pass 42: R13.7 exterior is scheduled at 0.75 s and R13.8 architecture at 1.10 s.
+    // Start the guard afterwards so the recovery path does not race the normal one-shot build.
+    constexpr float FirstPollDelaySeconds = 1.45f;
     constexpr float PollIntervalSeconds = 0.35f;
-    constexpr float LateStartupSettleSeconds = 5.80f;
+    constexpr float LateStartupSettleSeconds = 2.20f;
     constexpr int32 MaxPollCount = 20;
     constexpr int32 MaxRebuildAttempts = 1;
     constexpr int32 MinVisibleStructuralComponents = 12;
@@ -207,8 +209,8 @@ void UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()
     {
         ForceStructuralVisibility(*Snapshot.BestActor);
 
-        // Wait only to catch the historical 5.35 s delayed R13.8 startup. We do not destroy/rebuild during
-        // this window. At settle time a duplicate owner may be retired once, after which the timer ends.
+        // Pass 42: the normal architecture build should already have happened at 1.10 s. Keep a short
+        // observation window only for a slow startup/recovery duplicate, then retire at most one set and stop.
         if (ElapsedPollSeconds >= LateStartupSettleSeconds)
         {
             const int32 RetiredDuplicates = RetireOtherArchitectureOwners(*World, Snapshot.BestActor);
@@ -235,6 +237,9 @@ void UOCMuseumVisibilityPass37Subsystem::ValidateVisibleMuseum()
                 UE_LOG(LogTemp, Display,
                     TEXT("PASS38_MUSEUM_REBUILD_BUDGET_READY rebuild_attempts=%d max_attempts=%d polls=%d destructive_loop=0"),
                     RebuildAttemptCount, MaxRebuildAttempts, PollCount);
+                UE_LOG(LogTemp, Display,
+                    TEXT("PASS42_MUSEUM_EARLY_VISIBILITY_READY first_poll=%.2f normal_architecture_delay=1.10 destructive_loop=0"),
+                    FirstPollDelaySeconds);
                 return;
             }
         }

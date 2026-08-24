@@ -75,17 +75,19 @@ if cpp.count("ScheduleNextPoll(TransitionPollSeconds);") < 2:
     raise SystemExit("PASS41 VERIFY FAIL: transition 20 Hz polling is not preserved for responsive recovery")
 
 for needle in (
-    "PASS 29-41 RUNTIME ACCEPTANCE",
+    "PASS 29-42 RUNTIME ACCEPTANCE",
     "PASS41_INPUT_RECOVERY_POLL_BUDGET_READY",
     "PASS31_GAMEPLAY_INPUT_READY",
+    "PASS42_BASE_RACK_GROUNDED_READY",
+    "PASS42_PRODUCTION_VEHICLE_VISUALS_READY",
     "30 FPS acceptance target",
     "PASS14_PERF_30FPS_READY",
 ):
     require(launcher, needle, "full runtime acceptance")
 
-print("INPUT RECOVERY POLL BUDGET PASS 41 SOURCE CONTRACT PASS")
+print("INPUT RECOVERY POLL BUDGET PASS 41/42 SOURCE CONTRACT PASS")
 print("- vehicle/deployment input recovery uses one-shot adaptive polling instead of a permanent 20 Hz repeating timer")
 print("- transition/UI-lock paths retain 20 Hz response while stable gameplay drops to 10 Hz")
-print("- PASS31 gameplay-input evidence remains mandatory")
-print("- full runtime acceptance still requires >=30 FPS")
+print("- PASS31 gameplay-input evidence remains mandatory inside the cumulative Pass 42 launch acceptance")
+print("- full runtime acceptance still requires grounded BASE assets, production vehicles and >=30 FPS")
 print("STATUS: CODED_UNTESTED; local UE 5.8 vehicle/deployment/input/FPS runtime remains authoritative")
