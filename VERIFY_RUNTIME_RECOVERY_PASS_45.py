@@ -5,6 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private"
 PUB = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public"
+SCRIPTS = ROOT / "OsterConflict" / "Scripts"
 
 errors = []
 
@@ -32,11 +33,15 @@ start = text(ROOT / "START_HERE.cmd")
 launcher = text(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 perf = text(SRC / "OCPerformanceSampleSubsystem.cpp")
 landmark = text(SRC / "OCR146LandmarkSeparationSubsystem.cpp")
+ownership = text(SRC / "OCLandmarkShellOwnershipGuardSubsystem.cpp")
+ownership_h = text(PUB / "OCLandmarkShellOwnershipGuardSubsystem.h")
+tactical = text(SRC / "OCTacticalMapVisual.cpp")
 foliage = text(SRC / "OCFoliageRuntimeGuardSubsystem.cpp")
 foliage_h = text(PUB / "OCFoliageRuntimeGuardSubsystem.h")
 budget = text(SRC / "OCWorldRenderBudgetPass17Subsystem.cpp")
 world = text(SRC / "OCWorldSectorOster.cpp")
 trees = text(SRC / "OCR145MuseumTreeLayoutSubsystem.cpp")
+weapon_preflight = text(SCRIPTS / "verify_required_weapon_assets.py")
 pass43 = text(ROOT / "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py")
 pass23 = text(ROOT / "VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py")
 
@@ -86,6 +91,64 @@ req("SeparationStartupGuardPassCount" not in landmark,
 req("SetTimer(\n        StartupGuardTimer" in landmark and "false);" in landmark,
     "landmark reconciliation must be a one-shot timer")
 
+# Pass 45 shell authority: R13.8 is the single Museum shell; R13.7 is a reference/detail parent only.
+for needle in (
+    'MuseumReferenceLayerTag(TEXT("R137_MuseumPhotoModel"))',
+    'MuseumShellTag(TEXT("R138_MuseumHighFidelityArchitecture"))',
+    'SilpoShellTag(TEXT("R140_SilpoPhotoModel"))',
+    'CultureHouseShellTag(TEXT("R146_CultureHouseAuthoritative"))',
+    "PASS45_LANDMARK_SINGLE_SHELL_CONTRACT_READY",
+    "PASS45_SINGLE_LANDMARK_SHELL_OWNERS_READY",
+    "periodic_owner_scan=0",
+):
+    req(needle in ownership, f"single landmark shell ownership contract missing: {needle}")
+req("one current visible shell owner per site" in ownership_h,
+    "landmark guard header does not document one-shell-per-site authority")
+req("MuseumPrototypeTag" not in ownership,
+    "old Pass 21 Museum prototype-as-second-shell concept returned")
+req("MuseumReferenceLayerCount == 1 && MuseumShellCount == 1" in ownership,
+    "Museum readiness does not separate reference layer from the single shell owner")
+
+# Tactical map topology must come from the retained 640x630 user reference, not source blockout ISMs.
+for needle in (
+    "Pass45ReferenceWidthPx = 640.0f",
+    "Pass45ReferenceHeightPx = 630.0f",
+    "Pass45ReferenceRoads[]",
+    "ReferencePixelToSectorLocal",
+    "PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY",
+    "procedural_road_ism=0",
+    "procedural_sidewalk_ism=0",
+    "procedural_building_ism=0",
+    "FOCGeoReference::Museum()",
+    "FOCGeoReference::CultureHouse()",
+    "FOCGeoReference::Silpo()",
+    "FOCGeoReference::Stadium()",
+    "FOCGeoReference::CentralPark()",
+):
+    req(needle in tactical, f"Pass 45 tactical topology contract missing: {needle}")
+
+map_build = re.search(
+    r"void\s+UOCTacticalMapWidget::BuildProductionVisualLayer\(\)\s*\{(?P<body>.*)\n\}",
+    tactical,
+    re.S,
+)
+if not map_build:
+    errors.append("could not isolate BuildProductionVisualLayer")
+else:
+    map_body = map_build.group("body")
+    for forbidden_call in (
+        "Sector->GetTacticalRoads()",
+        "Sector->GetTacticalSidewalks()",
+        "Sector->GetTacticalBuildings()",
+        "Sector->GetTacticalResidentialRoofs()",
+        "Sector->GetTacticalLandmarkBlocks()",
+        "Sector->GetTacticalLandmarkRoofs()",
+    ):
+        req(forbidden_call not in map_body,
+            f"tactical map still derives topology from procedural source ISM: {forbidden_call}")
+    req("for (const FPass45ReferenceRoadSegment& Segment : Pass45ReferenceRoads)" in map_body,
+        "tactical map does not render the Pass 45 reference-traced road layer")
+
 # Compact render budget: no historical 1300 m family culls.
 req("PASS45_COMPACT_WORLD_CULL_BUDGET_READY" in budget, "compact world cull marker missing")
 req("130000" not in budget, "historical 1300 m source-family cull distance returned")
@@ -113,7 +176,26 @@ req("oak_asset_verified=0" in foliage,
 req(has_all(trees, ["SM_Pine_Tree_01", "SM_Pine_Tree_03"]),
     "known real pine assets are no longer referenced by museum tree owner")
 req("/Engine/BasicShapes/Cylinder" in world and "/Engine/BasicShapes/Sphere" in world,
-    "source verifier expects historical proxy authoring to remain visible for audit; source layout unexpectedly changed")
+    "source verifier expects historical proxy authoring to remain available for audit; source layout unexpectedly changed")
+
+# Every required weapon now gets mesh -> material slot -> texture dependency truth in the fresh NullRHI process.
+for needle in (
+    "DEPENDENCY_REPORT_PATH",
+    "required_weapon_material_texture_dependencies.json",
+    "DEPENDENCY_SUCCESS_SENTINEL",
+    "unreal.MaterialEditingLibrary.get_used_textures(material)",
+    "is_placeholder_texture",
+    "missing_texture_dependency",
+    "placeholder_texture_dependency",
+    "TEXTURE_DEPENDENCY_SUMMARY=",
+    "texture_dependency_result",
+    "PASS45_WEAPON_DEPENDENCY_AUDIT_COMPLETE",
+):
+    req(needle in weapon_preflight, f"weapon material/texture dependency audit missing: {needle}")
+req('("M16"' not in weapon_preflight and '("M4"' not in weapon_preflight,
+    "weapon preflight invents unverified M16/M4 production payloads")
+req("white/default slots are NOT production-ready" in weapon_preflight,
+    "weapon preflight no longer preserves the user-observed white-material failure semantics")
 
 # Stale renderer verifiers must not force -norhithread back into every normal run.
 req("explicit Pass 45 compatibility A/B" in pass43,
@@ -132,7 +214,10 @@ print("- Pass 44 runtime rejection and screenshot evidence are preserved")
 print("- normal DX11/SM5 route restores normal RHI threading; -norhithread is explicit compatibility A/B")
 print("- frontend and gameplay performance are sampled separately without quality mutation")
 print("- 40-pass landmark full-world startup scan is retired to one delayed reconciliation")
+print("- Museum/Silpo/Culture use one current shell owner per site")
+print("- tactical map renders reference-traced compact Oster topology instead of procedural world ISMs")
 print("- compact-sector culling replaces historical 700-1300 m broad family budgets")
 print("- primitive Cylinder/Sphere tree families are hidden from normal gameplay")
 print("- real pine candidates remain; oak is explicitly unverified rather than fabricated")
+print("- all 11 required weapons emit mesh/material/texture-dependency truth in fresh UE preflight")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")
