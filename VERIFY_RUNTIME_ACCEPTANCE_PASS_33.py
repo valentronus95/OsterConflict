@@ -28,31 +28,31 @@ start = read(START)
 require(start, '2. ПОВНИЙ RUNTIME-ТЕСТ', "START_HERE full-test label")
 require(start, 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"', "START_HERE full-test route")
 
+# Pass 33 is a compatibility verifier, not an authority on the current pass number. Pass 44 supersedes the
+# old literal Pass 29-42 header and the source-only BASE/palette assumptions that latest runtime disproved.
 for needle in (
-    "PASS 29-42 RUNTIME ACCEPTANCE",
+    "PASS 29-44 RUNTIME ACCEPTANCE",
     'set "OC_FORCE_ACCEPTANCE=1"',
     'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
     'set "LOG=%~dp0Logs\\R14_CURRENT_GAMEPLAY.log"',
-    "SPAWN обов'язково виберіть BASE біля музею",
-    "WASD + mouse",
-    "Натисніть M один раз",
+    "Реальний pawn має опинитися біля Museum",
+    "compact central Oster",
+    "Normal local run не повинен сам запускати filler bots",
     "11 weapon pickups",
-    "HMMWV + M2 Browning",
-    "BTR-4",
+    "HMMWV/M2/BTR production content",
     "не менше 20 секунд",
 ):
-    require(launcher, needle, "Pass 29-42 acceptance flow")
+    require(launcher, needle, "current Pass 29-44 acceptance flow")
 
 for marker in (
     "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
     "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
     "PASS14_HOST_TRAVEL_BEGIN",
     "PASS14_FRONTEND_TRAVEL_HANDOFF_READY",
+    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
+    "PASS44_COMPACT_PLAYABLE_AREA_READY",
+    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
     "PASS14_FOLIAGE_BUDGET_READY",
-):
-    require(launcher, marker, f"legacy runtime evidence {marker}")
-
-for marker in (
     "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED",
     "PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY",
     "PASS31_GAMEPLAY_INPUT_READY",
@@ -64,8 +64,7 @@ for marker in (
     "PASS36_WEAPON_MATERIAL_AUDIT_READY",
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS37_MUSEUM_VISIBLE_BASES_READY",
-    "PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH",
-    "PASS37_WEAPON_VISIBLE_PALETTE_READY",
+    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
@@ -87,9 +86,11 @@ require(launcher,
         "released gameplay input state")
 
 for failure_marker in (
-    "PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED",
+    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_FAIL",
+    "PASS44_COMPACT_PLAYABLE_AREA_FAIL",
     "PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL",
     "PASS42_BASE_RACK_GROUNDING_INCOMPLETE",
+    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
     "PASS42_PRODUCTION_VEHICLE_CONTENT_GAP",
     "PASS32_MUSEUM_LAYER_BUDGET_FAIL",
     "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
@@ -103,24 +104,23 @@ for failure_marker in (
     require(launcher, failure_marker, f"fail-closed marker {failure_marker}")
 
 for exit_code in (
-    "exit /b 33", "exit /b 34", "exit /b 35", "exit /b 36", "exit /b 37", "exit /b 38",
+    "exit /b 33", "exit /b 34", "exit /b 36", "exit /b 37", "exit /b 38",
     "exit /b 40", "exit /b 42", "exit /b 43", "exit /b 44", "exit /b 45", "exit /b 46",
-    "exit /b 47", "exit /b 48"
+    "exit /b 47", "exit /b 48", "exit /b 49", "exit /b 50", "exit /b 51"
 ):
     require(launcher, exit_code, f"distinct acceptance failure {exit_code}")
 
 require(launcher, "30 FPS acceptance target", "explicit FPS floor")
 forbid(launcher, "PASS14_PERF_30FPS_READY" + " >nul\nif not errorlevel 1", "30 FPS readiness must not be inverted")
-require(launcher, "20-45 m museum approach", "closer Museum deployment band")
 
-print("RUNTIME ACCEPTANCE PASS 33/35/36/37/38/39/40/41/42 SOURCE CONTRACT PASS")
-print("- START_HERE full runtime test reaches the canonical normal-game launcher under acceptance mode")
-print("- visible Museum structural core and a 20-45 m BASE deployment remain mandatory")
-print("- Pass 42 additionally requires the grounded 11-weapon BASE rack and exact production HMMWV/M2/BTR visual evidence")
-print("- Pass 38 requires bounded museum recovery and bounded weapon startup scans")
-print("- Pass 39 requires stable graphics quality, budgeted minimap/local-pawn presentation and an idle completed sampler")
-print("- Pass 40 requires bounded viewport/deployment presentation work instead of per-frame global root scans and Slate rewrites")
-print("- Pass 41 requires adaptive one-shot input recovery polling: fast around transitions, lower rate in stable gameplay")
-print("- stale hidden emergency graphics downgrade is a hard failure")
-print("- LowCPU foliage must remain bounded and actual sampled gameplay must still reach >=30 FPS")
-print("STATUS: SOURCE VERIFIED; the actual UE 5.8 run remains the runtime authority")
+# Explicitly prohibit resurrection of the two Pass 37 rules latest runtime invalidated.
+forbid(launcher, "PASS37_WEAPON_VISIBLE_PALETTE_READY", "obsolete runtime palette readiness marker")
+forbid(launcher, "20-45 m museum approach", "source-only distance band is no longer actual-pawn proof")
+
+print("RUNTIME ACCEPTANCE PASS 33 COMPATIBILITY + PASS 44 CURRENT CONTRACT PASS")
+print("- START_HERE full runtime test still reaches the canonical acceptance launcher")
+print("- actual live Museum pawn proof, compact map bounds and zero implicit filler bots are mandatory")
+print("- BasicShape/grey palette mutation is retired; authored material gaps fail visibly")
+print("- grounded rack, production vehicle evidence, bounded startup work and released input remain mandatory")
+print("- actual sampled gameplay must still reach >=30 FPS")
+print("STATUS: SOURCE VERIFIED; actual UE 5.8 run remains the runtime authority")
