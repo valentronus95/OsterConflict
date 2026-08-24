@@ -33,7 +33,7 @@ private:
     bool bConfigured = false;
 };
 
-/** Creates and updates the always-on HUD minimap after deployment. */
+/** Creates the HUD minimap after deployment and updates its lightweight marker at a fixed budget. */
 UCLASS()
 class OSTERCONFLICT_API UOCMinimapSubsystem : public UTickableWorldSubsystem
 {
@@ -49,6 +49,10 @@ public:
 private:
     TWeakObjectPtr<UOCMinimapWidget> MinimapWidget;
     double NextBuildAttemptSeconds = 0.0;
+    float UpdateAccumulator = 0.0f;
+    ESlateVisibility LastWidgetVisibility = ESlateVisibility::Collapsed;
+    bool bVisibilityInitialized = false;
+    bool bUpdateBudgetLogged = false;
 
     void EnsureMinimap(AOCPlayerController& PlayerController);
 };
