@@ -29,20 +29,29 @@ markers={
         '50.949419, 30.877258', '50.952622, 30.877788', '50.954472, 30.873668',
         'MetersPerDegreeLongitude'
     ],
+    # S16A established georeference/topology. Pass 44 explicitly supersedes its old 2.4 km blockout size.
+    # Keep the reference topology markers, but require the current compact primary authoring contract instead.
     'OCWorldSectorOster.cpp': [
-        'MapWidthCm = 240000.0f', 'MapHeightCm = 240000.0f',
+        'MinPlayableX = -78000.0f', 'MaxPlayableX =  18000.0f',
+        'MinPlayableY = -12000.0f', 'MaxPlayableY =  82000.0f',
+        'MapWidthCm = MaxPlayableX - MinPlayableX', 'MapHeightCm = MaxPlayableY - MinPlayableY',
+        'Ground->SetRelativeLocation(FVector(MapCenterX, MapCenterY, -100.0f))',
+        'IntersectsPlayableAuthoringBounds', 'IsPointInsidePlayableAuthoringBounds',
         'BuildHydrography();', 'BuildVerifiedReferenceMarkers();',
         'Waterways', 'Bridges', 'ReferenceMarkers',
         'S16A topology pass', 'official general plan',
         'FOCGeoReference::CentralPark()', 'FOCGeoReference::CultureParkNorth()',
         'S16A VERIFIED ANCHOR', '10500, 6800',
-        'S16A variation: houses/lots are intentionally imperfect'
+        'S16A variation: houses/lots are intentionally imperfect',
+        'PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY'
     ],
     'OCGameMode.cpp': [
         'SpawnActor<AOCWorldSectorOster>', 'AOCWorldSectorOster::ParkAnchor()',
         'FVector(-106000.0f, -90000.0f, 40.0f)',
         'FVector(106000.0f, 90000.0f, 40.0f)'
     ],
+    # Historical documentation remains historical evidence. It may describe the old 2.4 km milestone,
+    # but it is not allowed to force current runtime geometry back to that extent.
     'SESSION_16A_README_UA.md': [
         '2.4 × 2.4 км', 'Генеральний план м. Остер', '50.951645, 30.875861',
         'Confidence model'
@@ -59,6 +68,15 @@ for name,needles in markers.items():
     for needle in needles:
         if needle not in text:
             print(f'Missing marker {needle!r} in {name}'); sys.exit(1)
+
+world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
+for stale in [
+    'MapWidthCm = 240000.0f', 'MapHeightCm = 240000.0f',
+    'FVector(-104000.0f, -92000.0f', 'FVector( 104000.0f,  92000.0f',
+    'FVector(-112000, -25000', 'FVector( 82000, -52000'
+]:
+    if stale in world:
+        print('Superseded Pass 44 world authoring returned:', stale); sys.exit(1)
 
 # Museum origin should be deterministic and coordinates separated from layout code.
 gh=(root/'Source/OsterConflict/Public/OCGeoReference.h').read_text(errors='ignore')
@@ -105,5 +123,5 @@ for cpp_name,class_name in [('OCGeoReference.cpp','FOCGeoReference'),('OCWorldSe
     if dup:
         print('Duplicate method definitions',cpp_name,dup); sys.exit(1)
 
-print('S16A structural verification: PASS')
-print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A markers.')
+print('S16A structural verification: PASS (Pass 44 compact authoring supersedes old 2.4 km runtime extent)')
+print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A/Pass44 markers.')
