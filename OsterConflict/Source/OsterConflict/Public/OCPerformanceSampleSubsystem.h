@@ -5,9 +5,9 @@
 #include "OCPerformanceSampleSubsystem.generated.h"
 
 /**
- * Client-side runtime performance evidence and emergency recovery.
- * After possession it performs a short probe. If the real runtime is below 20 FPS,
- * it applies a temporary low-cost playtest profile before collecting the final sample.
+ * Client-side runtime performance evidence.
+ * After possession it performs a short probe and a settled final sample. Low FPS is recorded as
+ * evidence only; Pass 39 no longer destroys visual quality mid-session to disguise the real bottleneck.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCPerformanceSampleSubsystem : public UTickableWorldSubsystem
@@ -18,6 +18,7 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
+    virtual bool IsTickable() const override { return !bFinished; }
 
 private:
     float WarmupSeconds = 0.0f;
@@ -29,8 +30,7 @@ private:
     float WorstFrameSeconds = 0.0f;
     int32 SampleFrames = 0;
     bool bProbeComplete = false;
-    bool bEmergencyProfileApplied = false;
     bool bFinished = false;
 
-    void ApplyEmergencyPlaytestProfile(float ProbeFps);
+    void ReportLowFpsProbe(float ProbeFps) const;
 };
