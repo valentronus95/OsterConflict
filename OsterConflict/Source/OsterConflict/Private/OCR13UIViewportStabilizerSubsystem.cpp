@@ -14,6 +14,11 @@
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
 
+namespace
+{
+    constexpr float ViewportStabilizerIntervalSeconds = 0.10f;
+}
+
 bool UOCR13UIViewportStabilizerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
     if (!Super::ShouldCreateSubsystem(Outer)) return false;
@@ -26,36 +31,103 @@ void UOCR13UIViewportStabilizerSubsystem::Tick(float DeltaTime)
     UWorld* World = GetWorld();
     if (!World || DeltaTime < 0.0f) return;
 
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
+    UpdateAccumulator += FMath::Max(0.0f, DeltaTime);
+    if (UpdateAccumulator < ViewportStabilizerIntervalSeconds) return;
+    UpdateAccumulator = FMath::Fmod(UpdateAccumulator, ViewportStabilizerIntervalSeconds);
 
-    const bool bHasGameplayPawn = IsValid(PC->GetPawn());
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController())
+    {
+        if (UOCGameUIRootWidget* PreviousRoot = CachedRoot.Get())
+        {
+            ApplyStartupIsolation(PreviousRoot, false);
+        }
+        CachedRoot.Reset();
+        CachedController.Reset();
+        bDeploymentStabilized = false;
+        bLastDeploymentVisible = false;
+        SetWorldRenderingSuppressed(false);
+        return;
+    }
 
     SetWorldRenderingSuppressed(false);
 
+    UOCGameUIRootWidget* Root = ResolveRoot(World, PC);
+    if (!Root) return;
+
+    const bool bHasGameplayPawn = IsValid(PC->GetPawn());
     const bool bStartupShell = !bHasGameplayPawn &&
         !PC->IsSettingsVisible() && !PC->IsDeploymentPanelVisible();
+    const bool bDeploymentVisible = PC->IsDeploymentPanelVisible();
 
-    UOCGameUIRootWidget* Root = nullptr;
+    if (!bDeploymentStabilized || (bDeploymentVisible && !bLastDeploymentVisible))
+    {
+        bDeploymentStabilized = StabilizeDeployment(Root);
+    }
+    bLastDeploymentVisible = bDeploymentVisible;
+
+    if (bStartupShell != bStartupIsolationActive)
+    {
+        ApplyStartupIsolation(Root, bStartupShell);
+    }
+
+    if (!bUpdateBudgetLogged)
+    {
+        bUpdateBudgetLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS40_UI_STABILIZER_BUDGET_READY update_hz=10 root_scan=cache_miss layout_writes=transition_only startup_visibility_writes=transition_only"));
+    }
+}
+
+UOCGameUIRootWidget* UOCR13UIViewportStabilizerSubsystem::ResolveRoot(UWorld* World, AOCPlayerController* PC)
+{
+    if (!World || !PC) return nullptr;
+
+    if (UOCGameUIRootWidget* ExistingRoot = CachedRoot.Get())
+    {
+        if (CachedController.Get() == PC && ExistingRoot->GetWorld() == World && ExistingRoot->GetOwningPlayer() == PC)
+        {
+            return ExistingRoot;
+        }
+
+        ApplyStartupIsolation(ExistingRoot, false);
+    }
+    else
+    {
+        StartupSuppressedWidgets.Reset();
+        bStartupIsolationActive = false;
+    }
+
+    CachedRoot.Reset();
+    CachedController.Reset();
+    bDeploymentStabilized = false;
+    bLastDeploymentVisible = false;
+
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
     {
         if (IsValid(*It) && It->GetWorld() == World && It->GetOwningPlayer() == PC)
         {
-            Root = *It;
-            break;
+            CachedRoot = *It;
+            CachedController = PC;
+            return *It;
         }
     }
-    if (!Root) return;
-
-    StabilizeDeployment(Root);
-    ApplyStartupIsolation(Root, bStartupShell);
+    return nullptr;
 }
 
 void UOCR13UIViewportStabilizerSubsystem::Deinitialize()
 {
+    if (UOCGameUIRootWidget* Root = CachedRoot.Get())
+    {
+        ApplyStartupIsolation(Root, false);
+    }
     SetWorldRenderingSuppressed(false);
     StartupSuppressedWidgets.Reset();
+    CachedRoot.Reset();
+    CachedController.Reset();
     bStartupIsolationActive = false;
+    bDeploymentStabilized = false;
+    bLastDeploymentVisible = false;
     Super::Deinitialize();
 }
 
@@ -76,16 +148,16 @@ void UOCR13UIViewportStabilizerSubsystem::SetWorldRenderingSuppressed(const bool
     }
 }
 
-void UOCR13UIViewportStabilizerSubsystem::StabilizeDeployment(UOCGameUIRootWidget* Root) const
+bool UOCR13UIViewportStabilizerSubsystem::StabilizeDeployment(UOCGameUIRootWidget* Root) const
 {
-    if (!Root) return;
+    if (!Root) return false;
 
     UBorder* DeploymentPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("DeploymentPanel")));
-    if (!DeploymentPanel) return;
+    if (!DeploymentPanel) return false;
 
     DeploymentPanel->SetClipping(EWidgetClipping::ClipToBounds);
     UHorizontalBox* Columns = Cast<UHorizontalBox>(DeploymentPanel->GetContent());
-    if (!Columns) return;
+    if (!Columns) return false;
 
     Columns->SetClipping(EWidgetClipping::ClipToBounds);
     const float ColumnWeights[] = { 0.58f, 0.18f, 0.24f };
@@ -104,6 +176,7 @@ void UOCR13UIViewportStabilizerSubsystem::StabilizeDeployment(UOCGameUIRootWidge
         }
         Child->SetClipping(EWidgetClipping::ClipToBounds);
     }
+    return true;
 }
 
 void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWidget* Root, const bool bEnable)
@@ -115,6 +188,8 @@ void UOCR13UIViewportStabilizerSubsystem::ApplyStartupIsolation(UOCGameUIRootWid
 
     if (bEnable)
     {
+        if (bStartupIsolationActive) return;
+
         for (int32 Index = 0; Index < Canvas->GetChildrenCount(); ++Index)
         {
             UWidget* Child = Canvas->GetChildAt(Index);
