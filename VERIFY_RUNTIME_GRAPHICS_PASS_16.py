@@ -32,46 +32,68 @@ build = read(BUILD)
 ui = read(UI)
 launcher = read(LAUNCHER)
 
-for needle in ("void EnsureInitialGraphicsProfile();", "bool bInitialGraphicsProfileApplied = false;", "UPROPERTY(Config"):
-    require(header, needle, "persistent first-run graphics contract")
+for needle in (
+    "void EnsureInitialGraphicsProfile();",
+    "bool bInitialGraphicsProfileApplied = false;",
+    "bool bPass39GraphicsQualityRecoveryApplied = false;",
+    "UPROPERTY(Config",
+):
+    require(header, needle, "persistent graphics contract")
 
 get_match = re.search(r"UOCPlayerUserSettings\*\s+UOCPlayerUserSettings::Get\(\)\s*\{(?P<body>.*?)\n\}", cpp, re.S)
 if not get_match:
     raise SystemExit("PASS16 VERIFY FAIL: could not locate UOCPlayerUserSettings::Get")
 get_body = get_match.group("body")
 require(get_body, "ValidateSettingsSchema();", "settings Get schema validation")
-require(get_body, "EnsureInitialGraphicsProfile();", "settings Get first-run graphics initialization")
+require(get_body, "EnsureInitialGraphicsProfile();", "settings Get graphics initialization")
 if get_body.index("ValidateSettingsSchema();") > get_body.index("EnsureInitialGraphicsProfile();"):
     raise SystemExit("PASS16 VERIFY FAIL: graphics initialization must run after schema validation")
 
 require(cpp, "if (!bInitialGraphicsProfileApplied)", "one-time graphics guard")
 require(cpp, "GameSettings->LoadSettings(false);", "persisted settings load")
-if cpp.find("GameSettings->LoadSettings(false);") < cpp.find("if (!bInitialGraphicsProfileApplied)"):
-    raise SystemExit("PASS16 VERIFY FAIL: LoadSettings runs outside one-time guard")
 
+# Pass 39 replaces the visibly destructive 75% / mostly-low auto profile with a conservative balanced ceiling.
 for needle in (
     "auto SafeQuality", "FMath::Min(Current, Ceiling)",
-    "SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 1))",
-    "SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 0))",
-    "SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 1))",
-    "SetVisualEffectQuality(SafeQuality(GameSettings->GetVisualEffectQuality(), 1))",
-    "SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 0))",
-    "SetPostProcessingQuality(SafeQuality(GameSettings->GetPostProcessingQuality(), 1))",
-    "SetAntiAliasingQuality(SafeQuality(GameSettings->GetAntiAliasingQuality(), 1))",
-    "SetShadingQuality(SafeQuality(GameSettings->GetShadingQuality(), 1))",
-    "SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 0))",
-    "SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 0))",
-    "SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 1))",
-    "if (CurrentScale > 75.0f)", "SetResolutionScaleValueEx(75.0f)",
+    "SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 2))",
+    "SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 1))",
+    "SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 2))",
+    "SetVisualEffectQuality(SafeQuality(GameSettings->GetVisualEffectQuality(), 2))",
+    "SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 1))",
+    "SetPostProcessingQuality(SafeQuality(GameSettings->GetPostProcessingQuality(), 2))",
+    "SetAntiAliasingQuality(SafeQuality(GameSettings->GetAntiAliasingQuality(), 2))",
+    "SetShadingQuality(SafeQuality(GameSettings->GetShadingQuality(), 2))",
+    "SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 1))",
+    "SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 1))",
+    "SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 2))",
+    "if (CurrentScale > 85.0f)", "SetResolutionScaleValueEx(85.0f)",
     "GameSettings->ApplySettings(false);", "GameSettings->SaveSettings();",
     "bInitialGraphicsProfileApplied = true;", "PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED",
 ):
-    require(cpp, needle, "safe graphics ceiling")
+    require(cpp, needle, "balanced safe graphics ceiling")
+
+# Existing users already have Pass 16's low profile saved. Migrate only its recognizable signature;
+# preserve any profile that no longer matches that automatic signature.
+for needle in (
+    "else if (!bPass39GraphicsQualityRecoveryApplied)",
+    "const bool bLooksLikeLegacyPass16",
+    "CurrentScale <= 75.5f",
+    "GameSettings->GetShadowQuality() == 0",
+    "GameSettings->GetGlobalIlluminationQuality() == 0",
+    "GameSettings->GetReflectionQuality() == 0",
+    "if (bLooksLikeLegacyPass16)",
+    "PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED",
+    "PASS39_GRAPHICS_CUSTOM_PROFILE_PRESERVED",
+    "bPass39GraphicsQualityRecoveryApplied = true;",
+    "PASS39_GRAPHICS_QUALITY_PROFILE_READY",
+):
+    require(cpp, needle, "one-time Pass 39 graphics migration")
 
 reset_match = re.search(r"void\s+UOCPlayerUserSettings::ResetPlayerDefaults\(\)\s*\{(?P<body>.*?)\n\}", cpp, re.S)
 if not reset_match:
     raise SystemExit("PASS16 VERIFY FAIL: could not locate ResetPlayerDefaults")
-forbid(reset_match.group("body"), "bInitialGraphicsProfileApplied = false", "Reset Defaults re-arming Pass 16")
+forbid(reset_match.group("body"), "bInitialGraphicsProfileApplied = false", "Reset Defaults re-arming graphics profile")
+forbid(reset_match.group("body"), "bPass39GraphicsQualityRecoveryApplied = false", "Reset Defaults re-arming Pass 39 migration")
 
 for needle in (
     "SetOverallScalabilityLevel(Preset)",
@@ -99,7 +121,9 @@ for needle in (
     require(launcher, needle, "Pass 16 runtime launcher integration")
 forbid(launcher.lower(), "-nullrhi", "focused runtime launcher must use a real renderer")
 
-print("RUNTIME GRAPHICS PASS 16 SOURCE CONTRACT PASS")
-print("- safe first-run graphics ceiling and real GPU/RHI evidence remain intact")
-print("- Pass 19 extends the focused recovery launcher without weakening Pass 16")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile/runtime FPS acceptance still required")
+print("RUNTIME GRAPHICS PASS 16/39 SOURCE CONTRACT PASS")
+print("- first-run ceiling is conservative but no longer the visibly destructive 75%/mostly-low profile")
+print("- legacy Pass 16 automatic settings receive one controlled quality recovery")
+print("- user-customized graphics profiles remain authoritative")
+print("- real GPU/RHI evidence and manual graphics controls remain intact")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 visual/FPS acceptance still required")
