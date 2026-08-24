@@ -1,126 +1,145 @@
 # OSTER CONFLICT — WORK LEDGER
 
 > Current authoritative work state. Latest user runtime evidence overrides source-only claims and historical pass notes.
-> Historical Pass 1–43 details remain preserved in Git history and `RUNTIME_*` / `Docs/WorkReports/*` reports; they are chronology, not current rules.
+> Historical Pass 1–44 details remain preserved in Git history and reports; they are chronology, not current rules.
 
 ## 1. Current context
 
 - Repository: `valentronus95/OsterConflict`
-- Active correction branch: `fix/runtime-map-spawn-fps-assets-pass-44-20260824` → `main`
+- Current `main` baseline: `bf483f8dc473862e0d3ce6468db44f025abbeef1` (merged Pass 44 / PR #78)
+- Active correction branch: `fix/runtime-recovery-pass-45-20260824` → `main`
+- Canonical corrective TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`
+- Latest runtime evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 - UE target: 5.8.x Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 - User-facing launcher: **only `START_HERE.cmd`**.
 - Current root authority/conflict policy: `AGENTS.md`.
-- Current hard playable-map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Do not add new decorative layers until spawn/map/FPS/material/content regressions below are closed.
+- Hard playable-map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
+- Current prohibition: **no new decorative layers until frontend/gameplay performance, topology, landmark ownership and material truth are recovered.**
 
 ## 2. Status rules
 
 - `IN_PROGRESS` — latest runtime proves the problem still exists, or implementation is incomplete.
-- `CODED_UNTESTED` — source fix exists on Pass 44 but has not been accepted by a new local UE 5.8 runtime.
+- `CODED_UNTESTED` — a Pass 45 source correction exists but has not yet been accepted by a local UE 5.8 runtime.
+- `RUNTIME REJECTED` — a factual local run disproved the claimed result.
 - `VERIFIED BUILD` — build blocker removed by a later factual build.
-- `VERIFIED RUNTIME` — only after a factual user/local UE runtime demonstrates the requested behavior.
-- A green source verifier is never runtime acceptance.
-- Actual live pawn position outranks spawn-point existence.
-- Authored material/texture truth outranks a coloured fallback.
-- Missing production source is a content gap, never a READY state.
-- Old verifier expectations that contradict current user runtime are retired/updated, not restored.
+- `VERIFIED RUNTIME` — only after factual user/local UE runtime demonstrates the requested behavior.
+- Green source CI is never runtime acceptance.
+- Latest screenshot/log outranks an older verifier.
+- Authored material/texture truth outranks mesh-load success or coloured fallback.
+- Missing production source remains a content gap, never READY.
+- A stale verifier must be updated/retired instead of restoring obsolete behavior.
 
-## 3. Latest authoritative user runtime — 2026-08-24
+## 3. Latest authoritative user runtime — 2026-08-24 after Pass 44 merge
 
-The newest normal gameplay run reached gameplay, so it supersedes the earlier Pass 43-era "frontend crashes before gameplay" state.
+This is the first factual local runtime after Pass 44 merged to `main`.
 
-Observed by the user:
-- actual player spawn is still far from the Oster Local History Museum; the visible scene is effectively an empty field;
-- the user must spawn near the Museum, not on a distant/legacy map location;
-- tactical/playable map is still much larger than requested;
-- user supplied a compact central-Oster map screenshot and explicitly repeated that the map must be reduced to that area;
-- FPS starts around 120 and rapidly collapses to about 4;
-- weapon rack still shows grey/placeholder material presentation;
-- expected additional production models are still not visible;
-- HMMWV / M2 Browning / BTR-4 availability must be judged by actual content/runtime, not optimistic launcher text.
+Runtime evidence proves:
 
-This run is the current truth baseline for Pass 44.
+- frontend/main menu renders but is already about **8 FPS**;
+- gameplay is roughly **8–12 FPS** with heavy lag/stutter;
+- severe slowdown also occurs in visually empty fields, so implicit bots or one dense foliage patch cannot be the sole root cause;
+- tactical map is smaller than the historical 2.4 km version but still shows malformed procedural topology, including oversized straight/diagonal road geometry;
+- multiple weapon-rack models render white / without intended authored materials;
+- the held AK material is readable while nearby pickup weapons are not, proving `mesh loads` != `authored materials ready`;
+- primitive tree silhouettes remain visible and do not match the required Oster vegetation character (tall pine/conifer forest and appropriate oak assets);
+- world presentation is visibly blockout-grade: flat green ground, primitive shapes, crude civic/landmark shells;
+- Museum and Culture House still do not present as two clearly separated and correctly placed visible landmarks;
+- stale/over-layered location construction remains around Silpo/Museum/Culture House.
 
-## 4. Active requirements
+**Pass 44 verdict: RUNTIME REJECTED.**
 
-| ID | Requirement | Repeat | Status | Current factual state / Pass 44 action |
+Pass 44 source CI remains historical source evidence only.
+
+Evidence sheet + manifest:
+`RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
+
+## 4. Current root-cause findings
+
+### PERF-ROOT-001 — frontend collapse precedes gameplay population
+
+The screenshot with the main menu at ~8 FPS makes bot population an incomplete diagnosis. Current normal launch still uses DX11/SM5/no-HDR plus `-norhithread`, retained from the earlier renderer-crash recovery path. Pass 45 must perform an explicit DX11/SM5 RHI-thread A/B test rather than silently keeping compatibility mode as the permanent baseline.
+
+### PERF-ROOT-002 — delayed runtime mutation debt
+
+The project contains multiple post-BeginPlay landmark replacement/recovery/guard subsystems. Repeated actor/component scans, ISM removal, `MarkRenderStateDirty`, delayed rebuilds and compatibility ownership loops are now treated as a first-class performance/stability risk. One landmark must have one current placement/visibility owner.
+
+### VIS-ROOT-001 — primitive world remains visible production output
+
+`OCWorldSectorOster` still uses Engine BasicShapes for major world families. Cylinder/Sphere tree families and cube-based environment authoring explain the visible low-fidelity blockout result. Compact bounds reduced spatial extent but did not replace production visuals.
+
+### MAP-ROOT-001 — Pass 44 bounded the wrong topology
+
+Pass 44 constrained tactical-map projection but left `BuildRoadNetwork()` procedural straight/diagonal blockout as the source geometry. Pass 45 must rebuild tactical topology from the authoritative compact central-Oster reference and geo anchors.
+
+### WEAPON-ROOT-001 — mesh load is not material readiness
+
+Pass 44 correctly retired grey BasicShape material repair. The latest white rack weapons are explicit authored-material gaps. Pass 45 requires per-weapon mesh → material → texture dependency truth for all 11 required classes.
+
+### LANDMARK-ROOT-001 — distinct coordinates do not guarantee distinct runtime identity
+
+Museum and Culture House geo references are not equal, but runtime still fails visual separation. The defect is treated as ownership/presentation layering, not merely one bad coordinate constant.
+
+## 5. Active requirements
+
+| ID | Requirement | Repeat | Status | Current Pass 45 action |
 |---|---|---:|---|---|
-| GAME-SPAWN-001 | Actual live pawn spawns near Museum BASE | ≥9 | CODED_UNTESTED | Pass 44 adds `OCGameModeRuntimeSafe`: BASE restart explicitly selects nearest Museum team BASE, verifies the spawned pawn itself, corrects any >45 m displacement, emits `PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY/FAIL`. Base actors themselves are now authored beside Museum instead of at legacy ±1060 m edges, and primary/secondary identity no longer depends on ±920 m coordinate thresholds. New UE runtime required. |
-| MAP-EXTENT-001 | Playable/tactical map matches compact central Oster user reference | ≥2 | CODED_UNTESTED | Pass 44 no longer relies only on post-start trimming. `OCWorldSectorOster` authors the primary ground directly as 960×940 m at x=-780..180 m / y=-120..820 m, filters out-of-bounds primitive/tree/residential authoring, retires far ±1040 m BASE compounds and peripheral hydrography. `OCGameMode` runtime seeds for BASE/test lanes/civilian/combat vehicles are also authored inside the compact area. `OCTacticalMapVisual` projects directly from the same hard four-corner bounds and removes the old ~1600 m minimum/auto-fit. `OCCentralPlayableAreaSubsystem` remains a safety net for late/legacy instances. Runtime visual acceptance required. |
-| PERF-COLLAPSE-001 | Stop rapid ~120 FPS → ~4 FPS collapse | ≥5 | CODED_UNTESTED | Concrete hidden load found: base game defaulted to population 16 + bot autofill. Base `OCGameMode` now defaults target population to 0 unless population/bots are explicitly requested; explicit `BotFill=true` remains an opt-in fill request. `OCGameModeRuntimeSafe` also enforces zero implicit local filler bots. Obsolete weapon palette polling/mutation retired. Pass 44 prevents primary creation of the old 2.4 km ground/peripheral BASE/hydrography and removes old edge actors/vehicle spawn points/test lanes from runtime authoring. Runtime 20 s FPS test required. |
-| GAME-WEAPONS-001 | 11 grounded pickup classes near actual Museum spawn | ≥9 | CODED_UNTESTED | Pass 42 12 cm grounding remains. Pass 44 acceptance now also requires the actual pawn Museum marker, not only rack/spawn actors. |
-| WEAPON-MATERIAL-001 | Real weapon authored materials, no grey BasicShape disguise | ≥9 | CODED_UNTESTED / CONTENT CHECK | `OCRealWeaponFallbackSubsystem` no longer paints missing slots. Missing/default/BasicShape material becomes `PASS44_WEAPON_AUTHORED_MATERIAL_GAP`; rack gap is a strict failure. `OCWeaponPalettePass37Subsystem` is now inert compatibility shell: zero polling, zero material creation, zero SetMaterial. |
-| VEH-PICKUP-001 | Real HMMWV + M2 Browning | ≥5 | CODED_UNTESTED / ASSET CHECK | Import no longer waits for BTR. HMMWV/M2 may import independently when their local sources exist. Fresh-load material checks distinguish mesh presence from authored material readiness. Pickup/HMMWV spawn points are now authored in the Museum core instead of old map edges. |
-| ASSET-BTR-001 | Real BTR-4/Bucephalus model | ≥5 | IN_PROGRESS / CONTENT GAP | Local source recovery now searches BTR ZIPs more broadly, including generic FBX names inside BTR archives. If no real FBX is found, BTR remains explicit content gap and must not block HMMWV/M2 import or print fake READY. BTR spawn points are now inside Museum/Stadium core so a valid imported model is visible in the next runtime. |
-| ASSET-M16-M4-001 | M16/M4 production weapon visuals | ≥2 | IN_PROGRESS / CONTENT GAP | No verified M16/M4 payload has been found in the checked GitHub repository/tree/history. Do not claim connected until a real source asset is found/imported. |
-| LOC-MUSEUM-001 | Museum visibly present at the actual spawn | ≥9 | CODED_UNTESTED | Existing early R13.7/R13.8 scheduling and one-rebuild ceiling remain; Pass 44 fixes live spawn proof first. Runtime must visually show the Museum, not only markers/tags. |
-| VIS-GRASS-001 | Natural grass without progressive FPS collapse | ≥5 | CODED_UNTESTED | LowCPU foliage remains bounded 200×200 m / 85 m cull around Museum. Primary old sector vegetation authoring is now clipped to compact bounds. Do not expand density until Pass 44 FPS run is stable. |
-| UI-TACTICAL-MAP-001 | `M` map uses compact bounds and visible player marker | ≥3 | CODED_UNTESTED | Existing marker foreground retained. Pass 44 hard-binds `ReframeProjectionForCentralOster()` to x=-780..180 m / y=-120..820 m using the four transformed sector corners. Old component auto-fit, +300/+260 m padding and 800 m half-width minimum are retired. Runtime marker: `PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY`. |
-| UI-MENU-001 | Frontend/menu remains stable | ≥8 | CODED_UNTESTED | Latest run reached gameplay, so prior RenderTargetPool crash is no longer the current primary blocker. Keep Pass 43 protections; do not regress them. |
-| GAME-VEHICLE-INPUT-001 | WASD/mouse restored after vehicle exit | 1 | CODED_UNTESTED | Pass 41 adaptive one-shot recovery remains; runtime regression acceptance pending. |
-| VIS-GRAPHICS-QUALITY-001 | No hidden blurry graphics downgrade | ≥3 | CODED_UNTESTED | Native 100% / Texture 3 automatic clarity target retained; no hidden low-FPS quality mutation. |
+| PERF-COLLAPSE-001 | Stop frontend/gameplay collapse to ~8–12 FPS | ≥6 | IN_PROGRESS | Pass 45: renderer/RHI-thread A/B, frame-domain markers, delayed mutation audit, compact cull rebudget. Minimum acceptance >=30 FPS; no progressive collapse. |
+| UI-MENU-001 | Frontend/menu stable and usable | ≥9 | IN_PROGRESS | Menu no longer crashes but ~8 FPS is runtime failure. Keep Pass 43 lifecycle protections; test normal RHI threading vs explicit compatibility route. |
+| VIS-GRAPHICS-QUALITY-001 | Restore readable non-blockout visual quality without hidden resolution downgrade | ≥4 | IN_PROGRESS | Keep native 100% clarity target. Do not hide perf failure by lowering render scale. Remove visible production proxies instead. |
+| VIS-TREES-001 | Oster vegetation: tall pine/conifer forest + appropriate oak, no fantasy primitive trees | ≥2 | IN_PROGRESS | Retire visible Cylinder/Sphere tree families from normal gameplay; inventory real foliage assets first. Missing real oak/pine remains content gap. |
+| UI-TACTICAL-MAP-001 | `M` map matches real compact central-Oster topology | ≥4 | IN_PROGRESS | Pass 44 bounds kept; procedural road/blockout topology rejected. Rebuild from authoritative map reference + geo anchors; new runtime screenshot mandatory. |
+| MAP-EXTENT-001 | Keep compact central Oster battlefield | ≥2 | CODED_UNTESTED / RETAIN | Pass 44 960×940 m compact bound remains current unless new user evidence changes it. Do not restore 2.4 km map. |
+| LOC-MUSEUM-001 | Museum visibly present and uniquely owned near live spawn | ≥10 | IN_PROGRESS | Consolidate Museum placement/visibility owner; historical recovery/detail layers may not fight current shell. |
+| LOC-CULTURE-001 | Culture House visually and spatially separate from Museum | ≥2 | IN_PROGRESS | Distinct geo anchor exists; runtime identity still fails. One authoritative owner at Culture House anchor only. |
+| LOC-SILPO-001 | Silpo one authoritative site owner, no stale duplicate signage/geometry | ≥2 | IN_PROGRESS | Consolidate replacement/detail stack and remove repeated full-site mutation after stabilization. |
+| WEAPON-MATERIAL-001 | All required rack weapons use authored materials/textures | ≥10 | IN_PROGRESS / CONTENT CHECK | White/default material slots are runtime FAIL. Build per-weapon dependency audit; no BasicShape fallback. |
+| GAME-WEAPONS-001 | 11 grounded pickup classes near actual Museum spawn | ≥9 | CODED_UNTESTED | Grounding logic retained; visual/material acceptance now separated from mere pickup existence. |
+| GAME-SPAWN-001 | Actual live pawn spawns near Museum BASE | ≥9 | CODED_UNTESTED | Pass 44 pawn-distance correction remains but latest screenshots do not establish final visual Museum acceptance. |
+| VIS-GRASS-001 | Natural grass without FPS collapse | ≥6 | IN_PROGRESS | Keep density constrained until performance baseline recovered. Grass cannot be blamed as sole root because menu already runs ~8 FPS. |
+| VEH-PICKUP-001 | Real HMMWV + M2 Browning | ≥5 | IN_PROGRESS / ASSET CHECK | Preserve fail-visible asset truth. Do not let vehicle content work block performance recovery. |
+| ASSET-BTR-001 | Real BTR-4/Bucephalus | ≥5 | IN_PROGRESS / CONTENT GAP | No fake READY. Missing real source remains explicit gap. |
+| ASSET-M16-M4-001 | M16/M4 production visuals | ≥2 | IN_PROGRESS / CONTENT GAP | No verified M16/M4 payload in checked repository/tree/history. Do not claim connected. |
+| GAME-VEHICLE-INPUT-001 | WASD/mouse after vehicle exit | 1 | CODED_UNTESTED | Pass 41 recovery remains; not current primary blocker. |
 
-## 5. Pass 44 stale-rule retirement
+## 6. Pass 44 behavior retained unless disproved
 
-The following older behavior is explicitly **superseded and must not return**:
+The following Pass 44 corrections remain current because the latest run does not justify restoring the old behavior:
 
-1. `TargetPopulation = 16` + `bAutoFillBots = true` as implicit normal-local defaults, including the old `OCGameMode::InitGame()` fallback to `MaxPlayerSlots` when no bot/population option was supplied.
-2. Treating existence of a near-Museum `AOCTeamSpawnPoint` as proof that the actual human pawn spawned there.
-3. Treating the historical 2400×2400 m procedural ground/peripheral blockout as the required playable/tactical-map extent.
-4. Creating that 2.4 km sector first and depending on a post-start trimmer as the primary map-size mechanism.
-5. Creating BASE actors, firing/destruction lanes, civilian vehicles or combat-vehicle spawn points at retired edge coordinates and relying on later relocation/trim.
-6. Determining primary/secondary BASE role from historical ±920 m Y-coordinate thresholds.
-7. Tactical-map component auto-fit / historical 800 m half-width minimum that expands `M` beyond the user-approved compact area.
-8. Runtime `BasicShapeMaterial` material recovery that paints missing weapon materials grey/dark and then calls the visual repaired.
-9. Pass 37/38 palette mutation that creates runtime MIDs or calls `SetMaterial()` on placeholder weapon slots.
-10. All-or-nothing vehicle import where missing BTR prevents available HMMWV/M2 from importing.
-11. Launcher text that prints all production vehicles imported after the importer actually failed.
-12. Old verifier rules whose only purpose is to keep any of the superseded behaviors above alive.
+1. no implicit normal-local 16-bot autofill;
+2. no 2.4 km playable/tactical map;
+3. no old edge BASE/test-lane/vehicle spawn coordinates;
+4. no coordinate-based ±920 m primary/secondary BASE discriminator;
+5. no grey BasicShape weapon-material “repair”;
+6. no all-or-nothing vehicle import where missing BTR blocks HMMWV/M2;
+7. no optimistic launcher READY text for missing production sources;
+8. no old verifier may force those regressions back.
 
-Current `AGENTS.md` requires stale conflicting rules/verifiers to be updated or retired in the same pass.
+## 7. Pass 45 execution order
 
-## 6. Pass 44 implementation state
+1. Lock `PASS45_RUNTIME_RECOVERY_TZ.md` and runtime evidence pack. **DONE**.
+2. Mark Pass 44 runtime rejected and make Pass 45 the active ledger. **DONE**.
+3. Implement DX11/SM5 RHI-thread A/B launcher route; keep explicit `-norhithread` compatibility route.
+4. Add lightweight frontend/gameplay performance-domain markers; no per-frame spam.
+5. Audit and retire repeated landmark world-mutation loops; enforce one current owner per Museum/Culture/Silpo site.
+6. Recalculate cull/render budget for 960×940 m sector.
+7. Retire primitive tree visuals from normal gameplay and bind verified real foliage assets where available.
+8. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout.
+9. Run all 11 weapon material/texture dependency checks and close what existing content can support.
+10. Forward-port/retire stale verifiers.
+11. Full source CI.
+12. Merge only after source checks are green.
+13. Local test order after pull: **frontend performance first**, then gameplay; stop immediately on unsafe thermals or renewed catastrophic FPS collapse.
 
-Already coded on `fix/runtime-map-spawn-fps-assets-pass-44-20260824`:
-- hard root rule precedence + stale-rule retirement policy;
-- stored map reference + manifest;
-- `OCGameModeRuntimeSafe` actual Museum pawn spawn proof;
-- safe bot defaults and explicit-only local bot fill in both base `OCGameMode` and runtime-safe enforcement;
-- compact primary `OCWorldSectorOster` authoring: 960×940 m ground, bounds-gated primitives/trees/residential seeds, no far legacy BASE compounds, no peripheral hydrography;
-- compact `OCGameMode` runtime actor authoring: firing/destruction lanes, BASE seeds, civilian vehicles and HMMWV/BTR spawn points no longer use old edge coordinates;
-- coordinate-independent Museum BASE primary/secondary resolution in `OCTeamSpawnPoint`;
-- compact central playable-area runtime safety trim + tactical-map cache invalidation;
-- hard tactical-map four-corner projection matching the playable bounds; old auto-fit/1600 m minimum retired;
-- weapon authored-material fail-visible audit;
-- complete retirement of runtime weapon palette mutation/polling;
-- independent HMMWV/M2/BTR import path and broader BTR archive search;
-- production fresh-load material validation;
-- required weapon preflight now distinguishes mesh load from authored material status;
-- runtime acceptance requires primary compact-world, compact runtime-seed, coordinate-independent BASE and compact-tactical-map evidence in addition to the existing Pass 44 gates;
-- dedicated Pass 44 source verifier forbids old edge BASE/test-lane/combat-vehicle coordinates and old ±920 m BASE discriminator;
-- Pass 3/4/19/20/33/36/37/38/41, S16A and launcher/tactical-map stale verifier expectations forward-ported/retired where they conflicted.
+## 8. Acceptance gates
 
-Status: **CODED_UNTESTED** until source CI + new local UE 5.8 run.
+- Frontend: no historical RenderTargetPool crash and **>=30 FPS minimum**.
+- Gameplay: bots off, no progressive collapse, **>=30 FPS minimum**.
+- Graphics: no hidden resolution-scale downgrade below intended 100% clarity target.
+- Trees: no visible primitive Cylinder/Sphere fantasy forest.
+- Tactical map: recognizable compact central-Oster topology, no giant synthetic X/diagonal roads, player marker visible.
+- Landmarks: Museum and Culture House visibly separate; Silpo stale/duplicate presentation removed; one owner per site.
+- Weapons: no white/default rack slot accepted; material/texture truth for all 11 classes or explicit named content gap.
+- CI: green source checks required but never sufficient for runtime verification.
 
-## 7. Merge gate / next execution order
-
-Before `main`:
-1. Run/update full source verifier suite including dedicated Pass 44 verifier.
-2. Fix any old verifier that demands a superseded rule. Never reintroduce the regression to satisfy CI.
-3. PR #78 is open; inspect Actions/CI on the latest head.
-4. Merge only when source checks are green and branch is not behind `main`.
-
-After merge/local pull:
-1. `START_HERE.cmd → 1. ЗВИЧАЙНА ГРА`.
-2. Confirm `PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY`.
-3. Confirm `PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY`.
-4. Confirm `PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY`, `PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY` and `PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY`.
-5. Confirm `PASS44_COMPACT_PLAYABLE_AREA_READY`.
-6. Open `M` and confirm `PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY`; visually verify the map no longer expands beyond the compact central-Oster reference.
-7. Confirm `PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY` and visually verify Museum is actually nearby.
-8. Check rack authored materials; any `PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP` keeps visual acceptance FAIL.
-9. Remain in gameplay ~20 s only while thermals are sane; require >=30 FPS and no progressive collapse.
-10. Verify HMMWV/M2/BTR individually. A missing one is a named content gap, not a hidden proxy success.
-
-**Current prohibition:** no new decorative map layers or map expansion until this runtime baseline is stable.
+**Current overall status: PASS 45 ACTIVE / IMPLEMENTATION IN PROGRESS.**
