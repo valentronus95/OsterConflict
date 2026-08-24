@@ -26,8 +26,10 @@ agents = read(ROOT / "AGENTS.md")
 ledger = read(ROOT / "OSTER_CONFLICT_WORK_LEDGER.md")
 engine = read(P / "Config" / "DefaultEngine.ini")
 game_h = read(SRC / "Public" / "OCGameMode.h")
+game = read(SRC / "Private" / "OCGameMode.cpp")
 runtime_h = read(SRC / "Public" / "OCGameModeRuntimeSafe.h")
 runtime = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
+team_spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
 central_h = read(SRC / "Public" / "OCCentralPlayableAreaSubsystem.h")
 central = read(SRC / "Private" / "OCCentralPlayableAreaSubsystem.cpp")
@@ -61,6 +63,9 @@ for needle in (
     "Runtime content truth is fail-visible",
     "Normal local game must not silently auto-fill",
     "Verifier truth follows current behavior",
+    "Compact playable bounds apply at primary authoring time",
+    "Tactical-map projection is bounded by the current playable-area reference",
+    "Runtime actor seeds must respect compact playable bounds",
 ):
     require(agents, needle, "root conflict policy")
 
@@ -83,7 +88,48 @@ for needle in (
     "int32 TargetPopulation = 0",
     "bool bAutoFillBots = false",
 ):
-    require(game_h, needle, "safe local population defaults")
+    require(game_h, needle, "safe population member defaults")
+for needle in (
+    "else TargetPopulation = 0;",
+    "if (bAutoFillBots && PopulationOption.IsEmpty() && RequestedBotCount < 0) TargetPopulation = MaxPlayerSlots;",
+    "PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY",
+    "old_edge_base_seeds=0",
+    "PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY",
+    "old_edge_vehicle_seeds=0",
+    "Museum + FVector(-1400.0f, -2400.0f, 40.0f)",
+    "Museum + FVector(1400.0f, -2400.0f, 40.0f)",
+    "Museum + FVector(-8500.0f, -7000.0f, 180.0f)",
+    "Stadium + FVector(-2500.0f, 5500.0f, 190.0f)",
+):
+    require(game, needle, "compact runtime actor authoring")
+for forbidden in (
+    "FVector(-106000.0f, -90000.0f, 40.0f)",
+    "FVector(-102500.0f, -94000.0f, 40.0f)",
+    "FVector(106000.0f, 90000.0f, 40.0f)",
+    "FVector(102500.0f, 94000.0f, 40.0f)",
+    "FVector(43000.0f, -43000.0f, 180.0f)",
+    "FVector(53000.0f, -43000.0f, 180.0f)",
+    "FVector(-69000.0f, -61000.0f, 180.0f)",
+    "FVector(-73500.0f, -66000.0f, 190.0f)",
+    "FVector(69000.0f, 61000.0f, 180.0f)",
+    "FVector(73500.0f, 66000.0f, 180.0f)",
+):
+    forbid(game, forbidden, "retired edge runtime actor seeds")
+
+for needle in (
+    "PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY",
+    "legacy_edge_test=0",
+    "Other->bBaseSpawn && Other->TeamId == TeamId",
+    "ResolveCanonicalBaseLocation(TeamId, bSecondary)",
+):
+    require(team_spawn, needle, "coordinate-independent Museum BASE role")
+for forbidden in (
+    "LegacyLocation.Y > 92000.0f",
+    "LegacyLocation.Y < -92000.0f",
+    "SeedLocation.Y > 92000.0f",
+    "SeedLocation.Y < -92000.0f",
+):
+    forbid(team_spawn, forbidden, "retired edge-coordinate BASE discriminator")
 
 for needle in (
     "AOCGameModeRuntimeSafe",
@@ -255,6 +301,9 @@ for needle in (
 for marker in (
     "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
     "PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY",
+    "PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY",
+    "PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY",
+    "PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY",
     "PASS44_COMPACT_PLAYABLE_AREA_READY",
     "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
     "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
@@ -267,8 +316,10 @@ for marker in (
 print("RUNTIME MAP / SPAWN / FPS / ASSETS PASS 44 SOURCE CONTRACT PASS")
 print("- root authority retires stale conflicting rules/verifiers instead of resurrecting regressions")
 print("- actual human BASE pawn is verified within 45 m of MuseumAnchor")
-print("- implicit local bot fill is disabled; bots remain explicit opt-in")
+print("- implicit local bot fill is disabled; explicit BotFill remains an opt-in")
 print("- primary world is authored inside the compact 960 x 940 m reference before BeginPlay")
+print("- BASE/test-lane/civilian/combat vehicle runtime seeds no longer author old edge actors")
+print("- primary/secondary Museum BASE role no longer depends on retired ±920 m coordinates")
 print("- tactical map directly uses the hard compact bounds; old 1600 m minimum/auto-fit is retired")
 print("- runtime central-area trim remains only a safety net for late/legacy instances")
 print("- weapon BasicShape/palette mutation is retired and authored-material gaps remain fail-visible")
