@@ -31,7 +31,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="Settings") void ApplyPresentationCVars();
     UFUNCTION(BlueprintCallable, Category="Settings") void ValidateSettingsSchema();
 
-    /** Apply Oster's safe first-run renderer baseline once and migrate the old over-degraded Pass 16 profile once. */
+    /** Apply Oster's safe first-run renderer baseline once and migrate old automatic low-quality profiles once. */
     void EnsureInitialGraphicsProfile();
 
     UFUNCTION(BlueprintCallable, Category="Frontend") void SetFrontendIdentity(const FString& Username, const FString& ServerAddress);
@@ -46,6 +46,9 @@ public:
 
     /** Pass 39: one-time migration away from the old 75%/mostly-low automatic profile. */
     UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Settings") bool bPass39GraphicsQualityRecoveryApplied = false;
+
+    /** Pass 42: one-time recovery from Pass 39's still-soft 85% render scale/medium texture cap. */
+    UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Settings") bool bPass42GraphicsClarityRecoveryApplied = false;
 
     // S19A: identity/last endpoint are user convenience data and intentionally survive Reset Defaults.
     UPROPERTY(Config, VisibleAnywhere, BlueprintReadOnly, Category="Frontend") FString LastUsername = TEXT("Гравець");
