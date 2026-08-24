@@ -29,7 +29,7 @@ require(start, '2. ПОВНИЙ RUNTIME-ТЕСТ', "START_HERE full-test label")
 require(start, 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"', "START_HERE full-test route")
 
 for needle in (
-    "PASS 29-38 RUNTIME ACCEPTANCE",
+    "PASS 29-39 RUNTIME ACCEPTANCE",
     'set "OC_FORCE_ACCEPTANCE=1"',
     'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
     'set "LOG=%~dp0Logs\\R14_CURRENT_GAMEPLAY.log"',
@@ -39,7 +39,7 @@ for needle in (
     "weapon pickups",
     "не менше 20 секунд",
 ):
-    require(launcher, needle, "Pass 29-38 acceptance flow")
+    require(launcher, needle, "Pass 29-39 acceptance flow")
 
 for marker in (
     "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
@@ -66,6 +66,10 @@ for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
+    "PASS39_GRAPHICS_QUALITY_PROFILE_READY",
+    "PASS39_MINIMAP_UPDATE_BUDGET_READY",
+    "PASS39_FP_LOCAL_PAWN_FAST_PATH_READY",
+    "PASS39_PERF_SAMPLER_IDLE_READY",
     "PASS14_PERF_SAMPLE",
     "PASS14_PERF_30FPS_READY",
 ):
@@ -83,6 +87,7 @@ for failure_marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
     "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
     "PASS38_WEAPON_PALETTE_SCAN_BOUNDED_STOP",
+    "PASS15_EMERGENCY_PERF_PROFILE_APPLIED",
     "PASS10_FOLIAGE_RUNTIME_FAIL",
     "PASS14_PERF_BELOW_TARGET",
 ):
@@ -90,7 +95,7 @@ for failure_marker in (
 
 for exit_code in (
     "exit /b 33", "exit /b 34", "exit /b 35", "exit /b 36", "exit /b 37", "exit /b 38",
-    "exit /b 40", "exit /b 42", "exit /b 43", "exit /b 44", "exit /b 45"
+    "exit /b 40", "exit /b 42", "exit /b 43", "exit /b 44", "exit /b 45", "exit /b 46"
 ):
     require(launcher, exit_code, f"distinct acceptance failure {exit_code}")
 
@@ -98,11 +103,11 @@ require(launcher, "30 FPS acceptance target", "explicit FPS floor")
 forbid(launcher, "PASS14_PERF_30FPS_READY" + " >nul\nif not errorlevel 1", "30 FPS readiness must not be inverted")
 require(launcher, "20-45 m museum approach", "closer Museum deployment band")
 
-print("RUNTIME ACCEPTANCE PASS 33/35/36/37/38 SOURCE CONTRACT PASS")
+print("RUNTIME ACCEPTANCE PASS 33/35/36/37/38/39 SOURCE CONTRACT PASS")
 print("- START_HERE full runtime test reaches the canonical normal-game launcher under acceptance mode")
 print("- visible Museum structural core and a 20-45 m BASE deployment remain mandatory")
 print("- Pass 38 requires bounded museum recovery and bounded weapon startup scans")
-print("- tactical player marker, released input and placeholder-only weapon recovery are mandatory")
+print("- Pass 39 requires stable graphics quality, budgeted minimap/local-pawn presentation and an idle completed sampler")
+print("- stale hidden emergency graphics downgrade is a hard failure")
 print("- LowCPU foliage must remain bounded and actual sampled gameplay must still reach >=30 FPS")
-print("- known current frontend/spawn/layer/runaway/foliage/performance failure markers fail closed")
 print("STATUS: SOURCE VERIFIED; the actual UE 5.8 run remains the runtime authority")
