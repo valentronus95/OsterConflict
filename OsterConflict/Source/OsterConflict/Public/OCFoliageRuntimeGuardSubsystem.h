@@ -5,8 +5,8 @@
 #include "OCFoliageRuntimeGuardSubsystem.generated.h"
 
 /**
- * Retires the old source-only cube ground-cover proxies and proves that runtime ground cover
- * is owned by the real dense foliage HISM pass instead.
+ * Retires source-only visual proxies and proves that normal runtime vegetation is not owned by
+ * primitive Cube/Cylinder/Sphere families. Real ground cover and verified real tree meshes are separate owners.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCFoliageRuntimeGuardSubsystem : public UTickableWorldSubsystem
@@ -21,6 +21,7 @@ public:
 
 private:
     bool RetireSourceGroundCoverProxies();
+    bool RetireSourceTreeProxies();
     bool ValidateDenseFoliage(int32 MinGrassInstances, int32& OutGrassInstances, int32& OutDenseGrassComponents) const;
     void FailValidation(const FString& Reason);
 
@@ -28,4 +29,5 @@ private:
     float ValidationAccumulator = 0.0f;
     bool bFinished = false;
     bool bProxyRetirementObserved = false;
+    bool bTreeProxyRetirementObserved = false;
 };
