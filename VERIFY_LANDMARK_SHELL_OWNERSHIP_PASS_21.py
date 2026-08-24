@@ -27,6 +27,11 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS21 VERIFY FAIL: {label}: missing {needle!r}")
 
 
+def forbid(text: str, needle: str, label: str) -> None:
+    if needle in text:
+        raise SystemExit(f"PASS21 VERIFY FAIL: {label}: forbidden {needle!r}")
+
+
 guard_h = read(GUARD_H)
 guard = read(GUARD)
 museum137 = read(MUSEUM137)
@@ -37,15 +42,14 @@ separation = read(SEPARATION)
 launcher = read(LAUNCHER)
 start = read(START)
 
-# The three current site families and the known Museum upgrade layer must retain stable runtime identities.
-require(museum137, 'Tags.Add(TEXT("R137_MuseumPhotoModel"))', "Museum R13.7 identity")
-require(museum138, 'Tags.Add(TEXT("R138_MuseumHighFidelityArchitecture"))', "Museum R13.8 identity")
-require(silpo140, 'Tags.Add(TEXT("R140_SilpoPhotoModel"))', "Silpo R14.0 identity")
+# Stable identities remain, but Pass 45 clarifies roles: R13.8 is the Museum shell; R13.7 is a
+# reference/detail/interactivity parent after its solid prototype is suppressed.
+require(museum137, 'Tags.Add(TEXT("R137_MuseumPhotoModel"))', "Museum R13.7 reference identity")
+require(museum138, 'Tags.Add(TEXT("R138_MuseumHighFidelityArchitecture"))', "Museum R13.8 shell identity")
+require(silpo140, 'Tags.Add(TEXT("R140_SilpoPhotoModel"))', "Silpo R14.0 shell identity")
 require(silpo140, 'Tags.Add(TEXT("R140_SilpoEntranceDoor"))', "Silpo entrance identity")
-require(culture146, 'Tags.Add(TEXT("R146_CultureHouseAuthoritative"))', "Culture House identity")
+require(culture146, 'Tags.Add(TEXT("R146_CultureHouseAuthoritative"))', "Culture House shell identity")
 
-# Historical stages still own delayed callbacks; Pass 21 must remain defensive even when the startup coordinator
-# normally cancels them.
 for text, marker, label in (
     (museum137, "MuseumPhotoModelDelaySeconds", "Museum R13.7 delayed callback"),
     (museum138, "R138MuseumDelaySeconds", "Museum R13.8 delayed callback"),
@@ -63,37 +67,45 @@ for needle in (
     "RunFinalValidation",
     "HasInstanceGeometryNear",
 ):
-    require(guard_h, needle, "Pass 21 guard header")
+    require(guard_h, needle, "Pass 21/45 guard header")
 
 for needle in (
-    'MuseumPrototypeTag(TEXT("R137_MuseumPhotoModel"))',
-    'MuseumArchitectureTag(TEXT("R138_MuseumHighFidelityArchitecture"))',
+    'MuseumReferenceLayerTag(TEXT("R137_MuseumPhotoModel"))',
+    'MuseumShellTag(TEXT("R138_MuseumHighFidelityArchitecture"))',
     'SilpoShellTag(TEXT("R140_SilpoPhotoModel"))',
     'SilpoEntranceDoorTag(TEXT("R140_SilpoEntranceDoor"))',
     'CultureHouseShellTag(TEXT("R146_CultureHouseAuthoritative"))',
     "AddOnActorSpawnedHandler",
     "SetTimerForNextTick",
-    'RepairTaggedOwners(*World, MuseumPrototypeTag, TEXT("Museum-R13.7"), false)',
-    'RepairTaggedOwners(*World, MuseumArchitectureTag, TEXT("Museum-R13.8"), false)',
-    'RepairTaggedOwners(*World, SilpoShellTag, TEXT("Silpo-R14.0"), true)',
-    'RepairTaggedOwners(*World, CultureHouseShellTag, TEXT("CultureHouse-R14.6"), false)',
-    'RepairTaggedOwners(*World, SilpoEntranceDoorTag, TEXT("SilpoEntranceDoor"), true)',
     "GetGameTimeSinceCreation",
     "GetInstanceTransform(InstanceIndex, InstanceTransform, true)",
     "PASS21_LANDMARK_DUPLICATE_REPAIRED",
+    "PASS45_LANDMARK_SINGLE_SHELL_CONTRACT_READY",
+    "PASS45_SINGLE_LANDMARK_SHELL_OWNERS_READY",
+    "PASS45_SINGLE_LANDMARK_SHELL_OWNERS_FAIL",
     "PASS21_LANDMARK_OWNERSHIP_READY",
     "PASS21_LANDMARK_OWNERSHIP_FAIL",
+    "periodic_owner_scan=0",
 ):
-    require(guard, needle, "Pass 21 runtime ownership guard")
+    require(guard, needle, "Pass 45 single-shell runtime ownership guard")
 
-# Pass 21 final proof must run after the existing eight-second landmark-separation startup window.
+require(guard, "MuseumReferenceLayerCount == 1 && MuseumShellCount == 1",
+        "Museum reference/shell roles must be counted separately")
+forbid(guard, "MuseumPrototypeTag", "historical R13.7-as-second-shell ownership concept returned")
+forbid(guard, "MuseumArchitectureTag", "historical dual-shell tag naming returned")
+
+# Pass 45 deliberately retires the former 0.20 s x 40 whole-world scan loop. Final ownership proof still runs
+# after the current one-shot 6.25 s reconciliation and historical landmark build window.
 final_delay = re.search(r"FinalValidationDelaySeconds\s*=\s*([0-9.]+)f", guard)
 if not final_delay or float(final_delay.group(1)) < 8.5:
-    raise SystemExit("PASS21 VERIFY FAIL: final ownership validation runs before the historical startup window closes")
-require(separation, "SeparationStartupGuardPassCount = 40", "existing separation pass count")
-require(separation, "SeparationStartupGuardIntervalSeconds = 0.20f", "existing separation interval")
+    raise SystemExit("PASS21 VERIFY FAIL: final ownership validation runs before the startup window closes")
+require(separation, "SeparationValidationDelaySeconds = 6.25f", "Pass 45 one-shot separation delay")
+require(separation, "PASS45_LANDMARK_RECONCILIATION_BUDGET_READY", "Pass 45 reconciliation budget evidence")
+require(separation, "full_world_scan_passes=%d further_periodic_scan=0", "one-shot reconciliation completion")
+forbid(separation, "SeparationStartupGuardPassCount", "obsolete 40-pass world scan contract returned")
+forbid(separation, "SeparationStartupGuardIntervalSeconds", "obsolete 0.20 s world scan interval returned")
 
-# The internal acceptance route chains the focused frontend/Museum/FPS run and then requires final ownership proof.
+# Internal acceptance route remains usable and requires final ownership proof.
 for needle in (
     "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd",
     "PASS21_LANDMARK_OWNERSHIP_FAIL",
@@ -103,13 +115,12 @@ for needle in (
 ):
     require(launcher, needle, "Pass 21 runtime acceptance launcher")
 
-# Keep the one user-facing launcher rule. Pass 21 is an internal acceptance helper only.
 if "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd" in start:
     raise SystemExit("PASS21 VERIFY FAIL: internal Pass 21 launcher leaked into START_HERE")
 
-print("LANDMARK SHELL OWNERSHIP PASS 21 SOURCE CONTRACT PASS")
-print("- R13.7/R13.8 Museum and R14.0 Silpo late rebuilds cannot persist duplicate current owners")
-print("- Museum keeps the already-upgraded older owners; Silpo keeps the newest shell after its self-cleanup")
-print("- Culture House remains single-owner and Silpo entrance doors are deduplicated on authority")
-print("- final runtime proof requires one owner per stage plus instance geometry near canonical site anchors")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime/visual acceptance still required")
+print("LANDMARK SHELL OWNERSHIP PASS 21/45 SOURCE CONTRACT PASS")
+print("- Museum has one shell owner (R13.8); R13.7 is reference/detail/interactivity only")
+print("- Silpo R14.0 and Culture House R14.6 remain one shell owner per canonical site")
+print("- late duplicate actors are repaired by spawn guard plus one final validation")
+print("- obsolete 0.20 s x 40 full-world reconciliation stays retired")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime/visual separation remains authoritative")
