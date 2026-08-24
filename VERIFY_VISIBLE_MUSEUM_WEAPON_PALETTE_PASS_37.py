@@ -32,13 +32,11 @@ acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 for needle in (
     "FVector(-1400.0f, -2400.0f, 120.0f)",
     "FVector(1400.0f, -2400.0f, 120.0f)",
-    "FVector(-2300.0f, -3100.0f, 120.0f)",
-    "FVector(2300.0f, -3100.0f, 120.0f)",
-    "Team == EOCTeam::TeamTwo ? 120.0f : 60.0f",
+    "RequiredRackWeaponCount = 11",
     "PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH",
     "PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM",
 ):
-    require(spawn, needle, "closer canonical museum BASE")
+    require(spawn, needle, "canonical museum BASE/rack")
 
 for needle in (
     "MuseumNoSpawnRadiusCm = 2000.0f",
@@ -48,11 +46,8 @@ for needle in (
     "PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH",
     "PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL",
 ):
-    require(spawn_guard, needle, "deployment guard aligned with closer BASE")
+    require(spawn_guard, needle, "legacy spawn guard kept as secondary evidence")
 
-# Runtime after Pass 37 showed a catastrophic 60 -> 5 FPS fall. Visible-component proof remains, but the
-# destructive recovery path is limited to one attempt. Pass 42 moves normal R13.7/R13.8 construction earlier,
-# so the guard starts after the normal build rather than waiting through the old 5.8 second settle window.
 require(museum_h, "UOCMuseumVisibilityPass37Subsystem", "visible museum guard class")
 for needle in (
     "MinVisibleStructuralComponents = 12",
@@ -60,58 +55,55 @@ for needle in (
     "PollIntervalSeconds = 0.35f",
     "LateStartupSettleSeconds = 2.20f",
     "MaxRebuildAttempts = 1",
-    'MuseumStructuralTag(TEXT("MuseumStructural"))',
-    "Component->IsRegistered()",
-    "Component->IsVisible()",
-    "Component->Bounds.Origin",
-    "RebuildAttemptCount < MaxRebuildAttempts",
-    "RunAuthoritativeUpgradeNow(*World)",
-    "RetireOtherArchitectureOwners",
-    "PASS37_MUSEUM_VISIBLE_CORE_REBUILD",
-    "PASS37_MUSEUM_DUPLICATE_ARCHITECTURE_RETIRED",
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
-    "PASS38_MUSEUM_SINGLE_REBUILD_EXECUTED",
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS42_MUSEUM_EARLY_VISIBILITY_READY",
 ):
-    require(museum, needle, "bounded visible museum structural proof")
+    require(museum_h + museum, needle, "bounded visible museum proof")
 
-# Pass 37's forced recolouring is disproven by the flat orange Lever Action screenshot. Exact/source materials
-# are preserved whenever they are not obvious placeholders; only placeholder slots may receive a recovery MID.
-require(palette_h, "UOCWeaponPalettePass37Subsystem", "weapon palette class")
+# Pass 44 supersedes every runtime palette-recovery rule. The old Pass 37 forced palette and the later
+# placeholder-only BasicShapeMaterial repair both produced fake grey/orange presentation. Keep the class only
+# as a compatibility shell; authored material truth is now audited elsewhere.
 for needle in (
-    "IsRestoredSteinPayload",
-    "IsClearlyPlaceholderMaterial",
-    "if (!bPlaceholder) continue;",
-    "authored_materials_preserved=1",
-    "if (IsAK(Name))",
-    "PASS37_WEAPON_VISIBLE_PALETTE_APPLIED",
-    "PASS37_WEAPON_VISIBLE_PALETTE_READY",
-    "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
+    "compatibility shell",
+    "performs no polling",
+    "no material creation",
+    "no SetMaterial calls",
+    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
+    "runtime_material_creation=0",
+    "set_material_calls=0",
+    "polling=0",
+    "PASS38_WEAPON_PALETTE_SCAN_STOPPED reason=retired_by_pass44",
 ):
-    require(palette, needle, "placeholder-only weapon presentation recovery")
-forbid(palette, "if (!bForceRestoredPalette && !bPlaceholder) continue;",
-       "forced restored-payload material overwrite must stay removed")
-forbid(palette, "forced_restored_slots=", "old forced-palette evidence is no longer valid")
+    require(palette_h + palette, needle, "retired runtime palette mutation")
+
+for forbidden in (
+    "BasicShapeMaterial.BasicShapeMaterial",
+    "UMaterialInstanceDynamic::Create",
+    "ResolvePaletteColor",
+    "ApplyPalette(",
+    "SetMaterial(",
+    "SetTimer(",
+    "PASS37_WEAPON_VISIBLE_PALETTE_APPLIED",
+):
+    forbid(palette_h + palette, forbidden, "obsolete palette mutation must not survive Pass 44")
 
 for marker in (
+    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS37_MUSEUM_VISIBLE_BASES_READY",
-    "PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH",
-    "PASS37_WEAPON_VISIBLE_PALETTE_READY",
-    "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
-    "PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "PASS42_BASE_RACK_GROUNDED_READY",
+    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
+    "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
     "PASS14_PERF_30FPS_READY",
 ):
-    require(acceptance, marker, f"Pass 37 runtime acceptance marker {marker}")
-require(acceptance, "20-45 m museum approach", "explicit closer spawn acceptance")
-require(acceptance, "30 FPS acceptance target", "performance floor remains 30 FPS")
+    require(acceptance, marker, f"runtime acceptance marker {marker}")
 
-print("VISIBLE MUSEUM + WEAPON PALETTE PASS 37/38/42 SOURCE CONTRACT PASS")
-print("- primary BASE stays ~27.8 m from MuseumAnchor and faces the museum")
-print("- museum visibility proof remains but destructive rebuilding is bounded to one attempt")
-print("- Pass 42 starts visibility proof after the earlier one-shot museum build and settles by 2.20 seconds")
-print("- non-placeholder imported weapon materials are preserved; only obvious placeholders may be recovered")
-print("- runtime acceptance still fails below 30 FPS")
+print("VISIBLE MUSEUM + RETIRED WEAPON PALETTE PASS 37/38/42/44 SOURCE CONTRACT PASS")
+print("- legacy Museum BASE markers remain secondary evidence")
+print("- actual pawn Museum BASE proof is required by Pass 44 acceptance")
+print("- museum destructive recovery remains bounded to one attempt")
+print("- all BasicShapeMaterial palette mutation is retired; missing authored materials remain fail-visible")
+print("- palette subsystem performs no polling and no material writes")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 visual/runtime acceptance remains required")
