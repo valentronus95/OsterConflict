@@ -6,10 +6,10 @@ cd /d "%~dp0"
 set "LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 
 echo ============================================================
-echo OSTER CONFLICT - PASS 29-40 RUNTIME ACCEPTANCE
+echo OSTER CONFLICT - PASS 29-41 RUNTIME ACCEPTANCE
 echo ============================================================
 echo.
-echo Перевіряється останній playtest: музей реально видимий, BASE близько, зброя не біла/сіра, графіка не деградує автоматично, runtime не накопичує rebuild/scan/tick/Slate work, map marker, input та FPS.
+echo Перевіряється останній playtest: музей реально видимий, BASE близько, зброя не біла/сіра, графіка не деградує автоматично, runtime не накопичує rebuild/scan/tick/Slate work, input recovery не крутиться зайво на 20 Hz, map marker, input та FPS.
 echo.
 echo Послідовність:
 echo   1. У головному меню натисніть START.
@@ -53,6 +53,7 @@ for %%M in (
     PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH
     PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND
     PASS31_GAMEPLAY_INPUT_READY
+    PASS41_INPUT_RECOVERY_POLL_BUDGET_READY
     PASS36_LOWCPU_FOLIAGE_SCOPE_READY
     PASS36_LOWCPU_FOLIAGE_RUNTIME_READY
     PASS36_WEAPON_MATERIAL_AUDIT_READY
@@ -150,7 +151,7 @@ findstr /C:"PASS14_PERF_BELOW_TARGET" "%LOG%" >nul
 if not errorlevel 1 (
     echo [PERF] Gameplay remained below the current 30 FPS acceptance target.
     findstr /C:"PASS39_LOW_FPS_PROBE_DIAGNOSTIC" /C:"PASS14_PERF_SAMPLE" /C:"PASS14_PERF_BELOW_TARGET" "%LOG%"
-    echo [STOP] Museum/spawn/material/UI-budget gates may pass, but optimization is not finished.
+    echo [STOP] Museum/spawn/material/UI/input-budget gates may pass, but optimization is not finished.
     exit /b 33
 )
 
@@ -167,6 +168,7 @@ echo [PASS] Museum recovery stayed inside a one-rebuild destructive budget; no r
 echo [PASS] Preferred BASE is in the 20-45 m museum approach and deployment landed there.
 echo [PASS] Tactical Map player marker is above objective labels.
 echo [PASS] Character input is GameOnly with move/look ignore stacks released.
+echo [PASS] Vehicle/deployment input recovery uses one-shot polling: 20 Hz only around transitions, 10 Hz in stable gameplay.
 echo [PASS] Weapon material/fallback/palette startup scans converged and stopped instead of polling forever.
 echo [PASS] Non-placeholder imported weapon materials were preserved from Pass 37 forced recolouring.
 echo [PASS] Graphics profile is the Pass 39 balanced/preserved profile; old hidden 65%% emergency mutation did not run.
@@ -181,11 +183,11 @@ echo.
 findstr /C:"PASS37_MUSEUM_VISIBLE_CORE_READY" /C:"PASS38_MUSEUM_REBUILD_BUDGET_READY" "%LOG%"
 findstr /C:"PASS37_MUSEUM_VISIBLE_BASES_READY" /C:"PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH" "%LOG%"
 findstr /C:"PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND" /C:"PASS39_MINIMAP_UPDATE_BUDGET_READY" "%LOG%"
-findstr /C:"PASS31_GAMEPLAY_INPUT_READY" /C:"PASS39_FP_LOCAL_PAWN_FAST_PATH_READY" "%LOG%"
+findstr /C:"PASS31_GAMEPLAY_INPUT_READY" /C:"PASS41_INPUT_RECOVERY_POLL_BUDGET_READY" /C:"PASS39_FP_LOCAL_PAWN_FAST_PATH_READY" "%LOG%"
 findstr /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS37_WEAPON_VISIBLE_PALETTE_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" /C:"PASS38_WEAPON_PALETTE_SCAN_STOPPED" "%LOG%"
 findstr /C:"PASS39_GRAPHICS_QUALITY_PROFILE_READY" /C:"PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED" /C:"PASS39_GRAPHICS_CUSTOM_PROFILE_PRESERVED" "%LOG%"
 findstr /C:"PASS40_UI_STABILIZER_BUDGET_READY" /C:"PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY" "%LOG%"
 findstr /C:"PASS36_LOWCPU_FOLIAGE_SCOPE_READY" /C:"PASS36_LOWCPU_FOLIAGE_RUNTIME_READY" "%LOG%"
 findstr /C:"PASS39_PERF_SAMPLER_IDLE_READY" /C:"PASS14_PERF_SAMPLE" /C:"PASS14_PERF_30FPS_READY" "%LOG%"
-echo [PASS] Pass 29-40 automated runtime acceptance completed.
+echo [PASS] Pass 29-41 automated runtime acceptance completed.
 exit /b 0
