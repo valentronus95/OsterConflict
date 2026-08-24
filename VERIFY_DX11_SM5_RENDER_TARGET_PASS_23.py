@@ -37,14 +37,27 @@ for token in [
 ]:
     req(token in engine, f"boot-safe renderer token missing: {token}")
 
-safe_flags = ["-d3d11", "-sm5", "-nohdr", "-norhithread"]
+# Pass 45 preserves the DX11/SM5/no-HDR renderer isolation. The latest factual menu-at-8-FPS run makes
+# -norhithread a diagnostic compatibility route rather than a permanent normal-game requirement.
 for name, text in [("START_HERE", start), ("normal launcher", normal), ("recovery launcher", recovery)]:
-    for flag in safe_flags:
-        req(flag in text, f"{name} is missing safe-start flag {flag}")
+    for flag in ["-d3d11", "-sm5", "-nohdr"]:
+        req(flag in text, f"{name} is missing safe renderer flag {flag}")
+
+req('set "RHI_FLAGS=-d3d11 -sm5 -nohdr"' in normal,
+    "normal launcher does not expose the Pass 45 RHI-thread baseline")
+req('if /I "%OC_RHI_COMPAT%"=="1"' in normal,
+    "normal launcher is missing explicit Pass 45 compatibility selection")
+req('-norhithread' in normal,
+    "normal launcher lost the explicit no-RHI-thread compatibility fallback")
+req('SAFE СУМІСНІСТЬ' in start and 'set "OC_RHI_COMPAT=1"' in start,
+    "START_HERE does not expose the Pass 45 compatibility A/B route")
+req('set "OC_RHI_COMPAT=0"' in start,
+    "START_HERE normal route does not explicitly select normal RHI threading")
 
 req("-d3d12" not in normal.lower(), "normal launcher still forces D3D12")
 req("-sm6" not in normal.lower(), "normal launcher still forces SM6")
 req("fix/dx11-sm5-" in normal, "normal launcher cannot test the isolated Pass 23 branch")
+req("fix/runtime-recovery-" in normal, "normal launcher cannot test the active Pass 45 branch")
 req("fix/dx11-sm5-" in recovery, "recovery launcher cannot test the isolated Pass 23 branch")
 
 if errors:
@@ -56,5 +69,6 @@ if errors:
 print("DX11 SM5 RENDER TARGET PASS 23: PASS")
 print("- project RHI is pinned to DX11 and DX11 shaders target SM5")
 print("- boot renderer disables HDR, Lumen/reflections/VSM/ray tracing before frontend Slate creation")
-print("- user, normal-game and recovery launches use -d3d11 -sm5 -nohdr -norhithread")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime must confirm RenderTargetPool startup crash is gone")
+print("- Pass 45 normal route uses DX11/SM5/no-HDR with normal RHI threading")
+print("- -norhithread remains available only as an explicit compatibility A/B route")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime decides crash/performance acceptance")
