@@ -24,9 +24,6 @@ HMMWV_NAME = "SM_HMMWV_UA"
 M2_NAME = "SM_M2_Browning"
 BTR_NAME = "SM_BTR4_Bucephalus"
 
-# This source HMMWV is authored with X as the vehicle longitudinal axis. Unreal's glTF
-# conversion maps glTF -Z into UE +X, so orient the source scene before import rather
-# than hiding the mismatch behind a runtime component rotation.
 HMMWV_CANONICAL_ROTATION = [0.0, -0.7071067811865476, 0.0, 0.7071067811865476]
 
 
@@ -74,7 +71,6 @@ def _write_glb(path, chunks):
 
 
 def add_scene_root_rotation(document, node_name, rotation):
-    """Wrap every populated glTF scene in one canonical orientation node."""
     nodes = document.setdefault("nodes", [])
     wrapped = 0
     for scene_index, scene in enumerate(document.get("scenes", [])):
@@ -95,7 +91,6 @@ def add_scene_root_rotation(document, node_name, rotation):
 
 
 def make_hmmwv_without_mk19(source, destination):
-    """Detach Mk19 nodes and orient the remaining HMMWV for UE's +X-forward convention."""
     chunks = _read_glb(source)
     json_index = next((i for i, chunk in enumerate(chunks) if chunk[0] == 0x4E4F534A), None)
     if json_index is None:
@@ -127,7 +122,6 @@ def make_hmmwv_without_mk19(source, destination):
 
 
 def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes):
-    """Configure the non-deprecated UE 5.8 Interchange controls used by our GLB ingest."""
     combine_behavior = getattr(unreal, "InterchangeCombineStaticMeshesBehavior", None)
     if combine_behavior is None or not hasattr(combine_behavior, "ALL"):
         fail("UE 5.8 InterchangeCombineStaticMeshesBehavior.ALL is unavailable; refusing ambiguous GLB import.")
@@ -136,14 +130,10 @@ def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes
     if force_mesh_type is None or not hasattr(force_mesh_type, "IFMT_STATIC_MESH"):
         fail("UE 5.8 InterchangeForceMeshType.IFMT_STATIC_MESH is unavailable; refusing ambiguous GLB import.")
 
-    # UE 5.8 deprecates the old combine_static_meshes bool. The behavior enum is the authoritative control.
     mesh_pipeline.set_editor_property("combine_static_meshes_behavior", combine_behavior.ALL)
     mesh_pipeline.set_editor_property("import_static_meshes", True)
     mesh_pipeline.set_editor_property("import_skeletal_meshes", False)
     mesh_pipeline.set_editor_property("collision", False)
-
-    # Force rigid GLB scene geometry into one static-mesh import path even if the source carries
-    # hierarchy/transform metadata that Interchange might otherwise attempt to classify differently.
     common_meshes.set_editor_property("force_all_mesh_as_type", force_mesh_type.IFMT_STATIC_MESH)
     common_meshes.set_editor_property("bake_meshes", True)
     common_meshes.set_editor_property("auto_detect_mesh_type", False)
@@ -168,7 +158,6 @@ def make_interchange_task(filename, destination_path, asset_name):
     task = unreal.AssetImportTask()
     task.set_editor_property("filename", str(filename))
     task.set_editor_property("destination_path", destination_path)
-    # UE 5.8 ignores AssetImportTask.destination_name for Interchange. The pipeline asset_name above is authoritative.
     task.set_editor_property("automated", True)
     task.set_editor_property("replace_existing", True)
     task.set_editor_property("replace_existing_settings", True)
@@ -179,7 +168,6 @@ def make_interchange_task(filename, destination_path, asset_name):
 
 
 def verify_import_task_updated_asset(task, asset_path):
-    """Reject stale pre-existing assets when the import task did not actually create/update the canonical object."""
     imported = [str(path).replace("\\", "/") for path in list(task.get_editor_property("imported_object_paths") or [])]
     expected_object_prefix = f"{asset_path}."
     updated_expected_asset = any(
@@ -215,8 +203,6 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
             if texture.is_file() and texture.suffix.lower() in (".png", ".tga", ".jpg", ".jpeg"):
                 shutil.copy2(texture, stage / texture.name)
 
-    # Keep BTR FBX on the mature legacy FBX importer. Interchange FBX support is still documented
-    # as experimental in UE 5.8, while this path needs deterministic combined static-mesh output.
     options = unreal.FbxImportUI()
     options.set_editor_property("import_mesh", True)
     options.set_editor_property("import_as_skeletal", False)
@@ -247,10 +233,16 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
     return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
 
 
-def ensure_sources_exist():
-    missing = [p for p in (HMMWV_SOURCE, M2_SOURCE, BTR_SOURCE) if not p.exists()]
-    if missing:
-        fail("Missing production source files: " + ", ".join(str(p) for p in missing))
+def attempt(label, source, import_fn, gaps, imported):
+    if not source.exists():
+        gaps.append(f"{label}_SOURCE_MISSING={source}")
+        unreal.log_warning(f"[OC Production Import] CONTENT GAP: {label} source missing: {source}")
+        return
+    try:
+        imported.append(import_fn())
+    except Exception as exc:
+        gaps.append(f"{label}_IMPORT_FAILED={exc}")
+        unreal.log_error(f"[OC Production Import] {label} import failed but other independent assets will continue: {exc}")
 
 
 def main():
@@ -258,24 +250,32 @@ def main():
     if SUCCESS_SENTINEL.exists():
         SUCCESS_SENTINEL.unlink()
 
-    ensure_sources_exist()
+    imported = []
+    gaps = []
 
-    cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
-    make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
+    def import_hmmwv():
+        cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
+        make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
+        return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
 
-    imported = [
-        import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME),
-        import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME),
-        import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME),
-    ]
+    attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported)
+    attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported)
+    attempt("BTR4", BTR_SOURCE, lambda: import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME), gaps, imported)
+
+    if not imported:
+        fail("No production vehicle/weapon source could be imported. See CONTENT GAP messages above.")
 
     unreal.EditorAssetLibrary.save_directory("/Game/Production", only_if_is_dirty=False, recursive=True)
-    log("Production vehicle import complete:")
+    log("Independent production import complete:")
     for path in imported:
-        log(f"  {path}")
+        log(f"  IMPORTED {path}")
+    for gap in gaps:
+        log(f"  {gap}")
 
-    SUCCESS_SENTINEL.write_text("\n".join(imported) + "\n", encoding="utf-8")
-    log(f"Success sentinel written: {SUCCESS_SENTINEL}")
+    sentinel_lines = [f"IMPORTED={path}" for path in imported]
+    sentinel_lines.extend(f"CONTENT_GAP={gap}" for gap in gaps)
+    SUCCESS_SENTINEL.write_text("\n".join(sentinel_lines) + "\n", encoding="utf-8")
+    log(f"Import result sentinel written: {SUCCESS_SENTINEL}")
 
 
 if __name__ == "__main__":
