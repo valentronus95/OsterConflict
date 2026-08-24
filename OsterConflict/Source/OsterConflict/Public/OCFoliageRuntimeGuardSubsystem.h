@@ -25,6 +25,7 @@ private:
     void FailValidation(const FString& Reason);
 
     float ElapsedSeconds = 0.0f;
+    float ValidationAccumulator = 0.0f;
     bool bFinished = false;
     bool bProxyRetirementObserved = false;
 };
