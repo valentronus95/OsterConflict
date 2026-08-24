@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "UObject/UObjectIterator.h"
 #include "OCR13FrontendMenuSubsystem.generated.h"
 
 class AOCPlayerController;
@@ -38,6 +37,7 @@ private:
     UFUNCTION() void OnSettingsClicked();
     UFUNCTION() void OnQuitClicked();
 
+    UOCGameUIRootWidget* ResolveRoot(UWorld* World, AOCPlayerController* PC) const;
     void EnsureFrontend(UOCGameUIRootWidget* Root, AOCPlayerController* PC);
     void BuildFrontend(UOCGameUIRootWidget* Root, AOCPlayerController* PC);
     void ApplyPage();
@@ -96,4 +96,6 @@ private:
     bool bLastShowMenu = false;
     bool bLastShowBackdrop = false;
     bool bLastDimGameplay = false;
+    bool bSettingsPanelStyled = false;
+    bool bRootCacheBudgetLogged = false;
 };
