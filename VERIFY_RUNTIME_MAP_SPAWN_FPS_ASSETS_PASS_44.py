@@ -36,7 +36,8 @@ weapon = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
 palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
 try_vehicle = read(P / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
-vehicle_import = read(P / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
+vehicle_import_cmd = read(P / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
+vehicle_import_py = read(P / "Scripts" / "import_production_vehicle_assets.py")
 source_recovery = read(P / "Scripts" / "prepare_local_production_sources.ps1")
 vehicle_fresh = read(P / "Scripts" / "verify_production_vehicle_fresh_load.py")
 weapon_preflight = read(P / "Scripts" / "verify_required_weapon_assets.py")
@@ -155,12 +156,22 @@ for needle in (
     require(try_vehicle, needle, "independent vehicle intake reporting")
 
 for needle in (
-    "IMPORT_HMMWV",
-    "IMPORT_M2",
-    "IMPORT_BTR",
-    "AVAILABLE_COUNT",
+    'set "HMMWV_IMPORTED=0"',
+    'set "M2_IMPORTED=0"',
+    'set "BTR_IMPORTED=0"',
+    "Continuing independent intake for any available source files",
+    "CONTENT GAP: BTR-4 production source/import is still unavailable",
 ):
-    require(vehicle_import, needle, "independent production vehicle import")
+    require(vehicle_import_cmd, needle, "independent production vehicle import command")
+
+for needle in (
+    'attempt("HMMWV"',
+    'attempt("M2"',
+    'attempt("BTR4"',
+    "other independent assets will continue",
+    "CONTENT_GAP=",
+):
+    require(vehicle_import_py, needle, "independent production import implementation")
 
 for needle in (
     "Find-BtrFbxInNamedArchive",
@@ -171,16 +182,20 @@ for needle in (
     require(source_recovery, needle, "broader BTR archive recovery")
 
 for needle in (
+    "AUTHORED_MATERIALS_READY",
     "authored_materials_ready",
-    "DefaultMaterial",
-    "BasicShapeMaterial",
+    "defaultmaterial",
+    "basicshapematerial",
+    "placeholder_slots",
 ):
     require(vehicle_fresh, needle, "vehicle fresh-load authored material truth")
 
 for needle in (
-    "AUTHORED_MATERIALS_READY",
-    "mesh_loaded",
-    "material_status",
+    "MESH_RESULT=",
+    "MATERIAL_RESULT=",
+    "AUTHORED_MATERIAL_SUMMARY=",
+    "AUTHORED MATERIAL GAP",
+    "grey/default slots are NOT production-ready",
 ):
     require(weapon_preflight, needle, "weapon preflight material truth")
 
