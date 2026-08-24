@@ -99,7 +99,7 @@ echo ============================================================
 findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" "%LOG%"
 findstr /C:"PASS17_WORLD_ISM_BUDGET_READY" "%LOG%"
 findstr /C:"PASS18_WORLD_PERF_DIAGNOSTICS" "%LOG%"
-findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
+findstr /C:"PASS15_PERF_PROBE" /C:"PASS39_LOW_FPS_PROBE_DIAGNOSTIC" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
 echo.
 echo This is automated runtime evidence. Visual popping/cull transitions still need human inspection during the run.
 pause
