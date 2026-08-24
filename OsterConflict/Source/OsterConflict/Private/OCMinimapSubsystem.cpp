@@ -103,11 +103,23 @@ void UOCMinimapSubsystem::EnsureMinimap(AOCPlayerController& PlayerController)
     UWorld* World = GetWorld();
     if (!World) return;
 
+    // Pass 43: the minimap owns a SceneCapture-backed UTextureRenderTarget2D which is later used as a
+    // Slate brush. Never allocate/capture/publish that RHI resource while the frontend/deployment/settings
+    // Slate tree is still the active presentation. The old path built the hidden minimap even with no Pawn.
+    APawn* Pawn = PlayerController.GetPawn();
+    if (!Pawn || PlayerController.IsFrontendMenuVisible() || PlayerController.IsDeploymentPanelVisible() ||
+        PlayerController.IsAdminPanelVisible() || PlayerController.IsChatInputActive() || PlayerController.IsSettingsVisible())
+    {
+        return;
+    }
+
+    UOCTacticalMapSubsystem* TacticalMap = World->GetSubsystem<UOCTacticalMapSubsystem>();
+    if (TacticalMap && TacticalMap->IsMapOpen()) return;
+
     const double Now = FPlatformTime::Seconds();
     if (Now < NextBuildAttemptSeconds) return;
     NextBuildAttemptSeconds = Now + 1.0;
 
-    UOCTacticalMapSubsystem* TacticalMap = World->GetSubsystem<UOCTacticalMapSubsystem>();
     if (!TacticalMap || !TacticalMap->EnsureMapSnapshot() || !TacticalMap->GetMapRenderTarget() ||
         !TacticalMap->GetMapProjection().IsValid())
     {
@@ -127,6 +139,8 @@ void UOCMinimapSubsystem::EnsureMinimap(AOCPlayerController& PlayerController)
         bUpdateBudgetLogged = true;
         UE_LOG(LogTemp, Display,
             TEXT("PASS39_MINIMAP_UPDATE_BUDGET_READY hz=10 scene_capture_every_frame=0"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS43_MINIMAP_RENDER_TARGET_GAMEPLAY_ONLY_READY pawn=1 frontend=0 deployment=0 settings=0"));
     }
 }
 
@@ -136,6 +150,28 @@ void UOCMinimapSubsystem::Tick(float DeltaTime)
     AOCPlayerController* PlayerController = World ? Cast<AOCPlayerController>(World->GetFirstPlayerController()) : nullptr;
     if (!PlayerController || !PlayerController->IsLocalController()) return;
 
+    UOCTacticalMapSubsystem* TacticalMap = World->GetSubsystem<UOCTacticalMapSubsystem>();
+    APawn* Pawn = PlayerController->GetPawn();
+    const bool bBlocked = !Pawn || PlayerController->IsFrontendMenuVisible() || PlayerController->IsDeploymentPanelVisible() ||
+        PlayerController->IsAdminPanelVisible() || PlayerController->IsChatInputActive() || PlayerController->IsSettingsVisible() ||
+        (TacticalMap && TacticalMap->IsMapOpen());
+
+    // Do not create the minimap render target at all while blocked. If it already exists from gameplay,
+    // collapse the widget without touching/recreating its SceneCapture resource.
+    if (bBlocked)
+    {
+        if (UOCMinimapWidget* ExistingWidget = MinimapWidget.Get())
+        {
+            if (!bVisibilityInitialized || LastWidgetVisibility != ESlateVisibility::Collapsed)
+            {
+                ExistingWidget->SetVisibility(ESlateVisibility::Collapsed);
+                LastWidgetVisibility = ESlateVisibility::Collapsed;
+                bVisibilityInitialized = true;
+            }
+        }
+        return;
+    }
+
     EnsureMinimap(*PlayerController);
     UOCMinimapWidget* Widget = MinimapWidget.Get();
     if (!Widget) return;
@@ -144,26 +180,14 @@ void UOCMinimapSubsystem::Tick(float DeltaTime)
     if (UpdateAccumulator < MinimapUpdateIntervalSeconds) return;
     UpdateAccumulator = FMath::Fmod(UpdateAccumulator, MinimapUpdateIntervalSeconds);
 
-    UOCTacticalMapSubsystem* TacticalMap = World->GetSubsystem<UOCTacticalMapSubsystem>();
-    APawn* Pawn = PlayerController->GetPawn();
-    const bool bBlocked = !Pawn || PlayerController->IsFrontendMenuVisible() || PlayerController->IsDeploymentPanelVisible() ||
-        PlayerController->IsAdminPanelVisible() || PlayerController->IsChatInputActive() || PlayerController->IsSettingsVisible() ||
-        (TacticalMap && TacticalMap->IsMapOpen());
-
-    const ESlateVisibility DesiredVisibility = bBlocked
-        ? ESlateVisibility::Collapsed
-        : ESlateVisibility::HitTestInvisible;
-    if (!bVisibilityInitialized || DesiredVisibility != LastWidgetVisibility)
+    if (!bVisibilityInitialized || LastWidgetVisibility != ESlateVisibility::HitTestInvisible)
     {
-        Widget->SetVisibility(DesiredVisibility);
-        LastWidgetVisibility = DesiredVisibility;
+        Widget->SetVisibility(ESlateVisibility::HitTestInvisible);
+        LastWidgetVisibility = ESlateVisibility::HitTestInvisible;
         bVisibilityInitialized = true;
     }
 
-    if (!bBlocked)
-    {
-        Widget->UpdatePlayerMarker(Pawn->GetActorLocation(), Pawn->GetActorRotation().Yaw);
-    }
+    Widget->UpdatePlayerMarker(Pawn->GetActorLocation(), Pawn->GetActorRotation().Yaw);
 }
 
 void UOCMinimapSubsystem::Deinitialize()
