@@ -28,9 +28,11 @@ engine = read(P / "Config" / "DefaultEngine.ini")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_h = read(SRC / "Public" / "OCGameModeRuntimeSafe.h")
 runtime = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
+world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
 central_h = read(SRC / "Public" / "OCCentralPlayableAreaSubsystem.h")
 central = read(SRC / "Private" / "OCCentralPlayableAreaSubsystem.cpp")
 tactical_h = read(SRC / "Public" / "OCTacticalMapSubsystem.h")
+tactical_visual = read(SRC / "Private" / "OCTacticalMapVisual.cpp")
 weapon_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
 weapon = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
@@ -95,6 +97,36 @@ for needle in (
 ):
     require(runtime_h + runtime, needle, "actual Museum pawn + bot suppression")
 
+# Primary world authoring must now be compact before BeginPlay. Runtime trimming is only a safety net.
+for needle in (
+    "MinPlayableX = -78000.0f",
+    "MaxPlayableX =  18000.0f",
+    "MinPlayableY = -12000.0f",
+    "MaxPlayableY =  82000.0f",
+    "MapWidthCm = MaxPlayableX - MinPlayableX",
+    "MapHeightCm = MaxPlayableY - MinPlayableY",
+    "Ground->SetRelativeLocation(FVector(MapCenterX, MapCenterY, -100.0f))",
+    "IntersectsPlayableAuthoringBounds",
+    "IsPointInsidePlayableAuthoringBounds",
+    "Pass 44: retired",
+    "peripheral source-only BASE geometry here",
+    "previous Desna/Oster broad proxy strips",
+    "PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY",
+    "old_ground_2400m=0",
+    "far_legacy_base_geometry=0",
+    "peripheral_hydrography=0",
+):
+    require(world, needle, "compact primary world authoring")
+for forbidden in (
+    "constexpr float MapWidthCm = 240000.0f",
+    "constexpr float MapHeightCm = 240000.0f",
+    "FVector(-104000.0f, -92000.0f",
+    "FVector( 104000.0f,  92000.0f",
+    "FVector(-112000, -25000",
+    "FVector( 82000, -52000",
+):
+    forbid(world, forbidden, "legacy peripheral world authoring")
+
 for needle in (
     "MinPlayableX = -78000.0f",
     "MaxPlayableX =  18000.0f",
@@ -105,13 +137,34 @@ for needle in (
     "legacy_2400m_ground=0",
     "reference=oster_central_playable_area_20260824",
 ):
-    require(central_h + central, needle, "compact playable area")
+    require(central_h + central, needle, "compact playable area safety net")
 
 for needle in (
     "Pass 44: the old projection was resolved before the central-playable-area trim",
     "return ResolveWorldMapSource() && CaptureWorldMap();",
 ):
     require(tactical_h, needle, "tactical map reframe after trim")
+
+# Tactical map must use the hard compact bounds directly, not auto-fit a larger old procedural sector.
+for needle in (
+    "Pass44PlayableMinX = -78000.0f",
+    "Pass44PlayableMaxX =  18000.0f",
+    "Pass44PlayableMinY = -12000.0f",
+    "Pass44PlayableMaxY =  82000.0f",
+    "FBox2D CompactWorldBounds(ForceInit)",
+    "Projection.WorldMin = CompactWorldBounds.Min",
+    "Projection.WorldMax = CompactWorldBounds.Max",
+    "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
+    "auto_component_fit=0",
+    "old_min_halfwidth_800m=0",
+):
+    require(tactical_visual, needle, "hard compact tactical-map projection")
+for forbidden in (
+    "FMath::Clamp(HalfSize.X, 80000.0f, 120000.0f)",
+    "HalfSize += FVector2D(30000.0f, 26000.0f)",
+    "AccumulateComponentBounds2D",
+):
+    forbid(tactical_visual, forbidden, "superseded tactical auto-fit/minimum extent")
 
 for needle in (
     'AuthoredMaterialGapTag(TEXT("OC_WeaponAuthoredMaterialGap"))',
@@ -201,7 +254,9 @@ for needle in (
 
 for marker in (
     "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
+    "PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY",
     "PASS44_COMPACT_PLAYABLE_AREA_READY",
+    "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
     "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
     "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
     "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
@@ -210,10 +265,12 @@ for marker in (
     require(acceptance, marker, f"Pass 44 runtime acceptance marker {marker}")
 
 print("RUNTIME MAP / SPAWN / FPS / ASSETS PASS 44 SOURCE CONTRACT PASS")
-print("- root authority now retires stale conflicting rules/verifiers instead of resurrecting regressions")
+print("- root authority retires stale conflicting rules/verifiers instead of resurrecting regressions")
 print("- actual human BASE pawn is verified within 45 m of MuseumAnchor")
 print("- implicit local bot fill is disabled; bots remain explicit opt-in")
-print("- central Oster playable/tactical bounds follow the saved user map reference")
+print("- primary world is authored inside the compact 960 x 940 m reference before BeginPlay")
+print("- tactical map directly uses the hard compact bounds; old 1600 m minimum/auto-fit is retired")
+print("- runtime central-area trim remains only a safety net for late/legacy instances")
 print("- weapon BasicShape/palette mutation is retired and authored-material gaps remain fail-visible")
 print("- HMMWV/M2/BTR intake is independent and missing BTR no longer blocks available models")
 print("STATUS: CODED_UNTESTED; UE 5.8 runtime and user visual acceptance remain authoritative")
