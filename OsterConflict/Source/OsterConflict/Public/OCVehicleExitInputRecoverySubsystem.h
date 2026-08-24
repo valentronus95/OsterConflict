@@ -30,7 +30,9 @@ private:
     TWeakObjectPtr<APawn> LastLocalPawn;
     TWeakObjectPtr<APawn> LastRecoveredCharacterPawn;
     bool bLastPawnWasVehicle = false;
+    bool bPollBudgetLogged = false;
 
+    void ScheduleNextPoll(float DelaySeconds);
     void PollLocalPossession();
     void RestoreCharacterInput(class AOCPlayerController& PlayerController);
 };
