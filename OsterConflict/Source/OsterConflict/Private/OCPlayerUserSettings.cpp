@@ -34,49 +34,133 @@ void UOCPlayerUserSettings::EnsureInitialGraphicsProfile()
 
     if (!bInitialGraphicsProfileApplied)
     {
-        // Only the first initialization may reload the persisted engine settings. Repeating LoadSettings()
+        // Only the first initialization may reload persisted engine settings. Repeating LoadSettings()
         // from every Get() would overwrite pending changes while the graphics menu is open.
         GameSettings->LoadSettings(false);
 
-        // Pass 16: the failed laptop run proved that relying on whatever scalability UE happens to
-        // inherit on first launch can make the game start at ~5 FPS. Apply a one-time CEILING only:
-        // existing settings that are already cheaper are never raised, and after this flag is saved
-        // the player's manual graphics choices are never overwritten on future launches.
+        // Pass 39 replaces the old emergency-looking Pass 16 profile. The previous 75% screen scale,
+        // zero shadows/GI/reflections and mostly quality-1 ceiling made the user's runtime visibly blurry
+        // while the real FPS collapse was caused elsewhere. Keep a conservative balanced ceiling instead:
+        // expensive lighting remains Low, while textures, AA, landscape and view distance are readable.
         auto SafeQuality = [](int32 Current, int32 Ceiling)
         {
             return Current >= 0 ? FMath::Min(Current, Ceiling) : Ceiling;
         };
 
-        GameSettings->SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 1));
-        GameSettings->SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 0));
-        GameSettings->SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 1));
-        GameSettings->SetVisualEffectQuality(SafeQuality(GameSettings->GetVisualEffectQuality(), 1));
-        GameSettings->SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 0));
-        GameSettings->SetPostProcessingQuality(SafeQuality(GameSettings->GetPostProcessingQuality(), 1));
-        GameSettings->SetAntiAliasingQuality(SafeQuality(GameSettings->GetAntiAliasingQuality(), 1));
-        GameSettings->SetShadingQuality(SafeQuality(GameSettings->GetShadingQuality(), 1));
-        GameSettings->SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 0));
-        GameSettings->SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 0));
-        GameSettings->SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 1));
+        GameSettings->SetViewDistanceQuality(SafeQuality(GameSettings->GetViewDistanceQuality(), 2));
+        GameSettings->SetShadowQuality(SafeQuality(GameSettings->GetShadowQuality(), 1));
+        GameSettings->SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 2));
+        GameSettings->SetVisualEffectQuality(SafeQuality(GameSettings->GetVisualEffectQuality(), 2));
+        GameSettings->SetFoliageQuality(SafeQuality(GameSettings->GetFoliageQuality(), 1));
+        GameSettings->SetPostProcessingQuality(SafeQuality(GameSettings->GetPostProcessingQuality(), 2));
+        GameSettings->SetAntiAliasingQuality(SafeQuality(GameSettings->GetAntiAliasingQuality(), 2));
+        GameSettings->SetShadingQuality(SafeQuality(GameSettings->GetShadingQuality(), 2));
+        GameSettings->SetGlobalIlluminationQuality(SafeQuality(GameSettings->GetGlobalIlluminationQuality(), 1));
+        GameSettings->SetReflectionQuality(SafeQuality(GameSettings->GetReflectionQuality(), 1));
+        GameSettings->SetLandscapeQuality(SafeQuality(GameSettings->GetLandscapeQuality(), 2));
 
         float NormalizedScale = 1.0f;
         float CurrentScale = 100.0f;
         float MinScale = 50.0f;
         float MaxScale = 100.0f;
         GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
-        if (CurrentScale > 75.0f)
+        if (CurrentScale > 85.0f)
         {
-            GameSettings->SetResolutionScaleValueEx(75.0f);
+            GameSettings->SetResolutionScaleValueEx(85.0f);
         }
 
         GameSettings->ApplySettings(false);
         GameSettings->SaveSettings();
 
         bInitialGraphicsProfileApplied = true;
+        bPass39GraphicsQualityRecoveryApplied = true;
         SaveConfig();
 
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view<=1 shadow=0 texture<=1 effects<=1 foliage=0 post<=1 aa<=1 shading<=1 gi=0 reflection=0 landscape<=1 resolution_scale<=75"));
+            TEXT("PASS16_INITIAL_GRAPHICS_PROFILE_APPLIED view<=2 shadow<=1 texture<=2 effects<=2 foliage<=1 post<=2 aa<=2 shading<=2 gi<=1 reflection<=1 landscape<=2 resolution_scale<=85"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED mode=new_profile old_pass16_profile=0"));
+    }
+    else if (!bPass39GraphicsQualityRecoveryApplied)
+    {
+        // Existing Pass 16 installs already persisted the old degraded engine settings, so changing the
+        // source ceiling alone would do nothing. Migrate exactly once, but only when the active profile
+        // still matches the old automatic low-quality signature. Any user-customized profile is preserved.
+        GameSettings->LoadSettings(false);
+
+        float NormalizedScale = 1.0f;
+        float CurrentScale = 100.0f;
+        float MinScale = 50.0f;
+        float MaxScale = 100.0f;
+        GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
+
+        const bool bLooksLikeLegacyPass16 =
+            CurrentScale <= 75.5f &&
+            GameSettings->GetViewDistanceQuality() <= 1 &&
+            GameSettings->GetShadowQuality() == 0 &&
+            GameSettings->GetTextureQuality() <= 1 &&
+            GameSettings->GetVisualEffectQuality() <= 1 &&
+            GameSettings->GetFoliageQuality() == 0 &&
+            GameSettings->GetPostProcessingQuality() <= 1 &&
+            GameSettings->GetAntiAliasingQuality() <= 1 &&
+            GameSettings->GetShadingQuality() <= 1 &&
+            GameSettings->GetGlobalIlluminationQuality() == 0 &&
+            GameSettings->GetReflectionQuality() == 0 &&
+            GameSettings->GetLandscapeQuality() <= 1;
+
+        if (bLooksLikeLegacyPass16)
+        {
+            GameSettings->SetViewDistanceQuality(2);
+            GameSettings->SetShadowQuality(1);
+            GameSettings->SetTextureQuality(2);
+            GameSettings->SetVisualEffectQuality(2);
+            GameSettings->SetFoliageQuality(1);
+            GameSettings->SetPostProcessingQuality(2);
+            GameSettings->SetAntiAliasingQuality(2);
+            GameSettings->SetShadingQuality(2);
+            GameSettings->SetGlobalIlluminationQuality(1);
+            GameSettings->SetReflectionQuality(1);
+            GameSettings->SetLandscapeQuality(2);
+            GameSettings->SetResolutionScaleValueEx(85.0f);
+            GameSettings->ApplySettings(false);
+            GameSettings->SaveSettings();
+
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS39_GRAPHICS_QUALITY_RECOVERY_APPLIED mode=legacy_pass16 scale=85 view=2 shadow=1 texture=2 effects=2 foliage=1 post=2 aa=2 shading=2 gi=1 reflection=1 landscape=2"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS39_GRAPHICS_CUSTOM_PROFILE_PRESERVED old_pass16_profile=0"));
+        }
+
+        bPass39GraphicsQualityRecoveryApplied = true;
+        SaveConfig();
+    }
+
+    static bool bPass39ProfileLogged = false;
+    if (!bPass39ProfileLogged)
+    {
+        float NormalizedScale = 1.0f;
+        float CurrentScale = 100.0f;
+        float MinScale = 50.0f;
+        float MaxScale = 100.0f;
+        GameSettings->GetResolutionScaleInformationEx(NormalizedScale, CurrentScale, MinScale, MaxScale);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS39_GRAPHICS_QUALITY_PROFILE_READY scale=%.0f view=%d shadow=%d texture=%d effects=%d foliage=%d post=%d aa=%d shading=%d gi=%d reflection=%d landscape=%d"),
+            CurrentScale,
+            GameSettings->GetViewDistanceQuality(),
+            GameSettings->GetShadowQuality(),
+            GameSettings->GetTextureQuality(),
+            GameSettings->GetVisualEffectQuality(),
+            GameSettings->GetFoliageQuality(),
+            GameSettings->GetPostProcessingQuality(),
+            GameSettings->GetAntiAliasingQuality(),
+            GameSettings->GetShadingQuality(),
+            GameSettings->GetGlobalIlluminationQuality(),
+            GameSettings->GetReflectionQuality(),
+            GameSettings->GetLandscapeQuality());
+        bPass39ProfileLogged = true;
     }
 
     // Log actual gameplay renderer identity once the RHI exists. Get() is used from several UI/controller
@@ -145,9 +229,8 @@ void UOCPlayerUserSettings::ApplyPresentationCVars()
 
 void UOCPlayerUserSettings::ResetPlayerDefaults()
 {
-    // LastUsername, LastServerAddress and bInitialGraphicsProfileApplied deliberately survive Reset Defaults.
-    // The graphics reset button stages UGameUserSettings separately; it must not make the next launch silently
-    // re-apply Pass 16 after the user intentionally chose/reset video settings.
+    // Identity and one-time graphics migration flags deliberately survive Reset Defaults. The graphics
+    // reset button stages UGameUserSettings separately; it must not silently re-run an automatic profile.
     SettingsSchemaVersion = CurrentSettingsSchemaVersion;
     MouseSensitivity = 1.0f;
     AimSensitivityMultiplier = 0.72f;
