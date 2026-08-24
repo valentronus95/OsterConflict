@@ -34,7 +34,7 @@ require("TacticalMapWorldCapture" in visual and "ESlateVisibility::Collapsed" in
 require("TacticalField" in visual and "TacticalBackdrop" in visual,
         "dark tactical base palette is missing")
 
-# World geometry, not generated screenshot geography, must drive the vector layer.
+# World geometry, not generated screenshot geography, still drives the vector layer INSIDE the hard playable frame.
 for getter in (
     "GetTacticalRoads", "GetTacticalSidewalks", "GetTacticalBuildings",
     "GetTacticalResidentialRoofs", "GetTacticalLandmarkBlocks",
@@ -45,16 +45,41 @@ for getter in (
 require("GetInstanceTransform" in visual, "vector map is not built from actual instance transforms")
 require("WorldToMap(WorldLocation)" in visual, "world geometry is not projected through the tactical-map projection")
 
-# Start framing remains central-Oster focused. Pass 44 additionally trims the world before snapshot capture,
-# so this presentation framing is no longer permission to re-expand gameplay to old peripheral geometry.
+# Pass 44 supersedes the old component/anchor auto-fit. The M-map frame is now the exact user-approved
+# playable boundary. Landmarks are rendered as POIs inside that frame, but they must not enlarge it.
 require("ReframeProjectionForCentralOster" in map_h and "ReframeProjectionForCentralOster" in visual,
         "central-Oster production framing is missing")
-for anchor in ("MuseumAnchor", "StadiumAnchor", "ParkAnchor", "CollegeAnchor", "FormerCityAdministrationAnchor"):
-    require(anchor in visual, f"core framing is missing anchor: {anchor}")
-require("FOCGeoReference::Silpo" in visual, "Silpo is missing from central-Oster framing")
-require("TacticalMapAspect" in visual, "production north-up aspect framing is missing")
+for marker in (
+    "Pass44PlayableMinX = -78000.0f",
+    "Pass44PlayableMaxX =  18000.0f",
+    "Pass44PlayableMinY = -12000.0f",
+    "Pass44PlayableMaxY =  82000.0f",
+    "FBox2D CompactWorldBounds(ForceInit)",
+    "Projection.WorldMin = CompactWorldBounds.Min",
+    "Projection.WorldMax = CompactWorldBounds.Max",
+    "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
+    "auto_component_fit=0",
+    "old_min_halfwidth_800m=0",
+):
+    require(marker in visual, f"Pass 44 hard tactical framing missing: {marker}")
+for stale in (
+    "AccumulateComponentBounds2D",
+    "HalfSize += FVector2D(30000.0f, 26000.0f)",
+    "FMath::Clamp(HalfSize.X, 80000.0f, 120000.0f)",
+):
+    require(stale not in visual, f"superseded tactical auto-fit returned: {stale}")
 require("ResolveWorldMapSource() && CaptureWorldMap()" in map_h,
-        "Pass 44 map snapshot does not re-resolve trimmed central-Oster bounds before capture")
+        "Pass 44 map snapshot does not re-resolve compact central-Oster bounds before capture")
+
+# Current user-facing POIs remain inside the compact frame. Their presence is a display contract, not a framing input.
+for poi in (
+    'AddLandmarkMarker(TEXT("МУЗЕЙ")',
+    'AddLandmarkMarker(TEXT("СТАДІОН")',
+    'AddLandmarkMarker(TEXT("ПАРК")',
+    'AddLandmarkMarker(TEXT("ЦЕНТР")',
+):
+    require(poi in visual, f"production POI chip missing: {poi}")
+require("FOCGeoReference::Silpo" in visual, "Silpo POI is missing from the compact tactical map")
 
 # Decluttering / production chrome.
 require("TacticalMapPlayerCoordinates" in visual and "Collapsed" in visual,
@@ -65,8 +90,6 @@ require("TacticalMapProductionAccent" in visual,
         "approved amber tactical accent is missing")
 require("ПКМ  ПОСТАВИТИ МІТКУ" in visual,
         "RMB control hint does not describe the tactical marker action")
-require("AddLandmarkMarker(TEXT(\"МУЗЕЙ\")" in visual and "AddLandmarkMarker(TEXT(\"СТАДІОН\")" in visual,
-        "POI chips are not rebuilt against the production projection")
 
 # Prevent stale-runtime testing without forbidding legitimate pre-merge runtime-fix branches.
 # Normal gameplay fetches/compares the exact current allowed branch; Sandbox remains intentionally main-only.
@@ -91,4 +114,4 @@ for marker in (
 require("LOCAL_HEAD" in sandbox_run and "REMOTE_HEAD" in sandbox_run,
         "sandbox launcher does not compare local and GitHub main")
 
-print("Tactical Map production visual design + Pass 44 branch-aware launch contracts: PASS")
+print("Tactical Map production visual design + Pass 44 hard-bound launch contracts: PASS")
