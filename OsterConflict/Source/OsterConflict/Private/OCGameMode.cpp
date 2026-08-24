@@ -80,10 +80,15 @@ void AOCGameMode::InitGame(const FString& MapName, const FString& Options, FStri
     const FString PopulationOption = UGameplayStatics::ParseOption(Options, TEXT("Population"));
     if (!PopulationOption.IsEmpty()) TargetPopulation = FMath::Clamp(FCString::Atoi(*PopulationOption), 0, MaxPlayerSlots);
     else if (RequestedBotCount >= 0) TargetPopulation = RequestedBotCount;
-    else TargetPopulation = MaxPlayerSlots;
+    else TargetPopulation = 0;
 
     const FString BotFillOption = UGameplayStatics::ParseOption(Options, TEXT("BotFill"));
-    if (!BotFillOption.IsEmpty()) bAutoFillBots = !BotFillOption.Equals(TEXT("0")) && !BotFillOption.Equals(TEXT("false"), ESearchCase::IgnoreCase);
+    if (!BotFillOption.IsEmpty())
+    {
+        bAutoFillBots = !BotFillOption.Equals(TEXT("0")) && !BotFillOption.Equals(TEXT("false"), ESearchCase::IgnoreCase);
+        // Explicit BotFill without Bots/Population is a real opt-in request for a filled server.
+        if (bAutoFillBots && PopulationOption.IsEmpty() && RequestedBotCount < 0) TargetPopulation = MaxPlayerSlots;
+    }
 
     ConfiguredBotDifficulty = ParseBotDifficulty(Options);
     ConfigurePerformanceProfile(Options);
@@ -496,7 +501,6 @@ void AOCGameMode::RestartBotController(AOCAIController* BotController)
     AOCBotCharacter* Pawn=GetWorld()->SpawnActor<AOCBotCharacter>(AOCBotCharacter::StaticClass(),SpawnTransform,Params);
     if(Pawn)BotController->Possess(Pawn);
 }
-
 
 void AOCGameMode::RemoveBotController(AOCAIController* Bot)
 {
@@ -1264,25 +1268,25 @@ void AOCGameMode::SpawnOsterCenterSector()
         }
     }
 
-    // A small S07 firing lane remains near the southern edge for regression testing of S01-S05 combat.
+    // Pass 44: keep the regression firing lane inside the compact central battlefield instead of the retired south-east edge.
     const FVector TargetLocations[] =
     {
-        FVector(43000.0f, -43000.0f, 180.0f), FVector(45500.0f, -43000.0f, 180.0f),
-        FVector(48000.0f, -43000.0f, 180.0f), FVector(50500.0f, -43000.0f, 180.0f),
-        FVector(53000.0f, -43000.0f, 180.0f)
+        Museum + FVector(-9000.0f, 9000.0f, 180.0f), Museum + FVector(-6500.0f, 9000.0f, 180.0f),
+        Museum + FVector(-4000.0f, 9000.0f, 180.0f), Museum + FVector(-1500.0f, 9000.0f, 180.0f),
+        Museum + FVector(1000.0f, 9000.0f, 180.0f)
     };
     for (const FVector& Location : TargetLocations)
     {
         GetWorld()->SpawnActor<AOCDamageTarget>(AOCDamageTarget::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
     }
 
-    // S14B source-only destruction lane: wood/metal/masonry props react to bullets and explosions.
+    // S14B destruction lane remains useful, but its actors are now authored beside the compact firing lane.
     struct FDestructibleSeed { EOCImpactSurface Surface; FVector Location; FVector Scale; float Durability; };
     const FDestructibleSeed DestructionSeeds[] =
     {
-        { EOCImpactSurface::Wood, FVector(43000.0f, -40500.0f, 80.0f), FVector(1.6f,0.22f,1.1f), 65.0f },
-        { EOCImpactSurface::Metal, FVector(45500.0f, -40500.0f, 80.0f), FVector(1.2f,0.18f,1.2f), 160.0f },
-        { EOCImpactSurface::Masonry, FVector(48000.0f, -40500.0f, 90.0f), FVector(1.8f,0.28f,1.4f), 220.0f }
+        { EOCImpactSurface::Wood, Museum + FVector(-9000.0f, 11500.0f, 80.0f), FVector(1.6f,0.22f,1.1f), 65.0f },
+        { EOCImpactSurface::Metal, Museum + FVector(-6500.0f, 11500.0f, 80.0f), FVector(1.2f,0.18f,1.2f), 160.0f },
+        { EOCImpactSurface::Masonry, Museum + FVector(-4000.0f, 11500.0f, 90.0f), FVector(1.8f,0.28f,1.4f), 220.0f }
     };
     for (const FDestructibleSeed& Seed : DestructionSeeds)
     {
@@ -1360,11 +1364,12 @@ void AOCGameMode::SpawnOsterCenterSector()
     struct FSpawnSeed { EOCTeam Team; FVector Location; float Yaw; bool bBase; const TCHAR* LinkedPoint; };
     const FSpawnSeed SpawnSeeds[] =
     {
-        // S16A: opposing base zones near the south-west / north-east edges of the expanded 2.4 x 2.4 km reference layout.
-        { EOCTeam::TeamOne, FVector(-106000.0f, -90000.0f, 40.0f), 35.0f, true, TEXT("") },
-        { EOCTeam::TeamOne, FVector(-102500.0f, -94000.0f, 40.0f), 35.0f, true, TEXT("") },
-        { EOCTeam::TeamTwo, FVector(106000.0f, 90000.0f, 40.0f), 215.0f, true, TEXT("") },
-        { EOCTeam::TeamTwo, FVector(102500.0f, 94000.0f, 40.0f), 215.0f, true, TEXT("") },
+        // Pass 44: BASE actors are authored beside Museum from frame zero. Primary/secondary identity is
+        // resolved by AOCTeamSpawnPoint without any dependency on the retired ±920 m map edges.
+        { EOCTeam::TeamOne, Museum + FVector(-1400.0f, -2400.0f, 40.0f), 60.0f, true, TEXT("") },
+        { EOCTeam::TeamOne, Museum + FVector(-2300.0f, -3100.0f, 40.0f), 60.0f, true, TEXT("") },
+        { EOCTeam::TeamTwo, Museum + FVector(1400.0f, -2400.0f, 40.0f), 120.0f, true, TEXT("") },
+        { EOCTeam::TeamTwo, Museum + FVector(2300.0f, -3100.0f, 40.0f), 120.0f, true, TEXT("") },
 
         // Forward spawn candidates are intentionally outside the capture radius and require point ownership.
         { EOCTeam::TeamOne, Museum + FVector(-7500.0f, -1500.0f, 40.0f), 15.0f, false, TEXT("A") },
@@ -1383,6 +1388,9 @@ void AOCGameMode::SpawnOsterCenterSector()
             Point->ConfigureServer(Seed.Team, Seed.bBase, Seed.bBase ? NAME_None : FName(Seed.LinkedPoint));
         }
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY firing_lane=compact destruction_lane=compact base_seeds=museum old_edge_base_seeds=0"));
 }
 
 
@@ -1401,8 +1409,7 @@ void AOCGameMode::SpawnCivilianVehicleFleet()
         float RespawnDelay;
     };
 
-    // S10 distributed civilian mobility. Positions sit on the existing central road graph and deliberately avoid
-    // spawning every vehicle at the two team bases. This provides several recoverable transport options per round.
+    // S10 distributed civilian mobility. All Pass 44 seeds are inside the compact central road graph.
     const FVehicleSeed Seeds[] =
     {
         { FVector(-47000.0f,  9000.0f, 145.0f),   0.0f, EOCCivilianVehicleStyle::Wagon,     34.0f },
@@ -1410,7 +1417,7 @@ void AOCGameMode::SpawnCivilianVehicleFleet()
         { FVector(-33500.0f, 36000.0f, 145.0f),  92.0f, EOCCivilianVehicleStyle::Hatchback, 30.0f },
         { FVector( -2500.0f, 47000.0f, 145.0f),  84.0f, EOCCivilianVehicleStyle::Wagon,     36.0f },
         { FVector( 11000.0f, -9000.0f, 145.0f),   0.0f, EOCCivilianVehicleStyle::Sedan,     32.0f },
-        { FVector( 33000.0f, -9000.0f, 145.0f), 180.0f, EOCCivilianVehicleStyle::Hatchback, 32.0f },
+        { FVector( 15000.0f, -9000.0f, 145.0f), 180.0f, EOCCivilianVehicleStyle::Hatchback, 32.0f },
         { FVector(-58500.0f, 67500.0f, 145.0f),   0.0f, EOCCivilianVehicleStyle::Wagon,     38.0f },
         { FVector(-26000.0f,  9200.0f, 145.0f), 180.0f, EOCCivilianVehicleStyle::Sedan,     34.0f }
     };
@@ -1444,13 +1451,17 @@ void AOCGameMode::SpawnCombatVehicleFleet()
         float RespawnDelay;
     };
 
-    // S11 prototype distribution: each side gets access to one gun truck and one BTR-class vehicle.
+    const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
+    const FVector Stadium = AOCWorldSectorOster::StadiumAnchor();
+
+    // Pass 44: production pickup/HMMWV and BTR spawn points are inside the compact Museum/Stadium core,
+    // close enough to be actually inspected during the next runtime instead of existing beyond the retired map edge.
     const FCombatSeed Seeds[] =
     {
-        { false, FVector(-69000.0f, -61000.0f, 180.0f),  35.0f, 52.0f },
-        { true,  FVector(-73500.0f, -66000.0f, 190.0f),  32.0f, 78.0f },
-        { false, FVector( 69000.0f,  61000.0f, 180.0f), 215.0f, 52.0f },
-        { true,  FVector( 73500.0f,  66000.0f, 180.0f), 200.0f, 78.0f }
+        { false, Museum + FVector(-8500.0f, -7000.0f, 180.0f),  45.0f, 52.0f },
+        { true,  Museum + FVector(-13500.0f, -6500.0f, 190.0f), 35.0f, 78.0f },
+        { false, Museum + FVector( 8500.0f, -7000.0f, 180.0f), 135.0f, 52.0f },
+        { true,  Stadium + FVector(-2500.0f, 5500.0f, 190.0f), 200.0f, 78.0f }
     };
 
     FActorSpawnParameters Params;
@@ -1473,4 +1484,7 @@ void AOCGameMode::SpawnCombatVehicleFleet()
             SpawnPoint->ConfigureRespawnDelayRuntime(Seed.RespawnDelay);
         }
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY vehicles=4 museum_stadium_core=1 old_edge_vehicle_seeds=0"));
 }
