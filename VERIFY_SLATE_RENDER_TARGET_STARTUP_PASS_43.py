@@ -35,7 +35,6 @@ tactical = read(TACTICAL)
 launcher = read(LAUNCHER)
 pass23 = read(PASS23)
 
-# Reproduce the exact startup call chain active in the reported RenderTargetPool/SlateRHIRenderer crash.
 native_construct = re.search(
     r"void\s+UOCGameUIRootWidget::NativeConstruct\(\)\s*\{(?P<body>.*?)\n\}", ui, re.S
 )
@@ -67,15 +66,11 @@ ensure = re.search(
 if not ensure:
     raise SystemExit("PASS43 VERIFY FAIL: could not isolate EnsureInitialGraphicsProfile")
 ensure_body = ensure.group("body")
-
-# Critical fix 1: startup migration is persistence-only. A live UGameUserSettings apply can
-# resize/recreate the game viewport while SlateRHIRenderer is still constructing its RHI render target.
 forbid(ensure_body, "GameSettings->ApplySettings(", "automatic graphics migration must not mutate live viewport/backbuffer")
 require(ensure_body, "GameSettings->SaveSettings();", "automatic profile persistence")
 require(ensure_body, "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY", "Pass 43 startup persistence marker")
 require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass 43 marker payload")
 
-# Manual graphics changes remain live and explicit after the UI/viewport is established.
 manual = re.search(
     r"void\s+UOCGameUIRootWidget::ApplySettingsWidgets\(bool bCloseAfterApply\)\s*\{(?P<body>.*?)\n\}\n\nvoid\s+UOCGameUIRootWidget::CancelPendingSettings",
     ui,
@@ -86,9 +81,6 @@ if not manual:
 require(manual.group("body"), "GU->ApplySettings(false);", "explicit settings UI live apply")
 require(manual.group("body"), "GU->ConfirmVideoMode();", "explicit settings UI video mode confirmation")
 
-# Critical fix 2: the old minimap path created/captured a 1600x900 UTextureRenderTarget2D and published it
-# into a Slate UImage even while the frontend had no Pawn. Reject blocked UI/no-pawn states before any
-# EnsureMapSnapshot()/SceneCapture/Slate-brush creation.
 ensure_minimap = re.search(
     r"void\s+UOCMinimapSubsystem::EnsureMinimap\(AOCPlayerController& PlayerController\)\s*\{(?P<body>.*?)\n\}\n\nvoid\s+UOCMinimapSubsystem::Tick",
     minimap,
@@ -123,7 +115,6 @@ require(minimap_tick_body, "EnsureMinimap(*PlayerController);", "gameplay minima
 if minimap_tick_body.index("if (bBlocked)") > minimap_tick_body.index("EnsureMinimap(*PlayerController);"):
     raise SystemExit("PASS43 VERIFY FAIL: Tick can still create the minimap render target before blocked-state rejection")
 
-# Tactical map capture stays one-shot once gameplay is allowed to create it.
 for needle in (
     "MapRenderTarget->UpdateResourceImmediate(true);",
     "CaptureComponent->bCaptureEveryFrame = false;",
@@ -132,14 +123,18 @@ for needle in (
 ):
     require(tactical, needle, "one-shot tactical map render target")
 
-# Keep the already-established DX11/SM5/no-HDR/no-RHI-thread startup isolation from Pass 23.
-for token in ("-d3d11", "-sm5", "-nohdr", "-norhithread"):
-    require(launcher, token, f"normal launcher safe renderer flag {token}")
+# Pass 45 keeps the Pass 43 DX11/SM5/no-HDR isolation but no longer treats -norhithread as a permanent
+# normal-game invariant. It is now an explicit compatibility A/B route after the latest menu-at-8-FPS evidence.
+for token in ("-d3d11", "-sm5", "-nohdr"):
+    require(launcher, token, f"normal launcher renderer flag {token}")
+require(launcher, 'set "RHI_FLAGS=-d3d11 -sm5 -nohdr"', "Pass 45 normal RHI-thread route")
+require(launcher, 'if /I "%OC_RHI_COMPAT%"=="1"', "Pass 45 explicit compatibility selector")
+require(launcher, '-norhithread', "Pass 45 compatibility route retains no-RHI-thread fallback")
+require(launcher, 'set "RHI_MODE=dx11_sm5_rhi_thread"', "Pass 45 normal RHI mode marker")
+require(launcher, 'set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"', "Pass 45 compatibility RHI mode marker")
 require(pass23, "DefaultGraphicsRHI=DefaultGraphicsRHI_DX11", "Pass 23 DX11 contract")
 require(pass23, "+D3D11TargetedShaderFormats=PCD3D_SM5", "Pass 23 SM5 contract")
 
-# Weapon preflight is a separate NullRHI commandlet. The attached launch transcript proves it completed
-# before the real normal-game process started, so do not conflate its harmless editor modules with the crash.
 require(launcher, "-run=pythonscript", "isolated weapon preflight")
 require(launcher, "-nullrhi", "weapon preflight NullRHI isolation")
 require(launcher, "[4/4] Launching CURRENT NORMAL GAME frontend", "normal frontend starts after preflight")
@@ -150,5 +145,5 @@ print("- automatic graphics changes are persisted for safe boot-time application
 print("- minimap SceneCapture/render target/Slate brush is not created in frontend, deployment or settings UI")
 print("- minimap render target is first allowed only with an actual unblocked gameplay Pawn")
 print("- explicit user graphics Apply remains available after viewport initialization")
-print("- DX11 + SM5 + no HDR + no RHI thread startup isolation remains intact")
-print("STATUS: CODED_UNTESTED; the next local UE 5.8 normal-game launch is authoritative")
+print("- DX11 + SM5 + no HDR isolation remains; -norhithread is now explicit Pass 45 compatibility A/B only")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime remains authoritative")
