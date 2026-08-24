@@ -12,14 +12,42 @@
 
 namespace
 {
-    constexpr float MapWidthCm = 240000.0f;
-    constexpr float MapHeightCm = 240000.0f;
+    // Pass 44: the user-approved central Oster battlefield is the authoring boundary, not merely a
+    // post-start trim. Keep these values synchronized with OCCentralPlayableAreaSubsystem and the
+    // tactical-map hard projection. Sector-local centimetres.
+    constexpr float MinPlayableX = -78000.0f;
+    constexpr float MaxPlayableX =  18000.0f;
+    constexpr float MinPlayableY = -12000.0f;
+    constexpr float MaxPlayableY =  82000.0f;
+    constexpr float MapWidthCm = MaxPlayableX - MinPlayableX;
+    constexpr float MapHeightCm = MaxPlayableY - MinPlayableY;
+    constexpr float MapCenterX = (MinPlayableX + MaxPlayableX) * 0.5f;
+    constexpr float MapCenterY = (MinPlayableY + MaxPlayableY) * 0.5f;
     constexpr float RoadZ = 8.0f;
     constexpr float GroundTopZ = 0.0f;
 
     FVector Rotate2D(const FVector& Local, float YawDegrees)
     {
         return FRotator(0.0f, YawDegrees, 0.0f).RotateVector(Local);
+    }
+
+    bool IntersectsPlayableAuthoringBounds(const FVector& Center, const FVector& SizeCm, const float YawDegrees)
+    {
+        const float HalfX = FMath::Abs(SizeCm.X) * 0.5f;
+        const float HalfY = FMath::Abs(SizeCm.Y) * 0.5f;
+        const float Radians = FMath::DegreesToRadians(YawDegrees);
+        const float C = FMath::Abs(FMath::Cos(Radians));
+        const float S = FMath::Abs(FMath::Sin(Radians));
+        const float ExtentX = C * HalfX + S * HalfY;
+        const float ExtentY = S * HalfX + C * HalfY;
+        return Center.X + ExtentX >= MinPlayableX && Center.X - ExtentX <= MaxPlayableX &&
+            Center.Y + ExtentY >= MinPlayableY && Center.Y - ExtentY <= MaxPlayableY;
+    }
+
+    bool IsPointInsidePlayableAuthoringBounds(const FVector& Point, const float PaddingCm = 0.0f)
+    {
+        return Point.X >= MinPlayableX - PaddingCm && Point.X <= MaxPlayableX + PaddingCm &&
+            Point.Y >= MinPlayableY - PaddingCm && Point.Y <= MaxPlayableY + PaddingCm;
     }
 }
 
@@ -122,7 +150,8 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         PineCrowns->SetStaticMesh(SphereMesh.Object);
     }
 
-    Ground->SetRelativeLocation(FVector(0.0f, 0.0f, -100.0f));
+    // Pass 44 primary authoring: never create the old 2.4 km ground in the first place.
+    Ground->SetRelativeLocation(FVector(MapCenterX, MapCenterY, -100.0f));
     Ground->SetRelativeScale3D(FVector(MapWidthCm / 100.0f, MapHeightCm / 100.0f, 2.0f));
 
     BuildRoadNetwork();
@@ -214,6 +243,9 @@ void AOCWorldSectorOster::BeginPlay()
     if (GrassRough) GrassRough->SetCastShadow(false);
     if (GrassWetland) GrassWetland->SetCastShadow(false);
     if (Waterways) Waterways->SetCastShadow(false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] old_ground_2400m=0 far_legacy_base_geometry=0 peripheral_hydrography=0"));
 }
 
 FVector AOCWorldSectorOster::MuseumAnchor()
@@ -282,6 +314,7 @@ void AOCWorldSectorOster::AddBoxRotated(UInstancedStaticMeshComponent* Component
     const FVector& SizeCm, const FRotator& Rotation)
 {
     if (!Component) return;
+    if (!IntersectsPlayableAuthoringBounds(Center, SizeCm, Rotation.Yaw)) return;
     FTransform Transform;
     Transform.SetLocation(Center);
     Transform.SetRotation(FQuat(Rotation));
@@ -293,6 +326,7 @@ void AOCWorldSectorOster::AddCylinder(UInstancedStaticMeshComponent* Component, 
     float RadiusCm, float HeightCm)
 {
     if (!Component) return;
+    if (!IsPointInsidePlayableAuthoringBounds(Center, RadiusCm)) return;
     FTransform Transform;
     Transform.SetLocation(Center);
     Transform.SetScale3D(FVector(RadiusCm / 50.0f, RadiusCm / 50.0f, HeightCm / 100.0f));
@@ -329,41 +363,9 @@ void AOCWorldSectorOster::AddFacadeWindow(UInstancedStaticMeshComponent* Compone
 
 void AOCWorldSectorOster::BuildGameplayBases()
 {
-    struct FBaseSeed { FVector Center; float Yaw; };
-    const FBaseSeed Bases[] =
-    {
-        { FVector(-104000.0f, -92000.0f, 0.0f), 35.0f },
-        { FVector( 104000.0f,  92000.0f, 0.0f), 215.0f }
-    };
-
-    for (const FBaseSeed& Base : Bases)
-    {
-        // Hardstand and approach keep the first seconds of a match visually readable.
-        AddBox(Sidewalks, Base.Center + FVector(0,0,10), FVector(8200, 6200, 20), Base.Yaw);
-        AddBox(Roads, Base.Center + Rotate2D(FVector(6500,0,8), Base.Yaw), FVector(7600, 780, 16), Base.Yaw);
-
-        // Two low shelters, ammo/service hut and waist-high cover. Source-only geometry, not final art.
-        AddBox(Buildings, Base.Center + Rotate2D(FVector(-1500,-1450,230), Base.Yaw), FVector(2200,1200,460), Base.Yaw);
-        AddGableRoof(ResidentialRoofs, Base.Center + Rotate2D(FVector(-1500,-1450,0), Base.Yaw),
-            2350, 1350, 610, Base.Yaw, 20.0f);
-        AddBox(Buildings, Base.Center + Rotate2D(FVector(-1500,1450,230), Base.Yaw), FVector(2200,1200,460), Base.Yaw);
-        AddGableRoof(ResidentialRoofs, Base.Center + Rotate2D(FVector(-1500,1450,0), Base.Yaw),
-            2350, 1350, 610, Base.Yaw, 20.0f);
-        AddBox(Buildings, Base.Center + Rotate2D(FVector(1700,1800,170), Base.Yaw), FVector(1200,900,340), Base.Yaw);
-
-        for (int32 I=-2; I<=2; ++I)
-        {
-            AddBox(ParkDetails, Base.Center + Rotate2D(FVector(1650, I*720.0f, 55), Base.Yaw),
-                FVector(280,560,110), Base.Yaw + 12.0f * I);
-        }
-
-        // Perimeter with deliberate vehicle/infantry openings.
-        AddBox(MetalFences, Base.Center + Rotate2D(FVector(-3400,0,125), Base.Yaw), FVector(45,6000,250), Base.Yaw);
-        AddBox(MetalFences, Base.Center + Rotate2D(FVector(0,-3000,125), Base.Yaw), FVector(6800,45,250), Base.Yaw);
-        AddBox(MetalFences, Base.Center + Rotate2D(FVector(0,3000,125), Base.Yaw), FVector(6800,45,250), Base.Yaw);
-        AddBox(MetalFences, Base.Center + Rotate2D(FVector(3400,-2100,125), Base.Yaw), FVector(45,1800,250), Base.Yaw);
-        AddBox(MetalFences, Base.Center + Rotate2D(FVector(3400,2100,125), Base.Yaw), FVector(45,1800,250), Base.Yaw);
-    }
+    // Pass 44: retired. The two old decorative BASE compounds lived around ±1040 m and were outside
+    // the user-approved central Oster battlefield. Actual deployment ownership belongs to AOCTeamSpawnPoint
+    // + OCGameModeRuntimeSafe near Museum; do not recreate peripheral source-only BASE geometry here.
 }
 
 void AOCWorldSectorOster::ConfigureLabel(UTextRenderComponent* Label, const FString& Text, const FVector& Location)
@@ -380,7 +382,7 @@ void AOCWorldSectorOster::ConfigureLabel(UTextRenderComponent* Label, const FStr
 void AOCWorldSectorOster::BuildRoadNetwork()
 {
     // S16A topology pass. The 2025 official general plan confirms Oster is a radial/irregular low-rise town,
-    // not a rectangular grid. These source-only strips preserve gameplay widths while following that hierarchy.
+    // not a rectangular grid. Pass 44 keeps only routes that intersect the user-approved central battlefield.
     auto AddRoadWithWalks = [this](const FVector& Center, const FVector& Size, float Yaw, bool bTwoWalks = true)
     {
         AddBox(Roads, Center, Size, Yaw);
@@ -418,37 +420,15 @@ void AOCWorldSectorOster::BuildRoadNetwork()
     const FVector College = CollegeAnchor();
     AddRoadWithWalks(College + FVector(-13500, 0, RoadZ), FVector(30000, 660, 14), 0.0f);
 
-    // Peripheral routes visible in the general plan, important for future vehicle loops.
-    AddBox(Roads, FVector(-86500, 15000, RoadZ), FVector(780, 138000, 16), 7.0f);
-    AddBox(Roads, FVector(65500, 15000, RoadZ), FVector(780, 120000, 16), -5.0f);
-    AddBox(Roads, FVector(2500, -67500, RoadZ), FVector(130000, 820, 16), -3.0f);
+    // Pass 44 deliberately removes the old general-plan peripheral vehicle loops at x=-865 m, x=655 m
+    // and y=-675 m. They were outside the hard current battlefield reference and inflated runtime/map bounds.
 }
 
 void AOCWorldSectorOster::BuildHydrography()
 {
-    // General-plan macro geometry: Desna floodplain to west/north-west; Oster river arcs around south/east.
-    // These are broad navigation/visual proxies, not shoreline survey geometry.
-    struct FWaterSeed { FVector Center; FVector Size; float Yaw; };
-    const FWaterSeed DesnaSeeds[] =
-    {
-        { FVector(-112000, -25000, -18), FVector(17000, 72000, 20), 3.0f },
-        { FVector(-104000,  38000, -18), FVector(19000, 72000, 20), 13.0f },
-        { FVector(-83000,   92000, -18), FVector(22000, 60000, 20), 36.0f }
-    };
-    for (const FWaterSeed& Seed : DesnaSeeds) AddBox(Waterways, Seed.Center, Seed.Size, Seed.Yaw);
-
-    const FWaterSeed OsterSeeds[] =
-    {
-        { FVector(-52000, -98000, -16), FVector(62000, 9000, 18), -7.0f },
-        { FVector(  3000, -101000, -16), FVector(57000, 8200, 18),  3.0f },
-        { FVector( 52000, -87000, -16), FVector(56000, 8000, 18), 26.0f },
-        { FVector( 82000, -52000, -16), FVector(51000, 7600, 18), 67.0f }
-    };
-    for (const FWaterSeed& Seed : OsterSeeds) AddBox(Waterways, Seed.Center, Seed.Size, Seed.Yaw);
-
-    // Simple bridge proxies on the southern approaches. Final bridge meshes and exact alignments are later content work.
-    AddBox(Bridges, FVector(-17000, -100000, 75), FVector(1200, 11800, 150), 87.0f);
-    AddBox(Bridges, FVector( 76000,  -65000, 75), FVector(1200, 10500, 150), 28.0f);
+    // Pass 44: the previous Desna/Oster broad proxy strips and bridge blockouts lived on the peripheral
+    // 2.4 km sector. They are not part of the current compact central-Oster reference and must not consume
+    // collision/render/tactical-map budget. Reintroduce water only from newer user-approved map evidence.
 }
 
 void AOCWorldSectorOster::BuildVerifiedReferenceMarkers()
@@ -740,6 +720,9 @@ void AOCWorldSectorOster::BuildResidentialBlocks()
     int32 HouseCounter = 0;
     for (const FBlockSeed& Block : Blocks)
     {
+        // Avoid even iterating full outlying residential grids that cannot contribute to the compact battlefield.
+        if (!IsPointInsidePlayableAuthoringBounds(Block.Origin, 8000.0f)) continue;
+
         for (int32 Row = 0; Row < Block.Rows; ++Row)
         {
             for (int32 Col = 0; Col < Block.Columns; ++Col)
@@ -820,6 +803,8 @@ void AOCWorldSectorOster::BuildVegetation()
 
     auto AddTreeFamily = [this](const FVector& Base, float Scale, ETreeProxy Family)
     {
+        if (!IsPointInsidePlayableAuthoringBounds(Base, 600.0f)) return;
+
         UInstancedStaticMeshComponent* Trunks = TreeTrunks;
         UInstancedStaticMeshComponent* Crowns = TreeCrowns;
         float TrunkRadius = 38.0f;
@@ -876,9 +861,8 @@ void AOCWorldSectorOster::BuildVegetation()
     for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
         AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
 
-    // Desna/Oster floodplain proxy: taller wet meadow/reed-edge vegetation, not a manicured lawn.
-    AddGrassPatch(GrassWetland, FVector(-93000, 35000, 0), FVector(33000, 102000, 4), 12.0f);
-    AddGrassPatch(GrassWetland, FVector( 43000,-93000, 0), FVector(98000, 21000, 4), 8.0f);
+    // Pass 44 removes the old Desna/Oster wetland proxies outside the compact map. Water-edge vegetation
+    // comes back only when a newer reference places that shoreline inside the battlefield.
 
     // Museum garden: old broadleaf canopy seen in reference photos, with a few tall Soviet-era poplar silhouettes nearby.
     for (int32 Index = 0; Index < 16; ++Index)
@@ -939,4 +923,3 @@ void AOCWorldSectorOster::BuildVegetation()
         AddTreeFamily(FVector(X,Y,0), 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
     }
 }
-
