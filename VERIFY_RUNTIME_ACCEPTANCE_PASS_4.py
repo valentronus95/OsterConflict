@@ -45,7 +45,7 @@ for needle in (
 ):
     require(launcher, needle, "normal gameplay launcher gate")
 
-# Pass 44 preserves strict exact-production acceptance, but optional intake may happen before this launcher in normal mode.
+# Strict exact-production acceptance remains separate from normal gameplay. Missing exact art must stay visible.
 for needle in (
     'if "%IS_ACCEPTANCE%"=="1" (',
     "[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
@@ -53,7 +53,7 @@ for needle in (
     "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
     "Missing exact production models remain visible content gaps; no proxy is called production-ready.",
 ):
-    require(launcher, needle, "Pass 44 strict/normal production split")
+    require(launcher, needle, "strict/normal production split")
 strict_stage = launcher.find("[3/4] STRICT ACCEPTANCE")
 acceptance_gate = launcher.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
 import_call = launcher.find('call "%PRODUCTION_IMPORT%"', strict_stage)
@@ -104,8 +104,8 @@ for needle in (
 ):
     require(source_recovery, needle, "local production source recovery")
 
-# Pass 44 separates geometry readiness from authored-material readiness. Mesh success lets the gameplay geometry
-# test proceed; Default/BasicShape authored material gaps stay explicitly non-production and are checked separately.
+# Pass 45 strengthens Pass 44 material truth. Geometry success, material-slot success and fresh texture-dependency
+# success are separate facts. White/default or missing dependency state must remain fail-visible.
 for needle in (
     "/Game/AK-47/Mesh/SKM_AK-47",
     "/Game/R13/Weapons/Stein/1911/SKM_1911",
@@ -121,9 +121,18 @@ for needle in (
     "REQUIRED_REAL_WEAPON_MESHES=PASS",
     "REQUIRED_WEAPON_AUTHORED_MATERIALS=PASS",
     "AUTHORED MATERIAL GAP",
-    "grey/default slots are NOT production-ready",
+    "white/default slots are NOT production-ready",
+    "required_weapon_material_texture_dependencies.json",
+    "REQUIRED_WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS",
+    "TEXTURE_DEPENDENCY_SUMMARY=",
+    "TEXTURE DEPENDENCY GAP",
+    "unreal.MaterialEditingLibrary.get_used_textures(material)",
+    "PASS45_WEAPON_DEPENDENCY_AUDIT_COMPLETE",
 ):
-    require(weapon_preflight, needle, "required real weapon mesh/material truth preflight")
+    require(weapon_preflight, needle, "required real weapon mesh/material/texture truth preflight")
+
+if '("M16"' in weapon_preflight or '("M4"' in weapon_preflight:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: unverified M16/M4 payload was added to required production assets")
 
 for needle in (
     "IsOnAimRay",
@@ -145,8 +154,7 @@ for needle in (
 if "Component.GetLocalBounds(LocalMin, LocalMax)" in fx:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: obsolete two-argument GetLocalBounds call is incompatible with UE 5.8")
 
-# Keep the canonical source BASE/rack placement contract. Pass 44 actual-pawn runtime proof is an additional,
-# stronger acceptance layer and does not require deleting the underlying Museum spawn geometry.
+# Keep canonical source BASE/rack placement while stronger Pass 44/45 actual-pawn evidence remains additive.
 for needle in (
     "AOCWorldSectorOster::MuseumAnchor()",
     "FVector(-1400.0f, -2400.0f, 120.0f)",
@@ -181,11 +189,10 @@ if "'if (UVerticalBoxSlot* Slot'," in r10 or "'if (UCanvasPanelSlot* Slot'," in 
     raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: R10 global Slot false-positive tokens returned")
 require(r10, "UI Slot shadow names removed", "R10 file-specific UI shadow contract")
 
-print("RUNTIME ACCEPTANCE PASS 4 + PASS 44 CONTENT TRUTH SOURCE CONTRACT PASS")
+print("RUNTIME ACCEPTANCE PASS 4 + PASS 45 CONTENT TRUTH SOURCE CONTRACT PASS")
 print("- normal gameplay hard-gates required real/playable weapon meshes in a fresh UE process")
-print("- authored weapon material readiness is separate and Default/BasicShape gaps remain non-production")
-print("- Windows launcher uses Git LFS commands compatible with the playtest PC and a separate PowerShell verifier")
-print("- production source recovery supports independent HMMWV/M2/BTR intake and broader BTR archive discovery")
-print("- strict acceptance still rejects incomplete production vehicles")
-print("- tracer/muzzle, source Museum BASE and batched foliage structural contracts remain intact")
+print("- authored materials and their fresh-loadable texture dependencies are independently audited")
+print("- white/default/missing dependencies remain explicit non-production gaps")
+print("- no unverified M16/M4 payload is invented")
+print("- Windows Git LFS/source recovery, tracer/muzzle, Museum BASE and batched foliage contracts remain intact")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
