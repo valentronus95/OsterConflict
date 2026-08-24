@@ -87,9 +87,9 @@ for needle in (
 ):
     require(cpp, needle, "Pass 42/43 balanced native-scale graphics ceiling")
 
-# Pass 43: Get() is reached from frontend NativeConstruct. Automatic migrations must never trigger a live
-# renderer/viewport apply there; that can invalidate Slate's backbuffer while SlateRHIRenderer is building it.
-forbid(ensure_body, "ApplySettings(", "automatic startup graphics must not live-apply inside Slate construction")
+# Pass 43: Get() is reached from frontend NativeConstruct. Automatic migrations must never execute a live
+# UGameUserSettings apply there; that can invalidate Slate's backbuffer while SlateRHIRenderer is building it.
+forbid(ensure_body, "GameSettings->ApplySettings(", "automatic startup graphics must not live-apply inside Slate construction")
 require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass 43 startup persistence marker")
 
 # Existing users may still carry the old Pass 16 signature. Pass 39 can recognize/migrate that family,
