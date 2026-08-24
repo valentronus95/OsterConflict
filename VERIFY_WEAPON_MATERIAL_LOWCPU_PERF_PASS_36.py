@@ -30,6 +30,8 @@ weapon_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
 weapon = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 
 # Keep the old full-profile constants for compatibility, but LowCPU must no longer iterate all 1.92 km.
+# Pass 42 deliberately expands the bounded museum play window from 150 x 150 m to 200 x 200 m without
+# returning to the historical full-sector population path.
 for needle in (
     "float PopulationMinX",
     "float PopulationMaxX",
@@ -40,9 +42,10 @@ for needle in (
     require(dense_h, needle, "profile-aware foliage state")
 
 for needle in (
-    "LowCPUHalfExtentCm = 7500.0f",
+    "LowCPUHalfExtentCm = 10000.0f",
     "LowCPUGridStepCm = 1500.0f",
     "LowCPUCellsPerBatch = 8",
+    "LowCPUGrassCullEndCm = 8500",
     'World.URL.GetOption(TEXT("PerfProfile="), TEXT(""))',
     "PopulationMinX = Museum.X - LowCPUHalfExtentCm",
     "PopulationMaxX = Museum.X + LowCPUHalfExtentCm",
@@ -50,6 +53,7 @@ for needle in (
     "PopulationMaxY = Museum.Y + LowCPUHalfExtentCm",
     "PASS36_LOWCPU_FOLIAGE_SCOPE_READY",
     "PASS36_LOWCPU_FOLIAGE_COMPLETE",
+    "PASS42_LOWCPU_FOLIAGE_SCOPE_EXPANDED",
 ):
     require(dense, needle, "bounded LowCPU foliage")
 
@@ -59,6 +63,8 @@ for needle in (
     "const int32 MinGrassInstances = bLowCPU ? 48 : 250",
     "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
     'full_sector_population=0',
+    "ValidationAccumulator < 0.25f",
+    "PASS42_FOLIAGE_GUARD_THROTTLED_READY",
 ):
     require(foliage_guard, needle, "LowCPU foliage runtime guard")
 
@@ -89,9 +95,10 @@ forbid(weapon, "Component->SetMaterial(Slot, MaterialRecoveryBase)",
 require(weapon, "HasProductionVisual(*Weapon)", "production visual preservation")
 require(weapon, "ApplyRealFallback", "existing real-mesh fallback preservation")
 
-print("WEAPON MATERIAL + LOWCPU PERFORMANCE PASS 36 SOURCE CONTRACT PASS")
-print("- LowCPU foliage is bounded to the museum-area recovery window and cannot progressively fill the whole sector")
-print("- existing full-profile constants remain available outside LowCPU")
+print("WEAPON MATERIAL + LOWCPU PERFORMANCE PASS 36/42 SOURCE CONTRACT PASS")
+print("- LowCPU foliage stays bounded around the museum/BASE and cannot progressively fill the whole sector")
+print("- Pass 42 expands that bounded window to 200 x 200 m with 85 m grass cull distance")
+print("- foliage acceptance scans are throttled to 4 Hz and stop rescanning retired source proxies")
 print("- null/default weapon material slots receive a non-white runtime recovery material")
 print("- authored weapon materials are explicitly preserved")
 print("- static BASE rack visuals stop casting unnecessary dynamic shadows")
