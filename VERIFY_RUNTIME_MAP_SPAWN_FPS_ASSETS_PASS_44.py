@@ -41,14 +41,16 @@ reference = ROOT / "REFERENCE_PHOTOS" / "map_extent" / "oster_central_playable_a
 req(reference.is_file() and reference.stat().st_size > 0,
     "compact central Oster reference image is missing/empty")
 
+# Historical Pass 44 must follow today's root authority language, not freeze a previous sentence forever.
 for needle in (
-    "Latest user-observed runtime beats source",
+    "Latest explicit user requirement and latest user-observed runtime evidence.",
     "Mandatory stale-rule retirement",
     "No compatibility resurrection",
     "Playable-map size is user-authoritative",
     "Museum BASE means actual pawn placement",
     "Runtime content truth is fail-visible",
     "Normal local game must not silently auto-fill",
+    "Verifier truth follows current behavior, not history",
 ):
     req(needle in agents, f"root authority policy missing: {needle}")
 
