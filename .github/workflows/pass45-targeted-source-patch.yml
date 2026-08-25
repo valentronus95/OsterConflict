@@ -1,0 +1,104 @@
+name: Pass45 targeted source patch
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-20260825
+    paths:
+      - .github/workflows/pass45-targeted-source-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-source:
+    if: contains(github.event.head_commit.message, '[pass45-targeted-patch]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pass45-runtime-rejection-20260825
+          fetch-depth: 0
+
+      - name: Apply exact Pass45 source corrections
+        shell: python
+        run: |
+          from pathlib import Path
+
+          char_path = Path('OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp')
+          char = char_path.read_text(encoding='utf-8')
+          old_pitch = '''        const UOCPlayerUserSettings* Settings = UOCPlayerUserSettings::Get();
+                  const float YSign = Settings->bInvertMouseY ? -1.0f : 1.0f;
+                  LocalVehicleGunnerPitch = FMath::Clamp(LocalVehicleGunnerPitch - Value.Get<float>() * 1.15f * Settings->MouseSensitivity * YSign, MinPitch, MaxPitch);'''.replace('                  ', '        ')
+          new_pitch = '''        const UOCPlayerUserSettings* Settings = UOCPlayerUserSettings::Get();
+                  const float GunnerPitchSign = Settings->bInvertMouseY ? -1.0f : 1.0f;
+                  LocalVehicleGunnerPitch = FMath::Clamp(
+                      LocalVehicleGunnerPitch + Value.Get<float>() * 1.15f * Settings->MouseSensitivity * GunnerPitchSign,
+                      MinPitch,
+                      MaxPitch);'''.replace('                  ', '        ')
+          if old_pitch not in char:
+              raise SystemExit('OCCharacter pitch source signature not found')
+          char = char.replace(old_pitch, new_pitch, 1)
+
+          old_gunner_enter = '''    SetActorLocation(GunnerCameraWorldLocation - FVector(0.0f, 0.0f, 64.0f));
+              ApplyVehicleOccupancyPresentation();
+              ForceNetUpdate();
+          }'''.replace('              ', '    ')
+          new_gunner_enter = '''    SetActorLocation(GunnerCameraWorldLocation - FVector(0.0f, 0.0f, 64.0f));
+              ApplyVehicleOccupancyPresentation();
+              ForceNetUpdate();
+              UE_LOG(LogTemp, Display,
+                  TEXT("PASS45_M2_GUNNER_PITCH_CONTRACT_READY default_invert=0 mouse_up_raises=1 direct_local_pitch=1"));
+          }'''.replace('              ', '    ')
+          if old_gunner_enter not in char:
+              raise SystemExit('OCCharacter gunner enter source signature not found')
+          char = char.replace(old_gunner_enter, new_gunner_enter, 1)
+          char_path.write_text(char, encoding='utf-8')
+
+          vehicle_path = Path('OsterConflict/Source/OsterConflict/Private/OCVehicleBase.cpp')
+          vehicle = vehicle_path.read_text(encoding='utf-8')
+          old_loop = '''        for (UStaticMeshComponent* Component : MeshComponents)
+                  {
+                      if (!Component) continue;
+                      const FString Name = Component->GetName();'''.replace('                  ', '        ')
+          new_loop = '''        for (UStaticMeshComponent* Component : MeshComponents)
+                  {
+                      if (!Component) continue;
+
+                      UStaticMesh* Mesh = Component->GetStaticMesh();
+                      const FString AssetPath = Mesh ? Mesh->GetPathName() : FString();
+                      if (AssetPath.StartsWith(TEXT("/Game/Production/")))
+                      {
+                          // Pass45: authored production materials are authoritative. Legacy blockout tinting
+                          // may never repaint HMMWV/M2/BTR or any future production mesh after ApplyVehicleStyle().
+                          continue;
+                      }
+
+                      const FString Name = Component->GetName();'''.replace('                  ', '        ')
+          if old_loop not in vehicle:
+              raise SystemExit('OCVehicleBase tint loop signature not found')
+          vehicle = vehicle.replace(old_loop, new_loop, 1)
+
+          old_tail = '''        }
+              }
+          
+              ApplyDamagePresentation();'''.replace('              ', '    ')
+          new_tail = '''        }
+              }
+          
+              UE_LOG(LogTemp, Display,
+                  TEXT("PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY production_override=0 legacy_tint_blockout_only=1"));
+              ApplyDamagePresentation();'''.replace('              ', '    ')
+          if old_tail not in vehicle:
+              raise SystemExit('OCVehicleBase BeginPlay tail signature not found')
+          vehicle = vehicle.replace(old_tail, new_tail, 1)
+          vehicle_path.write_text(vehicle, encoding='utf-8')
+
+      - name: Commit targeted source corrections
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp OsterConflict/Source/OsterConflict/Private/OCVehicleBase.cpp
+          git diff --cached --check
+          git commit -m "fix(pass45): correct gunner pitch and preserve production materials"
+          git push origin HEAD:fix/pass45-runtime-rejection-20260825
