@@ -16,6 +16,11 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS42 VERIFY FAIL: {label}: missing {needle!r}")
 
 
+def absent(path: Path, label: str) -> None:
+    if path.exists():
+        raise SystemExit(f"PASS42 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
+
+
 start = read(ROOT / "START_HERE.cmd")
 try_import = read(ROOT / "OsterConflict" / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
 importer = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
@@ -31,9 +36,11 @@ settings = read(SRC / "Private" / "OCPlayerUserSettings.cpp")
 dense = read(SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp")
 foliage_guard_h = read(SRC / "Public" / "OCFoliageRuntimeGuardSubsystem.h")
 foliage_guard = read(SRC / "Private" / "OCFoliageRuntimeGuardSubsystem.cpp")
-museum137 = read(SRC / "Private" / "OCR137MuseumPhotoModelSubsystem.cpp")
-museum138 = read(SRC / "Private" / "OCR138MuseumInteractiveArchitectureSubsystem.cpp")
-museum_visibility = read(SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp")
+startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
+
+# Old Pass37 Museum visibility/rebuild owner is forbidden after Pass45 retirement.
+absent(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Museum visibility/rebuild header")
+absent(SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Museum visibility/rebuild source")
 
 # Normal game no longer ignores a locally available exact production package.
 require(start, 'TRY_PRODUCTION_VEHICLES_UE58.cmd', "normal launcher production intake")
@@ -49,13 +56,24 @@ for needle in (
 ):
     require(importer, needle, "canonical production importer")
 
-# Runtime classes must actually request the imported models rather than source-only blocks.
-require(pickup, '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA', "HMMWV runtime visual")
-require(pickup, '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning', "M2 runtime visual")
-require(btr, '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus', "BTR-4 runtime visual")
+# Runtime classes request imported models and Pass45 preserves native proportions rather than fitting each axis separately.
+for needle in (
+    '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
+    '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
+    'PASS45_HMMWV_PROPORTIONAL_VISUAL_READY',
+    'PASS45_M2_MOUNT_ALIGNMENT_READY',
+    'nonuniform_stretch=0',
+):
+    require(pickup, needle, "HMMWV/M2 runtime visual")
+for needle in (
+    '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
+    'PASS45_BTR4_PROPORTIONAL_VISUAL_READY',
+    'nonuniform_stretch=0',
+):
+    require(btr, needle, "BTR-4 runtime visual")
 
-# VehicleBase historically recoloured every StaticMeshComponent after derived production style was applied.
-# Pass 42 must restore authored material slots for production meshes and stop polling after a finite budget.
+# Legacy VehicleBase tint can still overwrite production slots in the current source. Until that primary-source
+# owner is removed, this bounded guard must remain and restore authored slots. It must stop after a finite budget.
 for needle in (
     'AssetPath.StartsWith(TEXT("/Game/Production/"))',
     'Component->EmptyOverrideMaterials();',
@@ -65,9 +83,9 @@ for needle in (
     'PASS42_PRODUCTION_VEHICLE_VISUALS_READY',
     'PASS42_PRODUCTION_VEHICLE_CONTENT_GAP',
 ):
-    require(guard_h + guard, needle, "production authored-material guard")
+    require(guard_h + guard, needle, "temporary production authored-material guard")
 
-# Museum primary BASE is still the close 27.8 m approach, and rack items are now grounded instead of +72 cm.
+# Museum primary BASE/rack are grounded instead of the old floating pickup path.
 for needle in (
     'FVector(1400.0f, -2400.0f, 120.0f)',
     'FVector(-1400.0f, -2400.0f, 120.0f)',
@@ -77,11 +95,11 @@ for needle in (
     'PASS42_BASE_RACK_GROUNDED_READY',
     'PASS42_BASE_RACK_GROUNDING_INCOMPLETE',
 ):
-    require(rack, needle, "museum BASE grounded weapon rack")
+    require(rack, needle, "Museum BASE grounded weapon rack")
 if 'SnapLocationToWalkableSurface(World, Desired, 72.0f)' in rack:
     raise SystemExit("PASS42 VERIFY FAIL: old +72 cm floating rack spawn survived")
 
-# Unconfigured audio components must not burn a render-frame tick forever; exact vehicle audio remains content-driven.
+# Unconfigured audio components must not burn a render-frame tick forever.
 for needle in (
     'void SetAudioProfile(UOCVehicleAudioProfile* InProfile);',
     'SetComponentTickEnabled(AudioProfile!=nullptr)',
@@ -89,7 +107,7 @@ for needle in (
 ):
     require(audio_h + audio, needle, "vehicle audio lifecycle budget")
 
-# Visual clarity recovery: do not hide CPU/runtime issues behind a permanently soft 85% automatic profile.
+# Visual clarity recovery remains native 100% scale and texture quality 3 without expensive-lighting mutation.
 for needle in (
     'bPass42GraphicsClarityRecoveryApplied = false',
     'SetTextureQuality(SafeQuality(GameSettings->GetTextureQuality(), 3))',
@@ -103,7 +121,7 @@ for needle in (
 ):
     require(settings_h + settings, needle, "native-scale graphics clarity recovery")
 
-# Keep LowCPU foliage bounded but useful around BASE, and stop using the acceptance guard as a per-frame scanner.
+# LowCPU foliage remains bounded and its guard is throttled.
 for needle in (
     'LowCPUHalfExtentCm = 10000.0f',
     'LowCPUGridStepCm = 1500.0f',
@@ -123,35 +141,22 @@ for needle in (
 ):
     require(foliage_guard_h + foliage_guard, needle, "throttled foliage acceptance guard")
 
-# The player spawns beside MuseumAnchor, so the normal museum build must happen before the old five-second gap.
+# Pass45 supersedes the old 0.75/1.10/1.45 timer choreography: coordinator cancels historical stage timers
+# and runs the current Museum/Silpo/Culture stages in one startup window. No destructive visibility guard survives.
 for needle in (
-    'MuseumPhotoModelDelaySeconds = 0.75f',
-    'PASS42_MUSEUM_EXTERIOR_EARLY_SCHEDULED',
+    'Timers.ClearAllTimersForObject(Stage)',
+    'Stage->RunAuthoritativeBuildNow(World)',
+    'Stage->RunAuthoritativeUpgradeNow(World)',
+    'PASS45_LANDMARK_STARTUP_COORDINATED_READY',
+    'legacy_core_recovery=0',
+    'destructive_visibility_rebuild=0',
 ):
-    require(museum137, needle, "early R13.7 museum exterior schedule")
-for needle in (
-    'R138MuseumDelaySeconds = 1.10f',
-    'PASS42_MUSEUM_ARCHITECTURE_EARLY_SCHEDULED',
-):
-    require(museum138, needle, "early R13.8 museum architecture schedule")
-for needle in (
-    'FirstPollDelaySeconds = 1.45f',
-    'PollIntervalSeconds = 0.35f',
-    'LateStartupSettleSeconds = 2.20f',
-    'MaxRebuildAttempts = 1',
-    'PASS42_MUSEUM_EARLY_VISIBILITY_READY',
-    'normal_architecture_delay=1.10',
-    'destructive_loop=0',
-):
-    require(museum_visibility, needle, "museum visibility guard aligned after early build")
+    require(startup, needle, "Pass45 coordinated landmark startup")
 
-print("PRODUCTION VEHICLE + GROUNDED RACK + VISUAL/FPS RECOVERY PASS 42 SOURCE CONTRACT PASS")
-print("- normal START attempts exact local HMMWV/M2/BTR intake when those source files are available")
-print("- runtime classes point at canonical HMMWV, M2 Browning and BTR-4 production assets")
-print("- production mesh authored materials are restored after legacy VehicleBase recolouring and the guard stops")
-print("- Museum BASE remains ~27.8 m from MuseumAnchor and all 11 rack items use a 12 cm ground clearance")
-print("- automatic graphics profiles recover native 100% scale + texture quality 3 without raising costly lighting")
-print("- LowCPU foliage is bounded to 200 x 200 m around Museum/BASE and its acceptance scan is throttled to 4 Hz")
-print("- Museum exterior/architecture now schedule at 0.75/1.10 s with visibility proof starting at 1.45 s")
-print("- unconfigured vehicle audio components no longer tick every frame")
-print("STATUS: CODED_UNTESTED; local UE 5.8 model/material/ground-contact/FPS/audio acceptance remains authoritative")
+print("PRODUCTION VEHICLE + GROUNDED RACK + VISUAL/FPS RECOVERY PASS 42/45 SOURCE CONTRACT PASS")
+print("- exact local HMMWV/M2/BTR intake remains wired and production meshes preserve native proportions")
+print("- temporary vehicle material guard remains bounded until legacy VehicleBase tint is removed at source")
+print("- Museum BASE rack remains grounded with 12 cm clearance")
+print("- native-scale graphics clarity and bounded LowCPU foliage/audio budgets remain intact")
+print("- historical Museum visibility/rebuild owner is deleted; current landmark startup is coordinated once")
+print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
