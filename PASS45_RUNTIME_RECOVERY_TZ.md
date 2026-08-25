@@ -1,401 +1,370 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date: 2026-08-24
-Completion audit: 2026-08-25
-Local build rejection: 2026-08-25
-PR #82 merge: 2026-08-25
-Status: **PR #82 MERGED / SOURCE CI 20/20 GREEN / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**
-Original source branch: `fix/runtime-recovery-pass-45-20260824` — merged by PR #79
-Completion branch: `fix/pass45-completion-audit-20260825` — merged by PR #81
-Build/import fix branch: `fix/pass45-local-build-import-regression-20260825` — merged by PR #82
-Runtime-code `main` baseline: `1d6f57227bb15e84d7df911c192f53685b08544f`
-Final PR #82 source head: `2079733e7e027587f1bc0925d7fffc5c44df69ed` — 20/20 source workflows green before merge
+Latest runtime rejection: 2026-08-25
+Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE WORK IN PROGRESS**
+Active corrective branch: `fix/pass45-runtime-rejection-20260825`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
-## 0. Purpose and authority
+## 0. Authority
 
-Pass 44 was source-green but factually rejected by the first local UE run. The user screenshots prove menu ~8 FPS, gameplay ~8–12 FPS, white weapon materials, wrong tactical topology, primitive/fantasy trees, blockout-grade world visuals and unresolved landmark identity.
+This file is the canonical active TZ for Pass 45.
 
-**Pass 44 = RUNTIME REJECTED.**
+Authority order remains:
 
-Pass 45 is the corrective contract. Its merged source work is not runtime-verified. The 2026-08-25 completion audit found one genuine source omission that remained in this TZ: **B2 World proxy truth** still allowed visible BasicShape residential/environment families even though suitable imported assets existed. PR #81 merged that source correction.
+1. latest explicit user requirement + latest factual local UE screenshot/log;
+2. root `AGENTS.md`;
+3. this TZ + current work ledger;
+4. current implementation;
+5. historical pass reports/verifiers.
 
-The first factual local UE 5.8.1 build after PR #81 then found a second class of source defects that source-only CI did not expose: a real C++ compilation failure in the tactical-map table and a UE 5.8 Interchange API rejection for HMMWV/M2 GLB intake. PR #82 contains both corrections and passed 20/20 source workflows before merge. This still does **not** equal UE build/runtime verification; the next local build is authoritative.
+A green source check never overrides a factual broken runtime.
 
-Latest rejected gameplay evidence:
+Latest evidence pack:
+
+`RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/`
+
+Previous runtime rejection pack:
+
 `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 
-Pass 45 completion audit:
-`OsterConflict/Docs/WorkReports/PASS45_COMPLETION_AUDIT_2026-08-25.md`
+## 1. Current factual verdict
 
-Local build/import rejection report:
-`OsterConflict/Docs/WorkReports/PASS45_LOCAL_BUILD_IMPORT_REJECTION_2026-08-25.md`
+The local UE 5.8 build blocker discovered on 2026-08-25 was fixed by PR #82 and the project now reaches gameplay. That proves the previous C2131 tactical-map compile blocker is no longer the immediate blocker.
 
-Latest user-observed runtime/build evidence always overrides source/CI claims.
+The resulting gameplay is nevertheless **RUNTIME REJECTED**.
 
----
+The latest screenshots and user observation prove:
 
-# 1. Authoritative 2026-08-25 local UE build rejection
+- large world/ground areas render black;
+- several required weapons remain white/default/untextured while AK-47 renders correctly;
+- visible generic fences/houses do not match Oster references;
+- the Museum site still presents a six-column Culture-House-like facade instead of the actual Oster Local History Museum identity;
+- an unapproved steep-roof dark tower/shack remains visible;
+- HMMWV visual proportions are deformed/accordion-like;
+- M2 Browning is mounted with visibly wrong transform/alignment;
+- normal mounted Browning vertical aim is inverted;
+- entering the red civilian vehicle teleported the vehicle/player to the Museum area;
+- after driving to the BTR and exiting, the player was teleported back to Museum again;
+- BTR-4 proportions/orientation are visibly wrong, including stretched rear/body geometry;
+- BTR-4 has a large white/default material artifact;
+- normal route unexpectedly opened windowed;
+- runtime reached roughly 100–156 FPS while the machine heated strongly;
+- high FPS in a visually broken/black scene is not performance acceptance.
 
-The user launched `START_HERE.cmd` and selected **1. ЗВИЧАЙНА ГРА**.
+**PASS 45 = RUNTIME REJECTED.**
 
-## 1.1 Tactical-map compile blocker
+## 2. Confirmed improvement that must be retained
 
-UnrealBuildTool compiled the current source and rejected `OCTacticalMapVisual.cpp`:
+The latest run also proves some previous blockers were removed and must not regress:
 
-`error C2131: expression did not evaluate to a constant`
+- UE build reaches gameplay instead of stopping on tactical-map C2131;
+- BTR-4 asset intake reaches runtime;
+- HMMWV production mesh reaches runtime;
+- M2 production mesh reaches runtime;
+- catastrophic 8–12 FPS behavior from the previous rejected run is not reproduced in these screenshots;
+- no implicit normal-game 16-bot autofill may return;
+- compact central-Oster map bounds remain current;
+- no grey BasicShape weapon-material repair may return.
 
-Root cause:
+These are partial improvements only. None promote Pass 45 to VERIFIED RUNTIME.
 
-- `Pass45ReferenceRoads` was declared `constexpr`;
-- each entry contains `FVector2D`;
-- this UE 5.8/MSVC toolchain does not accept that `FVector2D` constructor in the required constant-expression context.
+## 3. Root-cause priorities for the current corrective pass
 
-Factual result:
+### P0 — black world/material corruption
 
-- `Result: Failed (OtherCompilationError)`;
-- UBT/launcher exit code **6**;
-- gameplay did not start.
+The world is visually invalid while large areas render near-black.
 
-Merged PR #82 correction:
+The Pass 45 B2 production-visual completion layer is no longer accepted merely because source verification passed. The latest runtime rejects its visible output.
 
-- table changed from `constexpr FPass45ReferenceRoadSegment[]` to namespace-scope `const FPass45ReferenceRoadSegment[]`;
-- road data, iteration and `UE_ARRAY_COUNT` behavior are unchanged;
-- regression verifier forbids restoring the invalid `constexpr` declaration;
-- historical Pass44 verifier was forward-ported to semantic status checking so it cannot force old wording back into the ledger.
+Requirements:
 
-Status: **MERGED / CODED_UNTESTED** until a later local UE build exits 0.
+- audit `OCWorldProductionVisualsSubsystem` first because the black-world/generic-house/fence regression appeared after the B2 visual-owner work;
+- do not keep an experimental visual owner active solely to satisfy the old completion verifier;
+- if the current B2 layer cannot guarantee correct material output, disable it from normal runtime and restore the last readable baseline while a reference-faithful production layer is rebuilt;
+- no silent fallback to black/default material;
+- material load failure must remain fail-visible in logs without corrupting the entire scene;
+- do not lower native render scale to disguise the problem.
 
-## 1.2 HMMWV / M2 Interchange regression
+Acceptance:
 
-The same normal launch found all local HMMWV, M2 and BTR-4 sources.
+- no large black ground/world regions in normal gameplay;
+- ground, roads and sidewalks remain readable under the normal renderer;
+- runtime screenshot mandatory.
 
-Factual import result:
+### P0 — vehicle possession/exit teleport
 
-- BTR-4 imported successfully to `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus`;
-- HMMWV failed because `InterchangeGenericCommonMeshesProperties.auto_detect_mesh_type` / `bAutoDetectMeshType` is deprecated/rejected by UE 5.8;
-- M2 failed for the same reason;
-- launcher correctly reported `HMMWV=0 M2=0 BTR4=1` and did not call the failed assets production-ready.
+Current behavior is unacceptable:
 
-Merged PR #82 correction:
+- entering a civilian vehicle may move player/vehicle to Museum;
+- exiting after driving to another location may return the player to Museum.
 
-- deprecated `auto_detect_mesh_type` property removed;
-- current `convert_statics_with_animated_transform_to_skeletals=false` policy used;
-- importer still explicitly forces `IFMT_STATIC_MESH`, enables static import and disables skeletal import.
+Requirements:
 
-Status:
+- Museum spawn guard applies only to initial deployment/spawn recovery, never ordinary vehicle possession/unpossession;
+- `EnterDriver` must preserve the vehicle's current world transform;
+- `ExitDriver`/`GetExitTransform()` must place the human pawn adjacent to the vehicle's **current** transform;
+- vehicle input recovery must restore input, not call respawn/restart at Museum;
+- no generic `RestartPlayer` path may be used for normal vehicle exit;
+- add runtime markers containing vehicle location, requested exit transform and resulting pawn location.
 
-- BTR-4 production import: **LOCALLY CONFIRMED**, runtime/presentation still unverified;
-- HMMWV/M2 importer correction: **MERGED / CODED_UNTESTED** until the next local import.
+Acceptance:
 
----
+- enter a civilian car away from Museum: no teleport;
+- drive to BTR: location preserved;
+- exit vehicle: pawn appears beside vehicle, not at Museum;
+- repeat with HMMWV/BTR.
 
-# 2. Authoritative unresolved gameplay/runtime facts
+### P0 — vehicle production visual transforms
 
-Because the 2026-08-25 attempt failed at compile time, it does not supersede the 2026-08-24 gameplay screenshots for visual/performance acceptance. Until a successful build reaches gameplay, these remain the runtime baseline:
+HMMWV and BTR-4 are now present but not visually acceptable.
 
-- frontend/main menu about **8 FPS**;
-- gameplay about **8–12 FPS** with severe lag/stutter;
-- slowdown also visible in open/empty areas;
-- multiple rack weapons white / missing intended authored materials;
-- tactical `M` view based on wrong procedural topology;
-- primitive/generic trees visibly inappropriate for Oster;
-- flat/blockout environment presentation;
-- Museum and Culture House not visually distinct enough;
-- stale/over-layered Silpo/Museum/Culture presentation.
+Requirements:
 
-No source check may promote these to fixed until factual runtime proves it.
+- never non-uniformly stretch production vehicle meshes to fit a generic proxy box;
+- use uniform scale derived from the production mesh's authoritative bounds;
+- correct forward axis and yaw so front/side/rear remain physically coherent;
+- preserve wheel/body proportions;
+- BTR rear may not be stretched;
+- white/default BTR material slot is a hard material failure;
+- production visual guard must fail instead of calling a distorted mesh READY.
 
----
+Acceptance:
 
-# 3. Root-cause and correction state
+- HMMWV and BTR proportions recognizable from front/side/rear;
+- no accordion stretch;
+- no large white body panel/material artifact;
+- fresh screenshot from at least two sides of each vehicle.
 
-## 3.1 Performance
+### P0 — M2 Browning mount and controls
 
-The bot population was a real unnecessary load but not the sole cause because the rejected menu itself was already ~8 FPS.
+Requirements:
 
-Current Pass 45 source corrections:
+- M2 mount transform must be tied to the HMMWV roof/turret socket, not a generic proxy offset;
+- barrel must face vehicle-forward in neutral pose;
+- gunner camera/aim origin must match mount;
+- normal vertical gun aim must **not be inverted**;
+- default pitch input contract: mouse up raises aim, mouse down lowers aim;
+- if an optional invert setting is ever added later, default remains OFF.
 
-- normal route: DX11 + SM5 + HDR off + normal RHI threading;
-- explicit compatibility route: adds `-norhithread` for factual A/B only;
-- no implicit normal-game bot autofill;
-- separate one-shot frontend/gameplay performance markers;
-- no automatic resolution-scale downgrade to hide poor FPS;
-- old 0.20 s × 40 full-world landmark reconciliation loop retired;
-- compact 960×940 m render/cull budget applied;
-- new B2 real-house/fence visual ISMs carry their own compact cull budget and no visual collision/navigation.
+Acceptance:
 
-Required runtime markers include:
+- Browning visually centred/aligned on the HMMWV mount;
+- gunner input direction correct in runtime.
 
-- `PASS45_RHI_MODE`
-- `PASS45_FRONTEND_PERF_BASELINE`
-- `PASS45_GAMEPLAY_PERF_BASELINE`
+### P0 — Museum / Culture House identity
 
-Acceptance target remains **>=30 FPS minimum** in frontend and gameplay, with no progressive collapse. This cannot be remeasured until the local build gate passes.
+User reference history and public Oster references agree on the core identity conflict:
 
-## 3.2 Primitive world / B2 World proxy truth
+- Oster Local History Museum is the former Solonyna house at Tatarska 30, a late-19th-century brick/wood residential building;
+- the six-column neoclassical civic facade is a separate Culture House/public building;
+- therefore a six-column Culture-House shell at the Museum site is always a runtime failure.
 
-### Source completion state: **SOURCE INVENTORY CLOSED / CODED_UNTESTED**
+Requirements:
 
-The completion audit proved that `OCWorldSectorOster` still uses Engine BasicShapes as semantic placement/collision data. That is allowed only where the primitive is not the accepted player-facing production visual.
+- exactly one current Museum visible shell owner;
+- exactly one current Culture House visible shell owner;
+- Culture House shell may never own or overlap Museum anchor/site radius;
+- historical Museum/Culture replacement layers that can rebuild the wrong shell must become inert or detail-only;
+- if the correct photo-faithful Museum production asset is unavailable, use a truthful minimal placeholder consistent with the Museum footprint rather than the Culture House facade.
 
-`UOCWorldProductionVisualsSubsystem` is now the single generic environment visual-conversion owner for B2.
+Acceptance:
 
-It performs one bounded post-actor-BeginPlay conversion and then stops. It does **not** run another full-world repair loop.
+- Museum and Culture House visibly distinct and spatially separate;
+- Museum screenshot must not show the six-column Culture House facade.
 
-Current ownership:
+### P1 — invalid Oster fences/houses/tower
 
-- `Ground`: compact cube remains physical carrier; player-facing material switches to imported `M_Inst_Landscape`.
-- `Roads`: semantic slab/collision retained; visible material switches to imported `MI_Urb_Roa_Asphalt_01`.
-- `Sidewalks`: semantic slab/collision retained; visible material switches to imported `MI_Urb_Roa_Sidewalk_01`.
-- `Buildings`: source boxes become hidden collision/backstop; visible owner uses imported `SM_House_Var01` / `SM_House_Var02`.
-- `ResidentialRoofs` / `ResidentialDetails`: hidden after complete residential conversion; imported house mesh owns visible roof/detail silhouette.
-- `Fences`: visible public fence uses `SM_Fence_Var04`; source box remains hidden collision.
-- `WoodFences`: visible owner `SM_Fence_Var01`.
-- `MetalFences`: visible owner `SM_Fence_Var02`.
-- `LightSheetFences`: visible owner `SM_Fence_Var03`.
-- primitive trunk/crown tree families: hidden by current Pass 45 foliage guard; verified real pine candidates remain available.
-- Stadion source proxies: already hidden; dedicated Stadion Oster presentation remains visual owner.
-- Museum / Silpo / Culture House: dedicated shell owners remain authoritative and are not replaced by the generic B2 owner.
-- `ReferenceMarkers` / developer labels: hidden from gameplay.
-- compact hydrography/bridge blockout: currently creates no instances.
+The latest screenshots reject the current generic village visual set as Oster production content.
 
-### Explicit remaining content gaps
+Requirements:
 
-- College / unrelated generic `LandmarkBlocks`, roofs/windows/details: no verified photo-faithful production College/civic mesh found. Do **not** disguise a random house asset as the College.
-- `ParkGeometry` / `ParkDetails`: no verified complete park/plaza/bench/skate production set matching the current semantics. These remain non-production art gaps.
-- suitable explicit oak asset remains unverified; do not fabricate an oak label.
+- existing AdvancedVillagePack house/fence assets are not automatically accepted just because they are real meshes;
+- supplied user photos/history are the primary visual authority;
+- public Oster references may be used only to fill gaps and must not override user references;
+- remove the steep-roof dark tower/shack unless a reference proves it belongs to the selected compact Oster area;
+- fence families must match Oster reference character: real local metal/wood/sheet fence types where shown, not generic fantasy/village fencing;
+- no arbitrary decorative building family may be introduced outside the accepted topology/reference set.
 
-These are now **classified content gaps**, not an un-audited source omission. They may not be called production-ready.
+Acceptance:
 
-B2 runtime markers:
+- no rejected fence family visible near Museum/current test area;
+- no unreferenced tower/shack;
+- new visual family requires a traceable reference.
 
-- `PASS45_B2_PRODUCTION_VISUALS_READY`
-- `PASS45_B2_PRODUCTION_VISUALS_FAIL`
-- `PASS45_B2_RESIDENTIAL_VISUAL_GAP`
-- `PASS45_B2_FENCE_FAMILY_READY`
-- `PASS45_B2_FENCE_FAMILY_GAP`
-- `PASS45_B2_REMAINING_CONTENT_GAPS`
+### P1 — weapon material/texture closure
 
-New real visual culls:
+Current factual runtime:
 
-- houses: 300–650 m;
-- fences: 60–280 m;
-- visual collision/navigation disabled;
-- hidden primitive collision/backstop retained.
+- AK-47 appears materially correct;
+- multiple other required rack weapons remain white/default.
 
-## 3.3 Vegetation
+Requirements for all required weapon classes:
 
-Source state: **CODED_UNTESTED**.
+`weapon class -> exact mesh -> material slot(s) -> material asset(s) -> texture dependencies -> runtime appearance`
 
-- all eight Cylinder/Sphere tree proxy families are hidden from normal gameplay;
-- real `SM_Pine_Tree_01` / `SM_Pine_Tree_03` candidates exist and are used by the Museum tree owner;
-- required character: tall pine/conifer woodland plus appropriate oak where supported;
-- oak remains explicit content gap until a suitable real asset is verified;
-- no old birch/poplar/spherical proxy family may return merely for verifier compatibility.
+- white/default slot = FAIL;
+- `DefaultMaterial`, `BasicShapeMaterial`, missing material or missing required texture = FAIL;
+- mesh-load success alone is never production readiness;
+- no generated grey/white colour repair;
+- no M16/M4 READY claim without verified real payload.
 
-## 3.4 Tactical map
+Acceptance:
 
-Source state: **BUILD FIX MERGED / CODED_UNTESTED**.
+- runtime rack screenshot shows authored appearance for every required available weapon;
+- any unresolved item is explicit `CONTENT GAP`, not READY.
 
-The `M` map no longer treats procedural world ISMs as topology truth.
+### P1 — fullscreen and thermal behavior
 
-- compact 960×940 m north-up projection retained;
-- dedicated 640×630 user-reference-traced street layer used;
-- Museum / Culture House / Silpo / central park / Stadium use common `FOCGeoReference` authority;
-- tactical-polish icons use the same authority;
-- old Z=2 residential dimmer retired;
-- giant procedural X/diagonal road pattern must not return;
-- invalid `constexpr` reference-road table declaration found by local UE build has been replaced with a normal `const` table and merged by PR #82.
+Latest normal run opened windowed and machine heated strongly while FPS reached roughly 100–156.
 
-A successful local rebuild is now required before any tactical-map runtime screenshot can count.
+Requirements:
 
-## 3.5 Weapon material/texture truth
+- remove hard-coded normal-route `-windowed` behavior;
+- normal user route opens in intended fullscreen/borderless fullscreen according to saved settings;
+- diagnostic compatibility route may remain explicitly windowed only if clearly labelled;
+- normal route must use a thermal-safe default frame cap of **60 FPS** during recovery;
+- frame cap must not lower render resolution or graphics quality;
+- preserve the current DX11/SM5 recovery renderer until a separate renderer upgrade is accepted;
+- no automatic uncapped 100–150+ FPS normal playtest while thermal recovery is active.
 
-Audit implementation: **CODED_UNTESTED**.
-Dependency closure: **PENDING FRESH LOCAL UE PREFLIGHT**.
+Acceptance:
 
-All 11 required visuals now produce:
+- normal route opens with intended display mode;
+- normal runtime does not exceed the recovery cap materially;
+- no strong progressive thermal/FPS collapse.
 
-`weapon -> exact mesh -> material slots -> material assets -> used texture dependencies -> fresh dependency load result`
+## 4. Tactical map
 
-The NullRHI preflight writes `required_weapon_material_texture_dependencies.json` and separate mesh/material/texture statuses.
+The compact topology work remains source-coded but is not accepted from source evidence alone.
 
-A white/default/null/BasicShape material, placeholder texture, missing texture dependency, or material with no discoverable texture dependency remains FAIL / CONTENT GAP.
+Requirements remain:
 
-M16/M4 are not claimed because no verified production payload exists.
+- authoritative compact central-Oster map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`;
+- north-up;
+- POI authority from one geo-reference source;
+- no old giant synthetic diagonal/X road topology;
+- player marker visible;
+- Museum / Culture House / Silpo / Stadium distinct.
 
-## 3.6 Landmark ownership
+Runtime `M` screenshot remains mandatory before verification.
 
-Source state: **CODED_UNTESTED**.
+## 5. Vegetation
 
-Single visible shell owners:
+Requirements remain:
 
-- Museum: `R138_MuseumHighFidelityArchitecture`;
-- Museum R13.7: reference/detail/interactivity parent only;
-- Silpo: `R140_SilpoPhotoModel`;
-- Culture House: `R146_CultureHouseAuthoritative`;
-- Stadium authority unchanged.
+- no primitive Cylinder/Sphere fantasy tree forest;
+- verified real pine/conifer assets may be used;
+- oak remains `CONTENT GAP` until a suitable real asset is verified;
+- supplied Oster references control tree placement and species character;
+- no return of generic birch/poplar proxy families solely for an old verifier.
 
-Historical duplicate/recovery layers may not become second visible shell owners.
+## 6. Content gaps that remain explicit
 
----
+Unless later factual evidence closes them:
 
-# 4. Implementation phases and current status
+- photo-faithful College production model: `CONTENT GAP`;
+- complete reference-faithful park detail set: `CONTENT GAP`;
+- verified real oak asset: `CONTENT GAP`;
+- M16/M4 production payload: `CONTENT GAP`;
+- any required weapon whose authored material/texture dependencies fail fresh UE preflight: `CONTENT GAP`.
 
-## Phase A — measurable performance baseline
+## 7. Behavior that must not return
 
-- A1 RHI-thread A/B launcher: **MERGED / CODED_UNTESTED**.
-- A2 frontend/gameplay performance instrumentation: **MERGED / CODED_UNTESTED**.
-- A3 repeated full-world repair loop retirement / shell ownership: **MERGED / CODED_UNTESTED**.
-- A4 compact sector render budget: **MERGED / CODED_UNTESTED**.
-
-## Phase B — visible production proxy cleanup
-
-- B1 primitive tree visuals retired: **MERGED / CODED_UNTESTED**.
-- B2 World proxy truth inventory/ownership: **MERGED BY PR #81 / CODED_UNTESTED**.
-- B2 remaining College/park/oak gaps: **EXPLICIT CONTENT GAP**, not production-ready.
-
-## Phase C — tactical map topology
-
-- C1 reference-traced compact topology: **MERGED; LOCAL BUILD REJECTED ON CONSTEXPR TABLE; PR #82 FIX MERGED / CODED_UNTESTED**.
-- C2 runtime `M` screenshot: **PENDING SUCCESSFUL BUILD + RUNTIME**.
-
-## Phase D — landmark ownership
-
-- D1 Museum single-shell contract: **MERGED / CODED_UNTESTED**.
-- D2 Culture House single-shell contract: **MERGED / CODED_UNTESTED**.
-- D3 Silpo single-shell contract: **MERGED / CODED_UNTESTED**.
-
-## Phase E — weapon material dependency closure
-
-- audit implementation: **MERGED / CODED_UNTESTED**;
-- actual 11-weapon binary-content gap closure: **PENDING FRESH LOCAL PREFLIGHT**.
-
-## Phase F — production vehicle intake
-
-- BTR-4 source/import: **LOCAL IMPORT CONFIRMED 2026-08-25; RUNTIME UNTESTED**.
-- HMMWV source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX MERGED / CODED_UNTESTED**.
-- M2 source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX MERGED / CODED_UNTESTED**.
-
----
-
-# 5. Stale behavior forbidden from returning
+Pass 45 explicitly forbids:
 
 1. implicit normal-game bot autofill;
-2. 2.4 km procedural battlefield;
-3. map auto-fit from arbitrary component extents;
-4. grey BasicShape weapon-material repair;
-5. primitive Cylinder/Sphere trees as accepted vegetation;
-6. repeated competing landmark rebuild loops;
-7. stale verifier requirements that restore a known regression;
-8. READY claims contradicted by latest runtime/build evidence;
-9. hidden resolution downgrade used to disguise FPS collapse;
-10. visible generic residential/fence BasicShape art when verified imported replacements exist;
-11. duplicate collision/navigation on the new B2 production visual layer;
-12. permanent polling after B2 visual conversion succeeds;
-13. `constexpr` Pass45 `FVector2D` road table that UE 5.8/MSVC factually rejects;
-14. deprecated `auto_detect_mesh_type` / `bAutoDetectMeshType` in current UE 5.8 Interchange intake.
+2. historical 2.4 km gameplay map;
+3. old edge BASE/test-lane/vehicle seeds;
+4. coordinate-based ±920 m BASE classification;
+5. grey/BasicShape weapon material repair;
+6. source verifier rules that resurrect rejected runtime behavior;
+7. repeated 0.20 s × 40 full-world landmark mutation scans;
+8. claiming vehicle/weapon material readiness from mesh existence only;
+9. declaring generic imported village assets Oster-authentic without reference support;
+10. calling high FPS in a black/broken scene performance acceptance;
+11. lowering render scale to disguise a performance problem;
+12. Museum/Culture House shell overlap;
+13. normal vehicle exit via Museum respawn fallback;
+14. non-uniform production-vehicle stretching;
+15. normal playtest running uncapped while thermal recovery is active.
 
----
+## 8. Corrective execution order — current pass
 
-# 6. Acceptance gates
+1. [x] Archive latest runtime screenshots and mark Pass 45 `RUNTIME REJECTED`.
+2. [x] Update canonical TZ with latest runtime defects.
+3. [ ] Disable/rework rejected B2 production-visual layer causing black/generic world output.
+4. [ ] Fix vehicle enter/exit transform path; remove Museum fallback from ordinary vehicle exit.
+5. [ ] Fix HMMWV/BTR production visual scaling/orientation/material truth.
+6. [ ] Correct M2 Browning mount transform and disable default pitch inversion.
+7. [ ] Enforce Museum/Culture House single truthful site ownership.
+8. [ ] Remove unreferenced tower/shack and rejected generic fence/house visuals.
+9. [ ] Remove normal-route forced windowed mode and apply recovery 60 FPS cap.
+10. [ ] Close all weapon authored material/texture dependencies that existing content can support.
+11. [ ] Forward-port/retire stale verifiers that require rejected behavior.
+12. [ ] Full current-head source CI green.
+13. [ ] Merge corrective branch to `main`.
+14. [ ] Factual local UE build + runtime acceptance.
 
-Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates pass.
+## 9. Acceptance gates
 
-## Gate 0 — build
+Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass.
 
-- `OCTacticalMapVisual.cpp` compiles without C2131;
-- UBT exits 0;
-- only then proceed to frontend/runtime acceptance.
+### Gate A — build
 
-## Gate 0B — vehicle import
+- UE 5.8 build succeeds with exit code 0.
 
-- BTR canonical asset remains loadable;
-- HMMWV import completes without deprecated-property exception;
-- M2 import completes without deprecated-property exception;
-- launcher reports each item independently and truthfully.
+### Gate B — world materials
 
-## Gate 1 — frontend
+- no large black world/ground corruption;
+- no silent default/failed material replacement.
 
-- menu reliably opens;
-- no RenderTargetPool startup crash;
-- **>=30 FPS minimum**;
-- record `PASS45_FRONTEND_PERF_BASELINE` and selected RHI mode.
+### Gate C — performance/thermals
 
-## Gate 2 — gameplay performance
+- frontend/gameplay >=30 FPS minimum;
+- recovery normal-route frame cap ~60 FPS;
+- no severe progressive thermal behavior;
+- no render-scale downgrade.
 
-- normal local game, bots off;
-- no progressive 8–12 FPS collapse;
-- **>=30 FPS minimum**;
-- no hidden quality downgrade;
-- stop immediately if thermals become unsafe.
+### Gate D — landmarks
 
-## Gate 3 — environment / B2
+- Museum and Culture House visually separate;
+- Museum is not the six-column Culture House facade;
+- Silpo remains one separately owned site.
 
-- no fantasy primitive tree forest;
-- residential houses are imported models rather than brown cubes;
-- fence families use imported visual meshes;
-- asphalt/sidewalk/ground no longer show the old flat BasicShape tint;
-- no gross house stretching/floating or duplicated collision behavior;
-- College/park gaps remain visibly non-production until real matching assets exist.
+### Gate E — environment references
 
-## Gate 4 — tactical map
+- no rejected generic fence/house family near tested Oster area;
+- no unreferenced dark tower/shack;
+- visible production family has reference support.
 
-- `M` resembles compact central Oster reference topology;
-- synthetic giant X/diagonals gone;
-- player marker visible;
-- Museum / Culture House / Silpo / Park / Stadium distinct and co-located with semantic icons.
+### Gate F — weapons
 
-## Gate 5 — landmarks
+- required available weapons use authored materials/textures;
+- white/default slots fail.
 
-- Museum and Culture House visibly separate and correctly located;
-- Silpo stale/duplicate identity removed;
-- one visible shell owner per landmark.
+### Gate G — vehicles
 
-## Gate 6 — weapons
+- HMMWV/BTR proportions/orientation correct;
+- no white BTR body artifact;
+- M2 mount aligned;
+- mounted pitch non-inverted by default;
+- no Museum teleport on enter/exit.
 
-- fresh dependency audit completes for all 11 classes;
-- no white/default rack slot accepted;
-- missing dependencies are named explicitly;
-- runtime rack screenshot required.
+### Gate H — display
 
-## Gate 7 — CI/evidence
+- normal route uses intended fullscreen/borderless saved display mode;
+- compatibility diagnostic route, if windowed, is explicitly labelled.
 
-- PR #82 source head `2079733e7e027587f1bc0925d7fffc5c44df69ed`: **20/20 workflows success**;
-- source CI alone never promotes build/runtime status;
-- latest user screenshot/log/build transcript overrides older source assumptions.
+### Gate I — tactical map
 
----
+- runtime `M` screenshot matches compact central-Oster topology and distinct POIs.
 
-# 7. Completion checklist
+## 10. Current status
 
-- [x] Pass 44 factual runtime classified **RUNTIME REJECTED**.
-- [x] Rejected screenshots archived with manifest.
-- [x] RHI-thread A/B source correction implemented.
-- [x] Frontend/gameplay performance markers implemented.
-- [x] 40-pass landmark world scan retired.
-- [x] Compact 960×940 m cull budget implemented.
-- [x] Primitive tree visuals retired; real pine candidates retained.
-- [x] Tactical map reference topology implemented.
-- [x] Museum/Silpo/Culture single-shell ownership implemented.
-- [x] 11-weapon mesh/material/texture dependency audit implemented.
-- [x] B2 visible BasicShape inventory completed and merged by PR #81.
-- [x] Imported residential house/fence visual owners coded; old boxes retained only as hidden backstops where conversion succeeds.
-- [x] Imported ground/asphalt/sidewalk materials coded after source actor BeginPlay.
-- [x] New B2 real visual layer has compact culls and no collision/navigation duplication.
-- [x] College / park / oak remaining visual work classified as explicit content gaps rather than falsely READY.
-- [x] First local UE build after PR #81 captured and classified **LOCAL UE BUILD REJECTED**.
-- [x] C2131 tactical-map table root cause diagnosed and source fix merged by PR #82.
-- [x] HMMWV/M2 deprecated Interchange property root cause diagnosed and source fix merged by PR #82.
-- [x] BTR-4 local production import factually confirmed.
-- [x] PR #82 final source head passed **20/20 workflows** and merged into `main` as runtime-code commit `1d6f57227bb15e84d7df911c192f53685b08544f`.
-- [ ] Later local UE build exits 0 and promotes the build fix to VERIFIED BUILD.
-- [ ] HMMWV and M2 re-import successfully with the current UE 5.8 property contract.
-- [ ] Fresh local UE 5.8 weapon dependency report produced and its actual binary-content gaps closed.
-- [ ] Local UE 5.8 frontend acceptance passed.
-- [ ] Local UE 5.8 gameplay/performance acceptance passed.
-- [ ] Local UE screenshots accept B2 visuals, trees, tactical map, landmarks and weapon rack.
-
-**Current overall status: PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / PR #82 FIX MERGED / SOURCE CI 20/20 GREEN / LOCAL REBUILD REQUIRED.**
+- Pass 44: **RUNTIME REJECTED** historical evidence.
+- Pass 45 source corrections through PR #82: historical source/build progress only.
+- Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
+- Current branch: `fix/pass45-runtime-rejection-20260825`.
+- Runtime verification: **NOT ACHIEVED**.
