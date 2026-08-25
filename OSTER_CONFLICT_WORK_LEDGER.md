@@ -8,7 +8,7 @@
 - Repository: `valentronus95/OsterConflict`
 - Current `main` baseline: `bf483f8dc473862e0d3ce6468db44f025abbeef1` (merged Pass 44 / PR #78)
 - Active correction branch: `fix/runtime-recovery-pass-45-20260824` → `main`
-- Pass state token: **PASS 45 ACTIVE** — source correction is ready for final CI; local UE runtime remains untested.
+- Pass state token: **PASS 45 ACTIVE** — source correction is CI-green and merge-ready; local UE runtime remains untested.
 - Canonical corrective TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`
 - Latest runtime evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 - UE target: 5.8.x Windows
@@ -127,9 +127,9 @@ The following Pass 44 corrections remain current because the latest run does not
 7. Retire primitive tree visuals from normal gameplay and bind verified real foliage assets where available. **CODED_UNTESTED; OAK CONTENT GAP**.
 8. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**. Polish text/icons now share `FOCGeoReference`; Z=2 road layer is protected from the retired residential dimmer.
 9. Run all 11 weapon material/texture dependency checks and close what existing content can support. **AUDIT CODED_UNTESTED; ACTUAL LOCAL DEPENDENCY REPORT PENDING**.
-10. Forward-port/retire stale verifiers. **SOURCE CHANGES DONE THROUGH R6/PASS12/PASS17/PASS21/PASS22/PASS44/PASS45/TACTICAL MAP; FINAL CI PENDING**.
-11. Full source CI. **FINAL FRESH-HEAD RUN PENDING AFTER LEDGER/TZ SYNC**.
-12. Merge only after source checks are green. **NOT YET**.
+10. Forward-port/retire stale verifiers. **DONE FOR CURRENT SOURCE SUITE**.
+11. Full source CI. **GREEN — 32/32 workflows succeeded on source head `5087c4690570b87c6e50a99bdfe0344a68ac177b` before this docs-only status sync**.
+12. Merge only after source checks are green. **MERGE READY; final docs-only head must stay green**.
 13. Local test order after pull: **frontend performance first**, then gameplay; stop immediately on unsafe thermals or renewed catastrophic FPS collapse. **PENDING**.
 
 ## 8. Acceptance gates
@@ -143,4 +143,4 @@ The following Pass 44 corrections remain current because the latest run does not
 - Weapons: no white/default rack slot accepted; material/texture truth for all 11 classes or explicit named content gap.
 - CI: green source checks required but never sufficient for runtime verification.
 
-**Current overall status: PASS 45 SOURCE CORRECTION READY FOR FINAL CI / CONTENT GAPS + LOCAL UE RUNTIME PENDING.**
+**Current overall status: PASS 45 SOURCE CI GREEN / MERGE READY / CONTENT GAPS + LOCAL UE RUNTIME PENDING.**
