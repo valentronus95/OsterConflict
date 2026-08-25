@@ -1,0 +1,30 @@
+name: Pass 45 weapon material dependency audit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'fix/pass45-weapon-material-dependency-audit-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pass45-weapon-material-dependency-audit-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass45 weapon material dependency audit contract
+        run: python VERIFY_PASS45_WEAPON_MATERIAL_DEPENDENCY_AUDIT.py

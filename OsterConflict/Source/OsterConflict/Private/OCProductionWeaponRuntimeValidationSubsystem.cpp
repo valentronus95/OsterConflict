@@ -9,6 +9,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformMisc.h"
@@ -47,7 +48,50 @@ namespace
         const FString Path = Material->GetPathName();
         return Path.Contains(TEXT("BasicShapeMaterial"), ESearchCase::IgnoreCase) ||
             Path.Contains(TEXT("DefaultMaterial"), ESearchCase::IgnoreCase) ||
-            Path.Contains(TEXT("WorldGridMaterial"), ESearchCase::IgnoreCase);
+            Path.Contains(TEXT("WorldGridMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("_defaultMat"), ESearchCase::IgnoreCase);
+    }
+
+    FString JoinTexturePaths(const TArray<UTexture*>& Textures)
+    {
+        if (Textures.IsEmpty()) return TEXT("none");
+
+        FString Result;
+        for (int32 Index = 0; Index < Textures.Num(); ++Index)
+        {
+            if (Index > 0) Result += TEXT(",");
+            const UTexture* Texture = Textures[Index];
+            Result += Texture ? Texture->GetPathName() : TEXT("<null>");
+        }
+        return Result;
+    }
+
+    void AppendMaterialDependencyLine(
+        FString& OutReport,
+        int32 Slot,
+        UMaterialInterface* AuthoredMaterial,
+        UMaterialInterface* RuntimeMaterial)
+    {
+        TArray<UTexture*> UsedTextures;
+        if (AuthoredMaterial)
+        {
+            // UE 5.8 UMaterialInterface::GetUsedTextures reports textures used to render the material.
+            AuthoredMaterial->GetUsedTextures(
+                UsedTextures,
+                EMaterialQualityLevel::High,
+                true,
+                ERHIFeatureLevel::SM5,
+                true);
+        }
+
+        OutReport += FString::Printf(
+            TEXT("  slot=%d | authoredMaterial=%s | runtimeMaterial=%s | placeholder=%d | textureCount=%d | textures=%s\n"),
+            Slot,
+            AuthoredMaterial ? *AuthoredMaterial->GetPathName() : TEXT("<missing>"),
+            RuntimeMaterial ? *RuntimeMaterial->GetPathName() : TEXT("<missing>"),
+            IsPlaceholderMaterial(AuthoredMaterial) ? 1 : 0,
+            UsedTextures.Num(),
+            *JoinTexturePaths(UsedTextures));
     }
 
     bool HasVisibleFallbackStaticMesh(AOCWeaponBase& Weapon)
@@ -93,7 +137,8 @@ namespace
         UStaticMeshComponent& Component,
         int32& OutMaterialSlots,
         int32& OutPlaceholderOrMissingSlots,
-        int32& OutUnexpectedOverrides)
+        int32& OutUnexpectedOverrides,
+        FString& OutDependencyReport)
     {
         OutMaterialSlots = Mesh.GetStaticMaterials().Num();
         OutPlaceholderOrMissingSlots = 0;
@@ -102,6 +147,7 @@ namespace
         if (OutMaterialSlots <= 0)
         {
             OutPlaceholderOrMissingSlots = 1;
+            OutDependencyReport += TEXT("  slot=<none> | authoredMaterial=<missing> | runtimeMaterial=<missing> | placeholder=1 | textureCount=0 | textures=none\n");
             return false;
         }
 
@@ -111,6 +157,7 @@ namespace
             UMaterialInterface* RuntimeMaterial = Component.GetMaterial(Slot);
             if (IsPlaceholderMaterial(AuthoredMaterial)) ++OutPlaceholderOrMissingSlots;
             if (RuntimeMaterial != AuthoredMaterial) ++OutUnexpectedOverrides;
+            AppendMaterialDependencyLine(OutDependencyReport, Slot, AuthoredMaterial, RuntimeMaterial);
         }
 
         return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0;
@@ -121,7 +168,8 @@ namespace
         USkeletalMeshComponent& Component,
         int32& OutMaterialSlots,
         int32& OutPlaceholderOrMissingSlots,
-        int32& OutUnexpectedOverrides)
+        int32& OutUnexpectedOverrides,
+        FString& OutDependencyReport)
     {
         const TArray<FSkeletalMaterial>& Materials = Mesh.GetMaterials();
         OutMaterialSlots = Materials.Num();
@@ -131,6 +179,7 @@ namespace
         if (OutMaterialSlots <= 0)
         {
             OutPlaceholderOrMissingSlots = 1;
+            OutDependencyReport += TEXT("  slot=<none> | authoredMaterial=<missing> | runtimeMaterial=<missing> | placeholder=1 | textureCount=0 | textures=none\n");
             return false;
         }
 
@@ -140,6 +189,7 @@ namespace
             UMaterialInterface* RuntimeMaterial = Component.GetMaterial(Slot);
             if (IsPlaceholderMaterial(AuthoredMaterial)) ++OutPlaceholderOrMissingSlots;
             if (RuntimeMaterial != AuthoredMaterial) ++OutUnexpectedOverrides;
+            AppendMaterialDependencyLine(OutDependencyReport, Slot, AuthoredMaterial, RuntimeMaterial);
         }
 
         return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0;
@@ -183,7 +233,8 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     const bool bHeadlessGate = FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeaponsHeadless"));
 
     // Local UE 5.8 runtime inspection is authoritative. Mesh presence alone is not material readiness:
-    // every expected production visual must retain authored, non-placeholder material slots at runtime.
+    // every expected production visual must retain authored, non-placeholder material slots at runtime,
+    // and the report must expose the exact slot -> material -> used-texture dependency chain.
     const FExpectedWeaponVisual Expectations[] =
     {
         { TEXT("AK-47"), FName(TEXT("OC_AR1")), AOCWeapon_AssaultRifle::StaticClass(),
@@ -218,6 +269,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
 
     FString Report;
     Report += TEXT("OSTER CONFLICT R14 PRODUCTION WEAPON RUNTIME VALIDATION\n");
+    Report += TEXT("PASS45 dependency contract: weapon class -> exact mesh -> material slot -> material asset -> used texture dependencies -> runtime material\n");
     Report += FString::Printf(TEXT("Map=%s\n\n"), *World.GetMapName());
 
     bool bAllPass = true;
@@ -256,6 +308,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
         int32 PlaceholderOrMissingSlots = 0;
         int32 UnexpectedOverrides = 0;
         FString ActualAssetName = TEXT("none");
+        FString MaterialDependencyReport;
 
         if (Weapon)
         {
@@ -279,7 +332,8 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
                             *ProductionComponent,
                             MaterialSlots,
                             PlaceholderOrMissingSlots,
-                            UnexpectedOverrides);
+                            UnexpectedOverrides,
+                            MaterialDependencyReport);
                     }
                 }
             }
@@ -299,10 +353,16 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
                             *ProductionComponent,
                             MaterialSlots,
                             PlaceholderOrMissingSlots,
-                            UnexpectedOverrides);
+                            UnexpectedOverrides,
+                            MaterialDependencyReport);
                     }
                 }
             }
+        }
+
+        if (MaterialDependencyReport.IsEmpty())
+        {
+            MaterialDependencyReport = TEXT("  material dependency chain unavailable because expected runtime production visual was not resolved\n");
         }
 
         TotalMaterialSlots += MaterialSlots;
@@ -332,6 +392,8 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
             UnexpectedOverrides,
             *ActualAssetName,
             bPass ? TEXT("PASS") : TEXT("FAIL"));
+        Report += MaterialDependencyReport;
+        Report += TEXT("\n");
     }
 
     for (const TWeakObjectPtr<AOCWeaponBase>& TemporaryWeapon : TemporaryWeapons)
@@ -340,7 +402,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     }
 
     Report += FString::Printf(
-        TEXT("\nSUMMARY=%d/%d production weapon classes PASS | materialSlots=%d | materialGaps=%d | unexpectedOverrides=%d\n"),
+        TEXT("SUMMARY=%d/%d production weapon classes PASS | materialSlots=%d | materialGaps=%d | unexpectedOverrides=%d\n"),
         PassedWeapons,
         UE_ARRAY_COUNT(Expectations),
         TotalMaterialSlots,
@@ -356,11 +418,11 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     if (bAllPass)
     {
         FFileHelper::SaveStringToFile(
-            TEXT("R14_PRODUCTION_WEAPONS=PASS\nPASS45_AUTHORED_WEAPON_MATERIALS=PASS\n"),
+            TEXT("R14_PRODUCTION_WEAPONS=PASS\nPASS45_AUTHORED_WEAPON_MATERIALS=PASS\nPASS45_WEAPON_DEPENDENCY_REPORT=PASS\n"),
             *SuccessSentinelPath,
             FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY classes=%d/%d material_slots=%d authored_materials=1 unexpected_overrides=0 validation_only=1 mutation=0"),
+            TEXT("PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY classes=%d/%d material_slots=%d authored_materials=1 dependency_report=1 unexpected_overrides=0 validation_only=1 mutation=0"),
             PassedWeapons,
             UE_ARRAY_COUNT(Expectations),
             TotalMaterialSlots);
@@ -368,7 +430,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     else
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS45_PRODUCTION_WEAPON_CONTENT_GAP classes=%d/%d material_slots=%d material_gaps=%d unexpected_overrides=%d exact_material_ready=0 validation_only=1 mutation=0 report=%s"),
+            TEXT("PASS45_PRODUCTION_WEAPON_CONTENT_GAP classes=%d/%d material_slots=%d material_gaps=%d unexpected_overrides=%d exact_material_ready=0 dependency_report=1 validation_only=1 mutation=0 report=%s"),
             PassedWeapons,
             UE_ARRAY_COUNT(Expectations),
             TotalMaterialSlots,
