@@ -34,14 +34,22 @@ manifest = text(ROOT / "RUNTIME_EVIDENCE" / "2026-08-25_PASS45_REJECTED" / "MANI
 ledger = text(ROOT / "OSTER_CONFLICT_WORK_LEDGER.md")
 start = text(ROOT / "START_HERE.cmd")
 launcher = text(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
+acceptance = text(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 perf = text(SRC / "OCPerformanceSampleSubsystem.cpp")
 landmark_validation = text(SRC / "OCR146LandmarkSeparationSubsystem.cpp")
 landmark_validation_h = text(PUB / "OCR146LandmarkSeparationSubsystem.h")
 startup = text(SRC / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 spawn_guard = text(SRC / "OCMuseumSpawnGuardSubsystem.cpp")
 spawn_guard_h = text(PUB / "OCMuseumSpawnGuardSubsystem.h")
+r138 = text(SRC / "OCR138MuseumInteractiveArchitectureSubsystem.cpp")
+r138_h = text(PUB / "OCR138MuseumInteractiveArchitectureSubsystem.h")
 pickup = text(SRC / "OCPickupGunTruck.cpp")
 btr = text(SRC / "OCBTR.cpp")
+vehicle_base = text(SRC / "OCVehicleBase.cpp")
+armed_vehicle = text(SRC / "OCArmedVehicleBase.cpp")
+vehicle_guard = text(SRC / "OCProductionVehicleVisualGuardSubsystem.cpp")
+vehicle_guard_h = text(PUB / "OCProductionVehicleVisualGuardSubsystem.h")
+character = text(SRC / "OCCharacter.cpp")
 tactical = text(SRC / "OCTacticalMapVisual.cpp")
 foliage = text(SRC / "OCFoliageRuntimeGuardSubsystem.cpp")
 foliage_h = text(PUB / "OCFoliageRuntimeGuardSubsystem.h")
@@ -76,6 +84,8 @@ for path, label in (
     (SRC / "OCR13MuseumStadiumPhotoFidelitySubsystem.cpp", "retired museum-stadium compatibility shell"),
     (PUB / "OCWeaponPalettePass37Subsystem.h", "retired weapon palette shell"),
     (SRC / "OCWeaponPalettePass37Subsystem.cpp", "retired weapon palette shell"),
+    (ROOT / ".github" / "workflows" / "pass45-targeted-source-patch.yml", "temporary targeted patch workflow"),
+    (ROOT / ".github" / "workflows" / "pass45-vehicle-transform-trace-patch.yml", "temporary transform patch workflow"),
 ):
     absent(path, label)
 
@@ -124,14 +134,34 @@ for needle in (
     req(needle in landmark_validation_h + landmark_validation,
         f"validation-only landmark separation contract missing: {needle}")
 for forbidden in (
-    "RemoveInstance(",
-    "->Destroy()",
-    "AddOnActorSpawnedHandler",
-    "SetActorLocation(",
-    "SetActorTransform(",
+    "RemoveInstance(", "->Destroy()", "AddOnActorSpawnedHandler", "SetActorLocation(", "SetActorTransform(",
 ):
     req(forbidden not in landmark_validation,
         f"landmark separation again mutates runtime state instead of validating: {forbidden}")
+
+# Museum visible ownership: R13.7 remains visible; R13.8 owns hidden collision/interactions only.
+for needle in (
+    "R13.7 is the single visible Museum exterior",
+    "R13.8 must never suppress, repaint or replace",
+    "ReleaseR137StructuralCollision",
+    "BuildInteractionCollisionArchitecture",
+    "SetVisibility(false, true)",
+    "SetHiddenInGame(true, true)",
+    "PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED",
+    "PASS45_MUSEUM_R138_COLLISION_ONLY_READY",
+    "PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY",
+    "visible_owner=R137",
+    "interaction_owner=R138",
+    "visible_shell_duplication=0",
+    "visibility_mutation=0",
+    "material_mutation=0",
+):
+    req(needle in r138_h + r138, f"Museum ownership consolidation missing: {needle}")
+for forbidden in (
+    "SuppressSolidPrototype", "BuildSegmentedArchitecture", "MakeMuseumMID", "MakeDetailISM",
+    'R138_MuseumHighFidelityArchitecture',
+):
+    req(forbidden not in r138_h + r138, f"old R13.8 second-visible-shell behavior returned: {forbidden}")
 
 # Museum BASE recovery is initial-character-only; vehicle possession cannot trigger deployment correction.
 for needle in (
@@ -147,39 +177,89 @@ req("LastValidatedPawnByController" not in spawn_guard_h + spawn_guard,
 
 # Production vehicle visuals preserve mesh proportions and M2 is grounded to its mount plane.
 for needle in (
-    "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY",
-    "nonuniform_stretch=0",
-    "PASS45_M2_MOUNT_ALIGNMENT_READY",
-    "bottom_on_mount=1",
+    "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY", "nonuniform_stretch=0",
+    "PASS45_M2_MOUNT_ALIGNMENT_READY", "bottom_on_mount=1",
 ):
     req(needle in pickup, f"HMMWV/M2 corrective transform contract missing: {needle}")
-for needle in (
-    "PASS45_BTR4_PROPORTIONAL_VISUAL_READY",
-    "nonuniform_stretch=0",
-):
+for needle in ("PASS45_BTR4_PROPORTIONAL_VISUAL_READY", "nonuniform_stretch=0"):
     req(needle in btr, f"BTR4 corrective transform contract missing: {needle}")
-for forbidden in (
-    "DesiredSizeCm.X / NativeSize.X",
-    "DesiredSizeCm.Y / NativeSize.Y",
-    "DesiredSizeCm.Z / NativeSize.Z",
-):
+for forbidden in ("DesiredSizeCm.X / NativeSize.X", "DesiredSizeCm.Y / NativeSize.Y", "DesiredSizeCm.Z / NativeSize.Z"):
     req(forbidden not in pickup and forbidden not in btr,
         f"legacy non-uniform production vehicle stretch returned: {forbidden}")
 
-# Tactical map topology must come from the retained compact user reference, not source blockout ISMs.
+# VehicleBase owns the material rule at source; /Game/Production meshes bypass legacy BasicShape tint.
 for needle in (
-    "Pass45ReferenceWidthPx = 640.0f",
-    "Pass45ReferenceHeightPx = 630.0f",
-    "Pass45ReferenceRoads[]",
-    "ReferencePixelToSectorLocal",
-    "PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY",
-    "procedural_road_ism=0",
-    "procedural_sidewalk_ism=0",
-    "procedural_building_ism=0",
-    "FOCGeoReference::Museum()",
-    "FOCGeoReference::CultureHouse()",
-    "FOCGeoReference::Silpo()",
-    "FOCGeoReference::Stadium()",
+    'AssetPath.StartsWith(TEXT("/Game/Production/"))',
+    "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
+    "production_override=0",
+    "legacy_tint_blockout_only=1",
+):
+    req(needle in vehicle_base, f"VehicleBase production material bypass missing: {needle}")
+
+# Production vehicle guard is one-shot read-only validation, never a runtime repair layer.
+for needle in (
+    "Pass45 read-only production vehicle visual validator",
+    "ValidationDelaySeconds = 1.00f",
+    "PASS45_PRODUCTION_VEHICLE_VALIDATION_SCHEDULED",
+    "PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL",
+    "PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP",
+    "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
+    "PASS45_PRODUCTION_VEHICLE_CONTENT_GAP",
+    "validation_only=1", "mutation=0", "polling=0",
+):
+    req(needle in vehicle_guard_h + vehicle_guard, f"production vehicle validation-only contract missing: {needle}")
+for forbidden in (
+    "EmptyOverrideMaterials(", "Component->SetMaterial(", "MaxAuditPasses", "AuditIntervalSeconds",
+    "PASS42_PRODUCTION_MATERIALS_RESTORED",
+):
+    req(forbidden not in vehicle_guard, f"legacy production vehicle material repair returned: {forbidden}")
+
+# Driver/gunner possession must preserve current vehicle-local transforms and emit factual evidence.
+for needle in (
+    "PASS45_VEHICLE_ENTER_TRANSFORM_READY", "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL",
+    "PASS45_VEHICLE_EXIT_TRANSFORM_READY", "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL",
+    "museum_respawn_path=0", "VehicleLocationBeforeEnter", "VehicleLocationAtExit",
+    "ResultingPawnLocation", "ExitErrorCm <= 100.0f",
+):
+    req(needle in vehicle_base, f"driver enter/exit transform evidence missing: {needle}")
+for needle in (
+    "PASS45_GUNNER_EXIT_TRANSFORM_READY", "PASS45_GUNNER_EXIT_TRANSFORM_FAIL",
+    "VehicleLocationAtExit", "ResultingPawnLocation", "ExitErrorCm <= 100.0f", "museum_respawn_path=0",
+):
+    req(needle in armed_vehicle, f"gunner exit transform evidence missing: {needle}")
+
+# M2 gunner vertical input: invert OFF must use direct positive pitch (mouse up raises aim).
+for needle in (
+    "const float GunnerPitchSign = Settings->bInvertMouseY ? -1.0f : 1.0f;",
+    "LocalVehicleGunnerPitch + Value.Get<float>()",
+    "PASS45_M2_GUNNER_PITCH_CONTRACT_READY",
+    "default_invert=0", "mouse_up_raises=1",
+):
+    req(needle in character, f"M2 gunner pitch contract missing: {needle}")
+req("LocalVehicleGunnerPitch - Value.Get<float>() * 1.15f" not in character,
+    "old inverted gunner pitch expression returned")
+
+# Runtime acceptance must consume current markers, not old repair markers.
+for marker in (
+    "PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY",
+    "PASS45_MUSEUM_R138_COLLISION_ONLY_READY",
+    "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
+    "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
+    "PASS45_VEHICLE_ENTER_TRANSFORM_READY",
+    "PASS45_VEHICLE_EXIT_TRANSFORM_READY",
+    "PASS45_GUNNER_EXIT_TRANSFORM_READY",
+    "PASS45_M2_GUNNER_PITCH_CONTRACT_READY",
+):
+    req(marker in acceptance, f"current Pass45 runtime acceptance marker missing: {marker}")
+for stale in ("PASS42_PRODUCTION_MATERIALS_RESTORED", "PASS42_PRODUCTION_VEHICLE_VISUALS_READY"):
+    req(stale not in acceptance, f"runtime acceptance still requires obsolete repair marker: {stale}")
+
+# Tactical map topology must come from retained compact user reference, not source blockout ISMs.
+for needle in (
+    "Pass45ReferenceWidthPx = 640.0f", "Pass45ReferenceHeightPx = 630.0f", "Pass45ReferenceRoads[]",
+    "ReferencePixelToSectorLocal", "PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY", "procedural_road_ism=0",
+    "procedural_sidewalk_ism=0", "procedural_building_ism=0", "FOCGeoReference::Museum()",
+    "FOCGeoReference::CultureHouse()", "FOCGeoReference::Silpo()", "FOCGeoReference::Stadium()",
     "FOCGeoReference::CentralPark()",
 ):
     req(needle in tactical, f"Pass45 tactical topology contract missing: {needle}")
@@ -218,15 +298,9 @@ req("/Engine/BasicShapes/Cylinder" in world and "/Engine/BasicShapes/Sphere" in 
 
 # Every required weapon gets mesh -> material -> texture dependency truth in fresh NullRHI preflight.
 for needle in (
-    "DEPENDENCY_REPORT_PATH",
-    "required_weapon_material_texture_dependencies.json",
-    "DEPENDENCY_SUCCESS_SENTINEL",
-    "unreal.MaterialEditingLibrary.get_used_textures(material)",
-    "is_placeholder_texture",
-    "missing_texture_dependency",
-    "placeholder_texture_dependency",
-    "TEXTURE_DEPENDENCY_SUMMARY=",
-    "texture_dependency_result",
+    "DEPENDENCY_REPORT_PATH", "required_weapon_material_texture_dependencies.json", "DEPENDENCY_SUCCESS_SENTINEL",
+    "unreal.MaterialEditingLibrary.get_used_textures(material)", "is_placeholder_texture", "missing_texture_dependency",
+    "placeholder_texture_dependency", "TEXTURE_DEPENDENCY_SUMMARY=", "texture_dependency_result",
     "PASS45_WEAPON_DEPENDENCY_AUDIT_COMPLETE",
 ):
     req(needle in weapon_preflight, f"weapon material/texture dependency audit missing: {needle}")
@@ -246,10 +320,11 @@ if errors:
     raise SystemExit(1)
 
 print("RUNTIME RECOVERY PASS 45: PASS")
-print("- latest runtime rejection remains authoritative and legacy mutating owners stay physically retired")
-print("- landmark startup is coordinated once; parcel separation is validation-only, never late repair")
-print("- Museum BASE correction is initial-character-only")
-print("- HMMWV/BTR preserve native proportions and M2 uses bottom-on-mount alignment")
+print("- latest runtime rejection remains authoritative and retired mutating owners stay physically absent")
+print("- R13.7 is the one visible Museum exterior; R13.8 is hidden collision/interactivity only")
+print("- VehicleBase owns production-material preservation at source; validation layer is read-only")
+print("- driver/gunner transform evidence proves ordinary vehicle possession cannot silently respawn at Museum")
+print("- M2 default gunner pitch is direct/non-inverted")
 print("- compact reference tactical topology / render budget / bounded foliage contracts remain")
 print("- all required weapons emit mesh/material/texture dependency truth")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")
