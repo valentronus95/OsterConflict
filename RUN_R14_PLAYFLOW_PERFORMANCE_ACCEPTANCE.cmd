@@ -11,7 +11,7 @@ echo ============================================================
 echo.
 echo Перевіряється фактичний normal-game runtime, а не старі source-only припущення.
 echo Pass 45 gates: live pawn біля Museum, compact central Oster, zero implicit filler bots,
-echo single visible Museum owner, no runtime material repair, proportional production vehicles,
+echo single visible Museum owner, no runtime material/layer repair, proportional production vehicles,
 echo vehicle enter/exit transform preservation, M2 normal pitch, grounded rack та >=30 FPS.
 echo.
 echo Послідовність:
@@ -62,10 +62,9 @@ for %%M in (
     PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED
     PASS45_MUSEUM_R138_COLLISION_ONLY_READY
     PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY
+    PASS45_MUSEUM_LAYER_VALIDATION_READY
     PASS14_FOLIAGE_BUDGET_READY
-    PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED
     PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY
-    PASS32_MUSEUM_LAYER_BUDGET_READY
     PASS37_MUSEUM_VISIBLE_BASES_READY
     PASS42_BASE_RACK_GROUNDED_READY
     PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY
@@ -142,6 +141,14 @@ if not errorlevel 1 (
     exit /b 38
 )
 
+findstr /C:"PASS45_MUSEUM_LAYER_VALIDATION_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [MUSEUM] Validation-only Museum ownership check found source overlap, a hidden visible owner, or invalid R13.8 collision state.
+    echo [MUSEUM] No late repair is allowed; primary authoring must be corrected.
+    findstr /C:"PASS45_MUSEUM_LAYER_VALIDATION_FAIL" "%LOG%"
+    exit /b 53
+)
+
 findstr /C:"PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
     echo [LANDMARKS] Primary world authoring still places foreign/generic geometry inside a canonical landmark parcel.
@@ -176,13 +183,6 @@ if not errorlevel 1 (
     echo [VEHICLES] Vehicle/gunner transform preservation failed. Museum respawn fallback must not participate in ordinary possession.
     findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_FAIL" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_FAIL" /C:"PASS45_GUNNER_EXIT_TRANSFORM_FAIL" "%LOG%"
     exit /b 52
-)
-
-findstr /C:"PASS32_MUSEUM_LAYER_BUDGET_FAIL" "%LOG%" >nul
-if not errorlevel 1 (
-    echo [MUSEUM] Overlapping/obsolete museum layer survived the current ownership budget.
-    findstr /C:"PASS32_MUSEUM_LAYER_BUDGET_FAIL" "%LOG%"
-    exit /b 53
 )
 
 findstr /C:"PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP" "%LOG%" >nul
@@ -226,6 +226,7 @@ echo [PASS] Normal local run did not silently auto-fill filler bots.
 echo [PASS] Primary world/gameplay/BASE/vehicle seeds remained inside compact central Oster.
 echo [PASS] Actual live pawn is within the Museum BASE acceptance radius.
 echo [PASS] R13.7 is the one visible Museum exterior; R13.8 stayed collision/interactivity-only.
+echo [PASS] Museum layer validation passed without late visibility/collision/instance repair.
 echo [PASS] Landmark separation found no foreign late-repair requirement.
 echo [PASS] All 11 Museum BASE pickups are grounded.
 echo [PASS] Weapon authored materials passed without BasicShape/grey runtime disguise.
@@ -237,7 +238,7 @@ echo [PASS] Tactical Map marker and character input passed.
 echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
-findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
+findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
 findstr /C:"PASS45_HMMWV_PROPORTIONAL_VISUAL_READY" /C:"PASS45_BTR4_PROPORTIONAL_VISUAL_READY" /C:"PASS45_M2_MOUNT_ALIGNMENT_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_READY" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_READY" /C:"PASS45_GUNNER_EXIT_TRANSFORM_READY" /C:"PASS45_M2_GUNNER_PITCH_CONTRACT_READY" "%LOG%"
