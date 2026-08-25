@@ -11,24 +11,25 @@ echo ============================================================
 echo.
 echo Перевіряється фактичний normal-game runtime, а не старі source-only припущення.
 echo Pass 45 gates: live pawn біля Museum, compact central Oster, zero implicit filler bots,
-echo no BasicShape/grey material disguise, one coordinated landmark startup, proportional production vehicles,
-echo grounded rack, bounded startup work та >=30 FPS runtime evidence.
+echo single visible Museum owner, no runtime material repair, proportional production vehicles,
+echo vehicle enter/exit transform preservation, M2 normal pitch, grounded rack та >=30 FPS.
 echo.
 echo Послідовність:
 echo   1. У головному меню натисніть START.
 echo   2. Після travel оберіть TEAM / SQUAD / ROLE.
 echo   3. SPAWN виберіть BASE та натисніть У БІЙ.
 echo   4. Реальний pawn має опинитися біля Museum, не на далекому legacy edge spawn.
-echo   5. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
-echo   6. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
-echo   7. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
-echo   8. HMMWV/M2/BTR production content: missing source/material або distorted transform = FAIL.
-echo   9. Перевірте WASD + mouse та M map.
-echo  10. Обов'язково перевірте vehicle enter/drive/exit далеко від Museum: жодного teleport назад до BASE.
-echo  11. Перевірте M2: neutral mount aligned, mouse up raises gun при Invert Y OFF.
-echo  12. Залишайтесь у gameplay не менше 20 секунд для FPS sample і bounded-lifecycle evidence.
-echo  13. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має лишитися FAIL.
-echo  14. Вийдіть з гри нормально. Це вікно перевірить runtime log.
+echo   5. Museum має бути одним R13.7 visible exterior; R13.8 не повинен малювати другий shell.
+echo   6. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
+echo   7. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
+echo   8. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
+echo   9. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
+echo  10. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
+echo  11. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
+echo  12. Перевірте WASD + mouse та M map.
+echo  13. Залишайтесь у gameplay не менше 20 секунд для FPS sample і bounded-lifecycle evidence.
+echo  14. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має лишитися FAIL.
+echo  15. Вийдіть з гри нормально. Це вікно перевірить runtime log.
 echo.
 
 set "OC_FORCE_ACCEPTANCE=1"
@@ -58,16 +59,24 @@ for %%M in (
     PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY
     PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY
     PASS45_LANDMARK_STARTUP_COORDINATED_READY
+    PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED
+    PASS45_MUSEUM_R138_COLLISION_ONLY_READY
+    PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY
     PASS14_FOLIAGE_BUDGET_READY
     PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED
     PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY
     PASS32_MUSEUM_LAYER_BUDGET_READY
     PASS37_MUSEUM_VISIBLE_BASES_READY
     PASS42_BASE_RACK_GROUNDED_READY
-    PASS42_PRODUCTION_VEHICLE_VISUALS_READY
+    PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY
+    PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY
     PASS45_HMMWV_PROPORTIONAL_VISUAL_READY
     PASS45_BTR4_PROPORTIONAL_VISUAL_READY
     PASS45_M2_MOUNT_ALIGNMENT_READY
+    PASS45_M2_GUNNER_PITCH_CONTRACT_READY
+    PASS45_VEHICLE_ENTER_TRANSFORM_READY
+    PASS45_VEHICLE_EXIT_TRANSFORM_READY
+    PASS45_GUNNER_EXIT_TRANSFORM_READY
     PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND
     PASS31_GAMEPLAY_INPUT_READY
     PASS41_INPUT_RECOVERY_POLL_BUDGET_READY
@@ -94,7 +103,7 @@ for %%M in (
 findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%" >nul
 if errorlevel 1 (
     echo [SPAWN] Initial-only Pass45 BASE validation/recovery marker is missing.
-    echo [SPAWN] Vehicle possession must never be used as a replacement deployment proof.
+    echo [SPAWN] Vehicle possession must never be used as replacement deployment proof.
     exit /b 35
 )
 
@@ -126,6 +135,20 @@ if not errorlevel 1 (
     exit /b 37
 )
 
+findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_FAIL" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [MUSEUM] Single-visible-owner / collision-only contract failed.
+    findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_FAIL" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_FAIL" "%LOG%"
+    exit /b 38
+)
+
+findstr /C:"PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [LANDMARKS] Primary world authoring still places foreign/generic geometry inside a canonical landmark parcel.
+    findstr /C:"PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL" "%LOG%"
+    exit /b 39
+)
+
 findstr /C:"PASS42_BASE_RACK_GROUNDING_INCOMPLETE" "%LOG%" >nul
 if not errorlevel 1 (
     echo [RACK] One or more Museum BASE weapons are still not grounded.
@@ -141,18 +164,25 @@ if not errorlevel 1 (
     exit /b 51
 )
 
-findstr /C:"PASS42_PRODUCTION_VEHICLE_CONTENT_GAP" "%LOG%" >nul
+findstr /C:"PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL" /C:"PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP" /C:"PASS45_PRODUCTION_VEHICLE_CONTENT_GAP" "%LOG%" >nul
 if not errorlevel 1 (
-    echo [VEHICLES] Exact HMMWV / M2 Browning / BTR-4 production visual did not appear in strict runtime.
-    findstr /C:"PASS42_PRODUCTION_VEHICLE_CONTENT_GAP" "%LOG%"
+    echo [VEHICLES] Production vehicle authored-material/content validation failed.
+    findstr /C:"PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL" /C:"PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP" /C:"PASS45_PRODUCTION_VEHICLE_CONTENT_GAP" "%LOG%"
     exit /b 48
+)
+
+findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_FAIL" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_FAIL" /C:"PASS45_GUNNER_EXIT_TRANSFORM_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [VEHICLES] Vehicle/gunner transform preservation failed. Museum respawn fallback must not participate in ordinary possession.
+    findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_FAIL" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_FAIL" /C:"PASS45_GUNNER_EXIT_TRANSFORM_FAIL" "%LOG%"
+    exit /b 52
 )
 
 findstr /C:"PASS32_MUSEUM_LAYER_BUDGET_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
     echo [MUSEUM] Overlapping/obsolete museum layer survived the current ownership budget.
     findstr /C:"PASS32_MUSEUM_LAYER_BUDGET_FAIL" "%LOG%"
-    exit /b 38
+    exit /b 53
 )
 
 findstr /C:"PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP" "%LOG%" >nul
@@ -194,25 +224,28 @@ echo.
 echo [PASS] Frontend START/travel path is stable.
 echo [PASS] Normal local run did not silently auto-fill filler bots.
 echo [PASS] Primary world/gameplay/BASE/vehicle seeds remained inside compact central Oster.
-echo [PASS] Actual live pawn, not merely a spawn actor, is within the Museum BASE acceptance radius.
-echo [PASS] Museum/Silpo/Culture startup ran through the current coordinated owner window; deleted recovery owners were not required.
+echo [PASS] Actual live pawn is within the Museum BASE acceptance radius.
+echo [PASS] R13.7 is the one visible Museum exterior; R13.8 stayed collision/interactivity-only.
+echo [PASS] Landmark separation found no foreign late-repair requirement.
 echo [PASS] All 11 Museum BASE pickups are grounded.
 echo [PASS] Weapon authored materials passed without BasicShape/grey runtime disguise.
-echo [PASS] HMMWV + M2 Browning + BTR-4 production visual gates loaded with proportional source markers.
+echo [PASS] VehicleBase did not repaint production assets; read-only HMMWV/M2/BTR material validation passed.
+echo [PASS] HMMWV/BTR proportional transforms and M2 mount passed.
+echo [PASS] Driver enter/exit and gunner exit preserved the current vehicle location without Museum respawn fallback.
+echo [PASS] M2 Invert Y OFF contract produced mouse-up raises aim evidence.
 echo [PASS] Tactical Map marker and character input passed.
 echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
-echo [MANUAL] Vehicle enter/drive/exit Museum-teleport test and M2 pitch-direction check remain visual/input acceptance items.
 echo.
-findstr /C:"PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY" /C:"PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY" /C:"PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY" /C:"PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY" /C:"PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY" "%LOG%"
-findstr /C:"PASS44_COMPACT_PLAYABLE_AREA_READY" /C:"PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY" /C:"PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" "%LOG%"
-findstr /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%"
-findstr /C:"PASS42_BASE_RACK_GROUNDED_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
+findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
+findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
 findstr /C:"PASS45_HMMWV_PROPORTIONAL_VISUAL_READY" /C:"PASS45_BTR4_PROPORTIONAL_VISUAL_READY" /C:"PASS45_M2_MOUNT_ALIGNMENT_READY" "%LOG%"
-findstr /C:"PASS42_PRODUCTION_MATERIALS_RESTORED" /C:"PASS42_PRODUCTION_VEHICLE_VISUALS_READY" "%LOG%"
+findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_READY" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_READY" /C:"PASS45_GUNNER_EXIT_TRANSFORM_READY" /C:"PASS45_M2_GUNNER_PITCH_CONTRACT_READY" "%LOG%"
+findstr /C:"PASS44_COMPACT_PLAYABLE_AREA_READY" /C:"PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY" /C:"PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" "%LOG%"
+findstr /C:"PASS42_BASE_RACK_GROUNDED_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
 findstr /C:"PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND" /C:"PASS39_MINIMAP_UPDATE_BUDGET_READY" "%LOG%"
 findstr /C:"PASS31_GAMEPLAY_INPUT_READY" /C:"PASS41_INPUT_RECOVERY_POLL_BUDGET_READY" /C:"PASS39_FP_LOCAL_PAWN_FAST_PATH_READY" "%LOG%"
 findstr /C:"PASS40_UI_STABILIZER_BUDGET_READY" /C:"PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY" "%LOG%"
 findstr /C:"PASS36_LOWCPU_FOLIAGE_SCOPE_READY" /C:"PASS36_LOWCPU_FOLIAGE_RUNTIME_READY" /C:"PASS14_PERF_30FPS_READY" "%LOG%"
-echo [PASS] Pass 45 automated runtime evidence gates completed; manual visual/input gates still apply.
+echo [PASS] Pass 45 automated runtime evidence gates completed. Visual fidelity still requires factual screenshot review.
 exit /b 0
