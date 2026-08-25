@@ -42,7 +42,7 @@ namespace
     // Reference-traced street skeleton. It intentionally captures the recognizable central-Oster connectivity
     // and bends visible in the supplied map without pretending that the screenshot is a cadastral/GIS survey.
     // Exact individual landmark anchors continue to come from FOCGeoReference.
-    constexpr FPass45ReferenceRoadSegment Pass45ReferenceRoads[] =
+    const FPass45ReferenceRoadSegment Pass45ReferenceRoads[] =
     {
         // North / Hranovskoho corridor and its western approach.
         { {  12.0f,  82.0f }, {  88.0f, 154.0f }, 5.0f, false },
