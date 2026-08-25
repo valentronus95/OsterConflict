@@ -12,7 +12,8 @@ echo.
 echo Перевіряється фактичний normal-game runtime, а не старі source-only припущення.
 echo Pass 45 gates: live pawn біля Museum, compact central Oster, zero implicit filler bots,
 echo single visible Museum owner, no runtime material/layer repair, proportional production vehicles,
-echo vehicle enter/exit transform preservation, M2 normal pitch, grounded rack та >=30 FPS.
+echo no rejected generic residential replacement, vehicle transform preservation, M2 normal pitch,
+echo grounded rack та >=30 FPS.
 echo.
 echo Послідовність:
 echo   1. У головному меню натисніть START.
@@ -22,14 +23,15 @@ echo   4. Реальний pawn має опинитися біля Museum, не 
 echo   5. Museum має бути одним R13.7 visible exterior; R13.8 не повинен малювати другий shell.
 echo   6. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
 echo   7. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
-echo   8. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
-echo   9. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
-echo  10. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
-echo  11. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
-echo  12. Перевірте WASD + mouse та M map.
-echo  13. Залишайтесь у gameplay не менше 20 секунд для FPS sample і bounded-lifecycle evidence.
-echo  14. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має лишитися FAIL.
-echo  15. Вийдіть з гри нормально. Це вікно перевірить runtime log.
+echo   8. Generic AdvancedVillage house/fence/Side_Shed replacement не повинен підміняти semantic Oster baseline.
+echo   9. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
+echo  10. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
+echo  11. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
+echo  12. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
+echo  13. Перевірте WASD + mouse та M map.
+echo  14. Залишайтесь у gameplay не менше 20 секунд для FPS sample і bounded-lifecycle evidence.
+echo  15. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має лишитися FAIL.
+echo  16. Вийдіть з гри нормально. Це вікно перевірить runtime log.
 echo.
 
 set "OC_FORCE_ACCEPTANCE=1"
@@ -63,6 +65,7 @@ for %%M in (
     PASS45_MUSEUM_R138_COLLISION_ONLY_READY
     PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY
     PASS45_MUSEUM_LAYER_VALIDATION_READY
+    PASS45_GENERIC_RESIDENTIAL_REPLACEMENT_RETIRED
     PASS14_FOLIAGE_BUDGET_READY
     PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY
     PASS37_MUSEUM_VISIBLE_BASES_READY
@@ -228,6 +231,7 @@ echo [PASS] Actual live pawn is within the Museum BASE acceptance radius.
 echo [PASS] R13.7 is the one visible Museum exterior; R13.8 stayed collision/interactivity-only.
 echo [PASS] Museum layer validation passed without late visibility/collision/instance repair.
 echo [PASS] Landmark separation found no foreign late-repair requirement.
+echo [PASS] Rejected generic AdvancedVillage house/fence/Side_Shed replacement stayed retired.
 echo [PASS] All 11 Museum BASE pickups are grounded.
 echo [PASS] Weapon authored materials passed without BasicShape/grey runtime disguise.
 echo [PASS] VehicleBase did not repaint production assets; read-only HMMWV/M2/BTR material validation passed.
@@ -239,6 +243,7 @@ echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
 findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
+findstr /C:"PASS45_GENERIC_RESIDENTIAL_REPLACEMENT_RETIRED" /C:"PASS45_ENTERABLE_HOUSE_YARD_REFERENCE_GUARD_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
 findstr /C:"PASS45_HMMWV_PROPORTIONAL_VISUAL_READY" /C:"PASS45_BTR4_PROPORTIONAL_VISUAL_READY" /C:"PASS45_M2_MOUNT_ALIGNMENT_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_READY" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_READY" /C:"PASS45_GUNNER_EXIT_TRANSFORM_READY" /C:"PASS45_M2_GUNNER_PITCH_CONTRACT_READY" "%LOG%"
