@@ -1,0 +1,30 @@
+name: Pass 45 strict runtime acceptance harness
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'fix/runtime-acceptance-pass45-strict-harness-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pass45-strict-runtime-acceptance-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify strict Pass45 runtime acceptance harness
+        run: python VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py
