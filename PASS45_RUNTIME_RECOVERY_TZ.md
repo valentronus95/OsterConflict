@@ -3,11 +3,13 @@
 Date: 2026-08-24
 Completion audit: 2026-08-25
 Local build rejection: 2026-08-25
-Status: **PR #81 MERGED / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**
+PR #82 merge: 2026-08-25
+Status: **PR #82 MERGED / SOURCE CI 20/20 GREEN / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**
 Original source branch: `fix/runtime-recovery-pass-45-20260824` — merged by PR #79
 Completion branch: `fix/pass45-completion-audit-20260825` — merged by PR #81
-Active build/import fix branch: `fix/pass45-local-build-import-regression-20260825`
-Current `main` baseline before active fix: `f789c42935fd7c90c7dfb4777e794e5cfecc1687`
+Build/import fix branch: `fix/pass45-local-build-import-regression-20260825` — merged by PR #82
+Runtime-code `main` baseline: `1d6f57227bb15e84d7df911c192f53685b08544f`
+Final PR #82 source head: `2079733e7e027587f1bc0925d7fffc5c44df69ed` — 20/20 source workflows green before merge
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -19,13 +21,16 @@ Pass 44 was source-green but factually rejected by the first local UE run. The u
 
 Pass 45 is the corrective contract. Its merged source work is not runtime-verified. The 2026-08-25 completion audit found one genuine source omission that remained in this TZ: **B2 World proxy truth** still allowed visible BasicShape residential/environment families even though suitable imported assets existed. PR #81 merged that source correction.
 
-The first factual local UE 5.8.1 build after PR #81 then found a second class of source defects that source-only CI did not expose: a real C++ compilation failure in the tactical-map table and a UE 5.8 Interchange API rejection for HMMWV/M2 GLB intake. Therefore **green source CI from PR #81 is not build acceptance**.
+The first factual local UE 5.8.1 build after PR #81 then found a second class of source defects that source-only CI did not expose: a real C++ compilation failure in the tactical-map table and a UE 5.8 Interchange API rejection for HMMWV/M2 GLB intake. PR #82 contains both corrections and passed 20/20 source workflows before merge. This still does **not** equal UE build/runtime verification; the next local build is authoritative.
 
 Latest rejected gameplay evidence:
 `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 
 Pass 45 completion audit:
 `OsterConflict/Docs/WorkReports/PASS45_COMPLETION_AUDIT_2026-08-25.md`
+
+Local build/import rejection report:
+`OsterConflict/Docs/WorkReports/PASS45_LOCAL_BUILD_IMPORT_REJECTION_2026-08-25.md`
 
 Latest user-observed runtime/build evidence always overrides source/CI claims.
 
@@ -53,13 +58,14 @@ Factual result:
 - UBT/launcher exit code **6**;
 - gameplay did not start.
 
-Active correction:
+Merged PR #82 correction:
 
 - table changed from `constexpr FPass45ReferenceRoadSegment[]` to namespace-scope `const FPass45ReferenceRoadSegment[]`;
 - road data, iteration and `UE_ARRAY_COUNT` behavior are unchanged;
-- regression verifier forbids restoring the invalid `constexpr` declaration.
+- regression verifier forbids restoring the invalid `constexpr` declaration;
+- historical Pass44 verifier was forward-ported to semantic status checking so it cannot force old wording back into the ledger.
 
-Status: **CODED_UNTESTED** until a later local UE build exits 0.
+Status: **MERGED / CODED_UNTESTED** until a later local UE build exits 0.
 
 ## 1.2 HMMWV / M2 Interchange regression
 
@@ -72,7 +78,7 @@ Factual import result:
 - M2 failed for the same reason;
 - launcher correctly reported `HMMWV=0 M2=0 BTR4=1` and did not call the failed assets production-ready.
 
-Active correction:
+Merged PR #82 correction:
 
 - deprecated `auto_detect_mesh_type` property removed;
 - current `convert_statics_with_animated_transform_to_skeletals=false` policy used;
@@ -81,7 +87,7 @@ Active correction:
 Status:
 
 - BTR-4 production import: **LOCALLY CONFIRMED**, runtime/presentation still unverified;
-- HMMWV/M2 importer correction: **CODED_UNTESTED** until the next local import.
+- HMMWV/M2 importer correction: **MERGED / CODED_UNTESTED** until the next local import.
 
 ---
 
@@ -191,7 +197,7 @@ Source state: **CODED_UNTESTED**.
 
 ## 3.4 Tactical map
 
-Source state: **BUILD FIX CODED_UNTESTED**.
+Source state: **BUILD FIX MERGED / CODED_UNTESTED**.
 
 The `M` map no longer treats procedural world ISMs as topology truth.
 
@@ -201,7 +207,7 @@ The `M` map no longer treats procedural world ISMs as topology truth.
 - tactical-polish icons use the same authority;
 - old Z=2 residential dimmer retired;
 - giant procedural X/diagonal road pattern must not return;
-- invalid `constexpr` reference-road table declaration found by local UE build has been replaced with a normal `const` table.
+- invalid `constexpr` reference-road table declaration found by local UE build has been replaced with a normal `const` table and merged by PR #82.
 
 A successful local rebuild is now required before any tactical-map runtime screenshot can count.
 
@@ -253,7 +259,7 @@ Historical duplicate/recovery layers may not become second visible shell owners.
 
 ## Phase C — tactical map topology
 
-- C1 reference-traced compact topology: **MERGED; LOCAL BUILD REJECTED ON CONSTEXPR TABLE; FIX CODED_UNTESTED**.
+- C1 reference-traced compact topology: **MERGED; LOCAL BUILD REJECTED ON CONSTEXPR TABLE; PR #82 FIX MERGED / CODED_UNTESTED**.
 - C2 runtime `M` screenshot: **PENDING SUCCESSFUL BUILD + RUNTIME**.
 
 ## Phase D — landmark ownership
@@ -270,8 +276,8 @@ Historical duplicate/recovery layers may not become second visible shell owners.
 ## Phase F — production vehicle intake
 
 - BTR-4 source/import: **LOCAL IMPORT CONFIRMED 2026-08-25; RUNTIME UNTESTED**.
-- HMMWV source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX CODED_UNTESTED**.
-- M2 source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX CODED_UNTESTED**.
+- HMMWV source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX MERGED / CODED_UNTESTED**.
+- M2 source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX MERGED / CODED_UNTESTED**.
 
 ---
 
@@ -357,8 +363,8 @@ Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates p
 
 ## Gate 7 — CI/evidence
 
-- current-head source CI green;
-- CI alone never promotes build/runtime status;
+- PR #82 source head `2079733e7e027587f1bc0925d7fffc5c44df69ed`: **20/20 workflows success**;
+- source CI alone never promotes build/runtime status;
 - latest user screenshot/log/build transcript overrides older source assumptions.
 
 ---
@@ -381,9 +387,10 @@ Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates p
 - [x] New B2 real visual layer has compact culls and no collision/navigation duplication.
 - [x] College / park / oak remaining visual work classified as explicit content gaps rather than falsely READY.
 - [x] First local UE build after PR #81 captured and classified **LOCAL UE BUILD REJECTED**.
-- [x] C2131 tactical-map table root cause diagnosed and source fix coded.
-- [x] HMMWV/M2 deprecated Interchange property root cause diagnosed and source fix coded.
+- [x] C2131 tactical-map table root cause diagnosed and source fix merged by PR #82.
+- [x] HMMWV/M2 deprecated Interchange property root cause diagnosed and source fix merged by PR #82.
 - [x] BTR-4 local production import factually confirmed.
+- [x] PR #82 final source head passed **20/20 workflows** and merged into `main` as runtime-code commit `1d6f57227bb15e84d7df911c192f53685b08544f`.
 - [ ] Later local UE build exits 0 and promotes the build fix to VERIFIED BUILD.
 - [ ] HMMWV and M2 re-import successfully with the current UE 5.8 property contract.
 - [ ] Fresh local UE 5.8 weapon dependency report produced and its actual binary-content gaps closed.
@@ -391,4 +398,4 @@ Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates p
 - [ ] Local UE 5.8 gameplay/performance acceptance passed.
 - [ ] Local UE screenshots accept B2 visuals, trees, tactical map, landmarks and weapon rack.
 
-**Current overall status: PASS 45 / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED / CURRENT-HEAD SOURCE CI REQUIRED / LOCAL REBUILD REQUIRED.**
+**Current overall status: PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / PR #82 FIX MERGED / SOURCE CI 20/20 GREEN / LOCAL REBUILD REQUIRED.**
