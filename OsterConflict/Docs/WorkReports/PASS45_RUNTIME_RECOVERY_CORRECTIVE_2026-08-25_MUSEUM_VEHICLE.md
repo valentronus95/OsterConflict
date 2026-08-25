@@ -100,3 +100,12 @@ Still unresolved or runtime-unproven:
 **SOURCE CORRECTIVE MILESTONE: CODED_UNTESTED.**
 
 Do not promote Pass 45 to runtime verified until the local UE 5.8 acceptance run proves the current binary behavior.
+
+
+## Museum layer guard follow-up
+
+- Found and retired the remaining Pass32 late Museum repair path. It could hide the current R13.7 visible exterior after authoritative startup.
+- `OCMuseumLayerPerformanceGuardSubsystem` is now one-shot validation-only and cannot mutate visibility, collision, instances, materials or cull state.
+- Removed empty R13.7 glass/door prototype plumbing and forward-ported runtime acceptance to `PASS45_MUSEUM_LAYER_VALIDATION_READY/FAIL`.
+- Production geometry workflow now checks Pass45 proportional native-bounds HMMWV/BTR fitting.
+- Status remains **CODED_UNTESTED / RUNTIME REJECTED** pending local UE 5.8 build/playtest.

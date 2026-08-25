@@ -141,7 +141,7 @@ Open source conflict:
 | STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | Physical retirement policy active; old B2/Museum rebuild/palette/ownership shells deleted; audit continues. |
 | PERF-COLLAPSE-001 | No severe FPS/thermal collapse | ≥7 | CODED_UNTESTED | Fullscreen + 60 FPS recovery cap; destructive Museum loops removed; local runtime required. |
 | VIS-BLACK-WORLD-001 | No black ground/world corruption | 1 | CODED_UNTESTED | Runtime-rejected B2 material/house/fence owner physically deleted; readable baseline must be retested. |
-| LOC-MUSEUM-001 | Correct visible Oster Local History Museum near BASE | ≥11 | IN_PROGRESS | R13.7/R13.8 duplicate-visible ownership now explicitly identified; consolidate exterior vs interaction. |
+| LOC-MUSEUM-001 | Correct visible Oster Local History Museum near BASE | ≥11 | CODED_UNTESTED | R13.7 is the only visible exterior owner; R13.8 is hidden collision/final glass; late Pass32 repair mutation retired; factual screenshot still required. |
 | LOC-CULTURE-001 | Culture House separate from Museum | ≥3 | IN_PROGRESS / CODED_UNTESTED | R14.6 stays at separate geo anchor; validation-only parcel check replaces late repair. |
 | LOC-SILPO-001 | Silpo one correct site owner | ≥2 | CODED_UNTESTED | Coordinated startup retained; parcel overlap now fail-visible. |
 | LOC-TOWER-001 | Remove unreferenced dark steep-roof tower/shack | 1 | CODED_UNTESTED / INVESTIGATE | Pass35 recovery carrier/roof owner removed; verify next runtime whether artifact disappears, then trace remaining owner if not. |
@@ -150,8 +150,8 @@ Open source conflict:
 | VEH-HMMWV-001 | HMMWV proportions/orientation correct | ≥6 | CODED_UNTESTED | Uniform scale + axis correction; runtime multi-angle screenshot required. |
 | VEH-BTR-001 | BTR-4 proportions/orientation correct | ≥6 | CODED_UNTESTED | Uniform scale + axis correction; white material artifact still open. |
 | VEH-M2-MOUNT-001 | M2 aligned on HMMWV mount | ≥2 | CODED_UNTESTED | Bottom-on-mount bounds alignment coded. |
-| VEH-M2-PITCH-001 | Mouse up raises M2 when Invert Y OFF | 1 | IN_PROGRESS | Gunner pitch source path still requires correction + runtime test. |
-| VEH-MATERIAL-OWNER-001 | Base vehicle tint must not overwrite production authored materials | 1 | IN_PROGRESS | Primary `OCVehicleBase::BeginPlay` legacy tint identified; guard remains temporary until primary fix. |
+| VEH-M2-PITCH-001 | Mouse up raises M2 when Invert Y OFF | 1 | CODED_UNTESTED | Source contract corrected; `PASS45_M2_GUNNER_PITCH_CONTRACT_READY` added; runtime input proof required. |
+| VEH-MATERIAL-OWNER-001 | Base vehicle tint must not overwrite production authored materials | 1 | CODED_UNTESTED | `VehicleBase` bypasses `/Game/Production/`; former repair guard is read-only validation-only, no material mutation/polling. |
 | WEAPON-MATERIAL-001 | Required rack weapons use authored material + texture dependencies | ≥11 | CODED_UNTESTED / CONTENT CHECK | Truth-only preflight retained; white/default slots fail; no runtime recolour owner. |
 | GAME-WEAPONS-001 | 11 grounded pickups near Museum BASE | ≥9 | CODED_UNTESTED | 12 cm ground clearance retained. |
 | UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | ≥4 | CODED_UNTESTED | Hard reference topology retained; runtime screenshot required. |
@@ -190,9 +190,9 @@ Open source conflict:
 10. [x] HMMWV/BTR proportional fitting + M2 bottom-on-mount alignment coded.
 11. [x] Normal forced windowed removed; 60 FPS recovery cap coded.
 12. [x] Pass35/37/38/42 + canonical Pass45 verifiers forward-ported away from retired owners.
-13. [ ] Consolidate Museum visual ownership: R13.7 visible exterior vs R13.8 interaction/collision.
-14. [ ] Fix default M2 gunner pitch direction.
-15. [ ] Stop `AOCVehicleBase` legacy tint from touching production assets; then retire temporary production-material repair guard if possible.
+13. [x] Consolidate Museum visual ownership: R13.7 visible exterior; R13.8 hidden interaction/collision + final glass; obsolete R14.1 replacement owner deleted.
+14. [x] Fix default M2 gunner pitch direction in source; factual runtime input proof remains required.
+15. [x] Stop `AOCVehicleBase` legacy tint from touching production assets; production visual guard converted to read-only validation with no repair/polling.
 16. [ ] Close BTR white material artifact and remaining weapon authored material/texture gaps supported by current content.
 17. [ ] Trace/remove any remaining unreferenced tower/shack or rejected generic near-Museum visual.
 18. [ ] Run full current-head source CI; forward-port any remaining stale verifier instead of restoring old behavior.
@@ -253,3 +253,21 @@ Status: **CODED_UNTESTED / latest factual runtime remains RUNTIME REJECTED until
 - Work report: `OsterConflict/Docs/WorkReports/PASS45_RUNTIME_RECOVERY_CORRECTIVE_2026-08-25_MUSEUM_VEHICLE.md`.
 
 Remaining factual acceptance: local UE build, Museum screenshot, vehicle drive/exit away from Museum, M2 pitch, HMMWV/M2/BTR materials/proportions, weapon material gaps, invalid Oster generic visuals, thermal/FPS behavior.
+
+
+## Pass45 preserved local UE build/import rejection — 2026-08-25
+
+Status of this historical attempt: **LOCAL UE BUILD REJECTED**. This is preserved as factual chronology even though a later corrected build reached gameplay.
+
+- UE 5.8/MSVC rejected the tactical-map `FVector2D` road table with **C2131** while it was `constexpr`; source now uses a normal `const` table.
+- UE 5.8 Interchange rejected the deprecated `auto_detect_mesh_type` property during HMMWV/M2 GLB intake; current importer explicitly forces StaticMesh through the supported Interchange API.
+- These source corrections remain **CODED_UNTESTED** as corrections to that failed attempt; a later run reaching gameplay does not erase the earlier failure record.
+- Current overall Pass45 truth remains **RUNTIME REJECTED / CORRECTIVE SOURCE WORK CODED_UNTESTED** until the next factual local UE 5.8 acceptance.
+
+### Museum layer ownership correction after audit
+
+- `OCMuseumLayerPerformanceGuardSubsystem` was found to be a conflicting late mutator: it could hide R13.7 visible shell components, remove source instances, alter collision/navigation and retune render state after the new Pass45 Museum owner had built.
+- It is now **validation-only**: one delayed observation, `mutation=0`, with `PASS45_MUSEUM_LAYER_VALIDATION_READY/FAIL`; any failure requires a primary-authoring fix instead of late repair.
+- R13.7 empty `WindowGlass`/`GreyDoors` prototype plumbing was removed; R13.7 owns visible exterior/trim/grilles only.
+- Runtime acceptance now requires `PASS45_MUSEUM_LAYER_VALIDATION_READY` and rejects `PASS45_MUSEUM_LAYER_VALIDATION_FAIL`; retired Pass30/Pass32 repair markers are no longer acceptance gates.
+- Production-model CI was forward-ported to Pass45 uniform/native-bounds HMMWV/BTR geometry rather than resurrecting non-uniform legacy fitting.
