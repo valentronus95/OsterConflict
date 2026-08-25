@@ -1,7 +1,7 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date: 2026-08-24
-Status: **ACTIVE / SOURCE CORRECTION READY FOR FINAL CI / RUNTIME UNTESTED**
+Status: **ACTIVE / SOURCE CI GREEN / MERGE READY / RUNTIME UNTESTED**
 Branch: `fix/runtime-recovery-pass-45-20260824`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
@@ -350,9 +350,9 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 6. Remove primitive tree families from normal visual runtime and bind verified real foliage where available. **CODED_UNTESTED; OAK CONTENT GAP**.
 7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**. Text and polish icons now share one geo authority and the old Z=2 residential dimmer is retired.
 8. Run per-weapon material/texture dependency audit and close real asset/material gaps. **AUDIT CODED_UNTESTED; CLOSURE IN_PROGRESS**.
-9. Update/retire conflicting historical verifiers. **SOURCE CHANGES DONE THROUGH R6/PASS12/PASS17/PASS21/PASS22/PASS44/PASS45/TACTICAL MAP; FINAL CI PENDING**.
-10. Run full source CI. **FINAL FRESH-HEAD RUN PENDING AFTER THIS TZ/LEDGER SYNC**.
-11. Merge only after fresh current-head source checks are green. **NOT YET**.
+9. Update/retire conflicting historical verifiers. **DONE FOR CURRENT SOURCE SUITE**.
+10. Run full source CI. **GREEN — 32/32 workflows succeeded on source head `5087c4690570b87c6e50a99bdfe0344a68ac177b` before this docs-only status sync**.
+11. Merge only after fresh current-head source checks are green. **MERGE READY; final docs-only head must stay green**.
 12. After local pull, perform frontend performance test first, then gameplay. **PENDING**.
 
 ---
@@ -371,8 +371,8 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 - [x] Tactical map source rebuilt from the authoritative retained reference topology rather than procedural world ISMs (**CODED_UNTESTED**).
 - [x] Tactical map polish icons aligned to the same `FOCGeoReference`; Culture House icon added; obsolete Z=2 residential dimmer retired (**CODED_UNTESTED**).
 - [x] 11-weapon mesh → material → texture dependency audit implemented (**fresh UE report pending**).
-- [x] Known conflicting historical verifier contracts forward-ported through R6/Pass12/17/21/22/44/45 and tactical-map suites (**final fresh-head CI pending**).
+- [x] Known conflicting historical verifier contracts forward-ported through R6/Pass12/17/21/22/44/45 and tactical-map suites.
+- [x] Full source CI green on the source head before final docs-only status sync; final docs-only head must remain green before merge.
 - [ ] Actual authored material/texture gaps from the next fresh preflight closed.
 - [ ] Other visible BasicShape world families inventoried/replaced where real content exists.
-- [ ] Full fresh-head source CI green.
 - [ ] Local UE 5.8 runtime accepted.
