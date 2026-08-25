@@ -8,7 +8,7 @@
 - Repository: `valentronus95/OsterConflict`
 - Current `main` baseline before this corrective branch: `f789c42935fd7c90c7dfb4777e794e5cfecc1687` (PR #81 merged Pass 45 completion audit).
 - Active local-build/import fix branch: `fix/pass45-local-build-import-regression-20260825` → `main`.
-- Pass state token: **PASS 45 / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**.
+- Pass state token: **PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**.
 - Canonical TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Completion audit: `OsterConflict/Docs/WorkReports/PASS45_COMPLETION_AUDIT_2026-08-25.md`.
 - Latest factual evidence: user normal-route launch/build transcript from **2026-08-25**.
@@ -190,4 +190,4 @@ Because the 2026-08-25 C++ build failed before gameplay, all B2 visual placement
 - Landmarks: Museum/Culture visibly separate; Silpo stale duplicate absent.
 - Weapons: fresh 11-class dependency truth; no white/default slot accepted.
 
-**Current overall status: PASS 45 / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED / SOURCE CI PENDING / LOCAL REBUILD REQUIRED.**
+**Current overall status: PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED / SOURCE CI PENDING / LOCAL REBUILD REQUIRED.**
