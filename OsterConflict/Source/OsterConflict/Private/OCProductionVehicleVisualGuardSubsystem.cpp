@@ -4,12 +4,21 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
 
 namespace
 {
-    constexpr int32 MaxAuditPasses = 12;
-    constexpr float AuditIntervalSeconds = 0.50f;
+    constexpr float ValidationDelaySeconds = 1.00f;
+
+    bool IsPlaceholderMaterial(const UMaterialInterface* Material)
+    {
+        if (!Material) return true;
+        const FString Path = Material->GetPathName();
+        return Path.Contains(TEXT("BasicShapeMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("DefaultMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WorldGridMaterial"), ESearchCase::IgnoreCase);
+    }
 }
 
 bool UOCProductionVehicleVisualGuardSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -26,31 +35,34 @@ void UOCProductionVehicleVisualGuardSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
     InWorld.GetTimerManager().SetTimer(
-        AuditTimer,
+        ValidationTimer,
         this,
-        &UOCProductionVehicleVisualGuardSubsystem::AuditProductionVisuals,
-        AuditIntervalSeconds,
-        true,
-        0.10f);
+        &UOCProductionVehicleVisualGuardSubsystem::ValidateProductionVisuals,
+        ValidationDelaySeconds,
+        false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_PRODUCTION_VEHICLE_VALIDATION_SCHEDULED delay_s=%.2f mutation=0 polling=0"),
+        ValidationDelaySeconds);
 }
 
 void UOCProductionVehicleVisualGuardSubsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld())
     {
-        World->GetTimerManager().ClearTimer(AuditTimer);
+        World->GetTimerManager().ClearTimer(ValidationTimer);
     }
     Super::Deinitialize();
 }
 
-void UOCProductionVehicleVisualGuardSubsystem::AuditProductionVisuals()
+void UOCProductionVehicleVisualGuardSubsystem::ValidateProductionVisuals()
 {
     UWorld* World = GetWorld();
     if (!World) return;
 
-    ++AuditPass;
     int32 ProductionComponents = 0;
-    int32 RestoredComponents = 0;
+    int32 UnexpectedOverrides = 0;
+    int32 PlaceholderOrMissingSlots = 0;
     bool bHMMWV = false;
     bool bM2 = false;
     bool bBTR4 = false;
@@ -75,46 +87,60 @@ void UOCProductionVehicleVisualGuardSubsystem::AuditProductionVisuals()
             bM2 |= AssetPath.Contains(TEXT("/Weapons/M2/SM_M2_Browning"));
             bBTR4 |= AssetPath.Contains(TEXT("/Vehicles/BTR4/SM_BTR4_Bucephalus"));
 
-            bool bHasUnexpectedOverride = false;
             const int32 MaterialCount = Mesh->GetStaticMaterials().Num();
-            for (int32 Slot = 0; Slot < MaterialCount; ++Slot)
+            if (MaterialCount <= 0)
             {
-                if (Component->GetMaterial(Slot) != Mesh->GetMaterial(Slot))
-                {
-                    bHasUnexpectedOverride = true;
-                    break;
-                }
+                ++PlaceholderOrMissingSlots;
+                continue;
             }
 
-            if (bHasUnexpectedOverride)
+            for (int32 Slot = 0; Slot < MaterialCount; ++Slot)
             {
-                Component->EmptyOverrideMaterials();
-                ++RestoredComponents;
+                UMaterialInterface* AuthoredMaterial = Mesh->GetMaterial(Slot);
+                UMaterialInterface* RuntimeMaterial = Component->GetMaterial(Slot);
+
+                if (RuntimeMaterial != AuthoredMaterial)
+                {
+                    ++UnexpectedOverrides;
+                }
+                if (IsPlaceholderMaterial(AuthoredMaterial))
+                {
+                    ++PlaceholderOrMissingSlots;
+                }
             }
         }
     }
 
-    if (RestoredComponents > 0)
+    if (UnexpectedOverrides > 0)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS42_PRODUCTION_MATERIALS_RESTORED pass=%d components=%d restored=%d hmmwv=%d m2=%d btr4=%d"),
-            AuditPass, ProductionComponents, RestoredComponents,
-            bHMMWV ? 1 : 0, bM2 ? 1 : 0, bBTR4 ? 1 : 0);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL components=%d unexpected_overrides=%d mutation=0 primary_source_fix_required=1"),
+            ProductionComponents,
+            UnexpectedOverrides);
     }
 
-    if (bHMMWV && bM2 && bBTR4)
+    if (PlaceholderOrMissingSlots > 0)
     {
-        World->GetTimerManager().ClearTimer(AuditTimer);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP components=%d missing_or_placeholder_slots=%d mutation=0 exact_material_ready=0"),
+            ProductionComponents,
+            PlaceholderOrMissingSlots);
+    }
+
+    if (bHMMWV && bM2 && bBTR4 && UnexpectedOverrides == 0 && PlaceholderOrMissingSlots == 0)
+    {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS42_PRODUCTION_VEHICLE_VISUALS_READY hmmwv=1 m2=1 btr4=1 authored_materials=preserved polling=stopped"));
-        return;
+            TEXT("PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY hmmwv=1 m2=1 btr4=1 authored_materials=1 validation_only=1 mutation=0 polling=0"));
     }
-
-    if (AuditPass >= MaxAuditPasses)
+    else
     {
-        World->GetTimerManager().ClearTimer(AuditTimer);
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS42_PRODUCTION_VEHICLE_CONTENT_GAP hmmwv=%d m2=%d btr4=%d passes=%d polling=stopped"),
-            bHMMWV ? 1 : 0, bM2 ? 1 : 0, bBTR4 ? 1 : 0, AuditPass);
+            TEXT("PASS45_PRODUCTION_VEHICLE_CONTENT_GAP hmmwv=%d m2=%d btr4=%d components=%d overrides=%d material_gaps=%d validation_only=1"),
+            bHMMWV ? 1 : 0,
+            bM2 ? 1 : 0,
+            bBTR4 ? 1 : 0,
+            ProductionComponents,
+            UnexpectedOverrides,
+            PlaceholderOrMissingSlots);
     }
 }
