@@ -2,10 +2,12 @@
 
 Date: 2026-08-24
 Completion audit: 2026-08-25
-Status: **MERGED BASE + COMPLETION CORRECTION CODED_UNTESTED / RUNTIME UNTESTED**
+Local build rejection: 2026-08-25
+Status: **PR #81 MERGED / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**
 Original source branch: `fix/runtime-recovery-pass-45-20260824` — merged by PR #79
-Completion branch: `fix/pass45-completion-audit-20260825`
-Current audited main baseline: `8d66e54c59d965b838931e1fa1d473e5ebb39fc9`
+Completion branch: `fix/pass45-completion-audit-20260825` — merged by PR #81
+Active build/import fix branch: `fix/pass45-local-build-import-regression-20260825`
+Current `main` baseline before active fix: `f789c42935fd7c90c7dfb4777e794e5cfecc1687`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -15,21 +17,77 @@ Pass 44 was source-green but factually rejected by the first local UE run. The u
 
 **Pass 44 = RUNTIME REJECTED.**
 
-Pass 45 is the corrective contract. Its merged source work is not runtime-verified. The 2026-08-25 completion audit found one genuine source omission that remained in this TZ: **B2 World proxy truth** still allowed visible BasicShape residential/environment families even though suitable imported assets existed.
+Pass 45 is the corrective contract. Its merged source work is not runtime-verified. The 2026-08-25 completion audit found one genuine source omission that remained in this TZ: **B2 World proxy truth** still allowed visible BasicShape residential/environment families even though suitable imported assets existed. PR #81 merged that source correction.
 
-Latest rejected runtime evidence:
+The first factual local UE 5.8.1 build after PR #81 then found a second class of source defects that source-only CI did not expose: a real C++ compilation failure in the tactical-map table and a UE 5.8 Interchange API rejection for HMMWV/M2 GLB intake. Therefore **green source CI from PR #81 is not build acceptance**.
+
+Latest rejected gameplay evidence:
 `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 
 Pass 45 completion audit:
 `OsterConflict/Docs/WorkReports/PASS45_COMPLETION_AUDIT_2026-08-25.md`
 
-Latest user-observed runtime always overrides source/CI claims.
+Latest user-observed runtime/build evidence always overrides source/CI claims.
 
 ---
 
-# 1. Authoritative unresolved runtime facts
+# 1. Authoritative 2026-08-25 local UE build rejection
 
-Until a newer local UE 5.8 run exists, these remain the runtime baseline:
+The user launched `START_HERE.cmd` and selected **1. ЗВИЧАЙНА ГРА**.
+
+## 1.1 Tactical-map compile blocker
+
+UnrealBuildTool compiled the current source and rejected `OCTacticalMapVisual.cpp`:
+
+`error C2131: expression did not evaluate to a constant`
+
+Root cause:
+
+- `Pass45ReferenceRoads` was declared `constexpr`;
+- each entry contains `FVector2D`;
+- this UE 5.8/MSVC toolchain does not accept that `FVector2D` constructor in the required constant-expression context.
+
+Factual result:
+
+- `Result: Failed (OtherCompilationError)`;
+- UBT/launcher exit code **6**;
+- gameplay did not start.
+
+Active correction:
+
+- table changed from `constexpr FPass45ReferenceRoadSegment[]` to namespace-scope `const FPass45ReferenceRoadSegment[]`;
+- road data, iteration and `UE_ARRAY_COUNT` behavior are unchanged;
+- regression verifier forbids restoring the invalid `constexpr` declaration.
+
+Status: **CODED_UNTESTED** until a later local UE build exits 0.
+
+## 1.2 HMMWV / M2 Interchange regression
+
+The same normal launch found all local HMMWV, M2 and BTR-4 sources.
+
+Factual import result:
+
+- BTR-4 imported successfully to `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus`;
+- HMMWV failed because `InterchangeGenericCommonMeshesProperties.auto_detect_mesh_type` / `bAutoDetectMeshType` is deprecated/rejected by UE 5.8;
+- M2 failed for the same reason;
+- launcher correctly reported `HMMWV=0 M2=0 BTR4=1` and did not call the failed assets production-ready.
+
+Active correction:
+
+- deprecated `auto_detect_mesh_type` property removed;
+- current `convert_statics_with_animated_transform_to_skeletals=false` policy used;
+- importer still explicitly forces `IFMT_STATIC_MESH`, enables static import and disables skeletal import.
+
+Status:
+
+- BTR-4 production import: **LOCALLY CONFIRMED**, runtime/presentation still unverified;
+- HMMWV/M2 importer correction: **CODED_UNTESTED** until the next local import.
+
+---
+
+# 2. Authoritative unresolved gameplay/runtime facts
+
+Because the 2026-08-25 attempt failed at compile time, it does not supersede the 2026-08-24 gameplay screenshots for visual/performance acceptance. Until a successful build reaches gameplay, these remain the runtime baseline:
 
 - frontend/main menu about **8 FPS**;
 - gameplay about **8–12 FPS** with severe lag/stutter;
@@ -45,9 +103,9 @@ No source check may promote these to fixed until factual runtime proves it.
 
 ---
 
-# 2. Root-cause and correction state
+# 3. Root-cause and correction state
 
-## 2.1 Performance
+## 3.1 Performance
 
 The bot population was a real unnecessary load but not the sole cause because the rejected menu itself was already ~8 FPS.
 
@@ -68,9 +126,9 @@ Required runtime markers include:
 - `PASS45_FRONTEND_PERF_BASELINE`
 - `PASS45_GAMEPLAY_PERF_BASELINE`
 
-Acceptance target remains **>=30 FPS minimum** in frontend and gameplay, with no progressive collapse.
+Acceptance target remains **>=30 FPS minimum** in frontend and gameplay, with no progressive collapse. This cannot be remeasured until the local build gate passes.
 
-## 2.2 Primitive world / B2 World proxy truth
+## 3.2 Primitive world / B2 World proxy truth
 
 ### Source completion state: **SOURCE INVENTORY CLOSED / CODED_UNTESTED**
 
@@ -121,7 +179,7 @@ New real visual culls:
 - visual collision/navigation disabled;
 - hidden primitive collision/backstop retained.
 
-## 2.3 Vegetation
+## 3.3 Vegetation
 
 Source state: **CODED_UNTESTED**.
 
@@ -131,9 +189,9 @@ Source state: **CODED_UNTESTED**.
 - oak remains explicit content gap until a suitable real asset is verified;
 - no old birch/poplar/spherical proxy family may return merely for verifier compatibility.
 
-## 2.4 Tactical map
+## 3.4 Tactical map
 
-Source state: **CODED_UNTESTED**.
+Source state: **BUILD FIX CODED_UNTESTED**.
 
 The `M` map no longer treats procedural world ISMs as topology truth.
 
@@ -142,11 +200,12 @@ The `M` map no longer treats procedural world ISMs as topology truth.
 - Museum / Culture House / Silpo / central park / Stadium use common `FOCGeoReference` authority;
 - tactical-polish icons use the same authority;
 - old Z=2 residential dimmer retired;
-- giant procedural X/diagonal road pattern must not return.
+- giant procedural X/diagonal road pattern must not return;
+- invalid `constexpr` reference-road table declaration found by local UE build has been replaced with a normal `const` table.
 
-Required runtime screenshot still pending.
+A successful local rebuild is now required before any tactical-map runtime screenshot can count.
 
-## 2.5 Weapon material/texture truth
+## 3.5 Weapon material/texture truth
 
 Audit implementation: **CODED_UNTESTED**.
 Dependency closure: **PENDING FRESH LOCAL UE PREFLIGHT**.
@@ -161,7 +220,7 @@ A white/default/null/BasicShape material, placeholder texture, missing texture d
 
 M16/M4 are not claimed because no verified production payload exists.
 
-## 2.6 Landmark ownership
+## 3.6 Landmark ownership
 
 Source state: **CODED_UNTESTED**.
 
@@ -177,7 +236,7 @@ Historical duplicate/recovery layers may not become second visible shell owners.
 
 ---
 
-# 3. Implementation phases and current status
+# 4. Implementation phases and current status
 
 ## Phase A — measurable performance baseline
 
@@ -189,13 +248,13 @@ Historical duplicate/recovery layers may not become second visible shell owners.
 ## Phase B — visible production proxy cleanup
 
 - B1 primitive tree visuals retired: **MERGED / CODED_UNTESTED**.
-- B2 World proxy truth inventory/ownership: **COMPLETION CORRECTION CODED_UNTESTED**.
+- B2 World proxy truth inventory/ownership: **MERGED BY PR #81 / CODED_UNTESTED**.
 - B2 remaining College/park/oak gaps: **EXPLICIT CONTENT GAP**, not production-ready.
 
 ## Phase C — tactical map topology
 
-- C1 reference-traced compact topology: **MERGED / CODED_UNTESTED**.
-- C2 runtime `M` screenshot: **PENDING RUNTIME**.
+- C1 reference-traced compact topology: **MERGED; LOCAL BUILD REJECTED ON CONSTEXPR TABLE; FIX CODED_UNTESTED**.
+- C2 runtime `M` screenshot: **PENDING SUCCESSFUL BUILD + RUNTIME**.
 
 ## Phase D — landmark ownership
 
@@ -208,9 +267,15 @@ Historical duplicate/recovery layers may not become second visible shell owners.
 - audit implementation: **MERGED / CODED_UNTESTED**;
 - actual 11-weapon binary-content gap closure: **PENDING FRESH LOCAL PREFLIGHT**.
 
+## Phase F — production vehicle intake
+
+- BTR-4 source/import: **LOCAL IMPORT CONFIRMED 2026-08-25; RUNTIME UNTESTED**.
+- HMMWV source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX CODED_UNTESTED**.
+- M2 source: **FOUND LOCALLY; UE 5.8 IMPORT API FIX CODED_UNTESTED**.
+
 ---
 
-# 4. Stale behavior forbidden from returning
+# 5. Stale behavior forbidden from returning
 
 1. implicit normal-game bot autofill;
 2. 2.4 km procedural battlefield;
@@ -219,17 +284,32 @@ Historical duplicate/recovery layers may not become second visible shell owners.
 5. primitive Cylinder/Sphere trees as accepted vegetation;
 6. repeated competing landmark rebuild loops;
 7. stale verifier requirements that restore a known regression;
-8. READY claims contradicted by latest runtime evidence;
+8. READY claims contradicted by latest runtime/build evidence;
 9. hidden resolution downgrade used to disguise FPS collapse;
 10. visible generic residential/fence BasicShape art when verified imported replacements exist;
 11. duplicate collision/navigation on the new B2 production visual layer;
-12. permanent polling after B2 visual conversion succeeds.
+12. permanent polling after B2 visual conversion succeeds;
+13. `constexpr` Pass45 `FVector2D` road table that UE 5.8/MSVC factually rejects;
+14. deprecated `auto_detect_mesh_type` / `bAutoDetectMeshType` in current UE 5.8 Interchange intake.
 
 ---
 
-# 5. Runtime acceptance gates
+# 6. Acceptance gates
 
 Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates pass.
+
+## Gate 0 — build
+
+- `OCTacticalMapVisual.cpp` compiles without C2131;
+- UBT exits 0;
+- only then proceed to frontend/runtime acceptance.
+
+## Gate 0B — vehicle import
+
+- BTR canonical asset remains loadable;
+- HMMWV import completes without deprecated-property exception;
+- M2 import completes without deprecated-property exception;
+- launcher reports each item independently and truthfully.
 
 ## Gate 1 — frontend
 
@@ -278,12 +358,12 @@ Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates p
 ## Gate 7 — CI/evidence
 
 - current-head source CI green;
-- CI alone never promotes runtime status;
-- latest user screenshot/log overrides older source assumptions.
+- CI alone never promotes build/runtime status;
+- latest user screenshot/log/build transcript overrides older source assumptions.
 
 ---
 
-# 6. Completion checklist
+# 7. Completion checklist
 
 - [x] Pass 44 factual runtime classified **RUNTIME REJECTED**.
 - [x] Rejected screenshots archived with manifest.
@@ -295,14 +375,20 @@ Pass 45 cannot be called `VERIFIED RUNTIME` until all applicable factual gates p
 - [x] Tactical map reference topology implemented.
 - [x] Museum/Silpo/Culture single-shell ownership implemented.
 - [x] 11-weapon mesh/material/texture dependency audit implemented.
-- [x] **B2 visible BasicShape inventory completed after user-requested completion audit.**
+- [x] B2 visible BasicShape inventory completed and merged by PR #81.
 - [x] Imported residential house/fence visual owners coded; old boxes retained only as hidden backstops where conversion succeeds.
 - [x] Imported ground/asphalt/sidewalk materials coded after source actor BeginPlay.
 - [x] New B2 real visual layer has compact culls and no collision/navigation duplication.
 - [x] College / park / oak remaining visual work classified as explicit content gaps rather than falsely READY.
+- [x] First local UE build after PR #81 captured and classified **LOCAL UE BUILD REJECTED**.
+- [x] C2131 tactical-map table root cause diagnosed and source fix coded.
+- [x] HMMWV/M2 deprecated Interchange property root cause diagnosed and source fix coded.
+- [x] BTR-4 local production import factually confirmed.
+- [ ] Later local UE build exits 0 and promotes the build fix to VERIFIED BUILD.
+- [ ] HMMWV and M2 re-import successfully with the current UE 5.8 property contract.
 - [ ] Fresh local UE 5.8 weapon dependency report produced and its actual binary-content gaps closed.
 - [ ] Local UE 5.8 frontend acceptance passed.
 - [ ] Local UE 5.8 gameplay/performance acceptance passed.
 - [ ] Local UE screenshots accept B2 visuals, trees, tactical map, landmarks and weapon rack.
 
-**Current overall status: PASS 45 SOURCE COMPLETION CORRECTION IN PROGRESS / CODED_UNTESTED / LOCAL UE RUNTIME REQUIRED.**
+**Current overall status: PASS 45 / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED / CURRENT-HEAD SOURCE CI REQUIRED / LOCAL REBUILD REQUIRED.**
