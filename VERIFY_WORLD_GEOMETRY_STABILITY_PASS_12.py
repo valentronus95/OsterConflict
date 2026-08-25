@@ -6,10 +6,22 @@ SRC = ROOT / "OsterConflict/Source/OsterConflict"
 
 COORDINATOR = SRC / "Private/OCLandmarkStartupCoordinatorSubsystem.cpp"
 SEPARATION = SRC / "Private/OCR146LandmarkSeparationSubsystem.cpp"
-WORLD_MODELS = SRC / "Private/OCWorldAssetModelsSubsystem.cpp"
 VALIDATOR_H = SRC / "Public/OCWorldGeometryStabilitySubsystem.h"
 VALIDATOR_CPP = SRC / "Private/OCWorldGeometryStabilitySubsystem.cpp"
 LAUNCHER = ROOT / "RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd"
+
+RETIRED_GENERIC_OWNERS = (
+    SRC / "Public/OCWorldAssetModelsSubsystem.h",
+    SRC / "Private/OCWorldAssetModelsSubsystem.cpp",
+    SRC / "Public/OCAssetModelDecorator.h",
+    SRC / "Private/OCAssetModelDecorator.cpp",
+    SRC / "Public/OCRecoveredEnvironmentSubsystem.h",
+    SRC / "Private/OCRecoveredEnvironmentSubsystem.cpp",
+    SRC / "Public/OCRecoveredBuildingDetailsSubsystem.h",
+    SRC / "Private/OCRecoveredBuildingDetailsSubsystem.cpp",
+    SRC / "Public/OCRecoveredRoadsidePropsSubsystem.h",
+    SRC / "Private/OCRecoveredRoadsidePropsSubsystem.cpp",
+)
 
 
 def read(path: Path) -> str:
@@ -30,10 +42,17 @@ def forbid(text: str, needle: str, where: str) -> None:
 
 coordinator = read(COORDINATOR)
 separation = read(SEPARATION)
-world_models = read(WORLD_MODELS)
 header = read(VALIDATOR_H)
 validator = read(VALIDATOR_CPP)
 launcher = read(LAUNCHER)
+
+# Pass45 runtime evidence rejected the old generic AdvancedVillagePack/recovered presentation owners.
+# World-stability CI must protect their physical retirement rather than requiring their resurrection.
+for path in RETIRED_GENERIC_OWNERS:
+    if path.exists():
+        raise SystemExit(
+            f"PASS12 WORLD STABILITY VERIFY FAIL: rejected generic/recovered owner resurrected: {path.relative_to(ROOT)}"
+        )
 
 # The authoritative location startup must cancel historical delayed timers before immediate builds.
 for needle in (
@@ -77,15 +96,6 @@ delay_seconds = float(delay_match.group(1))
 if delay_seconds <= 0.0 or delay_seconds >= 12.0:
     raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark validation must be bounded and finish before 12 s baseline capture")
 
-# Imported world model decoration must remain one-shot once its decorator actor exists.
-for needle in (
-    "if (!World || DecoratorActor.IsValid()) return;",
-    "Decorator->PopulateForSector(OsterSector);",
-    "HideLegacyVisualProxies(*OsterSector);",
-    "DecoratorActor = Decorator;",
-):
-    require(world_models, needle, "one-shot world asset decorator")
-
 for needle in (
     "UOCWorldGeometryStabilitySubsystem",
     "UTickableWorldSubsystem",
@@ -128,9 +138,8 @@ for needle in (
 print("WORLD GEOMETRY STABILITY PASS12/PASS45 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
 print("- landmark separation is one bounded validation-only pass with mutation=0")
-print("- old reconciliation/repair loops remain physically retired")
+print("- rejected generic world/decorator/recovered owners remain physically retired")
 print("- validation completes before the 12 s Pass12 baseline")
-print("- imported world decorator is one-shot after ownership is acquired")
 print("- Pass12 snapshots source geometry families at 12s and compares again at 16s/20s")
 print("- any late instance-count mutation emits a family-specific runtime FAIL marker")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence still required")
