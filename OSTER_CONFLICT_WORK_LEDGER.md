@@ -58,9 +58,13 @@ High FPS in a visually broken/black scene is not acceptance.
 
 These failures are historical evidence and must not disappear merely because source CI later becomes green.
 
-### Historical Pass44 rejection retained
+### Pass 44 historical runtime rejection (retained fact)
 
-Pass44 was also factually rejected. Its retained non-regression decisions are:
+**Pass 44 verdict: RUNTIME REJECTED.** The factual 2026-08-24 local run remains historical rejection evidence and must never be promoted back to a verified/current runtime state by a source-only verifier.
+
+### Pass 44 behavior retained unless disproved
+
+The useful Pass44 decisions which Pass45 has not disproved remain non-regression rules:
 
 - compact central Oster roughly 960×940 m; never restore the historical 2.4 km battlefield;
 - zero implicit normal-game filler bots unless explicitly requested;
