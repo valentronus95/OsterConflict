@@ -16,6 +16,11 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS42 VERIFY FAIL: {label}: missing {needle!r}")
 
 
+def forbid(text: str, needle: str, label: str) -> None:
+    if needle in text:
+        raise SystemExit(f"PASS42 VERIFY FAIL: {label}: forbidden {needle!r}")
+
+
 def absent(path: Path, label: str) -> None:
     if path.exists():
         raise SystemExit(f"PASS42 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
@@ -26,6 +31,7 @@ try_import = read(ROOT / "OsterConflict" / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
 importer = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
 pickup = read(SRC / "Private" / "OCPickupGunTruck.cpp")
 btr = read(SRC / "Private" / "OCBTR.cpp")
+vehicle_base = read(SRC / "Private" / "OCVehicleBase.cpp")
 rack = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 guard_h = read(SRC / "Public" / "OCProductionVehicleVisualGuardSubsystem.h")
 guard = read(SRC / "Private" / "OCProductionVehicleVisualGuardSubsystem.cpp")
@@ -72,18 +78,41 @@ for needle in (
 ):
     require(btr, needle, "BTR-4 runtime visual")
 
-# Legacy VehicleBase tint can still overwrite production slots in the current source. Until that primary-source
-# owner is removed, this bounded guard must remain and restore authored slots. It must stop after a finite budget.
+# Pass45 fixes the material overwrite at its source. VehicleBase may tint blockout pieces, but every
+# /Game/Production mesh must bypass BasicShape MID creation after ApplyVehicleStyle().
 for needle in (
     'AssetPath.StartsWith(TEXT("/Game/Production/"))',
-    'Component->EmptyOverrideMaterials();',
-    'MaxAuditPasses = 12',
-    'ClearTimer(AuditTimer)',
+    'continue;',
+    'PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY',
+    'production_override=0',
+    'legacy_tint_blockout_only=1',
+):
+    require(vehicle_base, needle, "VehicleBase production material bypass")
+
+# The old Pass42 guard used to repair VehicleBase's own damage by polling and EmptyOverrideMaterials().
+# That behavior is now forbidden. The guard is one-shot/read-only and only reports source/content failure.
+for needle in (
+    'Pass45 read-only production vehicle visual validator',
+    'ValidationDelaySeconds = 1.00f',
+    'PASS45_PRODUCTION_VEHICLE_VALIDATION_SCHEDULED',
+    'PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL',
+    'PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP',
+    'PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY',
+    'PASS45_PRODUCTION_VEHICLE_CONTENT_GAP',
+    'validation_only=1',
+    'mutation=0',
+    'polling=0',
+):
+    require(guard_h + guard, needle, "Pass45 production vehicle validation-only guard")
+for forbidden in (
+    'EmptyOverrideMaterials(',
     'PASS42_PRODUCTION_MATERIALS_RESTORED',
     'PASS42_PRODUCTION_VEHICLE_VISUALS_READY',
-    'PASS42_PRODUCTION_VEHICLE_CONTENT_GAP',
+    'MaxAuditPasses',
+    'AuditIntervalSeconds',
+    'SetMaterial(',
 ):
-    require(guard_h + guard, needle, "temporary production authored-material guard")
+    forbid(guard, forbidden, "obsolete production material repair must not survive")
 
 # Museum primary BASE/rack are grounded instead of the old floating pickup path.
 for needle in (
@@ -141,8 +170,8 @@ for needle in (
 ):
     require(foliage_guard_h + foliage_guard, needle, "throttled foliage acceptance guard")
 
-# Pass45 supersedes the old 0.75/1.10/1.45 timer choreography: coordinator cancels historical stage timers
-# and runs the current Museum/Silpo/Culture stages in one startup window. No destructive visibility guard survives.
+# Pass45 supersedes the old timer/rebuild choreography. Coordinator cancels historical stage timers and
+# runs current Museum/Silpo/Culture stages once; the destructive visibility owner stays deleted.
 for needle in (
     'Timers.ClearAllTimersForObject(Stage)',
     'Stage->RunAuthoritativeBuildNow(World)',
@@ -155,7 +184,8 @@ for needle in (
 
 print("PRODUCTION VEHICLE + GROUNDED RACK + VISUAL/FPS RECOVERY PASS 42/45 SOURCE CONTRACT PASS")
 print("- exact local HMMWV/M2/BTR intake remains wired and production meshes preserve native proportions")
-print("- temporary vehicle material guard remains bounded until legacy VehicleBase tint is removed at source")
+print("- VehicleBase skips legacy tint for /Game/Production meshes at the primary source")
+print("- production vehicle guard is one-shot validation-only: no material repair, no polling")
 print("- Museum BASE rack remains grounded with 12 cm clearance")
 print("- native-scale graphics clarity and bounded LowCPU foliage/audio budgets remain intact")
 print("- historical Museum visibility/rebuild owner is deleted; current landmark startup is coordinated once")
