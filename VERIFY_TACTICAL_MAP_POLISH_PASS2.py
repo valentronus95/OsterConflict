@@ -14,11 +14,16 @@ def require(condition: bool, message: str) -> None:
 polish = POLISH.read_text(encoding="utf-8")
 iconography = ICONOGRAPHY.read_text(encoding="utf-8")
 
-for filename in ("landmark.svg", "tree-pine.svg", "shopping-basket.svg", "goal.svg", "map-pin.svg"):
+# Lucide-style semantic icons use currentColor. map-pin.svg is an older retained white-stroke asset already
+# used by the tactical map, so validate its SVG payload without inventing a currentColor migration requirement.
+for filename in ("landmark.svg", "tree-pine.svg", "shopping-basket.svg", "goal.svg"):
     path = ICON_DIR / filename
     require(path.exists(), f"missing semantic POI icon: {filename}")
     svg = path.read_text(encoding="utf-8")
     require("<svg" in svg and "currentColor" in svg, f"invalid vector icon: {filename}")
+map_pin = ICON_DIR / "map-pin.svg"
+require(map_pin.exists(), "missing central civic POI icon: map-pin.svg")
+require("<svg" in map_pin.read_text(encoding="utf-8"), "invalid vector icon: map-pin.svg")
 
 # Pass 45 no longer renders residential blockout footprints in the production M-map. The historical
 # Z=2 residential dimmer is therefore forbidden because Z=2 now belongs to reference-traced roads.
