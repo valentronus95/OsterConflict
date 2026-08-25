@@ -3,6 +3,10 @@
 This mesh exists to remove the green/proxy runtime shell when the user's local FBX is
 not available in the worktree. It is deliberately a presentation model, not an
 engineering/manufacturing reference. +X is vehicle forward, +Z is up.
+
+Pass45 material rule: the generated fallback must carry an explicit authored glTF
+PBR material. Vertex colors are presentation data, not a substitute for a material
+slot contract. Unreal must never have to invent DefaultMaterial for this asset.
 """
 
 from __future__ import annotations
@@ -19,6 +23,8 @@ BLACK = (20, 22, 21, 255)
 RUBBER = (25, 26, 25, 255)
 STEEL = (86, 90, 84, 255)
 GLASS = (54, 66, 65, 255)
+
+BTR4_MATERIAL_NAME = "M_BTR4_OC_Authored"
 
 
 class MeshBuilder:
@@ -130,7 +136,6 @@ def build_visual_mesh():
         y = side * 116
         m.add_box((410, 10, 45), (-65, y, 78), ARMOR_DARK)
         m.add_box((112, 8, 38), (214, y, 70), ARMOR)
-        # Wheel-arch eyebrow armor, external-only visual.
         for x in (-205, -70, 70, 205):
             m.add_box((82, 9, 15), (x, y, 17), ARMOR_LIGHT)
 
@@ -193,13 +198,31 @@ def build_btr4_glb(output_path):
         "asset": {
             "version": "2.0",
             "generator": "Oster Conflict authored BTR-4 external game visual",
-            "extras": {"purpose": "external game visual only", "engineering_accuracy": False},
+            "extras": {
+                "purpose": "external game visual only",
+                "engineering_accuracy": False,
+                "pass45_authored_material_contract": True,
+            },
         },
         "scene": 0,
         "scenes": [{"nodes": [0]}],
         "nodes": [{"mesh": 0, "name": "BTR4_Bucephalus_GameVisual"}],
+        "materials": [{
+            "name": BTR4_MATERIAL_NAME,
+            "doubleSided": False,
+            "pbrMetallicRoughness": {
+                # COLOR_0 is multiplied by this neutral authored base color, preserving the deliberate
+                # armor/rubber/steel/glass vertex palette while guaranteeing a non-default material slot.
+                "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
+                "metallicFactor": 0.18,
+                "roughnessFactor": 0.72,
+            },
+        }],
         "meshes": [{"name": "BTR4_Bucephalus_GameVisual", "primitives": [{
-            "attributes": {"POSITION": 0, "COLOR_0": 1}, "indices": 2, "mode": 4
+            "attributes": {"POSITION": 0, "COLOR_0": 1},
+            "indices": 2,
+            "material": 0,
+            "mode": 4,
         }]}],
         "buffers": [{"byteLength": len(binary)}],
         "bufferViews": [
