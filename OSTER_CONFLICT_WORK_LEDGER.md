@@ -8,6 +8,7 @@
 - Repository: `valentronus95/OsterConflict`
 - Current `main` baseline: `bf483f8dc473862e0d3ce6468db44f025abbeef1` (merged Pass 44 / PR #78)
 - Active correction branch: `fix/runtime-recovery-pass-45-20260824` → `main`
+- Pass state token: **PASS 45 ACTIVE** — source correction is ready for final CI; local UE runtime remains untested.
 - Canonical corrective TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`
 - Latest runtime evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 - UE target: 5.8.x Windows
