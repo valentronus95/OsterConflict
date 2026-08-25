@@ -6,9 +6,9 @@
 ## 1. Current context
 
 - Repository: `valentronus95/OsterConflict`
-- Current `main` baseline: `bf483f8dc473862e0d3ce6468db44f025abbeef1` (merged Pass 44 / PR #78)
-- Active correction branch: `fix/runtime-recovery-pass-45-20260824` → `main`
-- Pass state token: **PASS 45 ACTIVE** — source correction is CI-green and merge-ready; local UE runtime remains untested.
+- Current `main` baseline: `d31cc8deb6d5c3b58f81af0ec58c1c12e679851c` (merged Pass 45 / PR #79)
+- Pass 45 source branch: `fix/runtime-recovery-pass-45-20260824` — **MERGED INTO `main`**.
+- Pass state token: **PASS 45 ACTIVE / MERGED / CODED_UNTESTED** — source correction is in `main`; local UE runtime remains untested.
 - Canonical corrective TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`
 - Latest runtime evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 - UE target: 5.8.x Windows
@@ -16,7 +16,7 @@
 - User-facing launcher: **only `START_HERE.cmd`**.
 - Current root authority/conflict policy: `AGENTS.md`.
 - Hard playable-map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current prohibition: **no new decorative layers until frontend/gameplay performance, topology, landmark ownership and material truth are recovered.**
+- Current prohibition: **no new decorative layers or broad runtime mutation passes until the merged Pass 45 frontend/gameplay performance, topology, landmark ownership and material truth are factually tested in local UE 5.8.**
 
 ## 2. Status rules
 
@@ -55,6 +55,8 @@ Pass 44 source CI remains historical source evidence only.
 Evidence sheet + manifest:
 `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 
+No newer factual UE runtime exists yet after the Pass 45 merge. Therefore every Pass 45 runtime-facing correction below remains `CODED_UNTESTED` until the next local run.
+
 ## 4. Current root-cause findings
 
 ### PERF-ROOT-001 — frontend collapse precedes gameplay population
@@ -85,16 +87,16 @@ Museum and Culture House geo references are not equal, but runtime still failed 
 
 | ID | Requirement | Repeat | Status | Current Pass 45 action |
 |---|---|---:|---|---|
-| PERF-COLLAPSE-001 | Stop frontend/gameplay collapse to ~8–12 FPS | ≥6 | CODED_UNTESTED | RHI-thread A/B, frame-domain markers, delayed mutation retirement and compact cull rebudget are coded. Minimum acceptance >=30 FPS; factual runtime still required. |
-| UI-MENU-001 | Frontend/menu stable and usable | ≥9 | CODED_UNTESTED | Keep Pass 43 lifecycle protections; normal RHI threading vs explicit compatibility route is coded. Runtime must prove no crash and >=30 FPS. |
+| PERF-COLLAPSE-001 | Stop frontend/gameplay collapse to ~8–12 FPS | ≥6 | CODED_UNTESTED | RHI-thread A/B, frame-domain markers, delayed mutation retirement and compact cull rebudget are merged in `main`. Minimum acceptance >=30 FPS; factual runtime still required. |
+| UI-MENU-001 | Frontend/menu stable and usable | ≥9 | CODED_UNTESTED | Keep Pass 43 lifecycle protections; normal RHI threading vs explicit compatibility route is merged. Runtime must prove no crash and >=30 FPS. |
 | VIS-GRAPHICS-QUALITY-001 | Restore readable non-blockout visual quality without hidden resolution downgrade | ≥4 | IN_PROGRESS | Native 100% clarity target retained. Tree proxies retired, but other visible BasicShape families remain production-content work. |
 | VIS-TREES-001 | Oster vegetation: tall pine/conifer forest + appropriate oak, no fantasy primitive trees | ≥2 | CODED_UNTESTED / CONTENT GAP | Eight primitive tree families are retired from normal runtime; real pines verified; suitable oak remains unverified content gap. |
-| UI-TACTICAL-MAP-001 | `M` map matches real compact central-Oster topology | ≥4 | CODED_UNTESTED | Dedicated 640×630 reference-traced topology replaces procedural world ISMs. Text POIs and polish icons now share `FOCGeoReference`; Culture House icon added; old Z=2 residential dimmer retired. New runtime screenshot mandatory. |
-| MAP-EXTENT-001 | Keep compact central Oster battlefield | ≥2 | CODED_UNTESTED / RETAIN | Pass 44 960×940 m compact bound remains current unless new user evidence changes it. Do not restore 2.4 km map. |
+| UI-TACTICAL-MAP-001 | `M` map matches real compact central-Oster topology | ≥4 | CODED_UNTESTED | Dedicated 640×630 reference-traced topology replaces procedural world ISMs. Text POIs and polish icons share `FOCGeoReference`; Culture House icon added; old Z=2 residential dimmer retired. New runtime screenshot mandatory. |
+| MAP-EXTENT-001 | Keep compact central Oster battlefield | ≥2 | CODED_UNTESTED / RETAIN | 960×940 m compact bound remains current unless new user evidence changes it. Do not restore 2.4 km map. |
 | LOC-MUSEUM-001 | Museum visibly present and uniquely owned near live spawn | ≥10 | CODED_UNTESTED | Museum R13.8 is the single visible shell owner; R13.7 is detail/reference only. Runtime visual identity near spawn still required. |
 | LOC-CULTURE-001 | Culture House visually and spatially separate from Museum | ≥2 | CODED_UNTESTED | R14.6 single shell owner at `FOCGeoReference::CultureHouse()`; tactical text/icon both use the same geo authority. |
 | LOC-SILPO-001 | Silpo one authoritative site owner, no stale duplicate signage/geometry | ≥2 | CODED_UNTESTED | R14.0 single shell owner; late duplicate/current-owner validation is one-shot. Runtime stale-visual inspection still required. |
-| WEAPON-MATERIAL-001 | All required rack weapons use authored materials/textures | ≥10 | CODED_UNTESTED / CONTENT CHECK | Fresh NullRHI audit now traces all 11 mesh/material/texture dependency chains. White/default slots remain FAIL; next local UE report identifies actual gaps. |
+| WEAPON-MATERIAL-001 | All required rack weapons use authored materials/textures | ≥10 | CODED_UNTESTED / CONTENT CHECK | Fresh NullRHI audit traces all 11 mesh/material/texture dependency chains. White/default slots remain FAIL; next local UE report identifies actual gaps. |
 | GAME-WEAPONS-001 | 11 grounded pickup classes near actual Museum spawn | ≥9 | CODED_UNTESTED | Grounding logic retained; visual/material acceptance remains separate from pickup existence. |
 | GAME-SPAWN-001 | Actual live pawn spawns near Museum BASE | ≥9 | CODED_UNTESTED | Pass 44 pawn-distance correction retained; next factual run must verify spawn and visible Museum. |
 | VIS-GRASS-001 | Natural grass without FPS collapse | ≥6 | IN_PROGRESS | Density stays constrained until performance baseline recovered. Menu ~8 FPS proves grass cannot be the sole root cause. |
@@ -120,17 +122,17 @@ The following Pass 44 corrections remain current because the latest run does not
 
 1. Lock `PASS45_RUNTIME_RECOVERY_TZ.md` and runtime evidence pack. **DONE**.
 2. Mark Pass 44 runtime rejected and make Pass 45 the active ledger. **DONE**.
-3. Implement DX11/SM5 RHI-thread A/B launcher route; keep explicit `-norhithread` compatibility route. **CODED_UNTESTED**.
-4. Add lightweight frontend/gameplay performance-domain markers; no per-frame spam. **CODED_UNTESTED**.
-5. Retire repeated landmark world-mutation loops; enforce one current owner per Museum/Culture/Silpo site. **CODED_UNTESTED**.
-6. Recalculate cull/render budget for 960×940 m sector. **CODED_UNTESTED**.
-7. Retire primitive tree visuals from normal gameplay and bind verified real foliage assets where available. **CODED_UNTESTED; OAK CONTENT GAP**.
-8. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**. Polish text/icons now share `FOCGeoReference`; Z=2 road layer is protected from the retired residential dimmer.
-9. Run all 11 weapon material/texture dependency checks and close what existing content can support. **AUDIT CODED_UNTESTED; ACTUAL LOCAL DEPENDENCY REPORT PENDING**.
-10. Forward-port/retire stale verifiers. **DONE FOR CURRENT SOURCE SUITE**.
-11. Full source CI. **GREEN — 32/32 workflows succeeded on source head `5087c4690570b87c6e50a99bdfe0344a68ac177b` before this docs-only status sync**.
-12. Merge only after source checks are green. **MERGE READY; final docs-only head must stay green**.
-13. Local test order after pull: **frontend performance first**, then gameplay; stop immediately on unsafe thermals or renewed catastrophic FPS collapse. **PENDING**.
+3. Implement DX11/SM5 RHI-thread A/B launcher route; keep explicit `-norhithread` compatibility route. **MERGED / CODED_UNTESTED**.
+4. Add lightweight frontend/gameplay performance-domain markers; no per-frame spam. **MERGED / CODED_UNTESTED**.
+5. Retire repeated landmark world-mutation loops; enforce one current owner per Museum/Culture/Silpo site. **MERGED / CODED_UNTESTED**.
+6. Recalculate cull/render budget for 960×940 m sector. **MERGED / CODED_UNTESTED**.
+7. Retire primitive tree visuals from normal gameplay and bind verified real foliage assets where available. **MERGED / CODED_UNTESTED; OAK CONTENT GAP**.
+8. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **MERGED / CODED_UNTESTED**. Polish text/icons share `FOCGeoReference`; Z=2 road layer is protected from the retired residential dimmer.
+9. Run all 11 weapon material/texture dependency checks and close what existing content can support. **AUDIT MERGED / CODED_UNTESTED; ACTUAL LOCAL DEPENDENCY REPORT PENDING**.
+10. Forward-port/retire stale verifiers. **DONE FOR MERGED SOURCE SUITE**.
+11. Full source CI. **GREEN — final Pass 45 head `8229db7eb09dd02b08b67027298d95f08b8aee27` passed the full workflow set before merge**.
+12. Merge into `main`. **DONE — PR #79 merged as `d31cc8deb6d5c3b58f81af0ec58c1c12e679851c`**.
+13. Local test order after pull: **frontend performance first**, then gameplay; stop immediately on unsafe thermals or renewed catastrophic FPS collapse. **PENDING — THIS IS THE NEXT ACCEPTANCE GATE**.
 
 ## 8. Acceptance gates
 
@@ -143,4 +145,4 @@ The following Pass 44 corrections remain current because the latest run does not
 - Weapons: no white/default rack slot accepted; material/texture truth for all 11 classes or explicit named content gap.
 - CI: green source checks required but never sufficient for runtime verification.
 
-**Current overall status: PASS 45 SOURCE CI GREEN / MERGE READY / CONTENT GAPS + LOCAL UE RUNTIME PENDING.**
+**Current overall status: PASS 45 MERGED / CODED_UNTESTED / CONTENT GAPS + LOCAL UE RUNTIME PENDING.**
