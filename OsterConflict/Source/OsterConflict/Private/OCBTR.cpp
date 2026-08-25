@@ -12,27 +12,49 @@
 
 namespace
 {
-    bool ApplyFittedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
-        const FVector& DesiredSizeCm, float GroundZCm)
+    FQuat ResolveLongAxisToForward(const FVector& NativeSize)
+    {
+        FVector NativeForward = FVector::ForwardVector;
+        if (NativeSize.Y >= NativeSize.X && NativeSize.Y >= NativeSize.Z)
+        {
+            NativeForward = FVector::RightVector;
+        }
+        else if (NativeSize.Z >= NativeSize.X && NativeSize.Z >= NativeSize.Y)
+        {
+            NativeForward = FVector::UpVector;
+        }
+        return FQuat::FindBetweenNormals(NativeForward, FVector::ForwardVector);
+    }
+
+    bool ApplyProportionalGroundedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
+        float DesiredLengthCm, float GroundZCm)
     {
         if (!Component || !Mesh) return false;
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
+        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f || NativeLength <= 1.0f)
+        {
+            return false;
+        }
 
-        const FVector Scale(
-            DesiredSizeCm.X / NativeSize.X,
-            DesiredSizeCm.Y / NativeSize.Y,
-            DesiredSizeCm.Z / NativeSize.Z);
-        FVector Location = -Bounds.Origin * Scale;
-        const float NativeBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
-        Location.Z = GroundZCm - NativeBottomZ * Scale.Z;
+        const float UniformScale = DesiredLengthCm / NativeLength;
+        const FQuat AxisCorrection = ResolveLongAxisToForward(NativeSize);
+        const FVector CorrectedOrigin = AxisCorrection.RotateVector(Bounds.Origin);
+        const FVector CorrectedExtent = AxisCorrection.RotateVector(Bounds.BoxExtent).GetAbs();
+
+        FVector Location = -CorrectedOrigin * UniformScale;
+        Location.Z = GroundZCm - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale;
 
         Component->SetStaticMesh(Mesh);
-        Component->SetRelativeRotation(FRotator::ZeroRotator);
-        Component->SetRelativeScale3D(Scale);
+        Component->SetRelativeRotation(AxisCorrection.Rotator());
+        Component->SetRelativeScale3D(FVector(UniformScale));
         Component->SetRelativeLocation(Location);
         Component->EmptyOverrideMaterials();
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BTR4_PROPORTIONAL_VISUAL_READY native_cm=%s uniform_scale=%.4f desired_length_cm=%.1f axis_correction=%s nonuniform_stretch=0"),
+            *NativeSize.ToCompactString(), UniformScale, DesiredLengthCm, *AxisCorrection.Rotator().ToCompactString());
         return true;
     }
 
@@ -166,7 +188,7 @@ void AOCBTR::ApplyVehicleStyle()
         if (UStaticMesh* ProductionBTR4 = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus")))
         {
-            bUsingBTR4 = ApplyFittedBTRMesh(Chassis, ProductionBTR4, FVector(776.0f, 293.0f, 300.0f), -98.0f);
+            bUsingBTR4 = ApplyProportionalGroundedBTRMesh(Chassis, ProductionBTR4, 776.0f, -98.0f);
         }
     }
 
@@ -190,7 +212,8 @@ void AOCBTR::ApplyVehicleStyle()
         DisableVisualProxy(TurretBaseMesh);
         DisableVisualProxy(BarrelMesh);
 
-        UE_LOG(LogTemp, Display, TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell; visual proxies disabled."));
+        UE_LOG(LogTemp, Display,
+            TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell with preserved native proportions; visual proxies disabled."));
     }
     else if (Chassis)
     {
