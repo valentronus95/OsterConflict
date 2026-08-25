@@ -5,14 +5,12 @@
 #include "TimerManager.h"
 #include "OCR146LandmarkSeparationSubsystem.generated.h"
 
-class AActor;
-
 /**
- * Runtime exclusion/integrity guard for the canonical Museum, Silpo and Culture House parcels.
+ * Pass 45 validation-only integrity check for Museum / Silpo / Culture House parcels.
  *
- * This subsystem is deliberately NOT a landmark placement owner. The three photo-model systems keep
- * exclusive ownership of their own geometry. The guard only removes foreign generic/legacy geometry,
- * watches late legacy actor spawns and verifies the world after startup placement passes have finished.
+ * Historical versions removed instances and destroyed late actors after startup. That made final output depend on
+ * timer order and hid primary-authoring defects. Current code never mutates landmark/world geometry. It observes
+ * once after the coordinated startup window and fails visibly when forbidden legacy owners or generic overlap exist.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCR146LandmarkSeparationSubsystem : public UWorldSubsystem
@@ -25,13 +23,8 @@ public:
     virtual void Deinitialize() override;
 
 private:
-    FTimerHandle StartupGuardTimer;
-    FDelegateHandle ActorSpawnedHandle;
-    TWeakObjectPtr<UWorld> GuardWorld;
-    int32 StartupGuardPass = 0;
+    FTimerHandle ValidationTimer;
+    TWeakObjectPtr<UWorld> ValidationWorld;
 
-    void RunStartupGuardPass();
-    void EnforceSeparation(UWorld& World, bool bFinalValidation) const;
-    void HandleActorSpawned(AActor* Actor);
-    static bool IsForbiddenLegacyLandmarkActor(const AActor* Actor);
+    void ValidateSeparation();
 };

@@ -5,14 +5,13 @@
 #include "OCMuseumSpawnGuardSubsystem.generated.h"
 
 class AOCPlayerController;
-class APawn;
 
 /**
- * Runtime acceptance guard for the normal deployment route.
+ * Initial BASE deployment acceptance guard.
  *
- * It repairs/creates the authoritative Museum BASE set and remains active at a low frequency so every
- * newly possessed human pawn that explicitly selected BASE can be verified. If an old GameMode fallback
- * still places that pawn in the field, the server corrects it once to the real Museum BASE.
+ * It repairs/creates the authoritative Museum BASE set and validates each human controller's initial
+ * AOCCharacter deployment at most once. Ordinary vehicle possession/unpossession is never a deployment
+ * event and must never be teleported to Museum.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCMuseumSpawnGuardSubsystem : public UTickableWorldSubsystem
@@ -28,7 +27,7 @@ public:
 private:
     bool bFinished = false;
     float ValidationAccumulator = 0.0f;
-    TMap<TWeakObjectPtr<AOCPlayerController>, TWeakObjectPtr<APawn>> LastValidatedPawnByController;
+    TSet<TWeakObjectPtr<AOCPlayerController>> ValidatedBaseDeploymentControllers;
 
     bool EnsureAuthoritativeMuseumBases();
     void ValidateBaseDeployments();

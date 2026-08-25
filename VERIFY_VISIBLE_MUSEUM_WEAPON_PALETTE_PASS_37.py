@@ -21,13 +21,27 @@ def forbid(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS37 VERIFY FAIL: {label}: forbidden {needle!r}")
 
 
+def absent(path: Path, label: str) -> None:
+    if path.exists():
+        raise SystemExit(f"PASS37 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
+
+
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 spawn_guard = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
-museum_h = read(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h")
-museum = read(SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp")
-palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
-palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
+spawn_guard_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
+fallback_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
+fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
+layer_guard = read(SRC / "Private" / "OCMuseumLayerPerformanceGuardSubsystem.cpp")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
+
+# Pass45 deletes the old destructive visibility rebuild guard and the already-retired palette shell.
+for path, label in (
+    (SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Pass37 Museum visibility guard"),
+    (SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Pass37 Museum visibility guard"),
+    (SRC / "Public" / "OCWeaponPalettePass37Subsystem.h", "Pass37 weapon palette shell"),
+    (SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp", "Pass37 weapon palette shell"),
+):
+    absent(path, label)
 
 for needle in (
     "FVector(-1400.0f, -2400.0f, 120.0f)",
@@ -36,74 +50,66 @@ for needle in (
     "PASS37_BASE_RELOCATED_VISIBLE_MUSEUM_APPROACH",
     "PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM",
 ):
-    require(spawn, needle, "canonical museum BASE/rack")
+    require(spawn, needle, "canonical Museum BASE/rack")
 
+# Spawn correction validates the initial AOCCharacter once. Vehicle possession cannot become a new BASE recovery.
 for needle in (
-    "MuseumNoSpawnRadiusCm = 2000.0f",
-    "PrimaryBaseRadiusCm = 4500.0f",
-    "BaseDeploymentAcceptanceRadiusCm = 5000.0f",
-    "PASS37_MUSEUM_VISIBLE_BASES_READY",
-    "PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH",
-    "PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "ValidatedBaseDeploymentControllers",
+    "AOCCharacter* Character = Cast<AOCCharacter>(PC->GetPawn())",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE",
+    "vehicle_revalidation=0",
 ):
-    require(spawn_guard, needle, "legacy spawn guard kept as secondary evidence")
+    require(spawn_guard_h + spawn_guard, needle, "Pass45 initial-only Museum deployment")
+forbid(spawn_guard_h + spawn_guard, "LastValidatedPawnByController", "legacy arbitrary-pawn deployment cache")
 
-require(museum_h, "UOCMuseumVisibilityPass37Subsystem", "visible museum guard class")
+# Missing/default authored materials remain fail-visible in the bounded real-weapon audit. No palette owner survives.
 for needle in (
-    "MinVisibleStructuralComponents = 12",
-    "FirstPollDelaySeconds = 1.45f",
-    "PollIntervalSeconds = 0.35f",
-    "LateStartupSettleSeconds = 2.20f",
-    "MaxRebuildAttempts = 1",
-    "PASS37_MUSEUM_VISIBLE_CORE_READY",
-    "PASS37_MUSEUM_VISIBLE_CORE_FAIL",
-    "PASS38_MUSEUM_REBUILD_BUDGET_READY",
-    "PASS42_MUSEUM_EARLY_VISIBILITY_READY",
+    "PASS44_WEAPON_AUTHORED_MATERIAL_GAP",
+    "PASS44_WEAPON_AUTHORED_MATERIAL_READY",
+    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+    "reason=material_gap_audited",
+    "permanent_scan=0",
 ):
-    require(museum_h + museum, needle, "bounded visible museum proof")
-
-# Pass 44 supersedes every runtime palette-recovery rule. The old Pass 37 forced palette and the later
-# placeholder-only BasicShapeMaterial repair both produced fake grey/orange presentation. Keep the class only
-# as a compatibility shell; authored material truth is now audited elsewhere.
-for needle in (
-    "compatibility shell",
-    "performs no polling",
-    "no material creation",
-    "no SetMaterial calls",
-    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
-    "runtime_material_creation=0",
-    "set_material_calls=0",
-    "polling=0",
-    "PASS38_WEAPON_PALETTE_SCAN_STOPPED reason=retired_by_pass44",
-):
-    require(palette_h + palette, needle, "retired runtime palette mutation")
-
+    require(fallback_h + fallback, needle, "truth-only bounded weapon audit")
 for forbidden in (
-    "BasicShapeMaterial.BasicShapeMaterial",
     "UMaterialInstanceDynamic::Create",
-    "ResolvePaletteColor",
-    "ApplyPalette(",
-    "SetMaterial(",
-    "SetTimer(",
-    "PASS37_WEAPON_VISIBLE_PALETTE_APPLIED",
+    "Component->SetMaterial(Slot",
 ):
-    forbid(palette_h + palette, forbidden, "obsolete palette mutation must not survive Pass 44")
+    forbid(fallback, forbidden, "weapon audit may not repaint authored slots")
 
-for marker in (
-    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
+# Museum layer observation must fail visibly instead of rebuilding/hiding the scene.
+for needle in (
+    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
+    "PASS45_MUSEUM_LAYER_VALIDATION_FAIL",
+    "mutation=0",
+    "primary_authoring_fix_required=1",
+):
+    require(layer_guard, needle, "Pass45 Museum validation-only ownership")
+
+# Acceptance follows the current owner set. It accepts either legitimate initial BASE terminal marker through
+# the PASS45_INITIAL_BASE_DEPLOYMENT_ prefix rather than pretending recovery can never be the factual path.
+for forbidden_marker in (
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
-    "PASS37_MUSEUM_VISIBLE_BASES_READY",
-    "PASS42_BASE_RACK_GROUNDED_READY",
+    "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
     "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
+    "PASS42_PRODUCTION_MATERIALS_RESTORED",
+):
+    forbid(acceptance, forbidden_marker, "stale runtime marker must not be required")
+for marker in (
+    'findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%"',
+    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
+    "PASS42_BASE_RACK_GROUNDED_READY",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS14_PERF_30FPS_READY",
 ):
-    require(acceptance, marker, f"runtime acceptance marker {marker}")
+    require(acceptance, marker, f"current runtime acceptance marker {marker}")
 
-print("VISIBLE MUSEUM + RETIRED WEAPON PALETTE PASS 37/38/42/44 SOURCE CONTRACT PASS")
-print("- legacy Museum BASE markers remain secondary evidence")
-print("- actual pawn Museum BASE proof is required by Pass 44 acceptance")
-print("- museum destructive recovery remains bounded to one attempt")
-print("- all BasicShapeMaterial palette mutation is retired; missing authored materials remain fail-visible")
-print("- palette subsystem performs no polling and no material writes")
-print("STATUS: SOURCE VERIFIED; actual UE 5.8 visual/runtime acceptance remains required")
+print("VISIBLE MUSEUM + WEAPON MATERIAL PASS37/PASS45 SOURCE CONTRACT PASS")
+print("- destructive Museum visibility/rebuild and weapon palette owners stay physically retired")
+print("- Museum BASE recovery is initial-character-only and acceptance permits either factual terminal result")
+print("- Museum ownership validation cannot mutate the scene")
+print("- authored material gaps remain fail-visible through the bounded real-weapon audit")
+print("STATUS: SOURCE CONTRACT ONLY; actual UE 5.8 visual/runtime acceptance remains required")

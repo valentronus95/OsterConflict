@@ -62,7 +62,7 @@ ensure_body = ensure_match.group("body")
 require(cpp, "if (!bInitialGraphicsProfileApplied)", "one-time graphics guard")
 require(cpp, "GameSettings->LoadSettings(false);", "persisted settings load")
 
-# Pass 42 keeps Pass 39's conservative expensive-lighting limits but restores image clarity:
+# Pass42 keeps Pass39's conservative expensive-lighting limits but restores image clarity:
 # native 100% internal scale and Texture Quality 3 for the automatic profile.
 for needle in (
     "auto SafeQuality", "FMath::Min(Current, Ceiling)",
@@ -85,15 +85,15 @@ for needle in (
     "PASS42_GRAPHICS_CLARITY_RECOVERY_APPLIED mode=new_profile scale=100 texture_ceiling=3",
     "PASS43_STARTUP_GRAPHICS_PERSIST_ONLY_READY",
 ):
-    require(cpp, needle, "Pass 42/43 balanced native-scale graphics ceiling")
+    require(cpp, needle, "Pass42/43 balanced native-scale graphics ceiling")
 
-# Pass 43: Get() is reached from frontend NativeConstruct. Automatic migrations must never execute a live
+# Pass43: Get() is reached from frontend NativeConstruct. Automatic migrations must never execute a live
 # UGameUserSettings apply there; that can invalidate Slate's backbuffer while SlateRHIRenderer is building it.
 forbid(ensure_body, "GameSettings->ApplySettings(", "automatic startup graphics must not live-apply inside Slate construction")
-require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass 43 startup persistence marker")
+require(ensure_body, "live_apply=0 slate_construction_safe=1", "Pass43 startup persistence marker")
 
-# Existing users may still carry the old Pass 16 signature. Pass 39 can recognize/migrate that family,
-# then Pass 42 upgrades only the recognizable automatic Pass 39 family to 100% + Texture 3.
+# Existing users may still carry the old Pass16 signature. Pass39 can recognize/migrate that family,
+# then Pass42 upgrades only the recognizable automatic Pass39 family to 100% + Texture 3.
 for needle in (
     "else if (!bPass39GraphicsQualityRecoveryApplied)",
     "const bool bLooksLikeLegacyPass16",
@@ -115,15 +115,15 @@ for needle in (
     "bPass42GraphicsClarityRecoveryApplied = true;",
     "PASS39_GRAPHICS_QUALITY_PROFILE_READY",
 ):
-    require(cpp, needle, "one-time Pass 39 to Pass 42 graphics migration")
+    require(cpp, needle, "one-time Pass39 to Pass42 graphics migration")
 
 reset_match = re.search(r"void\s+UOCPlayerUserSettings::ResetPlayerDefaults\(\)\s*\{(?P<body>.*?)\n\}", cpp, re.S)
 if not reset_match:
     raise SystemExit("PASS16 VERIFY FAIL: could not locate ResetPlayerDefaults")
 reset_body = reset_match.group("body")
 forbid(reset_body, "bInitialGraphicsProfileApplied = false", "Reset Defaults re-arming graphics profile")
-forbid(reset_body, "bPass39GraphicsQualityRecoveryApplied = false", "Reset Defaults re-arming Pass 39 migration")
-forbid(reset_body, "bPass42GraphicsClarityRecoveryApplied = false", "Reset Defaults re-arming Pass 42 migration")
+forbid(reset_body, "bPass39GraphicsQualityRecoveryApplied = false", "Reset Defaults re-arming Pass39 migration")
+forbid(reset_body, "bPass42GraphicsClarityRecoveryApplied = false", "Reset Defaults re-arming Pass42 migration")
 
 # Explicit settings UI remains the only live apply route. The user action occurs after the viewport is valid.
 for needle in (
@@ -143,20 +143,28 @@ for needle in (
     require(cpp, needle, "runtime GPU/RHI identity")
 require(build, '"RHI"', "RHI module dependency")
 
-# Pass 19 extends the same focused launcher; Pass 16 still owns the renderer evidence inside it.
+# Pass45 keeps using the same focused recovery launcher. Pass16 owns renderer evidence inside it,
+# but must not depend on an obsolete window caption or historical Pass15-19 banner string.
 for needle in (
     'set "VERIFY16=%~dp0VERIFY_RUNTIME_GRAPHICS_PASS_16.py"',
-    '%PY_CMD% "%VERIFY16%"', "PASS16_RUNTIME_GRAPHICS_IDENTITY",
-    "Pass 15-19 Recovery", "PASS 15-19 FOCUSED RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED",
+    '%PY_CMD% "%VERIFY16%"',
+    "PASS16_RUNTIME_GRAPHICS_IDENTITY",
+    "Oster Conflict Focused Recovery",
+    "PASS 45 FOCUSED RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_",
+    "vehicle_revalidation=0",
+    "-d3d11",
+    "-sm5",
+    "-nohdr",
 ):
-    require(launcher, needle, "Pass 16 runtime launcher integration")
+    require(launcher, needle, "Pass16 current focused runtime launcher integration")
 forbid(launcher.lower(), "-nullrhi", "focused runtime launcher must use a real renderer")
 
-print("RUNTIME GRAPHICS PASS 16/39/42/43 SOURCE CONTRACT PASS")
+print("RUNTIME GRAPHICS PASS16/39/42/43 SOURCE CONTRACT PASS")
 print("- automatic first-run profile uses native 100% scale + Texture Quality 3 with conservative expensive lighting")
 print("- automatic startup migrations persist settings without live ApplySettings during Slate construction")
-print("- legacy Pass 16 / automatic Pass 39 profiles receive controlled one-time migrations")
+print("- legacy Pass16 / automatic Pass39 profiles receive controlled one-time migrations")
 print("- explicit settings UI remains the only live graphics apply path")
 print("- user-customized graphics profiles remain authoritative")
-print("- real GPU/RHI evidence and manual graphics controls remain intact")
+print("- current Pass45 focused launcher provides real DX11/SM5 GPU/RHI evidence without historical banner coupling")
 print("STATUS: CODED_UNTESTED; local UE 5.8 startup runtime remains authoritative")

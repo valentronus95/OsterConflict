@@ -25,6 +25,11 @@ def forbid(text: str, needle: str, message: str) -> None:
         errors.append(message)
 
 
+def require_absent(path: Path, label: str) -> None:
+    if path.exists():
+        errors.append(f"retired {label} resurrected: {path.relative_to(ROOT)}")
+
+
 agents = read(ROOT / "AGENTS.md")
 ledger = read(ROOT / "OSTER_CONFLICT_WORK_LEDGER.md")
 game_h = read(SRC / "Public" / "OCGameMode.h")
@@ -35,7 +40,11 @@ world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
 central = read(SRC / "Private" / "OCCentralPlayableAreaSubsystem.cpp")
 tactical = read(SRC / "Private" / "OCTacticalMapVisual.cpp")
 weapon = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
-palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
+
+palette_h = SRC / "Public" / "OCWeaponPalettePass37Subsystem.h"
+palette_cpp = SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp"
+require_absent(palette_h, "weapon palette compatibility header")
+require_absent(palette_cpp, "weapon palette compatibility source")
 
 reference = ROOT / "REFERENCE_PHOTOS" / "map_extent" / "oster_central_playable_area_20260824.jpg"
 req(reference.is_file() and reference.stat().st_size > 0,
@@ -54,14 +63,16 @@ for needle in (
 ):
     req(needle in agents, f"root authority policy missing: {needle}")
 
-# Pass 44 is historical and has now been rejected by factual runtime evidence. Its verifier may only
-# protect useful non-regression decisions; it must never force Pass 44 back to ACTIVE/VERIFIED status.
-req("Pass 44" in ledger and "RUNTIME REJECTED" in ledger,
-    "ledger must preserve factual Pass 44 runtime rejection")
+# Pass 44 is historical and was rejected by factual runtime evidence. Preserve that fact and the subset
+# of useful decisions which Pass45 has not disproved, but never require rejected Pass44 owners back.
+req("Pass 44 historical runtime rejection (retained fact)" in ledger,
+    "ledger is missing the explicit historical Pass44 rejection section")
+req("Pass 44 verdict: RUNTIME REJECTED" in ledger,
+    "ledger must preserve factual Pass44 runtime rejection")
 req("Pass 45" in ledger and "ACTIVE" in ledger,
-    "ledger must identify Pass 45 as the active corrective pass")
+    "ledger must identify Pass45 as the active corrective pass")
 req("Pass 44 behavior retained unless disproved" in ledger,
-    "ledger is missing the explicit retained Pass 44 non-regression section")
+    "ledger is missing the explicit retained Pass44 non-regression section")
 
 req("int32 TargetPopulation = 0" in game_h and "bool bAutoFillBots = false" in game_h,
     "implicit bot autofill defaults returned")
@@ -122,8 +133,6 @@ for needle in (
     req(needle in weapon, f"weapon material truth non-regression missing: {needle}")
 for stale in ("MaterialRecoveryBase", "UMaterialInstanceDynamic::Create", "Component->SetMaterial(Slot"):
     forbid(weapon, stale, f"retired grey weapon material repair returned: {stale}")
-req("PASS44_WEAPON_PALETTE_MUTATION_DISABLED" in palette,
-    "retired palette subsystem is no longer inert")
 
 if errors:
     print("PASS44 HISTORICAL NON-REGRESSION: FAIL")
@@ -132,8 +141,9 @@ if errors:
     raise SystemExit(1)
 
 print("PASS44 HISTORICAL NON-REGRESSION: PASS")
-print("- factual Pass 44 runtime rejection is preserved; this verifier cannot promote it back to active/verified")
+print("- factual Pass44 runtime rejection is preserved; this verifier cannot promote it back to active/verified")
 print("- compact 960x940 m extent, zero implicit bots and actual Museum pawn proof remain protected")
 print("- old edge coordinates/map auto-fit and grey weapon-material repair remain retired")
-print("- tactical topology, FPS, trees, landmarks and authored weapon materials are delegated to active Pass 45")
+print("- retired Pass37 palette compatibility owner must stay physically deleted")
+print("- tactical topology, FPS, trees, landmarks and authored weapon materials are delegated to active Pass45")
 print("STATUS: HISTORICAL SOURCE NON-REGRESSION ONLY; latest UE runtime is authoritative")

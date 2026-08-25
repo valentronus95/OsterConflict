@@ -23,6 +23,11 @@ def require(text: str, needle: str, where: str) -> None:
         raise SystemExit(f"PASS12 WORLD STABILITY VERIFY FAIL: {where}: missing {needle!r}")
 
 
+def forbid(text: str, needle: str, where: str) -> None:
+    if needle in text:
+        raise SystemExit(f"PASS12 WORLD STABILITY VERIFY FAIL: {where}: forbidden {needle!r}")
+
+
 coordinator = read(COORDINATOR)
 separation = read(SEPARATION)
 world_models = read(WORLD_MODELS)
@@ -41,23 +46,36 @@ for needle in (
 ):
     require(coordinator, needle, "landmark startup coordinator")
 
-# Pass 45 supersedes the historical 40 * 0.20 s full-world repair loop. Stability now requires one delayed
-# reconciliation after current landmark construction, plus an actor-spawn legacy guard. The Pass 12 baseline
-# still captures later at 12 s, so it observes the post-reconciliation world without forcing repeated mutation.
+# Pass45 retires the old mutating reconciliation loop. Separation is now one bounded validation-only pass
+# after current landmark startup. Pass12 only requires that it completes before the 12s geometry baseline.
 for needle in (
-    "SeparationValidationDelaySeconds = 6.25f",
+    "constexpr float ValidationDelaySeconds",
+    "ValidateSeparation",
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_SCHEDULED",
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
+    "mutation=0",
+    "periodic_scan=0",
+    "primary_authoring_fix_required=1",
+):
+    require(separation, needle, "Pass45 validation-only landmark separation")
+for stale in (
     "RunStartupGuardPass",
     "PASS45_LANDMARK_RECONCILIATION_BUDGET_READY",
     "PASS45_LANDMARK_RECONCILIATION_COMPLETE",
-    "further_periodic_scan=0",
+    "SeparationStartupGuardIntervalSeconds",
+    "SeparationStartupGuardPassCount",
+    "RemoveInstance(",
+    "->Destroy(",
 ):
-    require(separation, needle, "Pass 45 one-shot landmark reconciliation")
-if "SeparationStartupGuardIntervalSeconds" in separation or "SeparationStartupGuardPassCount" in separation:
-    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: obsolete 0.20 s x 40 landmark scan loop returned")
+    forbid(separation, stale, "retired landmark mutation/reconciliation path")
 
-delay_match = re.search(r"SeparationValidationDelaySeconds\s*=\s*([0-9.]+)f", separation)
-if not delay_match or float(delay_match.group(1)) >= 12.0:
-    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark reconciliation does not finish before 12 s baseline capture")
+delay_match = re.search(r"ValidationDelaySeconds\s*=\s*([0-9.]+)f", separation)
+if not delay_match:
+    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark validation delay is not explicit")
+delay_seconds = float(delay_match.group(1))
+if delay_seconds <= 0.0 or delay_seconds >= 12.0:
+    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark validation must be bounded and finish before 12 s baseline capture")
 
 # Imported world model decoration must remain one-shot once its decorator actor exists.
 for needle in (
@@ -74,7 +92,7 @@ for needle in (
     "ReadTrackedCounts",
     "CompareWithBaseline",
 ):
-    require(header, needle, "Pass 12 validator header")
+    require(header, needle, "Pass12 validator header")
 
 for needle in (
     "BaselineCaptureSeconds = 12.0f",
@@ -96,7 +114,7 @@ for needle in (
     "PASS12_WORLD_GEOMETRY_STABLE",
     "PASS12_WORLD_GEOMETRY_STABILITY_FAIL",
 ):
-    require(validator, needle, "Pass 12 runtime validator")
+    require(validator, needle, "Pass12 runtime validator")
 
 for needle in (
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
@@ -105,14 +123,14 @@ for needle in (
     "at least 21 seconds",
     "R14_CURRENT_GAMEPLAY.log",
 ):
-    require(launcher, needle, "Pass 12 Windows launcher")
+    require(launcher, needle, "Pass12 Windows launcher")
 
-print("WORLD GEOMETRY STABILITY PASS 12 + PASS 45 SOURCE CONTRACT PASS")
+print("WORLD GEOMETRY STABILITY PASS12/PASS45 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
-print("- obsolete 0.20 s x 40 full-world landmark mutation loop remains retired")
-print("- one delayed Pass 45 reconciliation completes before the 12 s Pass 12 baseline")
+print("- landmark separation is one bounded validation-only pass with mutation=0")
+print("- old reconciliation/repair loops remain physically retired")
+print("- validation completes before the 12 s Pass12 baseline")
 print("- imported world decorator is one-shot after ownership is acquired")
-print("- Pass 12 snapshots 10 source geometry families at 12s and compares again at 16s/20s")
+print("- Pass12 snapshots source geometry families at 12s and compares again at 16s/20s")
 print("- any late instance-count mutation emits a family-specific runtime FAIL marker")
-print("- a green runtime marker narrows remaining VIS-FLICKER-001 to rendering/z-fighting/LOD instead of late rebuild")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence still required")

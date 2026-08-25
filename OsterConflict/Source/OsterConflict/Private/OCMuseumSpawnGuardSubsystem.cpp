@@ -1,5 +1,6 @@
 #include "OCMuseumSpawnGuardSubsystem.h"
 
+#include "OCCharacter.h"
 #include "OCGameMode.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
@@ -101,9 +102,6 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
     double TeamOneBestSq = TNumericLimits<double>::Max();
     double TeamTwoBestSq = TNumericLimits<double>::Max();
 
-    // Pass 37: prefer the closest exterior BASE in the 20-45 m museum approach band. The previous
-    // 30 m lower bound rejected the new visible approach and silently pushed deployment back to the
-    // farther secondary BASE, which is exactly the sort of self-inflicted correctness humans excel at.
     for (TActorIterator<AOCTeamSpawnPoint> It(World); It; ++It)
     {
         AOCTeamSpawnPoint* Point = *It;
@@ -138,8 +136,11 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
     {
         if (Primary) return;
 
+        // Do not create a BASE at the Museum origin itself. Use a deterministic exterior approach.
+        const float Side = Team == EOCTeam::TeamOne ? -1.0f : 1.0f;
+        const FVector ExteriorLocation = Museum + FVector(1400.0f, Side * 2400.0f, 80.0f);
         AOCTeamSpawnPoint* Point = World->SpawnActor<AOCTeamSpawnPoint>(
-            AOCTeamSpawnPoint::StaticClass(), Museum, FRotator::ZeroRotator, SpawnParams);
+            AOCTeamSpawnPoint::StaticClass(), ExteriorLocation, FRotator::ZeroRotator, SpawnParams);
         if (!Point)
         {
             UE_LOG(LogTemp, Error,
@@ -149,7 +150,7 @@ bool UOCMuseumSpawnGuardSubsystem::EnsureAuthoritativeMuseumBases()
 
         Point->ConfigureServer(Team, true, NAME_None);
         const float DistanceM = FVector::Dist2D(Point->GetActorLocation(), Museum) / 100.0f;
-        if (DistanceM < MuseumNoSpawnRadiusCm / 100.0f)
+        if (DistanceM < MuseumNoSpawnRadiusCm / 100.0f || DistanceM > PrimaryBaseRadiusCm / 100.0f)
         {
             UE_LOG(LogTemp, Error,
                 TEXT("PASS37_MUSEUM_VISIBLE_BASE_CREATE_FAIL team=%s distance_m=%.1f location=%s"),
@@ -222,11 +223,14 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         AOCPlayerController* PC = Cast<AOCPlayerController>(It->Get());
         if (!PC || PC->IsActorBeingDestroyed()) continue;
 
-        APawn* Pawn = PC->GetPawn();
-        if (!Pawn) continue;
+        // Pass 45 runtime rejection 2026-08-25: possession changes are not deployments.
+        // The old code cached the current Pawn pointer, so character -> vehicle -> character caused the
+        // same BASE request to be revalidated twice. That teleported the vehicle to Museum on entry and
+        // the character back to Museum on exit. Validate one initial character deployment per controller.
+        if (ValidatedBaseDeploymentControllers.Contains(PC)) continue;
 
-        if (LastValidatedPawnByController.FindRef(PC).Get() == Pawn) continue;
-        LastValidatedPawnByController.Add(PC, Pawn);
+        AOCCharacter* Character = Cast<AOCCharacter>(PC->GetPawn());
+        if (!Character || Character->IsInVehicle()) continue;
 
         if (!PC->GetRequestedDeploymentSpawn().ToString().Equals(TEXT("BASE"), ESearchCase::IgnoreCase))
         {
@@ -237,21 +241,20 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         const EOCTeam Team = State ? State->GetTeamId() : EOCTeam::None;
         if (Team == EOCTeam::None) continue;
 
-        const double DistanceSq = FVector::DistSquared2D(Pawn->GetActorLocation(), Museum);
+        const FVector OldLocation = Character->GetActorLocation();
+        const double DistanceSq = FVector::DistSquared2D(OldLocation, Museum);
         const bool bOutsideMuseum = DistanceSq >= FMath::Square(MuseumNoSpawnRadiusCm);
         const bool bNearMuseum = DistanceSq <= FMath::Square(BaseDeploymentAcceptanceRadiusCm);
         if (bOutsideMuseum && bNearMuseum)
         {
-            const float DistanceM = FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f;
+            ValidatedBaseDeploymentControllers.Add(PC);
+            const float DistanceM = FVector::Dist2D(OldLocation, Museum) / 100.0f;
             UE_LOG(LogTemp, Display,
-                TEXT("PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM team=%s pawn=%s location=%s distance_m=%.1f"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(), DistanceM);
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS30_BASE_DEPLOYMENT_OUTSIDE_MUSEUM team=%s pawn=%s location=%s distance_m=%.1f"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(), DistanceM);
+                TEXT("PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE team=%s pawn=%s location=%s distance_m=%.1f vehicle_revalidation=0"),
+                *OCTeamToString(Team), *Character->GetName(), *OldLocation.ToCompactString(), DistanceM);
             UE_LOG(LogTemp, Display,
                 TEXT("PASS37_BASE_DEPLOYMENT_VISIBLE_MUSEUM_APPROACH team=%s pawn=%s location=%s distance_m=%.1f"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString(), DistanceM);
+                *OCTeamToString(Team), *Character->GetName(), *OldLocation.ToCompactString(), DistanceM);
             continue;
         }
 
@@ -259,36 +262,22 @@ void UOCMuseumSpawnGuardSubsystem::ValidateBaseDeployments()
         if (!Base)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_exterior_base=1 location=%s"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
-            UE_LOG(LogTemp, Error,
-                TEXT("PASS30_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_exterior_base=1 location=%s"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
-            UE_LOG(LogTemp, Error,
-                TEXT("PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_visible_museum_base=1 location=%s"),
-                *OCTeamToString(Team), *Pawn->GetName(), *Pawn->GetActorLocation().ToCompactString());
+                TEXT("PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL team=%s pawn=%s no_exterior_base=1 location=%s"),
+                *OCTeamToString(Team), *Character->GetName(), *OldLocation.ToCompactString());
             continue;
         }
 
-        const FVector OldLocation = Pawn->GetActorLocation();
         FTransform Corrected = Base->GetActorTransform();
         Corrected.AddToTranslation(FVector(0.0f, 0.0f, 80.0f));
-        Pawn->SetActorLocationAndRotation(
+        Character->SetActorLocationAndRotation(
             Corrected.GetLocation(), Corrected.Rotator(), false, nullptr, ETeleportType::TeleportPhysics);
+        ValidatedBaseDeploymentControllers.Add(PC);
 
-        const float DistanceM = FVector::Dist2D(Pawn->GetActorLocation(), Museum) / 100.0f;
+        const float DistanceM = FVector::Dist2D(Character->GetActorLocation(), Museum) / 100.0f;
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS15_BASE_DEPLOYMENT_RECOVERED team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f"),
-            *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
-            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(), DistanceM);
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS30_BASE_DEPLOYMENT_RECOVERED_OUTSIDE_MUSEUM team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f"),
-            *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
-            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(), DistanceM);
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS37_BASE_DEPLOYMENT_RECOVERED_VISIBLE_MUSEUM_APPROACH team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f"),
-            *OCTeamToString(Team), *Pawn->GetName(), *OldLocation.ToCompactString(),
-            *Pawn->GetActorLocation().ToCompactString(), *Museum.ToCompactString(), DistanceM);
+            TEXT("PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE team=%s pawn=%s old=%s new=%s museum=%s distance_m=%.1f vehicle_revalidation=0"),
+            *OCTeamToString(Team), *Character->GetName(), *OldLocation.ToCompactString(),
+            *Character->GetActorLocation().ToCompactString(), *Museum.ToCompactString(), DistanceM);
     }
 }
 

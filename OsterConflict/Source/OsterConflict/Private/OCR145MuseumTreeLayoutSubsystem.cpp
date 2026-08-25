@@ -54,31 +54,6 @@ namespace
         Component->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f), Location, Scale), true);
     }
 
-    void HideR137MuseumTrees(UWorld& World)
-    {
-        for (TActorIterator<AActor> It(&World); It; ++It)
-        {
-            AActor* Actor = *It;
-            if (!Actor || !Actor->ActorHasTag(TEXT("R137_MuseumPhotoModel"))) continue;
-
-            TInlineComponentArray<UInstancedStaticMeshComponent*> Components;
-            Actor->GetComponents(Components);
-            for (UInstancedStaticMeshComponent* Component : Components)
-            {
-                if (!Component) continue;
-                const FName Name = Component->GetFName();
-                if (Name != TEXT("R137Museum_Pine01") &&
-                    Name != TEXT("R137Museum_Pine03") &&
-                    Name != TEXT("R137Museum_Deciduous01"))
-                {
-                    continue;
-                }
-                Component->SetVisibility(false, true);
-                Component->SetHiddenInGame(true, true);
-                Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            }
-        }
-    }
 }
 
 bool UOCR145MuseumTreeLayoutSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -120,8 +95,6 @@ void UOCR145MuseumTreeLayoutSubsystem::ReplaceMuseumTrees(UWorld& World) const
     UStaticMesh* Deciduous = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
     if (!Pine01 && !Pine03 && !Deciduous) return;
-
-    HideR137MuseumTrees(World);
 
     AActor* TreesActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!TreesActor) return;
@@ -191,6 +164,6 @@ void UOCR145MuseumTreeLayoutSubsystem::ReplaceMuseumTrees(UWorld& World) const
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R14.5 museum trees: hidden symmetric R13.7 tree pass and placed %d asymmetrical photo-oriented mature trees; central approach remains open."),
+        TEXT("PASS45_MUSEUM_TREE_SINGLE_OWNER_READY owner=R145 r137_tree_pass=0 late_hide=0 placed=%d central_approach_open=1"),
         Placed);
 }

@@ -16,48 +16,80 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS35 VERIFY FAIL: {label}: missing {needle!r}")
 
 
-museum_guard_h = read(SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h")
-museum_guard = read(SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp")
+def forbid(text: str, needle: str, label: str) -> None:
+    if needle in text:
+        raise SystemExit(f"PASS35 VERIFY FAIL: {label}: forbidden {needle!r}")
+
+
+def require_absent(path: Path, label: str) -> None:
+    if path.exists():
+        raise SystemExit(f"PASS35 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
+
+
+# Pass45 supersedes the old Pass35 Museum recovery owner. Delayed carrier/rebuild paths that can
+# create or repair a second visible Museum remain physically retired.
+for path, label in (
+    (SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h", "Museum core recovery header"),
+    (SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp", "Museum core recovery source"),
+    (SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Museum visibility rebuild header"),
+    (SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Museum visibility rebuild source"),
+):
+    require_absent(path, label)
+
 map_guard_h = read(SRC / "Public" / "OCTacticalMapPlayerMarkerGuardSubsystem.h")
 map_guard = read(SRC / "Private" / "OCTacticalMapPlayerMarkerGuardSubsystem.cpp")
 r137 = read(SRC / "Private" / "OCR137MuseumPhotoModelSubsystem.cpp")
 r138 = read(SRC / "Private" / "OCR138MuseumInteractiveArchitectureSubsystem.cpp")
+layer_guard = read(SRC / "Private" / "OCMuseumLayerPerformanceGuardSubsystem.cpp")
+startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 tactical = read(SRC / "Private" / "OCTacticalMapSubsystem.cpp")
 
-require(museum_guard_h, "UOCMuseumCoreRecoverySubsystem", "museum recovery class")
+# Current Museum ownership: coordinator builds R13.7 once, then R13.8 hidden interaction collision/final glass.
 for needle in (
-    'MuseumPrototypeTag(TEXT("R137_MuseumPhotoModel"))',
-    'MuseumArchitectureTag(TEXT("R138_MuseumHighFidelityArchitecture"))',
-    'PASS35_MUSEUM_OWNER_CARRIER_RECOVERED',
-    'RunAuthoritativeUpgradeNow(*World)',
-    'PASS35_MUSEUM_DETAIL_REPLAY_COMPLETE',
-    'PASS35_MUSEUM_CORE_READY',
-    'PASS35_MUSEUM_CORE_FAIL',
-    'PASS35_MUSEUM_BASE_DISTANCE_READY',
-    'MuseumNoSpawnRadiusCm = 3000.0f',
-    'MuseumNearbyBaseRadiusCm = 6000.0f',
-    'Roof_Both_Ends_4m.Roof_Both_Ends_4m',
-    'PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=authored_asset',
-    'PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=fallback_slabs',
-    'PASS35Museum_RecoveryPlinth',
+    "UOCR137MuseumPhotoModelSubsystem",
+    "UOCR138MuseumInteractiveArchitectureSubsystem",
+    "Timers.ClearAllTimersForObject(Stage)",
+    "Stage->RunAuthoritativeBuildNow(World)",
+    "Stage->RunAuthoritativeUpgradeNow(World)",
 ):
-    require(museum_guard, needle, "museum presence recovery")
+    require(startup, needle, "single startup window Museum coordination")
+for needle in (
+    'TEXT("R137_MuseumPhotoModel")',
+    "PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY",
+    "static_glass=0",
+    "prototype_doors=0",
+    "prototype_trees=0",
+):
+    require(r137, needle, "R13.7 single visible Museum exterior")
+for needle in (
+    'TEXT("R138_MuseumInteractionCollision")',
+    "MuseumInteractionCollision",
+    "SetVisibility(false, true)",
+    "SetHiddenInGame(true, true)",
+    "PASS45_MUSEUM_R138_COLLISION_ONLY_READY",
+):
+    require(r138, needle, "R13.8 hidden Museum interaction owner")
+for needle in (
+    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
+    "PASS45_MUSEUM_LAYER_VALIDATION_FAIL",
+    "mutation=0",
+    "primary_authoring_fix_required=1",
+):
+    require(layer_guard, needle, "validation-only Museum layer ownership")
+for forbidden in (
+    'TEXT("R138_MuseumHighFidelityArchitecture")',
+    "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED",
+):
+    forbid(r138, forbidden, "retired visible R13.8 compatibility contract")
 
-# Pass 35 still owns the optional-asset owner/core recovery. Pass 37 adds a stronger visible-structure
-# guard because the latest runtime proved that actor tags alone can pass while the site is visually empty.
-require(r137, "if (!Cube || !Basic || !RoofMesh) return;", "known R13.7 optional-asset failure path")
-require(r138, 'TEXT("R138_MuseumHighFidelityArchitecture")', "R13.8 architecture ownership")
-require(r138, "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED", "museum interior cleanup regression")
-
-# Pass 37 supersedes only the BASE distance presentation: primary BASE is now ~27.8 m from the anchor,
-# still outside the authored shell, and faces the museum directly. Pass 35 map-marker ownership remains.
+# Current BASE/rack placement remains close to Museum and no longer depends on the retired edge world.
 for needle in (
     "FVector(-1400.0f, -2400.0f, 120.0f)",
     "FVector(1400.0f, -2400.0f, 120.0f)",
     "PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM",
 ):
-    require(spawn, needle, "Pass 37 near-museum BASE compatibility")
+    require(spawn, needle, "near-Museum BASE compatibility")
 
 require(map_guard_h, "UOCTacticalMapPlayerMarkerGuardSubsystem", "map marker guard class")
 for needle in (
@@ -68,14 +100,14 @@ for needle in (
 ):
     require(map_guard, needle, "foreground player marker repair")
 
-# The underlying map still owns projection/position; Pass 35 only fixes presentation priority.
+# Tactical map owns projection/position; Pass35 only keeps foreground presentation evidence.
 require(tactical, 'TEXT("TacticalMapPlayerMarker")', "canonical tactical player marker")
 require(tactical, "MarkerSlot->SetPosition(WorldToMap(Location))", "player map projection update")
 require(tactical, "FVector2D(0.5f, 0.5f), 22", "objective marker z-order evidence")
 
-print("RUNTIME LOCATION + MAP PASS 35 SOURCE CONTRACT PASS")
-print("- Pass 35 optional-asset museum owner/core recovery remains present")
-print("- Pass 37 supersedes the old 30-60 m BASE presentation with a closer visible approach")
-print("- R13.8 remains the authoritative enterable museum core")
-print("- Tactical Map player marker is forced above objective/POI labels without duplicating map projection ownership")
-print("STATUS: SOURCE VERIFIED; local UE 5.8 runtime remains required")
+print("RUNTIME LOCATION + MAP PASS35/PASS45 SOURCE CONTRACT PASS")
+print("- stale Museum recovery/rebuild owners stay physically retired")
+print("- R13.7 is the visible Museum exterior; R13.8 is hidden collision/interactivity only")
+print("- Museum layer ownership is validated without late repair")
+print("- Tactical Map foreground player marker ownership remains intact")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime remains required")

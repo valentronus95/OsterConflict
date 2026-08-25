@@ -21,8 +21,10 @@ def forbid(text: str, needle: str, label: str) -> None:
     if needle in text:
         raise SystemExit(f"PASS15 VERIFY FAIL: {label}: forbidden {needle!r}")
 
+
 recovery_h = read(SRC / "Public" / "OCRuntimeRecoveryPass15Subsystem.h")
 recovery = read(SRC / "Private" / "OCRuntimeRecoveryPass15Subsystem.cpp")
+museum_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
 museum = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 foliage = read(SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp")
@@ -39,12 +41,29 @@ for needle in (
 ):
     require(recovery, needle, "frontend/host/join recovery")
 
+# Pass45 supersedes the old pawn-pointer BASE recovery. Validate one initial character deployment per controller;
+# vehicle possession/unpossession must never retrigger Museum correction.
 for needle in (
-    "PASS15_MUSEUM_BASES_WEAPONS_READY", "RequiredRackWeaponCount = 11", "ValidateBaseDeployments()",
-    "GetRequestedDeploymentSpawn()", "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM", "PASS15_BASE_DEPLOYMENT_RECOVERED",
-    "PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL", "Pawn->SetActorLocationAndRotation",
+    "PASS15_MUSEUM_BASES_WEAPONS_READY",
+    "RequiredRackWeaponCount = 11",
+    "ValidateBaseDeployments()",
+    "GetRequestedDeploymentSpawn()",
+    "ValidatedBaseDeploymentControllers",
+    "AOCCharacter* Character = Cast<AOCCharacter>(PC->GetPawn())",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "vehicle_revalidation=0",
+    "Character->SetActorLocationAndRotation",
 ):
-    require(museum, needle, "Museum BASE and actual pawn recovery")
+    require(museum_h + museum, needle, "Museum BASE and actual initial character recovery")
+for forbidden in (
+    "LastValidatedPawnByController",
+    "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM",
+    "PASS15_BASE_DEPLOYMENT_RECOVERED",
+    "PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL",
+):
+    forbid(museum_h + museum, forbidden, "retired arbitrary-pawn BASE recovery contract")
 
 for needle in (
     "RequiredRackWeaponCount = 11", "AOCWeapon_M14::StaticClass()", "AOCWeapon_Mac10::StaticClass()",
@@ -57,8 +76,7 @@ grid = re.search(r"constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;", foliage)
 if not grid or float(grid.group(1)) < 2000.0:
     raise SystemExit("PASS15 VERIFY FAIL: foliage grid exceeds low-cost recovery density")
 
-# Pass 39 keeps the probe but removes the old mid-session graphics destruction. Low FPS is evidence,
-# not permission to turn resolution/lighting/LOD into a second regression.
+# Low FPS remains evidence, not permission for hidden graphics degradation.
 for needle in (
     "PASS15_PERF_PROBE", "PASS39_LOW_FPS_PROBE_DIAGNOSTIC", "quality_mutation=0",
     "PASS15_PERF_SAMPLE", "PASS15_PERF_BELOW_TARGET", "PASS15_PERF_30FPS_READY",
@@ -73,22 +91,34 @@ for forbidden in (
 ):
     forbid(perf, forbidden, "performance sampler must not mutate graphics quality")
 
-# Focused recovery proves playability, not exact final art. Pass 7 exact-production certification is a separate strict gate.
+# Focused recovery proves playability, not exact final art. It must use current Pass45 deployment truth.
 for needle in (
-    "PASS15_FRONTEND_FIELDS_OPAQUE_READY", "PASS15_MUSEUM_BASES_WEAPONS_READY",
-    "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM", "PASS15_BASE_DEPLOYMENT_RECOVERED",
+    '/C:"fix/pass45-runtime-rejection-"',
+    "PASS15_FRONTEND_FIELDS_OPAQUE_READY",
+    "PASS15_MUSEUM_BASES_WEAPONS_READY",
+    'findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%"',
+    'findstr /C:"vehicle_revalidation=0"',
+    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL",
     "PASS19_PLAYABLE_WEAPON_SET_READY", "PASS19_PLAYABLE_WEAPON_SET_FAIL",
-    "PASS16_RUNTIME_GRAPHICS_IDENTITY", "PASS15_PERF_SAMPLE", "PASS15_PERF_BELOW_TARGET", "PASS15_PERF_30FPS_READY",
+    "PASS16_RUNTIME_GRAPHICS_IDENTITY",
+    "PASS15_PERF_SAMPLE", "PASS15_PERF_BELOW_TARGET", "PASS15_PERF_30FPS_READY",
+    "PASS15_EMERGENCY_PERF_PROFILE_APPLIED",
     "exact production-art certification", "R14_CURRENT_GAMEPLAY.log",
 ):
-    require(launcher, needle, "focused runtime launcher")
-forbid(launcher, "PASS7_PRODUCTION_WEAPONS_READY", "focused launcher must not certify exact production art")
-forbid(launcher, 'findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL"', "focused launcher must not block on separate exact-art gate")
+    require(launcher, needle, "focused Pass45 runtime launcher")
+for forbidden in (
+    "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM",
+    "PASS15_BASE_DEPLOYMENT_RECOVERED",
+    "PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL",
+    "PASS7_PRODUCTION_WEAPONS_READY",
+    'findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL"',
+):
+    forbid(launcher, forbidden, "retired focused recovery dependency")
 
-print("RUNTIME RECOVERY PASS 15 SOURCE CONTRACT PASS")
-print("- frontend/server recovery, Museum BASE, physical rack and FPS evidence remain required")
-print("- low-FPS probe is diagnostic-only and no longer destroys graphics quality mid-session")
-print("- completed performance sampling retires its world tick")
-print("- focused recovery still requires Pass 19 playable real-mesh rack readiness")
-print("- Pass 7 exact-production-art certification remains separate and may correctly fail")
+print("RUNTIME RECOVERY PASS15/PASS45 SOURCE CONTRACT PASS")
+print("- frontend/server recovery and physical 11-weapon Museum rack remain required")
+print("- Museum BASE correction is initial-character-only and vehicle revalidation is forbidden")
+print("- focused launcher accepts the current Pass45 terminal deployment evidence")
+print("- low-FPS probe remains diagnostic-only and does not destroy graphics quality")
+print("- exact production-art certification remains separate")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile/runtime acceptance still required")

@@ -25,10 +25,10 @@ viewport_h = read(SRC / "Public" / "OCR13UIViewportStabilizerSubsystem.h")
 viewport = read(SRC / "Private" / "OCR13UIViewportStabilizerSubsystem.cpp")
 deployment_h = read(SRC / "Public" / "OCR13DeploymentPresentationSubsystem.h")
 deployment = read(SRC / "Private" / "OCR13DeploymentPresentationSubsystem.cpp")
+layer_guard = read(SRC / "Private" / "OCMuseumLayerPerformanceGuardSubsystem.cpp")
 launcher = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 
-# The old viewport stabilizer globally searched UObject space and rewrote deployment/menu Slate layout every frame.
-# Pass 40 keeps the safety behavior but reduces observation to 10 Hz, caches the root and only mutates structure on state transitions.
+# The viewport stabilizer caches the UI root and only writes structure on transitions.
 for needle in (
     "TWeakObjectPtr<UOCGameUIRootWidget> CachedRoot;",
     "TWeakObjectPtr<AOCPlayerController> CachedController;",
@@ -56,7 +56,7 @@ forbid(viewport[viewport_tick_start:viewport_resolve_start], "TObjectIterator<UO
 if viewport.count("TObjectIterator<UOCGameUIRootWidget>") != 1:
     raise SystemExit("PASS40 VERIFY FAIL: viewport root global scan must exist only in the cache-miss resolver")
 
-# Deployment presentation had the same root scan plus repeated SetVisibility calls every frame.
+# Deployment presentation similarly caches its root and deduplicates visibility/style writes.
 for needle in (
     "TWeakObjectPtr<AOCPlayerController> ActiveController;",
     "float UpdateAccumulator = 0.0f;",
@@ -83,26 +83,46 @@ forbid(deployment[deployment_tick_start:deployment_resolve_start], "TObjectItera
 if deployment.count("TObjectIterator<UOCGameUIRootWidget>") != 1:
     raise SystemExit("PASS40 VERIFY FAIL: deployment root global scan must exist only in the cache-miss resolver")
 
-# Runtime acceptance must prove both budgets while preserving every earlier visual/FPS gate.
+# Pass45 deleted the historical Museum rebuild budget owner. The current equivalent is validation-only.
+for needle in (
+    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
+    "PASS45_MUSEUM_LAYER_VALIDATION_FAIL",
+    "mutation=0",
+    "primary_authoring_fix_required=1",
+):
+    require(layer_guard, needle, "Museum validation-only ownership")
+for forbidden in (
+    "RunRepairPass",
+    "RemoveInstance(",
+    "SetVisibility(",
+    "SetHiddenInGame(",
+):
+    forbid(layer_guard, forbidden, "Museum layer validator may not become a late repair owner")
+
+# Runtime acceptance proves both UI budgets while using current Pass45 Museum/FPS evidence.
 for marker in (
     "PASS40_UI_STABILIZER_BUDGET_READY",
     "PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY",
     "PASS39_GRAPHICS_QUALITY_PROFILE_READY",
     "PASS39_PERF_SAMPLER_IDLE_READY",
-    "PASS38_MUSEUM_REBUILD_BUDGET_READY",
+    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
     "PASS14_PERF_30FPS_READY",
 ):
     require(launcher, marker, f"runtime acceptance marker {marker}")
+for retired in (
+    "PASS38_MUSEUM_REBUILD_BUDGET_READY",
+    "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
+    "PASS32_MUSEUM_LAYER_BUDGET_READY",
+):
+    forbid(launcher, retired, "retired Museum repair/rebuild acceptance marker")
 
-# Do not pin Pass 40's verifier to the latest terminal pass number. Later passes extend the same
-# canonical acceptance launcher and must not make an older, still-valid Pass 40 contract fail.
-require(launcher, "PASS 29-", "canonical cumulative runtime acceptance prefix")
-require(launcher, "RUNTIME ACCEPTANCE", "cumulative runtime acceptance title")
+require(launcher, "PASS 45 CURRENT RUNTIME ACCEPTANCE", "current cumulative runtime acceptance title")
 require(launcher, "30 FPS acceptance target", "30 FPS floor remains unchanged")
 
-print("POST-START FRAME BUDGET PASS 40 SOURCE CONTRACT PASS")
+print("POST-START FRAME BUDGET PASS40/PASS45 SOURCE CONTRACT PASS")
 print("- viewport stabilizer no longer scans all UObjects or rewrites Slate layout every rendered frame")
 print("- deployment presentation caches its root and deduplicates visibility/style writes")
 print("- both UI guards run at 10 Hz instead of render-frame cadence")
-print("- cumulative runtime acceptance requires Pass 40 markers and still requires >=30 FPS")
+print("- Museum acceptance is validation-only; deleted rebuild owner is not required")
+print("- cumulative runtime acceptance still requires >=30 FPS")
 print("STATUS: CODED_UNTESTED; local UE 5.8 UI/playflow/FPS/thermal runtime remains authoritative")

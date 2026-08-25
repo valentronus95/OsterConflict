@@ -5,7 +5,6 @@
 #include "OCR138MuseumInteractiveArchitectureSubsystem.h"
 #include "OCR139MuseumMainDoorReplacementSubsystem.h"
 #include "OCR140MuseumFacadeDetailSubsystem.h"
-#include "OCR141MuseumWindowReplacementSubsystem.h"
 #include "OCR142MuseumEntranceDetailSubsystem.h"
 #include "OCR143MuseumSiteVegetationSubsystem.h"
 #include "OCR144MuseumRearExteriorDetailSubsystem.h"
@@ -38,7 +37,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     // WorldSubsystem OnWorldBeginPlay ordering is not a contract for GameMode-created actors.
     // One next-tick handoff guarantees SpawnOsterCenterSector and every landmark subsystem have
-    // completed BeginPlay and registered their legacy delayed timers before we cancel/run them.
+    // completed BeginPlay and registered their historical delayed timers before we cancel/run them.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     InWorld.GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
@@ -84,14 +83,6 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         Stage->RunAuthoritativeDetailNow(World);
     }
 
-    if (bHasGameplayAuthority)
-    {
-        if (UOCR141MuseumWindowReplacementSubsystem* Stage = World.GetSubsystem<UOCR141MuseumWindowReplacementSubsystem>())
-        {
-            Timers.ClearAllTimersForObject(Stage);
-            Stage->RunAuthoritativeDetailNow(World);
-        }
-    }
 
     if (UOCR142MuseumEntranceDetailSubsystem* Stage = World.GetSubsystem<UOCR142MuseumEntranceDetailSubsystem>())
     {
@@ -136,7 +127,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         Stage->RunAuthoritativeDetailNow(World);
     }
 
-    // Culture House already has one canonical FOCGeoReference owner. Run it in the same startup window.
+    // Culture House has its own canonical FOCGeoReference site. Run it inside the same startup window.
     if (UOCR146CultureHousePhotoModelSubsystem* Stage = World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>())
     {
         Timers.ClearAllTimersForObject(Stage);
@@ -144,5 +135,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; authority-only door/window replacements preserved."));
+        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY museum_stages=R137_exterior+R138_collision_glass+R139_R140_doors_facade+R142_R145_details window_replacement_stage=0 silpo_stages=R140_R143 culture_stage=R146 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; final door owners preserved; obsolete Museum window replacement stage retired."));
 }

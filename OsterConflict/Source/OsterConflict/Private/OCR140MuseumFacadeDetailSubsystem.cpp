@@ -1,6 +1,6 @@
 #include "OCR140MuseumFacadeDetailSubsystem.h"
 
-#include "OCBreakableWindow.h"
+#include "OCMuseumBreakableWindow.h"
 #include "OCGameMode.h"
 #include "OCInteractableDoor.h"
 #include "OCMuseumServiceDoubleDoor.h"
@@ -87,38 +87,6 @@ namespace
         const FQuat Rotation = FRotator(0.0f, YawDegrees, 0.0f).Quaternion();
         const FVector Location = Center - Rotation.RotateVector(Bounds.Origin * Scale);
         Component->AddInstance(FTransform(Rotation, Location, Scale), true);
-    }
-
-    void SuppressIncorrectR137GableAndCanopy(AActor& MuseumActor, const FVector& Museum)
-    {
-        TInlineComponentArray<UInstancedStaticMeshComponent*> Components;
-        MuseumActor.GetComponents(Components);
-        const FVector WrongCanopyTarget = Museum + FVector(965.0f, -155.0f, 385.0f);
-
-        for (UInstancedStaticMeshComponent* Component : Components)
-        {
-            if (!Component) continue;
-            const FName Name = Component->GetFName();
-            if (Name == TEXT("R137Museum_RedTimberGable"))
-            {
-                Component->SetVisibility(false, true);
-                Component->SetHiddenInGame(true, true);
-                Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                continue;
-            }
-
-            if (Name != TEXT("R137Museum_SheetMetalRoof")) continue;
-            for (int32 Index = Component->GetInstanceCount() - 1; Index >= 0; --Index)
-            {
-                FTransform Transform;
-                if (!Component->GetInstanceTransform(Index, Transform, true)) continue;
-                if (FVector::DistSquared(Transform.GetLocation(), WrongCanopyTarget) < FMath::Square(190.0f))
-                {
-                    Component->RemoveInstance(Index);
-                }
-            }
-            Component->MarkRenderStateDirty();
-        }
     }
 
     void AddServiceGable(UInstancedStaticMeshComponent* Timber, UInstancedStaticMeshComponent* Trim,
@@ -244,8 +212,8 @@ namespace
         FActorSpawnParameters Params;
         Params.Owner = Owner;
         Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        AOCBreakableWindow* Window = World.SpawnActor<AOCBreakableWindow>(
-            AOCBreakableWindow::StaticClass(),
+        AOCMuseumBreakableWindow* Window = World.SpawnActor<AOCMuseumBreakableWindow>(
+            AOCMuseumBreakableWindow::StaticClass(),
             FTransform(FRotator(0.0f, 90.0f, 0.0f), Museum + FVector(889.0f, 0.0f, 575.0f), FVector(1.18f, 1.0f, 0.80f)),
             Params);
         if (!Window) return;
@@ -343,8 +311,6 @@ void UOCR140MuseumFacadeDetailSubsystem::ApplyFacadeDetail(UWorld& World) const
 
     if (!bFacadeExists)
     {
-        SuppressIncorrectR137GableAndCanopy(*MuseumOwner, Museum);
-
         UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
         UStaticMesh* RoofMesh = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m"));
@@ -410,7 +376,7 @@ void UOCR140MuseumFacadeDetailSubsystem::ApplyFacadeDetail(UWorld& World) const
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("R14.0 museum facade: corrected service-door gable, upper window opening, carved/dentil trim, plaque, utilities and address detail built from REF-02/08/11/12/15/20."));
+            TEXT("PASS45_MUSEUM_R140_DETAIL_ONLY_READY late_r137_suppression=0 instance_removal=0; service gable/canopy/final door and upper glass authored directly from references."));
     }
 
     ReplaceServiceDoor(World, MuseumOwner, Museum);

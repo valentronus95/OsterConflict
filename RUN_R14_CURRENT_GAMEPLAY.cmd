@@ -82,7 +82,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
 ) else (
   rem Runtime correction branches are explicitly testable before merge. The launcher must fetch/compare
   rem that exact branch instead of forcing main and accidentally making pre-merge acceptance impossible.
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/runtime-recovery-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/runtime-recovery-" /C:"fix/pass45-runtime-rejection-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Normal gameplay playtest is allowed only from main or an explicit runtime-fix branch.
     echo Current branch: %CURRENT_BRANCH%
@@ -257,6 +257,8 @@ echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Pass 45 renderer mode: %RHI_MODE%
 echo Renderer flags: %RHI_FLAGS%
+echo Display mode: fullscreen recovery route
+echo Thermal recovery cap: 60 FPS
 echo D3D12/SM6 is temporarily disabled after the confirmed startup renderer crashes.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Branch: %CURRENT_BRANCH%
@@ -264,7 +266,8 @@ echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
 echo.
 echo [PASS45] PASS45_RHI_MODE mode=%RHI_MODE% flags=%RHI_FLAGS%
-start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+echo [PASS45] PASS45_NORMAL_DISPLAY_THERMAL_GUARD fullscreen=1 max_fps=60 render_scale_mutation=0
+start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not "%GAME_RC%"=="0" (
