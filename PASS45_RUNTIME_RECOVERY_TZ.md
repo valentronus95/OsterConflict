@@ -2,7 +2,7 @@
 
 Date opened: 2026-08-24  
 Latest factual runtime rejection: 2026-08-25  
-Status: **PASS 45 ACTIVE / PR #83 MERGED + SOURCE CI GREEN / POST-MERGE CONTENT CLOSURE IN PROGRESS / RUNTIME REJECTED**  
+Status: **PASS 45 ACTIVE / PR #83 MERGED + FINAL PR HEAD SOURCE CI GREEN / PR #85 POST-MERGE CONTENT CLOSURE CODED_UNTESTED / RUNTIME REJECTED**  
 Merged corrective PR: `#83`  
 Merged main SHA: `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`  
 Active post-merge branch: `fix/pass45-postmerge-content-closure-20260825`  
@@ -44,6 +44,15 @@ Observed rejection evidence included:
 
 High FPS in an invalid/black/incomplete scene does not pass performance acceptance.
 
+### Historical local UE build/import rejection
+
+**LOCAL UE BUILD REJECTED — 2026-08-25** remains preserved as factual chronology:
+
+- UE 5.8/MSVC emitted `C2131` for the tactical `FVector2D` reference-road table while it was declared `constexpr`; current source uses a normal `const` table, but that source correction remains `CODED_UNTESTED` until a later factual local build verifies it;
+- UE 5.8 Interchange rejected deprecated `auto_detect_mesh_type` during GLB intake; current importer uses the supported static-mesh policy without that property, but the correction remains `CODED_UNTESTED` until a later factual local import verifies it.
+
+Historical failures must not be erased by later green source CI.
+
 ## 3. Pass44 non-regression rules retained
 
 Pass45 must preserve these Pass44 decisions:
@@ -57,7 +66,7 @@ Pass45 must preserve these Pass44 decisions:
 
 ## 4. Merged corrective milestone — PR #83
 
-PR #83 is **MERGED**. Source head `f89841ca9375ed5b8da496ec36e8c2efe2a8a437` completed full relevant current-head CI green before merge. Main merge commit is `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
+PR #83 is **MERGED**. Source head `f89841ca9375ed5b8da496ec36e8c2efe2a8a437` completed all 39 PR-triggered current-head workflows green before merge. Main merge commit is `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
 
 All merged behavior below remains `CODED_UNTESTED` until a newer factual local run accepts it.
 
@@ -150,38 +159,59 @@ Current PR #85 correction:
 
 - mass generic house replacement physically removed from the decorator;
 - mass generic fence replacement physically removed;
-- decorator Side_Shed placement physically removed;
+- decorator `Side_Shed` placement physically removed;
 - semantic `ResidentialRoofs` / `ResidentialDetails` are no longer hidden by the decorator;
 - unrelated active vegetation/infrastructure/ambient paths remain;
 - runtime marker:
   `PASS45_GENERIC_RESIDENTIAL_REPLACEMENT_RETIRED semantic_baseline=1 advanced_village_houses=0 village_fences=0 side_sheds=0 runtime_house_replacement=0`;
-- Pass45 stale-retirement verifier forbids resurrection of those decorator paths;
-- Oster world-model verifier has been forward-ported to the current ownership contract rather than demanding the rejected family.
-
-Current PR #85 head checked after that forward-port has green aggregate `Source verification`, green `Oster world models source contracts`, green Pass45 stale retirement and green relevant Pass15–44 workflows.
+- cumulative `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd` requires that global runtime marker;
+- Pass45 retirement/content-dependency verifiers forbid resurrection of those paths.
 
 This does **not** certify the semantic baseline as final Oster production art. It is a truthful fallback until reference-faithful residential content exists.
 
-### 5.2 Remaining yard owner
+### 5.2 Enterable-house yard owner
 
-`OCEnterableHouse` still separately contains:
+The second source owner was `OCEnterableHouse`, which separately loaded and placed:
 
 - `RealYardFence` from `Fence_Old_1_2m`;
-- `RealSideShed` from `Side_Shed`;
-- a runtime `BuildYard()` path that places them externally.
+- `RealSideShed` from `Side_Shed`.
 
-This remaining owner is explicitly **IN PROGRESS**. It must be safely retired or replaced only with reference-supported Oster content. Do not claim the user-rejected dark tower/shack is fully removed until this path is closed and a local screenshot confirms the result.
+Current PR #85 correction:
 
-### 5.3 BTR/weapon material gaps
+- both reference-unverified mesh components and asset loads are physically removed;
+- the semantic `YardFences` boundary remains so yard/gameplay structure is preserved;
+- gate and pedestrian path remain;
+- no fallback cube shed is generated;
+- household/interior props are untouched;
+- when an enterable-house actor exists, it emits:
+  `PASS45_ENTERABLE_HOUSE_YARD_REFERENCE_GUARD_READY semantic_fence_baseline=1 real_yard_fence=0 side_shed=0 unreferenced_shed=0`.
 
-Current production importer already requests BTR FBX materials/textures and stages local BTR textures. Runtime production validation correctly rejects placeholder/missing authored slots and does not repaint them.
+Source retirement is now coded. Runtime visual closure still requires a new local screenshot; do not claim the user-rejected dark tower/shack is visually gone before that evidence exists.
 
-Therefore:
+### 5.3 BTR material dependency closure
 
-- do not create fake BTR body color to hide missing material/texture dependencies;
-- do not create fake weapon palette/material repair;
-- improve reporting/preflight if needed to identify exact authored slot/texture dependencies;
-- close BTR white artifact and rack material gaps only with factual UE asset/runtime evidence.
+The production importer already requests BTR FBX materials/textures and stages local BTR textures. The previous fresh-load verifier only proved that a non-placeholder Material asset existed, which could still miss the white-shell failure class where the material references no imported texture.
+
+Current PR #85 correction strengthens `verify_production_vehicle_fresh_load.py`:
+
+- enumerate BTR assets under `/Game/Production/Vehicles/BTR4`;
+- require canonical mesh material packages to exist under that BTR production destination;
+- require at least one imported `Texture` asset;
+- use `EditorAssetLibrary.find_package_referencers_for_asset(..., load_assets_to_confirm=True)`;
+- require at least one imported BTR texture to be referenced by a material used by the canonical BTR mesh;
+- otherwise fail the local production fresh-load;
+- success marker:
+  `BTR4_TEXTURE_DEPENDENCIES_READY materials=... textures=... referenced_textures=... white_default_guard=1`.
+
+`VERIFY_PASS45_CONTENT_DEPENDENCIES.py` and the dedicated `Pass 45 content dependency closure` workflow lock this source contract. This is still not a runtime screenshot; BTR visual acceptance remains `CODED_UNTESTED / CONTENT CHECK` until local intake and gameplay prove it.
+
+### 5.4 Weapon material gaps
+
+Weapon material truth remains unchanged:
+
+- no fake weapon palette/material repair;
+- missing/default authored slots remain fail-visible;
+- close rack material/texture gaps only with factual UE asset/runtime evidence.
 
 M16/M4 remain **CONTENT GAP** until a verified production payload exists. Never claim them connected from source naming alone.
 
@@ -200,17 +230,18 @@ M16/M4 remain **CONTENT GAP** until a verified production payload exists. Never 
 11. [x] Forward-port historical verifiers instead of resurrecting rejected source behavior.
 12. [x] Obtain full green current-head CI for PR #83.
 13. [x] Merge PR #83 to `main` at `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
-14. [x] Trace mass rejected generic house/fence/Side_Shed owner to `AOCAssetModelDecorator`.
-15. [x] Retire that mass generic decorator family and restore semantic residential roof/detail visibility.
-16. [x] Forward-port `VERIFY_OSTER_WORLD_MODELS_PASS.py` to current truthful contract.
-17. [x] Obtain green current-head source CI for the current PR #85 head checked here.
-18. [ ] Safely close remaining `OCEnterableHouse` external `RealYardFence` / `RealSideShed` owner.
-19. [ ] Add `PASS45_GENERIC_RESIDENTIAL_REPLACEMENT_RETIRED` to cumulative runtime acceptance requirements.
-20. [ ] Keep BTR white/default and weapon authored material gaps fail-visible; close only with asset/runtime proof.
-21. [ ] Refresh PR #85 final diff and run fresh final-head CI after all remaining source/docs changes.
-22. [ ] Merge PR #85 only after final-head CI is fully green.
-23. [ ] Pull final `main` locally and run `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА`.
-24. [ ] Review factual runtime log/screenshots and update verdict to VERIFIED only if every required gate is actually proven.
+14. [x] Trace and retire mass rejected generic house/fence/Side_Shed owner in `AOCAssetModelDecorator`.
+15. [x] Restore semantic residential roof/detail visibility.
+16. [x] Trace remaining `OCEnterableHouse` external `RealYardFence` / `RealSideShed` owner.
+17. [x] Retire those unreferenced enterable-house yard replacements without removing gate/path/interior gameplay.
+18. [x] Add `PASS45_GENERIC_RESIDENTIAL_REPLACEMENT_RETIRED` to cumulative runtime acceptance requirements.
+19. [x] Add fail-closed BTR Material -> Texture dependency validation to production fresh-load.
+20. [x] Add dedicated Pass45 content-dependency verifier/workflow and aggregate verifier coverage.
+21. [x] Preserve historical `LOCAL UE BUILD REJECTED`, `C2131` and `auto_detect_mesh_type` evidence.
+22. [ ] Refresh PR #85 final diff and obtain fresh final-head CI after all source/docs changes.
+23. [ ] Merge PR #85 only after final-head CI is fully green.
+24. [ ] Pull final `main` locally and run `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА`.
+25. [ ] Review factual runtime log/screenshots and update verdict to VERIFIED only if every required gate is actually proven.
 
 ## 7. Local runtime acceptance gates
 
@@ -233,7 +264,7 @@ A new local UE 5.8 test must prove all of the following:
 - Culture House and Silpo remain separate correct sites;
 - no mass generic village house/fence/Side_Shed replacement scenery;
 - no unreferenced dark tower/shack remains;
-- semantic residential baseline is at least visible where the rejected mass replacement was retired.
+- semantic residential/yard baseline remains visible where rejected replacements were retired.
 
 ### Spawn/input/map
 
@@ -246,8 +277,9 @@ A new local UE 5.8 test must prove all of the following:
 
 - all 11 BASE rack pickups are grounded;
 - white/default/BasicShape weapon slots are reported as failures, not disguised;
+- local BTR production fresh-load emits `BTR4_TEXTURE_DEPENDENCIES_READY` when BTR content is present; otherwise the content gap remains explicit;
 - HMMWV/BTR proportions and orientation are visually correct;
-- BTR white/default material status is factual;
+- BTR has no white/default material artifact;
 - M2 is correctly mounted;
 - Invert Y OFF + mouse up raises M2 aim;
 - driver and gunner enter/drive/exit preserve current vehicle position and never teleport to Museum;
