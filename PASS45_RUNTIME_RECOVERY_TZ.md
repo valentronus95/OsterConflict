@@ -29,6 +29,32 @@ Previous runtime rejection pack:
 
 `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 
+### 0.1 Legacy owner deletion contract — 2026-08-25
+
+Pass 45 now treats stale runtime code as an architectural defect, not harmless history.
+
+**Physical retirement beats inert resurrection.** If runtime evidence rejects an old `UWorldSubsystem`, visual owner, mutation layer or compatibility path and that class no longer owns required collision/data, delete the source owner and its stale verifier/workflow instead of leaving a compiled no-op that can later be re-enabled by historical CI.
+
+**No historical verifier may require a runtime-rejected owner.** Source CI must be forward-ported to current behavior. A verifier that requires a rejected READY marker, generic asset family, material mutation, spawn fallback or old owner class is itself stale and must be retired or rewritten.
+
+Current legacy owner deletion already applied in this corrective branch:
+
+- deleted `OCWorldProductionVisualsSubsystem.h/.cpp` after the latest runtime rejected its black/generic world output;
+- deleted `VERIFY_PASS45_COMPLETION_AUDIT.py`, which explicitly required that rejected B2 owner and its generic AdvancedVillagePack/ground-material behavior;
+- deleted `.github/workflows/pass45-completion-audit.yml` for the same stale contract;
+- added `VERIFY_PASS45_STALE_RUNTIME_RETIREMENT.py` + workflow so those rejected owners/contracts cannot silently return;
+- `RUN_ALL_VERIFY.py` now runs the retirement verifier instead of the stale B2 completion verifier.
+
+This is a **legacy owner deletion** migration, not proof that the replacement visuals are correct. Runtime remains `CODED_UNTESTED` until the next local UE playtest.
+
+For every remaining Museum/world/material/spawn layer, classify it as one of:
+
+1. current mutating owner — may mutate its responsibility;
+2. data/collision-only legacy support — may remain but must not overwrite current visuals/transforms/materials;
+3. obsolete conflicting owner — delete physically together with stale verifier expectations.
+
+One runtime responsibility may have only one mutating owner. Pass chronology does not grant ownership.
+
 ## 1. Current factual verdict
 
 The local UE 5.8 build blocker discovered on 2026-08-25 was fixed by PR #82 and the project now reaches gameplay. That proves the previous C2131 tactical-map compile blocker is no longer the immediate blocker.
@@ -76,15 +102,15 @@ These are partial improvements only. None promote Pass 45 to VERIFIED RUNTIME.
 
 The world is visually invalid while large areas render near-black.
 
-The Pass 45 B2 production-visual completion layer is no longer accepted merely because source verification passed. The latest runtime rejects its visible output.
+The Pass 45 B2 production-visual completion layer is runtime-rejected and has now been **physically deleted** from the corrective branch. Its stale completion verifier/workflow were deleted with it so CI cannot resurrect the rejected owner.
 
 Requirements:
 
-- audit `OCWorldProductionVisualsSubsystem` first because the black-world/generic-house/fence regression appeared after the B2 visual-owner work;
-- do not keep an experimental visual owner active solely to satisfy the old completion verifier;
-- if the current B2 layer cannot guarantee correct material output, disable it from normal runtime and restore the last readable baseline while a reference-faithful production layer is rebuilt;
+- do not recreate `OCWorldProductionVisualsSubsystem` under a new name with the same behavior;
+- retain the readable semantic baseline until a reference-faithful production visual owner is proven in runtime;
 - no silent fallback to black/default material;
 - material load failure must remain fail-visible in logs without corrupting the entire scene;
+- no second world-material owner may overwrite Ground/Roads/Sidewalks after the accepted current owner;
 - do not lower native render scale to disguise the problem.
 
 Acceptance:
@@ -95,19 +121,20 @@ Acceptance:
 
 ### P0 — vehicle possession/exit teleport
 
-Current behavior is unacceptable:
+Exact source cause found: the Museum BASE guard historically validated every newly possessed `APawn`, so `character -> vehicle -> character` possession transitions were falsely treated as fresh BASE deployments.
 
-- entering a civilian vehicle may move player/vehicle to Museum;
-- exiting after driving to another location may return the player to Museum.
+Corrective source behavior is now initial-character-only.
 
 Requirements:
 
 - Museum spawn guard applies only to initial deployment/spawn recovery, never ordinary vehicle possession/unpossession;
+- only `AOCCharacter` can be BASE deployment validated;
+- each controller is validated at most once for initial BASE recovery;
 - `EnterDriver` must preserve the vehicle's current world transform;
 - `ExitDriver`/`GetExitTransform()` must place the human pawn adjacent to the vehicle's **current** transform;
 - vehicle input recovery must restore input, not call respawn/restart at Museum;
 - no generic `RestartPlayer` path may be used for normal vehicle exit;
-- add runtime markers containing vehicle location, requested exit transform and resulting pawn location.
+- runtime markers must prove initial-only recovery and no vehicle revalidation.
 
 Acceptance:
 
@@ -118,7 +145,9 @@ Acceptance:
 
 ### P0 — vehicle production visual transforms
 
-HMMWV and BTR-4 are now present but not visually acceptable.
+HMMWV and BTR-4 are now present but the latest accepted runtime evidence rejected their previous non-uniform fit.
+
+Source correction now uses uniform scale + native longest-axis correction + grounded bounds for both production meshes.
 
 Requirements:
 
@@ -139,21 +168,24 @@ Acceptance:
 
 ### P0 — M2 Browning mount and controls
 
+M2 source visual alignment is being migrated from proxy-centre placement to production-bounds mount placement.
+
 Requirements:
 
-- M2 mount transform must be tied to the HMMWV roof/turret socket, not a generic proxy offset;
+- M2 mount transform must be tied to the HMMWV roof/turret mount plane, not a generic proxy centre;
+- production M2 uses uniform scale and bottom-on-mount bounds alignment;
 - barrel must face vehicle-forward in neutral pose;
 - gunner camera/aim origin must match mount;
 - normal vertical gun aim must **not be inverted**;
 - default pitch input contract: mouse up raises aim, mouse down lowers aim;
-- if an optional invert setting is ever added later, default remains OFF.
+- if optional invert setting is enabled, only that setting reverses the contract.
 
 Acceptance:
 
-- Browning visually centred/aligned on the HMMWV mount;
+- Browning visibly centred/aligned on the HMMWV mount;
 - gunner input direction correct in runtime.
 
-### P0 — Museum / Culture House identity
+### P0 — Museum / Culture House identity and owner consolidation
 
 User reference history and public Oster references agree on the core identity conflict:
 
@@ -161,18 +193,24 @@ User reference history and public Oster references agree on the core identity co
 - the six-column neoclassical civic facade is a separate Culture House/public building;
 - therefore a six-column Culture-House shell at the Museum site is always a runtime failure.
 
+The current source contains a historical stack of Museum owners/recovery/detail/validation layers (`R137/R138/R140/R141/R142/R143/R144/R145`, CoreRecovery, VisibilityPass37, ownership/startup guards). Pass 45 must stop treating pass number as permission for every layer to mutate the same landmark.
+
 Requirements:
 
+- audit every Museum-related subsystem for `SpawnActor`, `Destroy`, transform, material, visibility or replacement mutations;
 - exactly one current Museum visible shell owner;
 - exactly one current Culture House visible shell owner;
+- detail-only layers may remain only when they cannot relocate/replace/hide the authoritative shell;
+- data/collision-only legacy layers must be explicitly non-mutating for current visual ownership;
+- obsolete shell/recovery/replacement layers are physically deleted with stale verifier expectations;
 - Culture House shell may never own or overlap Museum anchor/site radius;
-- historical Museum/Culture replacement layers that can rebuild the wrong shell must become inert or detail-only;
 - if the correct photo-faithful Museum production asset is unavailable, use a truthful minimal placeholder consistent with the Museum footprint rather than the Culture House facade.
 
 Acceptance:
 
 - Museum and Culture House visibly distinct and spatially separate;
-- Museum screenshot must not show the six-column Culture House facade.
+- Museum screenshot must not show the six-column Culture House facade;
+- source audit proves there is no second late shell owner capable of undoing the current Museum state.
 
 ### P1 — invalid Oster fences/houses/tower
 
@@ -219,12 +257,14 @@ Acceptance:
 
 Latest normal run opened windowed and machine heated strongly while FPS reached roughly 100–156.
 
+Corrective launcher source now removes forced `-windowed`, requests fullscreen and applies a 60 FPS recovery cap without changing render scale.
+
 Requirements:
 
-- remove hard-coded normal-route `-windowed` behavior;
-- normal user route opens in intended fullscreen/borderless fullscreen according to saved settings;
+- no hard-coded normal-route `-windowed` behavior;
+- normal user route opens in intended fullscreen/borderless fullscreen according to saved settings/recovery policy;
 - diagnostic compatibility route may remain explicitly windowed only if clearly labelled;
-- normal route must use a thermal-safe default frame cap of **60 FPS** during recovery;
+- normal route uses a thermal-safe default frame cap of **60 FPS** during recovery;
 - frame cap must not lower render resolution or graphics quality;
 - preserve the current DX11/SM5 recovery renderer until a separate renderer upgrade is accepted;
 - no automatic uncapped 100–150+ FPS normal playtest while thermal recovery is active.
@@ -288,24 +328,30 @@ Pass 45 explicitly forbids:
 12. Museum/Culture House shell overlap;
 13. normal vehicle exit via Museum respawn fallback;
 14. non-uniform production-vehicle stretching;
-15. normal playtest running uncapped while thermal recovery is active.
+15. normal playtest running uncapped while thermal recovery is active;
+16. compiled runtime-rejected owner classes retained solely so old CI stays green;
+17. historical verifier/workflow requiring a deleted rejected owner;
+18. two live mutation layers owning the same world material, landmark shell, spawn correction or production transform.
 
 ## 8. Corrective execution order — current pass
 
 1. [x] Archive latest runtime screenshots and mark Pass 45 `RUNTIME REJECTED`.
 2. [x] Update canonical TZ with latest runtime defects.
-3. [ ] Disable/rework rejected B2 production-visual layer causing black/generic world output.
-4. [ ] Fix vehicle enter/exit transform path; remove Museum fallback from ordinary vehicle exit.
-5. [ ] Fix HMMWV/BTR production visual scaling/orientation/material truth.
-6. [ ] Correct M2 Browning mount transform and disable default pitch inversion.
-7. [ ] Enforce Museum/Culture House single truthful site ownership.
-8. [ ] Remove unreferenced tower/shack and rejected generic fence/house visuals.
-9. [ ] Remove normal-route forced windowed mode and apply recovery 60 FPS cap.
-10. [ ] Close all weapon authored material/texture dependencies that existing content can support.
-11. [ ] Forward-port/retire stale verifiers that require rejected behavior.
-12. [ ] Full current-head source CI green.
-13. [ ] Merge corrective branch to `main`.
-14. [ ] Factual local UE build + runtime acceptance.
+3. [x] Physically delete rejected B2 production-visual owner and stale completion verifier/workflow.
+4. [x] Replace stale completion CI contract with `VERIFY_PASS45_STALE_RUNTIME_RETIREMENT.py`.
+5. [x] Fix Museum deployment guard source so ordinary vehicle possession/exit is never BASE revalidation.
+6. [x] Replace HMMWV/BTR non-uniform production mesh stretching with uniform proportional fitting.
+7. [x] Move M2 production visual to bottom-on-mount bounds alignment.
+8. [x] Remove normal-route forced windowed mode and apply recovery 60 FPS cap.
+9. [ ] Audit/consolidate Museum `R137/R138/R140+`/CoreRecovery/Visibility/ownership mutation stack; delete obsolete shell owners.
+10. [ ] Correct default mounted M2 Browning pitch direction.
+11. [ ] Remove unreferenced tower/shack and any remaining rejected generic fence/house visuals.
+12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support.
+13. [ ] Forward-port/retire any additional stale verifiers discovered by the owner audit.
+14. [ ] Update work ledger with every legacy owner deletion/current replacement.
+15. [ ] Full current-head source CI green.
+16. [ ] Merge corrective branch to `main` only after source CI is green and corrective scope is coherent.
+17. [ ] Factual local UE build + runtime acceptance.
 
 ## 9. Acceptance gates
 
@@ -331,7 +377,8 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 
 - Museum and Culture House visually separate;
 - Museum is not the six-column Culture House facade;
-- Silpo remains one separately owned site.
+- Silpo remains one separately owned site;
+- one mutating visible shell owner per landmark.
 
 ### Gate E — environment references
 
@@ -361,10 +408,19 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 
 - runtime `M` screenshot matches compact central-Oster topology and distinct POIs.
 
+### Gate J — stale-owner retirement
+
+- `OCWorldProductionVisualsSubsystem` remains physically absent;
+- no old completion verifier/workflow can require it back;
+- Museum/world/material/spawn responsibilities each have one mutating current owner;
+- obsolete conflicting owners are deleted, not merely hidden behind later mutation ordering.
+
 ## 10. Current status
 
 - Pass 44: **RUNTIME REJECTED** historical evidence.
 - Pass 45 source corrections through PR #82: historical source/build progress only.
 - Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
+- Corrective source work now includes stale-owner physical retirement, initial-only Museum BASE recovery, proportional HMMWV/BTR fitting, M2 mount alignment, fullscreen + 60 FPS recovery guard.
 - Current branch: `fix/pass45-runtime-rejection-20260825`.
+- Current corrective source status: **CODED_UNTESTED**.
 - Runtime verification: **NOT ACHIEVED**.
