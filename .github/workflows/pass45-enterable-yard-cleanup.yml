@@ -19,8 +19,9 @@ jobs:
           ref: fix/pass45-postmerge-content-closure-20260825
           fetch-depth: 0
       - name: Patch rejected enterable-house yard replacements
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           import re
 
@@ -64,53 +65,19 @@ jobs:
           end = cs.find('\nFTransform AOCEnterableHouse::MakeWorldTransform', start)
           if start < 0 or end <= start:
               raise SystemExit('BuildYard range not found')
-          new_yard = r'''void AOCEnterableHouse::BuildYard()
-{
-    // Pass45: preserve the established yard topology/collision without presenting an unreferenced
-    // rural-cabin fence or Side_Shed as Oster production art. Reference-faithful exterior assets
-    // may replace this semantic baseline later, but generic asset-pack exterior replacement is retired.
-    AddBox(YardFences, FVector(-1450.0f, -1750.0f, 85.0f), FVector(1050.0f, 35.0f, 170.0f));
-    AddBox(YardFences, FVector(850.0f, -1750.0f, 85.0f), FVector(2500.0f, 35.0f, 170.0f));
-    AddBox(YardFences, FVector(0.0f, 1750.0f, 85.0f), FVector(4000.0f, 35.0f, 170.0f));
-    AddBox(YardFences, FVector(-2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
-    AddBox(YardFences, FVector(2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
-
-    // Path from the gate to the front door remains semantic gameplay geometry.
-    AddBox(YardPaths, FVector(-585.0f, -1150.0f, 5.0f), FVector(170.0f, 1200.0f, 10.0f));
-
-    if (RealWheelBarrow && RealWheelBarrow->GetStaticMesh())
-    {
-        AddFittedGroundProp(RealWheelBarrow, FVector(1180.0f, 430.0f, 0.0f), 145.0f, -28.0f);
-    }
-    if (RealMetalBarrel && RealMetalBarrel->GetStaticMesh())
-    {
-        AddFittedGroundProp(RealMetalBarrel, FVector(1500.0f, 760.0f, 0.0f), 88.0f, 7.0f);
-    }
-
-    UE_LOG(LogTemp, Display,
-        TEXT("PASS45_ENTERABLE_YARD_GENERIC_EXTERIOR_RETIRED semantic_fence=1 rural_fence_mesh=0 side_shed=0 unreferenced_tower_candidate=0"));
-}
-'''
+          new_yard = '''void AOCEnterableHouse::BuildYard()\n{\n    // Pass45: preserve established yard topology/collision without presenting an unreferenced\n    // rural-cabin fence or Side_Shed as Oster production art.\n    AddBox(YardFences, FVector(-1450.0f, -1750.0f, 85.0f), FVector(1050.0f, 35.0f, 170.0f));\n    AddBox(YardFences, FVector(850.0f, -1750.0f, 85.0f), FVector(2500.0f, 35.0f, 170.0f));\n    AddBox(YardFences, FVector(0.0f, 1750.0f, 85.0f), FVector(4000.0f, 35.0f, 170.0f));\n    AddBox(YardFences, FVector(-2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));\n    AddBox(YardFences, FVector(2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));\n\n    AddBox(YardPaths, FVector(-585.0f, -1150.0f, 5.0f), FVector(170.0f, 1200.0f, 10.0f));\n\n    if (RealWheelBarrow && RealWheelBarrow->GetStaticMesh())\n    {\n        AddFittedGroundProp(RealWheelBarrow, FVector(1180.0f, 430.0f, 0.0f), 145.0f, -28.0f);\n    }\n    if (RealMetalBarrel && RealMetalBarrel->GetStaticMesh())\n    {\n        AddFittedGroundProp(RealMetalBarrel, FVector(1500.0f, 760.0f, 0.0f), 88.0f, 7.0f);\n    }\n\n    UE_LOG(LogTemp, Display,\n        TEXT("PASS45_ENTERABLE_YARD_GENERIC_EXTERIOR_RETIRED semantic_fence=1 rural_fence_mesh=0 side_shed=0 unreferenced_tower_candidate=0"));\n}\n'''
           cs = cs[:start] + new_yard + cs[end:]
 
-          forbidden = (
-              'RealYardFence', 'RealSideShed', 'Fence_Old_1_2m.Fence_Old_1_2m',
-              'Side_Shed.Side_Shed', 'AddFittedFenceLine',
-          )
-          for token in forbidden:
+          for token in ('RealYardFence', 'RealSideShed', 'Fence_Old_1_2m.Fence_Old_1_2m', 'Side_Shed.Side_Shed', 'AddFittedFenceLine'):
               if token in hs + cs:
                   raise SystemExit(f'forbidden token remains: {token}')
-          required = (
-              'PASS45_ENTERABLE_YARD_GENERIC_EXTERIOR_RETIRED',
-              'semantic_fence=1', 'rural_fence_mesh=0', 'side_shed=0',
-              'BuildHouseholdProps();', 'SpawnInteractiveOpeningsServer();',
-          )
-          for token in required:
+          for token in ('PASS45_ENTERABLE_YARD_GENERIC_EXTERIOR_RETIRED', 'semantic_fence=1', 'rural_fence_mesh=0', 'side_shed=0', 'BuildHouseholdProps();', 'SpawnInteractiveOpeningsServer();'):
               if token not in hs + cs:
                   raise SystemExit(f'required token missing: {token}')
 
           h.write_text(hs, encoding='utf-8')
           c.write_text(cs, encoding='utf-8')
+          PY
       - name: Commit source-only cleanup
         shell: bash
         run: |
