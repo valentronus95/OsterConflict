@@ -72,8 +72,6 @@ AOCEnterableHouse::AOCEnterableHouse()
     RealCrate = MakeHousePropISM(this, SceneRoot, TEXT("RealCrate"));
     RealMetalBarrel = MakeHousePropISM(this, SceneRoot, TEXT("RealMetalBarrel"));
     RealWheelBarrow = MakeHousePropISM(this, SceneRoot, TEXT("RealWheelBarrow"));
-    RealYardFence = MakeHousePropISM(this, SceneRoot, TEXT("RealYardFence"));
-    RealSideShed = MakeHousePropISM(this, SceneRoot, TEXT("RealSideShed"));
 
     DebugLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DebugLabel"));
     DebugLabel->SetupAttachment(SceneRoot);
@@ -113,10 +111,6 @@ AOCEnterableHouse::AOCEnterableHouse()
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Metal_Barrel.Metal_Barrel"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> WheelBarrowMesh(
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Wheel_Barrow.Wheel_Barrow"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> FenceMesh(
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SideShedMesh(
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Side_Shed.Side_Shed"));
 
     if (SofaMesh.Succeeded()) RealSofa->SetStaticMesh(SofaMesh.Object);
     if (TableMesh.Succeeded()) RealTable->SetStaticMesh(TableMesh.Object);
@@ -126,8 +120,6 @@ AOCEnterableHouse::AOCEnterableHouse()
     if (CrateMesh.Succeeded()) RealCrate->SetStaticMesh(CrateMesh.Object);
     if (BarrelMesh.Succeeded()) RealMetalBarrel->SetStaticMesh(BarrelMesh.Object);
     if (WheelBarrowMesh.Succeeded()) RealWheelBarrow->SetStaticMesh(WheelBarrowMesh.Object);
-    if (FenceMesh.Succeeded()) RealYardFence->SetStaticMesh(FenceMesh.Object);
-    if (SideShedMesh.Succeeded()) RealSideShed->SetStaticMesh(SideShedMesh.Object);
 
     BuildShell();
     BuildInterior();
@@ -188,26 +180,6 @@ void AOCEnterableHouse::AddFittedGroundProp(UInstancedStaticMeshComponent* Compo
     Transform.SetRotation(Rotation);
     Transform.SetScale3D(FVector(UniformScale));
     Component->AddInstance(Transform);
-}
-
-void AOCEnterableHouse::AddFittedFenceLine(UInstancedStaticMeshComponent* Component, const FVector& Center,
-    float LengthCm, float YawDegrees, float GroundZCm)
-{
-    if (!Component || !Component->GetStaticMesh() || LengthCm <= 1.0f)
-    {
-        return;
-    }
-
-    constexpr float SegmentCm = 195.0f;
-    const int32 Count = FMath::Max(1, FMath::RoundToInt(LengthCm / SegmentCm));
-    const float UsedLength = static_cast<float>(Count - 1) * SegmentCm;
-    const FVector Axis = FRotator(0.0f, YawDegrees, 0.0f).RotateVector(FVector::ForwardVector);
-
-    for (int32 Index = 0; Index < Count; ++Index)
-    {
-        const float Offset = -UsedLength * 0.5f + static_cast<float>(Index) * SegmentCm;
-        AddFittedGroundProp(Component, Center + Axis * Offset, SegmentCm, YawDegrees, GroundZCm);
-    }
 }
 
 void AOCEnterableHouse::BuildShell()
@@ -458,36 +430,17 @@ void AOCEnterableHouse::ConfigureInteriorVariantServer(int32 NewSeed, EOCHouseCo
 
 void AOCEnterableHouse::BuildYard()
 {
-    // Preserve the authored pedestrian opening, but render the fence with the actual rural-cabin mesh.
-    if (RealYardFence && RealYardFence->GetStaticMesh())
-    {
-        AddFittedFenceLine(RealYardFence, FVector(-1450.0f, -1750.0f, 0.0f), 1050.0f, 0.0f);
-        AddFittedFenceLine(RealYardFence, FVector(850.0f, -1750.0f, 0.0f), 2500.0f, 0.0f);
-        AddFittedFenceLine(RealYardFence, FVector(0.0f, 1750.0f, 0.0f), 4000.0f, 0.0f);
-        AddFittedFenceLine(RealYardFence, FVector(-2000.0f, 0.0f, 0.0f), 3500.0f, 90.0f);
-        AddFittedFenceLine(RealYardFence, FVector(2000.0f, 0.0f, 0.0f), 3500.0f, 90.0f);
-    }
-    else
-    {
-        AddBox(YardFences, FVector(-1450.0f, -1750.0f, 85.0f), FVector(1050.0f, 35.0f, 170.0f));
-        AddBox(YardFences, FVector(850.0f, -1750.0f, 85.0f), FVector(2500.0f, 35.0f, 170.0f));
-        AddBox(YardFences, FVector(0.0f, 1750.0f, 85.0f), FVector(4000.0f, 35.0f, 170.0f));
-        AddBox(YardFences, FVector(-2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
-        AddBox(YardFences, FVector(2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
-    }
+    // Pass45: keep the semantic yard boundary and authored pedestrian opening, but do not replace it
+    // with a generic rural-cabin fence. The user-rejected steep-roof Side_Shed is also omitted until
+    // an Oster-reference-faithful exterior prop exists.
+    AddBox(YardFences, FVector(-1450.0f, -1750.0f, 85.0f), FVector(1050.0f, 35.0f, 170.0f));
+    AddBox(YardFences, FVector(850.0f, -1750.0f, 85.0f), FVector(2500.0f, 35.0f, 170.0f));
+    AddBox(YardFences, FVector(0.0f, 1750.0f, 85.0f), FVector(4000.0f, 35.0f, 170.0f));
+    AddBox(YardFences, FVector(-2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
+    AddBox(YardFences, FVector(2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
 
     // Path from the gate to the front door.
     AddBox(YardPaths, FVector(-585.0f, -1150.0f, 5.0f), FVector(170.0f, 1200.0f, 10.0f));
-
-    // Replace the old cube backyard shed where the real asset is available.
-    if (RealSideShed && RealSideShed->GetStaticMesh())
-    {
-        AddFittedGroundProp(RealSideShed, FVector(1250.0f, 1100.0f, 0.0f), 650.0f, 0.0f);
-    }
-    else
-    {
-        AddBox(Interior, FVector(1250.0f, 1100.0f, 150.0f), FVector(700.0f, 600.0f, 300.0f));
-    }
 
     if (RealWheelBarrow && RealWheelBarrow->GetStaticMesh())
     {
@@ -497,6 +450,9 @@ void AOCEnterableHouse::BuildYard()
     {
         AddFittedGroundProp(RealMetalBarrel, FVector(1500.0f, 760.0f, 0.0f), 88.0f, 7.0f);
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_ENTERABLE_HOUSE_YARD_REFERENCE_GUARD_READY semantic_fence_baseline=1 real_yard_fence=0 side_shed=0 unreferenced_shed=0"));
 }
 
 FTransform AOCEnterableHouse::MakeWorldTransform(const FVector& LocalLocation, float LocalYawDegrees) const
