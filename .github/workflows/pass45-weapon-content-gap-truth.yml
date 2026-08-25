@@ -1,0 +1,32 @@
+name: Pass 45 weapon content gap truth
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'fix/pass45-content-gap-truth-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pass45-weapon-content-gap-truth-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify current Pass45 weapon content-gap truth
+        run: python VERIFY_PASS45_WEAPON_CONTENT_GAP_TRUTH.py
+      - name: Exercise report-only local content preflight
+        run: python VERIFY_PASS45_REQUIRED_LOCAL_CONTENT.py --report-only
