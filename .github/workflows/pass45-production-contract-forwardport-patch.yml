@@ -23,13 +23,17 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('.github/workflows/production-model-contracts.yml')
           text = path.read_text(encoding='utf-8')
 
-          old_hmmwv = """          require('ApplyGroundedVehicleMesh' in pickup and '-86.0f' in pickup,
-                  'HMMWV production shell is no longer grounded to the wheel plane')"""
-          new_hmmwv = """          require(
+          hmmwv_re = re.compile(
+              r"\s*require\('ApplyGroundedVehicleMesh' in pickup and '-86\.0f' in pickup,\s*"
+              r"'HMMWV production shell is no longer grounded to the wheel plane'\)"
+          )
+          hmmwv_new = """
+          require(
               'ApplyProportionalVehicleMesh' in pickup and
               'SetRelativeScale3D(FVector(UniformScale))' in pickup and
               'GroundZCm.GetValue() - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale' in pickup and
@@ -42,10 +46,16 @@ jobs:
                   'DesiredSizeCm.Y / NativeSize.Y' not in pickup and
                   'DesiredSizeCm.Z / NativeSize.Z' not in pickup,
                   'HMMWV non-uniform production stretching was reintroduced')"""
+          text, n = hmmwv_re.subn(hmmwv_new, text, count=1)
+          if n != 1:
+              raise SystemExit(f'HMMWV stale geometry contract replacements={n}')
 
-          old_btr = """          require('ApplyFittedBTRMesh' in btr and '-98.0f' in btr,
-                  'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane')"""
-          new_btr = """          require(
+          btr_re = re.compile(
+              r"\s*require\('ApplyFittedBTRMesh' in btr and '-98\.0f' in btr,\s*"
+              r"'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane'\)"
+          )
+          btr_new = """
+          require(
               'ApplyProportionalGroundedBTRMesh' in btr and
               'SetRelativeScale3D(FVector(UniformScale))' in btr and
               'GroundZCm - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale' in btr and
@@ -58,14 +68,9 @@ jobs:
                   'DesiredSizeCm.Y / NativeSize.Y' not in btr and
                   'DesiredSizeCm.Z / NativeSize.Z' not in btr,
                   'BTR-4 non-uniform production stretching was reintroduced')"""
-
-          for old, new, label in (
-              (old_hmmwv, new_hmmwv, 'HMMWV stale geometry contract'),
-              (old_btr, new_btr, 'BTR stale geometry contract'),
-          ):
-              if old not in text:
-                  raise SystemExit(f'{label}: source signature missing')
-              text = text.replace(old, new, 1)
+          text, n = btr_re.subn(btr_new, text, count=1)
+          if n != 1:
+              raise SystemExit(f'BTR stale geometry contract replacements={n}')
 
           path.write_text(text, encoding='utf-8')
 
@@ -77,5 +82,3 @@ jobs:
           git diff --cached --check
           git commit -m "test(pass45): forward-port production vehicle geometry contract"
           git push origin HEAD:fix/pass45-runtime-rejection-20260825
-
-# retry-current-head: 2026-08-25-pass45
