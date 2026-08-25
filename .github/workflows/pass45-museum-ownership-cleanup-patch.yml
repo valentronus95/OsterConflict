@@ -1,0 +1,220 @@
+name: Pass45 museum ownership cleanup patch
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-20260825
+    paths:
+      - .github/workflows/pass45-museum-ownership-cleanup-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pass45-runtime-rejection-20260825
+          fetch-depth: 0
+
+      - name: Collapse Museum runtime ownership to primary authors
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'{label}: signature not found')
+              return text.replace(old, new, 1)
+
+          # R13.7: visible exterior only. Do not create temporary trees, static glass, door slabs,
+          # wrong service canopy, or the gable that R14.0 immediately replaces.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp')
+          s = p.read_text(encoding='utf-8')
+          s = replace_once(s, '''    void AddGroundedTree(UInstancedStaticMeshComponent* Component, UStaticMesh* Mesh,
+              const FVector& GroundLocation, const float DesiredHeightCm, const float YawDegrees)
+          {
+              if (!Component || !Mesh) return;
+              const FBoxSphereBounds Bounds = Mesh->GetBounds();
+              const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+              if (NativeSize.Z <= 10.0f) return;
+              const float Scale = FMath::Clamp(DesiredHeightCm / NativeSize.Z, 0.25f, 4.0f);
+              const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+              FVector Location = GroundLocation;
+              Location.Z = -LocalBottom * Scale;
+              Component->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f), Location, FVector(Scale)), true);
+          }
+'''.replace('              ','        '), '', 'R137 AddGroundedTree')
+          s = replace_once(s, '''    UStaticMesh* Pine01 = LoadObject<UStaticMesh>(nullptr,
+              TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"));
+          UStaticMesh* Pine03 = LoadObject<UStaticMesh>(nullptr,
+              TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
+          UStaticMesh* Tree01 = LoadObject<UStaticMesh>(nullptr,
+              TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
+'''.replace('              ','        '), '', 'R137 tree asset loads')
+          s = replace_once(s, '''    UInstancedStaticMeshComponent* GableWood = MakeISM(Model, Root, Cube, RedGableWood,
+              TEXT("R137Museum_RedTimberGable"), false, true);
+'''.replace('              ','        '), '', 'R137 obsolete gable component')
+          s = replace_once(s, '''    // Red/brown timber infill visible in the opposite gable: narrow courses form a triangular silhouette.
+          for (int32 Course = 0; Course < 6; ++Course)
+          {
+              const float WidthY = 700.0f - static_cast<float>(Course) * 95.0f;
+              AddBox(GableWood, Museum + FVector(-858.0f, 0.0f, 422.0f + static_cast<float>(Course) * 34.0f),
+                  FVector(14.0f, WidthY, 30.0f));
+          }
+
+'''.replace('          ','    '), '''    // Pass45: service-gable ownership moved to the reference-driven R14.0 author.
+    // R13.7 must not create a temporary gable that is hidden/replaced later in the same startup pass.
+
+''', 'R137 obsolete gable instances')
+          # Static glass would remain after breakage. Keep R13.7 trim/grilles, but leave glass to the breakable actor.
+          s = s.replace('        AddBox(Glass, Origin + FVector(X, Y + GlassOffset, Z), FVector(Width, 8.0f, Height));\n',
+                        '        // Pass45: breakable window actor owns visible glass; R13.7 owns trim/grilles only.\n', 1)
+          s = s.replace('        AddBox(Glass, Origin + FVector(X + GlassOffset, Y, Z), FVector(8.0f, Width, Height));\n',
+                        '        // Pass45: breakable window actor owns visible glass; R13.7 owns trim/grilles only.\n', 1)
+          s = replace_once(s, '''    AddBox(Doors, Museum + FVector(-62.0f, -672.0f, 205.0f), FVector(116.0f, 16.0f, 270.0f));
+          AddBox(Doors, Museum + FVector( 62.0f, -672.0f, 205.0f), FVector(116.0f, 16.0f, 270.0f));
+'''.replace('          ','    '), '''    // Pass45: R13.9 owns the final replicated entrance door; no temporary static door slabs.
+''', 'R137 entrance door slabs')
+          s = replace_once(s, '''    // Separate grey side door and small decorative canopy visible on the gable-side photo.
+          AddBox(Doors, Museum + FVector(864.0f, -155.0f, 210.0f), FVector(16.0f, 145.0f, 275.0f));
+          AddFittedMesh(Roof, RoofMesh, Museum + FVector(965.0f, -155.0f, 385.0f),
+              FVector(250.0f, 290.0f, 105.0f), 90.0f);
+          AddBox(Trim, Museum + FVector(870.0f, -155.0f, 365.0f), FVector(20.0f, 190.0f, 18.0f));
+
+'''.replace('          ','    '), '''    // Pass45: R14.0 owns the final service-door gable/canopy/door. No wrong prototype is authored here.
+
+''', 'R137 wrong service door canopy')
+          tree_start = s.find('    // Rebuild the site\'s mature conifers at realistic photo-relative spacing after hiding the oversized legacy pass.')
+          if tree_start < 0:
+              raise SystemExit('R137 tree block start not found')
+          log_start = s.find('    UE_LOG(LogTemp, Display,', tree_start)
+          if log_start < 0:
+              raise SystemExit('R137 tree block log not found')
+          log_end = s.find('}\n', log_start)
+          if log_end < 0:
+              raise SystemExit('R137 function end not found')
+          replacement = '''    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY visible_shell_owner=R137 static_glass=0 prototype_doors=0 prototype_trees=0 prototype_service_gable=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("R13.7 museum model: reference exterior built once at MuseumAnchor; interactive glass/doors and final tree layout are owned by their current stages."));
+'''
+          s = s[:tree_start] + replacement + s[log_end:]
+          p.write_text(s, encoding='utf-8')
+
+          # R13.8: collision + final breakable glass only. R13.9/R14.0 own doors.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp')
+          s = p.read_text(encoding='utf-8')
+          s = replace_once(s, '#include "OCBreakableWindow.h"\n', '#include "OCMuseumBreakableWindow.h"\n', 'R138 window include')
+          s = s.replace('#include "OCInteractableDoor.h"\n', '')
+          s = replace_once(s,
+              '        AOCBreakableWindow* Window = World.SpawnActor<AOCBreakableWindow>(\n            AOCBreakableWindow::StaticClass(),',
+              '        AOCMuseumBreakableWindow* Window = World.SpawnActor<AOCMuseumBreakableWindow>(\n            AOCMuseumBreakableWindow::StaticClass(),',
+              'R138 final window class')
+          door_fn = re.compile(r'\n    void SpawnMuseumDoor\(.*?\n    \}\n', re.S)
+          s, n = door_fn.subn('\n', s, count=1)
+          if n != 1:
+              raise SystemExit('R138 SpawnMuseumDoor helper not found')
+          door_calls = '''    SpawnMuseumDoor(World, Museum + FVector(-108.0f, -678.0f, 70.0f), 0.0f,
+        FVector(0.83f, 1.0f, 1.15f), Owner, TEXT("MuseumMainDoorLeft"));
+    SpawnMuseumDoor(World, Museum + FVector(108.0f, -678.0f, 70.0f), 180.0f,
+        FVector(0.83f, 1.0f, 1.15f), Owner, TEXT("MuseumMainDoorRight"));
+    SpawnMuseumDoor(World, Museum + FVector(858.0f, 115.0f, 70.0f), 90.0f,
+        FVector(1.10f, 1.0f, 1.17f), Owner, TEXT("MuseumServiceDoor"));
+
+'''
+          s = replace_once(s, door_calls, '    // Pass45: final doors are authored directly by R13.9/R14.0; no prototype door actors.\n\n', 'R138 prototype door calls')
+          s = s.replace('TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=1")',
+                        'TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=1 final_window_class=1 prototype_doors=0")')
+          s = s.replace('TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=0")',
+                        'TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=0 final_window_class=1 prototype_doors=0")')
+          p.write_text(s, encoding='utf-8')
+
+          # Final Museum breakable window is glass/debris only; R13.7 owns visible trim/grilles.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp')
+          s = p.read_text(encoding='utf-8')
+          old = '''    for (UStaticMeshComponent* Component : FrameParts)
+    {
+        if (!Component) continue;
+        if (FrameMaterial) Component->SetMaterial(0, FrameMaterial);
+        Component->SetCastShadow(false);
+    }
+
+    for (const TObjectPtr<UStaticMeshComponent>& Shard : DebrisPieces)
+'''
+          new = '''    for (UStaticMeshComponent* Component : FrameParts)
+    {
+        if (!Component) continue;
+        if (FrameMaterial) Component->SetMaterial(0, FrameMaterial);
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
+        Component->SetCastShadow(false);
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_MUSEUM_WINDOW_GLASS_ONLY_READY visible_frame_owner=R137 interactive_frame_visible=0 static_glass_owner=0"));
+
+    for (const TObjectPtr<UStaticMeshComponent>& Shard : DebrisPieces)
+'''
+          s = replace_once(s, old, new, 'Museum glass-only frame ownership')
+          s = s.replace('UE_LOG(LogTemp, Display, TEXT("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY"));',
+                        'UE_LOG(LogTemp, Display, TEXT("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY visible_frame_owner=R137 overlap=0"));')
+          p.write_text(s, encoding='utf-8')
+
+          # R14.0: no late suppression/removal of R13.7. Spawn the final styled upper window directly.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCR140MuseumFacadeDetailSubsystem.cpp')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('#include "OCBreakableWindow.h"\n', '#include "OCMuseumBreakableWindow.h"\n')
+          suppress = re.compile(r'\n    void SuppressIncorrectR137GableAndCanopy\(.*?\n    \}\n\n    void AddServiceGable', re.S)
+          s, n = suppress.subn('\n    void AddServiceGable', s, count=1)
+          if n != 1:
+              raise SystemExit('R140 late suppression helper not found')
+          s = s.replace('        AOCBreakableWindow* Window = World.SpawnActor<AOCBreakableWindow>(\n            AOCBreakableWindow::StaticClass(),',
+                        '        AOCMuseumBreakableWindow* Window = World.SpawnActor<AOCMuseumBreakableWindow>(\n            AOCMuseumBreakableWindow::StaticClass(),', 1)
+          s = s.replace('        SuppressIncorrectR137GableAndCanopy(*MuseumOwner, Museum);\n\n', '')
+          s = s.replace('TEXT("R14.0 museum facade: corrected service-door gable, upper window opening, carved/dentil trim, plaque, utilities and address detail built from REF-02/08/11/12/15/20.")',
+                        'TEXT("PASS45_MUSEUM_R140_DETAIL_ONLY_READY late_r137_suppression=0 instance_removal=0 prototype_service_door=0; service gable/canopy/final door and upper glass authored directly from references.")')
+          p.write_text(s, encoding='utf-8')
+
+          # R14.5 is the only current Museum tree layout. It must not hide an R13.7 tree pass because none exists.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCR145MuseumTreeLayoutSubsystem.cpp')
+          s = p.read_text(encoding='utf-8')
+          hide_fn = re.compile(r'\n    void HideR137MuseumTrees\(.*?\n    \}\n', re.S)
+          s, n = hide_fn.subn('\n', s, count=1)
+          if n != 1:
+              raise SystemExit('R145 HideR137MuseumTrees helper not found')
+          s = s.replace('    HideR137MuseumTrees(World);\n\n', '')
+          s = s.replace('TEXT("R14.5 museum trees: hidden symmetric R13.7 tree pass and placed %d asymmetrical photo-oriented mature trees; central approach remains open.")',
+                        'TEXT("PASS45_MUSEUM_TREE_SINGLE_OWNER_READY owner=R145 r137_tree_pass=0 late_hide=0 placed=%d central_approach_open=1")')
+          p.write_text(s, encoding='utf-8')
+
+          # Startup coordinator no longer invokes the obsolete R14.1 window replacement stage.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('#include "OCR141MuseumWindowReplacementSubsystem.h"\n', '')
+          stage = re.compile(r'\n    if \(bHasGameplayAuthority\)\n    \{\n        if \(UOCR141MuseumWindowReplacementSubsystem\* Stage = World.GetSubsystem<UOCR141MuseumWindowReplacementSubsystem>\(\)\)\n        \{\n            Timers.ClearAllTimersForObject\(Stage\);\n            Stage->RunAuthoritativeDetailNow\(World\);\n        \}\n    \}\n', re.S)
+          s, n = stage.subn('\n', s, count=1)
+          if n != 1:
+              raise SystemExit('Coordinator R141 Museum stage not found')
+          s = s.replace('museum_stages=R137_exterior+R138_interaction+R139_R145_details',
+                        'museum_stages=R137_exterior+R138_collision_glass+R139_R140_doors_facade+R142_R145_details window_replacement_stage=0')
+          s = s.replace('authority-only door/window replacements preserved.',
+                        'final door owners preserved; obsolete window replacement stage retired.')
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit Museum ownership cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp \
+                  OsterConflict/Source/OsterConflict/Private/OCR138MuseumInteractiveArchitectureSubsystem.cpp \
+                  OsterConflict/Source/OsterConflict/Private/OCMuseumBreakableWindow.cpp \
+                  OsterConflict/Source/OsterConflict/Private/OCR140MuseumFacadeDetailSubsystem.cpp \
+                  OsterConflict/Source/OsterConflict/Private/OCR145MuseumTreeLayoutSubsystem.cpp \
+                  OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp
+          git diff --cached --check
+          git commit -m "refactor(pass45): collapse Museum runtime ownership"
+          git push origin HEAD:fix/pass45-runtime-rejection-20260825
