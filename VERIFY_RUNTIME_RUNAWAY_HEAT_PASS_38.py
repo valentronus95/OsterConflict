@@ -21,28 +21,39 @@ def forbid(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS38 VERIFY FAIL: {label}: forbidden {needle!r}")
 
 
-museum_h = read(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h")
-museum = read(SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp")
+def absent(path: Path, label: str) -> None:
+    if path.exists():
+        raise SystemExit(f"PASS38 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
+
+
+# Pass 45 removes the old Museum destructive recovery entirely instead of budgeting one rebuild.
+for path, label in (
+    (SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Museum visibility/rebuild guard"),
+    (SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Museum visibility/rebuild guard"),
+    (SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h", "Museum core recovery owner"),
+    (SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp", "Museum core recovery owner"),
+    (SRC / "Public" / "OCWeaponPalettePass37Subsystem.h", "weapon palette compatibility owner"),
+    (SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp", "weapon palette compatibility owner"),
+):
+    absent(path, label)
+
 fallback_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
-palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
-palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
+startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 
+# Current Museum startup has one coordinated startup window and explicitly reports no old recovery owners.
 for needle in (
-    "int32 RebuildAttemptCount = 0",
-    "MaxRebuildAttempts = 1",
-    "RebuildAttemptCount < MaxRebuildAttempts",
-    "PASS38_MUSEUM_SINGLE_REBUILD_EXECUTED",
-    "PASS38_MUSEUM_REBUILD_BUDGET_READY",
-    "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
-    "destructive_loop=0",
+    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+    "delayed_stage_timers_cancelled=1",
+    "legacy_core_recovery=0",
+    "destructive_visibility_rebuild=0",
 ):
-    require(museum_h + museum, needle, "single museum rebuild budget")
+    require(startup, needle, "coordinated landmark startup")
 
-# Pass 44 keeps the real-mesh fallback finite and turns missing authored materials into a terminal audited state.
+# Real-mesh fallback/material audit remains finite and truth-only.
 for needle in (
     "int32 RefreshPassCount = 0",
     "MaxRefreshPasses = 12",
@@ -57,23 +68,7 @@ for needle in (
 forbid(fallback, "UMaterialInstanceDynamic::Create", "weapon fallback must not fabricate material recovery")
 forbid(fallback, "Component->SetMaterial(Slot", "weapon audit must not repaint slots")
 
-# Pass 44 fully retires the separate palette scan. There must be no timer, material creation or SetMaterial path.
-for needle in (
-    "compatibility shell",
-    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
-    "PASS38_WEAPON_PALETTE_SCAN_STOPPED reason=retired_by_pass44",
-    "polling=0",
-):
-    require(palette_h + palette, needle, "retired palette scan")
-for forbidden in (
-    "SetTimer(",
-    "UMaterialInstanceDynamic::Create",
-    "BasicShapeMaterial.BasicShapeMaterial",
-    "SetMaterial(",
-):
-    forbid(palette_h + palette, forbidden, "no legacy palette runtime work")
-
-# User runtime showed a delayed catastrophic FPS collapse. Normal local game must not silently create filler AI.
+# Normal local game must not silently create filler AI.
 for needle in (
     "int32 TargetPopulation = 0",
     "bool bAutoFillBots = false",
@@ -87,19 +82,27 @@ for needle in (
 ):
     require(runtime_safe, needle, "runtime-safe local bot suppression")
 
+# Acceptance must no longer demand logs from physically deleted recovery/palette owners.
 for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
-    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+    "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
     "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
+    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
+    "PASS37_MUSEUM_VISIBLE_CORE_READY",
+):
+    forbid(acceptance, marker, f"stale acceptance marker {marker}")
+for marker in (
+    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
     "PASS14_PERF_30FPS_READY",
 ):
-    require(acceptance, marker, f"runtime acceptance marker {marker}")
+    require(acceptance, marker, f"current runtime acceptance marker {marker}")
 
-print("RUNTIME RUNAWAY / HEAT PASS 38/44 SOURCE CONTRACT PASS")
-print("- museum architecture destructive recovery is capped at one rebuild")
-print("- weapon fallback/material audit is finite and missing materials become terminal fail-visible evidence")
-print("- obsolete palette scan is retired completely: zero timer, zero material writes")
-print("- normal local game defaults to zero filler bots unless bot options are explicitly requested")
-print("- runtime acceptance still requires >=30 FPS")
+print("RUNTIME RUNAWAY / HEAT PASS 38/45 FORWARD-PORTED SOURCE CONTRACT PASS")
+print("- destructive Museum recovery is physically deleted, not merely capped")
+print("- obsolete palette owner is physically deleted")
+print("- landmark startup is coordinated once and historical delayed stage timers are cancelled")
+print("- weapon fallback/material audit remains finite and fail-visible")
+print("- normal local game defaults to zero filler bots unless explicitly requested")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
