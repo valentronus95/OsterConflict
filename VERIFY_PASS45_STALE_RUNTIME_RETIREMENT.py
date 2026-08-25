@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
+errors = []
+
+
+def read(path: Path) -> str:
+    if not path.is_file():
+        errors.append(f"missing file: {path.relative_to(ROOT)}")
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def req(condition: bool, message: str) -> None:
+    if not condition:
+        errors.append(message)
+
+
+# Runtime-rejected B2 owner and the CI contract that forced it back must stay physically retired.
+retired_paths = [
+    SRC / "Public" / "OCWorldProductionVisualsSubsystem.h",
+    SRC / "Private" / "OCWorldProductionVisualsSubsystem.cpp",
+    ROOT / "VERIFY_PASS45_COMPLETION_AUDIT.py",
+    ROOT / ".github" / "workflows" / "pass45-completion-audit.yml",
+]
+for path in retired_paths:
+    req(not path.exists(), f"stale/rejected runtime contract resurrected: {path.relative_to(ROOT)}")
+
+# No active source file may re-introduce the deleted owner under the historical class name.
+for path in SRC.rglob("*.[ch]pp"):
+    text = path.read_text(encoding="utf-8", errors="replace")
+    req("OCWorldProductionVisualsSubsystem" not in text,
+        f"rejected B2 owner referenced by active source: {path.relative_to(ROOT)}")
+for path in SRC.rglob("*.h"):
+    text = path.read_text(encoding="utf-8", errors="replace")
+    req("OCWorldProductionVisualsSubsystem" not in text,
+        f"rejected B2 owner referenced by active header: {path.relative_to(ROOT)}")
+
+museum_cpp = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
+museum_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
+pickup_cpp = read(SRC / "Private" / "OCPickupGunTruck.cpp")
+btr_cpp = read(SRC / "Private" / "OCBTR.cpp")
+launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
+agents = read(ROOT / "AGENTS.md")
+tz = read(ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md")
+
+# BASE recovery is initial-character-only. Vehicle possession must never become a deployment mutation again.
+for needle in (
+    "ValidatedBaseDeploymentControllers",
+    "AOCCharacter* Character = Cast<AOCCharacter>(PC->GetPawn())",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
+    "vehicle_revalidation=0",
+):
+    req(needle in museum_cpp + museum_h, f"initial-only Museum deployment guard contract missing: {needle}")
+req("LastValidatedPawnByController" not in museum_cpp + museum_h,
+    "legacy pawn-pointer revalidation cache returned; vehicle enter/exit can be mistaken for deployment")
+req("APawn* Pawn = PC->GetPawn()" not in museum_cpp,
+    "Museum guard again validates arbitrary possessed pawns instead of AOCCharacter only")
+
+# Production vehicles may not be independently stretched per axis to fit proxy boxes.
+for name, text, marker in (
+    ("HMMWV", pickup_cpp, "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY"),
+    ("BTR4", btr_cpp, "PASS45_BTR4_PROPORTIONAL_VISUAL_READY"),
+):
+    req(marker in text, f"{name} proportional visual marker missing")
+    req("SetRelativeScale3D(FVector(UniformScale))" in text,
+        f"{name} production visual does not use uniform scale")
+    req("nonuniform_stretch=0" in text, f"{name} runtime marker does not reject non-uniform stretch")
+
+for forbidden in (
+    "DesiredSizeCm.X / NativeSize.X",
+    "DesiredSizeCm.Y / NativeSize.Y",
+    "DesiredSizeCm.Z / NativeSize.Z",
+):
+    req(forbidden not in pickup_cpp, f"HMMWV legacy non-uniform stretch returned: {forbidden}")
+    req(forbidden not in btr_cpp, f"BTR4 legacy non-uniform stretch returned: {forbidden}")
+
+# Normal recovery route must not silently restore the rejected windowed/uncapped test behavior.
+req(' -windowed ' not in launcher.lower(), "normal gameplay launcher restored forced -windowed mode")
+req("-fullscreen" in launcher, "normal gameplay launcher no longer requests fullscreen recovery mode")
+req('t.MaxFPS 60' in launcher, "thermal recovery 60 FPS cap missing")
+req("PASS45_NORMAL_DISPLAY_THERMAL_GUARD" in launcher,
+    "launcher lacks visible display/thermal recovery marker")
+
+# Root rules/TZ must explicitly require deletion or retirement of obsolete mutating owners and stale verifiers.
+for needle in (
+    "Physical retirement beats inert resurrection",
+    "No historical verifier may require a runtime-rejected owner",
+    "legacy owner deletion",
+):
+    req(needle in agents + tz, f"stale-rule retirement policy missing: {needle}")
+
+if errors:
+    print("PASS45 STALE RUNTIME RETIREMENT: FAIL")
+    for error in errors:
+        print("[FAIL]", error)
+    raise SystemExit(1)
+
+print("PASS45 STALE RUNTIME RETIREMENT: PASS")
+print("- rejected B2 world visual owner is physically deleted")
+print("- stale B2 completion verifier/workflow cannot force the rejected owner back")
+print("- Museum BASE recovery is initial-character-only, not vehicle-possession-driven")
+print("- HMMWV/BTR production meshes preserve native proportions")
+print("- normal recovery route is fullscreen with 60 FPS thermal cap")
+print("STATUS: SOURCE CONTRACT ONLY; local UE runtime remains authoritative")
