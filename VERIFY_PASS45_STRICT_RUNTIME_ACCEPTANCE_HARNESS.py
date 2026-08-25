@@ -4,8 +4,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 MAIN = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
+PREFLIGHT = ROOT / "VERIFY_PASS45_REQUIRED_LOCAL_CONTENT.py"
 MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+REGISTRY = ROOT / "R14_MODEL_REGISTRY.md"
 errors = []
 
 
@@ -23,8 +25,10 @@ def req(condition: bool, message: str) -> None:
 
 main = read(MAIN)
 normal = read(NORMAL)
+preflight = read(PREFLIGHT)
 material = read(MATERIAL)
 evidence = read(EVIDENCE)
+registry = read(REGISTRY)
 
 # Keep one normal gameplay launcher. The strict wrapper orchestrates evidence; it does not invent another gameplay route.
 req('set "OC_FORCE_ACCEPTANCE=1"' in main, "strict wrapper no longer enables acceptance mode")
@@ -33,6 +37,38 @@ req("start /wait" not in main, "strict wrapper became a second gameplay launcher
 req("RUN_R14_CURRENT_GAMEPLAY.cmd" in main, "single normal-game launcher identity missing")
 req("-fullscreen" in normal and 't.MaxFPS 60' in normal,
     "normal gameplay route lost Pass45 fullscreen/60 FPS recovery contract")
+
+# Final acceptance must fail fast before a long playtest when required local production content is known missing.
+for needle in (
+    'VERIFY_PASS45_REQUIRED_LOCAL_CONTENT.py',
+    'Checking required local production content before starting the long playtest',
+    'This is a CONTENT GAP, not a runtime-code failure.',
+    'PASS45_REQUIRED_CONTENT_PREFLIGHT.txt',
+):
+    req(needle in main, f"strict wrapper missing required-content preflight contract: {needle}")
+for needle in (
+    'Remington 870',
+    'SM_Remington870.uasset',
+    '/Game/Production/Weapons/Remington870/SM_Remington870',
+    'M249',
+    'SM_M249.uasset',
+    '/Game/Production/Weapons/M249/SM_M249',
+    'STRICT ACCEPTANCE BLOCKED',
+    'return 21',
+):
+    req(needle in preflight, f"required local content preflight missing: {needle}")
+req(main.index('VERIFY_PASS45_REQUIRED_LOCAL_CONTENT.py') < main.index('call "%CURRENT_GAMEPLAY%"'),
+    "required-content preflight is not declared before gameplay delegation")
+req(main.index('%PY_CMD% "%CONTENT_PREFLIGHT%"') < main.index('call "%CURRENT_GAMEPLAY%"'),
+    "strict acceptance does not execute required-content preflight before gameplay")
+
+# Registry must not falsely mark absent canonical production weapons READY.
+for needle in (
+    '| Remington 870 | `/Game/Production/Weapons/Remington870/SM_Remington870` | Static | **CONTENT GAP / NOT READY**',
+    '| M249 | `/Game/Production/Weapons/M249/SM_M249` | Static | **CONTENT GAP / NOT READY**',
+    'strict Pass45 11/11 weapon gate must remain FAIL',
+):
+    req(needle in registry, f"asset registry current-truth contract missing: {needle}")
 
 # Headless post-playtest gate must consume the exact authored material/dependency contracts merged in Pass45.
 for needle in (
@@ -92,6 +128,8 @@ if errors:
 
 print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
 print("- RUN_R14_CURRENT_GAMEPLAY.cmd remains the single normal gameplay launcher")
+print("- strict acceptance fails fast on missing Remington870/M249 production content before gameplay")
+print("- asset registry preserves those absent canonical assets as CONTENT GAP / NOT READY")
 print("- strict wrapper adds post-playtest authored material/dependency validation")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
 print("- vehicle/weapon material gaps and transform failures are fatal")
