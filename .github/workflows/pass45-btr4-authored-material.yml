@@ -1,0 +1,30 @@
+name: Pass 45 BTR4 authored material
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'fix/pass45-btr-authored-material-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pass45-btr4-authored-material-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify repository-safe BTR4 authored material contract
+        run: python VERIFY_PASS45_BTR4_AUTHORED_MATERIAL.py
