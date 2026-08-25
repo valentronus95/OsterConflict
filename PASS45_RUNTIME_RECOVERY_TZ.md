@@ -1,8 +1,9 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date: 2026-08-24
-Status: **ACTIVE / SOURCE CI GREEN / MERGE READY / RUNTIME UNTESTED**
-Branch: `fix/runtime-recovery-pass-45-20260824`
+Status: **MERGED / SOURCE CI GREEN / CODED_UNTESTED / RUNTIME UNTESTED**
+Source branch: `fix/runtime-recovery-pass-45-20260824` — merged into `main` by PR #79
+Merged `main` commit: `d31cc8deb6d5c3b58f81af0ec58c1c12e679851c`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -11,6 +12,8 @@ User launcher: `START_HERE.cmd`
 Pass 44 was implemented from the active requirements in `OSTER_CONFLICT_WORK_LEDGER.md` and root `AGENTS.md`; there was no separate complete Pass 44 TZ that combined runtime acceptance, visual fidelity, performance baseline and content truth in one contract. The first factual local run after merge disproved several Pass 44 assumptions.
 
 Therefore this file is the canonical corrective TZ. It does not erase Pass 44 history. It records Pass 44 as **RUNTIME REJECTED** and converts the newest screenshots + source audit into explicit Pass 45 work and acceptance gates.
+
+Pass 45 source work is now merged to `main`, but no newer factual UE runtime has accepted it yet. All runtime-facing corrections remain **CODED_UNTESTED** until the next local UE 5.8 run.
 
 Latest runtime evidence pack:
 
@@ -40,6 +43,8 @@ Observed runtime facts:
 **Pass 44 status: RUNTIME REJECTED.**
 
 Green source CI from Pass 44 remains evidence that the source contract compiled/verified. It is not runtime acceptance.
+
+There is **no later factual UE runtime yet after the Pass 45 merge**, so this Pass 44 run remains the latest runtime authority until the next local test.
 
 ---
 
@@ -138,7 +143,7 @@ The ownership guard repairs duplicate actors per canonical tag and validates exa
 
 ### A1. RHI-thread A/B launch path
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - DirectX 11 + SM5 + no HDR retained.
 - Normal game uses normal RHI threading.
@@ -154,7 +159,7 @@ Acceptance remains runtime-only:
 
 ### A2. Runtime performance instrumentation
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 Required markers are implemented:
 
@@ -166,7 +171,7 @@ Sampling is one-shot/bounded and does not mutate graphics quality to disguise lo
 
 ### A3. Stop repeated full-world repair loops
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - old landmark-separation 0.20 s × 40 full-world scan loop retired;
 - one delayed reconciliation remains;
@@ -177,7 +182,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ### A4. Compact-sector render budget
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 Cull distances have been recalculated for the 960×940 m battlefield. Runtime pop-in/performance still requires factual observation.
 
@@ -187,7 +192,7 @@ Cull distances have been recalculated for the 960×940 m battlefield. Runtime po
 
 ### B1. Retire primitive tree generator from normal gameplay
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - all eight primitive Cylinder/Sphere tree families are hidden in normal runtime;
 - verified real pines remain available;
@@ -196,7 +201,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ### B2. World proxy truth
 
-**IN_PROGRESS.** Tree proxies are classified/retired. Other BasicShape world families still require production-asset inventory and factual visual replacement decisions. Invisible gameplay collision helpers may remain where necessary.
+**IN_PROGRESS.** Tree proxies are classified/retired. Other BasicShape world families still require production-asset inventory and factual visual replacement decisions. Invisible gameplay collision helpers may remain where necessary. Broad new replacement work is intentionally blocked until the merged Pass 45 runtime baseline is measured.
 
 ---
 
@@ -204,7 +209,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ### C1. Real compact-Oster topology
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - tactical map uses a dedicated reference-traced street layer from the retained central-Oster image;
 - procedural world road/building ISMs no longer define `M` topology;
@@ -224,7 +229,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ### D1. Museum
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - R13.8 is the single current shell owner;
 - R13.7 is a reference/detail/interactivity parent only;
@@ -233,7 +238,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ### D2. Culture House
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - R14.6 is the single shell owner;
 - distinct `FOCGeoReference::CultureHouse()` anchor retained;
@@ -242,7 +247,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ### D3. Silpo
 
-Source implementation: **CODED_UNTESTED**.
+Source implementation: **MERGED / CODED_UNTESTED**.
 
 - R14.0 is the single shell owner;
 - R14.1–R14.3 remain detail-only stages and do not satisfy the shell-owner tag;
@@ -253,7 +258,7 @@ Source implementation: **CODED_UNTESTED**.
 
 ## Phase E — weapon material dependency closure
 
-Audit implementation: **CODED_UNTESTED**. Dependency closure: **IN_PROGRESS** until the next fresh UE preflight produces the actual report.
+Audit implementation: **MERGED / CODED_UNTESTED**. Dependency closure: **IN_PROGRESS** until the next fresh UE preflight produces the actual report.
 
 For each of 11 required weapon visuals the fresh-load preflight now records:
 
@@ -344,16 +349,16 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 
 1. Lock this TZ + runtime evidence into the branch. **DONE**.
 2. Update ledger to mark Pass 44 `RUNTIME REJECTED` and Pass 45 active. **DONE**.
-3. Implement RHI-thread A/B route and performance markers. **CODED_UNTESTED**.
-4. Retire repeated landmark world-mutation loop / enforce single ownership. **CODED_UNTESTED**.
-5. Recalculate render/cull budgets for compact map. **CODED_UNTESTED**.
-6. Remove primitive tree families from normal visual runtime and bind verified real foliage where available. **CODED_UNTESTED; OAK CONTENT GAP**.
-7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**. Text and polish icons now share one geo authority and the old Z=2 residential dimmer is retired.
-8. Run per-weapon material/texture dependency audit and close real asset/material gaps. **AUDIT CODED_UNTESTED; CLOSURE IN_PROGRESS**.
-9. Update/retire conflicting historical verifiers. **DONE FOR CURRENT SOURCE SUITE**.
-10. Run full source CI. **GREEN — 32/32 workflows succeeded on source head `5087c4690570b87c6e50a99bdfe0344a68ac177b` before this docs-only status sync**.
-11. Merge only after fresh current-head source checks are green. **MERGE READY; final docs-only head must stay green**.
-12. After local pull, perform frontend performance test first, then gameplay. **PENDING**.
+3. Implement RHI-thread A/B route and performance markers. **MERGED / CODED_UNTESTED**.
+4. Retire repeated landmark world-mutation loop / enforce single ownership. **MERGED / CODED_UNTESTED**.
+5. Recalculate render/cull budgets for compact map. **MERGED / CODED_UNTESTED**.
+6. Remove primitive tree families from normal visual runtime and bind verified real foliage where available. **MERGED / CODED_UNTESTED; OAK CONTENT GAP**.
+7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **MERGED / CODED_UNTESTED**. Text and polish icons share one geo authority and the old Z=2 residential dimmer is retired.
+8. Run per-weapon material/texture dependency audit and close real asset/material gaps. **AUDIT MERGED / CODED_UNTESTED; CLOSURE IN_PROGRESS**.
+9. Update/retire conflicting historical verifiers. **DONE FOR MERGED SOURCE SUITE**.
+10. Run full source CI. **GREEN on the final Pass 45 head `8229db7eb09dd02b08b67027298d95f08b8aee27` before merge**.
+11. Merge into `main`. **DONE — PR #79 merged as `d31cc8deb6d5c3b58f81af0ec58c1c12e679851c`**.
+12. After local pull, perform frontend performance test first, then gameplay. **PENDING — NEXT AUTHORITATIVE ACCEPTANCE STEP**.
 
 ---
 
@@ -363,16 +368,17 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 - [x] User screenshots archived as Pass 45 evidence sheet + manifest.
 - [x] Pass 45 corrective TZ created.
 - [x] Ledger updated for Pass 45.
-- [x] RHI-thread A/B launcher source implemented (**CODED_UNTESTED**).
-- [x] Frontend/gameplay performance baseline instrumentation implemented (**CODED_UNTESTED**).
-- [x] 40-pass landmark mutation loop consolidated and single-shell ownership source contract added (**CODED_UNTESTED**).
-- [x] Compact render budgets recalculated (**CODED_UNTESTED**).
+- [x] RHI-thread A/B launcher source implemented and merged (**CODED_UNTESTED**).
+- [x] Frontend/gameplay performance baseline instrumentation implemented and merged (**CODED_UNTESTED**).
+- [x] 40-pass landmark mutation loop consolidated and single-shell ownership source contract added and merged (**CODED_UNTESTED**).
+- [x] Compact render budgets recalculated and merged (**CODED_UNTESTED**).
 - [x] Primitive Cylinder/Sphere tree visuals retired from normal runtime; real pines verified; oak remains content gap (**CODED_UNTESTED**).
-- [x] Tactical map source rebuilt from the authoritative retained reference topology rather than procedural world ISMs (**CODED_UNTESTED**).
-- [x] Tactical map polish icons aligned to the same `FOCGeoReference`; Culture House icon added; obsolete Z=2 residential dimmer retired (**CODED_UNTESTED**).
-- [x] 11-weapon mesh → material → texture dependency audit implemented (**fresh UE report pending**).
+- [x] Tactical map source rebuilt from the authoritative retained reference topology rather than procedural world ISMs and merged (**CODED_UNTESTED**).
+- [x] Tactical map polish icons aligned to the same `FOCGeoReference`; Culture House icon added; obsolete Z=2 residential dimmer retired and merged (**CODED_UNTESTED**).
+- [x] 11-weapon mesh → material → texture dependency audit implemented and merged (**fresh UE report pending**).
 - [x] Known conflicting historical verifier contracts forward-ported through R6/Pass12/17/21/22/44/45 and tactical-map suites.
-- [x] Full source CI green on the source head before final docs-only status sync; final docs-only head must remain green before merge.
+- [x] Full source CI green on the final Pass 45 head before merge.
+- [x] PR #79 merged to `main` at `d31cc8deb6d5c3b58f81af0ec58c1c12e679851c`.
 - [ ] Actual authored material/texture gaps from the next fresh preflight closed.
-- [ ] Other visible BasicShape world families inventoried/replaced where real content exists.
+- [ ] Other visible BasicShape world families inventoried/replaced where real content exists, after the runtime baseline gate.
 - [ ] Local UE 5.8 runtime accepted.
