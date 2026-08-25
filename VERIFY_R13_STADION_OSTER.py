@@ -6,8 +6,8 @@ SRC = ROOT / "OsterConflict/Source/OsterConflict"
 
 STADIUM_CPP = SRC / "Private/OCR13StadiumSurfaceSubsystem.cpp"
 STADIUM_HEADER = SRC / "Public/OCR13StadiumSurfaceSubsystem.h"
-LEGACY_CPP = SRC / "Private/OCR13MuseumStadiumPhotoFidelitySubsystem.cpp"
-LEGACY_HEADER = SRC / "Public/OCR13MuseumStadiumPhotoFidelitySubsystem.h"
+RETIRED_CPP = SRC / "Private/OCR13MuseumStadiumPhotoFidelitySubsystem.cpp"
+RETIRED_HEADER = SRC / "Public/OCR13MuseumStadiumPhotoFidelitySubsystem.h"
 GEO_CPP = SRC / "Private/OCGeoReference.cpp"
 WORLD_CPP = SRC / "Private/OCWorldSectorOster.cpp"
 RUNTIME_CPP = SRC / "Private/OCR13StadiumRuntimeValidationSubsystem.cpp"
@@ -17,6 +17,8 @@ REFERENCE_ARCHIVE = ROOT / "REFERENCE_PHOTOS/stadion_oster/stadion_oster_referen
 TZ = ROOT / "STADION_OSTER_TZ.md"
 STATUS = ROOT / "STADION_OSTER_IMPLEMENTATION_STATUS.md"
 LAUNCHER = ROOT / "RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd"
+PASS45_TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
+AGENTS = ROOT / "AGENTS.md"
 
 
 def fail(message: str) -> None:
@@ -36,8 +38,6 @@ def require(text: str, needle: str, where: str) -> None:
 
 stadium_cpp = read(STADIUM_CPP)
 stadium_header = read(STADIUM_HEADER)
-legacy_cpp = read(LEGACY_CPP)
-legacy_header = read(LEGACY_HEADER)
 geo_cpp = read(GEO_CPP)
 world_cpp = read(WORLD_CPP)
 runtime_cpp = read(RUNTIME_CPP)
@@ -46,6 +46,17 @@ reference_index = read(REFERENCE_INDEX)
 tz = read(TZ)
 status = read(STATUS)
 launcher = read(LAUNCHER)
+pass45_tz = read(PASS45_TZ)
+agents = read(AGENTS)
+
+# Pass45 physical-retirement policy supersedes the old inert compatibility shim contract.
+if RETIRED_CPP.exists() or RETIRED_HEADER.exists():
+    fail("retired OCR13MuseumStadiumPhotoFidelitySubsystem was resurrected")
+for needle in (
+    "Physical retirement beats inert resurrection",
+    "legacy owner deletion",
+):
+    require(agents + pass45_tz, needle, "Pass45 stale-owner retirement policy")
 
 # Reference payload integrity is explicit. A corrupt/missing archive is never silently accepted.
 if REFERENCE_ARCHIVE.exists():
@@ -103,6 +114,7 @@ for forbidden in (
     "AOCWorldSectorOster::StadiumAnchor()",
     'TEXT("StadionOsterGrassApron")',
     "SiteActor->SetActorEnableCollision(false);",
+    "OCR13MuseumStadiumPhotoFidelitySubsystem",
 ):
     if forbidden in stadium_cpp:
         fail(f"authoritative stadium owner contains obsolete/unsafe pattern {forbidden!r}")
@@ -110,6 +122,7 @@ for forbidden in (
 if stadium_cpp.count("World.SpawnActor<AActor>") != 1:
     fail("authoritative stadium owner must spawn exactly one site actor")
 
+# Legacy source-world stadium proxy families are synchronously hidden before the authoritative owner is used.
 for needle in (
     "StadiumGeometry->SetVisibility(false, true);",
     "StadiumGeometry->SetHiddenInGame(true, true);",
@@ -118,25 +131,9 @@ for needle in (
 ):
     require(world_cpp, needle, "synchronous legacy stadium handoff")
 
-for needle in (
-    "Retired R13.6 compatibility shim",
-    "intentionally owns no museum or stadium presentation",
-):
-    require(legacy_header, needle, "retired legacy header")
-for needle in (
-    "Retired compatibility subsystem",
-    "schedules nothing and creates no geometry",
-    "ApplyPhotoFidelity(InWorld);",
-):
-    require(legacy_cpp, needle, "retired legacy cpp")
-for forbidden in ("PhotoFidelityDelaySeconds", "BuildStadium(", "SuppressLegacyStadiumPresentation(", "World.SpawnActor"):
-    if forbidden in legacy_cpp:
-        fail(f"retired legacy subsystem still owns stadium work: {forbidden!r}")
-
 for index in range(1, 18):
     require(reference_index, f"{index:02d}_", "17-frame reference index")
-for needle in ("CANONICAL_REFERENCE_SET",):
-    require(reference_index, needle, "stadium reference index")
+require(reference_index, "CANONICAL_REFERENCE_SET", "stadium reference index")
 for needle in ("50.94936", "30.88466", "власним placement owner"):
     require(tz + reference_index, needle, "stadium TZ/reference contract")
 
@@ -188,7 +185,7 @@ for needle in (
 print("R13 STADION OSTER VERIFY PASS")
 print("- canonical hard-georeferenced stadium owner is present")
 print("- terrain Z snap is required and obsolete giant grass apron is forbidden")
-print("- legacy stadium presentation ownership is retired")
+print("- obsolete Museum/Stadium compatibility subsystem stays physically deleted under Pass45")
 print("- 17-frame reference index and explicit payload integrity state are present")
 print("- Pass 9 runtime evidence validates site components, georef XY, terrain Z and legacy visibility")
 print("- strict Windows acceptance launcher requires PASS9_STADION_OSTER_READY")
