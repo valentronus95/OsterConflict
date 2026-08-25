@@ -2,8 +2,10 @@
 
 Date: 2026-08-24
 Latest runtime rejection: 2026-08-25
-Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE WORK IN PROGRESS**
-Active corrective branch: `fix/pass45-runtime-rejection-20260825`
+Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE MILESTONE MERGED / LOCAL UE RUNTIME ACCEPTANCE PENDING**
+Current source: `main` @ `f5e883fb69ae8bdd35c754dc895d8b06e4843e08` (PR #83)
+Verified green pre-merge source head: `f89841ca9375ed5b8da496ec36e8c2efe2a8a437`
+Former corrective branch: `fix/pass45-runtime-rejection-20260825`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -37,7 +39,7 @@ Pass 45 now treats stale runtime code as an architectural defect, not harmless h
 
 **No historical verifier may require a runtime-rejected owner.** Source CI must be forward-ported to current behavior. A verifier that requires a rejected READY marker, generic asset family, material mutation, spawn fallback or old owner class is itself stale and must be retired or rewritten.
 
-Current legacy owner deletion already applied in this corrective branch:
+Current legacy owner deletion is merged to `main` through PR #83:
 
 - deleted `OCWorldProductionVisualsSubsystem.h/.cpp` after the latest runtime rejected its black/generic world output;
 - deleted `VERIFY_PASS45_COMPLETION_AUDIT.py`, which explicitly required that rejected B2 owner and its generic AdvancedVillagePack/ground-material behavior;
@@ -81,6 +83,8 @@ The latest screenshots and user observation prove:
 
 **PASS 45 = RUNTIME REJECTED.**
 
+PR #83 being merged does not change this factual verdict. It only establishes the next source candidate for local UE acceptance.
+
 ## 2. Confirmed improvement that must be retained
 
 The latest run also proves some previous blockers were removed and must not regress:
@@ -102,7 +106,7 @@ These are partial improvements only. None promote Pass 45 to VERIFIED RUNTIME.
 
 The world is visually invalid while large areas render near-black.
 
-The Pass 45 B2 production-visual completion layer is runtime-rejected and has now been **physically deleted** from the corrective branch. Its stale completion verifier/workflow were deleted with it so CI cannot resurrect the rejected owner.
+The Pass 45 B2 production-visual completion layer is runtime-rejected and has now been **physically deleted** from the merged source. Its stale completion verifier/workflow were deleted with it so CI cannot resurrect the rejected owner.
 
 Requirements:
 
@@ -168,7 +172,7 @@ Acceptance:
 
 ### P0 — M2 Browning mount and controls
 
-M2 source visual alignment is being migrated from proxy-centre placement to production-bounds mount placement.
+M2 source visual alignment is migrated from proxy-centre placement to production-bounds mount placement.
 
 Requirements:
 
@@ -193,7 +197,7 @@ User reference history and public Oster references agree on the core identity co
 - the six-column neoclassical civic facade is a separate Culture House/public building;
 - therefore a six-column Culture-House shell at the Museum site is always a runtime failure.
 
-The current source contains a historical stack of Museum owners/recovery/detail/validation layers (`R137/R138/R140/R141/R142/R143/R144/R145`, CoreRecovery, VisibilityPass37, ownership/startup guards). Pass 45 must stop treating pass number as permission for every layer to mutate the same landmark.
+The historical Museum stack was audited so pass chronology no longer grants every layer mutation rights.
 
 Requirements:
 
@@ -205,6 +209,15 @@ Requirements:
 - obsolete shell/recovery/replacement layers are physically deleted with stale verifier expectations;
 - Culture House shell may never own or overlap Museum anchor/site radius;
 - if the correct photo-faithful Museum production asset is unavailable, use a truthful minimal placeholder consistent with the Museum footprint rather than the Culture House facade.
+
+Current merged source contract:
+
+- R13.7 is the single visible Museum exterior owner;
+- R13.8 is hidden collision/interactivity + final breakable glass only;
+- R14.0 does not suppress R13.7 late;
+- R14.5 is the current Museum tree-layout owner;
+- Pass32 Museum layer logic is validation-only, `mutation=0`;
+- landmark separation is validation-only and cannot repair ownership after startup.
 
 Acceptance:
 
@@ -347,10 +360,10 @@ Pass 45 explicitly forbids:
 10. [x] Correct default mounted M2 Browning pitch direction in source; runtime input proof still required.
 11. [ ] Remove unreferenced tower/shack and any remaining rejected generic fence/house visuals.
 12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support.
-13. [x] Forward-port stale production/Museum verifiers and lock deleted R14.1/material-repair owners out of current CI.
+13. [x] Forward-port stale Pass12/15/16/21/22/33/35/37/40/41/42/44/45 production/Museum/runtime verifier contracts and lock retired owners out of current CI.
 14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform and M2 pitch corrective state.
-15. [ ] Full current-head source CI green.
-16. [ ] Merge corrective branch to `main` only after source CI is green and corrective scope is coherent.
+15. [x] Full current-head source CI green on `f89841ca9375ed5b8da496ec36e8c2efe2a8a437`.
+16. [x] Merge corrective source milestone through PR #83; `main` = `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
 17. [ ] Factual local UE build + runtime acceptance.
 
 ## 9. Acceptance gates
@@ -418,16 +431,16 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 ## 10. Current status
 
 - Pass 44: **RUNTIME REJECTED** historical evidence.
-- Pass 45 source corrections through PR #82: historical source/build progress only.
+- Pass 45 corrective source milestone: **MERGED TO MAIN** in PR #83 at `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
+- Verified pre-merge source head: `f89841ca9375ed5b8da496ec36e8c2efe2a8a437`, all current PR source workflows green.
 - Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
-- Corrective source work now includes stale-owner physical retirement, initial-only Museum BASE recovery, proportional HMMWV/BTR fitting, M2 mount alignment, fullscreen + 60 FPS recovery guard.
-- Current branch: `fix/pass45-runtime-rejection-20260825`.
-- Current corrective source status: **CODED_UNTESTED**.
+- Current source status: **CODED_UNTESTED** for runtime behavior/visual acceptance.
 - Runtime verification: **NOT ACHIEVED**.
+- Next authority step: local `main` update followed by `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` factual UE 5.8 build/playtest.
 
 ### Corrective source milestone — 2026-08-25 Museum/vehicle ownership
 
-Current corrective source state is **CODED_UNTESTED**:
+Current merged corrective source state is **CODED_UNTESTED**:
 
 - R13.7 is the single visible Museum exterior owner; prototype trees/static glass/static door slabs/wrong service prototype were removed from primary authoring.
 - R13.8 owns hidden collision plus final `AOCMuseumBreakableWindow` glass only; generic prototype doors were removed.
@@ -440,8 +453,7 @@ Current corrective source state is **CODED_UNTESTED**:
 
 None of these source changes are runtime acceptance. Local UE 5.8 build/playtest remains mandatory.
 
-
-### 8.1 Corrective owner audit extension — 2026-08-25
+### 10.1 Corrective owner audit extension — 2026-08-25
 
 All items below are **CODED_UNTESTED** until factual local UE runtime acceptance.
 
@@ -449,5 +461,18 @@ All items below are **CODED_UNTESTED** until factual local UE runtime acceptance
 - Current contract is validation-only: `R13.7 = visible exterior`, `R13.8 = hidden interaction collision + final breakable glass`; the layer validator may only observe and emit `PASS45_MUSEUM_LAYER_VALIDATION_READY/FAIL`, with `mutation=0` and `primary_authoring_fix_required=1` on failure.
 - R13.7 no longer creates even empty prototype glass/door components; obsolete visible/prototype ownership is removed at source rather than hidden later.
 - `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd` no longer requires retired Pass30 speculative-interior or Pass32 repair READY markers. It requires the current validation-only Museum evidence.
-- Production model integration CI now validates proportional native-bounds HMMWV/BTR grounding and explicitly rejects reintroduction of per-axis non-uniform fitting.
+- Production model integration CI validates proportional native-bounds HMMWV/BTR grounding and explicitly rejects reintroduction of per-axis non-uniform fitting.
 - Historical local build failure remains preserved separately: **LOCAL UE BUILD REJECTED**, including tactical-map **C2131** and deprecated Interchange `auto_detect_mesh_type`; later source fixes do not erase that factual attempt.
+
+## 11. Next factual action
+
+Repository-side Pass45 source work is merged and source CI is green. The next acceptance step is **not another source declaration**. It is a fresh local UE 5.8 run from current `main`.
+
+Required local route:
+
+1. `git switch main`
+2. `git pull origin main`
+3. run `START_HERE.cmd`
+4. choose `1. ЗВИЧАЙНА ГРА`
+
+The resulting screenshot/log/runtime observation becomes the next authority input. If FPS collapses or the machine heats abnormally, close the run immediately and keep the failure evidence.
