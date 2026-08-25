@@ -1,0 +1,122 @@
+name: Pass45 enterable yard cleanup patch
+
+on:
+  push:
+    branches:
+      - fix/pass45-postmerge-content-closure-20260825
+    paths:
+      - .github/workflows/pass45-enterable-yard-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pass45-postmerge-content-closure-20260825
+          fetch-depth: 0
+      - name: Patch rejected enterable-house yard replacements
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          h = Path('OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h')
+          c = Path('OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp')
+          hs = h.read_text(encoding='utf-8')
+          cs = c.read_text(encoding='utf-8')
+
+          for line in (
+              '    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealYardFence;\n',
+              '    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealSideShed;\n',
+              '    static void AddFittedFenceLine(UInstancedStaticMeshComponent* Component, const FVector& Center,\n        float LengthCm, float YawDegrees, float GroundZCm = 0.0f);\n',
+          ):
+              if line not in hs:
+                  raise SystemExit(f'header patch anchor missing: {line!r}')
+              hs = hs.replace(line, '')
+
+          for line in (
+              '    RealYardFence = MakeHousePropISM(this, SceneRoot, TEXT("RealYardFence"));\n',
+              '    RealSideShed = MakeHousePropISM(this, SceneRoot, TEXT("RealSideShed"));\n',
+              '    static ConstructorHelpers::FObjectFinder<UStaticMesh> FenceMesh(\n        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Fence_Old_1_2m.Fence_Old_1_2m"));\n',
+              '    static ConstructorHelpers::FObjectFinder<UStaticMesh> SideShedMesh(\n        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Side_Shed.Side_Shed"));\n',
+              '    if (FenceMesh.Succeeded()) RealYardFence->SetStaticMesh(FenceMesh.Object);\n',
+              '    if (SideShedMesh.Succeeded()) RealSideShed->SetStaticMesh(SideShedMesh.Object);\n',
+          ):
+              if line not in cs:
+                  raise SystemExit(f'cpp patch anchor missing: {line!r}')
+              cs = cs.replace(line, '')
+
+          cs, count = re.subn(
+              r'\nvoid AOCEnterableHouse::AddFittedFenceLine\(UInstancedStaticMeshComponent\* Component, const FVector& Center,\n.*?\n\}\n\nvoid AOCEnterableHouse::BuildShell',
+              '\nvoid AOCEnterableHouse::BuildShell',
+              cs,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit(f'AddFittedFenceLine removal count={count}')
+
+          start = cs.find('void AOCEnterableHouse::BuildYard()')
+          end = cs.find('\nFTransform AOCEnterableHouse::MakeWorldTransform', start)
+          if start < 0 or end <= start:
+              raise SystemExit('BuildYard range not found')
+          new_yard = r'''void AOCEnterableHouse::BuildYard()
+{
+    // Pass45: preserve the established yard topology/collision without presenting an unreferenced
+    // rural-cabin fence or Side_Shed as Oster production art. Reference-faithful exterior assets
+    // may replace this semantic baseline later, but generic asset-pack exterior replacement is retired.
+    AddBox(YardFences, FVector(-1450.0f, -1750.0f, 85.0f), FVector(1050.0f, 35.0f, 170.0f));
+    AddBox(YardFences, FVector(850.0f, -1750.0f, 85.0f), FVector(2500.0f, 35.0f, 170.0f));
+    AddBox(YardFences, FVector(0.0f, 1750.0f, 85.0f), FVector(4000.0f, 35.0f, 170.0f));
+    AddBox(YardFences, FVector(-2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
+    AddBox(YardFences, FVector(2000.0f, 0.0f, 85.0f), FVector(35.0f, 3500.0f, 170.0f));
+
+    // Path from the gate to the front door remains semantic gameplay geometry.
+    AddBox(YardPaths, FVector(-585.0f, -1150.0f, 5.0f), FVector(170.0f, 1200.0f, 10.0f));
+
+    if (RealWheelBarrow && RealWheelBarrow->GetStaticMesh())
+    {
+        AddFittedGroundProp(RealWheelBarrow, FVector(1180.0f, 430.0f, 0.0f), 145.0f, -28.0f);
+    }
+    if (RealMetalBarrel && RealMetalBarrel->GetStaticMesh())
+    {
+        AddFittedGroundProp(RealMetalBarrel, FVector(1500.0f, 760.0f, 0.0f), 88.0f, 7.0f);
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_ENTERABLE_YARD_GENERIC_EXTERIOR_RETIRED semantic_fence=1 rural_fence_mesh=0 side_shed=0 unreferenced_tower_candidate=0"));
+}
+'''
+          cs = cs[:start] + new_yard + cs[end:]
+
+          forbidden = (
+              'RealYardFence', 'RealSideShed', 'Fence_Old_1_2m.Fence_Old_1_2m',
+              'Side_Shed.Side_Shed', 'AddFittedFenceLine',
+          )
+          for token in forbidden:
+              if token in hs + cs:
+                  raise SystemExit(f'forbidden token remains: {token}')
+          required = (
+              'PASS45_ENTERABLE_YARD_GENERIC_EXTERIOR_RETIRED',
+              'semantic_fence=1', 'rural_fence_mesh=0', 'side_shed=0',
+              'BuildHouseholdProps();', 'SpawnInteractiveOpeningsServer();',
+          )
+          for token in required:
+              if token not in hs + cs:
+                  raise SystemExit(f'required token missing: {token}')
+
+          h.write_text(hs, encoding='utf-8')
+          c.write_text(cs, encoding='utf-8')
+      - name: Commit source-only cleanup
+        shell: bash
+        run: |
+          git config user.name "Pass45 CI Patch"
+          git config user.email "actions@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp
+          git diff --cached --check
+          git commit -m "fix(pass45): retire generic enterable-house yard fence and shed"
+          git push origin HEAD:fix/pass45-postmerge-content-closure-20260825
