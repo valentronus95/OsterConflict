@@ -13,6 +13,7 @@ EXPECTED = (
     ("M2", "/Game/Production/Weapons/M2/SM_M2_Browning"),
     ("BTR4", "/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus"),
 )
+BTR_DEST = "/Game/Production/Vehicles/BTR4"
 
 
 def fail(message):
@@ -41,6 +42,60 @@ def static_material_interfaces(asset):
         except Exception:
             result.append(None)
     return result
+
+
+def package_name(asset_path):
+    return str(asset_path).split(".", 1)[0]
+
+
+def verify_btr_texture_dependencies(materials):
+    """Reject the white-shell class of failure where imported materials exist but use no imported BTR texture."""
+    asset_paths = list(unreal.EditorAssetLibrary.list_assets(BTR_DEST, recursive=True, include_folder=False) or [])
+    material_packages = {package_name(material.get_path_name()) for material in materials if material is not None}
+    discovered_material_packages = set()
+    texture_paths = []
+
+    for asset_path in asset_paths:
+        asset = unreal.load_asset(asset_path)
+        if asset is None:
+            continue
+        if isinstance(asset, unreal.MaterialInterface):
+            discovered_material_packages.add(package_name(asset.get_path_name()))
+        elif isinstance(asset, unreal.Texture):
+            texture_paths.append(str(asset.get_path_name()))
+
+    owned_material_packages = material_packages.intersection(discovered_material_packages)
+    if not owned_material_packages:
+        fail(
+            f"BTR4 authored-material dependency gap: canonical mesh materials are not present under {BTR_DEST}. "
+            f"mesh_materials={sorted(material_packages)} discovered_materials={sorted(discovered_material_packages)}"
+        )
+    if not texture_paths:
+        fail(f"BTR4 authored-texture dependency gap: no imported Texture asset exists under {BTR_DEST}")
+
+    referenced_textures = []
+    for texture_path in texture_paths:
+        referencers = {
+            package_name(ref)
+            for ref in list(
+                unreal.EditorAssetLibrary.find_package_referencers_for_asset(
+                    texture_path, load_assets_to_confirm=True
+                ) or []
+            )
+        }
+        if referencers.intersection(owned_material_packages):
+            referenced_textures.append(texture_path)
+
+    if not referenced_textures:
+        fail(
+            "BTR4 authored-texture dependency gap: imported BTR material assets exist, but none reference an "
+            f"imported BTR texture. materials={sorted(owned_material_packages)} textures={sorted(texture_paths)}"
+        )
+
+    unreal.log(
+        f"[OC Fresh Production Load] BTR4_TEXTURE_DEPENDENCIES_READY materials={len(owned_material_packages)} "
+        f"textures={len(texture_paths)} referenced_textures={len(referenced_textures)} white_default_guard=1"
+    )
 
 
 def main():
@@ -82,6 +137,9 @@ def main():
                 f"Canonical production mesh is not authored-material ready: {object_path} "
                 f"placeholder_slots={placeholder_slots} materials={material_paths}"
             )
+
+        if label == "BTR4":
+            verify_btr_texture_dependencies(materials)
 
         loaded.append(object_path)
         unreal.log(
