@@ -26,6 +26,8 @@ retired_paths = [
     SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp",
     SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h",
     SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp",
+    SRC / "Public" / "OCLandmarkShellOwnershipGuardSubsystem.h",
+    SRC / "Private" / "OCLandmarkShellOwnershipGuardSubsystem.cpp",
     SRC / "Public" / "OCR137MuseumSiteReplacementSubsystem.h",
     SRC / "Private" / "OCR137MuseumSiteReplacementSubsystem.cpp",
     SRC / "Public" / "OCR13MuseumStadiumPhotoFidelitySubsystem.h",
@@ -42,6 +44,7 @@ retired_class_names = (
     "OCWorldProductionVisualsSubsystem",
     "OCMuseumCoreRecoverySubsystem",
     "OCMuseumVisibilityPass37Subsystem",
+    "OCLandmarkShellOwnershipGuardSubsystem",
     "OCR137MuseumSiteReplacementSubsystem",
     "OCR13MuseumStadiumPhotoFidelitySubsystem",
     "OCWeaponPalettePass37Subsystem",
@@ -54,6 +57,7 @@ for path in list(SRC.rglob("*.cpp")) + list(SRC.rglob("*.h")):
 
 museum_cpp = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 museum_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
+landmark_validation = read(SRC / "Private" / "OCR146LandmarkSeparationSubsystem.cpp")
 pickup_cpp = read(SRC / "Private" / "OCPickupGunTruck.cpp")
 btr_cpp = read(SRC / "Private" / "OCBTR.cpp")
 launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
@@ -72,6 +76,22 @@ req("LastValidatedPawnByController" not in museum_cpp + museum_h,
     "legacy pawn-pointer revalidation cache returned; vehicle enter/exit can be mistaken for deployment")
 req("APawn* Pawn = PC->GetPawn()" not in museum_cpp,
     "Museum guard again validates arbitrary possessed pawns instead of AOCCharacter only")
+
+# Landmark separation may observe/fail only; no late cleanup is allowed to mask primary-authoring errors.
+for needle in (
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_SCHEDULED",
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
+    "mutation=0",
+    "primary_authoring_fix_required=1",
+):
+    req(needle in landmark_validation, f"validation-only landmark contract missing: {needle}")
+for forbidden in (
+    "RemoveInstance(",
+    "->Destroy()",
+    "AddOnActorSpawnedHandler",
+):
+    req(forbidden not in landmark_validation, f"late landmark mutation returned: {forbidden}")
 
 # Production vehicles may not be independently stretched per axis to fit proxy boxes.
 for name, text, marker in (
@@ -114,9 +134,10 @@ if errors:
 
 print("PASS45 STALE RUNTIME RETIREMENT: PASS")
 print("- rejected B2 world visual owner is physically deleted")
-print("- late Museum core-recovery and destructive visibility rebuild owners are physically deleted")
+print("- late Museum core-recovery / visibility-rebuild / duplicate-destroy guards are physically deleted")
 print("- inert R13.7 site-replacement / R13 museum-stadium compatibility shells are physically deleted")
 print("- retired weapon palette compatibility shell is physically deleted")
+print("- landmark separation is validation-only and cannot repair the world late")
 print("- stale B2 completion verifier/workflow cannot force the rejected owner back")
 print("- Museum BASE recovery is initial-character-only, not vehicle-possession-driven")
 print("- HMMWV/BTR production meshes preserve native proportions")
