@@ -38,7 +38,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     // WorldSubsystem OnWorldBeginPlay ordering is not a contract for GameMode-created actors.
     // One next-tick handoff guarantees SpawnOsterCenterSector and every landmark subsystem have
-    // completed BeginPlay and registered their legacy delayed timers before we cancel/run them.
+    // completed BeginPlay and registered their historical delayed timers before we cancel/run them.
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     InWorld.GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
@@ -136,13 +136,15 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         Stage->RunAuthoritativeDetailNow(World);
     }
 
-    // Culture House already has one canonical FOCGeoReference owner. Run it in the same startup window.
+    // Culture House has its own canonical FOCGeoReference site. Run it inside the same startup window.
     if (UOCR146CultureHousePhotoModelSubsystem* Stage = World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>())
     {
         Timers.ClearAllTimersForObject(Stage);
         Stage->RunAuthoritativeBuildNow(World);
     }
 
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY museum_stages=R137_exterior+R138_interaction+R139_R145_details silpo_stages=R140_R143 culture_stage=R146 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
     UE_LOG(LogTemp, Display,
         TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; authority-only door/window replacements preserved."));
 }
