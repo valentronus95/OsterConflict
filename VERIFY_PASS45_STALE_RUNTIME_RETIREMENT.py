@@ -18,7 +18,7 @@ def req(condition: bool, message: str) -> None:
         errors.append(message)
 
 
-# Runtime-rejected, inert, or temporary historical owners must stay physically retired.
+# Runtime-rejected, inert, temporary, or superseded historical owners must stay physically retired.
 retired_paths = [
     SRC / "Public" / "OCWorldProductionVisualsSubsystem.h",
     SRC / "Private" / "OCWorldProductionVisualsSubsystem.cpp",
@@ -32,11 +32,15 @@ retired_paths = [
     SRC / "Private" / "OCR137MuseumSiteReplacementSubsystem.cpp",
     SRC / "Public" / "OCR13MuseumStadiumPhotoFidelitySubsystem.h",
     SRC / "Private" / "OCR13MuseumStadiumPhotoFidelitySubsystem.cpp",
+    SRC / "Public" / "OCR141MuseumWindowReplacementSubsystem.h",
+    SRC / "Private" / "OCR141MuseumWindowReplacementSubsystem.cpp",
     SRC / "Public" / "OCWeaponPalettePass37Subsystem.h",
     SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp",
     ROOT / "VERIFY_PASS45_COMPLETION_AUDIT.py",
     ROOT / ".github" / "workflows" / "pass45-completion-audit.yml",
     ROOT / ".github" / "workflows" / "pass45-targeted-source-patch.yml",
+    ROOT / ".github" / "workflows" / "pass45-vehicle-transform-trace-patch.yml",
+    ROOT / ".github" / "workflows" / "pass45-museum-ownership-cleanup-patch.yml",
 ]
 for path in retired_paths:
     req(not path.exists(), f"stale/rejected runtime contract resurrected: {path.relative_to(ROOT)}")
@@ -48,6 +52,7 @@ retired_class_names = (
     "OCLandmarkShellOwnershipGuardSubsystem",
     "OCR137MuseumSiteReplacementSubsystem",
     "OCR13MuseumStadiumPhotoFidelitySubsystem",
+    "OCR141MuseumWindowReplacementSubsystem",
     "OCWeaponPalettePass37Subsystem",
 )
 for path in list(SRC.rglob("*.cpp")) + list(SRC.rglob("*.h")):
@@ -59,11 +64,17 @@ for path in list(SRC.rglob("*.cpp")) + list(SRC.rglob("*.h")):
 museum_spawn = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 museum_spawn_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
 landmark_validation = read(SRC / "Private" / "OCR146LandmarkSeparationSubsystem.cpp")
+r137 = read(SRC / "Private" / "OCR137MuseumPhotoModelSubsystem.cpp")
 r138_h = read(SRC / "Public" / "OCR138MuseumInteractiveArchitectureSubsystem.h")
 r138 = read(SRC / "Private" / "OCR138MuseumInteractiveArchitectureSubsystem.cpp")
+r140 = read(SRC / "Private" / "OCR140MuseumFacadeDetailSubsystem.cpp")
+r145 = read(SRC / "Private" / "OCR145MuseumTreeLayoutSubsystem.cpp")
+museum_window = read(SRC / "Private" / "OCMuseumBreakableWindow.cpp")
+startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 pickup_cpp = read(SRC / "Private" / "OCPickupGunTruck.cpp")
 btr_cpp = read(SRC / "Private" / "OCBTR.cpp")
 vehicle_base = read(SRC / "Private" / "OCVehicleBase.cpp")
+armed_vehicle = read(SRC / "Private" / "OCArmedVehicleBase.cpp")
 vehicle_guard_h = read(SRC / "Public" / "OCProductionVehicleVisualGuardSubsystem.h")
 vehicle_guard = read(SRC / "Private" / "OCProductionVehicleVisualGuardSubsystem.cpp")
 character = read(SRC / "Private" / "OCCharacter.cpp")
@@ -100,7 +111,29 @@ for forbidden in (
 ):
     req(forbidden not in landmark_validation, f"late landmark mutation returned: {forbidden}")
 
-# Museum ownership is now explicit: R13.7 is the one visible exterior; R13.8 is hidden collision + interaction only.
+# Museum ownership is explicit and single-purpose.
+# R13.7 = one visible exterior and reference trim/grilles. No prototype trees, doors, glass or service gable.
+for needle in (
+    "PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY",
+    "visible_shell_owner=R137",
+    "static_glass=0",
+    "prototype_doors=0",
+    "prototype_trees=0",
+    "prototype_service_gable=0",
+    "breakable actor owns visible glass",
+):
+    req(needle in r137, f"R13.7 primary exterior ownership contract missing: {needle}")
+for forbidden in (
+    "R137Museum_RedTimberGable",
+    "R137Museum_Pine01",
+    "R137Museum_Pine03",
+    "R137Museum_Deciduous01",
+    "FVector(-62.0f, -672.0f, 205.0f)",
+    "FVector(965.0f, -155.0f, 385.0f)",
+):
+    req(forbidden not in r137, f"R13.7 obsolete visible prototype returned: {forbidden}")
+
+# R13.8 = hidden collision plus final breakable glass. It never draws a second shell or prototype door.
 for needle in (
     "R13.7 is the single visible Museum exterior",
     "R13.8 must never suppress, repaint or replace",
@@ -108,6 +141,9 @@ for needle in (
     "BuildInteractionCollisionArchitecture",
     "SetVisibility(false, true)",
     "SetHiddenInGame(true, true)",
+    "AOCMuseumBreakableWindow",
+    "final_window_class=1",
+    "prototype_doors=0",
     "PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED",
     "PASS45_MUSEUM_R138_COLLISION_ONLY_READY",
     "PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY",
@@ -123,9 +159,55 @@ for forbidden in (
     "BuildSegmentedArchitecture",
     "MakeMuseumMID",
     "MakeDetailISM",
+    "SpawnMuseumDoor",
+    "AOCBreakableWindow* Window",
     'R138_MuseumHighFidelityArchitecture',
 ):
-    req(forbidden not in r138_h + r138, f"old second-visible-shell R13.8 behavior returned: {forbidden}")
+    req(forbidden not in r138_h + r138, f"old second-shell/prototype R13.8 behavior returned: {forbidden}")
+
+# Interactive Museum windows render glass/debris only. R13.7 owns the visible frame/grille layer.
+for needle in (
+    "PASS45_MUSEUM_WINDOW_GLASS_ONLY_READY",
+    "visible_frame_owner=R137",
+    "interactive_frame_visible=0",
+    "static_glass=0",
+    "Component->SetVisibility(false, true)",
+    "Component->SetHiddenInGame(true, true)",
+):
+    req(needle in museum_window, f"Museum glass-only interaction contract missing: {needle}")
+
+# R14.0 and R14.5 only author their final details; they never hide/remove earlier Museum content.
+for needle in (
+    "PASS45_MUSEUM_R140_DETAIL_ONLY_READY",
+    "late_r137_suppression=0",
+    "instance_removal=0",
+):
+    req(needle in r140, f"R14.0 detail-only contract missing: {needle}")
+for forbidden in (
+    "SuppressIncorrectR137GableAndCanopy",
+    "WrongCanopyTarget",
+    "RemoveInstance(",
+):
+    req(forbidden not in r140, f"R14.0 late exterior mutation returned: {forbidden}")
+for needle in (
+    "PASS45_MUSEUM_TREE_SINGLE_OWNER_READY",
+    "owner=R145",
+    "r137_tree_pass=0",
+    "late_hide=0",
+):
+    req(needle in r145, f"R14.5 single tree-owner contract missing: {needle}")
+req("HideR137MuseumTrees" not in r145, "R14.5 late tree hide helper returned")
+
+# Startup coordinator must not reference the physically retired Museum window replacement stage.
+for needle in (
+    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+    "window_replacement_stage=0",
+    "R138_collision_glass",
+    "R139_R140_doors_facade",
+):
+    req(needle in startup, f"coordinated current Museum startup contract missing: {needle}")
+req("OCR141MuseumWindowReplacementSubsystem" not in startup,
+    "retired R14.1 Museum window replacement stage returned to coordinator")
 
 # Production vehicles may not be independently stretched per axis to fit proxy boxes.
 for name, text, marker in (
@@ -176,6 +258,26 @@ for forbidden in (
 ):
     req(forbidden not in vehicle_guard, f"legacy production material repair returned: {forbidden}")
 
+# Driver/gunner transforms must remain local to the current vehicle, with fail-visible telemetry.
+for needle in (
+    "PASS45_VEHICLE_ENTER_TRANSFORM_READY",
+    "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL",
+    "PASS45_VEHICLE_EXIT_TRANSFORM_READY",
+    "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL",
+    "museum_respawn_path=0",
+    "requested_exit=",
+    "resulting_pawn=",
+):
+    req(needle in vehicle_base, f"driver vehicle transform evidence missing: {needle}")
+for needle in (
+    "PASS45_GUNNER_EXIT_TRANSFORM_READY",
+    "PASS45_GUNNER_EXIT_TRANSFORM_FAIL",
+    "museum_respawn_path=0",
+    "requested_exit=",
+    "resulting_pawn=",
+):
+    req(needle in armed_vehicle, f"gunner vehicle transform evidence missing: {needle}")
+
 # M2 gunner vertical aim follows normal default mouse direction: invert OFF => mouse up raises pitch.
 for needle in (
     "const float GunnerPitchSign = Settings->bInvertMouseY ? -1.0f : 1.0f;",
@@ -210,14 +312,16 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 STALE RUNTIME RETIREMENT: PASS")
-print("- rejected B2 world visual owner and late Museum rebuild/duplicate guards remain physically deleted")
-print("- temporary targeted source-patch workflow is deleted after use")
+print("- rejected B2 visual owners, late Museum rebuild guards and obsolete R14.1 window replacement remain physically deleted")
+print("- temporary source-patch workflows are deleted after use")
 print("- landmark separation is validation-only and cannot repair the world late")
-print("- R13.7 is the one visible Museum exterior; R13.8 is hidden collision/interactivity only")
+print("- R13.7 is the one visible Museum exterior; R13.8 owns hidden collision + final breakable glass only")
+print("- R14.0 is additive final facade detail; R14.5 is the sole current Museum tree owner")
 print("- Museum BASE recovery is initial-character-only, not vehicle-possession-driven")
 print("- HMMWV/BTR production meshes preserve native proportions")
 print("- VehicleBase skips legacy tint for production assets at the primary source")
 print("- production vehicle material validator is read-only, one-shot and fail-visible")
+print("- driver/gunner enter-exit transforms emit fail-visible local vehicle evidence")
 print("- M2 gunner pitch defaults to mouse-up raises aim")
 print("- normal recovery route is fullscreen with 60 FPS thermal cap")
 print("STATUS: SOURCE CONTRACT ONLY; local UE runtime remains authoritative")
