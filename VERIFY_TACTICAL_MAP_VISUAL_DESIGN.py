@@ -3,7 +3,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 VISUAL = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp"
 MAP_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCTacticalMapSubsystem.h"
-WORLD_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h"
 NORMAL_RUN = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 SANDBOX_RUN = ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd"
 
@@ -21,7 +20,6 @@ def require(condition: bool, message: str) -> None:
 
 visual = read(VISUAL)
 map_h = read(MAP_H)
-world_h = read(WORLD_H)
 normal_run = read(NORMAL_RUN)
 sandbox_run = read(SANDBOX_RUN)
 
@@ -34,19 +32,33 @@ require("TacticalMapWorldCapture" in visual and "ESlateVisibility::Collapsed" in
 require("TacticalField" in visual and "TacticalBackdrop" in visual,
         "dark tactical base palette is missing")
 
-# World geometry, not generated screenshot geography, still drives the vector layer INSIDE the hard playable frame.
-for getter in (
-    "GetTacticalRoads", "GetTacticalSidewalks", "GetTacticalBuildings",
-    "GetTacticalResidentialRoofs", "GetTacticalLandmarkBlocks",
-    "GetTacticalLandmarkRoofs", "GetTacticalStadiumGeometry", "GetTacticalParkGeometry",
+# Pass 45 supersedes the old world-ISM topology source. The production vector layer is now traced from
+# the retained 640x630 central-Oster reference and projected through the same hard compact frame.
+for marker in (
+    "Pass45ReferenceWidthPx = 640.0f",
+    "Pass45ReferenceHeightPx = 630.0f",
+    "Pass45ReferenceRoads[]",
+    "ReferencePixelToSectorLocal",
+    "for (const FPass45ReferenceRoadSegment& Segment : Pass45ReferenceRoads)",
+    "PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY",
+    "procedural_road_ism=0",
+    "procedural_sidewalk_ism=0",
+    "procedural_building_ism=0",
 ):
-    require(getter in world_h, f"world semantic getter missing: {getter}")
-    require(getter in visual, f"vector renderer does not consume: {getter}")
-require("GetInstanceTransform" in visual, "vector map is not built from actual instance transforms")
-require("WorldToMap(WorldLocation)" in visual, "world geometry is not projected through the tactical-map projection")
+    require(marker in visual, f"Pass 45 reference topology contract missing: {marker}")
 
-# Pass 44 supersedes the old component/anchor auto-fit. The M-map frame is now the exact user-approved
-# playable boundary. Landmarks are rendered as POIs inside that frame, but they must not enlarge it.
+# Old procedural world components must not silently become tactical geography again.
+for stale_call in (
+    "Sector->GetTacticalRoads()",
+    "Sector->GetTacticalSidewalks()",
+    "Sector->GetTacticalBuildings()",
+    "Sector->GetTacticalResidentialRoofs()",
+    "Sector->GetTacticalLandmarkBlocks()",
+    "Sector->GetTacticalLandmarkRoofs()",
+):
+    require(stale_call not in visual, f"superseded procedural topology source returned: {stale_call}")
+
+# Pass 44 compact bounds remain the hard frame. Pass 45 changes topology authority, not the user-approved extent.
 require("ReframeProjectionForCentralOster" in map_h and "ReframeProjectionForCentralOster" in visual,
         "central-Oster production framing is missing")
 for marker in (
@@ -69,17 +81,24 @@ for stale in (
 ):
     require(stale not in visual, f"superseded tactical auto-fit returned: {stale}")
 require("ResolveWorldMapSource() && CaptureWorldMap()" in map_h,
-        "Pass 44 map snapshot does not re-resolve compact central-Oster bounds before capture")
+        "map snapshot does not re-resolve compact central-Oster bounds before capture")
 
-# Current user-facing POIs remain inside the compact frame. Their presence is a display contract, not a framing input.
-for poi in (
+# Current POIs use one geo-reference authority and remain display inputs, never framing inputs.
+for marker in (
+    "FOCGeoReference::Museum()",
+    "FOCGeoReference::Stadium()",
+    "FOCGeoReference::CentralPark()",
+    "FOCGeoReference::CultureHouse()",
+    "FOCGeoReference::Silpo()",
+    "FOCGeoReference::FormerCityAdministration()",
     'AddLandmarkMarker(TEXT("МУЗЕЙ")',
     'AddLandmarkMarker(TEXT("СТАДІОН")',
     'AddLandmarkMarker(TEXT("ПАРК")',
+    'AddLandmarkMarker(TEXT("БУДИНОК КУЛЬТУРИ")',
+    'AddLandmarkMarker(TEXT("СІЛЬПО")',
     'AddLandmarkMarker(TEXT("ЦЕНТР")',
 ):
-    require(poi in visual, f"production POI chip missing: {poi}")
-require("FOCGeoReference::Silpo" in visual, "Silpo POI is missing from the compact tactical map")
+    require(marker in visual, f"production geo POI contract missing: {marker}")
 
 # Decluttering / production chrome.
 require("TacticalMapPlayerCoordinates" in visual and "Collapsed" in visual,
@@ -99,7 +118,7 @@ for marker in (
     'git fetch origin "%FETCH_BRANCH%"',
     'git rev-parse "%REMOTE_REF%"',
     'Local %CURRENT_BRANCH% is not current GitHub %REMOTE_REF%',
-    '/C:"fix/runtime-map-spawn-fps-assets-"',
+    '/C:"fix/runtime-recovery-"',
 ):
     require(marker in normal_run, f"normal launcher branch-aware stale-source guard missing: {marker}")
 require("LOCAL_HEAD" in normal_run and "REMOTE_HEAD" in normal_run,
@@ -114,4 +133,4 @@ for marker in (
 require("LOCAL_HEAD" in sandbox_run and "REMOTE_HEAD" in sandbox_run,
         "sandbox launcher does not compare local and GitHub main")
 
-print("Tactical Map production visual design + Pass 44 hard-bound launch contracts: PASS")
+print("Tactical Map production visual design + Pass 45 reference topology contracts: PASS")
