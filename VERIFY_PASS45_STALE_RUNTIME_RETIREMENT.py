@@ -22,6 +22,14 @@ def req(condition: bool, message: str) -> None:
 retired_paths = [
     SRC / "Public" / "OCWorldProductionVisualsSubsystem.h",
     SRC / "Private" / "OCWorldProductionVisualsSubsystem.cpp",
+    SRC / "Public" / "OCWorldAssetModelsSubsystem.h",
+    SRC / "Private" / "OCWorldAssetModelsSubsystem.cpp",
+    SRC / "Public" / "OCAssetModelDecorator.h",
+    SRC / "Private" / "OCAssetModelDecorator.cpp",
+    SRC / "Public" / "OCRecoveredEnvironmentSubsystem.h",
+    SRC / "Private" / "OCRecoveredEnvironmentSubsystem.cpp",
+    SRC / "Public" / "OCRecoveredBuildingDetailsSubsystem.h",
+    SRC / "Private" / "OCRecoveredBuildingDetailsSubsystem.cpp",
     SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h",
     SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp",
     SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h",
@@ -37,7 +45,9 @@ retired_paths = [
     SRC / "Public" / "OCWeaponPalettePass37Subsystem.h",
     SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp",
     ROOT / "VERIFY_PASS45_COMPLETION_AUDIT.py",
+    ROOT / "VERIFY_OSTER_WORLD_MODELS_PASS.py",
     ROOT / ".github" / "workflows" / "pass45-completion-audit.yml",
+    ROOT / ".github" / "workflows" / "oster-world-models-pass.yml",
     ROOT / ".github" / "workflows" / "pass45-targeted-source-patch.yml",
     ROOT / ".github" / "workflows" / "pass45-vehicle-transform-trace-patch.yml",
     ROOT / ".github" / "workflows" / "pass45-museum-ownership-cleanup-patch.yml",
@@ -47,6 +57,10 @@ for path in retired_paths:
 
 retired_class_names = (
     "OCWorldProductionVisualsSubsystem",
+    "OCWorldAssetModelsSubsystem",
+    "OCAssetModelDecorator",
+    "OCRecoveredEnvironmentSubsystem",
+    "OCRecoveredBuildingDetailsSubsystem",
     "OCMuseumCoreRecoverySubsystem",
     "OCMuseumVisibilityPass37Subsystem",
     "OCLandmarkShellOwnershipGuardSubsystem",
@@ -312,8 +326,8 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 STALE RUNTIME RETIREMENT: PASS")
-print("- rejected B2 visual owners, late Museum rebuild guards and obsolete R14.1 window replacement remain physically deleted")
-print("- temporary source-patch workflows are deleted after use")
+print("- rejected B2, generic village/decorator, recovered environment/building and late Museum owners remain physically deleted")
+print("- stale world-model verifier/workflow and temporary source-patch workflows stay retired")
 print("- landmark separation is validation-only and cannot repair the world late")
 print("- R13.7 is the one visible Museum exterior; R13.8 owns hidden collision + final breakable glass only")
 print("- R14.0 is additive final facade detail; R14.5 is the sole current Museum tree owner")
