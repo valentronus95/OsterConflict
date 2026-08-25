@@ -16,48 +16,47 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS35 VERIFY FAIL: {label}: missing {needle!r}")
 
 
-museum_guard_h = read(SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h")
-museum_guard = read(SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp")
+def require_absent(path: Path, label: str) -> None:
+    if path.exists():
+        raise SystemExit(f"PASS35 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
+
+
+# Pass 45 supersedes the old Pass 35 Museum recovery owner. It used a delayed carrier/rebuild path that
+# could create a second visible Museum and replay later detail stages after the current startup owner.
+for path, label in (
+    (SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h", "Museum core recovery header"),
+    (SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp", "Museum core recovery source"),
+):
+    require_absent(path, label)
+
 map_guard_h = read(SRC / "Public" / "OCTacticalMapPlayerMarkerGuardSubsystem.h")
 map_guard = read(SRC / "Private" / "OCTacticalMapPlayerMarkerGuardSubsystem.cpp")
 r137 = read(SRC / "Private" / "OCR137MuseumPhotoModelSubsystem.cpp")
 r138 = read(SRC / "Private" / "OCR138MuseumInteractiveArchitectureSubsystem.cpp")
+startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 tactical = read(SRC / "Private" / "OCTacticalMapSubsystem.cpp")
 
-require(museum_guard_h, "UOCMuseumCoreRecoverySubsystem", "museum recovery class")
+# Museum startup now uses the explicit coordinator instead of a second delayed recovery owner.
 for needle in (
-    'MuseumPrototypeTag(TEXT("R137_MuseumPhotoModel"))',
-    'MuseumArchitectureTag(TEXT("R138_MuseumHighFidelityArchitecture"))',
-    'PASS35_MUSEUM_OWNER_CARRIER_RECOVERED',
-    'RunAuthoritativeUpgradeNow(*World)',
-    'PASS35_MUSEUM_DETAIL_REPLAY_COMPLETE',
-    'PASS35_MUSEUM_CORE_READY',
-    'PASS35_MUSEUM_CORE_FAIL',
-    'PASS35_MUSEUM_BASE_DISTANCE_READY',
-    'MuseumNoSpawnRadiusCm = 3000.0f',
-    'MuseumNearbyBaseRadiusCm = 6000.0f',
-    'Roof_Both_Ends_4m.Roof_Both_Ends_4m',
-    'PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=authored_asset',
-    'PASS35_MUSEUM_RECOVERY_PRESENTATION_READY roof=fallback_slabs',
-    'PASS35Museum_RecoveryPlinth',
+    "UOCR137MuseumPhotoModelSubsystem",
+    "UOCR138MuseumInteractiveArchitectureSubsystem",
+    "Timers.ClearAllTimersForObject(Stage)",
+    "Stage->RunAuthoritativeBuildNow(World)",
+    "Stage->RunAuthoritativeUpgradeNow(World)",
 ):
-    require(museum_guard, needle, "museum presence recovery")
-
-# Pass 35 still owns the optional-asset owner/core recovery. Pass 37 adds a stronger visible-structure
-# guard because the latest runtime proved that actor tags alone can pass while the site is visually empty.
-require(r137, "if (!Cube || !Basic || !RoofMesh) return;", "known R13.7 optional-asset failure path")
-require(r138, 'TEXT("R138_MuseumHighFidelityArchitecture")', "R13.8 architecture ownership")
+    require(startup, needle, "single startup window Museum coordination")
+require(r137, 'TEXT("R137_MuseumPhotoModel")', "Museum exterior owner")
+require(r138, 'TEXT("R138_MuseumHighFidelityArchitecture")', "Museum interaction architecture")
 require(r138, "PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED", "museum interior cleanup regression")
 
-# Pass 37 supersedes only the BASE distance presentation: primary BASE is now ~27.8 m from the anchor,
-# still outside the authored shell, and faces the museum directly. Pass 35 map-marker ownership remains.
+# Current BASE/rack placement remains close to Museum and no longer depends on the retired edge world.
 for needle in (
     "FVector(-1400.0f, -2400.0f, 120.0f)",
     "FVector(1400.0f, -2400.0f, 120.0f)",
     "PASS37_RUNTIME_BASE_RACK_NEAR_MUSEUM",
 ):
-    require(spawn, needle, "Pass 37 near-museum BASE compatibility")
+    require(spawn, needle, "near-Museum BASE compatibility")
 
 require(map_guard_h, "UOCTacticalMapPlayerMarkerGuardSubsystem", "map marker guard class")
 for needle in (
@@ -68,14 +67,13 @@ for needle in (
 ):
     require(map_guard, needle, "foreground player marker repair")
 
-# The underlying map still owns projection/position; Pass 35 only fixes presentation priority.
+# Tactical map owns projection/position; Pass 35 only keeps its foreground presentation evidence.
 require(tactical, 'TEXT("TacticalMapPlayerMarker")', "canonical tactical player marker")
 require(tactical, "MarkerSlot->SetPosition(WorldToMap(Location))", "player map projection update")
 require(tactical, "FVector2D(0.5f, 0.5f), 22", "objective marker z-order evidence")
 
-print("RUNTIME LOCATION + MAP PASS 35 SOURCE CONTRACT PASS")
-print("- Pass 35 optional-asset museum owner/core recovery remains present")
-print("- Pass 37 supersedes the old 30-60 m BASE presentation with a closer visible approach")
-print("- R13.8 remains the authoritative enterable museum core")
-print("- Tactical Map player marker is forced above objective/POI labels without duplicating map projection ownership")
-print("STATUS: SOURCE VERIFIED; local UE 5.8 runtime remains required")
+print("RUNTIME LOCATION + MAP PASS 35 FORWARD-PORTED SOURCE CONTRACT PASS")
+print("- stale Pass35 Museum recovery carrier/rebuild owner is physically retired")
+print("- Museum startup is coordinated through the current R13.7/R13.8 startup window")
+print("- Tactical Map foreground player marker ownership remains intact")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime remains required")
