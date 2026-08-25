@@ -233,6 +233,16 @@ void AOCVehicleBase::BeginPlay()
         for (UStaticMeshComponent* Component : MeshComponents)
         {
             if (!Component) continue;
+
+            UStaticMesh* Mesh = Component->GetStaticMesh();
+            const FString AssetPath = Mesh ? Mesh->GetPathName() : FString();
+            if (AssetPath.StartsWith(TEXT("/Game/Production/")))
+            {
+                // Pass45: authored production materials are authoritative. Legacy blockout tinting
+                // may never repaint HMMWV/M2/BTR or any future production mesh after ApplyVehicleStyle().
+                continue;
+            }
+
             const FString Name = Component->GetName();
             FLinearColor Color = BodyColor;
             if (Name.Contains(TEXT("Wheel"))) Color = FLinearColor(0.025f,0.027f,0.026f);
@@ -249,6 +259,8 @@ void AOCVehicleBase::BeginPlay()
         }
     }
 
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY production_override=0 legacy_tint_blockout_only=1"));
     ApplyDamagePresentation();
 }
 

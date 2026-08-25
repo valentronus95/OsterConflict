@@ -369,8 +369,11 @@ void AOCCharacter::LookUp(const FInputActionValue& Value)
             MaxPitch = Armed->GetMaxTurretPitchLimit();
         }
         const UOCPlayerUserSettings* Settings = UOCPlayerUserSettings::Get();
-        const float YSign = Settings->bInvertMouseY ? -1.0f : 1.0f;
-        LocalVehicleGunnerPitch = FMath::Clamp(LocalVehicleGunnerPitch - Value.Get<float>() * 1.15f * Settings->MouseSensitivity * YSign, MinPitch, MaxPitch);
+        const float GunnerPitchSign = Settings->bInvertMouseY ? -1.0f : 1.0f;
+        LocalVehicleGunnerPitch = FMath::Clamp(
+            LocalVehicleGunnerPitch + Value.Get<float>() * 1.15f * Settings->MouseSensitivity * GunnerPitchSign,
+            MinPitch,
+            MaxPitch);
         UpdateVehicleGunnerView();
         if (HasAuthority()) ServerSetVehicleGunnerAim_Implementation(LocalVehicleGunnerYaw, LocalVehicleGunnerPitch);
         else ServerSetVehicleGunnerAim(LocalVehicleGunnerYaw, LocalVehicleGunnerPitch);
@@ -586,6 +589,8 @@ void AOCCharacter::EnterVehicleGunnerServer(AOCArmedVehicleBase* Vehicle, const 
     SetActorLocation(GunnerCameraWorldLocation - FVector(0.0f, 0.0f, 64.0f));
     ApplyVehicleOccupancyPresentation();
     ForceNetUpdate();
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_M2_GUNNER_PITCH_CONTRACT_READY default_invert=0 mouse_up_raises=1 direct_local_pitch=1"));
 }
 
 void AOCCharacter::ExitVehicleGunnerServer(const FVector& ExitLocation, const FRotator& ExitRotation)
