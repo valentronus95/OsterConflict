@@ -6,13 +6,12 @@
 #include "OCMuseumLayerPerformanceGuardSubsystem.generated.h"
 
 /**
- * Late museum-site repair/budget guard.
+ * Pass45 Museum ownership validation.
  *
- * The museum has several historical construction layers (source world, R13.7 prototype,
- * R13.8 enterable architecture and later photo-detail passes). This subsystem runs after
- * authoritative landmark startup and guarantees that old source/prototype geometry cannot
- * remain visible/collidable underneath the current museum while also applying a conservative
- * render budget to decorative museum ISMs.
+ * Historical versions repaired/hid Museum layers after startup. That behavior is forbidden now:
+ * R13.7 is the single visible exterior owner, R13.8 owns hidden interaction collision, and the
+ * primary authoring stages must remove source overlap themselves. This subsystem observes once and
+ * reports failure without changing visibility, collision, transforms, instances, materials or cull state.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCMuseumLayerPerformanceGuardSubsystem : public UWorldSubsystem
@@ -25,13 +24,6 @@ public:
     virtual void Deinitialize() override;
 
 private:
-    FTimerHandle RepairTimer;
     FTimerHandle ValidationTimer;
-
-    int32 TotalSourceInstancesRemoved = 0;
-    int32 TotalObsoletePrototypeComponentsHidden = 0;
-    int32 TotalDecorativeComponentsTuned = 0;
-
-    void RunRepairPass();
-    void RunFinalValidation();
+    void RunValidation();
 };
