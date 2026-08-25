@@ -5,6 +5,8 @@ cd /d "%~dp0"
 
 set "OC_FORCE_ACCEPTANCE=1"
 set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
+set "CONTENT_PREFLIGHT=%~dp0VERIFY_PASS45_REQUIRED_LOCAL_CONTENT.py"
+set "CONTENT_PREFLIGHT_EVIDENCE=%~dp0Logs\PASS45_REQUIRED_CONTENT_PREFLIGHT.txt"
 set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
@@ -16,7 +18,7 @@ echo ============================================================
 echo OSTER CONFLICT - STRICT PASS45 MAIN RUNTIME ACCEPTANCE
 echo ============================================================
 echo This route keeps RUN_R14_CURRENT_GAMEPLAY.cmd as the one normal-game launcher,
-echo then applies Pass45 material/dependency and interaction evidence gates.
+echo then applies Pass45 required-content, material/dependency and interaction evidence gates.
 echo A log-only PASS still does NOT replace the required visual/screenshots acceptance.
 echo.
 
@@ -24,13 +26,40 @@ if not exist "%CURRENT_GAMEPLAY%" (
   echo [ACCEPTANCE] FAILED - normal gameplay launcher is missing: %CURRENT_GAMEPLAY%
   exit /b 2
 )
+if not exist "%CONTENT_PREFLIGHT%" (
+  echo [ACCEPTANCE] FAILED - required-content preflight is missing: %CONTENT_PREFLIGHT%
+  exit /b 3
+)
 if not exist "%MATERIAL_GATE%" (
   echo [ACCEPTANCE] FAILED - strict material gate is missing: %MATERIAL_GATE%
-  exit /b 3
+  exit /b 4
 )
 if not exist "%EVIDENCE_VERIFY%" (
   echo [ACCEPTANCE] FAILED - Pass45 evidence verifier is missing: %EVIDENCE_VERIFY%
-  exit /b 4
+  exit /b 5
+)
+
+set "PY_CMD="
+where py >nul 2>nul
+if not errorlevel 1 set "PY_CMD=py -3"
+if not defined PY_CMD (
+  where python >nul 2>nul
+  if not errorlevel 1 set "PY_CMD=python"
+)
+if not defined PY_CMD (
+  echo [ACCEPTANCE] FAILED - Python 3 not found in PATH.
+  exit /b 30
+)
+
+echo [ACCEPTANCE] Checking required local production content before starting the long playtest...
+%PY_CMD% "%CONTENT_PREFLIGHT%"
+set "CONTENT_RC=%ERRORLEVEL%"
+if not "%CONTENT_RC%"=="0" (
+  echo.
+  echo [ACCEPTANCE] BLOCKED - required Pass45 production content is missing.
+  echo This is a CONTENT GAP, not a runtime-code failure.
+  echo Evidence: %CONTENT_PREFLIGHT_EVIDENCE%
+  exit /b %CONTENT_RC%
 )
 
 call "%CURRENT_GAMEPLAY%"
@@ -49,18 +78,6 @@ if not "%MATERIAL_RC%"=="0" (
   echo.
   echo [ACCEPTANCE] FAILED - Pass45 strict material gate exit code %MATERIAL_RC%
   exit /b %MATERIAL_RC%
-)
-
-set "PY_CMD="
-where py >nul 2>nul
-if not errorlevel 1 set "PY_CMD=py -3"
-if not defined PY_CMD (
-  where python >nul 2>nul
-  if not errorlevel 1 set "PY_CMD=python"
-)
-if not defined PY_CMD (
-  echo [ACCEPTANCE] FAILED - Python 3 not found in PATH.
-  exit /b 30
 )
 
 set "PASS45_SOURCE_SHA=unknown"
