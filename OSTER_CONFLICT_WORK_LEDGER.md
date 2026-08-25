@@ -58,49 +58,49 @@ Evidence sheet + manifest:
 
 ### PERF-ROOT-001 — frontend collapse precedes gameplay population
 
-The screenshot with the main menu at ~8 FPS makes bot population an incomplete diagnosis. Current normal launch still uses DX11/SM5/no-HDR plus `-norhithread`, retained from the earlier renderer-crash recovery path. Pass 45 must perform an explicit DX11/SM5 RHI-thread A/B test rather than silently keeping compatibility mode as the permanent baseline.
+The screenshot with the main menu at ~8 FPS makes bot population an incomplete diagnosis. The rejected launch used DX11/SM5/no-HDR plus `-norhithread`, retained from the earlier renderer-crash recovery path. Pass 45 now provides an explicit DX11/SM5 RHI-thread A/B route rather than silently keeping compatibility mode as the permanent baseline.
 
 ### PERF-ROOT-002 — delayed runtime mutation debt
 
-The project contains multiple post-BeginPlay landmark replacement/recovery/guard subsystems. Repeated actor/component scans, ISM removal, `MarkRenderStateDirty`, delayed rebuilds and compatibility ownership loops are now treated as a first-class performance/stability risk. One landmark must have one current placement/visibility owner.
+The project contained multiple post-BeginPlay landmark replacement/recovery/guard paths. Repeated actor/component scans, ISM removal, `MarkRenderStateDirty`, delayed rebuilds and compatibility ownership loops are treated as a first-class performance/stability risk. Pass 45 source retires the 0.20 s × 40 full-world reconciliation loop and enforces one current shell owner per Museum/Culture/Silpo site.
 
 ### VIS-ROOT-001 — primitive world remains visible production output
 
-`OCWorldSectorOster` still uses Engine BasicShapes for major world families. Cylinder/Sphere tree families and cube-based environment authoring explain the visible low-fidelity blockout result. Compact bounds reduced spatial extent but did not replace production visuals.
+`OCWorldSectorOster` still retains Engine BasicShapes for historical/source authoring of major world families. Pass 45 retires visible Cylinder/Sphere tree families from normal gameplay and keeps real pine candidates. Other visible BasicShape families remain an explicit production-asset inventory/content task; they are not called production-ready.
 
 ### MAP-ROOT-001 — Pass 44 bounded the wrong topology
 
-Pass 44 constrained tactical-map projection but left `BuildRoadNetwork()` procedural straight/diagonal blockout as the source geometry. Pass 45 must rebuild tactical topology from the authoritative compact central-Oster reference and geo anchors.
+Pass 44 constrained tactical-map projection but left `BuildRoadNetwork()` procedural straight/diagonal blockout as the source geometry. Pass 45 now uses a dedicated north-up reference-traced road layer from the retained 640×630 central-Oster image. The production map and its polish icons share `FOCGeoReference`; old world-sector POI anchors and the Z=2 residential dimmer are retired so the reference-road layer cannot be faded or displaced.
 
 ### WEAPON-ROOT-001 — mesh load is not material readiness
 
-Pass 44 correctly retired grey BasicShape material repair. The latest white rack weapons are explicit authored-material gaps. Pass 45 requires per-weapon mesh → material → texture dependency truth for all 11 required classes.
+Pass 44 correctly retired grey BasicShape material repair. The latest white rack weapons are explicit authored-material gaps. Pass 45 fresh-load preflight now records per-weapon mesh → material → used texture dependencies for all 11 required classes and writes a machine-readable dependency report.
 
 ### LANDMARK-ROOT-001 — distinct coordinates do not guarantee distinct runtime identity
 
-Museum and Culture House geo references are not equal, but runtime still fails visual separation. The defect is treated as ownership/presentation layering, not merely one bad coordinate constant.
+Museum and Culture House geo references are not equal, but runtime still failed visual separation. Pass 45 treats this as ownership/presentation layering and establishes one visible shell owner per site: Museum R13.8, Culture House R14.6, Silpo R14.0. R13.7 Museum remains reference/detail/interactivity only.
 
 ## 5. Active requirements
 
 | ID | Requirement | Repeat | Status | Current Pass 45 action |
 |---|---|---:|---|---|
-| PERF-COLLAPSE-001 | Stop frontend/gameplay collapse to ~8–12 FPS | ≥6 | IN_PROGRESS | Pass 45: renderer/RHI-thread A/B, frame-domain markers, delayed mutation audit, compact cull rebudget. Minimum acceptance >=30 FPS; no progressive collapse. |
-| UI-MENU-001 | Frontend/menu stable and usable | ≥9 | IN_PROGRESS | Menu no longer crashes but ~8 FPS is runtime failure. Keep Pass 43 lifecycle protections; test normal RHI threading vs explicit compatibility route. |
-| VIS-GRAPHICS-QUALITY-001 | Restore readable non-blockout visual quality without hidden resolution downgrade | ≥4 | IN_PROGRESS | Keep native 100% clarity target. Do not hide perf failure by lowering render scale. Remove visible production proxies instead. |
-| VIS-TREES-001 | Oster vegetation: tall pine/conifer forest + appropriate oak, no fantasy primitive trees | ≥2 | IN_PROGRESS | Retire visible Cylinder/Sphere tree families from normal gameplay; inventory real foliage assets first. Missing real oak/pine remains content gap. |
-| UI-TACTICAL-MAP-001 | `M` map matches real compact central-Oster topology | ≥4 | IN_PROGRESS | Pass 44 bounds kept; procedural road/blockout topology rejected. Rebuild from authoritative map reference + geo anchors; new runtime screenshot mandatory. |
+| PERF-COLLAPSE-001 | Stop frontend/gameplay collapse to ~8–12 FPS | ≥6 | CODED_UNTESTED | RHI-thread A/B, frame-domain markers, delayed mutation retirement and compact cull rebudget are coded. Minimum acceptance >=30 FPS; factual runtime still required. |
+| UI-MENU-001 | Frontend/menu stable and usable | ≥9 | CODED_UNTESTED | Keep Pass 43 lifecycle protections; normal RHI threading vs explicit compatibility route is coded. Runtime must prove no crash and >=30 FPS. |
+| VIS-GRAPHICS-QUALITY-001 | Restore readable non-blockout visual quality without hidden resolution downgrade | ≥4 | IN_PROGRESS | Native 100% clarity target retained. Tree proxies retired, but other visible BasicShape families remain production-content work. |
+| VIS-TREES-001 | Oster vegetation: tall pine/conifer forest + appropriate oak, no fantasy primitive trees | ≥2 | CODED_UNTESTED / CONTENT GAP | Eight primitive tree families are retired from normal runtime; real pines verified; suitable oak remains unverified content gap. |
+| UI-TACTICAL-MAP-001 | `M` map matches real compact central-Oster topology | ≥4 | CODED_UNTESTED | Dedicated 640×630 reference-traced topology replaces procedural world ISMs. Text POIs and polish icons now share `FOCGeoReference`; Culture House icon added; old Z=2 residential dimmer retired. New runtime screenshot mandatory. |
 | MAP-EXTENT-001 | Keep compact central Oster battlefield | ≥2 | CODED_UNTESTED / RETAIN | Pass 44 960×940 m compact bound remains current unless new user evidence changes it. Do not restore 2.4 km map. |
-| LOC-MUSEUM-001 | Museum visibly present and uniquely owned near live spawn | ≥10 | IN_PROGRESS | Consolidate Museum placement/visibility owner; historical recovery/detail layers may not fight current shell. |
-| LOC-CULTURE-001 | Culture House visually and spatially separate from Museum | ≥2 | IN_PROGRESS | Distinct geo anchor exists; runtime identity still fails. One authoritative owner at Culture House anchor only. |
-| LOC-SILPO-001 | Silpo one authoritative site owner, no stale duplicate signage/geometry | ≥2 | IN_PROGRESS | Consolidate replacement/detail stack and remove repeated full-site mutation after stabilization. |
-| WEAPON-MATERIAL-001 | All required rack weapons use authored materials/textures | ≥10 | IN_PROGRESS / CONTENT CHECK | White/default material slots are runtime FAIL. Build per-weapon dependency audit; no BasicShape fallback. |
-| GAME-WEAPONS-001 | 11 grounded pickup classes near actual Museum spawn | ≥9 | CODED_UNTESTED | Grounding logic retained; visual/material acceptance now separated from mere pickup existence. |
-| GAME-SPAWN-001 | Actual live pawn spawns near Museum BASE | ≥9 | CODED_UNTESTED | Pass 44 pawn-distance correction remains but latest screenshots do not establish final visual Museum acceptance. |
-| VIS-GRASS-001 | Natural grass without FPS collapse | ≥6 | IN_PROGRESS | Keep density constrained until performance baseline recovered. Grass cannot be blamed as sole root because menu already runs ~8 FPS. |
-| VEH-PICKUP-001 | Real HMMWV + M2 Browning | ≥5 | IN_PROGRESS / ASSET CHECK | Preserve fail-visible asset truth. Do not let vehicle content work block performance recovery. |
+| LOC-MUSEUM-001 | Museum visibly present and uniquely owned near live spawn | ≥10 | CODED_UNTESTED | Museum R13.8 is the single visible shell owner; R13.7 is detail/reference only. Runtime visual identity near spawn still required. |
+| LOC-CULTURE-001 | Culture House visually and spatially separate from Museum | ≥2 | CODED_UNTESTED | R14.6 single shell owner at `FOCGeoReference::CultureHouse()`; tactical text/icon both use the same geo authority. |
+| LOC-SILPO-001 | Silpo one authoritative site owner, no stale duplicate signage/geometry | ≥2 | CODED_UNTESTED | R14.0 single shell owner; late duplicate/current-owner validation is one-shot. Runtime stale-visual inspection still required. |
+| WEAPON-MATERIAL-001 | All required rack weapons use authored materials/textures | ≥10 | CODED_UNTESTED / CONTENT CHECK | Fresh NullRHI audit now traces all 11 mesh/material/texture dependency chains. White/default slots remain FAIL; next local UE report identifies actual gaps. |
+| GAME-WEAPONS-001 | 11 grounded pickup classes near actual Museum spawn | ≥9 | CODED_UNTESTED | Grounding logic retained; visual/material acceptance remains separate from pickup existence. |
+| GAME-SPAWN-001 | Actual live pawn spawns near Museum BASE | ≥9 | CODED_UNTESTED | Pass 44 pawn-distance correction retained; next factual run must verify spawn and visible Museum. |
+| VIS-GRASS-001 | Natural grass without FPS collapse | ≥6 | IN_PROGRESS | Density stays constrained until performance baseline recovered. Menu ~8 FPS proves grass cannot be the sole root cause. |
+| VEH-PICKUP-001 | Real HMMWV + M2 Browning | ≥5 | IN_PROGRESS / ASSET CHECK | Preserve fail-visible asset truth. Vehicle content must not block performance recovery. |
 | ASSET-BTR-001 | Real BTR-4/Bucephalus | ≥5 | IN_PROGRESS / CONTENT GAP | No fake READY. Missing real source remains explicit gap. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | ≥2 | IN_PROGRESS / CONTENT GAP | No verified M16/M4 payload in checked repository/tree/history. Do not claim connected. |
-| GAME-VEHICLE-INPUT-001 | WASD/mouse after vehicle exit | 1 | CODED_UNTESTED | Pass 41 recovery remains; not current primary blocker. |
+| GAME-VEHICLE-INPUT-001 | WASD/mouse after vehicle exit | 1 | CODED_UNTESTED | Pass 41 recovery retained; not current primary blocker. |
 
 ## 6. Pass 44 behavior retained unless disproved
 
@@ -119,17 +119,17 @@ The following Pass 44 corrections remain current because the latest run does not
 
 1. Lock `PASS45_RUNTIME_RECOVERY_TZ.md` and runtime evidence pack. **DONE**.
 2. Mark Pass 44 runtime rejected and make Pass 45 the active ledger. **DONE**.
-3. Implement DX11/SM5 RHI-thread A/B launcher route; keep explicit `-norhithread` compatibility route.
-4. Add lightweight frontend/gameplay performance-domain markers; no per-frame spam.
-5. Audit and retire repeated landmark world-mutation loops; enforce one current owner per Museum/Culture/Silpo site.
-6. Recalculate cull/render budget for 960×940 m sector.
-7. Retire primitive tree visuals from normal gameplay and bind verified real foliage assets where available.
-8. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout.
-9. Run all 11 weapon material/texture dependency checks and close what existing content can support.
-10. Forward-port/retire stale verifiers.
-11. Full source CI.
-12. Merge only after source checks are green.
-13. Local test order after pull: **frontend performance first**, then gameplay; stop immediately on unsafe thermals or renewed catastrophic FPS collapse.
+3. Implement DX11/SM5 RHI-thread A/B launcher route; keep explicit `-norhithread` compatibility route. **CODED_UNTESTED**.
+4. Add lightweight frontend/gameplay performance-domain markers; no per-frame spam. **CODED_UNTESTED**.
+5. Retire repeated landmark world-mutation loops; enforce one current owner per Museum/Culture/Silpo site. **CODED_UNTESTED**.
+6. Recalculate cull/render budget for 960×940 m sector. **CODED_UNTESTED**.
+7. Retire primitive tree visuals from normal gameplay and bind verified real foliage assets where available. **CODED_UNTESTED; OAK CONTENT GAP**.
+8. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**. Polish text/icons now share `FOCGeoReference`; Z=2 road layer is protected from the retired residential dimmer.
+9. Run all 11 weapon material/texture dependency checks and close what existing content can support. **AUDIT CODED_UNTESTED; ACTUAL LOCAL DEPENDENCY REPORT PENDING**.
+10. Forward-port/retire stale verifiers. **SOURCE CHANGES DONE THROUGH R6/PASS12/PASS17/PASS21/PASS22/PASS44/PASS45/TACTICAL MAP; FINAL CI PENDING**.
+11. Full source CI. **FINAL FRESH-HEAD RUN PENDING AFTER LEDGER/TZ SYNC**.
+12. Merge only after source checks are green. **NOT YET**.
+13. Local test order after pull: **frontend performance first**, then gameplay; stop immediately on unsafe thermals or renewed catastrophic FPS collapse. **PENDING**.
 
 ## 8. Acceptance gates
 
@@ -137,9 +137,9 @@ The following Pass 44 corrections remain current because the latest run does not
 - Gameplay: bots off, no progressive collapse, **>=30 FPS minimum**.
 - Graphics: no hidden resolution-scale downgrade below intended 100% clarity target.
 - Trees: no visible primitive Cylinder/Sphere fantasy forest.
-- Tactical map: recognizable compact central-Oster topology, no giant synthetic X/diagonal roads, player marker visible.
+- Tactical map: recognizable compact central-Oster topology, no giant synthetic X/diagonal roads, player marker visible; text POIs and vector icons must remain co-located under one geo authority.
 - Landmarks: Museum and Culture House visibly separate; Silpo stale/duplicate presentation removed; one owner per site.
 - Weapons: no white/default rack slot accepted; material/texture truth for all 11 classes or explicit named content gap.
 - CI: green source checks required but never sufficient for runtime verification.
 
-**Current overall status: PASS 45 ACTIVE / IMPLEMENTATION IN PROGRESS.**
+**Current overall status: PASS 45 SOURCE CORRECTION READY FOR FINAL CI / CONTENT GAPS + LOCAL UE RUNTIME PENDING.**
