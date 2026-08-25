@@ -31,9 +31,6 @@ namespace
 
             if (!bLegacyVisualProxy) continue;
 
-            // Keep collision on the legacy building cores while the imported house meshes own
-            // presentation. Grass tiles are visual-only anyway. This removes the white/grey box
-            // houses and thin green cube patches without changing gameplay collision contracts.
             Primitive->SetVisibility(false, true);
             Primitive->SetHiddenInGame(true, true);
         }
@@ -42,26 +39,22 @@ namespace
 
 bool UOCWorldAssetModelsSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-    if (!Super::ShouldCreateSubsystem(Outer)) return false;
-
-    const UWorld* World = Cast<UWorld>(Outer);
-    if (!World) return false;
-
-    return World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE;
+    // PASS45 runtime evidence rejected the imported generic village presentation: AdvancedVillagePack
+    // houses/fences and the companion rural shed/tower-like silhouettes do not establish Oster fidelity.
+    // This subsystem is the runtime owner that spawns AOCAssetModelDecorator and then hides the semantic
+    // world-sector proxies underneath it. Disable the owner as one unit so rejected generic visuals cannot
+    // re-enter runtime through a different placement path. The semantic AOCWorldSectorOster geometry stays
+    // visible and authoritative until evidence-backed replacement models exist.
+    return false;
 }
 
 void UOCWorldAssetModelsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
 
-    // Dedicated servers do not need any of the visual-only imported meshes.
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
 
     AttachAttempts = 0;
-
-    // UWorldSubsystem::OnWorldBeginPlay runs before actor BeginPlay. The game mode
-    // creates the Oster sector from BeginPlay, and network clients can receive that
-    // replicated actor later still, so start on the next tick and retry briefly.
     InWorld.GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateUObject(this, &UOCWorldAssetModelsSubsystem::AttachToOsterSector, &InWorld));
 }
