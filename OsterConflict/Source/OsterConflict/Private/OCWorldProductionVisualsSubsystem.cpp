@@ -58,7 +58,14 @@ namespace
         Component->SetCastShadow(false);
     }
 
-    UInstancedStaticMeshComponent* MakeVisualISM(AActor& Owner, USceneComponent& Root, const FName Name, UStaticMesh* Mesh)
+    UInstancedStaticMeshComponent* MakeVisualISM(
+        AActor& Owner,
+        USceneComponent& Root,
+        const FName Name,
+        UStaticMesh* Mesh,
+        const int32 StartCullCm,
+        const int32 EndCullCm,
+        const bool bCastShadow)
     {
         if (!Mesh) return nullptr;
         UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(&Owner, Name);
@@ -68,7 +75,8 @@ namespace
         Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
-        Component->SetCastShadow(true);
+        Component->SetCastShadow(bCastShadow);
+        Component->SetCullDistances(StartCullCm, EndCullCm);
         Owner.AddInstanceComponent(Component);
         Component->RegisterComponent();
         return Component;
@@ -90,20 +98,16 @@ namespace
         const FVector MeshSize = Bounds.BoxExtent * 2.0f;
         if (MeshSize.X < 1.0f || MeshSize.Y < 1.0f || MeshSize.Z < 1.0f) return false;
 
-        // Preserve authored house proportions. The hidden source cube remains collision authority.
         const float UniformScale = FMath::Clamp(
             FMath::Min(DesiredBoxCm.X / MeshSize.X, DesiredBoxCm.Y / MeshSize.Y),
             0.15f,
             12.0f);
-
         const FQuat Rotation = SourceCubeTransform.GetRotation();
         FVector Location = SourceCubeTransform.GetLocation();
         const FVector ScaledOrigin = Bounds.Origin * UniformScale;
         Location -= Rotation.RotateVector(FVector(ScaledOrigin.X, ScaledOrigin.Y, 0.0f));
-
         const float TargetBottom = SourceCubeTransform.GetLocation().Z - DesiredBoxCm.Z * 0.5f;
-        const float MeshBottomLocal = (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
-        Location.Z = TargetBottom - MeshBottomLocal;
+        Location.Z = TargetBottom - (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
 
         FTransform VisualTransform;
         VisualTransform.SetLocation(Location);
@@ -127,22 +131,16 @@ namespace
             FTransform SourceTransform;
             if (!Source->GetInstanceTransform(Index, SourceTransform, true)) continue;
             const bool bUseA = (Index % 2) == 0;
-            if (AddPreservedShapeInstance(
+            Added += AddPreservedShapeInstance(
                 bUseA ? TargetA : TargetB,
                 bUseA ? MeshA : MeshB,
                 SourceTransform,
-                SourceBoxWorldSize(SourceTransform)))
-            {
-                ++Added;
-            }
+                SourceBoxWorldSize(SourceTransform)) ? 1 : 0;
         }
         return Added;
     }
 
-    int32 TileFenceInstances(
-        UInstancedStaticMeshComponent* Source,
-        UInstancedStaticMeshComponent* Target,
-        UStaticMesh* FenceMesh)
+    int32 TileFenceInstances(UInstancedStaticMeshComponent* Source, UInstancedStaticMeshComponent* Target, UStaticMesh* FenceMesh)
     {
         if (!Source || !Target || !FenceMesh) return 0;
         const FBoxSphereBounds Bounds = FenceMesh->GetBounds();
@@ -157,7 +155,6 @@ namespace
         {
             FTransform SourceTransform;
             if (!Source->GetInstanceTransform(Index, SourceTransform, true)) continue;
-
             const FVector Desired = SourceBoxWorldSize(SourceTransform);
             const float TargetLength = FMath::Max(Desired.X, Desired.Y);
             const float HeightScale = FMath::Clamp(Desired.Z / MeshSize.Z, 0.2f, 5.0f);
@@ -175,8 +172,7 @@ namespace
             {
                 FVector Location = SourceTransform.GetLocation() + Direction * (FirstOffset + Segment * SegmentLength);
                 const float TargetBottom = SourceTransform.GetLocation().Z - Desired.Z * 0.5f;
-                const float MeshBottomLocal = (Bounds.Origin.Z - Bounds.BoxExtent.Z) * HeightScale;
-                Location.Z = TargetBottom - MeshBottomLocal;
+                Location.Z = TargetBottom - (Bounds.Origin.Z - Bounds.BoxExtent.Z) * HeightScale;
 
                 FVector Scale(HeightScale);
                 if (bMeshLengthX) Scale.X = LengthScale;
@@ -210,7 +206,6 @@ void UOCWorldProductionVisualsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
-
     RuntimeWorld = &InWorld;
     TryBuildProductionVisuals();
 }
@@ -234,7 +229,6 @@ void UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals()
         Sector = *It;
         break;
     }
-
     if (!Sector)
     {
         ++Attempts;
@@ -246,12 +240,8 @@ void UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals()
         }
         if (!World->GetTimerManager().IsTimerActive(RetryHandle))
         {
-            World->GetTimerManager().SetTimer(
-                RetryHandle,
-                this,
-                &UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals,
-                0.10f,
-                true);
+            World->GetTimerManager().SetTimer(RetryHandle, this,
+                &UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals, 0.10f, true);
         }
         return;
     }
@@ -265,7 +255,6 @@ void UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals()
     UMaterialInterface* GroundMaterial = LoadObject<UMaterialInterface>(nullptr, GroundMaterialPath);
     UMaterialInterface* RoadMaterial = LoadObject<UMaterialInterface>(nullptr, RoadMaterialPath);
     UMaterialInterface* SidewalkMaterial = LoadObject<UMaterialInterface>(nullptr, SidewalkMaterialPath);
-
     if (!HouseA || !HouseB || !FenceA || !FenceB || !FenceC || !FenceD || !GroundMaterial || !RoadMaterial || !SidewalkMaterial)
     {
         UE_LOG(LogTemp, Error,
@@ -283,18 +272,17 @@ void UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals()
         return;
     }
     Owner->Tags.AddUnique(ProductionVisualOwnerTag);
-
     USceneComponent* Root = NewObject<USceneComponent>(Owner, TEXT("ProductionVisualRoot"));
     Owner->AddInstanceComponent(Root);
     Owner->SetRootComponent(Root);
     Root->RegisterComponent();
 
-    UInstancedStaticMeshComponent* HousesA = MakeVisualISM(*Owner, *Root, TEXT("ProductionHousesA"), HouseA);
-    UInstancedStaticMeshComponent* HousesB = MakeVisualISM(*Owner, *Root, TEXT("ProductionHousesB"), HouseB);
-    UInstancedStaticMeshComponent* FencesA = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesA"), FenceA);
-    UInstancedStaticMeshComponent* FencesB = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesB"), FenceB);
-    UInstancedStaticMeshComponent* FencesC = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesC"), FenceC);
-    UInstancedStaticMeshComponent* FencesD = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesD"), FenceD);
+    UInstancedStaticMeshComponent* HousesA = MakeVisualISM(*Owner, *Root, TEXT("ProductionHousesA"), HouseA, 30000, 65000, true);
+    UInstancedStaticMeshComponent* HousesB = MakeVisualISM(*Owner, *Root, TEXT("ProductionHousesB"), HouseB, 30000, 65000, true);
+    UInstancedStaticMeshComponent* FencesA = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesA"), FenceA, 6000, 28000, false);
+    UInstancedStaticMeshComponent* FencesB = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesB"), FenceB, 6000, 28000, false);
+    UInstancedStaticMeshComponent* FencesC = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesC"), FenceC, 6000, 28000, false);
+    UInstancedStaticMeshComponent* FencesD = MakeVisualISM(*Owner, *Root, TEXT("ProductionFencesD"), FenceD, 6000, 28000, false);
     if (!HousesA || !HousesB || !FencesA || !FencesB || !FencesC || !FencesD)
     {
         Owner->Destroy();
@@ -313,8 +301,8 @@ void UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals()
     UInstancedStaticMeshComponent* Sidewalks = FindISM(Sector, TEXT("Sidewalks"));
     UStaticMeshComponent* Ground = FindStaticMeshComponent(Sector, TEXT("Ground"));
 
-    const int32 HouseInstances = CopyResidentialHouses(Buildings, HousesA, HouseA, HousesB, HouseB);
     const int32 SourceHouseCount = Buildings ? Buildings->GetInstanceCount() : 0;
+    const int32 HouseInstances = CopyResidentialHouses(Buildings, HousesA, HouseA, HousesB, HouseB);
     const int32 FenceInstances =
         TileFenceInstances(PublicFences, FencesD, FenceD) +
         TileFenceInstances(WoodFences, FencesA, FenceA) +
@@ -348,9 +336,8 @@ void UOCWorldProductionVisualsSubsystem::TryBuildProductionVisuals()
 
     bBuilt = true;
     World->GetTimerManager().ClearTimer(RetryHandle);
-
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_B2_PRODUCTION_VISUALS_READY houses=%d fence_segments=%d real_house_meshes=2 real_fence_meshes=4 ground_material=landscape asphalt_material=1 sidewalk_material=1 polling_after_ready=0 collision_backstop_retained=1"),
+        TEXT("PASS45_B2_PRODUCTION_VISUALS_READY houses=%d fence_segments=%d real_house_meshes=2 real_fence_meshes=4 house_cull_m=300_650 fence_cull_m=60_280 ground_material=landscape asphalt_material=1 sidewalk_material=1 polling_after_ready=0 collision_backstop_retained=1"),
         HouseInstances, FenceInstances);
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_B2_REMAINING_CONTENT_GAPS generic_landmark_blocks=1 park_detail_proxies=1 water_bridge_instances=0 dedicated_site_owners_override_museum_silpo_culture=1"));
