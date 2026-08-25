@@ -52,16 +52,19 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
     const float RadiusSq = FMath::Square(MuseumInteractionRadiusCm);
 
-    int32 ArchitectureActors = 0;
+    int32 R137VisibleExteriorActors = 0;
+    int32 CollisionActors = 0;
+    int32 CollisionSections = 0;
+    int32 VisibleCollisionSections = 0;
     int32 FacadeDetailActors = 0;
     int32 EntranceDetailActors = 0;
     int32 SiteVegetationActors = 0;
     int32 RearExteriorActors = 0;
     int32 TreeLayoutActors = 0;
-    int32 StructuralSections = 0;
     int32 MainDoorActors = 0;
     int32 ServiceDoorActors = 0;
     int32 PrototypeServiceDoors = 0;
+    int32 PrototypeMainDoorLeaves = 0;
     int32 BreakableWindows = 0;
     int32 StyledMuseumWindows = 0;
     int32 PrototypeMuseumWindows = 0;
@@ -71,19 +74,23 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
         AActor* Actor = *It;
-        if (!Actor) continue;
+        if (!Actor || Actor->IsActorBeingDestroyed()) continue;
 
-        if (Actor->ActorHasTag(TEXT("R138_MuseumHighFidelityArchitecture")))
+        if (Actor->ActorHasTag(TEXT("R137_MuseumPhotoModel")))
         {
-            ++ArchitectureActors;
+            ++R137VisibleExteriorActors;
+        }
+
+        if (Actor->ActorHasTag(TEXT("R138_MuseumInteractionCollision")))
+        {
+            ++CollisionActors;
             TInlineComponentArray<UStaticMeshComponent*> Components;
             Actor->GetComponents(Components);
             for (UStaticMeshComponent* Component : Components)
             {
-                if (Component && Component->ComponentHasTag(TEXT("MuseumStructural")))
-                {
-                    ++StructuralSections;
-                }
+                if (!Component || !Component->ComponentHasTag(TEXT("MuseumInteractionCollision"))) continue;
+                ++CollisionSections;
+                if (Component->IsVisible()) ++VisibleCollisionSections;
             }
         }
 
@@ -113,6 +120,10 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
         if (AOCInteractableDoor* Door = Cast<AOCInteractableDoor>(Actor))
         {
             if (Door->ActorHasTag(TEXT("MuseumServiceDoor"))) ++PrototypeServiceDoors;
+            if (Door->ActorHasTag(TEXT("MuseumMainDoorLeft")) || Door->ActorHasTag(TEXT("MuseumMainDoorRight")))
+            {
+                ++PrototypeMainDoorLeaves;
+            }
             continue;
         }
 
@@ -132,16 +143,19 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
         }
     }
 
-    const bool bPass = ArchitectureActors == 1 &&
+    const bool bPass = R137VisibleExteriorActors == 1 &&
+        CollisionActors == 1 &&
+        CollisionSections >= 30 &&
+        VisibleCollisionSections == 0 &&
         FacadeDetailActors == 1 &&
         EntranceDetailActors == 1 &&
         SiteVegetationActors == 1 &&
         RearExteriorActors == 1 &&
         TreeLayoutActors == 1 &&
-        StructuralSections >= 30 &&
         MainDoorActors == 1 &&
         ServiceDoorActors == 1 &&
         PrototypeServiceDoors == 0 &&
+        PrototypeMainDoorLeaves == 0 &&
         BreakableWindows >= 21 &&
         StyledMuseumWindows == BreakableWindows &&
         PrototypeMuseumWindows == 0 &&
@@ -151,17 +165,22 @@ void UOCR138MuseumRuntimeValidationSubsystem::ValidateMuseum(UWorld& World) cons
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("R14.5 museum validation PASS: architecture=%d facade=%d entrance=%d vegetation=%d rearExterior=%d trees=%d structural=%d mainDoor=%d serviceDoor=%d styledWindows=%d upperGable=%d."),
-            ArchitectureActors, FacadeDetailActors, EntranceDetailActors, SiteVegetationActors,
-            RearExteriorActors, TreeLayoutActors, StructuralSections, MainDoorActors,
-            ServiceDoorActors, StyledMuseumWindows, UpperGableWindows);
+            TEXT("PASS45_MUSEUM_RUNTIME_SINGLE_OWNER_READY r137_visible=%d collision_owners=%d collision_sections=%d visible_collision_sections=%d facade=%d entrance=%d vegetation=%d rearExterior=%d trees=%d mainDoor=%d serviceDoor=%d styledWindows=%d prototypeDoors=0 prototypeWindows=0 upperGable=%d"),
+            R137VisibleExteriorActors, CollisionActors, CollisionSections, VisibleCollisionSections,
+            FacadeDetailActors, EntranceDetailActors, SiteVegetationActors, RearExteriorActors,
+            TreeLayoutActors, MainDoorActors, ServiceDoorActors, StyledMuseumWindows, UpperGableWindows);
+        UE_LOG(LogTemp, Display,
+            TEXT("R14.5 museum validation PASS: single visible R13.7 exterior + hidden R13.8 interaction collision + final doors/windows/details."));
         return;
     }
 
     UE_LOG(LogTemp, Warning,
-        TEXT("R14.5 museum validation FAILED: architecture=%d facade=%d entrance=%d vegetation=%d rearExterior=%d trees=%d structural=%d mainDoor=%d serviceDoor=%d prototypeService=%d windows=%d styled=%d prototypeWindows=%d upperGable=%d initiallyBroken=%d."),
-        ArchitectureActors, FacadeDetailActors, EntranceDetailActors, SiteVegetationActors,
-        RearExteriorActors, TreeLayoutActors, StructuralSections, MainDoorActors, ServiceDoorActors,
-        PrototypeServiceDoors, BreakableWindows, StyledMuseumWindows, PrototypeMuseumWindows,
+        TEXT("PASS45_MUSEUM_RUNTIME_SINGLE_OWNER_FAIL r137_visible=%d collision_owners=%d collision_sections=%d visible_collision_sections=%d facade=%d entrance=%d vegetation=%d rearExterior=%d trees=%d mainDoor=%d serviceDoor=%d prototypeService=%d prototypeMainLeaves=%d windows=%d styled=%d prototypeWindows=%d upperGable=%d initiallyBroken=%d"),
+        R137VisibleExteriorActors, CollisionActors, CollisionSections, VisibleCollisionSections,
+        FacadeDetailActors, EntranceDetailActors, SiteVegetationActors, RearExteriorActors,
+        TreeLayoutActors, MainDoorActors, ServiceDoorActors, PrototypeServiceDoors,
+        PrototypeMainDoorLeaves, BreakableWindows, StyledMuseumWindows, PrototypeMuseumWindows,
         UpperGableWindows, InitiallyBrokenWindows);
+    UE_LOG(LogTemp, Warning,
+        TEXT("R14.5 museum validation FAILED: current Pass45 single-owner runtime contract was not satisfied."));
 }
