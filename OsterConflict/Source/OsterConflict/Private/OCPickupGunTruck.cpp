@@ -12,49 +12,6 @@
 
 namespace
 {
-    bool ApplyFittedVehicleMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh, const FVector& DesiredSizeCm)
-    {
-        if (!Component || !Mesh) return false;
-        const FBoxSphereBounds Bounds = Mesh->GetBounds();
-        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
-
-        const FVector Scale(
-            DesiredSizeCm.X / NativeSize.X,
-            DesiredSizeCm.Y / NativeSize.Y,
-            DesiredSizeCm.Z / NativeSize.Z);
-        Component->SetStaticMesh(Mesh);
-        Component->SetRelativeRotation(FRotator::ZeroRotator);
-        Component->SetRelativeScale3D(Scale);
-        Component->SetRelativeLocation(-Bounds.Origin * Scale);
-        Component->EmptyOverrideMaterials();
-        return true;
-    }
-
-    bool ApplyGroundedVehicleMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
-        const FVector& DesiredSizeCm, float GroundZCm)
-    {
-        if (!Component || !Mesh) return false;
-        const FBoxSphereBounds Bounds = Mesh->GetBounds();
-        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
-
-        const FVector Scale(
-            DesiredSizeCm.X / NativeSize.X,
-            DesiredSizeCm.Y / NativeSize.Y,
-            DesiredSizeCm.Z / NativeSize.Z);
-        FVector Location = -Bounds.Origin * Scale;
-        const float NativeBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
-        Location.Z = GroundZCm - NativeBottomZ * Scale.Z;
-
-        Component->SetStaticMesh(Mesh);
-        Component->SetRelativeRotation(FRotator::ZeroRotator);
-        Component->SetRelativeScale3D(Scale);
-        Component->SetRelativeLocation(Location);
-        Component->EmptyOverrideMaterials();
-        return true;
-    }
-
     FQuat ResolveLongAxisToForward(const FVector& NativeSize)
     {
         FVector NativeForward = FVector::ForwardVector;
@@ -69,25 +26,67 @@ namespace
         return FQuat::FindBetweenNormals(NativeForward, FVector::ForwardVector);
     }
 
-    UStaticMeshComponent* AddFittedTurretVisual(AActor* Owner, USceneComponent* Parent,
+    bool ApplyProportionalVehicleMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
+        float DesiredLengthCm, TOptional<float> GroundZCm)
+    {
+        if (!Component || !Mesh) return false;
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f || NativeLength <= 1.0f)
+        {
+            return false;
+        }
+
+        const float UniformScale = DesiredLengthCm / NativeLength;
+        const FQuat AxisCorrection = ResolveLongAxisToForward(NativeSize);
+        const FVector CorrectedOrigin = AxisCorrection.RotateVector(Bounds.Origin);
+        const FVector CorrectedExtent = AxisCorrection.RotateVector(Bounds.BoxExtent).GetAbs();
+        FVector Location = -CorrectedOrigin * UniformScale;
+        if (GroundZCm.IsSet())
+        {
+            Location.Z = GroundZCm.GetValue() - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale;
+        }
+
+        Component->SetStaticMesh(Mesh);
+        Component->SetRelativeRotation(AxisCorrection.Rotator());
+        Component->SetRelativeScale3D(FVector(UniformScale));
+        Component->SetRelativeLocation(Location);
+        Component->EmptyOverrideMaterials();
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_HMMWV_PROPORTIONAL_VISUAL_READY asset=%s native_cm=%s uniform_scale=%.4f desired_length_cm=%.1f axis_correction=%s nonuniform_stretch=0"),
+            *Mesh->GetPathName(), *NativeSize.ToCompactString(), UniformScale, DesiredLengthCm,
+            *AxisCorrection.Rotator().ToCompactString());
+        return true;
+    }
+
+    UStaticMeshComponent* AddGroundedTurretVisual(AActor* Owner, USceneComponent* Parent,
         UStaticMesh* Mesh, float DesiredLengthCm, const FName ComponentName, const FName VisualTag)
     {
         if (!Owner || !Parent || !Mesh) return nullptr;
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return nullptr;
+        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+        if (NativeLength <= 1.0f) return nullptr;
 
         UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(Owner, ComponentName);
         if (!Visual) return nullptr;
-        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+
         const float UniformScale = DesiredLengthCm / NativeLength;
         const FQuat AxisCorrection = ResolveLongAxisToForward(NativeSize);
-        const FVector ScaledOrigin = Bounds.Origin * UniformScale;
+        const FVector CorrectedOrigin = AxisCorrection.RotateVector(Bounds.Origin);
+        const FVector CorrectedExtent = AxisCorrection.RotateVector(Bounds.BoxExtent).GetAbs();
+
+        FVector Location = -CorrectedOrigin * UniformScale;
+        // Parent origin is the physical gun mount plane. Rest the mesh bottom on it instead of centering
+        // the imported mesh through the roof/turret, which produced the visibly crooked M2 mount.
+        Location.Z = -(CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale;
 
         Visual->SetupAttachment(Parent);
         Visual->SetStaticMesh(Mesh);
         Visual->SetRelativeRotation(AxisCorrection.Rotator());
-        Visual->SetRelativeLocation(-AxisCorrection.RotateVector(ScaledOrigin));
+        Visual->SetRelativeLocation(Location);
         Visual->SetRelativeScale3D(FVector(UniformScale));
         Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Visual->SetGenerateOverlapEvents(false);
@@ -97,6 +96,10 @@ namespace
         Visual->ComponentTags.Add(VisualTag);
         Owner->AddInstanceComponent(Visual);
         Visual->RegisterComponent();
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_M2_MOUNT_ALIGNMENT_READY native_cm=%s uniform_scale=%.4f bottom_on_mount=1 axis_correction=%s"),
+            *NativeSize.ToCompactString(), UniformScale, *AxisCorrection.Rotator().ToCompactString());
         return Visual;
     }
 
@@ -174,7 +177,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA")))
         {
-            bUsingHMMWV = ApplyGroundedVehicleMesh(Chassis, HMMWV, FVector(465.0f, 216.0f, 275.0f), -86.0f);
+            bUsingHMMWV = ApplyProportionalVehicleMesh(Chassis, HMMWV, 465.0f, TOptional<float>(-86.0f));
             bUsingProductionVehicle = bUsingHMMWV;
         }
     }
@@ -184,7 +187,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (UStaticMesh* PickupMesh = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup")))
         {
-            bUsingProductionVehicle = ApplyFittedVehicleMesh(Chassis, PickupMesh, FVector(485.0f, 194.0f, 170.0f));
+            bUsingProductionVehicle = ApplyProportionalVehicleMesh(Chassis, PickupMesh, 485.0f, TOptional<float>());
         }
     }
 
@@ -212,7 +215,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
 
     if (bUsingHMMWV && TurretPivot)
     {
-        TurretPivot->SetRelativeLocation(FVector(72.0f, 0.0f, 103.0f));
+        // Keep the physical turret pivot independent from the imported mesh scale. Production M2 is
+        // grounded on this mount plane by bounds rather than centred through the roof.
+        TurretPivot->SetRelativeLocation(FVector(20.0f, 0.0f, 132.0f));
         if (BarrelPivot) BarrelPivot->SetRelativeLocation(FVector::ZeroVector);
     }
 
@@ -222,12 +227,11 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
     {
-        if (AddFittedTurretVisual(this, M2Parent, M2, 165.0f,
+        if (AddGroundedTurretVisual(this, M2Parent, M2, 165.0f,
             FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
             bUsingMountedGunAsset = true;
-            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(82.5f, 0.0f, 0.0f));
-            UE_LOG(LogTemp, Display, TEXT("Gun truck uses production M2 Browning visual with normalized forward axis."));
+            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(82.5f, 0.0f, 18.0f));
         }
     }
 
@@ -236,13 +240,13 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (UStaticMesh* RealMachineGunFallback = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/R13/Weapons/machinegun.machinegun")))
         {
-            if (AddFittedTurretVisual(this, M2Parent, RealMachineGunFallback, 145.0f,
+            if (AddGroundedTurretVisual(this, M2Parent, RealMachineGunFallback, 145.0f,
                 FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
             {
                 bUsingMountedGunAsset = true;
-                if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(72.5f, 0.0f, 0.0f));
+                if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(72.5f, 0.0f, 18.0f));
                 UE_LOG(LogTemp, Warning,
-                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback with normalized axis."));
+                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback."));
             }
         }
     }
@@ -257,14 +261,13 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
 
     InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
     InteriorCamera->SetFieldOfView(92.0f);
-
     DisableVisualProxy(Windshield);
-
     ThirdPersonSpringArm->TargetArmLength = bUsingHMMWV ? 660.0f : 620.0f;
 
     if (bUsingHMMWV)
     {
-        UE_LOG(LogTemp, Display, TEXT("HMMWV gun truck uses Ukrainian HMMWV production visual; blockout proxies disabled."));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_HMMWV_M2_RUNTIME_CORRECTION_READY proportional_vehicle=1 m2_grounded_mount=1 proxies_disabled=1"));
     }
     else if (bUsingProductionVehicle)
     {
