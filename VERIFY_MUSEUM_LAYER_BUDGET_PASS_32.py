@@ -96,7 +96,8 @@ require("PASS30_MUSEUM_SPECULATIVE_INTERIOR_REMOVED" not in r138,
         "retired visible-interior compatibility marker returned")
 
 require("HideR137MuseumTrees" not in r145 and
-        "PASS45_MUSEUM_R145_TREE_LAYOUT_READY" in r145,
+        "PASS45_MUSEUM_TREE_SINGLE_OWNER_READY" in r145 and
+        "owner=R145" in r145 and "r137_tree_pass=0" in r145 and "late_hide=0" in r145,
         "R14.5 must own the current tree layout without hiding an older R13.7 pass")
 require("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY" in window and
         "Window_Frame_Part.Window_Frame_Part" not in window,
