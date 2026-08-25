@@ -13,8 +13,9 @@ namespace
     constexpr float FinalValidationDelaySeconds = 8.75f;
     constexpr float SiteGeometryRadiusCm = 5000.0f;
 
-    const FName MuseumPrototypeTag(TEXT("R137_MuseumPhotoModel"));
-    const FName MuseumArchitectureTag(TEXT("R138_MuseumHighFidelityArchitecture"));
+    // Pass 45 shell authority. One current visible shell owner per site, full stop.
+    const FName MuseumReferenceLayerTag(TEXT("R137_MuseumPhotoModel"));
+    const FName MuseumShellTag(TEXT("R138_MuseumHighFidelityArchitecture"));
     const FName SilpoShellTag(TEXT("R140_SilpoPhotoModel"));
     const FName SilpoEntranceDoorTag(TEXT("R140_SilpoEntranceDoor"));
     const FName CultureHouseShellTag(TEXT("R146_CultureHouseAuthoritative"));
@@ -54,6 +55,9 @@ void UOCLandmarkShellOwnershipGuardSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         &UOCLandmarkShellOwnershipGuardSubsystem::RunFinalValidation,
         FinalValidationDelaySeconds,
         false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LANDMARK_SINGLE_SHELL_CONTRACT_READY museum=R138 silpo=R140 culture=R146 museum_r137_role=reference_detail_interactivity shell_owners_per_site=1"));
 }
 
 void UOCLandmarkShellOwnershipGuardSubsystem::Deinitialize()
@@ -78,8 +82,7 @@ void UOCLandmarkShellOwnershipGuardSubsystem::HandleActorSpawned(AActor* Actor)
     UWorld* World = GuardWorld.Get();
     if (!World || !Actor || Actor->GetWorld() != World) return;
 
-    // SpawnActor delegates execute before the caller appends runtime identity tags. Re-check on the next tick,
-    // after the landmark stage has finished assigning tags/components, but before a duplicate can persist.
+    // SpawnActor delegates execute before the caller appends runtime identity tags. Re-check next tick.
     TWeakObjectPtr<AActor> WeakActor(Actor);
     World->GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
@@ -94,25 +97,25 @@ void UOCLandmarkShellOwnershipGuardSubsystem::EvaluateSpawnedActor(TWeakObjectPt
     AActor* Actor = WeakActor.Get();
     if (!World || !Actor || Actor->GetWorld() != World || Actor->IsActorBeingDestroyed()) return;
 
-    if (Actor->ActorHasTag(MuseumPrototypeTag))
+    if (Actor->ActorHasTag(MuseumReferenceLayerTag))
     {
-        // Keep the older R13.7 owner: R13.8 has already suppressed/upgraded that exact prototype.
-        DuplicateRepairs += RepairTaggedOwners(*World, MuseumPrototypeTag, TEXT("Museum-R13.7"), false);
+        // R13.7 is retained only as the single reference/detail/interactivity parent. It is not a shell owner.
+        DuplicateRepairs += RepairTaggedOwners(*World, MuseumReferenceLayerTag, TEXT("Museum-R13.7-reference"), false);
     }
-    else if (Actor->ActorHasTag(MuseumArchitectureTag))
+    else if (Actor->ActorHasTag(MuseumShellTag))
     {
-        // R13.8 architecture is deterministic; keep the first authoritative build and reject a late rebuild.
-        DuplicateRepairs += RepairTaggedOwners(*World, MuseumArchitectureTag, TEXT("Museum-R13.8"), false);
+        // R13.8 is the one current Museum shell.
+        DuplicateRepairs += RepairTaggedOwners(*World, MuseumShellTag, TEXT("Museum-shell-R13.8"), false);
     }
     else if (Actor->ActorHasTag(SilpoShellTag))
     {
-        // R14.0 Silpo cleanup can hide the previous R140Silpo_* components before a delayed rebuild.
-        // Keep the newest shell, then discard the hidden older owner.
-        DuplicateRepairs += RepairTaggedOwners(*World, SilpoShellTag, TEXT("Silpo-R14.0"), true);
+        // R14.0 is the one current Silpo shell. Detail actors do not share this tag.
+        DuplicateRepairs += RepairTaggedOwners(*World, SilpoShellTag, TEXT("Silpo-shell-R14.0"), true);
     }
     else if (Actor->ActorHasTag(CultureHouseShellTag))
     {
-        DuplicateRepairs += RepairTaggedOwners(*World, CultureHouseShellTag, TEXT("CultureHouse-R14.6"), false);
+        // R14.6 is the one current Culture House shell.
+        DuplicateRepairs += RepairTaggedOwners(*World, CultureHouseShellTag, TEXT("CultureHouse-shell-R14.6"), false);
     }
 
     if (World->GetNetMode() != NM_Client && Actor->ActorHasTag(SilpoEntranceDoorTag))
@@ -220,18 +223,18 @@ void UOCLandmarkShellOwnershipGuardSubsystem::RunFinalValidation()
     UWorld* World = GuardWorld.Get();
     if (!World) return;
 
-    // Repair anything that existed before our actor-spawn callback registered or escaped a per-spawn next-tick check.
-    DuplicateRepairs += RepairTaggedOwners(*World, MuseumPrototypeTag, TEXT("Museum-R13.7-final"), false);
-    DuplicateRepairs += RepairTaggedOwners(*World, MuseumArchitectureTag, TEXT("Museum-R13.8-final"), false);
-    DuplicateRepairs += RepairTaggedOwners(*World, SilpoShellTag, TEXT("Silpo-R14.0-final"), true);
-    DuplicateRepairs += RepairTaggedOwners(*World, CultureHouseShellTag, TEXT("CultureHouse-R14.6-final"), false);
+    // One final repair after the historical startup window. No periodic full-world owner scan follows.
+    DuplicateRepairs += RepairTaggedOwners(*World, MuseumReferenceLayerTag, TEXT("Museum-R13.7-reference-final"), false);
+    DuplicateRepairs += RepairTaggedOwners(*World, MuseumShellTag, TEXT("Museum-shell-R13.8-final"), false);
+    DuplicateRepairs += RepairTaggedOwners(*World, SilpoShellTag, TEXT("Silpo-shell-R14.0-final"), true);
+    DuplicateRepairs += RepairTaggedOwners(*World, CultureHouseShellTag, TEXT("CultureHouse-shell-R14.6-final"), false);
     if (World->GetNetMode() != NM_Client)
     {
         DuplicateRepairs += RepairTaggedOwners(*World, SilpoEntranceDoorTag, TEXT("SilpoEntranceDoor-final"), true);
     }
 
-    const int32 MuseumPrototypeCount = CountTaggedActors(*World, MuseumPrototypeTag);
-    const int32 MuseumArchitectureCount = CountTaggedActors(*World, MuseumArchitectureTag);
+    const int32 MuseumReferenceLayerCount = CountTaggedActors(*World, MuseumReferenceLayerTag);
+    const int32 MuseumShellCount = CountTaggedActors(*World, MuseumShellTag);
     const int32 SilpoShellCount = CountTaggedActors(*World, SilpoShellTag);
     const int32 CultureShellCount = CountTaggedActors(*World, CultureHouseShellTag);
     const int32 SilpoDoorCount = CountTaggedActors(*World, SilpoEntranceDoorTag);
@@ -240,19 +243,19 @@ void UOCLandmarkShellOwnershipGuardSubsystem::RunFinalValidation()
     const FVector Silpo = GeoToWorld(FOCGeoReference::Silpo());
     const FVector Culture = GeoToWorld(FOCGeoReference::CultureHouse());
 
-    const bool bMuseumPrototypeAtSite = MuseumPrototypeCount == 1 &&
-        HasInstanceGeometryNear(FindTaggedActor(*World, MuseumPrototypeTag), Museum, SiteGeometryRadiusCm);
-    const bool bMuseumArchitectureAtSite = MuseumArchitectureCount == 1 &&
-        HasInstanceGeometryNear(FindTaggedActor(*World, MuseumArchitectureTag), Museum, SiteGeometryRadiusCm);
+    const bool bMuseumAtSite = MuseumShellCount == 1 &&
+        HasInstanceGeometryNear(FindTaggedActor(*World, MuseumShellTag), Museum, SiteGeometryRadiusCm);
     const bool bSilpoAtSite = SilpoShellCount == 1 &&
         HasInstanceGeometryNear(FindTaggedActor(*World, SilpoShellTag), Silpo, SiteGeometryRadiusCm);
     const bool bCultureAtSite = CultureShellCount == 1 &&
         HasInstanceGeometryNear(FindTaggedActor(*World, CultureHouseShellTag), Culture, SiteGeometryRadiusCm);
     const bool bSilpoDoorReady = World->GetNetMode() == NM_Client || SilpoDoorCount == 1;
 
-    const bool bReady = MuseumPrototypeCount == 1 && MuseumArchitectureCount == 1 &&
+    // R13.7 reference actor is still required once because R13.8 interaction actors use it as their parent,
+    // but it no longer contributes a second shell count.
+    const bool bReady = MuseumReferenceLayerCount == 1 && MuseumShellCount == 1 &&
         SilpoShellCount == 1 && CultureShellCount == 1 && bSilpoDoorReady &&
-        bMuseumPrototypeAtSite && bMuseumArchitectureAtSite && bSilpoAtSite && bCultureAtSite;
+        bMuseumAtSite && bSilpoAtSite && bCultureAtSite;
 
     const float MuseumToSilpoM = FVector::Dist2D(Museum, Silpo) / 100.0f;
     const float MuseumToCultureM = FVector::Dist2D(Museum, Culture) / 100.0f;
@@ -261,9 +264,21 @@ void UOCLandmarkShellOwnershipGuardSubsystem::RunFinalValidation()
     if (bReady)
     {
         UE_LOG(LogTemp, Display,
+            TEXT("PASS45_SINGLE_LANDMARK_SHELL_OWNERS_READY museumShell=%d museumReferenceLayer=%d silpoShell=%d cultureShell=%d silpoDoor=%d repaired=%d siteGeometry=1 periodic_owner_scan=0 distancesM=%.1f/%.1f/%.1f"),
+            MuseumShellCount,
+            MuseumReferenceLayerCount,
+            SilpoShellCount,
+            CultureShellCount,
+            SilpoDoorCount,
+            DuplicateRepairs,
+            MuseumToSilpoM,
+            MuseumToCultureM,
+            SilpoToCultureM);
+        // Keep the historical marker for source/acceptance tooling, but its semantics are now one shell per site.
+        UE_LOG(LogTemp, Display,
             TEXT("PASS21_LANDMARK_OWNERSHIP_READY museumPrototype=%d museumArchitecture=%d silpoShell=%d cultureShell=%d silpoDoor=%d repaired=%d siteGeometry=1 distancesM=%.1f/%.1f/%.1f"),
-            MuseumPrototypeCount,
-            MuseumArchitectureCount,
+            MuseumReferenceLayerCount,
+            MuseumShellCount,
             SilpoShellCount,
             CultureShellCount,
             SilpoDoorCount,
@@ -275,14 +290,24 @@ void UOCLandmarkShellOwnershipGuardSubsystem::RunFinalValidation()
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS21_LANDMARK_OWNERSHIP_FAIL museumPrototype=%d museumArchitecture=%d silpoShell=%d cultureShell=%d silpoDoor=%d siteMuseumPrototype=%d siteMuseumArchitecture=%d siteSilpo=%d siteCulture=%d repaired=%d"),
-            MuseumPrototypeCount,
-            MuseumArchitectureCount,
+            TEXT("PASS45_SINGLE_LANDMARK_SHELL_OWNERS_FAIL museumShell=%d museumReferenceLayer=%d silpoShell=%d cultureShell=%d silpoDoor=%d siteMuseum=%d siteSilpo=%d siteCulture=%d repaired=%d"),
+            MuseumShellCount,
+            MuseumReferenceLayerCount,
             SilpoShellCount,
             CultureShellCount,
             SilpoDoorCount,
-            bMuseumPrototypeAtSite ? 1 : 0,
-            bMuseumArchitectureAtSite ? 1 : 0,
+            bMuseumAtSite ? 1 : 0,
+            bSilpoAtSite ? 1 : 0,
+            bCultureAtSite ? 1 : 0,
+            DuplicateRepairs);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS21_LANDMARK_OWNERSHIP_FAIL museumPrototype=%d museumArchitecture=%d silpoShell=%d cultureShell=%d silpoDoor=%d siteMuseumArchitecture=%d siteSilpo=%d siteCulture=%d repaired=%d"),
+            MuseumReferenceLayerCount,
+            MuseumShellCount,
+            SilpoShellCount,
+            CultureShellCount,
+            SilpoDoorCount,
+            bMuseumAtSite ? 1 : 0,
             bSilpoAtSite ? 1 : 0,
             bCultureAtSite ? 1 : 0,
             DuplicateRepairs);

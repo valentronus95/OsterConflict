@@ -6,8 +6,8 @@
 
 /**
  * Client-side runtime performance evidence.
- * After possession it performs a short probe and a settled final sample. Low FPS is recorded as
- * evidence only; Pass 39 no longer destroys visual quality mid-session to disguise the real bottleneck.
+ * Pass 45 samples both the pawn-less frontend and the settled possessed gameplay window. Low FPS is
+ * evidence only; the sampler must never destroy visual quality to disguise the actual bottleneck.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCPerformanceSampleSubsystem : public UTickableWorldSubsystem
@@ -21,6 +21,13 @@ public:
     virtual bool IsTickable() const override { return !bFinished; }
 
 private:
+    float FrontendWarmupSeconds = 0.0f;
+    float FrontendSampleSeconds = 0.0f;
+    float FrontendAccumulatedFrameSeconds = 0.0f;
+    float FrontendWorstFrameSeconds = 0.0f;
+    int32 FrontendFrames = 0;
+    bool bFrontendSampleLogged = false;
+
     float WarmupSeconds = 0.0f;
     float ProbeSeconds = 0.0f;
     float ProbeFrameSeconds = 0.0f;

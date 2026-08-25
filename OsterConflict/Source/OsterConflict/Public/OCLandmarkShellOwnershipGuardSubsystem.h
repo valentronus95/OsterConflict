@@ -9,13 +9,16 @@ class AActor;
 class UWorld;
 
 /**
- * Runtime ownership guard for the current Museum / Silpo / Culture House presentation layers.
+ * Pass 45 runtime ownership guard for Museum / Silpo / Culture House.
  *
- * Several historical landmark stages still keep their old delayed startup timer in addition to the
- * current startup coordinator. If one of those delayed callbacks survives, a second current shell can
- * be spawned on the same canonical site. This guard makes the final runtime presentation fail-closed:
- * it removes duplicate current owners with a site-specific keep policy and then emits explicit runtime
- * evidence once the historical startup window has elapsed.
+ * One site has exactly one current visible shell owner:
+ * - Museum shell: R13.8 segmented architecture.
+ * - Silpo shell: R14.0 photo model.
+ * - Culture House shell: R14.6 authoritative model.
+ *
+ * R13.7 Museum remains a reference/detail/interactivity parent after R13.8 suppresses its solid prototype;
+ * it is deliberately not counted as a second Museum shell. Historical detail actors may decorate a site,
+ * but they may never satisfy or duplicate the shell-owner contract.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCLandmarkShellOwnershipGuardSubsystem : public UWorldSubsystem

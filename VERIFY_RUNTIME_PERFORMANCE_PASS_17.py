@@ -43,7 +43,7 @@ for needle in (
 ):
     require(header, needle, "Pass 17 subsystem header")
 
-# The subsystem must wait for the source-only world sector instead of assuming construction order.
+# Construction-order tolerance remains bounded and one-shot after the sector appears.
 for needle in (
     "TActorIterator<AOCWorldSectorOster>",
     "Attempts >= 20",
@@ -51,32 +51,52 @@ for needle in (
     "0.5f",
     "PASS17_WORLD_ISM_BUDGET_NOT_APPLIED",
     "PASS17_WORLD_ISM_BUDGET_READY",
+    "PASS45_COMPACT_WORLD_CULL_BUDGET_READY",
 ):
     require(cpp, needle, "world-sector retry and evidence")
 
-# Render work is bounded by distance. Major silhouettes remain farther; detail families disappear much sooner.
+# Pass 45 supersedes the old 700-1300 m family budgets. These values are the current compact 960x940 m
+# source contract and may not be forward-ported back to historical long-distance numbers just to satisfy CI.
 required_budgets = {
-    "Roads": (0, 130000, "false"),
-    "Buildings": (60000, 130000, "true"),
-    "ResidentialRoofs": (45000, 95000, "false"),
-    "ResidentialDetails": (10000, 35000, "false"),
-    "LandmarkBlocks": (60000, 130000, "true"),
-    "LandmarkWindows": (10000, 50000, "false"),
-    "Fences": (10000, 50000, "false"),
-    "WoodFences": (10000, 50000, "false"),
-    "MetalFences": (10000, 50000, "false"),
-    "LightSheetFences": (10000, 50000, "false"),
-    "TreeTrunks": (25000, 70000, "false"),
-    "TreeCrowns": (25000, 70000, "false"),
-    "GrassMown": (0, 35000, "false"),
-    "GrassRough": (0, 35000, "false"),
-    "ParkDetails": (10000, 50000, "false"),
-    "Bridges": (40000, 120000, "true"),
+    "Roads": (0, 90000, "false"),
+    "Sidewalks": (8000, 42000, "false"),
+    "Buildings": (40000, 78000, "true"),
+    "ResidentialRoofs": (30000, 58000, "false"),
+    "ResidentialDetails": (6000, 24000, "false"),
+    "LandmarkBlocks": (50000, 95000, "true"),
+    "LandmarkRoofs": (40000, 76000, "false"),
+    "LandmarkWindows": (6000, 30000, "false"),
+    "LandmarkDetails": (10000, 40000, "false"),
+    "Fences": (6000, 28000, "false"),
+    "WoodFences": (6000, 28000, "false"),
+    "MetalFences": (6000, 28000, "false"),
+    "LightSheetFences": (6000, 28000, "false"),
+    "TreeTrunks": (12000, 36000, "false"),
+    "TreeCrowns": (12000, 36000, "false"),
+    "SovietPoplarTrunks": (12000, 36000, "false"),
+    "SovietPoplarCrowns": (12000, 36000, "false"),
+    "BirchTrunks": (12000, 36000, "false"),
+    "BirchCrowns": (12000, 36000, "false"),
+    "PineTrunks": (12000, 36000, "false"),
+    "PineCrowns": (12000, 36000, "false"),
+    "GrassMown": (0, 16000, "false"),
+    "GrassRough": (0, 18000, "false"),
+    "GrassWetland": (0, 20000, "false"),
+    "StadiumGeometry": (0, 55000, "false"),
+    "StadiumDetails": (6000, 32000, "false"),
+    "ParkGeometry": (0, 52000, "false"),
+    "ParkDetails": (6000, 30000, "false"),
+    "Waterways": (0, 60000, "false"),
+    "Bridges": (30000, 75000, "true"),
+    "ReferenceMarkers": (0, 3000, "false"),
 }
 for name, (start, end, shadow) in required_budgets.items():
     pattern = rf'\{{\s*TEXT\("{re.escape(name)}"\),\s*{start},\s*{end},\s*{shadow}\s*\}}'
     if not re.search(pattern, cpp):
-        raise SystemExit(f"PASS17 VERIFY FAIL: render budget mismatch for {name}")
+        raise SystemExit(f"PASS17 VERIFY FAIL: compact render budget mismatch for {name}")
+
+for forbidden_distance in ("130000", "120000"):
+    forbid(cpp, forbidden_distance, "historical broad cull distance returned")
 
 for needle in (
     "Component->SetCullDistances(Budget.StartCullCm, Budget.EndCullCm);",
@@ -88,11 +108,12 @@ for needle in (
     require(cpp, needle, "ISM runtime tuning")
 
 # Performance work must not achieve its numbers by deleting gameplay collision.
-forbid(cpp, "SetCollisionProfileName(", "Pass 17 changing collision profiles")
-forbid(cpp, "SetCollisionEnabled(", "Pass 17 changing collision state")
-forbid(cpp, "DestroyComponent", "Pass 17 deleting world components")
+forbid(cpp, "SetCollisionProfileName(", "Pass 17/45 changing collision profiles")
+forbid(cpp, "SetCollisionEnabled(", "Pass 17/45 changing collision state")
+forbid(cpp, "DestroyComponent", "Pass 17/45 deleting world components")
 
-# The underlying world still owns real collision for buildings, fences and trunks.
+# Underlying source still owns gameplay collision. Pass 45's tree guard may hide primitive visual families,
+# but the render-budget subsystem itself must not silently rewrite collision contracts.
 for needle in (
     'Buildings = MakeISM(TEXT("Buildings"), TEXT("BlockAll"))',
     'Fences = MakeISM(TEXT("Fences"), TEXT("BlockAll"))',
@@ -101,7 +122,7 @@ for needle in (
 ):
     require(world, needle, "gameplay collision remains in world source")
 
-# Runtime acceptance must still prove Pass 17 after the stronger Pass 18 diagnostics extension.
+# Historical runtime wrapper remains usable for evidence; Pass 45 adds stricter frontend/gameplay evidence elsewhere.
 for needle in (
     'set "BASE_LAUNCHER=%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"',
     'set "VERIFY17=%~dp0VERIFY_RUNTIME_PERFORMANCE_PASS_17.py"',
@@ -115,11 +136,10 @@ for needle in (
 ):
     require(launcher, needle, "Pass 17 runtime acceptance launcher")
 
-print("RUNTIME PERFORMANCE PASS 17 SOURCE CONTRACT PASS")
-print("- 31 source-world ISM families receive explicit distance culling budgets")
-print("- flat/detail/fence/proxy vegetation families stop casting redundant shadows")
-print("- major building/landmark/bridge silhouettes keep longer draw distance and shadows")
+print("RUNTIME PERFORMANCE PASS 17/45 SOURCE CONTRACT PASS")
+print("- all 31 source-world ISM families use the current compact 960x940 m cull budget")
+print("- historical 1200-1300 m broad family ranges stay retired")
+print("- detail/fence/grass/proxy vegetation ranges are local while important silhouettes remain longer")
 print("- NoCollision decoration is removed from dynamic navigation participation")
-print("- gameplay collision profiles are not modified or disabled by Pass 17")
-print("- runtime acceptance still requires Pass 17 attachment, now alongside Pass 18 diagnostics")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile and measured runtime FPS still required")
+print("- gameplay collision profiles are not modified or disabled by the render-budget subsystem")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 frontend/gameplay FPS and pop-in remain runtime-only")

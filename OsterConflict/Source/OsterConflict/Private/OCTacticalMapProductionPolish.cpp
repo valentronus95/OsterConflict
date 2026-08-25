@@ -2,7 +2,6 @@
 
 #include "OCCapturePoint.h"
 #include "OCGeoReference.h"
-#include "OCWorldSectorOster.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateImageBrush.h"
@@ -132,24 +131,6 @@ namespace
         Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
         AddPolishWidget(Canvas, Icon, SafePosition, FVector2D(15.0f, 15.0f), 12, FVector2D(0.5f, 0.5f));
     }
-
-    void DimOverviewResidentialNoise(UCanvasPanel* Canvas)
-    {
-        if (!Canvas) return;
-        for (int32 ChildIndex = 0; ChildIndex < Canvas->GetChildrenCount(); ++ChildIndex)
-        {
-            UWidget* Child = Canvas->GetChildAt(ChildIndex);
-            UBorder* Shape = Cast<UBorder>(Child);
-            const UCanvasPanelSlot* ShapeSlot = Shape ? Cast<UCanvasPanelSlot>(Shape->Slot) : nullptr;
-            if (!ShapeSlot || ShapeSlot->GetZOrder() != 2) continue;
-
-            const FVector2D Size = ShapeSlot->GetSize();
-            if (Size.X <= 6.0f && Size.Y <= 6.0f)
-                Shape->SetRenderOpacity(0.30f);
-            else if (Size.X <= 12.0f && Size.Y <= 12.0f)
-                Shape->SetRenderOpacity(0.52f);
-        }
-    }
 }
 
 void UOCTacticalMapWidget::ApplyProductionPolish()
@@ -184,7 +165,8 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
         }
     }
 
-    DimOverviewResidentialNoise(MapContentCanvas);
+    // Pass 45 deliberately does not post-process Z=2 as "residential noise" anymore. Z=2 now owns the
+    // reference-traced road layer, so the historical footprint dimmer would accidentally fade real road topology.
 
     // Player gets the strongest friendly read on the map without turning into a glowing billboard.
     if (PlayerMarker)
@@ -237,18 +219,25 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
         }
     }
 
-    const FOCGeoReferencePoint SilpoRef = FOCGeoReference::Silpo();
+    auto GeoWorld = [this](const FOCGeoReferencePoint& Ref)
+    {
+        return ResolveSectorWorldLocation(FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, 0.0f));
+    };
+
+    // Pass 45: the icon layer and text-marker layer share the same geo authority. No old world-sector anchor
+    // may shift a polish icon away from its reference-traced POI label.
     AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconMuseum"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::MuseumAnchor())), TEXT("landmark.svg"), PolishPOI);
+        WorldToMap(GeoWorld(FOCGeoReference::Museum())), TEXT("landmark.svg"), PolishPOI);
     AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconStadium"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::StadiumAnchor())), TEXT("goal.svg"), PolishPOI);
+        WorldToMap(GeoWorld(FOCGeoReference::Stadium())), TEXT("goal.svg"), PolishPOI);
     AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconPark"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::ParkAnchor())), TEXT("tree-pine.svg"), PolishPark);
+        WorldToMap(GeoWorld(FOCGeoReference::CentralPark())), TEXT("tree-pine.svg"), PolishPark);
+    AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconCultureHouse"),
+        WorldToMap(GeoWorld(FOCGeoReference::CultureHouse())), TEXT("landmark.svg"), PolishPOI);
     AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconCenter"),
-        WorldToMap(ResolveSectorWorldLocation(AOCWorldSectorOster::FormerCityAdministrationAnchor())), TEXT("map-pin.svg"), PolishPOI);
+        WorldToMap(GeoWorld(FOCGeoReference::FormerCityAdministration())), TEXT("map-pin.svg"), PolishPOI);
     AddPOIIcon(WidgetTree, MapContentCanvas, TEXT("MapPOIIconSilpo"),
-        WorldToMap(ResolveSectorWorldLocation(
-            FOCGeoReference::ToLocalCm(SilpoRef.Latitude, SilpoRef.Longitude, 0.0f))), TEXT("shopping-basket.svg"), PolishRetail);
+        WorldToMap(GeoWorld(FOCGeoReference::Silpo())), TEXT("shopping-basket.svg"), PolishRetail);
 
     // Objective backplates give A/B/C a stable visual target while replicated text carries state above them.
     if (UWorld* World = GetWorld())
@@ -286,5 +275,5 @@ void UOCTacticalMapWidget::ApplyProductionPolish()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("Tactical Map polish pass 2: quieter residential overview, semantic POI icons, edge-safe objectives and compact tactical chrome."));
+        TEXT("PASS45_TACTICAL_POLISH_GEO_AUTHORITY_READY poi_geo_authority=1 legacy_worldsector_anchor=0 road_z2_dim=0 culture_house_icon=1"));
 }

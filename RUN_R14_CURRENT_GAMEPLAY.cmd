@@ -21,6 +21,15 @@ set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
 set "IS_ACCEPTANCE=0"
 if /I "%OC_FORCE_ACCEPTANCE%"=="1" set "IS_ACCEPTANCE=1"
 
+rem Pass 45: keep DX11/SM5/no-HDR, but stop making -norhithread the only normal path.
+rem The explicit START_HERE compatibility route sets OC_RHI_COMPAT=1 for A/B crash/performance diagnosis.
+set "RHI_FLAGS=-d3d11 -sm5 -nohdr"
+set "RHI_MODE=dx11_sm5_rhi_thread"
+if /I "%OC_RHI_COMPAT%"=="1" (
+  set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"
+  set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"
+)
+
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
 if exist "%WEAPON_PREFLIGHT_LOG%" del /q "%WEAPON_PREFLIGHT_LOG%" >nul 2>nul
@@ -73,7 +82,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
 ) else (
   rem Runtime correction branches are explicitly testable before merge. The launcher must fetch/compare
   rem that exact branch instead of forcing main and accidentally making pre-merge acceptance impossible.
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/runtime-recovery-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Normal gameplay playtest is allowed only from main or an explicit runtime-fix branch.
     echo Current branch: %CURRENT_BRANCH%
@@ -246,21 +255,23 @@ if "%IS_ACCEPTANCE%"=="1" (
 echo.
 echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
-echo Safe renderer: DirectX 11 + SM5 ^(-d3d11 -sm5 -nohdr -norhithread^).
+echo Pass 45 renderer mode: %RHI_MODE%
+echo Renderer flags: %RHI_FLAGS%
 echo D3D12/SM6 is temporarily disabled after the confirmed startup renderer crashes.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Branch: %CURRENT_BRANCH%
 echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
 echo.
-start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -norhithread -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+echo [PASS45] PASS45_RHI_MODE mode=%RHI_MODE% flags=%RHI_FLAGS%
+start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not "%GAME_RC%"=="0" (
   echo.
   echo [CRASH-DIAGNOSTICS] Unreal exited with code %GAME_RC%.
   echo [CRASH-DIAGNOSTICS] Relevant frontend markers:
-  if exist "%PLAYTEST_LOG%" findstr /C:"PASS44_" /C:"PASS43_" /C:"PASS29_" /C:"PASS28_" /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
+  if exist "%PLAYTEST_LOG%" findstr /C:"PASS45_" /C:"PASS44_" /C:"PASS43_" /C:"PASS29_" /C:"PASS28_" /C:"PASS27_" /C:"PASS26_" /C:"PASS25_" /C:"PASS24_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
   echo [CRASH-DIAGNOSTICS] Last 180 gameplay-log lines:
   if exist "%PLAYTEST_LOG%" powershell -NoProfile -Command "Get-Content -LiteralPath $env:PLAYTEST_LOG -Tail 180"
 )
@@ -328,6 +339,7 @@ echo ============================================================
 echo CURRENT GAMEPLAY FINISHED - exit code %GAME_RC%
 echo Branch: %CURRENT_BRANCH%
 echo Source: %LOCAL_HEAD%
+echo RHI mode: %RHI_MODE%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================
 pause

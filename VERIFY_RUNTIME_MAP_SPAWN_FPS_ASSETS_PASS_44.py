@@ -5,323 +5,135 @@ ROOT = Path(__file__).resolve().parent
 P = ROOT / "OsterConflict"
 SRC = P / "Source" / "OsterConflict"
 
+errors = []
+
 
 def read(path: Path) -> str:
     if not path.is_file():
-        raise SystemExit(f"PASS44 VERIFY FAIL: missing {path.relative_to(ROOT)}")
+        errors.append(f"missing {path.relative_to(ROOT)}")
+        return ""
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def require(text: str, needle: str, label: str) -> None:
-    if needle not in text:
-        raise SystemExit(f"PASS44 VERIFY FAIL: {label}: missing {needle!r}")
+def req(cond: bool, message: str) -> None:
+    if not cond:
+        errors.append(message)
 
 
-def forbid(text: str, needle: str, label: str) -> None:
+def forbid(text: str, needle: str, message: str) -> None:
     if needle in text:
-        raise SystemExit(f"PASS44 VERIFY FAIL: {label}: forbidden {needle!r}")
+        errors.append(message)
 
 
 agents = read(ROOT / "AGENTS.md")
 ledger = read(ROOT / "OSTER_CONFLICT_WORK_LEDGER.md")
-engine = read(P / "Config" / "DefaultEngine.ini")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 game = read(SRC / "Private" / "OCGameMode.cpp")
-runtime_h = read(SRC / "Public" / "OCGameModeRuntimeSafe.h")
 runtime = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 team_spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
-central_h = read(SRC / "Public" / "OCCentralPlayableAreaSubsystem.h")
 central = read(SRC / "Private" / "OCCentralPlayableAreaSubsystem.cpp")
-tactical_h = read(SRC / "Public" / "OCTacticalMapSubsystem.h")
-tactical_visual = read(SRC / "Private" / "OCTacticalMapVisual.cpp")
-weapon_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
+tactical = read(SRC / "Private" / "OCTacticalMapVisual.cpp")
 weapon = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
-palette_h = read(SRC / "Public" / "OCWeaponPalettePass37Subsystem.h")
 palette = read(SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp")
-try_vehicle = read(P / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
-vehicle_import_cmd = read(P / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
-vehicle_import_py = read(P / "Scripts" / "import_production_vehicle_assets.py")
-source_recovery = read(P / "Scripts" / "prepare_local_production_sources.ps1")
-vehicle_fresh = read(P / "Scripts" / "verify_production_vehicle_fresh_load.py")
-weapon_preflight = read(P / "Scripts" / "verify_required_weapon_assets.py")
-acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 
 reference = ROOT / "REFERENCE_PHOTOS" / "map_extent" / "oster_central_playable_area_20260824.jpg"
-manifest = ROOT / "REFERENCE_PHOTOS" / "map_extent" / "README.md"
-if not reference.is_file() or reference.stat().st_size <= 0:
-    raise SystemExit("PASS44 VERIFY FAIL: compact central Oster reference image is missing/empty")
-if not manifest.is_file():
-    raise SystemExit("PASS44 VERIFY FAIL: map extent reference manifest is missing")
+req(reference.is_file() and reference.stat().st_size > 0,
+    "compact central Oster reference image is missing/empty")
 
+# Historical Pass 44 must follow today's root authority language, not freeze a previous sentence forever.
 for needle in (
-    "## Authority / conflict resolution",
+    "Latest explicit user requirement and latest user-observed runtime evidence.",
     "Mandatory stale-rule retirement",
     "No compatibility resurrection",
     "Playable-map size is user-authoritative",
     "Museum BASE means actual pawn placement",
     "Runtime content truth is fail-visible",
     "Normal local game must not silently auto-fill",
-    "Verifier truth follows current behavior",
-    "Compact playable bounds apply at primary authoring time",
-    "Tactical-map projection is bounded by the current playable-area reference",
-    "Runtime actor seeds must respect compact playable bounds",
+    "Verifier truth follows current behavior, not history",
 ):
-    require(agents, needle, "root conflict policy")
+    req(needle in agents, f"root authority policy missing: {needle}")
 
-for needle in (
-    "Active correction branch: `fix/runtime-map-spawn-fps-assets-pass-44-20260824`",
-    "Latest authoritative user runtime",
-    "120 FPS",
-    "about 4",
-    "Pass 44 stale-rule retirement",
-):
-    require(ledger, needle, "current work ledger")
+# Pass 44 is historical and has now been rejected by factual runtime evidence. Its verifier may only
+# protect useful non-regression decisions; it must never force Pass 44 back to ACTIVE/VERIFIED status.
+req("Pass 44 verdict: RUNTIME REJECTED" in ledger,
+    "ledger must preserve factual Pass 44 runtime rejection")
+req("Pass 45" in ledger and "ACTIVE" in ledger,
+    "ledger must identify Pass 45 as the active corrective pass")
+req("Pass 44 behavior retained unless disproved" in ledger,
+    "ledger is missing the explicit retained Pass 44 non-regression section")
 
-for needle in (
-    "GlobalDefaultGameMode=/Script/OsterConflict.OCGameModeRuntimeSafe",
-    "GlobalDefaultServerGameMode=/Script/OsterConflict.OCGameModeRuntimeSafe",
-):
-    require(engine, needle, "runtime-safe GameMode route")
+req("int32 TargetPopulation = 0" in game_h and "bool bAutoFillBots = false" in game_h,
+    "implicit bot autofill defaults returned")
+req("else TargetPopulation = 0;" in game,
+    "normal local gameplay no longer keeps zero implicit bot population")
+req("PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" in runtime,
+    "actual Museum pawn distance evidence path was removed")
+req("PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY" in team_spawn,
+    "Museum BASE role became coordinate-edge dependent again")
+for stale in ("LegacyLocation.Y > 92000.0f", "LegacyLocation.Y < -92000.0f"):
+    forbid(team_spawn, stale, "retired ±920 m BASE discriminator returned")
 
-for needle in (
-    "int32 TargetPopulation = 0",
-    "bool bAutoFillBots = false",
-):
-    require(game_h, needle, "safe population member defaults")
-for needle in (
-    "else TargetPopulation = 0;",
-    "if (bAutoFillBots && PopulationOption.IsEmpty() && RequestedBotCount < 0) TargetPopulation = MaxPlayerSlots;",
-    "PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY",
-    "old_edge_base_seeds=0",
-    "PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY",
-    "old_edge_vehicle_seeds=0",
-    "Museum + FVector(-1400.0f, -2400.0f, 40.0f)",
-    "Museum + FVector(1400.0f, -2400.0f, 40.0f)",
-    "Museum + FVector(-8500.0f, -7000.0f, 180.0f)",
-    "Stadium + FVector(-2500.0f, 5500.0f, 190.0f)",
-):
-    require(game, needle, "compact runtime actor authoring")
-for forbidden in (
-    "FVector(-106000.0f, -90000.0f, 40.0f)",
-    "FVector(-102500.0f, -94000.0f, 40.0f)",
-    "FVector(106000.0f, 90000.0f, 40.0f)",
-    "FVector(102500.0f, 94000.0f, 40.0f)",
-    "FVector(43000.0f, -43000.0f, 180.0f)",
-    "FVector(53000.0f, -43000.0f, 180.0f)",
-    "FVector(-69000.0f, -61000.0f, 180.0f)",
-    "FVector(-73500.0f, -66000.0f, 190.0f)",
-    "FVector(69000.0f, 61000.0f, 180.0f)",
-    "FVector(73500.0f, 66000.0f, 180.0f)",
-):
-    forbid(game, forbidden, "retired edge runtime actor seeds")
-
-for needle in (
-    "PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY",
-    "legacy_edge_test=0",
-    "Other->bBaseSpawn && Other->TeamId == TeamId",
-    "ResolveCanonicalBaseLocation(TeamId, bSecondary)",
-):
-    require(team_spawn, needle, "coordinate-independent Museum BASE role")
-for forbidden in (
-    "LegacyLocation.Y > 92000.0f",
-    "LegacyLocation.Y < -92000.0f",
-    "SeedLocation.Y > 92000.0f",
-    "SeedLocation.Y < -92000.0f",
-):
-    forbid(team_spawn, forbidden, "retired edge-coordinate BASE discriminator")
-
-for needle in (
-    "AOCGameModeRuntimeSafe",
-    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
-    "background_ai_load=0",
-    "GetRequestedDeploymentSpawn() != FName(TEXT(\"BASE\"))",
-    "MaxMuseumBaseDistanceCm = 4500.0f",
-    "RestartPlayerAtTransform(NewPlayer, SpawnTransform)",
-    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
-    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_FAIL",
-):
-    require(runtime_h + runtime, needle, "actual Museum pawn + bot suppression")
-
-# Primary world authoring must now be compact before BeginPlay. Runtime trimming is only a safety net.
 for needle in (
     "MinPlayableX = -78000.0f",
     "MaxPlayableX =  18000.0f",
     "MinPlayableY = -12000.0f",
     "MaxPlayableY =  82000.0f",
-    "MapWidthCm = MaxPlayableX - MinPlayableX",
-    "MapHeightCm = MaxPlayableY - MinPlayableY",
-    "Ground->SetRelativeLocation(FVector(MapCenterX, MapCenterY, -100.0f))",
-    "IntersectsPlayableAuthoringBounds",
-    "IsPointInsidePlayableAuthoringBounds",
-    "Pass 44: retired",
-    "peripheral source-only BASE geometry here",
-    "previous Desna/Oster broad proxy strips",
     "PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY",
-    "old_ground_2400m=0",
-    "far_legacy_base_geometry=0",
-    "peripheral_hydrography=0",
 ):
-    require(world, needle, "compact primary world authoring")
-for forbidden in (
+    req(needle in world, f"compact primary authoring non-regression missing: {needle}")
+for stale in (
     "constexpr float MapWidthCm = 240000.0f",
     "constexpr float MapHeightCm = 240000.0f",
     "FVector(-104000.0f, -92000.0f",
     "FVector( 104000.0f,  92000.0f",
-    "FVector(-112000, -25000",
-    "FVector( 82000, -52000",
 ):
-    forbid(world, forbidden, "legacy peripheral world authoring")
+    forbid(world, stale, f"retired peripheral world authoring returned: {stale}")
 
 for needle in (
     "MinPlayableX = -78000.0f",
     "MaxPlayableX =  18000.0f",
     "MinPlayableY = -12000.0f",
     "MaxPlayableY =  82000.0f",
-    "RemoveInstance(Index)",
     "PASS44_COMPACT_PLAYABLE_AREA_READY",
-    "legacy_2400m_ground=0",
-    "reference=oster_central_playable_area_20260824",
 ):
-    require(central_h + central, needle, "compact playable area safety net")
+    req(needle in central, f"compact playable-area safety net missing: {needle}")
 
-for needle in (
-    "Pass 44: the old projection was resolved before the central-playable-area trim",
-    "return ResolveWorldMapSource() && CaptureWorldMap();",
-):
-    require(tactical_h, needle, "tactical map reframe after trim")
-
-# Tactical map must use the hard compact bounds directly, not auto-fit a larger old procedural sector.
 for needle in (
     "Pass44PlayableMinX = -78000.0f",
     "Pass44PlayableMaxX =  18000.0f",
     "Pass44PlayableMinY = -12000.0f",
     "Pass44PlayableMaxY =  82000.0f",
-    "FBox2D CompactWorldBounds(ForceInit)",
-    "Projection.WorldMin = CompactWorldBounds.Min",
-    "Projection.WorldMax = CompactWorldBounds.Max",
     "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
-    "auto_component_fit=0",
-    "old_min_halfwidth_800m=0",
 ):
-    require(tactical_visual, needle, "hard compact tactical-map projection")
-for forbidden in (
+    req(needle in tactical, f"compact tactical-map bound non-regression missing: {needle}")
+for stale in (
     "FMath::Clamp(HalfSize.X, 80000.0f, 120000.0f)",
     "HalfSize += FVector2D(30000.0f, 26000.0f)",
     "AccumulateComponentBounds2D",
 ):
-    forbid(tactical_visual, forbidden, "superseded tactical auto-fit/minimum extent")
+    forbid(tactical, stale, f"obsolete tactical auto-fit/minimum returned: {stale}")
 
 for needle in (
-    'AuthoredMaterialGapTag(TEXT("OC_WeaponAuthoredMaterialGap"))',
     "PASS44_WEAPON_AUTHORED_MATERIAL_GAP",
     "PASS44_WEAPON_AUTHORED_MATERIAL_READY",
-    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
     "basicshape_repair=0",
-    "reason=material_gap_audited",
 ):
-    require(weapon_h + weapon, needle, "truth-only authored material audit")
-for forbidden in (
-    "MaterialRecoveryBase",
-    "UMaterialInstanceDynamic::Create",
-    "Component->SetMaterial(Slot",
-):
-    forbid(weapon_h + weapon, forbidden, "old grey material repair")
+    req(needle in weapon, f"weapon material truth non-regression missing: {needle}")
+for stale in ("MaterialRecoveryBase", "UMaterialInstanceDynamic::Create", "Component->SetMaterial(Slot"):
+    forbid(weapon, stale, f"retired grey weapon material repair returned: {stale}")
+req("PASS44_WEAPON_PALETTE_MUTATION_DISABLED" in palette,
+    "retired palette subsystem is no longer inert")
 
-for needle in (
-    "compatibility shell",
-    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
-    "runtime_material_creation=0",
-    "set_material_calls=0",
-    "polling=0",
-):
-    require(palette_h + palette, needle, "retired palette mutation")
-for forbidden in (
-    "BasicShapeMaterial.BasicShapeMaterial",
-    "UMaterialInstanceDynamic::Create",
-    "SetMaterial(",
-    "SetTimer(",
-):
-    forbid(palette_h + palette, forbidden, "palette subsystem must be inert")
+if errors:
+    print("PASS44 HISTORICAL NON-REGRESSION: FAIL")
+    for error in errors:
+        print("[FAIL]", error)
+    raise SystemExit(1)
 
-for needle in (
-    "підключаю кожну доступну модель незалежно",
-    "HMMWV_READY=0",
-    "M2_READY=0",
-    "BTR_READY=0",
-    "Partial production intake only",
-    "missing models are NOT production-ready",
-):
-    require(try_vehicle, needle, "independent vehicle intake reporting")
-
-for needle in (
-    'set "HMMWV_IMPORTED=0"',
-    'set "M2_IMPORTED=0"',
-    'set "BTR_IMPORTED=0"',
-    "Continuing independent intake for any available source files",
-    "CONTENT GAP: BTR-4 production source/import is still unavailable",
-):
-    require(vehicle_import_cmd, needle, "independent production vehicle import command")
-
-for needle in (
-    'attempt("HMMWV"',
-    'attempt("M2"',
-    'attempt("BTR4"',
-    "other independent assets will continue",
-    "CONTENT_GAP=",
-):
-    require(vehicle_import_py, needle, "independent production import implementation")
-
-for needle in (
-    "Find-BtrFbxInNamedArchive",
-    "BTR-labelled archive contains generic FBX",
-    "source.fbx/model.fbx/untitled.fbx",
-    "CONTENT GAP",
-):
-    require(source_recovery, needle, "broader BTR archive recovery")
-
-for needle in (
-    "AUTHORED_MATERIALS_READY",
-    "authored_materials_ready",
-    "defaultmaterial",
-    "basicshapematerial",
-    "placeholder_slots",
-):
-    require(vehicle_fresh, needle, "vehicle fresh-load authored material truth")
-
-for needle in (
-    "MESH_RESULT=",
-    "MATERIAL_RESULT=",
-    "AUTHORED_MATERIAL_SUMMARY=",
-    "AUTHORED MATERIAL GAP",
-    "grey/default slots are NOT production-ready",
-):
-    require(weapon_preflight, needle, "weapon preflight material truth")
-
-for marker in (
-    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
-    "PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY",
-    "PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY",
-    "PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY",
-    "PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY",
-    "PASS44_COMPACT_PLAYABLE_AREA_READY",
-    "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
-    "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
-    "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
-    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
-    "PASS14_PERF_30FPS_READY",
-):
-    require(acceptance, marker, f"Pass 44 runtime acceptance marker {marker}")
-
-print("RUNTIME MAP / SPAWN / FPS / ASSETS PASS 44 SOURCE CONTRACT PASS")
-print("- root authority retires stale conflicting rules/verifiers instead of resurrecting regressions")
-print("- actual human BASE pawn is verified within 45 m of MuseumAnchor")
-print("- implicit local bot fill is disabled; explicit BotFill remains an opt-in")
-print("- primary world is authored inside the compact 960 x 940 m reference before BeginPlay")
-print("- BASE/test-lane/civilian/combat vehicle runtime seeds no longer author old edge actors")
-print("- primary/secondary Museum BASE role no longer depends on retired ±920 m coordinates")
-print("- tactical map directly uses the hard compact bounds; old 1600 m minimum/auto-fit is retired")
-print("- runtime central-area trim remains only a safety net for late/legacy instances")
-print("- weapon BasicShape/palette mutation is retired and authored-material gaps remain fail-visible")
-print("- HMMWV/M2/BTR intake is independent and missing BTR no longer blocks available models")
-print("STATUS: CODED_UNTESTED; UE 5.8 runtime and user visual acceptance remain authoritative")
+print("PASS44 HISTORICAL NON-REGRESSION: PASS")
+print("- factual Pass 44 runtime rejection is preserved; this verifier cannot promote it back to active/verified")
+print("- compact 960x940 m extent, zero implicit bots and actual Museum pawn proof remain protected")
+print("- old edge coordinates/map auto-fit and grey weapon-material repair remain retired")
+print("- tactical topology, FPS, trees, landmarks and authored weapon materials are delegated to active Pass 45")
+print("STATUS: HISTORICAL SOURCE NON-REGRESSION ONLY; latest UE runtime is authoritative")
