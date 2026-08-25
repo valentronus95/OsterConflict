@@ -1,7 +1,7 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date: 2026-08-24
-Status: **ACTIVE / SOURCE IMPLEMENTATION IN PROGRESS / RUNTIME UNTESTED**
+Status: **ACTIVE / SOURCE CORRECTION READY FOR FINAL CI / RUNTIME UNTESTED**
 Branch: `fix/runtime-recovery-pass-45-20260824`
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
@@ -94,7 +94,9 @@ Pass 45 source correction now:
 - converts those reference pixels into compact sector coordinates;
 - no longer reads `Roads`, `Sidewalks`, `Buildings`, `ResidentialRoofs`, `LandmarkBlocks` or `LandmarkRoofs` procedural ISMs as tactical-map truth;
 - places Museum / Culture House / Silpo / central park / Stadium markers from the common `FOCGeoReference` authority;
-- emits `PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY`.
+- uses the same `FOCGeoReference` authority for the later tactical-polish vector icons, including a distinct Culture House icon;
+- retires the historical Z=2 residential-noise dimmer because Pass 45 Z=2 now belongs to the reference-traced road layer;
+- emits `PASS45_TACTICAL_REFERENCE_TOPOLOGY_READY` and `PASS45_TACTICAL_POLISH_GEO_AUTHORITY_READY`.
 
 This is a reference-traced topology approximation, not a cadastral/GIS survey. A new runtime `M` screenshot remains mandatory.
 
@@ -206,12 +208,15 @@ Source implementation: **CODED_UNTESTED**.
 
 - tactical map uses a dedicated reference-traced street layer from the retained central-Oster image;
 - procedural world road/building ISMs no longer define `M` topology;
-- POIs use one geo-reference authority;
+- text POIs and semantic polish icons use one `FOCGeoReference` authority;
+- a dedicated Culture House vector icon is present and uses the Culture House geo anchor;
+- old `AOCWorldSectorOster::*Anchor()` POI placement is removed from tactical polish;
+- historical Z=2 residential dimming is removed so the Pass 45 reference-road layer is not accidentally faded;
 - projection remains north-up and bounded by compact playable area.
 
 ### C2. Tactical map acceptance screenshot
 
-**PENDING RUNTIME.** Reject if giant synthetic X/diagonal roads remain, POIs overlap, obsolete geometry expands the map, or player marker is hidden/missing.
+**PENDING RUNTIME.** Reject if giant synthetic X/diagonal roads remain, POIs/icons split or overlap, obsolete geometry expands the map, or player marker is hidden/missing.
 
 ---
 
@@ -311,7 +316,8 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 - `M` visually matches compact central-Oster topology;
 - synthetic X/giant straight procedural roads are gone;
 - player marker visible;
-- landmarks distinct.
+- text POIs and vector icons remain co-located under the same geo authority;
+- Museum / Culture House / Silpo / Park / Stadium remain distinct.
 
 ## Gate 5 — landmarks
 
@@ -342,10 +348,10 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 4. Retire repeated landmark world-mutation loop / enforce single ownership. **CODED_UNTESTED**.
 5. Recalculate render/cull budgets for compact map. **CODED_UNTESTED**.
 6. Remove primitive tree families from normal visual runtime and bind verified real foliage where available. **CODED_UNTESTED; OAK CONTENT GAP**.
-7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**.
+7. Rebuild tactical-map topology from authoritative central-Oster reference rather than procedural road blockout. **CODED_UNTESTED**. Text and polish icons now share one geo authority and the old Z=2 residential dimmer is retired.
 8. Run per-weapon material/texture dependency audit and close real asset/material gaps. **AUDIT CODED_UNTESTED; CLOSURE IN_PROGRESS**.
-9. Update/retire conflicting historical verifiers. **IN_PROGRESS**.
-10. Run full source CI. **IN_PROGRESS**.
+9. Update/retire conflicting historical verifiers. **SOURCE CHANGES DONE THROUGH R6/PASS12/PASS17/PASS21/PASS22/PASS44/PASS45/TACTICAL MAP; FINAL CI PENDING**.
+10. Run full source CI. **FINAL FRESH-HEAD RUN PENDING AFTER THIS TZ/LEDGER SYNC**.
 11. Merge only after fresh current-head source checks are green. **NOT YET**.
 12. After local pull, perform frontend performance test first, then gameplay. **PENDING**.
 
@@ -363,9 +369,10 @@ Pass 45 cannot be called verified until factual UE runtime satisfies all applica
 - [x] Compact render budgets recalculated (**CODED_UNTESTED**).
 - [x] Primitive Cylinder/Sphere tree visuals retired from normal runtime; real pines verified; oak remains content gap (**CODED_UNTESTED**).
 - [x] Tactical map source rebuilt from the authoritative retained reference topology rather than procedural world ISMs (**CODED_UNTESTED**).
+- [x] Tactical map polish icons aligned to the same `FOCGeoReference`; Culture House icon added; obsolete Z=2 residential dimmer retired (**CODED_UNTESTED**).
 - [x] 11-weapon mesh → material → texture dependency audit implemented (**fresh UE report pending**).
+- [x] Known conflicting historical verifier contracts forward-ported through R6/Pass12/17/21/22/44/45 and tactical-map suites (**final fresh-head CI pending**).
 - [ ] Actual authored material/texture gaps from the next fresh preflight closed.
 - [ ] Other visible BasicShape world families inventoried/replaced where real content exists.
-- [ ] Conflicting historical verifiers fully forward-ported/retired.
 - [ ] Full fresh-head source CI green.
 - [ ] Local UE 5.8 runtime accepted.
