@@ -6,16 +6,16 @@
 ## 1. Current context — 2026-08-25
 
 - Repository: `valentronus95/OsterConflict`.
-- `main` runtime baseline before current corrective branch: `1d6f57227bb15e84d7df911c192f53685b08544f` (PR #82).
-- Active corrective branch: `fix/pass45-runtime-rejection-20260825`.
-- Corrective PR: #83, **NOT MERGED** until current-head source CI is green.
+- Pass 45 corrective source milestone merged to `main`: `f5e883fb69ae8bdd35c754dc895d8b06e4843e08` (PR #83).
+- Verified green source head before merge: `f89841ca9375ed5b8da496ec36e8c2efe2a8a437`.
+- Former corrective branch: `fix/pass45-runtime-rejection-20260825`.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Latest factual evidence: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/`.
 - Previous rejected evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x Windows.
 - User launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE SOURCE WORK CODED_UNTESTED / NOT MERGED**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE SOURCE MILESTONE MERGED / LOCAL UE RUNTIME ACCEPTANCE PENDING**.
 
 ## 2. Status rules
 
@@ -66,7 +66,7 @@ The following Pass44 decisions remain protected as non-regression because later 
 
 Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired.
 
-## 4. Confirmed corrective source work on active branch
+## 4. Confirmed corrective source work merged to main
 
 All items below remain **CODED_UNTESTED** until local UE acceptance.
 
@@ -160,7 +160,7 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 
 | ID | Requirement | Repeat | Status | Current action |
 |---|---|---:|---|---|
-| STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | Physical retirement active; historical verifier forward-port continues until current-head CI green. |
+| STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | Physical retirement active; full PR #83 source CI passed on `f89841ca...`. |
 | PERF-COLLAPSE-001 | No severe FPS/thermal collapse | ≥7 | CODED_UNTESTED | Fullscreen + 60 FPS recovery cap; destructive Museum loops removed; local runtime required. |
 | VIS-BLACK-WORLD-001 | No black ground/world corruption | 1 | CODED_UNTESTED | Runtime-rejected B2 visual owner deleted; readable baseline must be retested. |
 | LOC-MUSEUM-001 | Correct visible Oster Local History Museum near BASE | ≥11 | CODED_UNTESTED | R13.7 single visible exterior; R13.8 hidden collision/interactivity/glass; Pass32 validation-only. |
@@ -217,12 +217,12 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 13. [x] Pass32 Museum layer guard converted to validation-only; late scene mutation retired.
 14. [x] Default M2 gunner pitch direction corrected in source.
 15. [x] `AOCVehicleBase` legacy tint stopped from touching production assets; production guard validation-only.
-16. [x] Pass15/33/35/37/40/41/42/44/45 and related historical contracts forward-ported away from retired behavior as discovered.
+16. [x] Pass12/15/16/21/22/33/35/37/40/41/42/44/45 and related historical contracts forward-ported away from retired behavior as discovered.
 17. [ ] Close BTR white material artifact and remaining weapon authored material/texture gaps supported by current content.
 18. [ ] Trace/remove any remaining unreferenced tower/shack or rejected generic near-Museum visual.
-19. [ ] Complete full current-head source CI; forward-port remaining stale verifier instead of restoring old behavior.
-20. [ ] Refresh PR #83 summary/check state after source scope is coherent.
-21. [ ] Merge only after current-head source CI green.
+19. [x] Complete full current-head source CI; all PR #83 source workflows green on `f89841ca9375ed5b8da496ec36e8c2efe2a8a437`.
+20. [x] Refresh PR #83 summary/check state after source scope is coherent.
+21. [x] Merge PR #83 after current-head source CI green; `main` merge commit `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
 22. [ ] Local `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` factual UE build/runtime acceptance.
 
 ## 8. Next factual runtime gates
@@ -264,13 +264,14 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 ### Tactical map
 - compact central Oster topology, north-up, player marker visible, Museum/Culture/Silpo/Stadium distinct.
 
-**Current overall status: PASS 45 ACTIVE / RUNTIME REJECTED / CORRECTIVE SOURCE WORK CODED_UNTESTED / ACTIVE BRANCH NOT MERGED.**
+**Current overall status: PASS 45 ACTIVE / RUNTIME REJECTED / SOURCE MILESTONE MERGED TO MAIN / LOCAL UE RUNTIME ACCEPTANCE PENDING.**
 
 ## 9. Pass45 corrective milestone — 2026-08-25 Museum/vehicle ownership
 
 Status: **CODED_UNTESTED / latest factual runtime remains RUNTIME REJECTED until a new local UE 5.8 run**.
 
-- Branch: `fix/pass45-runtime-rejection-20260825`.
+- Source milestone merged to `main` in PR #83: `f5e883fb69ae8bdd35c754dc895d8b06e4843e08`.
+- Verified green source head before merge: `f89841ca9375ed5b8da496ec36e8c2efe2a8a437`.
 - Museum visible ownership collapsed to R13.7; R13.8 is hidden collision/interactivity + final breakable glass only.
 - obsolete R14.1 Museum window replacement header/source deleted; coordinator no longer invokes it.
 - R14.0 late R13.7 suppression/instance removal retired; R14.5 owns the only current Museum tree layout.
@@ -291,4 +292,4 @@ Status of this historical attempt: **LOCAL UE BUILD REJECTED**. This is preserve
 - These corrections do not erase the failed attempt.
 - A later run reaching gameplay does not erase the earlier build/import rejection or the newer Pass45 runtime rejection.
 
-**Current truth remains: PASS 45 ACTIVE / RUNTIME REJECTED / CORRECTIVE SOURCE WORK CODED_UNTESTED / NOT MERGED.**
+**Current truth remains: PASS 45 ACTIVE / SOURCE MILESTONE MERGED / LATEST FACTUAL LOCAL UE RUNTIME REJECTED / NEW LOCAL UE ACCEPTANCE PENDING.**
