@@ -1,0 +1,44 @@
+name: Pass 45 content dependency closure
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pass45-content-dependencies.yml'
+      - 'VERIFY_PASS45_CONTENT_DEPENDENCIES.py'
+      - 'RUN_ALL_VERIFY.py'
+      - 'OsterConflict/Scripts/verify_production_vehicle_fresh_load.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/pass45-content-dependencies.yml'
+      - 'VERIFY_PASS45_CONTENT_DEPENDENCIES.py'
+      - 'RUN_ALL_VERIFY.py'
+      - 'OsterConflict/Scripts/verify_production_vehicle_fresh_load.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate UE Python syntax
+        run: python -m py_compile OsterConflict/Scripts/verify_production_vehicle_fresh_load.py
+
+      - name: Verify Pass45 content dependency contracts
+        run: python VERIFY_PASS45_CONTENT_DEPENDENCIES.py
