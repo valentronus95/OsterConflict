@@ -87,6 +87,8 @@ void AOCMuseumBreakableWindow::ApplyMuseumMaterials()
     {
         if (!Component) continue;
         if (FrameMaterial) Component->SetMaterial(0, FrameMaterial);
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
         Component->SetCastShadow(false);
     }
 
@@ -97,5 +99,6 @@ void AOCMuseumBreakableWindow::ApplyMuseumMaterials()
         Shard->SetCastShadow(false);
     }
 
-    UE_LOG(LogTemp, Display, TEXT("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY"));
+    UE_LOG(LogTemp, Display, TEXT("PASS45_MUSEUM_WINDOW_GLASS_ONLY_READY visible_frame_owner=R137 interactive_frame_visible=0 static_glass=0"));
+    UE_LOG(LogTemp, Display, TEXT("PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY visible_frame_owner=R137 overlap=0"));
 }

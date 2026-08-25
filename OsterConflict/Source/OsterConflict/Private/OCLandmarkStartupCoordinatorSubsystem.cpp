@@ -5,7 +5,6 @@
 #include "OCR138MuseumInteractiveArchitectureSubsystem.h"
 #include "OCR139MuseumMainDoorReplacementSubsystem.h"
 #include "OCR140MuseumFacadeDetailSubsystem.h"
-#include "OCR141MuseumWindowReplacementSubsystem.h"
 #include "OCR142MuseumEntranceDetailSubsystem.h"
 #include "OCR143MuseumSiteVegetationSubsystem.h"
 #include "OCR144MuseumRearExteriorDetailSubsystem.h"
@@ -84,14 +83,6 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         Stage->RunAuthoritativeDetailNow(World);
     }
 
-    if (bHasGameplayAuthority)
-    {
-        if (UOCR141MuseumWindowReplacementSubsystem* Stage = World.GetSubsystem<UOCR141MuseumWindowReplacementSubsystem>())
-        {
-            Timers.ClearAllTimersForObject(Stage);
-            Stage->RunAuthoritativeDetailNow(World);
-        }
-    }
 
     if (UOCR142MuseumEntranceDetailSubsystem* Stage = World.GetSubsystem<UOCR142MuseumEntranceDetailSubsystem>())
     {
@@ -144,7 +135,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY museum_stages=R137_exterior+R138_interaction+R139_R145_details silpo_stages=R140_R143 culture_stage=R146 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
+        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY museum_stages=R137_exterior+R138_collision_glass+R139_R140_doors_facade+R142_R145_details window_replacement_stage=0 silpo_stages=R140_R143 culture_stage=R146 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
     UE_LOG(LogTemp, Display,
-        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; authority-only door/window replacements preserved."));
+        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; final door owners preserved; obsolete Museum window replacement stage retired."));
 }

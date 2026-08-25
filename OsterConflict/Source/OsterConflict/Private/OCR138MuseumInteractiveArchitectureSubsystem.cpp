@@ -1,8 +1,7 @@
 #include "OCR138MuseumInteractiveArchitectureSubsystem.h"
 
-#include "OCBreakableWindow.h"
+#include "OCMuseumBreakableWindow.h"
 #include "OCGameMode.h"
-#include "OCInteractableDoor.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/PrimitiveComponent.h"
@@ -217,8 +216,8 @@ namespace
         FActorSpawnParameters Params;
         Params.Owner = Owner;
         Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        AOCBreakableWindow* Window = World.SpawnActor<AOCBreakableWindow>(
-            AOCBreakableWindow::StaticClass(),
+        AOCMuseumBreakableWindow* Window = World.SpawnActor<AOCMuseumBreakableWindow>(
+            AOCMuseumBreakableWindow::StaticClass(),
             FTransform(FRotator(0.0f, Yaw, 0.0f), Location),
             Params);
         if (!Window) return;
@@ -228,27 +227,6 @@ namespace
         Window->Tags.Add(TEXT("MuseumBreakableGlass"));
     }
 
-    void SpawnMuseumDoor(
-        UWorld& World,
-        const FVector& HingeLocation,
-        const float Yaw,
-        const FVector& Scale,
-        AActor* Owner,
-        const TCHAR* RoleTag)
-    {
-        FActorSpawnParameters Params;
-        Params.Owner = Owner;
-        Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        AOCInteractableDoor* Door = World.SpawnActor<AOCInteractableDoor>(
-            AOCInteractableDoor::StaticClass(),
-            FTransform(FRotator(0.0f, Yaw, 0.0f), HingeLocation),
-            Params);
-        if (!Door) return;
-
-        Door->SetActorScale3D(Scale);
-        Door->Tags.Add(TEXT("R138_MuseumInteractive"));
-        Door->Tags.Add(FName(RoleTag));
-    }
 }
 
 bool UOCR138MuseumInteractiveArchitectureSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -478,19 +456,14 @@ void UOCR138MuseumInteractiveArchitectureSubsystem::SpawnInteractiveOpenings(UWo
             FVector::DistSquared2D(Actor->GetActorLocation(), Museum) < FMath::Square(2500.0f))
         {
             UE_LOG(LogTemp, Display,
-                TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=1"));
+                TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=1 final_window_class=1 prototype_doors=0"));
             return;
         }
     }
 
     AActor* Owner = FindR137MuseumActor(World);
 
-    SpawnMuseumDoor(World, Museum + FVector(-108.0f, -678.0f, 70.0f), 0.0f,
-        FVector(0.83f, 1.0f, 1.15f), Owner, TEXT("MuseumMainDoorLeft"));
-    SpawnMuseumDoor(World, Museum + FVector(108.0f, -678.0f, 70.0f), 180.0f,
-        FVector(0.83f, 1.0f, 1.15f), Owner, TEXT("MuseumMainDoorRight"));
-    SpawnMuseumDoor(World, Museum + FVector(858.0f, 115.0f, 70.0f), 90.0f,
-        FVector(1.10f, 1.0f, 1.17f), Owner, TEXT("MuseumServiceDoor"));
+    // Pass45: final doors are authored directly by R13.9/R14.0; no prototype door actors.
 
     for (const float X : { -650.0f, -355.0f, 355.0f, 650.0f })
         SpawnMuseumWindow(World, Museum + FVector(X, -434.0f, 235.0f), 0.0f, 140.0f, 205.0f, Owner);
@@ -512,7 +485,7 @@ void UOCR138MuseumInteractiveArchitectureSubsystem::SpawnInteractiveOpenings(UWo
         SpawnMuseumWindow(World, Museum + FVector(-1117.0f, Y, 235.0f), -90.0f, 115.0f, 195.0f, Owner);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=0"));
+        TEXT("PASS45_MUSEUM_INTERACTIVE_OPENINGS_READY duplicate_spawn=0 existing=0 final_window_class=1 prototype_doors=0"));
 }
 
 void UOCR138MuseumInteractiveArchitectureSubsystem::UpgradeMuseum(UWorld& World)
