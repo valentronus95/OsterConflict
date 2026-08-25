@@ -102,8 +102,14 @@ for needle in (
     "periodic_owner_scan=0",
 ):
     req(needle in ownership, f"single landmark shell ownership contract missing: {needle}")
-req("one current visible shell owner per site" in ownership_h,
-    "landmark guard header does not document one-shell-per-site authority")
+req(has_all(ownership_h, (
+        "exactly one current visible shell owner",
+        "Museum shell: R13.8 segmented architecture.",
+        "Silpo shell: R14.0 photo model.",
+        "Culture House shell: R14.6 authoritative model.",
+        "not counted as a second Museum shell",
+    )),
+    "landmark guard header does not document the Pass 45 one-shell-per-site authority")
 req("MuseumPrototypeTag" not in ownership,
     "old Pass 21 Museum prototype-as-second-shell concept returned")
 req("MuseumReferenceLayerCount == 1 && MuseumShellCount == 1" in ownership,
