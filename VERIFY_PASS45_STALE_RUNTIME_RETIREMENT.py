@@ -18,25 +18,39 @@ def req(condition: bool, message: str) -> None:
         errors.append(message)
 
 
-# Runtime-rejected B2 owner and the CI contract that forced it back must stay physically retired.
+# Runtime-rejected or inert historical owners must stay physically retired.
 retired_paths = [
     SRC / "Public" / "OCWorldProductionVisualsSubsystem.h",
     SRC / "Private" / "OCWorldProductionVisualsSubsystem.cpp",
+    SRC / "Public" / "OCMuseumCoreRecoverySubsystem.h",
+    SRC / "Private" / "OCMuseumCoreRecoverySubsystem.cpp",
+    SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h",
+    SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp",
+    SRC / "Public" / "OCR137MuseumSiteReplacementSubsystem.h",
+    SRC / "Private" / "OCR137MuseumSiteReplacementSubsystem.cpp",
+    SRC / "Public" / "OCR13MuseumStadiumPhotoFidelitySubsystem.h",
+    SRC / "Private" / "OCR13MuseumStadiumPhotoFidelitySubsystem.cpp",
+    SRC / "Public" / "OCWeaponPalettePass37Subsystem.h",
+    SRC / "Private" / "OCWeaponPalettePass37Subsystem.cpp",
     ROOT / "VERIFY_PASS45_COMPLETION_AUDIT.py",
     ROOT / ".github" / "workflows" / "pass45-completion-audit.yml",
 ]
 for path in retired_paths:
     req(not path.exists(), f"stale/rejected runtime contract resurrected: {path.relative_to(ROOT)}")
 
-# No active source file may re-introduce the deleted owner under the historical class name.
-for path in SRC.rglob("*.[ch]pp"):
+retired_class_names = (
+    "OCWorldProductionVisualsSubsystem",
+    "OCMuseumCoreRecoverySubsystem",
+    "OCMuseumVisibilityPass37Subsystem",
+    "OCR137MuseumSiteReplacementSubsystem",
+    "OCR13MuseumStadiumPhotoFidelitySubsystem",
+    "OCWeaponPalettePass37Subsystem",
+)
+for path in list(SRC.rglob("*.cpp")) + list(SRC.rglob("*.h")):
     text = path.read_text(encoding="utf-8", errors="replace")
-    req("OCWorldProductionVisualsSubsystem" not in text,
-        f"rejected B2 owner referenced by active source: {path.relative_to(ROOT)}")
-for path in SRC.rglob("*.h"):
-    text = path.read_text(encoding="utf-8", errors="replace")
-    req("OCWorldProductionVisualsSubsystem" not in text,
-        f"rejected B2 owner referenced by active header: {path.relative_to(ROOT)}")
+    for class_name in retired_class_names:
+        req(class_name not in text,
+            f"retired runtime class referenced by active source: {class_name} in {path.relative_to(ROOT)}")
 
 museum_cpp = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 museum_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
@@ -100,6 +114,9 @@ if errors:
 
 print("PASS45 STALE RUNTIME RETIREMENT: PASS")
 print("- rejected B2 world visual owner is physically deleted")
+print("- late Museum core-recovery and destructive visibility rebuild owners are physically deleted")
+print("- inert R13.7 site-replacement / R13 museum-stadium compatibility shells are physically deleted")
+print("- retired weapon palette compatibility shell is physically deleted")
 print("- stale B2 completion verifier/workflow cannot force the rejected owner back")
 print("- Museum BASE recovery is initial-character-only, not vehicle-possession-driven")
 print("- HMMWV/BTR production meshes preserve native proportions")
