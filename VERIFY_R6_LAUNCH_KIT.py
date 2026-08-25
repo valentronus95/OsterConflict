@@ -54,10 +54,26 @@ req('GetNetMode() == NM_Standalone' in pc and 'FParse::Param(FCommandLine::Get()
 req('Frontend-only standalone session' in gm and 'bFrontendOnlySession' in gm,
     'frontend-only gameplay suppression retained')
 
+# START_HERE remains the single user entry point. Pass 45 adds an explicit compatibility A/B route instead
+# of forcing -norhithread onto the normal route, so the historical four-choice R6 menu is superseded.
 req('OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК' in start, 'START_HERE identifies current Oster Conflict launcher')
-req('choice /C 1230' in start, 'START_HERE exposes normal game, full runtime test, editor and exit')
+for marker in (
+    '1. ЗВИЧАЙНА ГРА',
+    '2. ПОВНИЙ RUNTIME-ТЕСТ',
+    '3. SAFE СУМІСНІСТЬ',
+    '4. ВІДКРИТИ UNREAL EDITOR',
+    '0. ВИХІД',
+    'choice /C 12340',
+):
+    req(marker in start, f'Pass 45 START_HERE menu marker: {marker}')
+req('set "OC_RHI_COMPAT=1"' in start,
+    'Pass 45 compatibility route explicitly disables the RHI thread')
+req('Pass 45 normal renderer: DirectX 11 + Shader Model 5 + HDR off, normal RHI threading.' in start,
+    'START_HERE documents the normal Pass 45 renderer baseline')
+req('Compatibility route adds -norhithread only for A/B crash/performance diagnosis.' in start,
+    'START_HERE documents compatibility-only -norhithread')
 req('call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in start,
-    'START_HERE normal-game route uses current R14 gameplay launcher')
+    'START_HERE normal/compat routes use current R14 gameplay launcher')
 req('call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' in start,
     'START_HERE full-test route uses current playflow acceptance wrapper')
 req('RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start,
@@ -69,8 +85,8 @@ req('RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
 req('UnrealEditor.exe' in start and 'OsterConflict.uproject' in start and '-d3d11' in start,
     'START_HERE editor route uses current safe D3D11 renderer')
 req('& goto menu' not in start, 'START_HERE does not detach goto from IF blocks')
-req(start.count('goto menu') >= 3 and start.count('call "%~dp0') >= 2,
-    'START_HERE dispatches active actions through explicit blocks')
+req(start.count('goto menu') >= 4 and start.count('call "%~dp0') >= 3,
+    'START_HERE dispatches current normal/full/compat actions through explicit blocks')
 
 for marker in [
     'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS29_MAIN_START_DIRECT_HOST_QUEUED',
@@ -84,6 +100,7 @@ req('set "FETCH_BRANCH=main"' in normal and 'set "REMOTE_REF=origin/main"' in no
     'main normal-game route verifies origin/main')
 req('findstr /B /I /C:"fix/runtime-acceptance-"' in normal and
     '/C:"fix/runtime-map-spawn-fps-assets-"' in normal and
+    '/C:"fix/runtime-recovery-"' in normal and
     'set "REMOTE_REF=origin/%CURRENT_BRANCH%"' in normal,
     'current runtime-fix branch route exists for pre-merge UE testing')
 for marker in [
@@ -96,6 +113,10 @@ for marker in [
     '[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.',
     'Missing exact production models remain visible content gaps; no proxy is called production-ready.',
     '/Game/Maps/OsterConflict_Runtime', '-Frontend', '-d3d11',
+    'set "RHI_FLAGS=-d3d11 -sm5 -nohdr"',
+    'set "RHI_MODE=dx11_sm5_rhi_thread"',
+    'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"',
+    'set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"',
 ]:
     req(marker in normal, f'current normal-game launcher marker: {marker}')
 
@@ -122,7 +143,7 @@ for marker in [
     req(marker in source_recovery, f'production source recovery marker: {marker}')
 
 for tag in ['S16A', 'S16B', 'S16C', 'S18C_HARDENING_R1', 'S19C_SOURCE', 'R11_VISUAL_FOUNDATION',
-            'VERIFY_RUNTIME_MAP_SPAWN_FPS_ASSETS_PASS_44.py']:
+            'VERIFY_RUNTIME_MAP_SPAWN_FPS_ASSETS_PASS_44.py', 'VERIFY_RUNTIME_RECOVERY_PASS_45.py']:
     req(tag in all_verify, f'root regression runner includes {tag}')
 
 for rel in [
@@ -134,4 +155,4 @@ for rel in [
 for bad in ['Binaries', 'Intermediate', 'Saved', 'DerivedDataCache']:
     req(not (P / bad).exists(), f'no source archive {bad}')
 
-print(f'R6 / PASS 44 CURRENT R14 LAUNCH REGRESSION VERIFY: PASS ({len(checks)} checks)')
+print(f'R6 / PASS 45 CURRENT R14 LAUNCH REGRESSION VERIFY: PASS ({len(checks)} checks)')
