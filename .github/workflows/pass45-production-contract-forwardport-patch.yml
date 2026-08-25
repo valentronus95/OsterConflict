@@ -77,3 +77,5 @@ jobs:
           git diff --cached --check
           git commit -m "test(pass45): forward-port production vehicle geometry contract"
           git push origin HEAD:fix/pass45-runtime-rejection-20260825
+
+# retry-current-head: 2026-08-25-pass45
