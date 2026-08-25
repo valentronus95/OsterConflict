@@ -42,7 +42,7 @@ for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRA
 if /I "%CURRENT_BRANCH%"=="main" (
   set "REMOTE_REF=origin/main"
 ) else (
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" /C:"fix/pass45-runtime-rejection-" >nul
   if errorlevel 1 (
     echo [STOP] Focused recovery launcher accepts only main or explicit runtime-fix branches.
     pause
@@ -86,10 +86,10 @@ if not defined PY_CMD (
   exit /b 10
 )
 
-echo [3/6] Verifying Pass 15 + Pass 16 source contracts...
+echo [3/6] Verifying focused recovery + graphics source contracts...
 %PY_CMD% "%VERIFY%"
 if errorlevel 1 (
-  echo [STOP] Pass 15 source verification failed.
+  echo [STOP] Focused recovery source verification failed.
   pause
   exit /b 11
 )
@@ -116,21 +116,19 @@ if errorlevel 1 (
 echo.
 echo [5/6] Launching focused runtime recovery test...
 echo ------------------------------------------------------------
-echo Safe renderer: DirectX 11 + Shader Model 5.
-echo Safe-start flags: -d3d11 -sm5 -nohdr -norhithread.
-echo D3D12/SM6 is temporarily disabled after the confirmed startup renderer crashes.
-echo 1. Main menu - press START.
-echo 2. Confirm server fields are DARK/readable and panel is opaque.
-echo 3. Press CREATE SERVER.
-echo 4. Complete TEAM - SQUAD - ROLE - SPAWN - У БІЙ.
-echo 5. You MUST appear beside Museum and see 11 PLAYABLE real-mesh weapons nearby.
-echo 6. Stay in gameplay at least 15 seconds for GPU/RHI + FPS evidence.
-echo 7. Exit the game. This launcher checks the log automatically.
+echo Compatibility renderer: DirectX 11 + Shader Model 5 + no RHI thread.
+echo This is a focused diagnostic route, not the normal-game display baseline.
+echo 1. Main menu - press START and enter gameplay.
+echo 2. Complete TEAM - SQUAD - ROLE - SPAWN - У БІЙ.
+echo 3. Actual character must deploy at the Museum BASE once; vehicle possession must not trigger BASE recovery again.
+echo 4. Confirm 11 PLAYABLE real-mesh weapons near BASE.
+echo 5. Stay in gameplay at least 15 seconds for GPU/RHI + FPS evidence.
+echo 6. Exit the game. This launcher checks the log automatically.
 echo.
-echo NOTE: exact production-art certification and BTR/HMMWV/M2 production intake are separate strict gates.
+echo NOTE: exact production-art certification and HMMWV/M2/BTR strict production acceptance remain separate gates.
 echo ------------------------------------------------------------
 
-start /wait "Oster Conflict Pass 15-19 Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -norhithread -NoScreenMessages -log -abslog="%LOG%" -windowed -ResX=1600 -ResY=900 -culture=uk-UA
+start /wait "Oster Conflict Focused Recovery" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -norhithread -NoScreenMessages -log -abslog="%LOG%" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not exist "%LOG%" (
@@ -142,7 +140,6 @@ if not exist "%LOG%" (
 echo [6/6] Inspecting focused runtime evidence...
 for %%M in (
   PASS15_FRONTEND_FIELDS_OPAQUE_READY
-  PASS14_MAIN_START_OPENS_SERVER_SETUP
   PASS14_HOST_TRAVEL_BEGIN
   PASS14_FRONTEND_TRAVEL_HANDOFF_READY
   PASS15_MUSEUM_BASES_WEAPONS_READY
@@ -159,18 +156,26 @@ for %%M in (
   )
 )
 
-findstr /C:"PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%" >nul
+findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
-  echo [STOP] BASE deployment recovery failed to find a primary Museum BASE.
+  echo [STOP] Initial BASE deployment recovery failed to find a primary Museum BASE.
+  findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL" "%LOG%"
   pause
   exit /b 22
 )
 
-findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%" >nul
+findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%" >nul
 if errorlevel 1 (
-  echo [STOP] No evidence that the actual player pawn deployed at Museum BASE.
+  echo [STOP] No current initial-only evidence that the actual character deployed at Museum BASE.
   pause
   exit /b 23
+)
+
+findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%" | findstr /C:"vehicle_revalidation=0" >nul
+if errorlevel 1 (
+  echo [STOP] Initial BASE evidence did not prove vehicle_revalidation=0.
+  pause
+  exit /b 28
 )
 
 findstr /C:"PASS19_PLAYABLE_WEAPON_SET_FAIL" "%LOG%" >nul
@@ -188,10 +193,18 @@ if not errorlevel 1 (
   exit /b 25
 )
 
+findstr /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" "%LOG%" >nul
+if not errorlevel 1 (
+  echo [STOP] Stale binary applied the retired emergency graphics downgrade.
+  findstr /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" "%LOG%"
+  pause
+  exit /b 29
+)
+
 findstr /C:"PASS15_PERF_BELOW_TARGET" "%LOG%" >nul
 if not errorlevel 1 (
   echo [STOP] Gameplay is still below the 30 FPS recovery target.
-  findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_BELOW_TARGET" "%LOG%"
+  findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" /C:"PASS15_PERF_PROBE" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_BELOW_TARGET" "%LOG%"
   pause
   exit /b 26
 )
@@ -205,13 +218,13 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo PASS 15-19 FOCUSED RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
+echo PASS 45 FOCUSED RUNTIME RECOVERY: AUTOMATED EVIDENCE PASSED
 echo Source: %LOCAL_HEAD%
 echo ============================================================
 findstr /C:"PASS16_RUNTIME_GRAPHICS_IDENTITY" "%LOG%"
 findstr /C:"PASS19_PLAYABLE_WEAPON_SET_READY" "%LOG%"
-findstr /C:"PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM" /C:"PASS15_BASE_DEPLOYMENT_RECOVERED" "%LOG%"
-findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_EMERGENCY_PERF_PROFILE_APPLIED" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
+findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%"
+findstr /C:"PASS15_PERF_PROBE" /C:"PASS15_PERF_SAMPLE" /C:"PASS15_PERF_30FPS_READY" "%LOG%"
 echo.
 echo Exact production-art readiness is intentionally NOT certified by this focused recovery launcher.
 echo Manual visual confirmation still required for exact Museum appearance and weapon placement.
