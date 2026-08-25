@@ -343,12 +343,12 @@ Pass 45 explicitly forbids:
 6. [x] Replace HMMWV/BTR non-uniform production mesh stretching with uniform proportional fitting.
 7. [x] Move M2 production visual to bottom-on-mount bounds alignment.
 8. [x] Remove normal-route forced windowed mode and apply recovery 60 FPS cap.
-9. [ ] Audit/consolidate Museum `R137/R138/R140+`/CoreRecovery/Visibility/ownership mutation stack; delete obsolete shell owners.
-10. [ ] Correct default mounted M2 Browning pitch direction.
+9. [x] Consolidate Museum ownership: R13.7 visible exterior; R13.8 hidden collision + final glass; R13.9/R14.0 final doors/facade; R14.5 sole tree owner; physically delete obsolete R14.1 window replacement.
+10. [x] Correct default mounted M2 Browning pitch direction in source; runtime input proof still required.
 11. [ ] Remove unreferenced tower/shack and any remaining rejected generic fence/house visuals.
 12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support.
-13. [ ] Forward-port/retire any additional stale verifiers discovered by the owner audit.
-14. [ ] Update work ledger with every legacy owner deletion/current replacement.
+13. [x] Forward-port stale production/Museum verifiers and lock deleted R14.1/material-repair owners out of current CI.
+14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform and M2 pitch corrective state.
 15. [ ] Full current-head source CI green.
 16. [ ] Merge corrective branch to `main` only after source CI is green and corrective scope is coherent.
 17. [ ] Factual local UE build + runtime acceptance.
@@ -424,3 +424,18 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 - Current branch: `fix/pass45-runtime-rejection-20260825`.
 - Current corrective source status: **CODED_UNTESTED**.
 - Runtime verification: **NOT ACHIEVED**.
+
+### Corrective source milestone — 2026-08-25 Museum/vehicle ownership
+
+Current corrective source state is **CODED_UNTESTED**:
+
+- R13.7 is the single visible Museum exterior owner; prototype trees/static glass/static door slabs/wrong service prototype were removed from primary authoring.
+- R13.8 owns hidden collision plus final `AOCMuseumBreakableWindow` glass only; generic prototype doors were removed.
+- obsolete `OCR141MuseumWindowReplacementSubsystem` was physically deleted and removed from the startup coordinator.
+- R14.0 no longer hides/removes R13.7 content late; R14.5 is the sole Museum tree-layout owner.
+- `AOCVehicleBase` bypasses legacy BasicShape tinting for `/Game/Production/`; the production visual guard is validation-only.
+- driver/gunner enter-exit paths now emit current-vehicle transform evidence with `museum_respawn_path=0`.
+- mounted M2 default pitch source contract is mouse-up raises aim when invert-Y is off.
+- detailed report: `OsterConflict/Docs/WorkReports/PASS45_RUNTIME_RECOVERY_CORRECTIVE_2026-08-25_MUSEUM_VEHICLE.md`.
+
+None of these source changes are runtime acceptance. Local UE 5.8 build/playtest remains mandatory.

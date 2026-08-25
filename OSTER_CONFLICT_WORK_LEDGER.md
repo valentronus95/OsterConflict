@@ -237,3 +237,19 @@ Open source conflict:
 - compact central Oster topology, north-up, player marker visible, Museum/Culture/Silpo/Stadium distinct.
 
 **Current overall status: PASS 45 ACTIVE / RUNTIME REJECTED / CORRECTIVE SOURCE WORK CODED_UNTESTED / ACTIVE BRANCH NOT MERGED.**
+
+## Pass45 corrective milestone — 2026-08-25 Museum/vehicle ownership
+
+Status: **CODED_UNTESTED / latest factual runtime remains RUNTIME REJECTED until a new local UE 5.8 run**.
+
+- Branch: `fix/pass45-runtime-rejection-20260825`.
+- Museum visible ownership collapsed to R13.7; R13.8 is collision + final breakable glass only.
+- obsolete R14.1 Museum window replacement header/source deleted; coordinator no longer invokes it.
+- R14.0 late R13.7 suppression/instance removal retired; R14.5 owns the only current Museum tree layout.
+- production VehicleBase no longer applies legacy BasicShape tint to `/Game/Production/`; validation guard is read-only.
+- M2 gunner default pitch source corrected: invert off => mouse up raises aim.
+- driver/gunner vehicle enter-exit transform telemetry added; normal path records `museum_respawn_path=0`.
+- stale-retirement verifier forward-ported to reject resurrection of these removed owners/repair paths.
+- Work report: `OsterConflict/Docs/WorkReports/PASS45_RUNTIME_RECOVERY_CORRECTIVE_2026-08-25_MUSEUM_VEHICLE.md`.
+
+Remaining factual acceptance: local UE build, Museum screenshot, vehicle drive/exit away from Museum, M2 pitch, HMMWV/M2/BTR materials/proportions, weapon material gaps, invalid Oster generic visuals, thermal/FPS behavior.
