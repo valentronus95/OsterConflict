@@ -12,12 +12,11 @@ if not exist "%BASE_ACCEPTANCE%" (
 )
 
 echo ============================================================
-echo OSTER CONFLICT - PASS 21 LANDMARK OWNERSHIP ACCEPTANCE
+echo OSTER CONFLICT - PASS 21 / PASS45 LANDMARK OWNERSHIP ACCEPTANCE
 echo ============================================================
-echo This runs the normal frontend/Museum/FPS recovery path first.
+echo This runs the focused Museum/FPS recovery path first.
 echo Stay in gameplay for at least 15 seconds before exiting.
-echo Pass 21 then verifies that current Museum/Silpo/Culture owners are unique
- echo and anchored to their canonical sites after all historical delayed stages.
+echo Current ownership is validation-only: no duplicate repair owner is allowed.
 echo.
 
 call "%BASE_ACCEPTANCE%"
@@ -32,26 +31,40 @@ if not exist "%LOG%" (
   exit /b 20
 )
 
-findstr /C:"PASS21_LANDMARK_OWNERSHIP_FAIL" "%LOG%" >nul
-if not errorlevel 1 (
-  echo [STOP] Landmark shell ownership validation failed.
-  findstr /C:"PASS21_LANDMARK_OWNERSHIP_FAIL" /C:"PASS21_LANDMARK_DUPLICATE_REPAIRED" "%LOG%"
-  exit /b 21
+for %%F in (
+  PASS45_MUSEUM_LAYER_VALIDATION_FAIL
+  PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL
+  PASS45_MUSEUM_R138_COLLISION_ONLY_FAIL
+) do (
+  findstr /C:"%%F" "%LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] Current landmark ownership validation failed: %%F
+    findstr /C:"%%F" "%LOG%"
+    exit /b 21
+  )
 )
 
-findstr /C:"PASS21_LANDMARK_OWNERSHIP_READY" "%LOG%" >nul
-if errorlevel 1 (
-  echo [STOP] No Pass 21 landmark ownership readiness marker was recorded.
-  echo Stay in gameplay at least 15 seconds so the historical startup window can close.
-  exit /b 22
+for %%M in (
+  PASS45_LANDMARK_STARTUP_COORDINATED_READY
+  PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED
+  PASS45_MUSEUM_R138_COLLISION_ONLY_READY
+  PASS45_MUSEUM_LAYER_VALIDATION_READY
+  PASS45_LANDMARK_SEPARATION_VALIDATION_READY
+) do (
+  findstr /C:"%%M" "%LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] Missing current landmark ownership evidence: %%M
+    echo Log: %LOG%
+    exit /b 22
+  )
 )
 
 echo.
 echo ============================================================
-echo PASS 21 LANDMARK OWNERSHIP: AUTOMATED EVIDENCE PASSED
+echo PASS 21 / PASS45 LANDMARK OWNERSHIP: AUTOMATED EVIDENCE PASSED
 echo ============================================================
-findstr /C:"PASS21_LANDMARK_DUPLICATE_REPAIRED" /C:"PASS21_LANDMARK_OWNERSHIP_READY" "%LOG%"
+findstr /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" /C:"PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_SEPARATION_VALIDATION_READY" "%LOG%"
 echo.
-echo This proves final runtime ownership/count/anchor geometry only.
+echo This proves runtime owner separation/validation only.
 echo Photo fidelity and exact facade appearance still require visual inspection.
 exit /b 0
