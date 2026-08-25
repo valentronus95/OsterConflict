@@ -27,15 +27,17 @@ require("void ApplyProductionPolish();" in header, "production polish API missin
 require("InstallTacticalIconography();\n    ApplyProductionPolish();" in visual,
         "production polish must run after vector map and iconography construction")
 
-# Visual hierarchy: roads win over residential noise without deleting real world geometry.
+# Pass 45 visual hierarchy is explicit in the reference-traced road data rather than inferred from old ISM thickness.
 require("TacticalRoadPrimary" in visual and "TacticalRoadSecondary" in visual,
         "primary/secondary road hierarchy missing")
-require("NaturalThickness >= 2.25f" in visual, "road hierarchy must be derived from rendered road thickness")
-require("3.0f : 1.45f" in visual, "primary and secondary roads need distinct overview thickness")
-require("TacticalResidentialOutline" in visual and "TacticalResidentialFill" in visual,
-        "residential detail must have its own quieter palette")
-require("GetTacticalResidentialRoofs(), TacticalResidentialFill, TacticalResidentialOutline" in visual,
-        "residential geometry is not routed through the quieter style")
+require("WidthMeters" in visual and "Segment.bPrimary" in visual,
+        "reference road hierarchy does not carry explicit width/primary identity")
+require("Segment.bPrimary ? 4.0f : 2.0f" in visual,
+        "primary and secondary reference roads need distinct overview thickness")
+require("GetTacticalResidentialRoofs()" not in visual,
+        "retired residential blockout geometry returned to the production M-map")
+require("road_z2_dim=0" in polish,
+        "Pass 45 polish does not prove that Z=2 reference roads are protected from old residential dimming")
 
 # Grid hierarchy and player readability.
 grid_match = re.search(r"PolishGrid\([^;]*?,\s*([0-9.]+)f\);", polish)
@@ -55,10 +57,30 @@ for token in ("TacticalScaleBarMain", "TacticalScaleBarTick0", "TacticalScaleBar
 require("BarMeters = WidthMeters <= 1800.0f ? 250.0f : 500.0f" in polish,
         "overview scale bar must choose a useful real-world distance")
 
+# POI text and polish icons must share one FOCGeoReference authority. No old world-sector anchor may split them.
+require("PASS45_TACTICAL_POLISH_GEO_AUTHORITY_READY" in polish,
+        "Pass 45 tactical polish geo-authority marker missing")
+require("legacy_worldsector_anchor=0" in polish and "poi_geo_authority=1" in polish,
+        "tactical polish does not assert one geo authority")
+require("AOCWorldSectorOster::" not in polish,
+        "old world-sector POI anchor returned to tactical polish")
+for geo in (
+    "FOCGeoReference::Museum()",
+    "FOCGeoReference::Stadium()",
+    "FOCGeoReference::CentralPark()",
+    "FOCGeoReference::CultureHouse()",
+    "FOCGeoReference::FormerCityAdministration()",
+    "FOCGeoReference::Silpo()",
+):
+    require(geo in polish, f"tactical polish missing geo POI authority: {geo}")
+
 # POI and objectives should read as game-map symbols, not debug text.
 require("LegacyDot->SetVisibility(ESlateVisibility::Collapsed)" in polish,
         "old POI bullet anchors must be retired")
-for token in ("MapPOIIconMuseum", "MapPOIIconStadium", "MapPOIIconPark", "MapPOIIconCenter", "MapPOIIconSilpo"):
+for token in (
+    "MapPOIIconMuseum", "MapPOIIconStadium", "MapPOIIconPark",
+    "MapPOIIconCultureHouse", "MapPOIIconCenter", "MapPOIIconSilpo",
+):
     require(token in polish, f"POI vector icon missing: {token}")
 require("TActorIterator<AOCCapturePoint>" in polish, "objective backplates are not derived from actual capture actors")
 require("ObjectiveBackplateOuter_" in polish and "ObjectiveBackplateInner_" in polish,
@@ -68,4 +90,4 @@ require("Point->GetActorLocation()" in polish, "objective backplates must use ac
 # Small production status detail.
 require("LIVE · WORLD SYNC" in polish, "live world-sync status chip missing")
 
-print("Tactical Map production polish contracts: PASS")
+print("Tactical Map production polish + Pass 45 geo-authority contracts: PASS")
