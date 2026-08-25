@@ -43,8 +43,6 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealCrate;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealMetalBarrel;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealWheelBarrow;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealYardFence;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House|Models") TObjectPtr<UInstancedStaticMeshComponent> RealSideShed;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="House") TObjectPtr<UTextRenderComponent> DebugLabel;
 
@@ -67,7 +65,5 @@ private:
     static void AddSofa(UInstancedStaticMeshComponent* Component, const FVector& Center, float YawDegrees, float WidthCm);
     static void AddFittedGroundProp(UInstancedStaticMeshComponent* Component, const FVector& FootprintCenter,
         float TargetLongestDimensionCm, float YawDegrees, float GroundZCm = 0.0f);
-    static void AddFittedFenceLine(UInstancedStaticMeshComponent* Component, const FVector& Center,
-        float LengthCm, float YawDegrees, float GroundZCm = 0.0f);
     FTransform MakeWorldTransform(const FVector& LocalLocation, float LocalYawDegrees = 0.0f) const;
 };
