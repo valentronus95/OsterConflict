@@ -593,11 +593,34 @@ bool AOCVehicleBase::TryEnterVehicleServer(AOCCharacter* Character)
         return false;
     }
 
+    const FVector VehicleLocationBeforeEnter = GetActorLocation();
+    const FVector CharacterLocationBeforeEnter = Character->GetActorLocation();
     DriverCharacter = Character;
     Character->EnterVehicleServer(this);
     SetOwner(OccupantController);
     OccupantController->Possess(this);
     ForceNetUpdate();
+
+    const float VehicleEnterDriftCm = FVector::Dist(VehicleLocationBeforeEnter, GetActorLocation());
+    if (VehicleEnterDriftCm <= 5.0f)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_VEHICLE_ENTER_TRANSFORM_READY vehicle=%s vehicle_before=%s vehicle_after=%s character_before=%s vehicle_drift_cm=%.1f museum_respawn_path=0"),
+            *GetName(),
+            *VehicleLocationBeforeEnter.ToCompactString(),
+            *GetActorLocation().ToCompactString(),
+            *CharacterLocationBeforeEnter.ToCompactString(),
+            VehicleEnterDriftCm);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_VEHICLE_ENTER_TRANSFORM_FAIL vehicle=%s vehicle_before=%s vehicle_after=%s vehicle_drift_cm=%.1f"),
+            *GetName(),
+            *VehicleLocationBeforeEnter.ToCompactString(),
+            *GetActorLocation().ToCompactString(),
+            VehicleEnterDriftCm);
+    }
     return true;
 }
 
@@ -655,6 +678,7 @@ void AOCVehicleBase::ExitDriverServer(bool bForced)
         return;
     }
 
+    const FVector VehicleLocationAtExit = GetActorLocation();
     const FVector ExitLocation = FindSafeExitLocationForCharacter(Character, -1.0f, bForced);
     const FRotator ExitRotation(0.0f, GetActorRotation().Yaw, 0.0f);
 
@@ -667,6 +691,31 @@ void AOCVehicleBase::ExitDriverServer(bool bForced)
     SetOwner(nullptr);
     OccupantController->Possess(Character);
     ForceNetUpdate();
+
+    const FVector ResultingPawnLocation = Character->GetActorLocation();
+    const float ExitErrorCm = FVector::Dist(ResultingPawnLocation, ExitLocation);
+    const float PawnToVehicleCm = FVector::Dist(ResultingPawnLocation, VehicleLocationAtExit);
+    if (ExitErrorCm <= 100.0f)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_VEHICLE_EXIT_TRANSFORM_READY vehicle=%s vehicle_location=%s requested_exit=%s resulting_pawn=%s result_error_cm=%.1f pawn_to_vehicle_m=%.1f museum_respawn_path=0"),
+            *GetName(),
+            *VehicleLocationAtExit.ToCompactString(),
+            *ExitLocation.ToCompactString(),
+            *ResultingPawnLocation.ToCompactString(),
+            ExitErrorCm,
+            PawnToVehicleCm / 100.0f);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_VEHICLE_EXIT_TRANSFORM_FAIL vehicle=%s vehicle_location=%s requested_exit=%s resulting_pawn=%s result_error_cm=%.1f museum_respawn_path=0"),
+            *GetName(),
+            *VehicleLocationAtExit.ToCompactString(),
+            *ExitLocation.ToCompactString(),
+            *ResultingPawnLocation.ToCompactString(),
+            ExitErrorCm);
+    }
 }
 
 void AOCVehicleBase::SetAIDriveInputsServer(float NewThrottle, float NewSteering, bool bNewHandbrake)

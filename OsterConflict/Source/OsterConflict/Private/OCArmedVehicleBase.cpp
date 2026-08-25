@@ -329,9 +329,35 @@ bool AOCArmedVehicleBase::ExitGunnerServer(AOCCharacter* Requester, bool bForced
     AOCCharacter* Character = GunnerCharacter;
     GunnerCharacter = nullptr;
     if (!HasDriver()) OccupantTeam = EOCTeam::None;
+    const FVector VehicleLocationAtExit = GetActorLocation();
     const FVector ExitLocation = FindSafeExitLocationForCharacter(Character, 1.0f, bForced);
     Character->ExitVehicleGunnerServer(ExitLocation, FRotator(0.0f, GetActorRotation().Yaw, 0.0f));
     ForceNetUpdate();
+
+    const FVector ResultingPawnLocation = Character->GetActorLocation();
+    const float ExitErrorCm = FVector::Dist(ResultingPawnLocation, ExitLocation);
+    const float PawnToVehicleCm = FVector::Dist(ResultingPawnLocation, VehicleLocationAtExit);
+    if (ExitErrorCm <= 100.0f)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_GUNNER_EXIT_TRANSFORM_READY vehicle=%s vehicle_location=%s requested_exit=%s resulting_pawn=%s result_error_cm=%.1f pawn_to_vehicle_m=%.1f museum_respawn_path=0"),
+            *GetName(),
+            *VehicleLocationAtExit.ToCompactString(),
+            *ExitLocation.ToCompactString(),
+            *ResultingPawnLocation.ToCompactString(),
+            ExitErrorCm,
+            PawnToVehicleCm / 100.0f);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GUNNER_EXIT_TRANSFORM_FAIL vehicle=%s vehicle_location=%s requested_exit=%s resulting_pawn=%s result_error_cm=%.1f museum_respawn_path=0"),
+            *GetName(),
+            *VehicleLocationAtExit.ToCompactString(),
+            *ExitLocation.ToCompactString(),
+            *ResultingPawnLocation.ToCompactString(),
+            ExitErrorCm);
+    }
     return true;
 }
 
