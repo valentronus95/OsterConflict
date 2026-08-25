@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformMisc.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -40,6 +41,15 @@ namespace
         EExpectedWeaponMeshKind MeshKind;
     };
 
+    bool IsPlaceholderMaterial(const UMaterialInterface* Material)
+    {
+        if (!Material) return true;
+        const FString Path = Material->GetPathName();
+        return Path.Contains(TEXT("BasicShapeMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("DefaultMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WorldGridMaterial"), ESearchCase::IgnoreCase);
+    }
+
     bool HasVisibleFallbackStaticMesh(AOCWeaponBase& Weapon)
     {
         TInlineComponentArray<UStaticMeshComponent*> Components;
@@ -52,30 +62,87 @@ namespace
         return false;
     }
 
-    bool UsesExpectedStaticMesh(AOCWeaponBase& Weapon, UStaticMesh* ExpectedMesh)
+    UStaticMeshComponent* FindExpectedStaticMeshComponent(AOCWeaponBase& Weapon, UStaticMesh* ExpectedMesh)
     {
-        if (!ExpectedMesh) return false;
+        if (!ExpectedMesh) return nullptr;
         TInlineComponentArray<UStaticMeshComponent*> Components;
         Weapon.GetComponents(Components);
-        for (const UStaticMeshComponent* Component : Components)
+        for (UStaticMeshComponent* Component : Components)
         {
             if (!Component || !Component->ComponentHasTag(ProductionWeaponVisualTag)) continue;
-            if (Component->GetStaticMesh() == ExpectedMesh && Component->IsVisible()) return true;
+            if (Component->GetStaticMesh() == ExpectedMesh && Component->IsVisible()) return Component;
         }
-        return false;
+        return nullptr;
     }
 
-    bool UsesExpectedSkeletalMesh(AOCWeaponBase& Weapon, USkeletalMesh* ExpectedMesh)
+    USkeletalMeshComponent* FindExpectedSkeletalMeshComponent(AOCWeaponBase& Weapon, USkeletalMesh* ExpectedMesh)
     {
-        if (!ExpectedMesh) return false;
+        if (!ExpectedMesh) return nullptr;
         TInlineComponentArray<USkeletalMeshComponent*> Components;
         Weapon.GetComponents(Components);
-        for (const USkeletalMeshComponent* Component : Components)
+        for (USkeletalMeshComponent* Component : Components)
         {
             if (!Component || !Component->ComponentHasTag(ProductionWeaponVisualTag)) continue;
-            if (Component->GetSkeletalMeshAsset() == ExpectedMesh && Component->IsVisible()) return true;
+            if (Component->GetSkeletalMeshAsset() == ExpectedMesh && Component->IsVisible()) return Component;
         }
-        return false;
+        return nullptr;
+    }
+
+    bool ValidateStaticMeshMaterials(
+        UStaticMesh& Mesh,
+        UStaticMeshComponent& Component,
+        int32& OutMaterialSlots,
+        int32& OutPlaceholderOrMissingSlots,
+        int32& OutUnexpectedOverrides)
+    {
+        OutMaterialSlots = Mesh.GetStaticMaterials().Num();
+        OutPlaceholderOrMissingSlots = 0;
+        OutUnexpectedOverrides = 0;
+
+        if (OutMaterialSlots <= 0)
+        {
+            OutPlaceholderOrMissingSlots = 1;
+            return false;
+        }
+
+        for (int32 Slot = 0; Slot < OutMaterialSlots; ++Slot)
+        {
+            UMaterialInterface* AuthoredMaterial = Mesh.GetMaterial(Slot);
+            UMaterialInterface* RuntimeMaterial = Component.GetMaterial(Slot);
+            if (IsPlaceholderMaterial(AuthoredMaterial)) ++OutPlaceholderOrMissingSlots;
+            if (RuntimeMaterial != AuthoredMaterial) ++OutUnexpectedOverrides;
+        }
+
+        return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0;
+    }
+
+    bool ValidateSkeletalMeshMaterials(
+        USkeletalMesh& Mesh,
+        USkeletalMeshComponent& Component,
+        int32& OutMaterialSlots,
+        int32& OutPlaceholderOrMissingSlots,
+        int32& OutUnexpectedOverrides)
+    {
+        const TArray<FSkeletalMaterial>& Materials = Mesh.GetMaterials();
+        OutMaterialSlots = Materials.Num();
+        OutPlaceholderOrMissingSlots = 0;
+        OutUnexpectedOverrides = 0;
+
+        if (OutMaterialSlots <= 0)
+        {
+            OutPlaceholderOrMissingSlots = 1;
+            return false;
+        }
+
+        for (int32 Slot = 0; Slot < OutMaterialSlots; ++Slot)
+        {
+            UMaterialInterface* AuthoredMaterial = Materials[Slot].MaterialInterface;
+            UMaterialInterface* RuntimeMaterial = Component.GetMaterial(Slot);
+            if (IsPlaceholderMaterial(AuthoredMaterial)) ++OutPlaceholderOrMissingSlots;
+            if (RuntimeMaterial != AuthoredMaterial) ++OutUnexpectedOverrides;
+        }
+
+        return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0;
     }
 }
 
@@ -115,8 +182,8 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
 {
     const bool bHeadlessGate = FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeaponsHeadless"));
 
-    // Local UE 5.8 runtime inspection is authoritative. The restored Stein objects retain SKM_* names,
-    // but the asset class is StaticMesh for these seven weapons. AK-47 remains a real SkeletalMesh.
+    // Local UE 5.8 runtime inspection is authoritative. Mesh presence alone is not material readiness:
+    // every expected production visual must retain authored, non-placeholder material slots at runtime.
     const FExpectedWeaponVisual Expectations[] =
     {
         { TEXT("AK-47"), FName(TEXT("OC_AR1")), AOCWeapon_AssaultRifle::StaticClass(),
@@ -155,6 +222,9 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
 
     bool bAllPass = true;
     int32 PassedWeapons = 0;
+    int32 TotalMaterialSlots = 0;
+    int32 TotalMaterialGaps = 0;
+    int32 TotalUnexpectedOverrides = 0;
     TArray<TWeakObjectPtr<AOCWeaponBase>> TemporaryWeapons;
 
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(Expectations); ++Index)
@@ -181,6 +251,10 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
         bool bAssetLoads = false;
         bool bUsesExpectedProductionVisual = false;
         bool bFallbackHidden = false;
+        bool bAuthoredMaterialsReady = false;
+        int32 MaterialSlots = 0;
+        int32 PlaceholderOrMissingSlots = 0;
+        int32 UnexpectedOverrides = 0;
         FString ActualAssetName = TEXT("none");
 
         if (Weapon)
@@ -193,27 +267,57 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
             {
                 UStaticMesh* ExpectedMesh = LoadObject<UStaticMesh>(nullptr, Expected.ObjectPath);
                 bAssetLoads = ExpectedMesh != nullptr;
-                bUsesExpectedProductionVisual = UsesExpectedStaticMesh(*Weapon, ExpectedMesh);
-                if (ExpectedMesh) ActualAssetName = ExpectedMesh->GetPathName();
+                UStaticMeshComponent* ProductionComponent = FindExpectedStaticMeshComponent(*Weapon, ExpectedMesh);
+                bUsesExpectedProductionVisual = ProductionComponent != nullptr;
+                if (ExpectedMesh)
+                {
+                    ActualAssetName = ExpectedMesh->GetPathName();
+                    if (ProductionComponent)
+                    {
+                        bAuthoredMaterialsReady = ValidateStaticMeshMaterials(
+                            *ExpectedMesh,
+                            *ProductionComponent,
+                            MaterialSlots,
+                            PlaceholderOrMissingSlots,
+                            UnexpectedOverrides);
+                    }
+                }
             }
             else if (Expected.MeshKind == EExpectedWeaponMeshKind::Skeletal)
             {
                 USkeletalMesh* ExpectedMesh = LoadObject<USkeletalMesh>(nullptr, Expected.ObjectPath);
                 bAssetLoads = ExpectedMesh != nullptr;
-                bUsesExpectedProductionVisual = UsesExpectedSkeletalMesh(*Weapon, ExpectedMesh);
-                if (ExpectedMesh) ActualAssetName = ExpectedMesh->GetPathName();
+                USkeletalMeshComponent* ProductionComponent = FindExpectedSkeletalMeshComponent(*Weapon, ExpectedMesh);
+                bUsesExpectedProductionVisual = ProductionComponent != nullptr;
+                if (ExpectedMesh)
+                {
+                    ActualAssetName = ExpectedMesh->GetPathName();
+                    if (ProductionComponent)
+                    {
+                        bAuthoredMaterialsReady = ValidateSkeletalMeshMaterials(
+                            *ExpectedMesh,
+                            *ProductionComponent,
+                            MaterialSlots,
+                            PlaceholderOrMissingSlots,
+                            UnexpectedOverrides);
+                    }
+                }
             }
         }
 
+        TotalMaterialSlots += MaterialSlots;
+        TotalMaterialGaps += PlaceholderOrMissingSlots;
+        TotalUnexpectedOverrides += UnexpectedOverrides;
+
         const bool bCanonicalAssetDefined = Expected.ObjectPath != nullptr;
         const bool bPass = bSpawned && bIdMatches && bCanonicalAssetDefined && bAssetLoads &&
-            bUsesExpectedProductionVisual && bFallbackHidden;
+            bUsesExpectedProductionVisual && bFallbackHidden && bAuthoredMaterialsReady;
 
         bAllPass = bAllPass && bPass;
         if (bPass) ++PassedWeapons;
 
         Report += FString::Printf(
-            TEXT("%s | id=%s | spawned=%s | idMatch=%s | canonical=%s | assetLoads=%s | productionVisual=%s | fallbackHidden=%s | asset=%s | RESULT=%s\n"),
+            TEXT("%s | id=%s | spawned=%s | idMatch=%s | canonical=%s | assetLoads=%s | productionVisual=%s | fallbackHidden=%s | authoredMaterials=%s | materialSlots=%d | materialGaps=%d | unexpectedOverrides=%d | asset=%s | RESULT=%s\n"),
             Expected.Label,
             *Expected.WeaponId.ToString(),
             bSpawned ? TEXT("PASS") : TEXT("FAIL"),
@@ -222,6 +326,10 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
             bAssetLoads ? TEXT("PASS") : TEXT("FAIL"),
             bUsesExpectedProductionVisual ? TEXT("PASS") : TEXT("FAIL"),
             bFallbackHidden ? TEXT("PASS") : TEXT("FAIL"),
+            bAuthoredMaterialsReady ? TEXT("PASS") : TEXT("FAIL"),
+            MaterialSlots,
+            PlaceholderOrMissingSlots,
+            UnexpectedOverrides,
             *ActualAssetName,
             bPass ? TEXT("PASS") : TEXT("FAIL"));
     }
@@ -231,8 +339,13 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
         if (AOCWeaponBase* Weapon = TemporaryWeapon.Get()) Weapon->Destroy();
     }
 
-    Report += FString::Printf(TEXT("\nSUMMARY=%d/%d production weapon classes PASS\n"),
-        PassedWeapons, UE_ARRAY_COUNT(Expectations));
+    Report += FString::Printf(
+        TEXT("\nSUMMARY=%d/%d production weapon classes PASS | materialSlots=%d | materialGaps=%d | unexpectedOverrides=%d\n"),
+        PassedWeapons,
+        UE_ARRAY_COUNT(Expectations),
+        TotalMaterialSlots,
+        TotalMaterialGaps,
+        TotalUnexpectedOverrides);
 
     if (!FFileHelper::SaveStringToFile(Report, *ReportPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
     {
@@ -243,18 +356,25 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     if (bAllPass)
     {
         FFileHelper::SaveStringToFile(
-            TEXT("R14_PRODUCTION_WEAPONS=PASS\n"),
+            TEXT("R14_PRODUCTION_WEAPONS=PASS\nPASS45_AUTHORED_WEAPON_MATERIALS=PASS\n"),
             *SuccessSentinelPath,
             FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
         UE_LOG(LogTemp, Display,
-            TEXT("R14 production weapon validation PASS: %d/%d classes. Report: %s"),
-            PassedWeapons, UE_ARRAY_COUNT(Expectations), *ReportPath);
+            TEXT("PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY classes=%d/%d material_slots=%d authored_materials=1 unexpected_overrides=0 validation_only=1 mutation=0"),
+            PassedWeapons,
+            UE_ARRAY_COUNT(Expectations),
+            TotalMaterialSlots);
     }
     else
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("R14 production weapon validation FAILED: %d/%d classes. Inspect canonical asset, production component and fallback visibility results in: %s"),
-            PassedWeapons, UE_ARRAY_COUNT(Expectations), *ReportPath);
+            TEXT("PASS45_PRODUCTION_WEAPON_CONTENT_GAP classes=%d/%d material_slots=%d material_gaps=%d unexpected_overrides=%d exact_material_ready=0 validation_only=1 mutation=0 report=%s"),
+            PassedWeapons,
+            UE_ARRAY_COUNT(Expectations),
+            TotalMaterialSlots,
+            TotalMaterialGaps,
+            TotalUnexpectedOverrides,
+            *ReportPath);
     }
 
     if (bHeadlessGate)
