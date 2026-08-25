@@ -1,0 +1,79 @@
+name: Pass45 production contract forward-port patch
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-20260825
+    paths:
+      - .github/workflows/pass45-production-contract-forwardport-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pass45-runtime-rejection-20260825
+          fetch-depth: 0
+
+      - name: Forward-port production vehicle geometry contract
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('.github/workflows/production-model-contracts.yml')
+          text = path.read_text(encoding='utf-8')
+
+          old_hmmwv = """          require('ApplyGroundedVehicleMesh' in pickup and '-86.0f' in pickup,
+                  'HMMWV production shell is no longer grounded to the wheel plane')"""
+          new_hmmwv = """          require(
+              'ApplyProportionalVehicleMesh' in pickup and
+              'SetRelativeScale3D(FVector(UniformScale))' in pickup and
+              'GroundZCm.GetValue() - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale' in pickup and
+              'TOptional<float>(-86.0f)' in pickup and
+              'PASS45_HMMWV_PROPORTIONAL_VISUAL_READY' in pickup and
+              'nonuniform_stretch=0' in pickup,
+              'HMMWV production shell lost proportional native-bounds grounding',
+          )
+          require('DesiredSizeCm.X / NativeSize.X' not in pickup and
+                  'DesiredSizeCm.Y / NativeSize.Y' not in pickup and
+                  'DesiredSizeCm.Z / NativeSize.Z' not in pickup,
+                  'HMMWV non-uniform production stretching was reintroduced')"""
+
+          old_btr = """          require('ApplyFittedBTRMesh' in btr and '-98.0f' in btr,
+                  'BTR-4 production shell is no longer grounded to the 8-wheel suspension plane')"""
+          new_btr = """          require(
+              'ApplyProportionalGroundedBTRMesh' in btr and
+              'SetRelativeScale3D(FVector(UniformScale))' in btr and
+              'GroundZCm - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale' in btr and
+              '776.0f, -98.0f' in btr and
+              'PASS45_BTR4_PROPORTIONAL_VISUAL_READY' in btr and
+              'nonuniform_stretch=0' in btr,
+              'BTR-4 production shell lost proportional native-bounds grounding',
+          )
+          require('DesiredSizeCm.X / NativeSize.X' not in btr and
+                  'DesiredSizeCm.Y / NativeSize.Y' not in btr and
+                  'DesiredSizeCm.Z / NativeSize.Z' not in btr,
+                  'BTR-4 non-uniform production stretching was reintroduced')"""
+
+          for old, new, label in (
+              (old_hmmwv, new_hmmwv, 'HMMWV stale geometry contract'),
+              (old_btr, new_btr, 'BTR stale geometry contract'),
+          ):
+              if old not in text:
+                  raise SystemExit(f'{label}: source signature missing')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit forward-ported contract
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/production-model-contracts.yml
+          git diff --cached --check
+          git commit -m "test(pass45): forward-port production vehicle geometry contract"
+          git push origin HEAD:fix/pass45-runtime-rejection-20260825
