@@ -9,6 +9,8 @@ on:
       - 'OsterConflict/Scripts/verify_production_vehicle_fresh_load.py'
       - 'OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h'
   push:
     branches:
       - main
@@ -19,6 +21,8 @@ on:
       - 'OsterConflict/Scripts/verify_production_vehicle_fresh_load.py'
       - 'OsterConflict/Source/OsterConflict/Private/OCAssetModelDecorator.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCAssetModelDecorator.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCEnterableHouse.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCEnterableHouse.h'
 
 permissions:
   contents: read
