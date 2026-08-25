@@ -79,8 +79,7 @@ namespace
         Component->AddInstance(FTransform(Rotation, Location, Scale), true);
     }
 
-    void AddFrontWindow(UInstancedStaticMeshComponent* Trim, UInstancedStaticMeshComponent* Glass,
-        UInstancedStaticMeshComponent* Grille, const FVector& Origin, const float X, const float Y,
+    void AddFrontWindow(UInstancedStaticMeshComponent* Trim, UInstancedStaticMeshComponent* Grille, const FVector& Origin, const float X, const float Y,
         const float Z, const float Width, const float Height, const bool bRear = false)
     {
         const float Depth = 14.0f;
@@ -99,8 +98,7 @@ namespace
             FVector(Width - 12.0f, 5.0f, 5.0f));
     }
 
-    void AddSideWindow(UInstancedStaticMeshComponent* Trim, UInstancedStaticMeshComponent* Glass,
-        UInstancedStaticMeshComponent* Grille, const FVector& Origin, const float X, const float Y,
+    void AddSideWindow(UInstancedStaticMeshComponent* Trim, UInstancedStaticMeshComponent* Grille, const FVector& Origin, const float X, const float Y,
         const float Z, const float Width, const float Height, const bool bLeft = false)
     {
         const float Depth = 14.0f;
@@ -227,8 +225,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Metal_Roof.Metal_Roof"));
     UMaterialInterface* BlueWoodAsset = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Wood_Planks_Painted_Blue.Wood_Planks_Painted_Blue"));
-    UMaterialInterface* GlassAsset = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Glass_Window.Glass_Window"));
     if (!Cube || !Basic || !RoofMesh) return;
 
     AActor* Model = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
@@ -258,10 +254,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         FLinearColor(0.78f, 0.74f, 0.63f, 1.0f));
     UMaterialInstanceDynamic* BlueWoodFallback = MakeColorMaterial(Model, Basic, TEXT("R137_BlueWoodFallback"),
         FLinearColor(0.27f, 0.34f, 0.36f, 1.0f));
-    UMaterialInstanceDynamic* RedGableWood = MakeColorMaterial(Model, Basic, TEXT("R137_RedGableWood"),
-        FLinearColor(0.43f, 0.16f, 0.095f, 1.0f));
-    UMaterialInstanceDynamic* DoorMat = MakeColorMaterial(Model, Basic, TEXT("R137_Door"),
-        FLinearColor(0.25f, 0.28f, 0.29f, 1.0f));
     UMaterialInstanceDynamic* ConcreteMat = MakeColorMaterial(Model, Basic, TEXT("R137_Concrete"),
         FLinearColor(0.42f, 0.43f, 0.40f, 1.0f));
     UMaterialInstanceDynamic* RailMat = MakeColorMaterial(Model, Basic, TEXT("R137_Rail"),
@@ -272,11 +264,8 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         FLinearColor(0.82f, 0.62f, 0.025f, 1.0f));
     UMaterialInstanceDynamic* AnnexMat = MakeColorMaterial(Model, Basic, TEXT("R137_Annex"),
         FLinearColor(0.56f, 0.36f, 0.28f, 1.0f));
-    UMaterialInstanceDynamic* GlassFallback = MakeColorMaterial(Model, Basic, TEXT("R137_GlassFallback"),
-        FLinearColor(0.20f, 0.31f, 0.34f, 1.0f));
 
     UMaterialInterface* BlueWood = BlueWoodAsset ? BlueWoodAsset : BlueWoodFallback;
-    UMaterialInterface* GlassMaterial = GlassAsset ? GlassAsset : GlassFallback;
     UMaterialInterface* RoofMaterial = MetalRoof ? MetalRoof : Basic;
 
     UInstancedStaticMeshComponent* Plinth = MakeISM(Model, Root, Cube, PlinthMat,
@@ -291,12 +280,8 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         TEXT("R137Museum_SheetMetalRoof"), false, true);
     UInstancedStaticMeshComponent* Trim = MakeISM(Model, Root, Cube, PaleTrim,
         TEXT("R137Museum_CarvedPaleTrim"), false, true);
-    UInstancedStaticMeshComponent* Glass = MakeISM(Model, Root, Cube, GlassMaterial,
-        TEXT("R137Museum_WindowGlass"), false, false);
     UInstancedStaticMeshComponent* Grilles = MakeISM(Model, Root, Cube, GrilleMat,
         TEXT("R137Museum_WindowGrilles"), false, false, 45000);
-    UInstancedStaticMeshComponent* Doors = MakeISM(Model, Root, Cube, DoorMat,
-        TEXT("R137Museum_GreyDoors"), false, true);
     UInstancedStaticMeshComponent* Concrete = MakeISM(Model, Root, Cube, ConcreteMat,
         TEXT("R137Museum_StepsAndSlabs"), true, false);
     UInstancedStaticMeshComponent* Rails = MakeISM(Model, Root, Cube, RailMat,
@@ -360,19 +345,19 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     const float FrontY = -426.0f;
     const float RearY = 426.0f;
     for (const float X : { -650.0f, -355.0f, 355.0f, 650.0f })
-        AddFrontWindow(Trim, Glass, Grilles, Museum, X, FrontY, 235.0f, 140.0f, 205.0f, false);
+        AddFrontWindow(Trim, Grilles, Museum, X, FrontY, 235.0f, 140.0f, 205.0f, false);
     for (const float X : { -650.0f, -330.0f, 0.0f, 330.0f, 650.0f })
-        AddFrontWindow(Trim, Glass, Grilles, Museum, X, RearY, 235.0f, 140.0f, 205.0f, true);
+        AddFrontWindow(Trim, Grilles, Museum, X, RearY, 235.0f, 140.0f, 205.0f, true);
 
     // Right gable/side wall window rhythm.
     for (const float Y : { -270.0f, 20.0f, 300.0f })
-        AddSideWindow(Trim, Glass, Grilles, Museum, 856.0f, Y, 235.0f, 135.0f, 205.0f, false);
+        AddSideWindow(Trim, Grilles, Museum, 856.0f, Y, 235.0f, 135.0f, 205.0f, false);
 
     // Three upper windows and two side windows on the blue-grey timber volume.
     for (const float X : { -190.0f, 0.0f, 190.0f })
-        AddFrontWindow(Trim, Glass, Grilles, Museum, X, -277.0f, 520.0f, 115.0f, 165.0f, false);
-    AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f, -115.0f, 520.0f, 110.0f, 165.0f, false);
-    AddSideWindow(Trim, Glass, Grilles, Museum, 292.0f,  110.0f, 520.0f, 110.0f, 165.0f, false);
+        AddFrontWindow(Trim, Grilles, Museum, X, -277.0f, 520.0f, 115.0f, 165.0f, false);
+    AddSideWindow(Trim, Grilles, Museum, 292.0f, -115.0f, 520.0f, 110.0f, 165.0f, false);
+    AddSideWindow(Trim, Grilles, Museum, 292.0f,  110.0f, 520.0f, 110.0f, 165.0f, false);
 
     // Pale carved-looking gable outlines. Sloped bars use pitch/roll so they actually rise in Z.
     AddBox(Trim, Museum + FVector(0.0f, -287.0f, 635.0f), FVector(590.0f, 16.0f, 16.0f));
@@ -382,8 +367,8 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     AddBox(Trim, Museum + FVector(-868.0f,  175.0f, 555.0f), FVector(16.0f, 390.0f, 18.0f), FRotator(0.0f, 0.0f,  27.0f));
 
     // Glazed entrance front, grey double door, entrance steps and simple metal handrails.
-    AddFrontWindow(Trim, Glass, Grilles, Museum, -190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
-    AddFrontWindow(Trim, Glass, Grilles, Museum,  190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
+    AddFrontWindow(Trim, Grilles, Museum, -190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
+    AddFrontWindow(Trim, Grilles, Museum,  190.0f, -664.0f, 225.0f, 125.0f, 205.0f, false);
     // Pass45: R13.9 owns the final replicated entrance door; no static prototype slabs.
     for (int32 Step = 0; Step < 6; ++Step)
     {
@@ -400,7 +385,7 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
 
     // Side veranda glass bays.
     for (const float Y : { -55.0f, 85.0f, 225.0f, 365.0f })
-        AddSideWindow(Trim, Glass, Grilles, Museum, -1105.0f, Y, 220.0f, 115.0f, 195.0f, true);
+        AddSideWindow(Trim, Grilles, Museum, -1105.0f, Y, 220.0f, 115.0f, 195.0f, true);
 
     // Pass45: R14.0 owns the final service-door gable/canopy/door; no wrong prototype is authored here.
 
