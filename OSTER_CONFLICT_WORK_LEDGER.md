@@ -6,11 +6,13 @@
 ## 1. Current context
 
 - Repository: `valentronus95/OsterConflict`
-- Current `main` baseline before this corrective branch: `f789c42935fd7c90c7dfb4777e794e5cfecc1687` (PR #81 merged Pass 45 completion audit).
-- Active local-build/import fix branch: `fix/pass45-local-build-import-regression-20260825` → `main`.
-- Pass state token: **PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED**.
+- Current runtime-code `main` baseline: `1d6f57227bb15e84d7df911c192f53685b08544f` (PR #82 merged local UE build/import regression fix).
+- Local-build/import fix branch: `fix/pass45-local-build-import-regression-20260825` — **MERGED INTO `main` by PR #82**.
+- Final PR #82 source head: `2079733e7e027587f1bc0925d7fffc5c44df69ed` — **20/20 source workflows green before merge**.
+- Pass state token: **PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX MERGED / CODED_UNTESTED**.
 - Canonical TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Completion audit: `OsterConflict/Docs/WorkReports/PASS45_COMPLETION_AUDIT_2026-08-25.md`.
+- Local build/import rejection report: `OsterConflict/Docs/WorkReports/PASS45_LOCAL_BUILD_IMPORT_REJECTION_2026-08-25.md`.
 - Latest factual evidence: user normal-route launch/build transcript from **2026-08-25**.
 - Previous runtime rejection pack: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x Windows; factual failed build used UE **5.8.1**.
@@ -51,7 +53,7 @@ Therefore:
 
 - `ASSET-BTR-001`: production import is **LOCALLY CONFIRMED**, gameplay/presentation still unverified.
 - HMMWV/M2 are **not missing-source gaps in this run**; they are a concrete UE 5.8 importer API regression.
-- active source correction replaces the deprecated property with `convert_statics_with_animated_transform_to_skeletals=false` while retaining explicit `IFMT_STATIC_MESH`, static import enabled and skeletal import disabled.
+- merged source correction replaces the deprecated property with `convert_statics_with_animated_transform_to_skeletals=false` while retaining explicit `IFMT_STATIC_MESH`, static import enabled and skeletal import disabled.
 - this HMMWV/M2 fix is **CODED_UNTESTED** until a later local import succeeds.
 
 ### 3.2 Factual C++ build blocker
@@ -69,7 +71,7 @@ Consequences:
 - gameplay did **not** start, so this run cannot accept FPS, spawn, tactical-map visual appearance, landmarks, B2 visuals, trees or weapon materials.
 - source CI from PR #81 is superseded as build evidence because it did not run this factual UE C++ compilation path.
 
-Active correction:
+Merged correction in PR #82:
 
 - `Pass45ReferenceRoads` is now a normal namespace-scope `const` table.
 - topology data, iteration and `UE_ARRAY_COUNT` behavior are unchanged.
@@ -122,12 +124,12 @@ Because the 2026-08-25 C++ build failed before gameplay, all B2 visual placement
 
 | ID | Requirement | Repeat | Status | Current action |
 |---|---|---:|---|---|
-| BUILD-P45-001 | Normal route must compile after Pass 45 tactical-map changes | 1 | CODED_UNTESTED after LOCAL UE BUILD REJECTED | Remove invalid `constexpr` FVector2D road table; next local UBT must complete. |
+| BUILD-P45-001 | Normal route must compile after Pass 45 tactical-map changes | 1 | MERGED / CODED_UNTESTED after LOCAL UE BUILD REJECTED | Invalid `constexpr` FVector2D road table removed; next local UBT must complete. |
 | PERF-COLLAPSE-001 | Stop frontend/gameplay collapse to ~8–12 FPS | ≥6 | CODED_UNTESTED | Cannot remeasure until build succeeds. RHI A/B, perf markers, mutation cleanup and compact culls remain coded. |
 | UI-MENU-001 | Frontend/menu stable and usable | ≥9 | CODED_UNTESTED | Current 25.08 attempt did not reach new frontend because compilation failed. |
 | VIS-GRAPHICS-QUALITY-001 | Restore readable non-blockout visual quality without hidden resolution downgrade | ≥4 | CODED_UNTESTED / CONTENT GAP | B2 source correction merged; factual visual test blocked by build failure. |
 | VIS-TREES-001 | Tall pine/conifer character + appropriate oak; no fantasy primitive trees | ≥2 | CODED_UNTESTED / CONTENT GAP | Primitive trees retired; real pines verified; oak remains gap. |
-| UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | ≥4 | CODED_UNTESTED | Reference-traced topology retained; compile blocker in its table fixed, runtime screenshot still required. |
+| UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | ≥4 | CODED_UNTESTED | Reference-traced topology retained; compile blocker in its table fixed/merged, runtime screenshot still required. |
 | MAP-EXTENT-001 | Keep compact central Oster battlefield | ≥2 | CODED_UNTESTED / RETAIN | 960×940 m hard extent retained. Never restore 2.4 km map. |
 | LOC-MUSEUM-001 | Museum visible/unique near actual live spawn | ≥10 | CODED_UNTESTED | R13.8 single shell owner; runtime identity still required. |
 | LOC-CULTURE-001 | Culture House separate from Museum | ≥2 | CODED_UNTESTED | R14.6 single shell owner at Culture geo anchor. |
@@ -136,7 +138,7 @@ Because the 2026-08-25 C++ build failed before gameplay, all B2 visual placement
 | GAME-WEAPONS-001 | 11 grounded pickups near Museum spawn | ≥9 | CODED_UNTESTED | Grounding retained; factual gameplay blocked by build failure. |
 | GAME-SPAWN-001 | Live pawn spawns near Museum BASE | ≥9 | CODED_UNTESTED | Actual-pawn distance correction retained; runtime proof pending. |
 | VIS-GRASS-001 | Natural grass without FPS collapse | ≥6 | CODED_UNTESTED | Density constrained; runtime baseline required. |
-| VEH-PICKUP-001 | Real HMMWV + M2 | ≥5 | CODED_UNTESTED IMPORT API FIX | Local sources found; imports failed only on deprecated UE 5.8 property. Updated Interchange property needs local retest. |
+| VEH-PICKUP-001 | Real HMMWV + M2 | ≥5 | MERGED / CODED_UNTESTED IMPORT API FIX | Local sources found; imports failed only on deprecated UE 5.8 property. Updated Interchange property merged and needs local retest. |
 | ASSET-BTR-001 | Real BTR-4/Bucephalus | ≥5 | LOCAL IMPORT CONFIRMED / RUNTIME UNTESTED | BTR canonical production asset imported in 25.08 run; presentation/vehicle integration still requires gameplay. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | ≥2 | IN_PROGRESS / CONTENT GAP | No verified payload; do not claim connected. |
 | GAME-VEHICLE-INPUT-001 | WASD/mouse after vehicle exit | 1 | CODED_UNTESTED | Pass41 source recovery retained. |
@@ -159,12 +161,12 @@ Because the 2026-08-25 C++ build failed before gameplay, all B2 visual placement
 3. User pulled/launched normal route on 2026-08-25. **DONE — LOCAL UE BUILD REJECTED**.
 4. Diagnose C2131 tactical table compile blocker. **DONE**.
 5. Diagnose HMMWV/M2 UE 5.8 deprecated Interchange property. **DONE**.
-6. Tactical map `constexpr` → `const` build correction. **CODED_UNTESTED**.
-7. HMMWV/M2 Interchange property correction. **CODED_UNTESTED**.
-8. Add regression verifier + workflow; update aggregate verifier. **CODED**.
-9. Current-head source CI for this corrective branch. **PENDING**.
-10. Merge build/import corrective PR into `main` only after green current-head CI. **PENDING**.
-11. Local test after pull: run `START_HERE.cmd` → `1. ЗВИЧАЙНА ГРА`; first acceptance is **successful UE build**, then frontend FPS, then gameplay. **PENDING**.
+6. Tactical map `constexpr` → `const` build correction. **MERGED / CODED_UNTESTED**.
+7. HMMWV/M2 Interchange property correction. **MERGED / CODED_UNTESTED**.
+8. Add regression verifier + workflow; update aggregate verifier; forward-port stale Pass44 status check. **DONE**.
+9. Current-head source CI. **DONE — 20/20 SUCCESS on `2079733e7e027587f1bc0925d7fffc5c44df69ed`**.
+10. Merge build/import corrective PR #82 into `main`. **DONE — runtime-code merge `1d6f57227bb15e84d7df911c192f53685b08544f`**.
+11. Local test after pull: run `START_HERE.cmd` → `1. ЗВИЧАЙНА ГРА`; first acceptance is **successful UE build**, then frontend FPS, then gameplay. **PENDING — NEXT AUTHORITATIVE GATE**.
 
 ## 9. Next factual acceptance gates
 
@@ -190,4 +192,4 @@ Because the 2026-08-25 C++ build failed before gameplay, all B2 visual placement
 - Landmarks: Museum/Culture visibly separate; Silpo stale duplicate absent.
 - Weapons: fresh 11-class dependency truth; no white/default slot accepted.
 
-**Current overall status: PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX CODED_UNTESTED / SOURCE CI PENDING / LOCAL REBUILD REQUIRED.**
+**Current overall status: PASS 45 ACTIVE / LOCAL UE BUILD REJECTED / BUILD+IMPORT FIX MERGED / SOURCE CI 20/20 GREEN / LOCAL REBUILD REQUIRED.**
