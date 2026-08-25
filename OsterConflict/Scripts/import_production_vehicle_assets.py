@@ -136,7 +136,9 @@ def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes
     mesh_pipeline.set_editor_property("collision", False)
     common_meshes.set_editor_property("force_all_mesh_as_type", force_mesh_type.IFMT_STATIC_MESH)
     common_meshes.set_editor_property("bake_meshes", True)
-    common_meshes.set_editor_property("auto_detect_mesh_type", False)
+    # UE 5.8 removed bAutoDetectMeshType from the active Interchange contract. Because this
+    # intake explicitly forces StaticMesh, animated transforms must never promote the GLB to a rigid skeletal mesh.
+    common_meshes.set_editor_property("convert_statics_with_animated_transform_to_skeletals", False)
 
 
 def make_interchange_task(filename, destination_path, asset_name):

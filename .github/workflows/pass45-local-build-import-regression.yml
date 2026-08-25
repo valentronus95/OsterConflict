@@ -1,0 +1,24 @@
+name: Pass 45 local build import regression
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
+      - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py'
+      - 'OSTER_CONFLICT_WORK_LEDGER.md'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-local-build-import-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify local UE build/import regression guards
+        run: python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
