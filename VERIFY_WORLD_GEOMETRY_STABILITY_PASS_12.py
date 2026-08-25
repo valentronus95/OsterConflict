@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict/Source/OsterConflict"
@@ -40,14 +41,23 @@ for needle in (
 ):
     require(coordinator, needle, "landmark startup coordinator")
 
-# The known cleanup window is 40 * 0.20 s = 8 s. Pass 12 deliberately snapshots later at 12 s.
+# Pass 45 supersedes the historical 40 * 0.20 s full-world repair loop. Stability now requires one delayed
+# reconciliation after current landmark construction, plus an actor-spawn legacy guard. The Pass 12 baseline
+# still captures later at 12 s, so it observes the post-reconciliation world without forcing repeated mutation.
 for needle in (
-    "SeparationStartupGuardIntervalSeconds = 0.20f",
-    "SeparationStartupGuardPassCount = 40",
+    "SeparationValidationDelaySeconds = 6.25f",
     "RunStartupGuardPass",
-    "bFinalValidation",
+    "PASS45_LANDMARK_RECONCILIATION_BUDGET_READY",
+    "PASS45_LANDMARK_RECONCILIATION_COMPLETE",
+    "further_periodic_scan=0",
 ):
-    require(separation, needle, "landmark separation startup window")
+    require(separation, needle, "Pass 45 one-shot landmark reconciliation")
+if "SeparationStartupGuardIntervalSeconds" in separation or "SeparationStartupGuardPassCount" in separation:
+    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: obsolete 0.20 s x 40 landmark scan loop returned")
+
+delay_match = re.search(r"SeparationValidationDelaySeconds\s*=\s*([0-9.]+)f", separation)
+if not delay_match or float(delay_match.group(1)) >= 12.0:
+    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark reconciliation does not finish before 12 s baseline capture")
 
 # Imported world model decoration must remain one-shot once its decorator actor exists.
 for needle in (
@@ -97,9 +107,10 @@ for needle in (
 ):
     require(launcher, needle, "Pass 12 Windows launcher")
 
-print("WORLD GEOMETRY STABILITY PASS 12 SOURCE CONTRACT PASS")
+print("WORLD GEOMETRY STABILITY PASS 12 + PASS 45 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
-print("- known landmark cleanup window remains bounded to 8 seconds")
+print("- obsolete 0.20 s x 40 full-world landmark mutation loop remains retired")
+print("- one delayed Pass 45 reconciliation completes before the 12 s Pass 12 baseline")
 print("- imported world decorator is one-shot after ownership is acquired")
 print("- Pass 12 snapshots 10 source geometry families at 12s and compares again at 16s/20s")
 print("- any late instance-count mutation emits a family-specific runtime FAIL marker")
