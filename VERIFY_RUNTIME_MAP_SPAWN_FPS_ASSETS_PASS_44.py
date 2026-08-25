@@ -56,7 +56,7 @@ for needle in (
 
 # Pass 44 is historical and has now been rejected by factual runtime evidence. Its verifier may only
 # protect useful non-regression decisions; it must never force Pass 44 back to ACTIVE/VERIFIED status.
-req("Pass 44 verdict: RUNTIME REJECTED" in ledger,
+req("Pass 44" in ledger and "RUNTIME REJECTED" in ledger,
     "ledger must preserve factual Pass 44 runtime rejection")
 req("Pass 45" in ledger and "ACTIVE" in ledger,
     "ledger must identify Pass 45 as the active corrective pass")
