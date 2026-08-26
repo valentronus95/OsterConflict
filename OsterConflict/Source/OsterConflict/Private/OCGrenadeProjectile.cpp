@@ -16,7 +16,13 @@
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
+#include "UObject/UObjectGlobals.h"
+
+namespace
+{
+    constexpr float Pass45GrenadeDesiredLengthCm = 14.0f;
+    const TCHAR* Pass45GrenadeVisualPath = TEXT("/Game/R13/Weapons/grenade.grenade");
+}
 
 AOCGrenadeProjectile::AOCGrenadeProjectile()
 {
@@ -30,12 +36,15 @@ AOCGrenadeProjectile::AOCGrenadeProjectile()
     Collision->SetCollisionProfileName(TEXT("BlockAllDynamic"));
     SetRootComponent(Collision);
 
+    // Pass45: collision stays primitive and invisible, but no Engine BasicShape is ever accepted as the grenade body.
     GrenadeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("GrenadeMesh"));
     GrenadeMesh->SetupAttachment(Collision);
     GrenadeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    if (SphereMesh.Succeeded()) GrenadeMesh->SetStaticMesh(SphereMesh.Object);
-    GrenadeMesh->SetRelativeScale3D(FVector(0.13f, 0.13f, 0.19f));
+    GrenadeMesh->SetGenerateOverlapEvents(false);
+    GrenadeMesh->SetCanEverAffectNavigation(false);
+    GrenadeMesh->SetCastShadow(true);
+    GrenadeMesh->SetVisibility(false, true);
+    GrenadeMesh->SetHiddenInGame(true, true);
 
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
     ProjectileMovement->UpdatedComponent = Collision;
@@ -50,6 +59,43 @@ AOCGrenadeProjectile::AOCGrenadeProjectile()
 void AOCGrenadeProjectile::BeginPlay()
 {
     Super::BeginPlay();
+
+    // The repository already contains a tracked R13 grenade mesh. Use it fail-closed: if it cannot be loaded,
+    // gameplay/collision may continue for diagnosis but the rejected Engine sphere never becomes visible.
+    UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr, Pass45GrenadeVisualPath);
+    if (!ProductionMesh || !GrenadeMesh)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s primitive_visible=0 gameplay_collision_preserved=1 runtime_acceptance=0"),
+            Pass45GrenadeVisualPath);
+    }
+    else
+    {
+        const FBoxSphereBounds Bounds = ProductionMesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+        if (NativeLength <= 1.0f)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s invalid_bounds=1 primitive_visible=0 runtime_acceptance=0"),
+                Pass45GrenadeVisualPath);
+        }
+        else
+        {
+            const float UniformScale = Pass45GrenadeDesiredLengthCm / NativeLength;
+            GrenadeMesh->SetStaticMesh(ProductionMesh);
+            GrenadeMesh->SetRelativeLocation(-Bounds.Origin * UniformScale);
+            GrenadeMesh->SetRelativeRotation(FRotator::ZeroRotator);
+            GrenadeMesh->SetRelativeScale3D(FVector(UniformScale));
+            GrenadeMesh->ComponentTags.AddUnique(FName(TEXT("OC_ProductionGrenadeVisual")));
+            GrenadeMesh->SetHiddenInGame(false, true);
+            GrenadeMesh->SetVisibility(true, true);
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_READY asset=%s primitive_visible=0 production_visual=1 shared_generic_body=1 type_specific_content_gap=1"),
+                Pass45GrenadeVisualPath);
+        }
+    }
+
     if (HasAuthority())
     {
         GetWorldTimerManager().SetTimer(FuseTimerHandle, this, &AOCGrenadeProjectile::DetonateServer, FuseSeconds, false);
@@ -121,7 +167,10 @@ void AOCGrenadeProjectile::DetonateServer()
     {
         FActorSpawnParameters Params;
         Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        GetWorld()->SpawnActor<AOCSmokeCloud>(AOCSmokeCloud::StaticClass(), GetActorLocation(), FRotator::ZeroRotator, Params);
+        if (!GetWorld()->SpawnActor<AOCSmokeCloud>(AOCSmokeCloud::StaticClass(), GetActorLocation(), FRotator::ZeroRotator, Params))
+        {
+            UE_LOG(LogTemp, Error, TEXT("PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL spawn_failed=1 runtime_acceptance=0"));
+        }
     }
     else
     {
