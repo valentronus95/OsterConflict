@@ -41,13 +41,13 @@ world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(err
 world_h=(root/'Source/OsterConflict/Public/OCWorldSectorOster.h').read_text(errors='ignore')
 
 # Pass45 supersedes S09 private-sector approximations. Keep the public-reference manifest and
-# reference-driven POI work, but never force rejected arbitrary residence/fence families back.
+# reference-driven POI work, including the valid Solonyna museum/estate identity, but never force
+# rejected arbitrary residence/fence generators back.
 for stale in (
     'BuildResidentialBlocks();',
     'void AOCWorldSectorOster::BuildResidentialBlocks()',
     'BuildSolomiiKrushelnytskoiStreet();',
     'void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()',
-    'SOLONYNA HOUSE',
     'AddGableRoof(ResidentialRoofs',
 ):
     if stale in world:
@@ -87,4 +87,4 @@ if 'SpawnActor<AOCTestArena>' in gm: print('Old arena became active'); sys.exit(
 
 print('S09 structural verification: PASS')
 print(f'Checked {len(required)} required files and {sum(map(len, markers.values()))} S09 markers.')
-print('Pass45 forward-port: public-reference POI fidelity retained; rejected private-sector approximations remain retired.')
+print('Pass45 forward-port: public-reference POI fidelity retained; rejected private-sector generators remain retired.')
