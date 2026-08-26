@@ -142,6 +142,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     State.bWeaponAnimationActive = false;
     State.bRiflePoseApplied = false;
     State.bWasActionCycling = false;
+    State.bWasAiming = false;
     State.ActionCycleStartTime = 0.0;
     State.RecoilAlpha = 0.0f;
 }
@@ -221,6 +222,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.LastAmmo = Weapon->GetAmmoInMagazine();
         State.bWasReloading = Weapon->IsReloading();
         State.bWasActionCycling = false;
+        State.bWasAiming = false;
         State.ReloadStartTime = Now;
 
         State.BaseWeaponLocation = Profile.CameraLocation;
@@ -257,6 +259,12 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     }
 
     const bool bADS = Character.IsAiming();
+    if (bADS && !State.bWasAiming && bDeclaredProfile)
+    {
+        ValidateADSAlignment(Character, *Weapon, FindProductionWeaponVisual(*Weapon), Profile);
+    }
+    State.bWasAiming = bADS;
+
     const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
     const bool bLongGun = WeaponClass != EOCWeaponClass::Pistol;
     if (bLongGun)
