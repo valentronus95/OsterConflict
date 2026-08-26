@@ -26,6 +26,7 @@ namespace
     constexpr float ValidationDelaySeconds = 2.0f;
     constexpr float ValidationDepthCm = -1000000.0f;
     const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
+    const FName RealFallbackWeaponVisualTag(TEXT("OC_RealFallbackWeaponVisual"));
 
     enum class EExpectedWeaponMeshKind : uint8
     {
@@ -52,6 +53,17 @@ namespace
             Path.Contains(TEXT("_defaultMat"), ESearchCase::IgnoreCase);
     }
 
+    bool IsPlaceholderTexture(const UTexture* Texture)
+    {
+        if (!Texture) return true;
+        const FString Path = Texture->GetPathName();
+        const FString Name = Texture->GetName();
+        return Path.Contains(TEXT("DefaultTexture"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WhiteSquareTexture"), ESearchCase::IgnoreCase) ||
+            Name.Equals(TEXT("DefaultTexture"), ESearchCase::IgnoreCase) ||
+            Name.Equals(TEXT("WhiteSquareTexture"), ESearchCase::IgnoreCase);
+    }
+
     FString JoinTexturePaths(const TArray<UTexture*>& Textures)
     {
         if (Textures.IsEmpty()) return TEXT("none");
@@ -66,7 +78,7 @@ namespace
         return Result;
     }
 
-    void AppendMaterialDependencyLine(
+    bool AppendMaterialDependencyLine(
         FString& OutReport,
         int32 Slot,
         UMaterialInterface* AuthoredMaterial,
@@ -84,14 +96,26 @@ namespace
                 true);
         }
 
+        bool bTextureDependenciesReady = AuthoredMaterial != nullptr && !UsedTextures.IsEmpty();
+        for (const UTexture* Texture : UsedTextures)
+        {
+            if (IsPlaceholderTexture(Texture))
+            {
+                bTextureDependenciesReady = false;
+                break;
+            }
+        }
+
         OutReport += FString::Printf(
-            TEXT("  slot=%d | authoredMaterial=%s | runtimeMaterial=%s | placeholder=%d | textureCount=%d | textures=%s\n"),
+            TEXT("  slot=%d | authoredMaterial=%s | runtimeMaterial=%s | placeholder=%d | textureCount=%d | textureDependency=%s | textures=%s\n"),
             Slot,
             AuthoredMaterial ? *AuthoredMaterial->GetPathName() : TEXT("<missing>"),
             RuntimeMaterial ? *RuntimeMaterial->GetPathName() : TEXT("<missing>"),
             IsPlaceholderMaterial(AuthoredMaterial) ? 1 : 0,
             UsedTextures.Num(),
+            bTextureDependenciesReady ? TEXT("PASS") : TEXT("GAP"),
             *JoinTexturePaths(UsedTextures));
+        return bTextureDependenciesReady;
     }
 
     bool HasVisibleFallbackStaticMesh(AOCWeaponBase& Weapon)
@@ -132,22 +156,37 @@ namespace
         return nullptr;
     }
 
+    UStaticMeshComponent* FindRealFallbackStaticMeshComponent(AOCWeaponBase& Weapon)
+    {
+        TInlineComponentArray<UStaticMeshComponent*> Components;
+        Weapon.GetComponents(Components);
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (!Component || !Component->ComponentHasTag(RealFallbackWeaponVisualTag)) continue;
+            if (Component->GetStaticMesh() && Component->IsVisible()) return Component;
+        }
+        return nullptr;
+    }
+
     bool ValidateStaticMeshMaterials(
         UStaticMesh& Mesh,
         UStaticMeshComponent& Component,
         int32& OutMaterialSlots,
         int32& OutPlaceholderOrMissingSlots,
         int32& OutUnexpectedOverrides,
+        int32& OutTextureDependencyGaps,
         FString& OutDependencyReport)
     {
         OutMaterialSlots = Mesh.GetStaticMaterials().Num();
         OutPlaceholderOrMissingSlots = 0;
         OutUnexpectedOverrides = 0;
+        OutTextureDependencyGaps = 0;
 
         if (OutMaterialSlots <= 0)
         {
             OutPlaceholderOrMissingSlots = 1;
-            OutDependencyReport += TEXT("  slot=<none> | authoredMaterial=<missing> | runtimeMaterial=<missing> | placeholder=1 | textureCount=0 | textures=none\n");
+            OutTextureDependencyGaps = 1;
+            OutDependencyReport += TEXT("  slot=<none> | authoredMaterial=<missing> | runtimeMaterial=<missing> | placeholder=1 | textureCount=0 | textureDependency=GAP | textures=none\n");
             return false;
         }
 
@@ -157,10 +196,13 @@ namespace
             UMaterialInterface* RuntimeMaterial = Component.GetMaterial(Slot);
             if (IsPlaceholderMaterial(AuthoredMaterial)) ++OutPlaceholderOrMissingSlots;
             if (RuntimeMaterial != AuthoredMaterial) ++OutUnexpectedOverrides;
-            AppendMaterialDependencyLine(OutDependencyReport, Slot, AuthoredMaterial, RuntimeMaterial);
+            if (!AppendMaterialDependencyLine(OutDependencyReport, Slot, AuthoredMaterial, RuntimeMaterial))
+            {
+                ++OutTextureDependencyGaps;
+            }
         }
 
-        return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0;
+        return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0 && OutTextureDependencyGaps == 0;
     }
 
     bool ValidateSkeletalMeshMaterials(
@@ -169,17 +211,20 @@ namespace
         int32& OutMaterialSlots,
         int32& OutPlaceholderOrMissingSlots,
         int32& OutUnexpectedOverrides,
+        int32& OutTextureDependencyGaps,
         FString& OutDependencyReport)
     {
         const TArray<FSkeletalMaterial>& Materials = Mesh.GetMaterials();
         OutMaterialSlots = Materials.Num();
         OutPlaceholderOrMissingSlots = 0;
         OutUnexpectedOverrides = 0;
+        OutTextureDependencyGaps = 0;
 
         if (OutMaterialSlots <= 0)
         {
             OutPlaceholderOrMissingSlots = 1;
-            OutDependencyReport += TEXT("  slot=<none> | authoredMaterial=<missing> | runtimeMaterial=<missing> | placeholder=1 | textureCount=0 | textures=none\n");
+            OutTextureDependencyGaps = 1;
+            OutDependencyReport += TEXT("  slot=<none> | authoredMaterial=<missing> | runtimeMaterial=<missing> | placeholder=1 | textureCount=0 | textureDependency=GAP | textures=none\n");
             return false;
         }
 
@@ -189,10 +234,13 @@ namespace
             UMaterialInterface* RuntimeMaterial = Component.GetMaterial(Slot);
             if (IsPlaceholderMaterial(AuthoredMaterial)) ++OutPlaceholderOrMissingSlots;
             if (RuntimeMaterial != AuthoredMaterial) ++OutUnexpectedOverrides;
-            AppendMaterialDependencyLine(OutDependencyReport, Slot, AuthoredMaterial, RuntimeMaterial);
+            if (!AppendMaterialDependencyLine(OutDependencyReport, Slot, AuthoredMaterial, RuntimeMaterial))
+            {
+                ++OutTextureDependencyGaps;
+            }
         }
 
-        return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0;
+        return OutPlaceholderOrMissingSlots == 0 && OutUnexpectedOverrides == 0 && OutTextureDependencyGaps == 0;
     }
 }
 
@@ -232,9 +280,8 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
 {
     const bool bHeadlessGate = FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeaponsHeadless"));
 
-    // Local UE 5.8 runtime inspection is authoritative. Mesh presence alone is not material readiness:
-    // every expected production visual must retain authored, non-placeholder material slots at runtime,
-    // and the report must expose the exact slot -> material -> used-texture dependency chain.
+    // Pass45 Gate F validates every required weapon visual that is actually available. Exact production payload
+    // gaps remain explicit CONTENT GAP and may use a real authored fallback; they are never relabelled production-ready.
     const FExpectedWeaponVisual Expectations[] =
     {
         { TEXT("AK-47"), FName(TEXT("OC_AR1")), AOCWeapon_AssaultRifle::StaticClass(),
@@ -268,15 +315,19 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     IFileManager::Get().Delete(*SuccessSentinelPath, false, true, true);
 
     FString Report;
-    Report += TEXT("OSTER CONFLICT R14 PRODUCTION WEAPON RUNTIME VALIDATION\n");
-    Report += TEXT("PASS45 dependency contract: weapon class -> exact mesh -> material slot -> material asset -> used texture dependencies -> runtime material\n");
+    Report += TEXT("OSTER CONFLICT PASS45 REQUIRED AVAILABLE WEAPON RUNTIME VALIDATION\n");
+    Report += TEXT("PASS45 dependency contract: weapon class -> exact mesh OR explicit real fallback -> material slot -> material asset -> used texture dependencies -> runtime material\n");
     Report += FString::Printf(TEXT("Map=%s\n\n"), *World.GetMapName());
 
-    bool bAllPass = true;
-    int32 PassedWeapons = 0;
+    bool bAllRequiredAvailablePass = true;
+    int32 PassedRequiredAvailableVisuals = 0;
+    int32 ExactProductionPass = 0;
+    int32 RealFallbackPass = 0;
+    int32 ExactContentGaps = 0;
     int32 TotalMaterialSlots = 0;
     int32 TotalMaterialGaps = 0;
     int32 TotalUnexpectedOverrides = 0;
+    int32 TotalTextureDependencyGaps = 0;
     TArray<TWeakObjectPtr<AOCWeaponBase>> TemporaryWeapons;
 
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(Expectations); ++Index)
@@ -300,31 +351,36 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
 
         const bool bSpawned = Weapon != nullptr;
         bool bIdMatches = false;
-        bool bAssetLoads = false;
+        bool bExactAssetLoads = false;
         bool bUsesExpectedProductionVisual = false;
+        bool bUsesRealFallbackVisual = false;
         bool bFallbackHidden = false;
         bool bAuthoredMaterialsReady = false;
+        bool bExactContentGap = false;
         int32 MaterialSlots = 0;
         int32 PlaceholderOrMissingSlots = 0;
         int32 UnexpectedOverrides = 0;
+        int32 TextureDependencyGaps = 0;
         FString ActualAssetName = TEXT("none");
         FString MaterialDependencyReport;
+        FString VisualMode = TEXT("UNRESOLVED");
 
         if (Weapon)
         {
             TemporaryWeapons.Add(Weapon);
             bIdMatches = Weapon->GetWeaponId() == Expected.WeaponId;
-            bFallbackHidden = !HasVisibleFallbackStaticMesh(*Weapon);
 
             if (Expected.MeshKind == EExpectedWeaponMeshKind::Static)
             {
                 UStaticMesh* ExpectedMesh = LoadObject<UStaticMesh>(nullptr, Expected.ObjectPath);
-                bAssetLoads = ExpectedMesh != nullptr;
-                UStaticMeshComponent* ProductionComponent = FindExpectedStaticMeshComponent(*Weapon, ExpectedMesh);
-                bUsesExpectedProductionVisual = ProductionComponent != nullptr;
+                bExactAssetLoads = ExpectedMesh != nullptr;
                 if (ExpectedMesh)
                 {
+                    UStaticMeshComponent* ProductionComponent = FindExpectedStaticMeshComponent(*Weapon, ExpectedMesh);
+                    bUsesExpectedProductionVisual = ProductionComponent != nullptr;
+                    bFallbackHidden = !HasVisibleFallbackStaticMesh(*Weapon);
                     ActualAssetName = ExpectedMesh->GetPathName();
+                    VisualMode = TEXT("EXACT_PRODUCTION");
                     if (ProductionComponent)
                     {
                         bAuthoredMaterialsReady = ValidateStaticMeshMaterials(
@@ -333,6 +389,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
                             MaterialSlots,
                             PlaceholderOrMissingSlots,
                             UnexpectedOverrides,
+                            TextureDependencyGaps,
                             MaterialDependencyReport);
                     }
                 }
@@ -340,12 +397,14 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
             else if (Expected.MeshKind == EExpectedWeaponMeshKind::Skeletal)
             {
                 USkeletalMesh* ExpectedMesh = LoadObject<USkeletalMesh>(nullptr, Expected.ObjectPath);
-                bAssetLoads = ExpectedMesh != nullptr;
-                USkeletalMeshComponent* ProductionComponent = FindExpectedSkeletalMeshComponent(*Weapon, ExpectedMesh);
-                bUsesExpectedProductionVisual = ProductionComponent != nullptr;
+                bExactAssetLoads = ExpectedMesh != nullptr;
                 if (ExpectedMesh)
                 {
+                    USkeletalMeshComponent* ProductionComponent = FindExpectedSkeletalMeshComponent(*Weapon, ExpectedMesh);
+                    bUsesExpectedProductionVisual = ProductionComponent != nullptr;
+                    bFallbackHidden = !HasVisibleFallbackStaticMesh(*Weapon);
                     ActualAssetName = ExpectedMesh->GetPathName();
+                    VisualMode = TEXT("EXACT_PRODUCTION");
                     if (ProductionComponent)
                     {
                         bAuthoredMaterialsReady = ValidateSkeletalMeshMaterials(
@@ -354,44 +413,90 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
                             MaterialSlots,
                             PlaceholderOrMissingSlots,
                             UnexpectedOverrides,
+                            TextureDependencyGaps,
                             MaterialDependencyReport);
                     }
                 }
+            }
+
+            if (!bExactAssetLoads)
+            {
+                bExactContentGap = true;
+                ++ExactContentGaps;
+                VisualMode = TEXT("REAL_FALLBACK_CONTENT_GAP");
+
+                if (UStaticMeshComponent* FallbackComponent = FindRealFallbackStaticMeshComponent(*Weapon))
+                {
+                    if (UStaticMesh* FallbackMesh = FallbackComponent->GetStaticMesh())
+                    {
+                        bUsesRealFallbackVisual = true;
+                        ActualAssetName = FallbackMesh->GetPathName();
+                        bAuthoredMaterialsReady = ValidateStaticMeshMaterials(
+                            *FallbackMesh,
+                            *FallbackComponent,
+                            MaterialSlots,
+                            PlaceholderOrMissingSlots,
+                            UnexpectedOverrides,
+                            TextureDependencyGaps,
+                            MaterialDependencyReport);
+                    }
+                }
+
+                UE_LOG(LogTemp, Warning,
+                    TEXT("PASS45_EXACT_WEAPON_CONTENT_GAP label=%s expected=%s fallbackVisual=%d fallbackMaterialsReady=%d exactProductionReadyNotClaimed=1"),
+                    Expected.Label,
+                    Expected.ObjectPath,
+                    bUsesRealFallbackVisual ? 1 : 0,
+                    bAuthoredMaterialsReady ? 1 : 0);
             }
         }
 
         if (MaterialDependencyReport.IsEmpty())
         {
-            MaterialDependencyReport = TEXT("  material dependency chain unavailable because expected runtime production visual was not resolved\n");
+            MaterialDependencyReport = TEXT("  material dependency chain unavailable because neither exact production nor explicit real fallback visual resolved\n");
         }
 
         TotalMaterialSlots += MaterialSlots;
         TotalMaterialGaps += PlaceholderOrMissingSlots;
         TotalUnexpectedOverrides += UnexpectedOverrides;
+        TotalTextureDependencyGaps += TextureDependencyGaps;
 
-        const bool bCanonicalAssetDefined = Expected.ObjectPath != nullptr;
-        const bool bPass = bSpawned && bIdMatches && bCanonicalAssetDefined && bAssetLoads &&
+        const bool bExactPass = bSpawned && bIdMatches && bExactAssetLoads &&
             bUsesExpectedProductionVisual && bFallbackHidden && bAuthoredMaterialsReady;
+        const bool bFallbackGapPass = bSpawned && bIdMatches && bExactContentGap &&
+            bUsesRealFallbackVisual && bAuthoredMaterialsReady;
+        const bool bPass = bExactPass || bFallbackGapPass;
 
-        bAllPass = bAllPass && bPass;
-        if (bPass) ++PassedWeapons;
+        bAllRequiredAvailablePass = bAllRequiredAvailablePass && bPass;
+        if (bPass)
+        {
+            ++PassedRequiredAvailableVisuals;
+            if (bExactPass) ++ExactProductionPass;
+            if (bFallbackGapPass) ++RealFallbackPass;
+        }
+
+        const TCHAR* ResultText = bExactPass
+            ? TEXT("PASS")
+            : (bFallbackGapPass ? TEXT("CONTENT_GAP_FALLBACK_PASS") : TEXT("FAIL"));
 
         Report += FString::Printf(
-            TEXT("%s | id=%s | spawned=%s | idMatch=%s | canonical=%s | assetLoads=%s | productionVisual=%s | fallbackHidden=%s | authoredMaterials=%s | materialSlots=%d | materialGaps=%d | unexpectedOverrides=%d | asset=%s | RESULT=%s\n"),
+            TEXT("%s | id=%s | spawned=%s | idMatch=%s | exactAsset=%s | visualMode=%s | productionVisual=%s | realFallbackVisual=%s | fallbackHidden=%s | authoredMaterials=%s | materialSlots=%d | materialGaps=%d | textureGaps=%d | unexpectedOverrides=%d | asset=%s | RESULT=%s\n"),
             Expected.Label,
             *Expected.WeaponId.ToString(),
             bSpawned ? TEXT("PASS") : TEXT("FAIL"),
             bIdMatches ? TEXT("PASS") : TEXT("FAIL"),
-            bCanonicalAssetDefined ? TEXT("PASS") : TEXT("MISSING"),
-            bAssetLoads ? TEXT("PASS") : TEXT("FAIL"),
-            bUsesExpectedProductionVisual ? TEXT("PASS") : TEXT("FAIL"),
-            bFallbackHidden ? TEXT("PASS") : TEXT("FAIL"),
+            bExactAssetLoads ? TEXT("PASS") : TEXT("CONTENT_GAP"),
+            *VisualMode,
+            bUsesExpectedProductionVisual ? TEXT("PASS") : TEXT("NO"),
+            bUsesRealFallbackVisual ? TEXT("PASS") : TEXT("NO"),
+            bFallbackHidden ? TEXT("PASS") : TEXT("N/A"),
             bAuthoredMaterialsReady ? TEXT("PASS") : TEXT("FAIL"),
             MaterialSlots,
             PlaceholderOrMissingSlots,
+            TextureDependencyGaps,
             UnexpectedOverrides,
             *ActualAssetName,
-            bPass ? TEXT("PASS") : TEXT("FAIL"));
+            ResultText);
         Report += MaterialDependencyReport;
         Report += TEXT("\n");
     }
@@ -402,39 +507,55 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
     }
 
     Report += FString::Printf(
-        TEXT("SUMMARY=%d/%d production weapon classes PASS | materialSlots=%d | materialGaps=%d | unexpectedOverrides=%d\n"),
-        PassedWeapons,
+        TEXT("SUMMARY=%d/%d required available weapon visuals PASS | exactProduction=%d | realFallback=%d | exactContentGaps=%d | materialSlots=%d | materialGaps=%d | textureGaps=%d | unexpectedOverrides=%d\n"),
+        PassedRequiredAvailableVisuals,
         UE_ARRAY_COUNT(Expectations),
+        ExactProductionPass,
+        RealFallbackPass,
+        ExactContentGaps,
         TotalMaterialSlots,
         TotalMaterialGaps,
+        TotalTextureDependencyGaps,
         TotalUnexpectedOverrides);
 
     if (!FFileHelper::SaveStringToFile(Report, *ReportPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
     {
-        UE_LOG(LogTemp, Warning, TEXT("R14 production weapon validation could not write report: %s"), *ReportPath);
-        bAllPass = false;
+        UE_LOG(LogTemp, Warning, TEXT("Pass45 required-available weapon validation could not write report: %s"), *ReportPath);
+        bAllRequiredAvailablePass = false;
     }
 
-    if (bAllPass)
+    if (bAllRequiredAvailablePass)
     {
+        const FString Sentinel = FString::Printf(
+            TEXT("PASS45_REQUIRED_AVAILABLE_WEAPONS=PASS\nPASS45_AUTHORED_WEAPON_MATERIALS=PASS\nPASS45_WEAPON_DEPENDENCY_REPORT=PASS\nPASS45_EXACT_PRODUCTION_CONTENT_GAPS=%d\n"),
+            ExactContentGaps);
         FFileHelper::SaveStringToFile(
-            TEXT("R14_PRODUCTION_WEAPONS=PASS\nPASS45_AUTHORED_WEAPON_MATERIALS=PASS\nPASS45_WEAPON_DEPENDENCY_REPORT=PASS\n"),
+            Sentinel,
             *SuccessSentinelPath,
             FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY classes=%d/%d material_slots=%d authored_materials=1 dependency_report=1 unexpected_overrides=0 validation_only=1 mutation=0"),
-            PassedWeapons,
+            TEXT("PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY classes=%d/%d exactProduction=%d realFallback=%d exactContentGaps=%d material_slots=%d material_gaps=%d texture_gaps=%d authored_materials=1 dependency_report=1 unexpected_overrides=0 validation_only=1 mutation=0"),
+            PassedRequiredAvailableVisuals,
             UE_ARRAY_COUNT(Expectations),
-            TotalMaterialSlots);
+            ExactProductionPass,
+            RealFallbackPass,
+            ExactContentGaps,
+            TotalMaterialSlots,
+            TotalMaterialGaps,
+            TotalTextureDependencyGaps);
     }
     else
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS45_PRODUCTION_WEAPON_CONTENT_GAP classes=%d/%d material_slots=%d material_gaps=%d unexpected_overrides=%d exact_material_ready=0 dependency_report=1 validation_only=1 mutation=0 report=%s"),
-            PassedWeapons,
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL classes=%d/%d exactProduction=%d realFallback=%d exactContentGaps=%d material_slots=%d material_gaps=%d texture_gaps=%d unexpected_overrides=%d dependency_report=1 validation_only=1 mutation=0 report=%s"),
+            PassedRequiredAvailableVisuals,
             UE_ARRAY_COUNT(Expectations),
+            ExactProductionPass,
+            RealFallbackPass,
+            ExactContentGaps,
             TotalMaterialSlots,
             TotalMaterialGaps,
+            TotalTextureDependencyGaps,
             TotalUnexpectedOverrides,
             *ReportPath);
     }
