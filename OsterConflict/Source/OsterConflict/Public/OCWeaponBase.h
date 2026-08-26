@@ -131,6 +131,12 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon|Action")
     EOCWeaponActionType GetWeaponActionType() const { return Tuning.ActionType; }
 
+    UFUNCTION(BlueprintPure, Category="Weapon|Action")
+    float GetManualActionCycleDuration() const { return FMath::Max(0.0f, Tuning.ManualActionCycleSeconds); }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Action")
+    bool IsActionCycling() const { return bActionCycling; }
+
     UFUNCTION(BlueprintPure, Category="Weapon|FireMode")
     bool SupportsFireMode(EOCFireMode Mode) const
     {
@@ -223,6 +229,10 @@ protected:
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|State")
     bool bIsReloading = false;
 
+    /** Replicated post-shot gate for bolt/pump/lever actions. Presentation may observe this without owning timing. */
+    UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|Action")
+    bool bActionCycling = false;
+
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|FireMode")
     EOCFireMode CurrentFireMode = EOCFireMode::Automatic;
 
@@ -261,6 +271,7 @@ private:
     double LastServerDryFireTime = -1000.0;
     int32 ServerAudioEventCounter = 0;
     FTimerHandle ReloadTimerHandle;
+    FTimerHandle ManualActionTimerHandle;
 
     /** Client-local, confirmed-shot recoil state. It is driven by server-accepted shot multicast, never held input. */
     double LastConfirmedLocalShotTime = -1000.0;
@@ -274,6 +285,10 @@ private:
 
     void ApplyConfirmedLocalShotRecoil();
     void RecoverConfirmedLocalShotRecoil(float DeltaSeconds);
+    bool RequiresManualActionCycle() const;
+    void BeginManualActionCycleServer();
+    void FinishManualActionCycleServer();
+    void CancelManualActionCycleServer();
     float CalculateSpreadDegrees(bool bAiming, bool bMoving) const;
     float GetRecoilMultiplier() const;
     float GetADSSpreadMultiplier() const;
