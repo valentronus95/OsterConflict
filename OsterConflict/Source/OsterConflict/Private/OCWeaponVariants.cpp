@@ -31,10 +31,12 @@ void HideStaticWeaponFallback(AOCWeaponBase* Owner)
     {
         if (Component)
         {
-            // Keep source proxy components alive as pickup collision/fallback authority. Once a
-            // production visual loads they stop rendering, but gameplay/collision is unchanged.
+            // Pass45: source BasicShape/composite parts are collision/debug history only. Hide them before any
+            // production load attempt so a missing asset can become a fail-visible CONTENT GAP, never a rendered cube/cylinder.
             Component->SetVisibility(false, true);
             Component->SetHiddenInGame(true, true);
+            Component->SetCastShadow(false);
+            Component->SetCanEverAffectNavigation(false);
         }
     }
 }
@@ -47,14 +49,15 @@ UPrimitiveComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneC
 {
     if (!Owner || !Root) return nullptr;
 
+    // Hide rejected source geometry synchronously during BeginPlay, before LoadObject can fail.
+    HideStaticWeaponFallback(Owner);
+
     if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, AssetPath))
     {
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
         const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
         if (NativeLength <= 1.0f) return nullptr;
-
-        HideStaticWeaponFallback(Owner);
 
         const FName UniqueName = MakeUniqueObjectName(Owner, USkeletalMeshComponent::StaticClass(), ComponentBaseName);
         USkeletalMeshComponent* ProductionVisual = NewObject<USkeletalMeshComponent>(Owner, UniqueName);
@@ -78,9 +81,8 @@ UPrimitiveComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneC
         return ProductionVisual;
     }
 
-    // The restored R13 Stein packages carry SKM_* names but UE 5.8 reports their canonical assets
-    // as StaticMesh. Runtime evidence wins over the filename convention: use the exact real mesh
-    // rather than silently leaving the primitive weapon body visible.
+    // The restored R13 Stein packages carry SKM_* names but UE 5.8 can report their canonical assets
+    // as StaticMesh. Runtime evidence wins over filename convention: try the exact real mesh in static form.
     return ApplyStaticProductionWeapon(Owner, Root, AssetPath, ComponentBaseName, DesiredLengthCm);
 }
 
@@ -89,6 +91,9 @@ UStaticMeshComponent* ApplyStaticProductionWeapon(AOCWeaponBase* Owner, USceneCo
 {
     if (!Owner || !Root) return nullptr;
 
+    // Same fail-closed visual rule for static production assets: primitives never remain visible on load failure.
+    HideStaticWeaponFallback(Owner);
+
     UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, AssetPath);
     if (!Mesh) return nullptr;
 
@@ -96,8 +101,6 @@ UStaticMeshComponent* ApplyStaticProductionWeapon(AOCWeaponBase* Owner, USceneCo
     const FVector NativeSize = Bounds.BoxExtent * 2.0f;
     const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
     if (NativeLength <= 1.0f) return nullptr;
-
-    HideStaticWeaponFallback(Owner);
 
     const FName UniqueName = MakeUniqueObjectName(Owner, UStaticMeshComponent::StaticClass(), ComponentBaseName);
     UStaticMeshComponent* ProductionVisual = NewObject<UStaticMeshComponent>(Owner, UniqueName);
@@ -145,7 +148,7 @@ void AOCWeapon_AssaultRifle::BeginPlay()
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("AK-47 skeletal production mesh unavailable; keeping source-only fallback."));
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=AK-47 primitive_visible=0"));
     }
 }
 
@@ -170,6 +173,10 @@ void AOCWeapon_SMG::BeginPlay()
         FName(TEXT("ProductionMP5")), 68.0f))
     {
         UE_LOG(LogTemp, Display, TEXT("SMG now uses restored R13 MP5 production mesh."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=MP5 primitive_visible=0"));
     }
 }
 
@@ -196,6 +203,10 @@ void AOCWeapon_Pistol::BeginPlay()
     {
         UE_LOG(LogTemp, Display, TEXT("Pistol now uses restored R13 1911 production mesh."));
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=M1911 primitive_visible=0"));
+    }
 }
 
 AOCWeapon_Sniper::AOCWeapon_Sniper()
@@ -221,6 +232,10 @@ void AOCWeapon_Sniper::BeginPlay()
         FName(TEXT("ProductionM700")), 112.0f))
     {
         UE_LOG(LogTemp, Display, TEXT("Sniper rifle now uses restored R13 M700 production mesh."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=M700 primitive_visible=0"));
     }
 }
 
@@ -250,7 +265,7 @@ void AOCWeapon_Shotgun::BeginPlay()
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Remington 870 production mesh unavailable; keeping shotgun fallback visual."));
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=Remington870 primitive_visible=0 real_fallback_pending=1"));
     }
 }
 
@@ -278,7 +293,7 @@ void AOCWeapon_LMG::BeginPlay()
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("M249 production mesh unavailable; keeping LMG fallback visual."));
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=M249 primitive_visible=0 real_fallback_pending=1"));
     }
 }
 
@@ -305,6 +320,10 @@ void AOCWeapon_M14::BeginPlay()
     {
         UE_LOG(LogTemp, Display, TEXT("M14 variant uses restored R13 production mesh."));
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=M14 primitive_visible=0"));
+    }
 }
 
 AOCWeapon_Mac10::AOCWeapon_Mac10()
@@ -329,6 +348,10 @@ void AOCWeapon_Mac10::BeginPlay()
         FName(TEXT("ProductionMac10")), 30.0f))
     {
         UE_LOG(LogTemp, Display, TEXT("MAC-10 variant uses restored R13 production mesh."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=MAC10 primitive_visible=0"));
     }
 }
 
@@ -355,6 +378,10 @@ void AOCWeapon_Tec9::BeginPlay()
     {
         UE_LOG(LogTemp, Display, TEXT("TEC-9 variant uses restored R13 production mesh."));
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=TEC9 primitive_visible=0"));
+    }
 }
 
 AOCWeapon_LeverAction::AOCWeapon_LeverAction()
@@ -380,5 +407,9 @@ void AOCWeapon_LeverAction::BeginPlay()
         FName(TEXT("ProductionLeverAction")), 101.0f))
     {
         UE_LOG(LogTemp, Display, TEXT("Lever-action variant uses restored R13 production mesh."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=LeverAction4570 primitive_visible=0"));
     }
 }
