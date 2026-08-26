@@ -1,0 +1,43 @@
+name: Pass 45 weapon firing and drop physics
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponBase.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCAntiArmorLauncher.h'
+      - 'VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-weapon-firing-physics.yml'
+  push:
+    branches:
+      - main
+      - 'fix/pass45-runtime-rejection-*'
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponBase.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacter.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCAntiArmorLauncher.h'
+      - 'VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-weapon-firing-physics.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify confirmed-shot muzzle recoil and dropped-weapon physics contracts
+        run: python VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py
