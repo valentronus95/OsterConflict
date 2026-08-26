@@ -6,6 +6,7 @@ CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCProdu
 VALIDATOR_CMD = ROOT / "OsterConflict" / "VALIDATE_PRODUCTION_MODELS_UE58.cmd"
 STRICT_MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 STEIN_REIMPORT = ROOT / "OsterConflict" / "Scripts" / "pass45_reimport_stein_weapon_materials.py"
+STEIN_FRESH = ROOT / "OsterConflict" / "Scripts" / "verify_stein_weapon_materials_fresh_load.py"
 STEIN_CMD = ROOT / "OsterConflict" / "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd"
 STEIN_TRY = ROOT / "OsterConflict" / "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd"
 PRODUCTION_IMPORT = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
@@ -39,6 +40,7 @@ cpp = read(CPP)
 validator_cmd = read(VALIDATOR_CMD)
 strict_material = read(STRICT_MATERIAL)
 stein_reimport = read(STEIN_REIMPORT)
+stein_fresh = read(STEIN_FRESH)
 stein_cmd = read(STEIN_CMD)
 stein_try = read(STEIN_TRY)
 production_import = read(PRODUCTION_IMPORT)
@@ -82,7 +84,6 @@ for needle in (
 ):
     req(needle in cpp, f"placeholder material/texture rejection missing: {needle}")
 
-# Existing exact content that Pass45 can repair must remain present in the repository.
 stein_expectations = {
     "MP5": "SKM_MP5.uasset",
     "1911": "SKM_1911.uasset",
@@ -102,45 +103,66 @@ for folder, mesh_name in stein_expectations.items():
 req((CONTENT / "AK-47" / "Mesh" / "SKM_AK-47.uasset").is_file(), "AK-47 canonical mesh missing")
 req((CONTENT / "R13" / "Weapons" / "rocketlauncherModern.uasset").is_file(), "anti-armor launcher canonical mesh missing")
 
-# Factual UE 5.8 evidence on 2026-08-26 proved that texture-first import alone can still leave FBX
-# materials with zero used textures. R2 therefore keeps texture-first ordering but explicitly creates/binds
-# a material graph from the committed PNG source when FBX dependency discovery is incomplete.
+# Factual UE 5.8 evidence on 2026-08-26 proved two separate problems. R2 still reached validation with zero
+# discovered textures, and the old launcher allowed a raw -1 commandlet result to slip through IF ERRORLEVEL 1.
+# R3 therefore always owns every Stein mesh slot with a deterministic material built from committed PNG source,
+# treats same-process texture enumeration as advisory, and requires an independent fresh UE process before PASS.
 for needle in (
-    'IMPORT_CONTRACT_REVISION = "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R3"',
     'source_dir.glob("*.png")',
     "import_source_textures(source_dir, destination)",
     "import_stein_fbx(fbx_source, destination)",
     "create_explicit_authored_material",
-    "ensure_explicit_source_texture_binding",
+    "R3_ALWAYS_EXPLICIT",
     "MaterialExpressionTextureSample",
     "MP_BASE_COLOR",
-    "get_material_used_textures",
-    "PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS",
+    "recompile_material",
+    "get_num_material_expressions",
+    "PASS45_STEIN_AUTHORED_GRAPH=PASS",
     "PASS45_STEIN_UE58_EXPLICIT_BINDING=READY",
-    "STATUS=EDITOR_IMPORT_VALIDATED_RUNTIME_VISUAL_PENDING",
+    "STATUS=EDITOR_GRAPH_AUTHORED_FRESH_LOAD_PENDING",
 ):
-    req(needle in stein_reimport, f"Stein material reimport R2 contract missing: {needle}")
+    req(needle in stein_reimport, f"Stein material reimport R3 contract missing: {needle}")
 texture_call = stein_reimport.find("imported_textures = import_source_textures(source_dir, destination)")
 fbx_call = stein_reimport.find("import_stein_fbx(fbx_source, destination)")
-binding_call = stein_reimport.find("binding_mode = ensure_explicit_source_texture_binding")
+material_call = stein_reimport.find("material, material_path = create_explicit_authored_material")
+binding_call = stein_reimport.find("slot_count = bind_material_to_mesh_slots")
 req(texture_call >= 0 and fbx_call > texture_call, "Stein PNG textures must import before the FBX")
-req(binding_call > fbx_call, "Stein UE58 explicit source-texture binding must run after FBX import and before final validation")
+req(material_call > fbx_call, "Stein R3 explicit authored material must be created after FBX import")
+req(binding_call > material_call, "Stein R3 explicit material must own mesh slots before authoring validation")
+
+for needle in (
+    'IMPORT_CONTRACT_REVISION = "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R3"',
+    "get_material_used_textures",
+    "get_used_textures",
+    "PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS",
+    "PASS45_STEIN_FRESH_LOAD=READY",
+    "PASS45_STEIN_UE58_EXPLICIT_BINDING=READY",
+    "STATUS=FRESH_LOAD_VALIDATED_RUNTIME_VISUAL_PENDING",
+    "still exposes zero used textures after fresh load",
+):
+    req(needle in stein_fresh, f"Stein R3 fresh-load dependency gate missing: {needle}")
 
 for needle in (
     "-run=pythonscript",
     "pass45_reimport_stein_weapon_materials.py",
-    "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R2",
+    "verify_stein_weapon_materials_fresh_load.py",
+    "pass45_stein_material_fresh_load_success.txt",
+    "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R3",
+    "PASS45_STEIN_AUTHORED_GRAPH=PASS",
     "PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS",
-    "PASS45_STEIN_UE58_EXPLICIT_BINDING=READY",
+    "PASS45_STEIN_FRESH_LOAD=READY",
+    "Never propagate that raw value",
 ):
-    req(needle in stein_cmd, f"UE 5.8 Stein R2 reimport wrapper missing: {needle}")
+    req(needle in stein_cmd, f"UE 5.8 Stein R3 authoring/fresh-load wrapper missing: {needle}")
 for needle in (
-    "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R2",
+    "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R3",
+    "pass45_stein_material_fresh_load_success.txt",
     "PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS",
-    "PASS45_STEIN_UE58_EXPLICIT_BINDING=READY",
+    "PASS45_STEIN_FRESH_LOAD=READY",
     "cache is missing or stale",
 ):
-    req(needle in stein_try, f"Stein R2 freshness wrapper missing: {needle}")
+    req(needle in stein_try, f"Stein R3 freshness wrapper missing: {needle}")
 
 # BTR intake is revision-based and has one canonical local-FBX-or-authored-GLB resolver.
 for needle in (
@@ -166,9 +188,6 @@ for needle in (
 ):
     req(needle in production_try, f"normal production freshness gate missing: {needle}")
 
-# UE 5.8 Interchange can return a non-zero commandlet code because of material-expression diagnostics even
-# after the Python intake wrote a current result sentinel. That non-zero is never called PASS by itself: it may
-# continue only through current-revision sentinel checks and an independent fresh-load UE process.
 for needle in (
     "PASS45_NONZERO_COMMANDLET_DEFERRED_TO_FRESH_LOAD",
     "if not exist \"%SUCCESS_SENTINEL%\"",
@@ -188,6 +207,8 @@ for needle in (
     "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
+    "STEIN_STRICT_RC=!ERRORLEVEL!",
+    'if not "!STEIN_STRICT_RC!"=="0"',
 ):
     req(needle in start_here, f"START_HERE Pass45 material/full-test route missing: {needle}")
 req("IMPORT_PRODUCTION_VEHICLES_UE58.cmd" not in start_here,
@@ -199,7 +220,6 @@ req("RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd" in full_acceptance,
 req("RUN_R14_CURRENT_GAMEPLAY.cmd" in playflow,
     "playflow wrapper no longer delegates to the single gameplay launcher")
 
-# Strict post-run material gate must accept explicit exact-content gaps only when the required available visuals pass.
 for needle in (
     "PASS45_REQUIRED_AVAILABLE_WEAPONS=PASS",
     "PASS45_AUTHORED_WEAPON_MATERIALS=PASS",
@@ -217,7 +237,6 @@ req('"PythonScriptPlugin"' in uproject and '"Enabled": true' in uproject,
 req("VERIFY_PASS45_WEAPON_MATERIAL_DEPENDENCY_AUDIT.py" in run_all,
     "RUN_ALL_VERIFY.py must execute this Pass45 material audit")
 
-# The standalone cumulative production validator still checks every exact repository asset that physically exists.
 for needle in (
     "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "every repository-available canonical weapon passed mesh + authored material + runtime material dependency checks",
@@ -245,7 +264,8 @@ if errors:
 print("PASS45 WEAPON MATERIAL DEPENDENCY AUDIT: PASS")
 print("- exact production and explicit real fallback are distinguished; fallback never impersonates production")
 print("- every accepted visual requires non-placeholder material and used-texture dependencies")
-print("- Stein R2 is texture-first and explicitly binds committed source textures when UE58 FBX discovery leaves zero dependencies")
+print("- Stein R3 always owns its runtime mesh slots and requires independent fresh-load dependency proof")
+print("- negative UnrealEditor-Cmd failures cannot slip through START_HERE as PASS")
 print("- production Interchange non-zero diagnostics may continue only through current sentinel + independent fresh-load verification")
 print("- BTR current intake is revisioned and has repository-authored fallback")
 print("- START_HERE/full-test chain has one gameplay launch and one strict vehicle-import owner")
