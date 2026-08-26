@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent
 TYPES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponTypes.h"
 BASE_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponBase.h"
 BASE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponBase.cpp"
+CHARACTER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCCharacter.h"
+CHARACTER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCCharacter.cpp"
 VARIANTS = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp"
 LAUNCHER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
@@ -27,6 +29,8 @@ def req(condition: bool, message: str) -> None:
 types = read(TYPES)
 base_h = read(BASE_H)
 base_cpp = read(BASE_CPP)
+character_h = read(CHARACTER_H)
+character_cpp = read(CHARACTER_CPP)
 variants = read(VARIANTS)
 launcher = read(LAUNCHER)
 tz = read(TZ)
@@ -103,8 +107,33 @@ req('TEXT("OC_RPG1")' in launcher and "EOCWeaponActionType::LauncherSingleShot" 
 req("bSupportsBurst3 = true" not in variants and "bSupportsBurst3=true" not in launcher,
     "a current weapon claims 3-round burst without an explicitly accepted selector configuration")
 
-# Burst sequencing itself is deliberately not claimed here. A Burst3 weapon would still need an authoritative
-# finite three-shot sequence before the capability can be enabled for any production asset.
+# Burst3 has an authoritative finite sequence before any production asset is allowed to enable it. Trigger release
+# does not truncate an accepted three-shot sequence; sprint/reload/equip/drop/death use StopServerFireTimer as the
+# hard cancellation path. This avoids the usual human invention where 'burst' is secretly just very short auto.
+for needle in (
+    "int32 ServerBurstShotsRemaining = 0",
+    "ServerBurstShotsRemaining = FMath::Min(3, CurrentWeapon->GetAmmoInMagazine());",
+    "const bool bBurstActive = ServerBurstShotsRemaining > 0;",
+    "--ServerBurstShotsRemaining;",
+    "if (ServerBurstShotsRemaining <= 0)",
+    "PASS45_BURST3_SEQUENCE_READY",
+    "finite_shots=3",
+    "release_cancel=0",
+):
+    req(needle in character_h + character_cpp, f"authoritative Burst3 sequence contract missing: {needle}")
+
+stop_start = character_cpp.find("void AOCCharacter::StopServerFireTimer()")
+stop_end = character_cpp.find("void AOCCharacter::ReloadPressed()", stop_start)
+req(stop_start >= 0 and stop_end > stop_start and "ServerBurstShotsRemaining = 0;" in character_cpp[stop_start:stop_end],
+    "hard fire-stop path does not clear pending Burst3 sequence")
+
+release_start = character_cpp.find("if (!bHeld)")
+release_end = character_cpp.find("// Do not restart or stack a burst", release_start)
+req(release_start >= 0 and release_end > release_start and
+    "if (ServerBurstShotsRemaining <= 0)" in character_cpp[release_start:release_end] and
+    "ClearTimer(ServerFireTimerHandle)" in character_cpp[release_start:release_end],
+    "trigger release no longer preserves an already accepted finite Burst3 sequence")
+
 req("RUNTIME REJECTED 2026-08-26" in tz,
     "canonical Pass45 TZ lost the latest factual runtime rejection")
 
@@ -118,5 +147,5 @@ print("PASS45 WEAPON ACTION MATRIX: PASS")
 print("- weapon tuning separates mechanical action from broad weapon class")
 print("- supported selector positions are exposed and cycled from weapon tuning data")
 print("- current variants declare gas/delayed-blowback/blowback/short-recoil/bolt/pump/lever/belt/launcher truth")
-print("- Burst3 exists as an explicit opt-in capability; no current asset falsely claims it")
-print("STATUS: SELECTOR CYCLING SOURCE-CODED; burst sequencing and manual-action presentation remain pending")
+print("- Burst3 owns an authoritative finite three-shot sequence, but no current production weapon falsely enables it")
+print("STATUS: SOURCE SEQUENCING CODED; manual bolt/pump/lever presentation and local UE 5.8 runtime behavior remain pending")
