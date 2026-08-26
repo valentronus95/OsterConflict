@@ -5,10 +5,18 @@ ROOT = Path(__file__).resolve().parent
 TYPES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponTypes.h"
 BASE_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponBase.h"
 BASE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponBase.cpp"
+MANUAL_ACTION_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponManualActionPresentation.cpp"
 CHARACTER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCCharacter.h"
 CHARACTER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCCharacter.cpp"
 VARIANTS = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponVariants.cpp"
 LAUNCHER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
+PRESENTATION_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCFirstPersonWeaponPresentationSubsystem.h"
+PRESENTATION_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCFirstPersonWeaponPresentationSubsystem.cpp"
+PROFILES_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponPresentationProfiles.h"
+PROFILES_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponPresentationProfiles.cpp"
+AUDIO_TYPES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCAudioTypes.h"
+AUDIO_PROFILE = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponAudioProfile.h"
+AUDIO_COMPONENT = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAudioComponent.cpp"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
 
 errors: list[str] = []
@@ -37,10 +45,18 @@ def variant_block(text: str, weapon_id: str) -> str:
 types = read(TYPES)
 base_h = read(BASE_H)
 base_cpp = read(BASE_CPP)
+manual_action_cpp = read(MANUAL_ACTION_CPP)
 character_h = read(CHARACTER_H)
 character_cpp = read(CHARACTER_CPP)
 variants = read(VARIANTS)
 launcher = read(LAUNCHER)
+presentation_h = read(PRESENTATION_H)
+presentation_cpp = read(PRESENTATION_CPP)
+profiles_h = read(PROFILES_H)
+profiles_cpp = read(PROFILES_CPP)
+audio_types = read(AUDIO_TYPES)
+audio_profile = read(AUDIO_PROFILE)
+audio_component = read(AUDIO_COMPONENT)
 tz = read(TZ)
 
 for needle in (
@@ -69,7 +85,9 @@ for needle in (
     "case EOCFireMode::SemiAutomatic: return Tuning.bSupportsSemiAutomatic",
     "case EOCFireMode::Burst3: return Tuning.bSupportsBurst3",
     "case EOCFireMode::Automatic: return Tuning.bSupportsAutomatic",
+    "ReplicatedUsing=OnRep_ActionCycling",
     "bool bActionCycling = false",
+    "void OnRep_ActionCycling();",
     "FTimerHandle ManualActionTimerHandle",
 ):
     req(needle in base_h, f"weapon selector/action API missing: {needle}")
@@ -164,12 +182,82 @@ req(release_start >= 0 and release_end > release_start and
     "ClearTimer(ServerFireTimerHandle)" in character_cpp[release_start:release_end],
     "trigger release no longer preserves an already accepted finite Burst3 sequence")
 
+# Manual-action presentation must observe the replicated authoritative gate. It may shape the local visual curve,
+# but must not create a second gameplay timer that can drift away from the weapon state.
+for needle in (
+    "bWasActionCycling",
+    "ActionCycleStartTime",
+):
+    req(needle in presentation_h, f"manual-action first-person state missing: {needle}")
+req("FTimerHandle" not in presentation_h,
+    "first-person manual-action presentation introduced a second gameplay timer")
+
+for needle in (
+    "IsActionCycling()",
+    "GetManualActionCycleDuration()",
+    "GetWeaponActionType()",
+    "bManualActionCueDeclared",
+    "ManualActionWeaponLocation",
+    "ManualActionArmsLocation",
+    "EOCWeaponAudioEvent::ManualActionCycle",
+    "PASS45_MANUAL_ACTION_PRESENTATION_READY",
+    "replicated_gate=1",
+    "second_gameplay_timer=0",
+):
+    req(needle in presentation_cpp, f"manual-action first-person presentation contract missing: {needle}")
+
+for needle in (
+    "ManualActionWeaponLocation",
+    "ManualActionWeaponRotation",
+    "ManualActionArmsLocation",
+    "ManualActionArmsRotation",
+    "bManualActionCueDeclared",
+):
+    req(needle in profiles_h, f"manual-action profile field missing: {needle}")
+
+for needle in (
+    "MakeM700Profile",
+    "MakeRemington870Profile",
+    "MakeLeverActionProfile",
+    'FName(TEXT("OC_SNP1"))',
+    'FName(TEXT("OC_SG1"))',
+    'FName(TEXT("R13_LEVER4570"))',
+    "bManualActionCueDeclared = true",
+):
+    req(needle in profiles_cpp, f"manual-action profile declaration missing: {needle}")
+
+# Mechanical audio is routed by exact action type. Empty arrays remain an explicit content gap, not fake READY.
+req("ManualActionCycle" in audio_types, "manual-action audio event enum missing")
+for needle in ("BoltCycle", "PumpCycle", "LeverCycle"):
+    req(needle in audio_profile, f"manual-action audio profile slot missing: {needle}")
+for needle in (
+    "EOCWeaponAudioEvent::ManualActionCycle",
+    "GetWeaponActionType()",
+    "EOCWeaponActionType::BoltAction",
+    "EOCWeaponActionType::PumpAction",
+    "EOCWeaponActionType::LeverAction",
+    "AudioProfile->BoltCycle",
+    "AudioProfile->PumpCycle",
+    "AudioProfile->LeverCycle",
+    "MANUAL ACTION(content gap)",
+):
+    req(needle in audio_component, f"manual-action audio routing missing: {needle}")
+
+for needle in (
+    "void AOCWeaponBase::OnRep_ActionCycling()",
+    "OwnerCharacter->IsLocallyControlled()",
+    "EOCWeaponAudioEvent::ManualActionCycle",
+):
+    req(needle in manual_action_cpp, f"remote manual-action audio replication path missing: {needle}")
+
 for tz_needle in (
     "Physically retire legacy Character `LocalFireFeedbackTimerHandle`",
     "finite Burst3 sequencing",
     "ManualActionCycleSeconds",
     "replicated `bActionCycling`",
     "PASS45_MANUAL_ACTION_CYCLE_READY",
+    "PASS45_MANUAL_ACTION_PRESENTATION_READY",
+    "manual-action mechanical audio",
     "RUNTIME REJECTED 2026-08-26",
 ):
     req(tz_needle in tz, f"canonical Pass45 TZ lost current weapon-action status: {tz_needle}")
@@ -185,4 +273,6 @@ print("- weapon tuning separates mechanical action from broad weapon class")
 print("- supported selector positions are exposed and cycled from weapon tuning data")
 print("- Burst3 owns an authoritative finite sequence, but no current production weapon falsely enables it")
 print("- M700/Remington870/LeverAction own explicit replicated post-shot cycle gates instead of low-RPM-only approximation")
-print("STATUS: ACTION STATE/TIMING SOURCE-CODED; manual-action animation/audio presentation and local UE 5.8 runtime remain pending")
+print("- first-person manual-action cues consume the replicated gate and add no second gameplay timer")
+print("- bolt/pump/lever mechanical audio routes are explicit; empty authored sound sets stay visible as content gaps")
+print("STATUS: ACTION STATE/TIMING/PRESENTATION/AUDIO ROUTING SOURCE-CODED; authored action animation/audio content and local UE 5.8 runtime remain pending")
