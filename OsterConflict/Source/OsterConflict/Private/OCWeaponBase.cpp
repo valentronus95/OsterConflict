@@ -320,25 +320,19 @@ bool AOCWeaponBase::IsSuppressed() const
     return HasAttachment(FName(TEXT("Suppressor")));
 }
 
-bool AOCWeaponBase::ShouldNeutralizeLegacyLocalRecoil() const
-{
-    const AOCCharacter* OwnerCharacter = Cast<AOCCharacter>(GetOwner());
-    return OwnerCharacter && OwnerCharacter->IsLocallyControlled();
-}
-
 float AOCWeaponBase::GetRecoilPitchMin() const
 {
-    return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f : Tuning.RecoilPitchMin * GetRecoilMultiplier();
+    return Tuning.RecoilPitchMin * GetRecoilMultiplier();
 }
 
 float AOCWeaponBase::GetRecoilPitchMax() const
 {
-    return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f : Tuning.RecoilPitchMax * GetRecoilMultiplier();
+    return Tuning.RecoilPitchMax * GetRecoilMultiplier();
 }
 
 float AOCWeaponBase::GetRecoilYawMax() const
 {
-    return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f : Tuning.RecoilYawMax * GetRecoilMultiplier();
+    return Tuning.RecoilYawMax * GetRecoilMultiplier();
 }
 
 float AOCWeaponBase::CalculateSpreadDegrees(bool bAiming, bool bMoving) const
@@ -374,9 +368,8 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
         return false;
     }
     const double FireInterval = static_cast<double>(GetFireInterval());
-    // Timer callbacks can arrive a few milliseconds before their nominal cadence. The old exact comparison could
-    // reject that pulse, after which Character stopped authoritative autofire while its local held-input recoil timer
-    // kept running. Accept a small bounded scheduler tolerance without permitting materially faster fire rates.
+    // Timer callbacks can arrive a few milliseconds before their nominal cadence. Accept a small bounded scheduler
+    // tolerance without permitting materially faster fire rates; client presentation never invents an extra shot.
     const double CadenceTolerance = FMath::Min(0.008, FireInterval * 0.10);
     if ((CurrentTime - LastServerFireTime) + CadenceTolerance < FireInterval)
     {
@@ -730,6 +723,7 @@ void AOCWeaponBase::ApplyConfirmedLocalShotRecoil()
     ConfirmedLocalRecoilPitchOffset += PitchKick;
     ConfirmedLocalRecoilYawOffset += YawKick;
     LastConfirmedLocalShotTime = GetWorld()->GetTimeSeconds();
+    LocalShooter->NotifyConfirmedWeaponShotPresentation();
 }
 
 void AOCWeaponBase::RecoverConfirmedLocalShotRecoil(float DeltaSeconds)
@@ -765,9 +759,8 @@ void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize Trac
     const FVector End(TraceEnd);
     const FVector Direction = (End - Start).GetSafeNormal();
 
-    // This multicast is emitted only after TryFireServer accepts a factual shot, so local recoil is now tied to
-    // accepted shot count rather than the duration of LMB input. The legacy Character timer receives zero recoil
-    // values for the locally-owned weapon and therefore cannot create the old post-shot downward recovery drift.
+    // This multicast exists only after TryFireServer accepted a factual shot. Recoil, crosshair expansion and camera
+    // shake therefore share the same accepted-shot source; the retired Character held-input timer cannot ghost-fire.
     ApplyConfirmedLocalShotRecoil();
 
     if (AOCTransientVisualFX* Muzzle = GetWorld()->SpawnActor<AOCTransientVisualFX>(
