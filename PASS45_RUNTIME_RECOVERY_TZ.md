@@ -200,6 +200,30 @@ Source guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
 
 Latest screenshots show inconsistent first-person alignment. ADS cannot be one generic transform for all weapons.
 
+### Current corrective source state — 2026-08-26 — ARCHITECTURE CODED_UNTESTED
+
+The source now has an explicit fail-visible calibration contract instead of allowing generic offsets to masquerade as accepted sights:
+
+- every current runtime weapon id remains registered in `FOCFirstPersonWeaponProfile` resolution;
+- each profile now carries optional `ADSRearSightSocket`, `ADSFrontSightSocket`, `ADSOpticSocket` and a separate factual `bADSCalibrated` flag;
+- current weapons remain `bADSCalibrated=false` because no exact UE 5.8 sight-socket evidence has yet been accepted;
+- entering ADS calls alignment validation once for the active weapon;
+- an uncalibrated profile emits `PASS45_ADS_PROFILE_UNCALIBRATED ... no_fake_ready=1` instead of claiming READY;
+- a profile marked calibrated but missing its required production visual/socket emits `PASS45_ADS_ALIGNMENT_FAIL`;
+- a valid calibrated profile can sample camera-vs-sight angular error and camera-to-sight-line offset via `PASS45_ADS_ALIGNMENT_SAMPLE`;
+- debug cvar `oc.Weapon.ADS.Debug 1` draws the camera aim ray and authored sight axis for calibration evidence;
+- ADS diagnostics observe presentation only and own no gameplay timer or ballistic authority.
+
+Source guard: `VERIFY_PASS45_WEAPON_ADS_ALIGNMENT.py`
+
+Still pending:
+
+- inspect every exact production mesh in local UE 5.8;
+- author/confirm real rear+front or optic sight socket references for each accepted weapon;
+- calibrate per-weapon ADS weapon/arms offsets from those factual references;
+- visually accept camera -> sight -> intended aim line for each weapon;
+- no profile may change `bADSCalibrated=true` without matching evidence/verifier update.
+
 Requirements:
 
 - per-weapon ADS profile;
@@ -366,7 +390,7 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action pass
+## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS pass
 
 State: **CODED_UNTESTED / CURRENT-HEAD SOURCE VERIFICATION PENDING / NOT RUNTIME ACCEPTED**.
 
@@ -388,10 +412,13 @@ Implemented:
 - `PASS45_MANUAL_ACTION_PRESENTATION_READY` proves the presentation path adds no second gameplay timer;
 - exact manual-action mechanical audio routing through `BoltCycle` / `PumpCycle` / `LeverCycle` with explicit empty-set content-gap behavior;
 - local/remote manual-action audio ownership split to avoid intentional double playback;
-- source verifiers reject resurrection of old feedback/action shortcuts and validate the new presentation/audio route;
-- cumulative `RUN_ALL_VERIFY.py` includes both weapon guards.
+- explicit per-weapon ADS socket-reference fields and separate factual `bADSCalibrated` state;
+- fail-visible ADS entry diagnostics through `PASS45_ADS_PROFILE_UNCALIBRATED` / `PASS45_ADS_ALIGNMENT_FAIL` / `PASS45_ADS_ALIGNMENT_SAMPLE`;
+- `oc.Weapon.ADS.Debug` calibration rays for camera vs authored sight axis;
+- source verifiers reject resurrection of old feedback/action shortcuts and fake ADS calibration;
+- cumulative `RUN_ALL_VERIFY.py` includes weapon firing, action and ADS guards.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, real mechanical sound content, production hierarchy, drop settling, muzzle alignment, launcher visual and general audio availability.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, real mechanical sound content, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual and general audio availability.
 
 ## 23. Corrective execution order
 
@@ -413,21 +440,22 @@ Completed/source-coded items are marked only for source work, not runtime accept
 14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
 15. [x] Code replicated-gate first-person bolt/pump/lever procedural presentation and exact action-type mechanical audio routing without a second gameplay timer.
 16. [ ] Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
-17. [ ] Build per-weapon ADS/sight profiles and validation.
-18. [ ] Close all remaining silent weapon audio-profile gaps.
-19. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
-20. [ ] Replace grenade models/throw presentation/smoke VFX.
-21. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
-22. [ ] Replace rejected vegetation family.
-23. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
-24. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
-25. [ ] Close BTR white material state across pre/post possession.
-26. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
-27. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
-28. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
-29. [ ] Validate tactical map screenshot.
-30. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
-31. [ ] Merge PR #94 only after factual current-head runtime acceptance.
+17. [x] Build fail-visible per-weapon ADS/sight profile architecture, socket-based alignment diagnostics and source validation without inventing calibration data.
+18. [ ] Calibrate exact rear/front/optic references and ADS transforms for every accepted production weapon in local UE 5.8; only then set factual `bADSCalibrated=true` per weapon.
+19. [ ] Close all remaining silent weapon audio-profile gaps.
+20. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
+21. [ ] Replace grenade models/throw presentation/smoke VFX.
+22. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
+23. [ ] Replace rejected vegetation family.
+24. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
+25. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
+26. [ ] Close BTR white material state across pre/post possession.
+27. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
+28. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
+29. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
+30. [ ] Validate tactical map screenshot.
+31. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+32. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 24. Final acceptance gates
 
@@ -441,7 +469,7 @@ daylight/exposure; stable ground/roads/sidewalks; no black-world or blown-out sc
 real accepted visual/material/texture chain; no visible primitive fallback; launcher visual valid; unresolved exact items remain CONTENT GAP.
 
 ### Gate D — weapon firing physics
-factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; ADS alignment; drop physics; grenade/smoke presentation.
+factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; exact per-weapon ADS alignment accepted; drop physics; grenade/smoke presentation.
 
 ### Gate E — landmarks/environment
 Museum/Culture/Silpo separated and identified; rejected residential/tree families absent; Gate K passes.
@@ -470,4 +498,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop/action/presentation/audio-routing corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
