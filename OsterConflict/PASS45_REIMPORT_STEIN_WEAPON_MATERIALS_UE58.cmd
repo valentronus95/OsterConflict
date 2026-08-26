@@ -6,7 +6,7 @@ set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "SCRIPT=%PROJECT_DIR%Scripts\pass45_reimport_stein_weapon_materials.py"
 set "SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\SteinWeapons\pass45_stein_material_reimport_success.txt"
-set "REQUIRED_REVISION=PASS45_STEIN_MATERIAL_CLOSURE_20260826_R1"
+set "REQUIRED_REVISION=PASS45_STEIN_MATERIAL_CLOSURE_20260826_R2"
 set "UE_ROOT="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" (
@@ -71,10 +71,12 @@ if not exist "%SENTINEL%" (
 
 findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%SENTINEL%" >nul || goto :sentinel_failed
 findstr /L /C:"PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS" "%SENTINEL%" >nul || goto :sentinel_failed
+findstr /L /C:"PASS45_STEIN_UE58_EXPLICIT_BINDING=READY" "%SENTINEL%" >nul || goto :sentinel_failed
 findstr /L /C:"STATUS=EDITOR_IMPORT_VALIDATED_RUNTIME_VISUAL_PENDING" "%SENTINEL%" >nul || goto :sentinel_failed
 
 echo.
 echo PASS: Stein authored texture/material dependency import validated in UE editor commandlet.
+echo PASS: UE 5.8 explicit source-texture material binding is available when FBX dependency discovery is incomplete.
 echo STATUS: EDITOR IMPORT VALIDATED; RUNTIME VISUAL ACCEPTANCE IS STILL PENDING.
 echo Sentinel: %SENTINEL%
 exit /b 0
