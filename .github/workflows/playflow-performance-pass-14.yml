@@ -10,6 +10,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCPerformanceSampleSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCPerformanceSampleSubsystem.h'
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
       - 'VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py'
       - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
@@ -18,10 +19,14 @@ on:
     branches: [ main ]
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCVisualEnvironment.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCPerformanceSampleSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCPerformanceSampleSubsystem.h'
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
       - 'VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py'
       - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
       - '.github/workflows/playflow-performance-pass-14.yml'
@@ -36,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify playflow and performance contracts
+      - name: Verify playflow, performance, thermal cap and fullscreen contracts
         run: python VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py
       - name: Re-run Pass 7 frontend/deployment contracts
         run: python VERIFY_RUNTIME_ACCEPTANCE_PASS_7.py
