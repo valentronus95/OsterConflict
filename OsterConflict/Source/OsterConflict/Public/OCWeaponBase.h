@@ -152,18 +152,18 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon")
     float GetADSSpreadDegrees() const { return Tuning.ADSSpreadDegrees; }
 
-    /**
-     * Legacy Character-side held-input recoil polling is intentionally neutralized for the locally-owned weapon.
-     * Confirmed recoil is emitted from MulticastFireTraceFX only after TryFireServer accepted a factual shot.
-     */
-    UFUNCTION(BlueprintPure, Category="Weapon")
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
     float GetRecoilPitchMin() const;
 
-    UFUNCTION(BlueprintPure, Category="Weapon")
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
     float GetRecoilPitchMax() const;
 
-    UFUNCTION(BlueprintPure, Category="Weapon")
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
     float GetRecoilYawMax() const;
+
+    /** Local owner-only recoil magnitude sourced exclusively from server-confirmed shot multicast events. */
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
+    float GetConfirmedLocalRecoilPitchOffset() const { return ConfirmedLocalRecoilPitchOffset; }
 
     UFUNCTION(BlueprintPure, Category="Weapon|Inventory")
     EOCInventorySlot GetPreferredSlot() const { return Tuning.PreferredSlot; }
@@ -262,7 +262,7 @@ private:
     int32 ServerAudioEventCounter = 0;
     FTimerHandle ReloadTimerHandle;
 
-    /** Client-local, confirmed-shot recoil state. It is driven by server-accepted shot multicast, never by held input. */
+    /** Client-local, confirmed-shot recoil state. It is driven by server-accepted shot multicast, never held input. */
     double LastConfirmedLocalShotTime = -1000.0;
     float ConfirmedLocalRecoilPitchOffset = 0.0f;
     float ConfirmedLocalRecoilYawOffset = 0.0f;
@@ -274,7 +274,6 @@ private:
 
     void ApplyConfirmedLocalShotRecoil();
     void RecoverConfirmedLocalShotRecoil(float DeltaSeconds);
-    bool ShouldNeutralizeLegacyLocalRecoil() const;
     float CalculateSpreadDegrees(bool bAiming, bool bMoving) const;
     float GetRecoilMultiplier() const;
     float GetADSSpreadMultiplier() const;
