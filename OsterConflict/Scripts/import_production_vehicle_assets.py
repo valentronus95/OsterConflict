@@ -1,6 +1,7 @@
 import json
 import shutil
 import struct
+import sys
 from pathlib import Path
 
 import unreal
@@ -10,11 +11,18 @@ PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.proje
 SOURCE_ROOT = PROJECT_DIR / "SourceAssets" / "Production"
 CACHE_ROOT = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 SUCCESS_SENTINEL = CACHE_ROOT / "production_import_success.txt"
+IMPORT_CONTRACT_REVISION = "PASS45_MATERIAL_CLOSURE_20260826_R1"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+from generate_btr4_game_visual import build_btr4_glb
 
 HMMWV_SOURCE = SOURCE_ROOT / "Vehicles" / "HMMWV" / "ukrainian_hmmwv_mk_19.glb"
 M2_SOURCE = SOURCE_ROOT / "Weapons" / "M2" / "m2_50cal_machinegun_cc0.glb"
 BTR_SOURCE = SOURCE_ROOT / "Vehicles" / "BTR4" / "BTR4_Bucephalus.fbx"
 BTR_TEXTURE_DIR = SOURCE_ROOT / "Vehicles" / "BTR4" / "Textures"
+BTR_GENERATED_SOURCE = CACHE_ROOT / "BTR4" / "btr4_bucephalus_oc_authored.glb"
 
 HMMWV_DEST = "/Game/Production/Vehicles/HMMWV"
 M2_DEST = "/Game/Production/Weapons/M2"
@@ -136,8 +144,6 @@ def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes
     mesh_pipeline.set_editor_property("collision", False)
     common_meshes.set_editor_property("force_all_mesh_as_type", force_mesh_type.IFMT_STATIC_MESH)
     common_meshes.set_editor_property("bake_meshes", True)
-    # UE 5.8 removed bAutoDetectMeshType from the active Interchange contract. Because this
-    # intake explicitly forces StaticMesh, animated transforms must never promote the GLB to a rigid skeletal mesh.
     common_meshes.set_editor_property("convert_statics_with_animated_transform_to_skeletals", False)
 
 
@@ -235,16 +241,43 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
     return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
 
 
-def attempt(label, source, import_fn, gaps, imported):
-    if not source.exists():
+def attempt(label, source, import_fn, gaps, imported, provenance, source_kind):
+    if source is not None and not source.exists():
         gaps.append(f"{label}_SOURCE_MISSING={source}")
         unreal.log_warning(f"[OC Production Import] CONTENT GAP: {label} source missing: {source}")
         return
     try:
-        imported.append(import_fn())
+        imported_path = import_fn()
+        imported.append(imported_path)
+        provenance.append(f"SOURCE_KIND={label}:{source_kind}")
+        if source is not None:
+            provenance.append(f"SOURCE_PATH={label}:{source}")
     except Exception as exc:
         gaps.append(f"{label}_IMPORT_FAILED={exc}")
         unreal.log_error(f"[OC Production Import] {label} import failed but other independent assets will continue: {exc}")
+
+
+def import_btr4(provenance):
+    if BTR_SOURCE.exists():
+        log(f"BTR-4 using local user-selected FBX source: {BTR_SOURCE}")
+        imported_path = import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME)
+        provenance.append("SOURCE_KIND=BTR4:local_user_fbx")
+        provenance.append(f"SOURCE_PATH=BTR4:{BTR_SOURCE}")
+        return imported_path
+
+    BTR_GENERATED_SOURCE.parent.mkdir(parents=True, exist_ok=True)
+    build_btr4_glb(BTR_GENERATED_SOURCE)
+    if not BTR_GENERATED_SOURCE.is_file() or BTR_GENERATED_SOURCE.stat().st_size <= 0:
+        fail("Repository-safe authored BTR-4 fallback GLB generation produced no usable file.")
+    log(
+        "BTR-4 local FBX is absent; importing repository-safe authored GLB fallback with explicit "
+        "M_BTR4_OC_Authored PBR material contract."
+    )
+    imported_path = import_glb_combined(BTR_GENERATED_SOURCE, BTR_DEST, BTR_NAME)
+    provenance.append("SOURCE_KIND=BTR4:authored_external_visual")
+    provenance.append(f"SOURCE_PATH=BTR4:{BTR_GENERATED_SOURCE}")
+    provenance.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
+    return imported_path
 
 
 def main():
@@ -254,15 +287,21 @@ def main():
 
     imported = []
     gaps = []
+    provenance = [f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}"]
 
     def import_hmmwv():
         cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
         make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
         return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
 
-    attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported)
-    attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported)
-    attempt("BTR4", BTR_SOURCE, lambda: import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME), gaps, imported)
+    attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported, provenance, "canonical_glb_no_mk19")
+    attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported, provenance, "canonical_glb")
+
+    try:
+        imported.append(import_btr4(provenance))
+    except Exception as exc:
+        gaps.append(f"BTR4_IMPORT_FAILED={exc}")
+        unreal.log_error(f"[OC Production Import] BTR4 import failed but other independent assets will continue: {exc}")
 
     if not imported:
         fail("No production vehicle/weapon source could be imported. See CONTENT GAP messages above.")
@@ -271,10 +310,13 @@ def main():
     log("Independent production import complete:")
     for path in imported:
         log(f"  IMPORTED {path}")
+    for line in provenance:
+        log(f"  {line}")
     for gap in gaps:
         log(f"  {gap}")
 
     sentinel_lines = [f"IMPORTED={path}" for path in imported]
+    sentinel_lines.extend(provenance)
     sentinel_lines.extend(f"CONTENT_GAP={gap}" for gap in gaps)
     SUCCESS_SENTINEL.write_text("\n".join(sentinel_lines) + "\n", encoding="utf-8")
     log(f"Import result sentinel written: {SUCCESS_SENTINEL}")
