@@ -6,6 +6,9 @@ SRC = ROOT / "OsterConflict/Source/OsterConflict"
 
 COORDINATOR = SRC / "Private/OCLandmarkStartupCoordinatorSubsystem.cpp"
 SEPARATION = SRC / "Private/OCR146LandmarkSeparationSubsystem.cpp"
+MUSEUM_MODEL = SRC / "Private/OCR137MuseumPhotoModelSubsystem.cpp"
+CULTURE_MODEL = SRC / "Private/OCR146CultureHousePhotoModelSubsystem.cpp"
+GEO_REFERENCE = SRC / "Private/OCGeoReference.cpp"
 VALIDATOR_H = SRC / "Public/OCWorldGeometryStabilitySubsystem.h"
 VALIDATOR_CPP = SRC / "Private/OCWorldGeometryStabilitySubsystem.cpp"
 VISUAL_ENVIRONMENT = SRC / "Private/OCVisualEnvironment.cpp"
@@ -63,6 +66,9 @@ def has_semantic_material_write(source: str) -> bool:
 
 coordinator = read(COORDINATOR)
 separation = read(SEPARATION)
+museum_model = read(MUSEUM_MODEL)
+culture_model = read(CULTURE_MODEL)
+geo_reference = read(GEO_REFERENCE)
 header = read(VALIDATOR_H)
 validator = read(VALIDATOR_CPP)
 visual_environment = read(VISUAL_ENVIRONMENT)
@@ -123,6 +129,35 @@ for cpp_path in (SRC / "Private").glob("*.cpp"):
             f"{cpp_path.relative_to(ROOT)}"
         )
 
+# Gate D identity contract: R13.7 must encode a residential Solonyna-house silhouette, while the explicitly
+# six-column civic facade belongs only to R14.6 Culture House on its own georeferenced site.
+for needle in (
+    'Model->Tags.Add(TEXT("R137_MuseumPhotoModel"));',
+    'TEXT("R137Museum_BrickBody")',
+    'TEXT("R137Museum_BlueGreyTimber")',
+    'TEXT("R137Museum_SheetMetalRoof")',
+    'FVector(1700.0f, 840.0f, 320.0f)',
+    "PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY",
+):
+    require(museum_model, needle, "R13.7 Museum identity source")
+for forbidden in (
+    "R137Museum_Columns",
+    "ColumnXs[]",
+    "six-column facade",
+):
+    forbid(museum_model, forbidden, "Museum must not encode Culture House column identity")
+
+for needle in (
+    'Model->Tags.Add(TEXT("R146_CultureHouseAuthoritative"));',
+    'Model->Tags.Add(TEXT("CultureHouseOster_Hranovskoho3"));',
+    'TEXT("R146Culture_Columns")',
+    "const float ColumnXs[] = { -1130.0f, -680.0f, -230.0f, 230.0f, 680.0f, 1130.0f };",
+    "six-column facade",
+):
+    require(culture_model, needle, "R14.6 Culture House identity source")
+require(geo_reference, 'TEXT("MuseumSolonyna"), 50.948239, 30.883865', "Museum geo identity")
+require(geo_reference, 'TEXT("OsterCultureHouse"), 50.948694, 30.881435', "Culture House geo identity")
+
 # The authoritative location startup must cancel historical delayed timers before immediate builds.
 for needle in (
     "SetTimerForNextTick",
@@ -134,19 +169,28 @@ for needle in (
 ):
     require(coordinator, needle, "landmark startup coordinator")
 
-# Pass45 retires the old mutating reconciliation loop. Separation is now one bounded validation-only pass
-# after current landmark startup. Pass12 only requires that it completes before the 12s geometry baseline.
+# Pass45 retires the old mutating reconciliation loop. Separation is one bounded validation-only pass after
+# current landmark startup and now validates authoritative Museum/Culture identity as well as generic parcels.
 for needle in (
     "constexpr float ValidationDelaySeconds",
     "ValidateSeparation",
     "PASS45_LANDMARK_SEPARATION_VALIDATION_SCHEDULED",
     "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
     "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
+    "PASS45_LANDMARK_IDENTITY_VALIDATION_READY",
+    "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL",
+    'MuseumOwnerTag(TEXT("R137_MuseumPhotoModel"))',
+    'CultureOwnerTag(TEXT("R146_CultureHouseAuthoritative"))',
+    "MinimumMuseumCultureSeparationCm = 10000.0f",
+    "CultureIdentityInstancesAtMuseum == 0",
+    "MuseumIdentityInstancesAtCulture == 0",
+    "CultureColumnShafts == 6",
+    "CultureOwnerAnchorErrorCm <= 100.0f",
     "mutation=0",
     "periodic_scan=0",
     "primary_authoring_fix_required=1",
 ):
-    require(separation, needle, "Pass45 validation-only landmark separation")
+    require(separation, needle, "Pass45 validation-only landmark separation/identity")
 for stale in (
     "RunStartupGuardPass",
     "PASS45_LANDMARK_RECONCILIATION_BUDGET_READY",
@@ -216,7 +260,9 @@ for needle in (
 
 print("WORLD GEOMETRY STABILITY PASS12/PASS45 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
-print("- landmark separation is one bounded validation-only pass with mutation=0")
+print("- landmark separation/identity is one bounded validation-only pass with mutation=0")
+print("- R13.7 Museum source has no six-column civic signature; R14.6 Culture House owns the six-column facade")
+print("- runtime identity validation requires one Museum owner, one Culture owner, zero cross-parcel authoritative instances and six Culture column shafts")
 print("- rejected generic world/decorator/recovered owners remain physically retired")
 print("- Pass45 daylight is component-owned, replicated and paired: 120000 lux + AutoExposure=True + extended EV100 range")
 print("- AOCWorldSectorOster remains the accepted Ground/Roads/Sidewalks semantic-material owner")
