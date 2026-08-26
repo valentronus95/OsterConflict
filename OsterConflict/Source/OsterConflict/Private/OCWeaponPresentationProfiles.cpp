@@ -38,6 +38,42 @@ namespace
         Profile.bGripCalibrated = true;
         return Profile;
     }
+
+    FOCFirstPersonWeaponProfile MakeM700Profile()
+    {
+        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_SNP1")));
+        // Procedural whole-weapon/arms cue only. Exact bolt bone/animation calibration remains runtime work.
+        Profile.ManualActionWeaponLocation = FVector(-5.0f, 1.0f, -1.5f);
+        Profile.ManualActionWeaponRotation = FRotator(-1.5f, 2.0f, -3.5f);
+        Profile.ManualActionArmsLocation = FVector(-2.0f, 0.5f, -0.8f);
+        Profile.ManualActionArmsRotation = FRotator(-0.8f, 1.0f, -1.5f);
+        Profile.bManualActionCueDeclared = true;
+        return Profile;
+    }
+
+    FOCFirstPersonWeaponProfile MakeRemington870Profile()
+    {
+        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_SG1")));
+        // Pump cue follows the replicated gate; it does not claim an authored fore-end skeletal animation.
+        Profile.ManualActionWeaponLocation = FVector(-10.0f, 0.0f, -1.0f);
+        Profile.ManualActionWeaponRotation = FRotator(-1.0f, 0.0f, 0.0f);
+        Profile.ManualActionArmsLocation = FVector(-5.0f, 0.0f, -0.5f);
+        Profile.ManualActionArmsRotation = FRotator(-0.5f, 0.0f, 0.0f);
+        Profile.bManualActionCueDeclared = true;
+        return Profile;
+    }
+
+    FOCFirstPersonWeaponProfile MakeLeverActionProfile()
+    {
+        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("R13_LEVER4570")));
+        // Lever cue is intentionally modest until the exact mesh pivot/animation is visually calibrated in UE 5.8.
+        Profile.ManualActionWeaponLocation = FVector(-4.0f, 0.0f, -4.0f);
+        Profile.ManualActionWeaponRotation = FRotator(-5.0f, 0.0f, 7.0f);
+        Profile.ManualActionArmsLocation = FVector(-2.0f, 0.0f, -2.0f);
+        Profile.ManualActionArmsRotation = FRotator(-3.0f, 0.0f, 4.0f);
+        Profile.bManualActionCueDeclared = true;
+        return Profile;
+    }
 }
 
 bool OCHasDeclaredFirstPersonWeaponProfile(const FName WeaponId)
@@ -54,6 +90,18 @@ FOCFirstPersonWeaponProfile OCResolveFirstPersonWeaponProfile(const FName Weapon
     if (WeaponId == FName(TEXT("OC_AR1")))
     {
         return MakeAK47Profile();
+    }
+    if (WeaponId == FName(TEXT("OC_SNP1")))
+    {
+        return MakeM700Profile();
+    }
+    if (WeaponId == FName(TEXT("OC_SG1")))
+    {
+        return MakeRemington870Profile();
+    }
+    if (WeaponId == FName(TEXT("R13_LEVER4570")))
+    {
+        return MakeLeverActionProfile();
     }
 
     // Remaining weapons keep their previous baseline until each exact production mesh is
