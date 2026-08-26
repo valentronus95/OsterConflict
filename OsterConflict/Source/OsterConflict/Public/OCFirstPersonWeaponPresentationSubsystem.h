@@ -15,10 +15,12 @@ struct FOCFirstPersonWeaponState
     TWeakObjectPtr<AOCWeaponBase> Weapon;
     int32 LastAmmo = INDEX_NONE;
     bool bWasReloading = false;
+    bool bWasActionCycling = false;
     bool bADSArmsPose = false;
     bool bRiflePoseApplied = false;
     bool bWeaponAnimationActive = false;
     double ReloadStartTime = 0.0;
+    double ActionCycleStartTime = 0.0;
     double WeaponAnimationResetTime = 0.0;
     float RecoilAlpha = 0.0f;
     FVector BaseWeaponLocation = FVector::ZeroVector;
