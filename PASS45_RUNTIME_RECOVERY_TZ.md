@@ -2,9 +2,9 @@
 
 Date: 2026-08-24
 Latest runtime rejection: 2026-08-25
-Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE MILESTONE MERGED / RUNTIME PENDING**
-Current integrated source milestone: `main` @ `c4712144efede68b3d80475bec64ea9c8e400fc4` (PR #91 merged)
-Active source continuation: none recorded by this milestone; next corrective package must branch from current `main`.
+Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / PR #94 SOURCE CI GREEN / MATERIAL CLOSURE CODED_UNTESTED / LOCAL UE RUNTIME PENDING**
+Current integrated source milestone: `main` @ `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f` (PR #93 merged)
+Active source continuation: `fix/pass45-runtime-rejection-material-closure-20260826`, PR #94. Implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` completed the full current GitHub source matrix **38/38 green** before documentation-only state synchronization. PR remains unmerged pending factual local UE 5.8 acceptance.
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -248,20 +248,34 @@ Current factual runtime:
 - AK-47 appears materially correct;
 - multiple other required rack weapons remain white/default.
 
+Current source closure in PR #94:
+
+- Stein weapon imports are revisioned and **texture-first**: committed authored PNGs are imported before their FBX material chains;
+- production/BTR intake is revisioned; stale `.uasset` existence is not proof that the current material contract was imported;
+- canonical BTR intake prefers a local FBX and otherwise uses the repository-safe authored GLB material path;
+- runtime weapon validation follows Gate F: every required class must resolve an **exact production visual OR an explicit real-mesh fallback**;
+- an explicit fallback remains exact-production `CONTENT GAP` and must never be relabelled production READY;
+- every accepted required-available visual must have non-placeholder authored material slots and actual used texture dependencies;
+- absent exact Remington870/M249 payload remains explicit `CONTENT GAP`; their real fallback may remain playable only if its own authored material/texture chain is valid;
+- implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` passed **38/38 GitHub source workflows**.
+
 Requirements for all required weapon classes:
 
-`weapon class -> exact mesh -> material slot(s) -> material asset(s) -> texture dependencies -> runtime appearance`
+`weapon class -> exact mesh OR explicit real fallback -> material slot(s) -> material asset(s) -> texture dependencies -> runtime appearance`
 
 - white/default slot = FAIL;
 - `DefaultMaterial`, `BasicShapeMaterial`, missing material or missing required texture = FAIL;
+- zero/placeholder used texture dependency = FAIL;
 - mesh-load success alone is never production readiness;
 - no generated grey/white colour repair;
+- fallback never impersonates exact production readiness;
 - no M16/M4 READY claim without verified real payload.
 
 Acceptance:
 
 - runtime rack screenshot shows authored appearance for every required available weapon;
-- any unresolved item is explicit `CONTENT GAP`, not READY.
+- strict material report shows no placeholder/default slot and no `textureDependency=GAP` for accepted visuals;
+- any unresolved exact item is explicit `CONTENT GAP`, not READY.
 
 ### P1 — fullscreen and thermal behavior
 
@@ -318,7 +332,9 @@ Unless later factual evidence closes them:
 - complete reference-faithful park detail set: `CONTENT GAP`;
 - verified real oak asset: `CONTENT GAP`;
 - M16/M4 production payload: `CONTENT GAP`;
-- any required weapon whose authored material/texture dependencies fail fresh UE preflight: `CONTENT GAP`.
+- exact Remington870 production payload: `CONTENT GAP` unless a later factual import closes it;
+- exact M249 production payload: `CONTENT GAP` unless a later factual import closes it;
+- any required-available weapon whose authored material/texture dependencies fail fresh UE preflight: `CONTENT GAP` / runtime FAIL, never READY.
 
 ## 7. Behavior that must not return
 
@@ -341,7 +357,10 @@ Pass 45 explicitly forbids:
 15. normal playtest running uncapped while thermal recovery is active;
 16. compiled runtime-rejected owner classes retained solely so old CI stays green;
 17. historical verifier/workflow requiring a deleted rejected owner;
-18. two live mutation layers owning the same world material, landmark shell, spawn correction or production transform.
+18. two live mutation layers owning the same world material, landmark shell, spawn correction or production transform;
+19. an all-or-nothing 11/11 exact-production weapon gate that treats a truthful exact-payload `CONTENT GAP` as permission to hide an otherwise explicit real fallback;
+20. direct `START_HERE -> PLAYFLOW` full-test routing that bypasses the strict post-run material/dependency/evidence gates;
+21. duplicate strict production-vehicle import owners in both `START_HERE` and `CURRENT_GAMEPLAY`.
 
 ## 8. Corrective execution order — current pass
 
@@ -356,24 +375,28 @@ Pass 45 explicitly forbids:
 9. [x] Consolidate Museum ownership: R13.7 visible exterior; R13.8 hidden collision + final glass; R13.9/R14.0 final doors/facade; R14.5 sole tree owner; physically delete obsolete R14.1 window replacement.
 10. [x] Correct default mounted M2 Browning pitch direction in source; runtime input proof still required.
 11. [x] Source-retire the traced unreferenced generic house/fence owners (`AOCEnterableHouse` normal spawn, `BuildResidentialBlocks`, generic Krushelnytska house generator); **CODED_UNTESTED**, and runtime Gate E still must prove the dark tower/shack artifact is absent.
-12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support.
-13. [x] Forward-port stale production/Museum verifiers and lock deleted R14.1/material-repair owners out of current CI.
-14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform and M2 pitch corrective state.
+12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support. **PR #94 source implementation + 38/38 CI are green; local UE editor import and rendered runtime remain pending, so Gate F/G are not closed.**
+13. [x] Forward-port stale production/Museum/material/launcher verifiers and lock deleted/obsolete owners and exact-only/direct-launch assumptions out of current CI.
+14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform, M2 pitch and PR #94 material-closure state.
 15. [x] Full PR #91 current-head source CI green, including `Source verification`, Pass45 retirement/material/dependency gates, runtime source contracts, and historical regression suite.
 16. [x] Corrective source milestone merged to `main` only after current-head source CI was green: PR #91 -> `c4712144efede68b3d80475bec64ea9c8e400fc4`.
-17. [ ] Factual local UE build + runtime acceptance.
+17. [x] PR #93 forward-ported current R14 verifier -> `main` `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f` without claiming runtime acceptance.
+18. [x] PR #94 implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` completed **38/38 current GitHub source workflows green**; PR remains open/unmerged.
+19. [ ] Factual local `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` UE 5.8 import + build + gameplay + rendered visual acceptance.
 
 ## 9. Acceptance gates
 
 Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass.
 
-### Gate A — build
+### Gate A — build/import
 
+- revisioned production vehicle/BTR import succeeds;
+- texture-first Stein reimport succeeds;
 - UE 5.8 build succeeds with exit code 0.
 
 ### Gate B — world materials
 
-- no large black world/ground corruption;
+- no large black ground/world corruption;
 - no silent default/failed material replacement.
 
 ### Gate C — performance/thermals
@@ -398,8 +421,11 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 
 ### Gate F — weapons
 
-- required available weapons use authored materials/textures;
-- white/default slots fail.
+- every required available weapon uses an exact production visual or explicit real fallback with authored non-placeholder material + used texture dependencies;
+- fallback remains exact-production `CONTENT GAP`, never READY;
+- white/default/BasicShape slots fail;
+- `textureDependency=GAP` fails;
+- runtime rack screenshot remains mandatory.
 
 ### Gate G — vehicles
 
@@ -430,9 +456,11 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 - Pass 44: **RUNTIME REJECTED** historical evidence.
 - Pass 45 source corrections through PR #82: historical source/build progress only.
 - Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
-- Corrective source work now includes stale-owner physical retirement, initial-only Museum BASE recovery, proportional HMMWV/BTR fitting, M2 mount alignment, fullscreen + 60 FPS recovery guard, and source retirement of unreferenced generic residential visual owners.
-- PR #91 source milestone is merged in `main` at `c4712144efede68b3d80475bec64ea9c8e400fc4` after all current-head checks completed successfully.
-- Current corrective source status remains **CODED_UNTESTED** because merge/source CI is not factual UE runtime acceptance.
+- Current `main`: `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f` after PR #93.
+- Active PR #94: `fix/pass45-runtime-rejection-material-closure-20260826`; material/content/strict-acceptance source closure is **CODED_UNTESTED**.
+- PR #94 implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` completed **38/38 current GitHub source workflows green**.
+- Green source CI does not prove UE editor import, UBT compile, rendered material appearance, vehicle interaction, landmark identity, thermal behavior or tactical-map appearance.
+- PR #94 remains open/unmerged pending factual local UE 5.8 acceptance.
 - Runtime verification: **NOT ACHIEVED**.
 
 ### Corrective source milestone — 2026-08-25 Museum/vehicle ownership
@@ -450,7 +478,6 @@ Current corrective source state is **CODED_UNTESTED**:
 
 None of these source changes are runtime acceptance. Local UE 5.8 build/playtest remains mandatory.
 
-
 ### 8.1 Corrective owner audit extension — 2026-08-25
 
 All items below are **CODED_UNTESTED** until factual local UE runtime acceptance.
@@ -459,5 +486,5 @@ All items below are **CODED_UNTESTED** until factual local UE runtime acceptance
 - Current contract is validation-only: `R13.7 = visible exterior`, `R13.8 = hidden interaction collision + final breakable glass`; the layer validator may only observe and emit `PASS45_MUSEUM_LAYER_VALIDATION_READY/FAIL`, with `mutation=0` and `primary_authoring_fix_required=1` on failure.
 - R13.7 no longer creates even empty prototype glass/door components; obsolete visible/prototype ownership is removed at source rather than hidden later.
 - `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd` no longer requires retired Pass30 speculative-interior or Pass32 repair READY markers. It requires the current validation-only Museum evidence.
-- Production model integration CI now validates proportional native-bounds HMMWV/BTR grounding and explicitly rejects reintroduction of per-axis non-uniform fitting.
+- Production model integration CI validates proportional native-bounds HMMWV/BTR grounding and explicitly rejects reintroduction of per-axis non-uniform fitting.
 - Historical local build failure remains preserved separately: **LOCAL UE BUILD REJECTED**, including tactical-map **C2131** and deprecated Interchange `auto_detect_mesh_type`; later source fixes do not erase that factual attempt.
