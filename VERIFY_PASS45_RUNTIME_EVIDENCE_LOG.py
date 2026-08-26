@@ -98,6 +98,15 @@ def main() -> int:
     forbid(gameplay, "PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL", errors, "visible BasicShape weapon")
     forbid(gameplay, "PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL", errors, "launcher production visual gap")
 
+    # Pass45 ordnance is fail-closed too. The tracked grenade body must load and final acceptance cannot silently
+    # pass while smoke has no authored visual payload. Until PASS45_SMOKE_VFX_RUNTIME_READY exists in factual UE
+    # gameplay, the full runtime test is expected to remain rejected rather than accepting invisible/fake smoke.
+    require(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_READY", errors, "grenade production visual")
+    forbid(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_FAIL", errors, "grenade production visual failure")
+    require(gameplay, "PASS45_SMOKE_VFX_RUNTIME_READY", errors, "authored smoke visual runtime acceptance")
+    forbid(gameplay, "PASS45_SMOKE_VFX_CONTENT_GAP", errors, "missing authored smoke VFX")
+    forbid(gameplay, "PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL", errors, "smoke gameplay volume spawn failure")
+
     # Production vehicle authored materials remain a hard Gate G requirement.
     require(material, "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY", errors, "vehicle material readiness")
     require(material, "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY", errors, "production material bypass")
@@ -160,6 +169,8 @@ def main() -> int:
         "PRODUCTION_VEHICLE_MATERIALS=PASS\n"
         "REQUIRED_AVAILABLE_WEAPON_MATERIALS=PASS\n"
         "PRIMITIVE_WEAPON_VISUALS=PASS\n"
+        "GRENADE_PRODUCTION_VISUAL=PASS\n"
+        "SMOKE_AUTHORED_VFX=PASS\n"
         "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
         "EXACT_WEAPON_CONTENT_GAPS=ALLOWED_IF_EXPLICIT_FALLBACK_PASSES\n",
         encoding="utf-8",
@@ -174,6 +185,7 @@ def main() -> int:
     print("- authored HMMWV/M2/BTR materials passed")
     print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
+    print("- grenade production visual loaded and smoke had accepted authored runtime VFX rather than a content gap")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0
