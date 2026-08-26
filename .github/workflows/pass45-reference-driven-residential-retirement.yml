@@ -1,0 +1,29 @@
+name: Pass 45 reference-driven residential retirement
+
+on:
+  push:
+    branches:
+      - fix/runtime-acceptance-pass45-generic-residential-retirement-20260826
+      - main
+  pull_request:
+    paths:
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - 'OSTER_CONFLICT_WORK_LEDGER.md'
+      - 'VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - '.github/workflows/pass45-reference-driven-residential-retirement.yml'
+
+jobs:
+  verify-reference-driven-residential-retirement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify generic residential visuals stay retired
+        run: python VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py
