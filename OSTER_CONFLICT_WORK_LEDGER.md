@@ -10,14 +10,15 @@
 - Active PR: **#94 — `Pass45: close Stein R3 fresh-load and strict runtime acceptance gaps`**.
 - PR state: **OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Source implementation head before this ledger synchronization: `36d07919d62c95b79b9e739d1a12c8b50dcca187`.
-- On that source head, GitHub `Source verification` completed **SUCCESS**, including the full structural/regression suite; `R14 weapon profile contracts` also completed **SUCCESS**. Remaining workflow runs for that head were still completing when this ledger was synchronized.
+- Latest source/audio implementation head before this ledger repair: `89e1cf03f7b64e8b150d3f4d88539950dc41612c`.
+- On that head, dedicated `Pass 45 weapon audio fallback` completed **SUCCESS** and most source workflows completed **SUCCESS**.
+- `Source verification`, `Runtime map spawn FPS assets Pass 44`, and `Pass 45 local build import regression` failed only because the previous ledger rewrite had collapsed required historical Pass44/local-build rejection headings. This ledger commit restores those factual sections instead of weakening the verifiers.
 - Latest factual gameplay evidence: `RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/`.
-- Historical rejected evidence retained separately: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
+- Historical rejected evidence remains separate: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x / Windows.
 - Canonical user launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-26 / WEAPON FIRING + MANUAL ACTION + ADS VALIDATION ARCHITECTURE CODED_UNTESTED / LOCAL UE RUNTIME PENDING**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-26 / WEAPON FIRING + MANUAL ACTION + ADS + SOURCE-LEVEL AUDIO FALLBACK CODED_UNTESTED / CURRENT-HEAD SOURCE REVALIDATION PENDING / LOCAL UE RUNTIME PENDING**.
 
 ## 2. Status rules
 
@@ -60,6 +61,23 @@ Remaining factual runtime failures/gaps include:
 - final fullscreen/thermal/tactical-map/direct screenshot gates remain open.
 
 **Current factual verdict: RUNTIME REJECTED 2026-08-26.**
+
+### Pass 44 historical runtime rejection (retained fact)
+
+**Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass44 as a complete solution: spawn/result framing was wrong, the map was still perceived as excessively large/empty, weapon visuals/materials were not production-ready, production-model claims were unreliable, and FPS could collapse severely. Pass45 supersedes Pass44 as the active corrective pass; this historical rejection may not be erased by later source fixes.
+
+### Pass 44 behavior retained unless disproved
+
+The following Pass44 decisions remain protected as non-regression because later evidence did not invalidate them:
+
+- compact central-Oster hard extent: approximately 960×940 m, never restore the historical 2.4 km battlefield;
+- normal local gameplay defaults to zero implicit filler bots unless explicitly requested;
+- Museum BASE acceptance must be based on the actual live pawn, not source-only spawnpoint existence;
+- tactical-map bounds follow the compact central-Oster reference rather than legacy peripheral component auto-fit;
+- grey/BasicShape weapon material repair is forbidden; authored material gaps remain fail-visible;
+- the retired Pass37 weapon palette compatibility owner stays physically deleted, not preserved as an inert shell.
+
+Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired.
 
 ## 4. Confirmed corrective source work on active branch
 
@@ -187,7 +205,27 @@ Source now refuses to treat one generic ADS transform as factual calibration:
 - diagnostics own no gameplay timer or ballistic mutation;
 - `VERIFY_PASS45_WEAPON_ADS_ALIGNMENT.py` is included in cumulative `RUN_ALL_VERIFY.py`.
 
-Source implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` passed GitHub `Source verification` and `R14 weapon profile contracts`. This is source-contract evidence only. Exact per-weapon sight sockets/offsets and local UE visual approval remain pending.
+Exact per-weapon sight sockets/offsets and local UE visual approval remain pending.
+
+### 4.12 Weapon audio silent-path closure — 2026-08-26
+
+Source now closes the unassigned/empty near-shot silence path without calling temporary generic audio final content:
+
+- exact assigned `UOCWeaponAudioProfile` event sets remain first priority;
+- `UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile()` lazily creates a transient event-local presentation fallback only when the requested set is empty;
+- AK first prefers tracked `/Game/AK-47/.../AK47_Fire_Cue`, `Reload_Cue` and `AK47_Empty_Cue`;
+- other missing shot events may temporarily use tracked `/Game/R13/Audio/gunfire_sfx`;
+- tracked reload assets prevent an entirely empty temporary reload-start path;
+- missing distant tail can reuse the factual near report at reduced volume;
+- pump action can use tracked `/Game/R13/Audio/shotguncock`;
+- bolt/lever exact mechanical audio remains explicit `AUDIO CONTENT GAP`;
+- tracked `snd_bullethit` supplies a temporary impact fallback;
+- fallback creation does not mutate ammo, damage, fire cadence, projectile/trace authority, transforms or action timing;
+- source markers: `PASS45_WEAPON_AUDIO_FALLBACK_READY ... authoritative_mutation=0 runtime_acceptance=0` and `PASS45_WEAPON_AUDIO_CONTENT_GAP`;
+- `VERIFY_PASS45_WEAPON_AUDIO_FALLBACK.py` plus `.github/workflows/pass45-weapon-audio-fallback.yml` guards this path;
+- the dedicated audio workflow passed on head `89e1cf03f7b64e8b150d3f4d88539950dc41612c`.
+
+Final per-weapon shot character, indoor/outdoor/distant variants, suppressor behavior, complete reload layers, bolt/lever mechanics and UE mix/audibility remain open.
 
 ## 5. Active requirements
 
@@ -208,8 +246,9 @@ Source implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` passed Git
 | WEAPON-FIRING-001 | Ammo/recoil/muzzle/audio count agree on factual shots | CODED_UNTESTED | Confirmed-shot ownership source-coded; local firing matrix pending. |
 | WEAPON-DROP-001 | Deliberate weapon drops fall/collide/settle and replicate | CODED_UNTESTED | Rigid-body source path coded; local physics proof pending. |
 | WEAPON-ACTION-001 | Exact selectors + deterministic Burst3/manual cycles | CODED_UNTESTED | Finite Burst3 + replicated manual gate + procedural cue source-coded. |
-| WEAPON-AUDIO-001 | No accepted silent weapon; exact mechanical action audio | IN_PROGRESS / CONTENT GAP | Routing exists; authored sound population/audit pending. |
+| WEAPON-AUDIO-001 | No accepted silent weapon; exact per-weapon/mechanical audio | IN_PROGRESS / CODED_UNTESTED / CONTENT GAP | Source-level silence fallback coded; final authored identity/mix and bolt/lever content pending. |
 | WEAPON-ADS-001 | Per-weapon sight alignment is factual, not generic | IN_PROGRESS / CODED_UNTESTED | Fail-visible socket architecture + diagnostics coded; all exact profiles remain uncalibrated. |
+| WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | IN_PROGRESS | Source audit/retirement is next active implementation item. |
 | UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | CODED_UNTESTED | Runtime screenshot required. |
 | VIS-TREES-001 | No primitive/fantasy visible tree family | IN_PROGRESS / CONTENT GAP | Replacement/reference work still required. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | CONTENT GAP | No verified exact payload; do not claim connected. |
@@ -236,7 +275,9 @@ Source implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` passed Git
 18. low RPM used as a substitute for bolt/pump/lever action state;
 19. a second first-person timer owning manual-action gameplay state;
 20. `bADSCalibrated=true` without exact sight reference + UE evidence;
-21. generic ADS/FOV-only presentation described as factual sight alignment.
+21. generic ADS/FOV-only presentation described as factual sight alignment;
+22. an unassigned/empty shot profile silently swallowing an otherwise accepted factual shot;
+23. temporary generic weapon audio fallback being called final per-weapon authored sound acceptance.
 
 ## 7. Current execution order
 
@@ -251,19 +292,20 @@ Source implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` passed Git
 9. [x] Source-code replicated-gate procedural manual-action presentation + exact Bolt/Pump/Lever audio routing.
 10. [x] Source-code fail-visible per-weapon ADS profile/sight-reference architecture + alignment diagnostics.
 11. [x] Add manual-action and ADS guards to cumulative source verification.
-12. [ ] Replace procedural manual-action cue with accepted authored moving-part/skeletal presentation where assets support it.
-13. [ ] Populate/accept real bolt/pump/lever mechanical sound content and close general silent-weapon audio gaps.
-14. [ ] Inspect each exact production weapon in local UE 5.8, author/confirm rear/front/optic references and calibrate ADS transforms; only factual profiles may set `bADSCalibrated=true`.
-15. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
-16. [ ] Replace grenade models/throw/smoke presentation.
-17. [ ] Correct Museum/Culture House/Silpo visible identity/separation.
-18. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity.
-19. [ ] Complete HMMWV M2 hierarchy/360°/camera and >=80 km/h road tuning.
-20. [ ] Close BTR white material/forward-axis/remote-operator gaps.
-21. [ ] Validate fullscreen, ~60 FPS, native render scale and 10-minute mixed thermal soak.
-22. [ ] Validate tactical map screenshot.
-23. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
-24. [ ] Merge PR #94 only after factual current-head runtime acceptance.
+12. [x] Close source-level silent-shot path with event-local repository audio fallback and dedicated guard/workflow.
+13. [ ] Replace procedural manual-action cue with accepted authored moving-part/skeletal presentation where assets support it.
+14. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever audio gaps.
+15. [ ] Inspect each exact production weapon in local UE 5.8, confirm rear/front/optic references and calibrate ADS transforms; only factual profiles may set `bADSCalibrated=true`.
+16. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
+17. [ ] Replace grenade models/throw/smoke presentation.
+18. [ ] Correct Museum/Culture House/Silpo visible identity/separation.
+19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity.
+20. [ ] Complete HMMWV M2 hierarchy/360°/camera and >=80 km/h road tuning.
+21. [ ] Close BTR white material/forward-axis/remote-operator gaps.
+22. [ ] Validate fullscreen, ~60 FPS, native render scale and 10-minute mixed thermal soak.
+23. [ ] Validate tactical map screenshot.
+24. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+25. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 8. Next factual runtime gates
 
@@ -284,10 +326,12 @@ Source implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` passed Git
 - muzzle/tracer/projectile begins at visible production muzzle;
 - drop from standing/walking/running falls, collides and settles;
 - M700/870/Lever action cycle visually follows authoritative state;
+- source fallback means a missing profile cannot silently erase the shot, but exact final sound identity remains required;
 - action audio is actually populated/audible or remains explicit content gap;
 - every accepted weapon receives dedicated hip/ADS screenshots;
 - `oc.Weapon.ADS.Debug 1` evidence is used when calibrating sight axes;
-- no uncalibrated ADS profile is described as READY.
+- no uncalibrated ADS profile is described as READY;
+- no visible Cube/Cylinder/BasicShape weapon fallback remains on an accepted rack/equipped/drop state.
 
 ### World / landmarks
 
@@ -312,17 +356,28 @@ Source implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` passed Git
 - 10-minute mixed soak without severe progressive collapse;
 - tactical map remains compact, north-up and correctly separates Museum/Culture/Silpo/Stadium.
 
-## 9. Historical truth retained
+## 9. Preserved local UE build/import rejection — 2026-08-25
+
+Status of this historical attempt: **LOCAL UE BUILD REJECTED**. This is preserved as factual chronology even though a later corrected build reached gameplay.
+
+- UE 5.8/MSVC rejected the tactical-map `FVector2D` road table with **C2131** while it was `constexpr`; source now uses a normal `const` table.
+- UE 5.8 Interchange rejected the deprecated `auto_detect_mesh_type` property during HMMWV/M2 GLB intake; current importer explicitly forces StaticMesh through the supported Interchange API.
+- These corrections do not erase the failed attempt.
+- A later run reaching gameplay does not erase the earlier build/import rejection or the newer Pass45 runtime rejection.
+
+Current build/import correction state remains **CODED_UNTESTED** until a current-head local UE 5.8 import/build exits successfully.
+
+## 10. Historical truth retained
 
 - Pass44 2026-08-24 remains historically **RUNTIME REJECTED**.
 - Pass45 2026-08-25 local build/import rejection remains factual chronology even though later corrective builds reached gameplay.
 - Earlier 2026-08-25 runtime rejection remains preserved separately.
 - None of those historical failures may be erased by later source fixes, and none of their stale workaround owners gain authority merely because they once existed.
 
-## 10. Current verdict
+## 11. Current verdict
 
 **PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-26.**
 
 PR #94 remains **OPEN / UNMERGED**.
 
-Source verification success on implementation head `36d07919d62c95b79b9e739d1a12c8b50dcca187` proves structural/source-contract consistency only. Manual-action presentation/audio routing and ADS validation architecture are **CODED_UNTESTED**; exact authored action content, per-weapon ADS calibration and all factual local UE 5.8 acceptance remain open.
+The source-level weapon audio silence fallback is **CODED_UNTESTED** and its dedicated workflow passed on the previous source head. This ledger repair restores historical CI truth that was accidentally compressed by documentation cleanup; current-head source revalidation is pending. Exact authored action/audio content, per-weapon ADS calibration, primitive-visual retirement and all factual local UE 5.8 acceptance remain open.
