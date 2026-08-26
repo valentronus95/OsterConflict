@@ -7,6 +7,7 @@ PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.proje
 CACHE_DIR = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 IMPORT_SENTINEL = CACHE_DIR / "production_import_success.txt"
 SENTINEL = CACHE_DIR / "production_fresh_load_success.txt"
+IMPORT_CONTRACT_REVISION = "PASS45_MATERIAL_CLOSURE_20260826_R1"
 
 EXPECTED = (
     ("HMMWV", "/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA"),
@@ -29,7 +30,8 @@ def is_placeholder_material(material):
         "/engine/enginematerials/defaultmaterial" in path
         or "/engine/basicshapes/basicshapematerial" in path
         or "/engine/enginematerials/worldgridmaterial" in path
-        or name in ("defaultmaterial", "basicshapematerial", "worldgridmaterial")
+        or "_defaultmat" in path
+        or name in ("defaultmaterial", "basicshapematerial", "worldgridmaterial", "_defaultmat")
     )
 
 
@@ -43,6 +45,17 @@ def static_material_interfaces(asset):
     return result
 
 
+def parse_import_lines(text):
+    result = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        result.setdefault(key, []).append(value)
+    return result
+
+
 def main():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if SENTINEL.exists():
@@ -51,15 +64,28 @@ def main():
         fail(f"Import result sentinel is missing: {IMPORT_SENTINEL}")
 
     import_result = IMPORT_SENTINEL.read_text(encoding="utf-8", errors="replace")
-    imported_paths = {
-        line.split("=", 1)[1].strip()
-        for line in import_result.splitlines()
-        if line.startswith("IMPORTED=") and "=" in line
-    }
+    parsed = parse_import_lines(import_result)
+    revision_values = parsed.get("IMPORT_CONTRACT_REVISION", [])
+    if revision_values != [IMPORT_CONTRACT_REVISION]:
+        fail(
+            f"Production import contract revision mismatch: expected={IMPORT_CONTRACT_REVISION} "
+            f"actual={revision_values}"
+        )
+
+    imported_paths = set(parsed.get("IMPORTED", []))
     if not imported_paths:
         fail("Import result sentinel contains no independently imported canonical asset.")
 
+    source_kinds = {}
+    for value in parsed.get("SOURCE_KIND", []):
+        if ":" not in value:
+            continue
+        label, source_kind = value.split(":", 1)
+        source_kinds[label] = source_kind
+
     loaded = []
+    fresh_lines = [f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}"]
+
     for label, object_path in EXPECTED:
         if object_path not in imported_paths:
             unreal.log_warning(f"[OC Fresh Production Load] CONTENT GAP {label}: not imported in this intake pass")
@@ -83,7 +109,22 @@ def main():
                 f"placeholder_slots={placeholder_slots} materials={material_paths}"
             )
 
+        if label == "BTR4":
+            source_kind = source_kinds.get("BTR4", "")
+            if not source_kind:
+                fail("BTR4 fresh-load verification has no source provenance marker")
+            if source_kind == "authored_external_visual":
+                authored_names = [str(material.get_name()) for material in materials if material is not None]
+                if not any("M_BTR4_OC_Authored" in name for name in authored_names):
+                    fail(
+                        "Repository-safe BTR4 fallback was imported but its explicit "
+                        f"M_BTR4_OC_Authored material is not bound: materials={material_paths}"
+                    )
+                fresh_lines.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
+            fresh_lines.append(f"SOURCE_KIND=BTR4:{source_kind}")
+
         loaded.append(object_path)
+        fresh_lines.append(f"FRESH_LOADED={object_path}")
         unreal.log(
             f"[OC Fresh Production Load] AUTHORED_MATERIALS_READY {label} path={object_path} "
             f"slots={len(materials)} materials={material_paths} placeholder_slots=0"
@@ -93,10 +134,10 @@ def main():
         missing = sorted(imported_paths.difference(loaded))
         fail(f"Fresh-load verification did not reopen every imported canonical asset: {missing}")
 
-    SENTINEL.write_text("\n".join(loaded) + "\n", encoding="utf-8")
+    SENTINEL.write_text("\n".join(fresh_lines) + "\n", encoding="utf-8")
     unreal.log(
         f"[OC Fresh Production Load] PASS imported={len(loaded)} authored_materials_ready={len(loaded)} "
-        f"sentinel={SENTINEL}"
+        f"revision={IMPORT_CONTRACT_REVISION} sentinel={SENTINEL}"
     )
 
 
