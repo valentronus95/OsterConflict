@@ -132,10 +132,12 @@ Latest screenshot shows the launcher in first person as primitive cylinder/box-l
 Current corrective source state — **CODED_UNTESTED**:
 
 - canonical visual remains `/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern`;
-- failure to create/use that production visual now emits `PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL` rather than silently treating BasicShape fallback as acceptable;
-- launcher projectile spawn now resolves from the production muzzle rather than `TraceOrigin + Dir * 90`;
+- all source StaticMesh/BasicShape launcher components are hidden synchronously at `BeginPlay()` **before** the production `LoadObject` attempt;
+- failure to load/create the production visual now emits `PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL ... primitive_visible=0 runtime_acceptance=0` rather than returning with the rejected tube/cube still rendered;
+- success emits `PASS45_LAUNCHER_PRODUCTION_VISUAL_READY ... primitive_visible=0 production_visual=1`;
+- launcher projectile spawn resolves from the production muzzle rather than `TraceOrigin + Dir * 90`;
 - launcher ammo is committed only after projectile spawn succeeds;
-- confirmed launcher shot now emits muzzle FX and weapon shot audio;
+- confirmed launcher shot emits muzzle FX and weapon shot audio;
 - confirmed event marker: `PASS45_LAUNCHER_CONFIRMED_SHOT`.
 
 Acceptance:
@@ -257,7 +259,27 @@ Acceptance: standing/walking/running drop, gravity, collision, no floor tunnelin
 
 ## 7. P0 — visible primitive weapon/pickup geometry
 
-Current source still contains `BuildSourceOnlyWeaponVisual()` using Engine Cube/Cylinder/BasicShape geometry. That code is fallback/prototype history, not acceptable final visible content.
+The 2026-08-26 runtime showed anonymous box/cylinder weapon pieces and a primitive anti-armor launcher. `BuildSourceOnlyWeaponVisual()` still exists as migration-era collision/debug/prototype history, but it is no longer allowed to become accepted rendered content.
+
+### Current corrective source state — 2026-08-26 — SOURCE-CODED / RUNTIME UNTESTED
+
+- every concrete weapon production helper calls `HideStaticWeaponFallback()` **before** any skeletal/static production `LoadObject` can fail;
+- source BasicShape components are hidden in-game, visibility-disabled, shadow-disabled and navigation-disabled before production resolution;
+- a missing AK/MP5/M1911/M700/M14/MAC-10/TEC-9/Lever visual now emits `PASS45_WEAPON_PRODUCTION_VISUAL_GAP ... primitive_visible=0` rather than leaving the composite proxy visible;
+- missing exact Remington 870 / M249 emits the same fail-closed visual gap with `real_fallback_pending=1`;
+- `UOCRealWeaponFallbackSubsystem` independently detects `/Engine/BasicShapes/` components and retires their rendering with `PASS45_PRIMITIVE_WEAPON_VISUAL_RETIRED`;
+- any BasicShape component that remains visible emits hard failure `PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL ... runtime_acceptance=0`;
+- a valid rack with zero visible BasicShape weapons emits `PASS45_PRIMITIVE_WEAPON_RUNTIME_READY ... visible_basicshape_weapons=0 content_readiness_separate=1`;
+- real M249/M1911/MAC-10/Remington fallback meshes attach to the unscaled `WeaponRoot` rather than the scaled physics body, preventing fallback distortion;
+- fallback replacement preserves the invisible physics-root collision authority needed by pickup/drop instead of disabling the root collision;
+- `PASS45_REAL_WEAPON_FALLBACK_READY ... primitive_visible=0 visual_root_unscaled=1 physics_root_preserved=1` records that split;
+- anti-armor launcher follows the same fail-closed rule before its production mesh load;
+- strict runtime evidence now **requires** `PASS45_PRIMITIVE_WEAPON_RUNTIME_READY` and **forbids** `PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL` plus launcher production-visual failure.
+
+Source guard: `VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py`  
+Workflow: `.github/workflows/pass45-primitive-weapon-retirement.yml`
+
+This does not claim that every exact production weapon exists. Missing exact production content remains `CONTENT GAP`; the important change is that missing content can no longer impersonate a finished weapon by displaying cubes/cylinders.
 
 Requirements:
 
@@ -410,7 +432,7 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS/audio pass
+## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS/audio/primitive-retirement pass
 
 State: **CODED_UNTESTED / CURRENT-HEAD SOURCE VERIFICATION PENDING / NOT RUNTIME ACCEPTED**.
 
@@ -439,10 +461,13 @@ Implemented:
 - exact tracked AK cues are preferred for AK; tracked R13 gunfire/reload/impact assets are temporary source fallbacks for current gaps;
 - pump fallback may use tracked `shotguncock`; bolt/lever mechanical audio remains fail-visible content gap;
 - `PASS45_WEAPON_AUDIO_FALLBACK_READY` / `PASS45_WEAPON_AUDIO_CONTENT_GAP` distinguish source fallback from missing content;
-- source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration and silent-profile acceptance;
-- cumulative `RUN_ALL_VERIFY.py` includes weapon firing, action, ADS and audio-fallback guards.
+- concrete weapon variants and launcher hide source BasicShape geometry before production load failure can render it;
+- real weapon fallbacks attach to unscaled `WeaponRoot` while the invisible physics root retains collision authority;
+- strict runtime evidence requires `PASS45_PRIMITIVE_WEAPON_RUNTIME_READY` and forbids `PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL`;
+- source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration, silent-profile acceptance and visible primitive weapon fallbacks;
+- cumulative `RUN_ALL_VERIFY.py` includes weapon firing, action, ADS, audio-fallback and primitive-retirement guards.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment and launcher visual.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual and rendered zero-primitive rack proof.
 
 ## 23. Corrective execution order
 
@@ -468,7 +493,7 @@ Completed/source-coded items are marked only for source work, not runtime accept
 18. [ ] Calibrate exact rear/front/optic references and ADS transforms for every accepted production weapon in local UE 5.8; only then set factual `bADSCalibrated=true` per weapon.
 19. [x] Close the source-level silent-shot path with an event-local repository audio fallback and dedicated verifier/workflow; keep runtime audibility and exact sound identity unaccepted.
 20. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever manual-action audio gaps.
-21. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
+21. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks: hide before production load, preserve invisible collision authority, add hard runtime ready/fail markers and strict evidence gate. **Rendered UE acceptance remains pending.**
 22. [ ] Replace grenade models/throw presentation/smoke VFX.
 23. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
 24. [ ] Replace rejected vegetation family.
@@ -491,7 +516,7 @@ current branch/head; source workflows; Stein R3 fresh load; production HMMWV/M2/
 daylight/exposure; stable ground/roads/sidewalks; no black-world or blown-out scene; screenshots.
 
 ### Gate C — weapon materials and visible content
-real accepted visual/material/texture chain; no visible primitive fallback; launcher visual valid; unresolved exact items remain CONTENT GAP.
+real accepted visual/material/texture chain; `PASS45_PRIMITIVE_WEAPON_RUNTIME_READY`; no `PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL`; no visible primitive fallback; launcher production visual valid; unresolved exact items remain CONTENT GAP rather than visible cubes/cylinders.
 
 ### Gate D — weapon firing physics
 factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; exact per-weapon ADS alignment accepted; no temporary generic audio fallback remains on a final accepted weapon; drop physics; grenade/smoke presentation.
@@ -523,4 +548,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback/primitive-retirement corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
