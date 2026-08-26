@@ -51,11 +51,13 @@ def main() -> int:
     require(gameplay, "PASS45_WORLD_MATERIAL_STABLE", errors, "semantic world material stability")
     forbid(gameplay, "PASS12_WORLD_GEOMETRY_STABILITY_FAIL", errors, "world geometry/material stability failure")
 
-    # Gate D identity must prove the authoritative civic six-column shell is at Culture House, not Museum.
+    # Gate D must prove three distinct authoritative landmark identities, not merely empty generic parcels.
     require(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_READY", errors, "generic landmark parcel separation")
     require(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_READY", errors, "Museum/Culture House identity separation")
+    require(gameplay, "PASS45_SILPO_IDENTITY_VALIDATION_READY", errors, "authoritative Silpo identity")
     forbid(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL", errors, "generic landmark parcel separation failure")
     forbid(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL", errors, "Museum/Culture House identity failure")
+    forbid(gameplay, "PASS45_SILPO_IDENTITY_VALIDATION_FAIL", errors, "Silpo identity failure")
 
     # Gate E must prove the final gameplay world did not resurrect retired procedural residences/fences or the
     # rejected generic/tower/shack presentation through another actor, mesh, or late startup owner.
@@ -148,6 +150,7 @@ def main() -> int:
         f"SOURCE_SHA={source_sha}\n"
         "BLACK_WORLD_AUTOMATED_CONTRACT=PASS\n"
         "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
+        "SILPO_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
         "REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_CONTRACT=PASS\n"
         "THERMAL_CAP_RUNTIME_CONTRACT=PASS\n"
         "FULLSCREEN_RUNTIME_CONTRACT=PASS\n"
@@ -162,7 +165,7 @@ def main() -> int:
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- physical daylight started and semantic Ground/Roads/Sidewalks materials stayed stable through Pass12 samples")
-    print("- Museum and Culture House authoritative owners remained distinct")
+    print("- Museum, R14.0 Silpo and Culture House authoritative owners remained distinct and on their canonical sites")
     print("- generic residential/private-fence instances and rejected village/tower/shack presentation were absent after startup")
     print("- UE reported the 60 FPS recovery cap and a live fullscreen viewport after gameplay possession")
     print("- initial BASE deployment is character-only and no recovery failure was logged")
