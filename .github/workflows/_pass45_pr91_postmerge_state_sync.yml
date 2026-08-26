@@ -1,0 +1,99 @@
+name: Pass45 PR91 post-merge state sync
+
+on:
+  push:
+    branches:
+      - chore/pass45-pr91-postmerge-state-20260826
+    paths:
+      - '.github/workflows/_pass45_pr91_postmerge_state_sync.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-postmerge-state:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/pass45-pr91-postmerge-state-20260826
+          fetch-depth: 0
+      - name: Patch canonical Pass45 post-merge state with exact guards
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          MAIN_SHA = 'c4712144efede68b3d80475bec64ea9c8e400fc4'
+
+          def replace_once(path: Path, old: str, new: str, label: str):
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          tz = Path('PASS45_RUNTIME_RECOVERY_TZ.md')
+          ledger = Path('OSTER_CONFLICT_WORK_LEDGER.md')
+
+          replace_once(
+              tz,
+              'Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE CONTINUATION CODED_UNTESTED**\nActive corrective branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826`\nActive continuation PR: #91\n',
+              f'Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE MILESTONE MERGED / RUNTIME PENDING**\nCurrent integrated source milestone: `main` @ `{MAIN_SHA}` (PR #91 merged)\nActive source continuation: none recorded by this milestone; next corrective package must branch from current `main`.\n',
+              'TZ top postmerge state',
+          )
+
+          replace_once(
+              tz,
+              '15. [ ] Full current-head source CI green.\n16. [ ] Merge corrective branch to `main` only after source CI is green and corrective scope is coherent.\n17. [ ] Factual local UE build + runtime acceptance.\n',
+              f'15. [x] Full PR #91 current-head source CI green, including `Source verification`, Pass45 retirement/material/dependency gates, runtime source contracts, and historical regression suite.\n16. [x] Corrective source milestone merged to `main` only after current-head source CI was green: PR #91 -> `{MAIN_SHA}`.\n17. [ ] Factual local UE build + runtime acceptance.\n',
+              'TZ execution items 15-17',
+          )
+
+          replace_once(
+              tz,
+              '- Current branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826` (PR #91).\n- Current corrective source status: **CODED_UNTESTED**.\n',
+              f'- PR #91 source milestone is merged in `main` at `{MAIN_SHA}` after all current-head checks completed successfully.\n- Current corrective source status remains **CODED_UNTESTED** because merge/source CI is not factual UE runtime acceptance.\n',
+              'TZ current status branch line',
+          )
+
+          replace_once(
+              ledger,
+              '- Current `main` baseline before this continuation: `a375f52635fbe9fa07c1000aa706e28c53eb42f4` (PR #89 merged).\n- Active corrective branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826`.\n- Active continuation PR: #91, **NOT MERGED** until current-head source CI is green.\n',
+              f'- Current `main` baseline: `{MAIN_SHA}` (PR #91 merged after all current-head checks completed successfully).\n- PR #91 source milestone is integrated; no active corrective PR is recorded by this post-merge sync.\n- Any next corrective package must branch from current `main` and retain factual runtime rejection until local UE evidence passes.\n',
+              'ledger main/branch context',
+          )
+
+          replace_once(
+              ledger,
+              '- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE SOURCE WORK CODED_UNTESTED / NOT MERGED**.\n',
+              '- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / PR #91 SOURCE MILESTONE MERGED / CODED_UNTESTED / RUNTIME PENDING**.\n',
+              'ledger status token',
+          )
+
+          replace_once(
+              ledger,
+              '| STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | Physical retirement active; historical verifier forward-port continues until current-head CI green. |\n',
+              '| STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | PR #91 current-head CI is green; physical-retirement and forward-ported verifier guards remain authoritative. |\n',
+              'ledger stale owner action',
+          )
+
+          replace_once(
+              ledger,
+              '19. [ ] Complete full current-head source CI; forward-port remaining stale verifier instead of restoring old behavior.\n20. [x] Refresh active continuation as PR #91 with source scope and `CODED_UNTESTED` status.\n21. [ ] Merge only after current-head source CI green.\n22. [ ] Local `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` factual UE build/runtime acceptance.\n',
+              f'19. [x] Full PR #91 current-head source CI completed green; S07/S08/S09/S16A/S16B and Pass11 stale contracts were forward-ported instead of restoring rejected behavior.\n20. [x] PR #91 scope/status recorded as `CODED_UNTESTED`; post-merge truth synchronized separately.\n21. [x] PR #91 merged only after current-head source CI green -> `main` `{MAIN_SHA}`.\n22. [ ] Local `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` factual UE build/runtime acceptance.\n',
+              'ledger execution items 19-22',
+          )
+
+          print('PASS45_PR91_POSTMERGE_STATE_SYNC=PASS')
+          PY
+      - name: Commit post-merge truth and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/_pass45_pr91_postmerge_state_sync.yml
+          git config user.name "Pass45 State Guard"
+          git config user.email "actions@users.noreply.github.com"
+          git add PASS45_RUNTIME_RECOVERY_TZ.md OSTER_CONFLICT_WORK_LEDGER.md .github/workflows/_pass45_pr91_postmerge_state_sync.yml
+          git diff --cached --check
+          git commit -m "docs(pass45): record PR91 merged source milestone"
+          git push origin HEAD:chore/pass45-pr91-postmerge-state-20260826
