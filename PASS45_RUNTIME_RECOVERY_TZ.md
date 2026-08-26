@@ -2,9 +2,9 @@
 
 Date: 2026-08-24
 Latest runtime rejection: 2026-08-25
-Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE CONTINUATION CODED_UNTESTED**
-Active corrective branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826`
-Active continuation PR: #91
+Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE MILESTONE MERGED / RUNTIME PENDING**
+Current integrated source milestone: `main` @ `c4712144efede68b3d80475bec64ea9c8e400fc4` (PR #91 merged)
+Active source continuation: none recorded by this milestone; next corrective package must branch from current `main`.
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -359,8 +359,8 @@ Pass 45 explicitly forbids:
 12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support.
 13. [x] Forward-port stale production/Museum verifiers and lock deleted R14.1/material-repair owners out of current CI.
 14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform and M2 pitch corrective state.
-15. [ ] Full current-head source CI green.
-16. [ ] Merge corrective branch to `main` only after source CI is green and corrective scope is coherent.
+15. [x] Full PR #91 current-head source CI green, including `Source verification`, Pass45 retirement/material/dependency gates, runtime source contracts, and historical regression suite.
+16. [x] Corrective source milestone merged to `main` only after current-head source CI was green: PR #91 -> `c4712144efede68b3d80475bec64ea9c8e400fc4`.
 17. [ ] Factual local UE build + runtime acceptance.
 
 ## 9. Acceptance gates
@@ -431,8 +431,8 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 - Pass 45 source corrections through PR #82: historical source/build progress only.
 - Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
 - Corrective source work now includes stale-owner physical retirement, initial-only Museum BASE recovery, proportional HMMWV/BTR fitting, M2 mount alignment, fullscreen + 60 FPS recovery guard, and source retirement of unreferenced generic residential visual owners.
-- Current branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826` (PR #91).
-- Current corrective source status: **CODED_UNTESTED**.
+- PR #91 source milestone is merged in `main` at `c4712144efede68b3d80475bec64ea9c8e400fc4` after all current-head checks completed successfully.
+- Current corrective source status remains **CODED_UNTESTED** because merge/source CI is not factual UE runtime acceptance.
 - Runtime verification: **NOT ACHIEVED**.
 
 ### Corrective source milestone — 2026-08-25 Museum/vehicle ownership

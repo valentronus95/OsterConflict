@@ -6,16 +6,16 @@
 ## 1. Current context — 2026-08-26
 
 - Repository: `valentronus95/OsterConflict`.
-- Current `main` baseline before this continuation: `a375f52635fbe9fa07c1000aa706e28c53eb42f4` (PR #89 merged).
-- Active corrective branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826`.
-- Active continuation PR: #91, **NOT MERGED** until current-head source CI is green.
+- Current `main` baseline: `c4712144efede68b3d80475bec64ea9c8e400fc4` (PR #91 merged after all current-head checks completed successfully).
+- PR #91 source milestone is integrated; no active corrective PR is recorded by this post-merge sync.
+- Any next corrective package must branch from current `main` and retain factual runtime rejection until local UE evidence passes.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Latest factual evidence: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/`.
 - Previous rejected evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x Windows.
 - User launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE SOURCE WORK CODED_UNTESTED / NOT MERGED**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / PR #91 SOURCE MILESTONE MERGED / CODED_UNTESTED / RUNTIME PENDING**.
 
 ## 2. Status rules
 
@@ -174,7 +174,7 @@ Runtime still must prove the rejected dark tower/shack and generic visual family
 
 | ID | Requirement | Repeat | Status | Current action |
 |---|---|---:|---|---|
-| STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | Physical retirement active; historical verifier forward-port continues until current-head CI green. |
+| STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | 1 | CODED_UNTESTED | PR #91 current-head CI is green; physical-retirement and forward-ported verifier guards remain authoritative. |
 | PERF-COLLAPSE-001 | No severe FPS/thermal collapse | ≥7 | CODED_UNTESTED | Fullscreen + 60 FPS recovery cap; destructive Museum loops removed; local runtime required. |
 | VIS-BLACK-WORLD-001 | No black ground/world corruption | 1 | CODED_UNTESTED | Runtime-rejected B2 visual owner deleted; readable baseline must be retested. |
 | LOC-MUSEUM-001 | Correct visible Oster Local History Museum near BASE | ≥11 | CODED_UNTESTED | R13.7 single visible exterior; R13.8 hidden collision/interactivity/glass; Pass32 validation-only. |
@@ -236,9 +236,9 @@ Runtime still must prove the rejected dark tower/shack and generic visual family
 16. [x] Pass15/33/35/37/40/41/42/44/45 and related historical contracts forward-ported away from retired behavior as discovered.
 17. [ ] Close BTR white material artifact and remaining weapon authored material/texture gaps supported by current content.
 18. [x] Source-trace and retire remaining generic residential house/fence owners; dark tower/shack absence remains a factual runtime gate.
-19. [ ] Complete full current-head source CI; forward-port remaining stale verifier instead of restoring old behavior.
-20. [x] Refresh active continuation as PR #91 with source scope and `CODED_UNTESTED` status.
-21. [ ] Merge only after current-head source CI green.
+19. [x] Full PR #91 current-head source CI completed green; S07/S08/S09/S16A/S16B and Pass11 stale contracts were forward-ported instead of restoring rejected behavior.
+20. [x] PR #91 scope/status recorded as `CODED_UNTESTED`; post-merge truth synchronized separately.
+21. [x] PR #91 merged only after current-head source CI green -> `main` `c4712144efede68b3d80475bec64ea9c8e400fc4`.
 22. [ ] Local `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` factual UE build/runtime acceptance.
 
 ## 8. Next factual runtime gates
