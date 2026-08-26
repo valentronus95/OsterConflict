@@ -29,6 +29,8 @@ validation = read(ROOT/'PC_TEST/RUN_UE58_PC_VALIDATION.ps1')
 preflight = read(P/'Scripts/S18C/WINDOWS_TOOLCHAIN_PREFLIGHT.ps1')
 prelaunch = read(ROOT/'PC_TEST/PRELAUNCH_CHECK.ps1')
 start = read(ROOT/'START_HERE.cmd')
+strict_main = read(ROOT/'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd')
+playflow = read(ROOT/'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd')
 quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
 
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
@@ -66,18 +68,26 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-# Current single-launcher contract: normal play is R14 current gameplay, while option 2 is the
-# Pass 14/29 playflow+performance wrapper. Focused Pass 15 and landmark Pass 21 stay internal.
-req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in start and
+
+# Pass45 current single-launcher contract: normal/compatibility launch CURRENT_GAMEPLAY directly; full runtime
+# acceptance enters the strict main wrapper, which delegates to playflow and then runs material/evidence gates.
+req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd' in start and
     'ЗВИЧАЙНА ГРА' in start and 'ПОВНИЙ RUNTIME-ТЕСТ' in start and '-d3d11' in start and
+    'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' not in start and
     'RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd' not in start and
     'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start and
     'RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
-    'START_HERE exposes canonical normal/full-test routes on the safe D3D11 renderer')
+    'START_HERE exposes canonical normal/strict-full-test routes on the safe D3D11 renderer')
+req('RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in strict_main and 'call "%PLAYFLOW%"' in strict_main and
+    'RUN_PASS45_STRICT_MATERIAL_GATE.cmd' in strict_main and 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py' in strict_main,
+    'strict full-test wrapper delegates through playflow and retains post-run Pass45 gates')
+req('RUN_R14_CURRENT_GAMEPLAY.cmd' in playflow,
+    'playflow wrapper retains the one actual gameplay launcher')
+
 req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')
 req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh R11 quick launch bootstraps generated runtime map')
 
 for bad in ['Binaries','Intermediate','Saved','DerivedDataCache']:
     req(not (P/bad).exists(), f'archive excludes generated {bad}')
 
-print(f'R11 VISUAL FOUNDATION verifier: PASS ({len(checks)} checks)')
+print(f'R11 VISUAL FOUNDATION / PASS45 launcher verifier: PASS ({len(checks)} checks)')
