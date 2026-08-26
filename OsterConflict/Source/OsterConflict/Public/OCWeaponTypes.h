@@ -101,6 +101,10 @@ struct FOCWeaponTuning
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EOCWeaponActionType ActionType = EOCWeaponActionType::GasOperated;
 
+    /** Explicit post-shot cycle for manual actions. Zero means no separate manual cycle gate. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0.0", ClampMax="5.0"))
+    float ManualActionCycleSeconds = 0.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EOCInventorySlot PreferredSlot = EOCInventorySlot::Primary;
 
