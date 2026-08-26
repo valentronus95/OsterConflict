@@ -17,6 +17,7 @@ namespace
     constexpr float MinimumMuseumCultureSeparationCm = 10000.0f;
 
     const FName MuseumOwnerTag(TEXT("R137_MuseumPhotoModel"));
+    const FName SilpoOwnerTag(TEXT("R140_SilpoPhotoModel"));
     const FName CultureOwnerTag(TEXT("R146_CultureHouseAuthoritative"));
 
     FVector GeoToWorld(const FOCGeoReferencePoint& Point)
@@ -148,12 +149,19 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
     int32 SilpoGenericInstances = 0;
     int32 CultureGenericInstances = 0;
     int32 MuseumOwnerCount = 0;
+    int32 SilpoOwnerCount = 0;
     int32 CultureOwnerCount = 0;
     int32 MuseumIdentityInstancesAtMuseum = 0;
+    int32 SilpoIdentityInstancesAtSilpo = 0;
     int32 CultureIdentityInstancesAtCulture = 0;
     int32 CultureIdentityInstancesAtMuseum = 0;
     int32 MuseumIdentityInstancesAtCulture = 0;
+    int32 SilpoIdentityInstancesAtMuseum = 0;
+    int32 SilpoIdentityInstancesAtCulture = 0;
+    int32 MuseumIdentityInstancesAtSilpo = 0;
+    int32 CultureIdentityInstancesAtSilpo = 0;
     int32 CultureColumnShafts = 0;
+    float SilpoOwnerAnchorErrorCm = TNumericLimits<float>::Max();
     float CultureOwnerAnchorErrorCm = TNumericLimits<float>::Max();
 
     for (TActorIterator<AActor> It(World); It; ++It)
@@ -163,18 +171,31 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
         if (IsForbiddenLegacyLandmarkActor(Actor)) ++ForbiddenLegacyActors;
 
         const bool bMuseumOwner = Actor->ActorHasTag(MuseumOwnerTag);
+        const bool bSilpoOwner = Actor->ActorHasTag(SilpoOwnerTag);
         const bool bCultureOwner = Actor->ActorHasTag(CultureOwnerTag);
         if (bMuseumOwner)
         {
             ++MuseumOwnerCount;
             MuseumIdentityInstancesAtMuseum += CountActorInstancesNear(Actor, Museum, MuseumRadiusCm);
+            MuseumIdentityInstancesAtSilpo += CountActorInstancesNear(Actor, Silpo, SilpoRadiusCm);
             MuseumIdentityInstancesAtCulture += CountActorInstancesNear(Actor, CultureHouse, CultureRadiusCm);
+        }
+        if (bSilpoOwner)
+        {
+            ++SilpoOwnerCount;
+            SilpoIdentityInstancesAtSilpo += CountActorInstancesNear(Actor, Silpo, SilpoRadiusCm);
+            SilpoIdentityInstancesAtMuseum += CountActorInstancesNear(Actor, Museum, MuseumRadiusCm);
+            SilpoIdentityInstancesAtCulture += CountActorInstancesNear(Actor, CultureHouse, CultureRadiusCm);
+            SilpoOwnerAnchorErrorCm = FMath::Min(
+                SilpoOwnerAnchorErrorCm,
+                FVector::Dist2D(Actor->GetActorLocation(), Silpo));
         }
         if (bCultureOwner)
         {
             ++CultureOwnerCount;
             CultureIdentityInstancesAtCulture += CountActorInstancesNear(Actor, CultureHouse, CultureRadiusCm);
             CultureIdentityInstancesAtMuseum += CountActorInstancesNear(Actor, Museum, MuseumRadiusCm);
+            CultureIdentityInstancesAtSilpo += CountActorInstancesNear(Actor, Silpo, SilpoRadiusCm);
             CultureColumnShafts += CountCultureColumnShafts(Actor);
             CultureOwnerAnchorErrorCm = FMath::Min(
                 CultureOwnerAnchorErrorCm,
@@ -205,6 +226,11 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
         CultureIdentityInstancesAtMuseum == 0 && MuseumIdentityInstancesAtCulture == 0 &&
         CultureColumnShafts == 6 && MuseumToCultureCm >= MinimumMuseumCultureSeparationCm &&
         CultureOwnerAnchorErrorCm <= 100.0f;
+
+    const bool bSilpoIdentityReady = SilpoOwnerCount == 1 && SilpoIdentityInstancesAtSilpo > 0 &&
+        SilpoIdentityInstancesAtMuseum == 0 && SilpoIdentityInstancesAtCulture == 0 &&
+        MuseumIdentityInstancesAtSilpo == 0 && CultureIdentityInstancesAtSilpo == 0 &&
+        SilpoOwnerAnchorErrorCm <= 100.0f;
 
     if (bParcelReady)
     {
@@ -238,5 +264,21 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
             MuseumIdentityInstancesAtMuseum, CultureIdentityInstancesAtCulture,
             CultureIdentityInstancesAtMuseum, MuseumIdentityInstancesAtCulture,
             CultureColumnShafts, CultureOwnerAnchorErrorCm, MuseumToCultureM);
+    }
+
+    if (bSilpoIdentityReady)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_SILPO_IDENTITY_VALIDATION_READY silpoOwners=1 silpoAtSilpo=%d silpoAtMuseum=0 silpoAtCulture=0 museumAtSilpo=0 cultureAtSilpo=0 silpoAnchorErrorCm=%.1f mutation=0"),
+            SilpoIdentityInstancesAtSilpo, SilpoOwnerAnchorErrorCm);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_SILPO_IDENTITY_VALIDATION_FAIL silpoOwners=%d silpoAtSilpo=%d silpoAtMuseum=%d silpoAtCulture=%d museumAtSilpo=%d cultureAtSilpo=%d silpoAnchorErrorCm=%.1f mutation=0 primary_authoring_fix_required=1"),
+            SilpoOwnerCount, SilpoIdentityInstancesAtSilpo,
+            SilpoIdentityInstancesAtMuseum, SilpoIdentityInstancesAtCulture,
+            MuseumIdentityInstancesAtSilpo, CultureIdentityInstancesAtSilpo,
+            SilpoOwnerAnchorErrorCm);
     }
 }
