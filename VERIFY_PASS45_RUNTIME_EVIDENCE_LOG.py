@@ -98,11 +98,14 @@ def main() -> int:
     forbid(gameplay, "PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL", errors, "visible BasicShape weapon")
     forbid(gameplay, "PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL", errors, "launcher production visual gap")
 
-    # Pass45 ordnance is fail-closed too. The tracked grenade body must load and final acceptance cannot silently
-    # pass while smoke has no authored visual payload. Until PASS45_SMOKE_VFX_RUNTIME_READY exists in factual UE
-    # gameplay, the full runtime test is expected to remain rejected rather than accepting invisible/fake smoke.
+    # Pass45 ordnance is fail-closed too. A strict acceptance run must factually throw at least one grenade in a
+    # valid open-space case so source-only spawn semantics cannot masquerade as gameplay acceptance.
     require(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_READY", errors, "grenade production visual")
     forbid(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_FAIL", errors, "grenade production visual failure")
+    require(gameplay, "PASS45_GRENADE_THROW_COMMIT_READY", errors, "transactional grenade throw")
+    require(gameplay, "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY", errors, "grenade throw presentation event bridge")
+    forbid(gameplay, "PASS45_GRENADE_SAFE_SPAWN_REJECTED", errors, "grenade spawn clearance rejection during acceptance throw")
+    forbid(gameplay, "PASS45_GRENADE_SPAWN_FAIL", errors, "grenade projectile spawn failure")
     require(gameplay, "PASS45_SMOKE_VFX_RUNTIME_READY", errors, "authored smoke visual runtime acceptance")
     forbid(gameplay, "PASS45_SMOKE_VFX_CONTENT_GAP", errors, "missing authored smoke VFX")
     forbid(gameplay, "PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL", errors, "smoke gameplay volume spawn failure")
@@ -170,6 +173,8 @@ def main() -> int:
         "REQUIRED_AVAILABLE_WEAPON_MATERIALS=PASS\n"
         "PRIMITIVE_WEAPON_VISUALS=PASS\n"
         "GRENADE_PRODUCTION_VISUAL=PASS\n"
+        "GRENADE_TRANSACTIONAL_THROW=PASS\n"
+        "GRENADE_PRESENTATION_EVENT_BRIDGE=PASS\n"
         "SMOKE_AUTHORED_VFX=PASS\n"
         "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
         "EXACT_WEAPON_CONTENT_GAPS=ALLOWED_IF_EXPLICIT_FALLBACK_PASSES\n",
@@ -185,7 +190,8 @@ def main() -> int:
     print("- authored HMMWV/M2/BTR materials passed")
     print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
-    print("- grenade production visual loaded and smoke had accepted authored runtime VFX rather than a content gap")
+    print("- grenade production visual loaded; a factual throw committed inventory only after spawn and emitted presentation bridge evidence")
+    print("- smoke had accepted authored runtime VFX rather than a content gap")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0
