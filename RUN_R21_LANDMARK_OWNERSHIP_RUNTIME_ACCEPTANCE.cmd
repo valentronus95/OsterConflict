@@ -54,10 +54,11 @@ for %%M in (
   PASS45_LANDMARK_SEPARATION_VALIDATION_READY
   PASS45_LANDMARK_IDENTITY_VALIDATION_READY
   PASS45_SILPO_IDENTITY_VALIDATION_READY
+  "R14.3 Silpo facade identity pass built at"
 ) do (
-  findstr /C:"%%M" "%LOG%" >nul
+  findstr /C:"%%~M" "%LOG%" >nul
   if errorlevel 1 (
-    echo [STOP] Missing current landmark ownership evidence: %%M
+    echo [STOP] Missing current landmark ownership/identity evidence: %%~M
     echo Log: %LOG%
     exit /b 22
   )
@@ -67,8 +68,8 @@ echo.
 echo ============================================================
 echo PASS 21 / PASS45 LANDMARK OWNERSHIP: AUTOMATED EVIDENCE PASSED
 echo ============================================================
-findstr /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" /C:"PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_SEPARATION_VALIDATION_READY" /C:"PASS45_LANDMARK_IDENTITY_VALIDATION_READY" /C:"PASS45_SILPO_IDENTITY_VALIDATION_READY" "%LOG%"
+findstr /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" /C:"PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_SEPARATION_VALIDATION_READY" /C:"PASS45_LANDMARK_IDENTITY_VALIDATION_READY" /C:"PASS45_SILPO_IDENTITY_VALIDATION_READY" /C:"R14.3 Silpo facade identity pass built at" "%LOG%"
 echo.
-echo This proves runtime Museum/R14.0 Silpo/Culture owner separation and validation only.
+echo This proves runtime Museum/R14.0 Silpo/Culture owner separation plus the R14.3 visible Silpo facade/sign identity stage.
 echo Photo fidelity and exact facade appearance still require visual inspection.
 exit /b 0
