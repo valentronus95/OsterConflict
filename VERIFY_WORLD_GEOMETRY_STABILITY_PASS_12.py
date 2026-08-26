@@ -43,6 +43,24 @@ def forbid(text: str, needle: str, where: str) -> None:
         raise SystemExit(f"PASS12 WORLD STABILITY VERIFY FAIL: {where}: forbidden {needle!r}")
 
 
+def has_semantic_material_write(source: str) -> bool:
+    """Detect a SetMaterial write tied locally to a tracked world-sector family.
+
+    A whole-file token co-occurrence is intentionally insufficient: Pass6 legitimately references
+    Roads/Sidewalks while removing obsolete BASE instances and separately calls SetMaterial on weapons.
+    The ownership gate therefore requires the semantic family token to be in the same local material-write
+    context rather than elsewhere in an unrelated function.
+    """
+    semantic_tokens = ('TEXT("Ground")', 'TEXT("Roads")', 'TEXT("Sidewalks")')
+    for match in re.finditer(r"\bSetMaterial\s*\(", source):
+        start = max(0, match.start() - 1800)
+        end = min(len(source), match.end() + 500)
+        window = source[start:end]
+        if "AOCWorldSectorOster" in window and any(token in window for token in semantic_tokens):
+            return True
+    return False
+
+
 coordinator = read(COORDINATOR)
 separation = read(SEPARATION)
 header = read(VALIDATOR_H)
@@ -93,12 +111,11 @@ for needle in (
 ):
     require(world_sector, needle, "accepted semantic world-material owner")
 
-material_families = ('TEXT("Ground")', 'TEXT("Roads")', 'TEXT("Sidewalks")')
 for cpp_path in (SRC / "Private").glob("*.cpp"):
     if cpp_path == WORLD_SECTOR or cpp_path.name == "OCR13StadiumSurfaceSubsystem.cpp":
         continue
     source = read(cpp_path)
-    if "AOCWorldSectorOster" in source and "SetMaterial(" in source and any(name in source for name in material_families):
+    if has_semantic_material_write(source):
         raise SystemExit(
             "PASS12 WORLD STABILITY VERIFY FAIL: second semantic world-material owner detected: "
             f"{cpp_path.relative_to(ROOT)}"
