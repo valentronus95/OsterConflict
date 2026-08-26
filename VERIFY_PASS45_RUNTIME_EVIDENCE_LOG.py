@@ -52,12 +52,17 @@ def main() -> int:
     forbid(gameplay, "PASS12_WORLD_GEOMETRY_STABILITY_FAIL", errors, "world geometry/material stability failure")
 
     # Gate D identity must prove the authoritative civic six-column shell is at Culture House, not Museum.
-    # This closes the old gap where generic parcel validation could pass while an authoritative landmark actor
-    # occupied the wrong landmark site.
     require(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_READY", errors, "generic landmark parcel separation")
     require(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_READY", errors, "Museum/Culture House identity separation")
     forbid(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL", errors, "generic landmark parcel separation failure")
     forbid(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL", errors, "Museum/Culture House identity failure")
+
+    # Gate C/H must be actual UE state, not launcher intent. The sampler reads t.MaxFPS after possession and
+    # asks the live GameViewportClient whether the viewport is fullscreen.
+    require(gameplay, "PASS45_THERMAL_CAP_RUNTIME_READY", errors, "runtime 60 FPS recovery cap")
+    require(gameplay, "PASS45_FULLSCREEN_RUNTIME_READY", errors, "runtime fullscreen viewport")
+    forbid(gameplay, "PASS45_THERMAL_CAP_RUNTIME_FAIL", errors, "runtime FPS cap failure")
+    forbid(gameplay, "PASS45_FULLSCREEN_RUNTIME_FAIL", errors, "runtime fullscreen failure")
 
     # Baseline deployment must occur once for the character and must not revive the vehicle-possession teleport bug.
     require(gameplay, "PASS7_MUSEUM_BASES_READY", errors, "Museum BASE readiness")
@@ -80,9 +85,7 @@ def main() -> int:
     require(gameplay, "PASS45_GUNNER_EXIT_TRANSFORM_READY", errors, "gunner exit transform evidence")
     forbid(gameplay, "PASS45_GUNNER_EXIT_TRANSFORM_FAIL", errors, "gunner exit transform failure")
 
-    # Gate F is required-available truth, not an impossible all-exact production claim. Every one of the 11
-    # rack classes needs either exact production or an explicit real fallback and every visible path must pass
-    # authored material audit. Exact payload gaps remain CONTENT GAP and are intentionally allowed.
+    # Gate F is required-available truth, not an impossible all-exact production claim.
     require(gameplay, "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY", errors, "required available weapon rack")
     require(gameplay, "PASS36_WEAPON_MATERIAL_AUDIT_READY", errors, "rack authored material audit")
     forbid(gameplay, "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL", errors, "required available weapon failure")
@@ -102,8 +105,7 @@ def main() -> int:
     require(material, "PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY", errors, "required available weapon material readiness")
     forbid(material, "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL", errors, "headless required available weapon failure")
 
-    # The report itself must prove slot/material/runtime-material/texture inspection. CONTENT_GAP_FALLBACK_PASS is
-    # permitted; RESULT=FAIL, a placeholder slot, or a missing/placeholder texture dependency is not.
+    # The report itself must prove slot/material/runtime-material/texture inspection.
     require(weapon_report, "PASS45 dependency contract:", errors, "weapon dependency report header")
     require(weapon_report, "required available weapon visuals PASS", errors, "required available weapon dependency summary")
     require(weapon_report, "materialGaps=0", errors, "zero material gaps")
@@ -141,6 +143,8 @@ def main() -> int:
         f"SOURCE_SHA={source_sha}\n"
         "BLACK_WORLD_AUTOMATED_CONTRACT=PASS\n"
         "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
+        "THERMAL_CAP_RUNTIME_CONTRACT=PASS\n"
+        "FULLSCREEN_RUNTIME_CONTRACT=PASS\n"
         "BASE_INITIAL_ONLY=PASS\n"
         "DRIVER_ENTER_EXIT_TRANSFORM=PASS\n"
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
@@ -152,7 +156,8 @@ def main() -> int:
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- physical daylight started and semantic Ground/Roads/Sidewalks materials stayed stable through Pass12 samples")
-    print("- Museum and Culture House authoritative owners remained distinct; the six-column civic identity stayed on the Culture House parcel")
+    print("- Museum and Culture House authoritative owners remained distinct")
+    print("- UE reported the 60 FPS recovery cap and a live fullscreen viewport after gameplay possession")
     print("- initial BASE deployment is character-only and no recovery failure was logged")
     print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
     print("- authored HMMWV/M2/BTR materials passed")
