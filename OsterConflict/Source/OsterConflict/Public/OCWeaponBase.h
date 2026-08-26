@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/NetSerialization.h"
@@ -43,10 +44,37 @@ public:
 
     /**
      * Resolve the rendered muzzle from the active production visual while retaining camera-origin aim reconciliation.
-     * Damage traces can still use the camera aim ray, but tracer/muzzle/audio/projectile presentation must originate
-     * from the weapon instead of an arbitrary camera/under-barrel point.
+     * This deliberately uses the visible production component bounds instead of the camera as a muzzle surrogate.
+     * Asset-specific sockets can supersede this bounds fallback later without changing the firing contract.
      */
-    FVector ResolvePresentationMuzzleOrigin(const FVector& AimOrigin, const FVector& AimDirection) const;
+    FVector ResolvePresentationMuzzleOrigin(const FVector& AimOrigin, const FVector& AimDirection) const
+    {
+        const FVector Direction = AimDirection.GetSafeNormal();
+        if (Direction.IsNearlyZero())
+        {
+            return AimOrigin;
+        }
+
+        TArray<UPrimitiveComponent*> Components;
+        GetComponents<UPrimitiveComponent>(Components);
+        const FName ProductionTag(TEXT("OC_ProductionWeaponVisual"));
+        for (UPrimitiveComponent* Component : Components)
+        {
+            if (!Component || !Component->ComponentHasTag(ProductionTag) || !Component->IsVisible())
+            {
+                continue;
+            }
+
+            const FBoxSphereBounds Bounds = Component->Bounds;
+            const float ForwardExtent =
+                FMath::Abs(Direction.X) * Bounds.BoxExtent.X +
+                FMath::Abs(Direction.Y) * Bounds.BoxExtent.Y +
+                FMath::Abs(Direction.Z) * Bounds.BoxExtent.Z;
+            return Bounds.Origin + Direction * FMath::Max(2.0f, ForwardExtent);
+        }
+
+        return AimOrigin;
+    }
 
     /**
      * AActor exposes relative-transform setters but no matching getters in UE 5.8.
@@ -134,7 +162,7 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
     TObjectPtr<USceneComponent> WeaponRoot;
 
-    /** Hidden/source collision body and physics root; production visuals attach beneath WeaponRoot. */
+    /** Hidden/source collision body; this is the intended physics authority for dropped weapons. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
     TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
