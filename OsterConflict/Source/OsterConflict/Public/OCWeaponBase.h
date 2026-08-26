@@ -79,17 +79,32 @@ public:
 
     /**
      * AActor exposes relative-transform setters but no matching getters in UE 5.8.
-     * Presentation code needs the exact transform of the actor root so ADS/recoil offsets can be restored without
-     * mixing camera-relative and world-space values. WeaponMesh may become the physics root for dropped weapons.
+     * The physical WeaponMesh is the current actor root so player drops can replicate rigid-body motion. The
+     * WeaponRoot branch intentionally remains as a compatibility fallback for any legacy or authored variant that
+     * still makes the visual root authoritative. This keeps first-person presentation and drop physics in one truth.
      */
     FVector GetActorRelativeLocation() const
     {
-        return GetRootComponent() ? GetRootComponent()->GetRelativeLocation() : GetActorLocation();
+        if (const USceneComponent* Root = GetRootComponent())
+        {
+            if (Root != WeaponRoot)
+            {
+                return Root->GetRelativeLocation();
+            }
+        }
+        return WeaponRoot ? WeaponRoot->GetRelativeLocation() : GetActorLocation();
     }
 
     FRotator GetActorRelativeRotation() const
     {
-        return GetRootComponent() ? GetRootComponent()->GetRelativeRotation() : GetActorRotation();
+        if (const USceneComponent* Root = GetRootComponent())
+        {
+            if (Root != WeaponRoot)
+            {
+                return Root->GetRelativeRotation();
+            }
+        }
+        return WeaponRoot ? WeaponRoot->GetRelativeRotation() : GetActorRotation();
     }
 
     UFUNCTION(BlueprintPure, Category="Weapon")
