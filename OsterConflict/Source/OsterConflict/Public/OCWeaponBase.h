@@ -128,6 +128,21 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon")
     EOCFireMode GetCurrentFireMode() const { return CurrentFireMode; }
 
+    UFUNCTION(BlueprintPure, Category="Weapon|Action")
+    EOCWeaponActionType GetWeaponActionType() const { return Tuning.ActionType; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|FireMode")
+    bool SupportsFireMode(EOCFireMode Mode) const
+    {
+        switch (Mode)
+        {
+            case EOCFireMode::SemiAutomatic: return Tuning.bSupportsSemiAutomatic;
+            case EOCFireMode::Burst3: return Tuning.bSupportsBurst3;
+            case EOCFireMode::Automatic: return Tuning.bSupportsAutomatic;
+            default: return false;
+        }
+    }
+
     UFUNCTION(BlueprintPure, Category="Weapon")
     bool IsReloading() const { return bIsReloading; }
 
