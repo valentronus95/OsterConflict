@@ -113,7 +113,8 @@ void AOCWeaponBase::ConfigureBuiltInTuning(const FOCWeaponTuning& NewTuning)
     Tuning = NewTuning;
     AmmoInMagazine = Tuning.MagazineSize;
     ReserveAmmo = Tuning.InitialReserveAmmo;
-    CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
+    CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic
+        : (Tuning.bSupportsBurst3 ? EOCFireMode::Burst3 : EOCFireMode::SemiAutomatic);
 }
 
 void AOCWeaponBase::ApplyDefinitionIfAssigned()
@@ -132,7 +133,8 @@ void AOCWeaponBase::ApplyDefinitionIfAssigned()
     {
         AmmoInMagazine = Tuning.MagazineSize;
         ReserveAmmo = Tuning.InitialReserveAmmo;
-        CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
+        CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic
+            : (Tuning.bSupportsBurst3 ? EOCFireMode::Burst3 : EOCFireMode::SemiAutomatic);
     }
 }
 
@@ -511,16 +513,38 @@ bool AOCWeaponBase::CycleFireModeServer()
         return false;
     }
 
-    if (Tuning.bSupportsSemiAutomatic && Tuning.bSupportsAutomatic)
+    static constexpr EOCFireMode SelectorOrder[] =
     {
-        CurrentFireMode = CurrentFireMode == EOCFireMode::Automatic
-            ? EOCFireMode::SemiAutomatic
-            : EOCFireMode::Automatic;
+        EOCFireMode::SemiAutomatic,
+        EOCFireMode::Burst3,
+        EOCFireMode::Automatic,
+    };
+
+    int32 CurrentIndex = INDEX_NONE;
+    for (int32 Index = 0; Index < UE_ARRAY_COUNT(SelectorOrder); ++Index)
+    {
+        if (SelectorOrder[Index] == CurrentFireMode)
+        {
+            CurrentIndex = Index;
+            break;
+        }
+    }
+
+    for (int32 Step = 1; Step <= UE_ARRAY_COUNT(SelectorOrder); ++Step)
+    {
+        const int32 CandidateIndex = (FMath::Max(CurrentIndex, 0) + Step) % UE_ARRAY_COUNT(SelectorOrder);
+        const EOCFireMode Candidate = SelectorOrder[CandidateIndex];
+        if (!SupportsFireMode(Candidate) || Candidate == CurrentFireMode)
+        {
+            continue;
+        }
+
+        CurrentFireMode = Candidate;
         MulticastWeaponStateAudio(EOCWeaponAudioEvent::FireModeSwitch, GetActorLocation(), ++ServerAudioEventCounter);
+        ForceNetUpdate();
         return true;
     }
 
-    CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
     return false;
 }
 
