@@ -10,15 +10,14 @@
 - Active PR: **#94 — `Pass45: close Stein R3 fresh-load and strict runtime acceptance gaps`**.
 - PR state: **OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Latest source/audio implementation head before this ledger repair: `89e1cf03f7b64e8b150d3f4d88539950dc41612c`.
-- On that head, dedicated `Pass 45 weapon audio fallback` completed **SUCCESS** and most source workflows completed **SUCCESS**.
-- `Source verification`, `Runtime map spawn FPS assets Pass 44`, and `Pass 45 local build import regression` failed only because the previous ledger rewrite had collapsed required historical Pass44/local-build rejection headings. This ledger commit restores those factual sections instead of weakening the verifiers.
+- Earlier source milestone `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` had all returned workflows **SUCCESS** for the weapon/ordnance state that existed at that point.
+- Newer primitive-retirement, grenade throw-semantics and Museum/Culture/Silpo landmark-identity source work is later than that milestone; current-head CI is re-read separately and is not inferred from the historical green head.
 - Latest factual gameplay evidence: `RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/`.
 - Historical rejected evidence remains separate: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x / Windows.
 - Canonical user launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-26 / WEAPON FIRING + MANUAL ACTION + ADS + SOURCE-LEVEL AUDIO FALLBACK CODED_UNTESTED / CURRENT-HEAD SOURCE REVALIDATION PENDING / LOCAL UE RUNTIME PENDING**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-26 / WEAPON + ORDNANCE + LANDMARK IDENTITY SOURCE-CODED / CURRENT-HEAD SOURCE REVALIDATION PENDING / LOCAL UE RUNTIME PENDING**.
 
 ## 2. Status rules
 
@@ -53,7 +52,7 @@ Remaining factual runtime failures/gaps include:
 - some weapon audio/content remains absent or prototype-grade;
 - dropped-weapon physics requires current-head proof;
 - launcher visible production presentation remains unaccepted;
-- Museum/Culture House/Silpo identity/separation remains visually rejected/unaccepted;
+- Museum/Culture House/Silpo identity/separation remains visually rejected/unaccepted despite newer source ownership guards;
 - rejected vegetation/visual-fidelity families remain open;
 - M2 station hierarchy/camera remains open;
 - HMMWV >=80 km/h road target remains open;
@@ -94,17 +93,23 @@ Guardrails:
 - `VERIFY_PASS45_STALE_RUNTIME_RETIREMENT.py` protects retired ownership;
 - historical verifiers are forward-ported rather than used to resurrect old READY markers.
 
-### 4.2 Museum / landmark ownership
+### 4.2 Museum / Culture House / Silpo identity ownership
 
-Current source contract retains:
+Current source contract now includes:
 
 - one coordinated startup sequence;
 - R13.7 as the single visible Museum exterior owner;
 - R13.8 as hidden collision/interactivity/final glass rather than a competing visible shell;
-- validation-only layer/separation checks;
-- no late `Destroy`/`RemoveInstance` cleanup used to disguise a primary landmark-authoring error.
+- R13.7 Museum source has no six-column civic signature;
+- R14.6 Culture House is the sole six-column civic owner at its own canonical geo anchor;
+- R14.0 owns the Silpo shell at the canonical Silpo site;
+- R14.3 owns visible Silpo facade identity/sign at that same site, including explicit `Сільпо` text;
+- validation-only layer/separation checks remain `mutation=0` and reject cross-parcel identity instead of repairing it late;
+- strict runtime evidence and the focused landmark launcher require the factual `R14.3 Silpo facade identity pass built at` stage, preventing a shell-only Silpo false pass;
+- `VERIFY_PASS45_LANDMARK_IDENTITY.py` and `.github/workflows/pass45-landmark-identity.yml` protect the source contract;
+- no late `Destroy`/`RemoveInstance` cleanup is used to disguise a primary landmark-authoring error.
 
-Runtime Museum/Culture/Silpo visual identity still requires factual screenshots.
+Runtime Museum/Culture/Silpo visual identity and photo fidelity still require factual UE screenshots. Structural ownership does not make their current BasicShape-heavy construction visually acceptable.
 
 ### 4.3 Vehicle BASE teleport correction
 
@@ -222,10 +227,37 @@ Source now closes the unassigned/empty near-shot silence path without calling te
 - tracked `snd_bullethit` supplies a temporary impact fallback;
 - fallback creation does not mutate ammo, damage, fire cadence, projectile/trace authority, transforms or action timing;
 - source markers: `PASS45_WEAPON_AUDIO_FALLBACK_READY ... authoritative_mutation=0 runtime_acceptance=0` and `PASS45_WEAPON_AUDIO_CONTENT_GAP`;
-- `VERIFY_PASS45_WEAPON_AUDIO_FALLBACK.py` plus `.github/workflows/pass45-weapon-audio-fallback.yml` guards this path;
-- the dedicated audio workflow passed on head `89e1cf03f7b64e8b150d3f4d88539950dc41612c`.
+- `VERIFY_PASS45_WEAPON_AUDIO_FALLBACK.py` plus `.github/workflows/pass45-weapon-audio-fallback.yml` guards this path.
 
 Final per-weapon shot character, indoor/outdoor/distant variants, suppressor behavior, complete reload layers, bolt/lever mechanics and UE mix/audibility remain open.
+
+### 4.13 Primitive weapon / grenade / smoke retirement and transactional throw — 2026-08-26
+
+Source now fails closed instead of rendering known-bad primitive content:
+
+- weapon/launcher BasicShape fallbacks are hidden before production-load failure can render them;
+- valid runtime must emit `PASS45_PRIMITIVE_WEAPON_RUNTIME_READY` and must not emit `PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL`;
+- real fallback meshes attach to the unscaled visual root while invisible physics/collision authority remains separate;
+- grenade visible Engine sphere is replaced by the tracked R13 grenade mesh; missing production visual fails visibly instead of restoring a sphere;
+- smoke BasicShape puff cluster is physically retired; missing authored smoke VFX remains explicit `CONTENT GAP`;
+- grenade throw uses swept/overlap clearance, `DontSpawnIfColliding`, commits inventory only after factual projectile spawn and inherits carrier velocity;
+- valid acceptance requires `PASS45_GRENADE_THROW_COMMIT_READY` and the presentation bridge marker;
+- `VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py` and `VERIFY_PASS45_GRENADE_SMOKE_PRIMITIVE_RETIREMENT.py` protect these paths.
+
+Rendered weapon/launcher/grenade appearance, authored smoke and first-person grenade animation remain local-runtime/content work.
+
+### 4.14 Landmark identity false-pass closure — 2026-08-26
+
+Source and acceptance automation now distinguish a correct parcel/shell from visible landmark identity:
+
+- `VERIFY_PASS45_LANDMARK_IDENTITY.py` checks Museum/Culture/Silpo canonical anchors and identity ownership;
+- Museum source is forbidden from carrying Culture House column identity or Silpo signage;
+- Culture House is required to carry the six-column civic signature at its own site;
+- R14.0 Silpo shell and R14.3 facade/sign identity must both target the canonical Silpo site;
+- strict runtime evidence and `RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd` require the factual R14.3 facade identity stage;
+- `.github/workflows/pass45-landmark-identity.yml` and cumulative `RUN_ALL_VERIFY.py` include the guard.
+
+This is **CODED_UNTESTED**, not runtime visual acceptance.
 
 ## 5. Active requirements
 
@@ -234,9 +266,9 @@ Final per-weapon shot character, indoor/outdoor/distant variants, suppressor beh
 | STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | CODED_UNTESTED | Physical retirement + validation guards retained. |
 | PERF-COLLAPSE-001 | No severe FPS/thermal collapse | CODED_UNTESTED | ~60 FPS recovery cap; final mixed soak pending. |
 | VIS-BLACK-WORLD-001 | No black ground/world corruption | CODED_UNTESTED | Latest run improved; current-head screenshot proof still required. |
-| LOC-MUSEUM-001 | Correct visible Oster Local History Museum | CODED_UNTESTED | Single exterior owner; runtime identity proof pending. |
-| LOC-CULTURE-001 | Culture House separate from Museum | IN_PROGRESS | Separate anchor/validation exists; visible proof pending. |
-| LOC-SILPO-001 | Silpo one correct site owner | CODED_UNTESTED | Startup ownership retained; visible proof pending. |
+| LOC-MUSEUM-001 | Correct visible Oster Local History Museum | CODED_UNTESTED | Museum identity source guarded; direct visual proof pending. |
+| LOC-CULTURE-001 | Culture House separate from Museum | CODED_UNTESTED | Separate geo owner + six-column identity guard; direct visual proof pending. |
+| LOC-SILPO-001 | Silpo one correct site owner and visible facade identity | CODED_UNTESTED | R14.0 shell + mandatory R14.3 `Сільпо` facade stage; direct screenshot proof pending. |
 | VIS-GENERIC-RESIDENTIAL-001 | No rejected generic house/fence/tower family | CODED_UNTESTED | Source owners retired; runtime absence proof pending. |
 | GAME-VEHICLE-TELEPORT-001 | Vehicle enter/drive/exit never returns to Museum | CODED_UNTESTED | Initial-only BASE logic; local civilian/HMMWV/BTR test pending. |
 | VEH-HMMWV-001 | Correct HMMWV proportions/orientation and >=80 km/h road target | IN_PROGRESS | Proportional fit source-coded; speed/calibration runtime pending. |
@@ -248,9 +280,10 @@ Final per-weapon shot character, indoor/outdoor/distant variants, suppressor beh
 | WEAPON-ACTION-001 | Exact selectors + deterministic Burst3/manual cycles | CODED_UNTESTED | Finite Burst3 + replicated manual gate + procedural cue source-coded. |
 | WEAPON-AUDIO-001 | No accepted silent weapon; exact per-weapon/mechanical audio | IN_PROGRESS / CODED_UNTESTED / CONTENT GAP | Source-level silence fallback coded; final authored identity/mix and bolt/lever content pending. |
 | WEAPON-ADS-001 | Per-weapon sight alignment is factual, not generic | IN_PROGRESS / CODED_UNTESTED | Fail-visible socket architecture + diagnostics coded; all exact profiles remain uncalibrated. |
-| WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | IN_PROGRESS | Source audit/retirement is next active implementation item. |
+| WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | CODED_UNTESTED | Source fail-closed retirement complete; rendered zero-primitive proof pending. |
+| GRENADE-VISUAL-001 | No primitive grenade/smoke and no inventory loss on failed throw | CODED_UNTESTED / CONTENT GAP | Primitive retirement + transactional throw coded; authored smoke/animation pending. |
 | UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | CODED_UNTESTED | Runtime screenshot required. |
-| VIS-TREES-001 | No primitive/fantasy visible tree family | IN_PROGRESS / CONTENT GAP | Replacement/reference work still required. |
+| VIS-TREES-001 | No primitive/fantasy visible tree family | IN_PROGRESS / CONTENT GAP | Next active source/content block: inventory real vegetation and replace rejected Cylinder/Sphere family fail-closed. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | CONTENT GAP | No verified exact payload; do not claim connected. |
 
 ## 6. Behavior that must not return
@@ -277,7 +310,9 @@ Final per-weapon shot character, indoor/outdoor/distant variants, suppressor beh
 20. `bADSCalibrated=true` without exact sight reference + UE evidence;
 21. generic ADS/FOV-only presentation described as factual sight alignment;
 22. an unassigned/empty shot profile silently swallowing an otherwise accepted factual shot;
-23. temporary generic weapon audio fallback being called final per-weapon authored sound acceptance.
+23. temporary generic weapon audio fallback being called final per-weapon authored sound acceptance;
+24. a shell-only Silpo being accepted without the visible R14.3 facade/sign identity stage;
+25. a six-column Culture House signature appearing at the Museum parcel.
 
 ## 7. Current execution order
 
@@ -296,9 +331,9 @@ Final per-weapon shot character, indoor/outdoor/distant variants, suppressor beh
 13. [ ] Replace procedural manual-action cue with accepted authored moving-part/skeletal presentation where assets support it.
 14. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever audio gaps.
 15. [ ] Inspect each exact production weapon in local UE 5.8, confirm rear/front/optic references and calibrate ADS transforms; only factual profiles may set `bADSCalibrated=true`.
-16. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
-17. [ ] Replace grenade models/throw/smoke presentation.
-18. [ ] Correct Museum/Culture House/Silpo visible identity/separation.
+16. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks and make runtime acceptance fail closed. **Rendered proof pending.**
+17. [x] Source-retire primitive grenade/smoke visuals and make grenade throw transactional/safe. **Authored smoke/animation + runtime proof pending.**
+18. [x] Source-close Museum/Culture House/Silpo identity/separation and require the R14.3 Silpo facade/sign stage. **Visual runtime proof pending.**
 19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity.
 20. [ ] Complete HMMWV M2 hierarchy/360°/camera and >=80 km/h road tuning.
 21. [ ] Close BTR white material/forward-axis/remote-operator gaps.
@@ -338,6 +373,7 @@ Final per-weapon shot character, indoor/outdoor/distant variants, suppressor beh
 - no black-world corruption;
 - Museum visually reads as Museum, not Culture House;
 - Culture House and Silpo visibly separate;
+- Silpo visibly shows the correct facade identity/sign at its canonical site;
 - rejected generic house/tower/tree families absent;
 - no major white/default/proxy core visuals.
 
@@ -380,4 +416,4 @@ Current build/import correction state remains **CODED_UNTESTED** until a current
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The source-level weapon audio silence fallback is **CODED_UNTESTED** and its dedicated workflow passed on the previous source head. This ledger repair restores historical CI truth that was accidentally compressed by documentation cleanup; current-head source revalidation is pending. Exact authored action/audio content, per-weapon ADS calibration, primitive-visual retirement and all factual local UE 5.8 acceptance remain open.
+Weapon/ordnance source corrections and Museum/Culture House/Silpo identity ownership are **CODED_UNTESTED**. The earlier source milestone was green, while current-head CI is revalidated after the newer landmark commits. Exact authored action/audio content, per-weapon ADS calibration, authored grenade smoke/animation, rendered zero-primitive proof, landmark visual fidelity, vegetation replacement and all factual local UE 5.8 acceptance remain open.
