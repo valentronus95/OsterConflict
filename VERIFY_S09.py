@@ -24,7 +24,7 @@ markers = {
         'BuildCentralPark();', 'BuildCollegeSector();', 'BuildMuseumAndStadium();',
         'Stadium:', 'SOLOMII KRUSHELNYTSKOI 7A',
         'red-brick single-storey wings', '10500, 6800', 'Columns = 9', 'Rows = 4',
-        'Small skate/active-recreation pad', 'Detached rear shed/outbuilding',
+        'Small skate/active-recreation pad',
         'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED'
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
