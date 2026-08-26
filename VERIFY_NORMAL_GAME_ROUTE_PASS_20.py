@@ -29,11 +29,11 @@ import_py = read(IMPORT_PY)
 source_recovery = read(SOURCE_RECOVERY)
 
 require(start, 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"', "START_HERE normal-game route")
+require(start, 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"', "START_HERE full runtime route")
 if 'call "%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"' in start:
     raise SystemExit("PASS20 VERIFY FAIL: START_HERE option 1 is incorrectly routed through recovery acceptance")
 
-# Pass45 item 12 now makes material freshness part of the user launcher, while the canonical gameplay
-# launcher itself remains the same normal frontend route.
+# Pass45 item 12 makes material freshness part of the user launcher while option 1 remains the normal frontend.
 for needle in (
     ":prepare_materials_optional",
     "TRY_PRODUCTION_VEHICLES_UE58.cmd",
@@ -63,9 +63,14 @@ if acceptance_gate < 0 or import_call < 0 or normal_else < 0 or not (acceptance_
 for needle in (
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     "PASS7_PRODUCTION_VEHICLES_READY",
-    "PASS7_PRODUCTION_WEAPONS_READY",
+    "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
+    "PASS36_WEAPON_MATERIAL_AUDIT_READY",
+    "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
+    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
 ):
-    require(normal, needle, "strict production runtime route")
+    require(normal, needle, "strict runtime route")
+if "PASS7_PRODUCTION_WEAPONS_READY" in normal or "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" in normal:
+    raise SystemExit("PASS20 VERIFY FAIL: obsolete all-exact rack acceptance returned")
 
 # Command wrapper still owns independent per-model intake results. A failed local source recovery may no longer
 # imply a missing BTR because the canonical importer owns a repository-authored fallback.
@@ -122,8 +127,8 @@ for needle in (
     require(playable, needle, "focused recovery route remains intact")
 
 print("NORMAL GAME ROUTE PASS 20 + PASS45 MATERIAL INTAKE SOURCE CONTRACT PASS")
-print("- START_HERE option 1 stays on the canonical normal-game launcher and prepares current material revisions first")
+print("- START_HERE option 1 stays on the canonical normal-game launcher; option 2 uses the strict main wrapper")
 print("- HMMWV/M2 remain independent external-source imports")
 print("- BTR canonical intake prefers local FBX and otherwise uses the repository-safe authored GLB material path")
-print("- strict exact fleet/runtime certification remains separate from normal diagnostic play")
+print("- Gate F uses exact production OR explicit real fallback without false production READY")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime still required")
