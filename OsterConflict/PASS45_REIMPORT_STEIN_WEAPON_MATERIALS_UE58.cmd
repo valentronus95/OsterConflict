@@ -6,6 +6,7 @@ set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "SCRIPT=%PROJECT_DIR%Scripts\pass45_reimport_stein_weapon_materials.py"
 set "SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\SteinWeapons\pass45_stein_material_reimport_success.txt"
+set "REQUIRED_REVISION=PASS45_STEIN_MATERIAL_CLOSURE_20260826_R1"
 set "UE_ROOT="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" (
@@ -50,6 +51,7 @@ echo OSTER CONFLICT - PASS45 STEIN AUTHORED MATERIAL REIMPORT - UE 5.8
 echo ============================================================
 echo UE:      %UE_ROOT%
 echo Project: %UPROJECT%
+echo Revision: %REQUIRED_REVISION%
 echo.
 
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout
@@ -67,6 +69,7 @@ if not exist "%SENTINEL%" (
     exit /b 10
 )
 
+findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%SENTINEL%" >nul || goto :sentinel_failed
 findstr /L /C:"PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS" "%SENTINEL%" >nul || goto :sentinel_failed
 findstr /L /C:"STATUS=EDITOR_IMPORT_VALIDATED_RUNTIME_VISUAL_PENDING" "%SENTINEL%" >nul || goto :sentinel_failed
 
@@ -78,6 +81,6 @@ exit /b 0
 
 :sentinel_failed
 echo.
-echo ERROR: Stein material reimport sentinel is incomplete.
+echo ERROR: Stein material reimport sentinel is incomplete or stale.
 type "%SENTINEL%"
 exit /b 11
