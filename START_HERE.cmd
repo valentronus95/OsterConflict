@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -30,26 +30,69 @@ if errorlevel 4 (
   goto menu
 )
 if errorlevel 3 (
+  call :prepare_materials_optional
   set "OC_RHI_COMPAT=1"
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
   set "OC_RHI_COMPAT="
   goto menu
 )
 if errorlevel 2 (
+  call :prepare_materials_strict
+  if errorlevel 1 goto menu
   set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
   set "OC_RHI_COMPAT="
   goto menu
 )
 if errorlevel 1 (
-  rem Pass 42: normal game also attempts exact vehicle intake when the local source package exists.
-  rem Missing local production source remains a content gap and does not block the normal frontend.
-  if exist "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd" call "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd"
+  call :prepare_materials_optional
   set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
   set "OC_RHI_COMPAT="
   goto menu
 )
+
+goto menu
+
+:prepare_materials_optional
+echo.
+echo [PASS45] Перевірка актуальності production vehicle/BTR та Stein authored materials...
+if exist "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd" (
+  call "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd"
+) else (
+  echo [PASS45] WARNING: TRY_PRODUCTION_VEHICLES_UE58.cmd відсутній. Матеріали техніки не вважаються перевіреними.
+)
+if exist "%~dp0OsterConflict\TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd" (
+  call "%~dp0OsterConflict\TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd"
+  if errorlevel 1 echo [PASS45] WARNING: Stein material reimport не пройшов. Звичайний запуск продовжується лише для діагностики; білі/default weapons = FAIL.
+) else (
+  echo [PASS45] WARNING: TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd відсутній. Stein material state не вважається перевіреним.
+)
+exit /b 0
+
+:prepare_materials_strict
+echo.
+echo [PASS45] STRICT: підготовка поточних authored materials перед runtime acceptance...
+if not exist "%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd" (
+  echo [STOP] Production vehicle importer відсутній.
+  exit /b 20
+)
+call "%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
+if errorlevel 1 (
+  echo [STOP] Production vehicle/BTR authored-material import не пройшов.
+  exit /b 21
+)
+if not exist "%~dp0OsterConflict\PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd" (
+  echo [STOP] Stein authored-material importer відсутній.
+  exit /b 22
+)
+call "%~dp0OsterConflict\PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd"
+if errorlevel 1 (
+  echo [STOP] Stein authored-material import не пройшов.
+  exit /b 23
+)
+echo [PASS45] STRICT material preparation PASS. Rendered runtime appearance remains the final authority.
+exit /b 0
 
 :end
 exit /b 0
