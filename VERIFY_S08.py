@@ -52,7 +52,7 @@ markers = {
     'OCWorldSectorOster.cpp': [
         'BuildRoadNetwork();', 'KrushelnytskaEnterableHouseAnchor',
         'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED',
-        'SOLOMII KRUSHELNYTSKOI STREET / S08', 'service alleys'
+        'SOLOMII KRUSHELNYTSKOI STREET / S08'
     ],
     'OCCharacter.cpp': [
         'FindFocusedWorldInteractable', 'OCWorldInteractionTrace', 'Interactable->CanInteractServer(this)',
