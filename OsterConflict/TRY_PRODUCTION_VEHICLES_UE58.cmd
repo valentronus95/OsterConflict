@@ -1,14 +1,40 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
 set "PROJECT_DIR=%~dp0"
 set "HMMWV=%PROJECT_DIR%Content\Production\Vehicles\HMMWV\SM_HMMWV_UA.uasset"
 set "M2=%PROJECT_DIR%Content\Production\Weapons\M2\SM_M2_Browning.uasset"
 set "BTR=%PROJECT_DIR%Content\Production\Vehicles\BTR4\SM_BTR4_Bucephalus.uasset"
 set "IMPORTER=%PROJECT_DIR%IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
+set "IMPORT_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_import_success.txt"
+set "FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_fresh_load_success.txt"
+set "REQUIRED_REVISION=PASS45_MATERIAL_CLOSURE_20260826_R1"
 
-if exist "%HMMWV%" if exist "%M2%" if exist "%BTR%" (
-  echo [ASSETS] Production HMMWV + M2 Browning + BTR-4 вже присутні локально.
+set "ASSETS_PRESENT=0"
+if exist "%HMMWV%" if exist "%M2%" if exist "%BTR%" set "ASSETS_PRESENT=1"
+
+set "IMPORT_REVISION_OK=0"
+set "FRESH_REVISION_OK=0"
+set "FRESH_HMMWV=0"
+set "FRESH_M2=0"
+set "FRESH_BTR=0"
+set "FRESH_BTR_AUTHORED=0"
+
+if exist "%IMPORT_SENTINEL%" (
+  findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%IMPORT_SENTINEL%" >nul && set "IMPORT_REVISION_OK=1"
+)
+if exist "%FRESH_SENTINEL%" (
+  findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%FRESH_SENTINEL%" >nul && set "FRESH_REVISION_OK=1"
+  findstr /L /C:"FRESH_LOADED=/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA" "%FRESH_SENTINEL%" >nul && set "FRESH_HMMWV=1"
+  findstr /L /C:"FRESH_LOADED=/Game/Production/Weapons/M2/SM_M2_Browning" "%FRESH_SENTINEL%" >nul && set "FRESH_M2=1"
+  findstr /L /C:"FRESH_LOADED=/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR=1"
+  findstr /L /C:"BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR_AUTHORED=1"
+)
+
+if "%ASSETS_PRESENT%"=="1" if "%IMPORT_REVISION_OK%"=="1" if "%FRESH_REVISION_OK%"=="1" if "%FRESH_HMMWV%"=="1" if "%FRESH_M2%"=="1" if "%FRESH_BTR%"=="1" (
+  rem Local-user FBX BTR can have its own authored material naming. The explicit BTR4_AUTHORED_MATERIAL marker
+  rem is mandatory only for the repository-safe generated fallback and is enforced by the fresh-load verifier.
+  echo [ASSETS] Production HMMWV + M2 + BTR-4 match current Pass45 import revision and fresh-load material checks.
   exit /b 0
 )
 
@@ -17,7 +43,9 @@ if not exist "%IMPORTER%" (
   exit /b 0
 )
 
-echo [ASSETS] Шукаю локальні HMMWV + M2 Browning + BTR-4 та підключаю кожну доступну модель незалежно...
+echo [ASSETS] Existing .uasset files are not sufficient proof of current materials.
+echo [ASSETS] Reimport required: revision=%REQUIRED_REVISION% assets=%ASSETS_PRESENT% import_revision=%IMPORT_REVISION_OK% fresh_revision=%FRESH_REVISION_OK% fresh_hmmwv=%FRESH_HMMWV% fresh_m2=%FRESH_M2% fresh_btr=%FRESH_BTR%
+echo [ASSETS] Importing HMMWV + M2 + BTR-4 through the current authored-material contract...
 call "%IMPORTER%"
 set "IMPORT_RC=%ERRORLEVEL%"
 
@@ -36,12 +64,12 @@ if "%BTR_READY%"=="1" echo [ASSETS] BTR-4 production model is available for runt
 
 if "%HMMWV_READY%"=="0" echo [ASSETS] CONTENT GAP: HMMWV production model is still unavailable.
 if "%M2_READY%"=="0" echo [ASSETS] CONTENT GAP: M2 Browning production model is still unavailable.
-if "%BTR_READY%"=="0" echo [ASSETS] CONTENT GAP: BTR-4 production model is still unavailable.
+if "%BTR_READY%"=="0" echo [ASSETS] ERROR: repository-safe BTR-4 fallback should be importable even without a local FBX.
 
-if "%HMMWV_READY%"=="1" if "%M2_READY%"=="1" if "%BTR_READY%"=="1" (
-  echo [ASSETS] PASS: all three production models are present and fresh-load verified.
+if "%IMPORT_RC%"=="0" if "%HMMWV_READY%"=="1" if "%M2_READY%"=="1" if "%BTR_READY%"=="1" (
+  echo [ASSETS] PASS: all three production models were imported/fresh-load validated under the current Pass45 material revision.
   exit /b 0
 )
 
-echo [ASSETS] Partial production intake only. Normal game may continue, but missing models are NOT production-ready.
+echo [ASSETS] Production intake is incomplete. Normal game may continue for diagnosis, but missing/failed models are NOT production-ready.
 exit /b 0
