@@ -9,6 +9,7 @@ RAW_ROOT = PROJECT_DIR / "Content" / "Raw" / "R13" / "Weapons" / "SteinClassicWe
 DEST_ROOT = "/Game/R13/Weapons/Stein"
 CACHE_DIR = PROJECT_DIR / "Saved" / "ProductionAssetImportCache" / "SteinWeapons"
 SENTINEL = CACHE_DIR / "pass45_stein_material_reimport_success.txt"
+IMPORT_CONTRACT_REVISION = "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R1"
 
 # Only the Stein models that are part of the current runtime rack contract are repaired here.
 # AK-47 uses its separate canonical /Game/AK-47 production asset and is intentionally untouched.
@@ -170,6 +171,7 @@ def main() -> None:
         results.append(reimport_weapon(folder, fbx_name))
 
     SENTINEL.write_text(
+        f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}\n"
         "PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS\n"
         "STATUS=EDITOR_IMPORT_VALIDATED_RUNTIME_VISUAL_PENDING\n"
         + "\n".join(results)
@@ -178,7 +180,8 @@ def main() -> None:
     )
     log(
         "Texture-first Stein reimport completed with non-placeholder material slots and used texture "
-        "dependencies. This is editor import evidence only; runtime rack screenshot remains authoritative."
+        f"dependencies. revision={IMPORT_CONTRACT_REVISION}. This is editor import evidence only; "
+        "runtime rack screenshot remains authoritative."
     )
 
 
