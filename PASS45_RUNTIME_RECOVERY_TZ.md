@@ -497,7 +497,14 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 
 ## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS/audio/primitive/grenade-smoke/throw-semantics pass
 
-State: **CODED_UNTESTED / CURRENT-HEAD SOURCE VERIFICATION PENDING / NOT RUNTIME ACCEPTED**.
+State: **SOURCE VERIFIED / CODED_UNTESTED IN LOCAL UE / NOT RUNTIME ACCEPTED**.
+
+Current-head CI truth after the grenade throw-semantics closure:
+
+- source head `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` completed `Source verification` **SUCCESS**;
+- dedicated `Pass 45 grenade smoke primitive retirement` completed **SUCCESS** on the same head;
+- all workflow runs returned for that current head completed **SUCCESS**;
+- this proves source-contract consistency only. It does not override the factual `RUNTIME REJECTED 2026-08-26` verdict or replace local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
 Implemented:
 
@@ -566,7 +573,7 @@ Completed/source-coded items are marked only for source work, not runtime accept
 21. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks: hide before production load, preserve invisible collision authority, add hard runtime ready/fail markers and strict evidence gate. **Rendered UE acceptance remains pending.**
 22. [x] Source-retire primitive grenade/smoke visuals: use tracked R13 grenade mesh fail-closed; physically remove fake smoke spheres; add dedicated guard/workflow. **Rendered grenade acceptance and real smoke VFX remain pending.**
 23. [x] Correct grenade source throw semantics: safe swept/overlap-checked origin, `DontSpawnIfColliding`, inventory commit only after successful spawn, inherited movement velocity, explicit `GrenadeThrow` presentation event and strict runtime marker requirement. **Local UE behavior/animation acceptance remains pending.**
-24. [ ] Author/accept first-person grenade hand/throw/recover animation, distinct frag/smoke/flash presentation and real smoke VFX.
+24. [ ] Author/accept first-person grenade hand/throw/recover animation, distinct frag/smoke/flash presentation and real smoke VFX. **Repository authored smoke/Niagara content is currently not proven present, so no fake source READY is allowed.**
 25. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
 26. [ ] Replace rejected vegetation family.
 27. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
@@ -620,4 +627,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback/primitive-retirement/grenade-smoke-primitive-retirement/grenade-throw-semantics corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback/primitive-retirement/grenade-smoke-primitive-retirement/grenade-throw-semantics corrections are **SOURCE VERIFIED / CODED_UNTESTED IN LOCAL UE**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
