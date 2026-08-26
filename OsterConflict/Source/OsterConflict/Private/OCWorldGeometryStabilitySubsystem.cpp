@@ -4,8 +4,11 @@
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 
 namespace
 {
@@ -27,6 +30,13 @@ namespace
         TEXT("Sidewalks")
     };
 
+    const FName TrackedMaterialFamilies[] =
+    {
+        TEXT("Ground"),
+        TEXT("Roads"),
+        TEXT("Sidewalks")
+    };
+
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
         if (!Actor) return nullptr;
@@ -37,6 +47,73 @@ namespace
             if (Component && Component->GetFName() == Name) return Component;
         }
         return nullptr;
+    }
+
+    UPrimitiveComponent* FindPrimitive(AActor* Actor, const FName Name)
+    {
+        if (!Actor) return nullptr;
+        TInlineComponentArray<UPrimitiveComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UPrimitiveComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == Name) return Component;
+        }
+        return nullptr;
+    }
+
+    bool ValidateSemanticMaterials(AOCWorldSectorOster* Sector, FString& OutFailure)
+    {
+        if (!Sector)
+        {
+            OutFailure = TEXT("semantic_material_sector_missing");
+            return false;
+        }
+
+        for (const FName Family : TrackedMaterialFamilies)
+        {
+            UPrimitiveComponent* Component = FindPrimitive(Sector, Family);
+            if (!Component)
+            {
+                OutFailure = FString::Printf(TEXT("semantic_material_component_missing_%s"), *Family.ToString());
+                return false;
+            }
+
+            UMaterialInterface* Material = Component->GetMaterial(0);
+            if (!Material)
+            {
+                OutFailure = FString::Printf(TEXT("semantic_material_missing_%s"), *Family.ToString());
+                return false;
+            }
+
+            UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
+            if (!MID)
+            {
+                OutFailure = FString::Printf(TEXT("semantic_mid_missing_%s"), *Family.ToString());
+                return false;
+            }
+
+            TArray<FMaterialParameterInfo> VectorParameters;
+            TArray<FGuid> ParameterIds;
+            MID->GetAllVectorParameterInfo(VectorParameters, ParameterIds);
+
+            bool bHasColorParameter = false;
+            for (const FMaterialParameterInfo& Parameter : VectorParameters)
+            {
+                if (Parameter.Name == TEXT("Color"))
+                {
+                    bHasColorParameter = true;
+                    break;
+                }
+            }
+
+            if (!bHasColorParameter)
+            {
+                OutFailure = FString::Printf(TEXT("semantic_color_parameter_missing_%s"), *Family.ToString());
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -83,6 +160,11 @@ bool UOCWorldGeometryStabilitySubsystem::ReadTrackedCounts(
     if (SectorCount != 1 || !Sector)
     {
         OutFailure = FString::Printf(TEXT("oster_sector_count_%d"), SectorCount);
+        return false;
+    }
+
+    if (!ValidateSemanticMaterials(Sector, OutFailure))
+    {
         return false;
     }
 
@@ -151,6 +233,8 @@ void UOCWorldGeometryStabilitySubsystem::Tick(float DeltaTime)
         UE_LOG(LogTemp, Display,
             TEXT("PASS12_WORLD_GEOMETRY_BASELINE_CAPTURED families=%d at=%.1fs startupWindow=8.0s"),
             BaselineCounts.Num(), ElapsedSeconds);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_WORLD_MATERIAL_BASELINE_READY families=3 semantic_mid=1 color_parameter=1 owner=OCWorldSectorOster"));
         return;
     }
 
@@ -182,5 +266,7 @@ void UOCWorldGeometryStabilitySubsystem::Tick(float DeltaTime)
         UE_LOG(LogTemp, Display,
             TEXT("PASS12_WORLD_GEOMETRY_STABLE families=%d baseline=12.0s final=20.0s result=no_late_source_geometry_mutation"),
             BaselineCounts.Num());
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_WORLD_MATERIAL_STABLE families=3 samples=12s,16s,20s result=semantic_material_contract_preserved"));
     }
 }
