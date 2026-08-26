@@ -50,7 +50,7 @@ namespace
         {
             if (!IsRejectedPrimitiveMesh(Component)) continue;
 
-            const bool bWasRendered = Component->IsVisible() && !Component->bHiddenInGame;
+            const bool bWasRendered = Component->IsVisible();
             Component->SetVisibility(false, true);
             Component->SetHiddenInGame(true, true);
             Component->SetCastShadow(false);
@@ -74,7 +74,7 @@ namespace
         Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
         for (const UStaticMeshComponent* Component : StaticComponents)
         {
-            if (IsRejectedPrimitiveMesh(Component) && Component->IsVisible() && !Component->bHiddenInGame)
+            if (IsRejectedPrimitiveMesh(Component) && Component->IsVisible())
             {
                 return true;
             }
