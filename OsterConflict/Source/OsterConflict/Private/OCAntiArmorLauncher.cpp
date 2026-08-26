@@ -11,7 +11,8 @@ AOCAntiArmorLauncher::AOCAntiArmorLauncher()
 {
     FOCWeaponTuning T;
     T.WeaponId=FName(TEXT("OC_RPG1")); T.DisplayName=TEXT("OC Anti-Armor Launcher");
-    T.WeaponClass=EOCWeaponClass::Launcher; T.PreferredSlot=EOCInventorySlot::Primary; T.AmmoType=EOCAmmoType::Rocket;
+    T.WeaponClass=EOCWeaponClass::Launcher; T.ActionType=EOCWeaponActionType::LauncherSingleShot;
+    T.PreferredSlot=EOCInventorySlot::Primary; T.AmmoType=EOCAmmoType::Rocket;
     T.Damage=620.0f; T.PelletsPerShot=1; T.RangeCm=18000.0f; T.RoundsPerMinute=18.0f;
     T.HipSpreadDegrees=1.7f; T.ADSSpreadDegrees=0.35f; T.MovingSpreadMultiplier=1.4f;
     T.RecoilPitchMin=4.0f; T.RecoilPitchMax=5.2f; T.RecoilYawMax=1.1f;
