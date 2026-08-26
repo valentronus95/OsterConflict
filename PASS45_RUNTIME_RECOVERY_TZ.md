@@ -2,9 +2,9 @@
 
 Date: 2026-08-24
 Latest runtime rejection: 2026-08-25
-Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / PR #94 SOURCE CI GREEN / MATERIAL CLOSURE CODED_UNTESTED / LOCAL UE RUNTIME PENDING**
+Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / PR #94 SOURCE CI GREEN / P0 BLACK-WORLD SOURCE CONTRACT CODED_UNTESTED / LOCAL UE RUNTIME PENDING**
 Current integrated source milestone: `main` @ `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f` (PR #93 merged)
-Active source continuation: `fix/pass45-runtime-rejection-material-closure-20260826`, PR #94. Implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` completed the full current GitHub source matrix **38/38 green** before documentation-only state synchronization. PR remains unmerged pending factual local UE 5.8 acceptance.
+Active source continuation: `fix/pass45-runtime-rejection-material-closure-20260826`, PR #94. Code head `9ba84273d06a6c210c808ceacbe96c45466a3d73` completed the full current GitHub source matrix **39/39 green** before this documentation synchronization. PR remains unmerged pending factual local UE 5.8 acceptance.
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -105,6 +105,21 @@ The world is visually invalid while large areas render near-black.
 
 The Pass 45 B2 production-visual completion layer is runtime-rejected and has now been **physically deleted** from the corrective branch. Its stale completion verifier/workflow were deleted with it so CI cannot resurrect the rejected owner.
 
+Source audit/correction continuation — 2026-08-26, PR #94, **CODED_UNTESTED**:
+
+- `AOCVisualEnvironment` is the current component-owned replicated daylight owner; no second camera/post-process exposure owner was found in the audited runtime path;
+- the previous `SunLight->SetIntensity(4.0f)` contract conflicted with disabled auto exposure and was a concrete P0 black-world candidate under UE 5.8 physical-light units;
+- daylight is now one paired renderer contract: `120000 lux` + `r.DefaultFeature.AutoExposure=True` + `r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True`;
+- the old `4 lux` path and `AutoExposure=False` are source-gated out;
+- `AOCWorldSectorOster` remains the accepted source owner for semantic `Ground/Roads/Sidewalks` MID tinting;
+- audited late systems do not own a second `Ground/Roads/Sidewalks` material rewrite; `OCRuntimeAcceptancePass6Subsystem` only removes obsolete BASE road/sidewalk instances and applies its separate `SetMaterial()` path to weapon components;
+- `UOCWorldGeometryStabilitySubsystem` now validates `Ground/Roads/Sidewalks` semantic MID + `Color` parameter at the 12 s baseline and again through the 16 s / 20 s stability window;
+- missing semantic component/material/MID/`Color` parameter emits family-specific `PASS12_WORLD_GEOMETRY_STABILITY_FAIL` instead of silently allowing a broken black/default surface;
+- success emits `PASS45_WORLD_MATERIAL_BASELINE_READY` and `PASS45_WORLD_MATERIAL_STABLE`;
+- strict `START_HERE -> 2. ПОВНИЙ RUNTIME-ТЕСТ` evidence now requires `PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY`, `PASS12_WORLD_GEOMETRY_STABLE` and `PASS45_WORLD_MATERIAL_STABLE`, and forbids `PASS12_WORLD_GEOMETRY_STABILITY_FAIL`;
+- `VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py` now source-gates that P0 evidence linkage so the black-world check cannot regress into an optional side test;
+- code head `9ba84273d06a6c210c808ceacbe96c45466a3d73` completed **39/39 GitHub source workflows green**, including `World geometry stability pass 12`, `Pass 45 strict runtime acceptance harness`, `Runtime recovery Pass 45` and full `Source verification`.
+
 Requirements:
 
 - do not recreate `OCWorldProductionVisualsSubsystem` under a new name with the same behavior;
@@ -112,10 +127,15 @@ Requirements:
 - no silent fallback to black/default material;
 - material load failure must remain fail-visible in logs without corrupting the entire scene;
 - no second world-material owner may overwrite Ground/Roads/Sidewalks after the accepted current owner;
+- physical daylight lux, auto exposure and extended EV100 range are one contract; no one-sided change may be accepted;
+- strict main runtime acceptance must consume world-material stability evidence, not leave it in a separate optional launcher;
 - do not lower native render scale to disguise the problem.
 
 Acceptance:
 
+- `PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY` present in the gameplay log;
+- `PASS12_WORLD_GEOMETRY_STABLE` and `PASS45_WORLD_MATERIAL_STABLE` present;
+- `PASS12_WORLD_GEOMETRY_STABILITY_FAIL` absent;
 - no large black ground/world regions in normal gameplay;
 - ground, roads and sidewalks remain readable under the normal renderer;
 - runtime screenshot mandatory.
@@ -257,7 +277,7 @@ Current source closure in PR #94:
 - an explicit fallback remains exact-production `CONTENT GAP` and must never be relabelled production READY;
 - every accepted required-available visual must have non-placeholder authored material slots and actual used texture dependencies;
 - absent exact Remington870/M249 payload remains explicit `CONTENT GAP`; their real fallback may remain playable only if its own authored material/texture chain is valid;
-- implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` passed **38/38 GitHub source workflows**.
+- code head `9ba84273d06a6c210c808ceacbe96c45466a3d73` passed **39/39 GitHub source workflows** before documentation synchronization.
 
 Requirements for all required weapon classes:
 
@@ -360,7 +380,9 @@ Pass 45 explicitly forbids:
 18. two live mutation layers owning the same world material, landmark shell, spawn correction or production transform;
 19. an all-or-nothing 11/11 exact-production weapon gate that treats a truthful exact-payload `CONTENT GAP` as permission to hide an otherwise explicit real fallback;
 20. direct `START_HERE -> PLAYFLOW` full-test routing that bypasses the strict post-run material/dependency/evidence gates;
-21. duplicate strict production-vehicle import owners in both `START_HERE` and `CURRENT_GAMEPLAY`.
+21. duplicate strict production-vehicle import owners in both `START_HERE` and `CURRENT_GAMEPLAY`;
+22. restoring `4 lux + AutoExposure=False` or changing physical daylight lux/exposure/EV100 as unrelated independent settings;
+23. allowing strict main runtime acceptance to pass without Pass12 world-material stability evidence.
 
 ## 8. Corrective execution order — current pass
 
@@ -375,14 +397,15 @@ Pass 45 explicitly forbids:
 9. [x] Consolidate Museum ownership: R13.7 visible exterior; R13.8 hidden collision + final glass; R13.9/R14.0 final doors/facade; R14.5 sole tree owner; physically delete obsolete R14.1 window replacement.
 10. [x] Correct default mounted M2 Browning pitch direction in source; runtime input proof still required.
 11. [x] Source-retire the traced unreferenced generic house/fence owners (`AOCEnterableHouse` normal spawn, `BuildResidentialBlocks`, generic Krushelnytska house generator); **CODED_UNTESTED**, and runtime Gate E still must prove the dark tower/shack artifact is absent.
-12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support. **PR #94 source implementation + 38/38 CI are green; local UE editor import and rendered runtime remain pending, so Gate F/G are not closed.**
+12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support. **PR #94 source implementation + current source CI are green; local UE editor import and rendered runtime remain pending, so Gate F/G are not closed.**
 13. [x] Forward-port stale production/Museum/material/launcher verifiers and lock deleted/obsolete owners and exact-only/direct-launch assumptions out of current CI.
 14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform, M2 pitch and PR #94 material-closure state.
 15. [x] Full PR #91 current-head source CI green, including `Source verification`, Pass45 retirement/material/dependency gates, runtime source contracts, and historical regression suite.
 16. [x] Corrective source milestone merged to `main` only after current-head source CI was green: PR #91 -> `c4712144efede68b3d80475bec64ea9c8e400fc4`.
 17. [x] PR #93 forward-ported current R14 verifier -> `main` `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f` without claiming runtime acceptance.
-18. [x] PR #94 implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` completed **38/38 current GitHub source workflows green**; PR remains open/unmerged.
-19. [ ] Factual local `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` UE 5.8 import + build + gameplay + rendered visual acceptance.
+18. [x] PR #94 code head `9ba84273d06a6c210c808ceacbe96c45466a3d73` completed **39/39 current GitHub source workflows green** before documentation synchronization; PR remains open/unmerged.
+19. [x] Complete P0 black-world source ownership audit and pair physical daylight `120000 lux` with `AutoExposure=True` + extended EV100; add semantic MID runtime stability validation and bind it into strict main evidence. **CODED_UNTESTED**.
+20. [ ] Factual local `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` UE 5.8 import + build + gameplay + rendered visual acceptance.
 
 ## 9. Acceptance gates
 
@@ -396,8 +419,13 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 
 ### Gate B — world materials
 
+- `PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY` present;
+- `PASS12_WORLD_GEOMETRY_STABLE` present;
+- `PASS45_WORLD_MATERIAL_STABLE` present;
+- `PASS12_WORLD_GEOMETRY_STABILITY_FAIL` absent;
 - no large black ground/world corruption;
-- no silent default/failed material replacement.
+- no silent default/failed material replacement;
+- direct runtime screenshot confirms readable ground/roads/sidewalks.
 
 ### Gate C — performance/thermals
 
@@ -457,11 +485,29 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 - Pass 45 source corrections through PR #82: historical source/build progress only.
 - Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
 - Current `main`: `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f` after PR #93.
-- Active PR #94: `fix/pass45-runtime-rejection-material-closure-20260826`; material/content/strict-acceptance source closure is **CODED_UNTESTED**.
-- PR #94 implementation head `5c80fb974806cb5a871d58d7fa0e479e01f01714` completed **38/38 current GitHub source workflows green**.
-- Green source CI does not prove UE editor import, UBT compile, rendered material appearance, vehicle interaction, landmark identity, thermal behavior or tactical-map appearance.
+- Active PR #94: `fix/pass45-runtime-rejection-material-closure-20260826`; material/content/strict-acceptance/P0 black-world source closure is **CODED_UNTESTED**.
+- PR #94 code head `9ba84273d06a6c210c808ceacbe96c45466a3d73` completed **39/39 current GitHub source workflows green** before documentation synchronization.
+- P0 black-world source contract now requires physical daylight `120000 lux`, auto exposure, extended EV100 and semantic `Ground/Roads/Sidewalks` MID stability evidence in the strict main route.
+- Green source CI does not prove UE editor import, UBT compile, rendered material appearance, correct exposure on the target machine, vehicle interaction, landmark identity, thermal behavior or tactical-map appearance.
 - PR #94 remains open/unmerged pending factual local UE 5.8 acceptance.
 - Runtime verification: **NOT ACHIEVED**.
+
+### Corrective source milestone — 2026-08-26 P0 black-world ownership/exposure
+
+Current source state is **CODED_UNTESTED**:
+
+- `AOCVisualEnvironment` is component-owned and replicated; the audited current path did not reveal a second exposure owner that supersedes it after gameplay start.
+- `4 lux + AutoExposure=False` is retired from the accepted source contract.
+- current paired renderer contract is `120000 lux + AutoExposure=True + extended EV100 range`.
+- `AOCWorldSectorOster` remains the accepted semantic Ground/Roads/Sidewalks material owner.
+- Pass12 validates semantic MID + `Color` parameter and instance stability at 12/16/20 seconds.
+- `VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py` rejects restoration of `4 lux`, disabled exposure/EV100, broken semantic MID contracts and a second locally coupled world `SetMaterial` owner.
+- initial broad second-owner detector produced a false positive on `OCRuntimeAcceptancePass6Subsystem`; source inspection proved its material write is weapon-only, so the static detector was narrowed without weakening runtime semantic-material validation.
+- `VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py` makes daylight + Pass12 world material stability part of strict automated acceptance evidence.
+- `VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py` guarantees that linkage remains mandatory.
+- code head `9ba84273d06a6c210c808ceacbe96c45466a3d73`: **39/39 source workflows PASS**.
+
+None of this is rendered runtime acceptance. The next local UE 5.8 run is still required to prove the black-world defect is actually gone and the scene is neither underexposed nor blown out.
 
 ### Corrective source milestone — 2026-08-25 Museum/vehicle ownership
 
