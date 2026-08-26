@@ -91,19 +91,32 @@ if culture_path.is_file():
 separation_path = PRIVATE / "OCR146LandmarkSeparationSubsystem.cpp"
 if separation_path.is_file():
     separation = separation_path.read_text(encoding="utf-8")
+
+    # Pass 45 forward-port: this subsystem is validation-only and is scoped to the
+    # three authoritative landmark parcels it actually validates. Historical
+    # CultureParkNorth/SyntheticParkLinkMid expectations belonged to the retired
+    # synthetic north-civic geometry contract and must not be resurrected just to
+    # satisfy an old verifier.
     for token in (
         "FOCGeoReference::Museum()",
         "FOCGeoReference::Silpo()",
         "FOCGeoReference::CultureHouse()",
         'Name == TEXT("Buildings")',
         'Name == TEXT("LandmarkBlocks")',
-        "FOCGeoReference::CultureParkNorth()",
-        "SyntheticParkLinkMid",
         'ActorHasTag(TEXT("R13_CultureHousePhotoModel"))',
         'ActorHasTag(TEXT("R13_SilpoPhotoModel"))',
     ):
         if token not in separation:
             errors.append(f"R14.6 separation guard token missing: {token}")
+
+    for stale_token in (
+        "FOCGeoReference::CultureParkNorth()",
+        "SyntheticParkLinkMid",
+    ):
+        if stale_token in separation:
+            errors.append(
+                f"R14.6 separation guard resurrected retired synthetic north-civic token: {stale_token}"
+            )
 
 launcher_path = ROOT / "START_HERE.cmd"
 if launcher_path.is_file():
@@ -138,4 +151,4 @@ print("R14 MAIN LOCATION OWNERSHIP: PASS")
 print("Museum, Silpo, Culture House and Stadium are bound to separate current-main site owners.")
 print("Culture House uses Hranovskoho 3 and cannot inherit Museum/Silpo coordinates.")
 print("START_HERE.cmd is the single user entry point with normal/full runtime routes on the D3D11 safe renderer.")
-print("Legacy R13 Silpo/Culture House photo-model owners are absent and synthetic north-civic map geometry is guarded.")
+print("Legacy R13 mixed-location owners are absent; the R14.6 separation validator no longer depends on retired synthetic north-civic geometry.")
