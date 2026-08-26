@@ -112,6 +112,7 @@ forbid(env, 'SetDynamicShadowDistanceMovableLight(30000.0f)', "old 300 m movable
 for needle in (
     'UOCPerformanceSampleSubsystem : public UTickableWorldSubsystem',
     'WarmupSeconds', 'SampleSeconds', 'WorstFrameSeconds',
+    'bRecoveryRuntimeContractLogged', 'ValidatePass45RecoveryRuntimeContract',
 ):
     require(perf_h, needle, "performance sampler header")
 for needle in (
@@ -120,11 +121,27 @@ for needle in (
 ):
     require(perf, needle, "performance sampler compatibility")
 
+# Gate C/H: the launcher request is insufficient. Once a real gameplay pawn is possessed, UE itself must read
+# the live t.MaxFPS CVar and live GameViewportClient fullscreen state and emit fail-visible evidence.
+for needle in (
+    '#include "HAL/IConsoleManager.h"', '#include "Engine/GameViewportClient.h"',
+    'FindConsoleVariable(TEXT("t.MaxFPS"))', 'MaxFpsVariable->GetFloat()',
+    'FMath::IsNearlyEqual(RuntimeMaxFps, 60.0f, 0.5f)',
+    'ViewportClient->IsFullScreenViewport()',
+    'PASS45_THERMAL_CAP_RUNTIME_READY', 'PASS45_THERMAL_CAP_RUNTIME_FAIL',
+    'PASS45_FULLSCREEN_RUNTIME_READY', 'PASS45_FULLSCREEN_RUNTIME_FAIL',
+    'ValidatePass45RecoveryRuntimeContract();',
+):
+    require(perf, needle, "Pass45 live thermal/display runtime contract")
+
 for needle in ('set "RECOVERY_PROJECT_DIR=%~dp0."', '-ProjectDir "%RECOVERY_PROJECT_DIR%"'):
     require(importer, needle, "production source recovery path")
 
 for needle in ('call "%PRODUCTION_IMPORT%"', 'if errorlevel 1 (', 'exit /b 20'):
     require(main_launcher, needle, "production importer fail-closed launcher")
+for needle in ('-fullscreen', 't.MaxFPS 60'):
+    require(main_launcher, needle, "Pass45 recovery display/thermal request")
+forbid(main_launcher, '-windowed', "normal route must not force windowed mode")
 
 runtime_markers = [
     'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS14_HOST_TRAVEL_BEGIN',
@@ -145,4 +162,5 @@ else:
     print("- explicit server setup and Deployment ownership remain intact")
 print("- foliage remains bounded/incremental while later passes may reduce its cost further")
 print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
+print("- Pass45 Gate C/H now distinguishes launcher request from live UE t.MaxFPS/fullscreen viewport evidence")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime acceptance still required")
