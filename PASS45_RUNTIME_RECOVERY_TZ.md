@@ -407,6 +407,24 @@ Acceptance:
 
 ## 10. P0 — Museum / Culture House / Silpo ownership and identity
 
+### Current corrective source state — 2026-08-26 — SOURCE-CODED / RUNTIME UNTESTED
+
+Source audit and the new fail-visible contract now prove the intended identity ownership without pretending that source geometry is the same thing as visual acceptance:
+
+- R13.7 is the sole Museum exterior identity owner, rooted through the canonical Museum geo anchor, and its source signature contains no Culture-House six-column civic facade;
+- R14.6 is the sole six-column Culture House identity owner and is rooted at the separate canonical `FOCGeoReference::CultureHouse()` site;
+- R14.0 owns the Silpo shell at the canonical Silpo anchor;
+- R14.3 owns the visible Silpo facade identity/sign at that same Silpo anchor, including the explicit `Сільпо` text stage;
+- one startup coordinator cancels historical delayed landmark timers and runs the current Museum, Silpo and Culture stages inside one bounded startup sequence;
+- `OCR146LandmarkSeparationSubsystem` remains `mutation=0`: it rejects cross-parcel Museum/Culture/Silpo shell ownership instead of moving, destroying or respawning buildings to manufacture a pass;
+- the strict runtime evidence gate now additionally requires the factual `R14.3 Silpo facade identity pass built at` marker, so an unbranded R14.0 shell can no longer false-pass as completed Silpo identity;
+- the focused `RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd` route requires the same facade/sign stage;
+- source guard: `VERIFY_PASS45_LANDMARK_IDENTITY.py`;
+- dedicated workflow: `.github/workflows/pass45-landmark-identity.yml`;
+- cumulative `RUN_ALL_VERIFY.py` includes the landmark identity guard.
+
+This is **source ownership/identity closure only**. Museum, Silpo and Culture House still contain substantial procedural/BasicShape construction in their current authored source, so Gate K can still reject their visual quality even when ownership and site identity are structurally correct. Local UE 5.8 screenshots remain authoritative.
+
 Requirements:
 
 - Museum and Culture House are separate visible buildings at separate canonical sites;
@@ -415,6 +433,14 @@ Requirements:
 - late validators/details may not replace/relocate authoritative shells;
 - Silpo identity/sign belongs only to canonical Silpo site;
 - each landmark needs separate runtime identity and screenshot evidence.
+
+Acceptance:
+
+- Museum screenshot visibly reads as the Museum/Solonyna-house reference and contains no six-column civic facade;
+- Culture House screenshot visibly reads as the separate civic building at its own site;
+- Silpo screenshot visibly shows the store shell and readable `Сільпо` facade identity at the canonical Silpo site;
+- automated log evidence contains all separation/identity READY markers plus the R14.3 facade identity stage;
+- automated structural acceptance cannot substitute for direct visual/photo-fidelity inspection.
 
 ## 11. P0 — vegetation replacement
 
@@ -495,16 +521,18 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS/audio/primitive/grenade-smoke/throw-semantics pass
+## 22. Current source implementation milestone — 2026-08-26 weapon/ordnance + landmark identity continuation
 
-State: **SOURCE VERIFIED / CODED_UNTESTED IN LOCAL UE / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / PREVIOUS SOURCE MILESTONE VERIFIED / CURRENT-HEAD CI REVALIDATION PENDING / CODED_UNTESTED IN LOCAL UE / NOT RUNTIME ACCEPTED**.
 
-Current-head CI truth after the grenade throw-semantics closure:
+Previous verified source milestone:
 
 - source head `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` completed `Source verification` **SUCCESS**;
-- dedicated `Pass 45 grenade smoke primitive retirement` completed **SUCCESS** on the same head;
-- all workflow runs returned for that current head completed **SUCCESS**;
-- this proves source-contract consistency only. It does not override the factual `RUNTIME REJECTED 2026-08-26` verdict or replace local UE 5.8 compile/gameplay/direct screenshot acceptance.
+- dedicated `Pass 45 grenade smoke primitive retirement` completed **SUCCESS** on that same historical source milestone;
+- all workflow runs returned for that milestone completed **SUCCESS**;
+- newer landmark identity guard/runtime-gate commits are later than that source milestone, therefore those earlier green checks must not be mislabelled as current-head proof;
+- current-head CI must be re-read after the landmark continuation settles;
+- no source CI result overrides the factual `RUNTIME REJECTED 2026-08-26` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
 Implemented:
 
@@ -540,11 +568,15 @@ Implemented:
 - grenade inventory commit occurs only after factual projectile creation; blocked/failed spawn consumes zero inventory;
 - successful grenade throw inherits character velocity and emits `GrenadeThrow` presentation event without a second gameplay timer;
 - strict runtime evidence now requires a factual successful grenade throw marker and forbids safe-spawn/spawn failures in the valid acceptance throw;
-- grenade/smoke/throw-semantics guard is included in dedicated workflow and cumulative source verification;
-- source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration, silent-profile acceptance and visible primitive weapon/grenade/smoke fallbacks;
-- cumulative `RUN_ALL_VERIFY.py` includes weapon firing, action, ADS, audio-fallback, primitive-retirement and grenade/smoke guards.
+- Museum source identity is guarded against six-column Culture-House contamination;
+- Culture House is guarded as the sole six-column civic owner at its separate canonical geo anchor;
+- R14.0 Silpo shell and R14.3 visible `Сільпо` facade identity are guarded to the same canonical Silpo site;
+- strict runtime evidence and the focused landmark launcher now require the factual R14.3 Silpo facade/sign stage;
+- `VERIFY_PASS45_LANDMARK_IDENTITY.py` plus `.github/workflows/pass45-landmark-identity.yml` guard the landmark source/acceptance contract;
+- cumulative `RUN_ALL_VERIFY.py` includes weapon, ordnance and landmark identity guards;
+- source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration, silent-profile acceptance, visible primitive weapon/grenade/smoke fallbacks and landmark identity false-pass paths.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation and authored smoke VFX.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, authored smoke VFX, Museum/Culture/Silpo direct visual identity, Silpo sign readability and landmark photo fidelity.
 
 ## 23. Corrective execution order
 
@@ -574,7 +606,7 @@ Completed/source-coded items are marked only for source work, not runtime accept
 22. [x] Source-retire primitive grenade/smoke visuals: use tracked R13 grenade mesh fail-closed; physically remove fake smoke spheres; add dedicated guard/workflow. **Rendered grenade acceptance and real smoke VFX remain pending.**
 23. [x] Correct grenade source throw semantics: safe swept/overlap-checked origin, `DontSpawnIfColliding`, inventory commit only after successful spawn, inherited movement velocity, explicit `GrenadeThrow` presentation event and strict runtime marker requirement. **Local UE behavior/animation acceptance remains pending.**
 24. [ ] Author/accept first-person grenade hand/throw/recover animation, distinct frag/smoke/flash presentation and real smoke VFX. **Repository authored smoke/Niagara content is currently not proven present, so no fake source READY is allowed.**
-25. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
+25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence: Museum has no six-column signature, Culture House owns the six-column facade at its separate geo anchor, and R14.3 Silpo facade/sign stage is mandatory. **Rendered identity/fidelity acceptance remains pending.**
 26. [ ] Replace rejected vegetation family.
 27. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
 28. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
@@ -601,7 +633,7 @@ real accepted visual/material/texture chain; `PASS45_PRIMITIVE_WEAPON_RUNTIME_RE
 factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; exact per-weapon ADS alignment accepted; no temporary generic audio fallback remains on a final accepted weapon; drop physics; no primitive grenade/smoke geometry; factual `PASS45_GRENADE_THROW_COMMIT_READY`; blocked/failed grenade spawn consumes zero inventory; safe swept/overlap-checked throw origin; accepted authored throw animation; accepted type-specific grenade presentation and authored smoke VFX.
 
 ### Gate E — landmarks/environment
-Museum/Culture/Silpo separated and identified; rejected residential/tree families absent; Gate K passes.
+Museum/Culture/Silpo separated and identified; R14.3 Silpo facade/sign stage present; rejected residential/tree families absent; direct landmark screenshots accepted; Gate K passes.
 
 ### Gate F — HMMWV/M2
 forward axis; >=80 km/h; proportional body; coherent ring/shield/gunner; 360° yaw; correct elevation/view; no inverted aim/drift.
@@ -627,4 +659,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback/primitive-retirement/grenade-smoke-primitive-retirement/grenade-throw-semantics corrections are **SOURCE VERIFIED / CODED_UNTESTED IN LOCAL UE**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw corrections plus Museum/Culture House/Silpo source identity ownership and branded Silpo evidence gate are **SOURCE-CODED / CODED_UNTESTED IN LOCAL UE**. The earlier source milestone was green, but current-head CI is revalidated separately after the newer landmark commits. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
