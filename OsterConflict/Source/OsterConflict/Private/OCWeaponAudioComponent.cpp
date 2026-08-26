@@ -2,6 +2,7 @@
 
 #include "OCCharacter.h"
 #include "OCAudioUserSettings.h"
+#include "OCWeaponBase.h"
 #include "OCWeaponAudioProfile.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
@@ -193,8 +194,16 @@ void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const F
 
 void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, const FVector& SourceLocation, int32 EventSeed)
 {
-    if (!AudioProfile || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+    if (!GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
     {
+        return;
+    }
+    if (!AudioProfile)
+    {
+        if (Event == EOCWeaponAudioEvent::ManualActionCycle)
+        {
+            EmitDebugEvent(TEXT("MANUAL ACTION(no profile)"), SourceLocation);
+        }
         return;
     }
 
@@ -206,6 +215,19 @@ void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, c
         case EOCWeaponAudioEvent::ReloadCancel: Set = &AudioProfile->ReloadCancel; break;
         case EOCWeaponAudioEvent::DryFire: Set = &AudioProfile->DryFire; break;
         case EOCWeaponAudioEvent::FireModeSwitch: Set = &AudioProfile->FireModeSwitch; break;
+        case EOCWeaponAudioEvent::ManualActionCycle:
+        {
+            const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(GetOwner());
+            if (!Weapon) break;
+            switch (Weapon->GetWeaponActionType())
+            {
+                case EOCWeaponActionType::BoltAction: Set = &AudioProfile->BoltCycle; break;
+                case EOCWeaponActionType::PumpAction: Set = &AudioProfile->PumpCycle; break;
+                case EOCWeaponActionType::LeverAction: Set = &AudioProfile->LeverCycle; break;
+                default: break;
+            }
+            break;
+        }
         case EOCWeaponAudioEvent::Equip: Set = &AudioProfile->Equip; break;
         case EOCWeaponAudioEvent::Drop: Set = &AudioProfile->Drop; break;
         default: break;
@@ -213,6 +235,11 @@ void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, c
     if (!Set)
     {
         return;
+    }
+
+    if (Event == EOCWeaponAudioEvent::ManualActionCycle && Set->IsEmpty())
+    {
+        EmitDebugEvent(TEXT("MANUAL ACTION(content gap)"), SourceLocation);
     }
 
     USoundBase* Sound = Pick(*Set, EventSeed);
