@@ -51,6 +51,14 @@ def main() -> int:
     require(gameplay, "PASS45_WORLD_MATERIAL_STABLE", errors, "semantic world material stability")
     forbid(gameplay, "PASS12_WORLD_GEOMETRY_STABILITY_FAIL", errors, "world geometry/material stability failure")
 
+    # Gate D identity must prove the authoritative civic six-column shell is at Culture House, not Museum.
+    # This closes the old gap where generic parcel validation could pass while an authoritative landmark actor
+    # occupied the wrong landmark site.
+    require(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_READY", errors, "generic landmark parcel separation")
+    require(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_READY", errors, "Museum/Culture House identity separation")
+    forbid(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL", errors, "generic landmark parcel separation failure")
+    forbid(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL", errors, "Museum/Culture House identity failure")
+
     # Baseline deployment must occur once for the character and must not revive the vehicle-possession teleport bug.
     require(gameplay, "PASS7_MUSEUM_BASES_READY", errors, "Museum BASE readiness")
     require_any(
@@ -132,6 +140,7 @@ def main() -> int:
         "VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION\n"
         f"SOURCE_SHA={source_sha}\n"
         "BLACK_WORLD_AUTOMATED_CONTRACT=PASS\n"
+        "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
         "BASE_INITIAL_ONLY=PASS\n"
         "DRIVER_ENTER_EXIT_TRANSFORM=PASS\n"
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
@@ -143,6 +152,7 @@ def main() -> int:
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- physical daylight started and semantic Ground/Roads/Sidewalks materials stayed stable through Pass12 samples")
+    print("- Museum and Culture House authoritative owners remained distinct; the six-column civic identity stayed on the Culture House parcel")
     print("- initial BASE deployment is character-only and no recovery failure was logged")
     print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
     print("- authored HMMWV/M2/BTR materials passed")
