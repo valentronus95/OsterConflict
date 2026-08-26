@@ -89,13 +89,16 @@ for marker in (
 ):
     req(marker in evidence, f"Pass45 black-world evidence verifier missing marker/contract: {marker}")
 
-# Gate D Museum/Culture identity is also part of strict evidence.
+# Gate D must prove Museum, current R14.0 Silpo and Culture House are distinct authoritative identities.
 for marker in (
     "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
     "PASS45_LANDMARK_IDENTITY_VALIDATION_READY",
+    "PASS45_SILPO_IDENTITY_VALIDATION_READY",
     "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
     "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL",
+    "PASS45_SILPO_IDENTITY_VALIDATION_FAIL",
     "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS",
+    "SILPO_IDENTITY_AUTOMATED_CONTRACT=PASS",
 ):
     req(marker in evidence, f"Pass45 landmark identity evidence verifier missing marker/contract: {marker}")
 
@@ -170,7 +173,7 @@ print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
 print("- START_HERE full test -> strict main wrapper -> playflow/performance -> one canonical gameplay process")
 print("- production vehicle import is not duplicated by START_HERE strict preparation")
 print("- P0 black-world automated evidence requires physical daylight plus stable semantic world materials")
-print("- Gate D automated evidence requires distinct Museum/Culture House authoritative identities and rejects cross-parcel placement")
+print("- Gate D automated evidence requires distinct Museum/R14.0 Silpo/Culture House authoritative identities and rejects cross-parcel placement")
 print("- Gate E automated evidence requires zero generic residential/private-fence instances and zero rejected village/tower/shack presentation")
 print("- Gate C/H automated evidence requires actual UE t.MaxFPS=60 and a live fullscreen viewport after possession")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
