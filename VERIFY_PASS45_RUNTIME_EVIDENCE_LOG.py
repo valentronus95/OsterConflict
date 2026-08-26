@@ -57,6 +57,11 @@ def main() -> int:
     forbid(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL", errors, "generic landmark parcel separation failure")
     forbid(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL", errors, "Museum/Culture House identity failure")
 
+    # Gate E must prove the final gameplay world did not resurrect retired procedural residences/fences or the
+    # rejected generic/tower/shack presentation through another actor, mesh, or late startup owner.
+    require(gameplay, "PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_READY", errors, "reference-driven residential runtime")
+    forbid(gameplay, "PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_FAIL", errors, "generic residential/tower runtime failure")
+
     # Gate C/H must be actual UE state, not launcher intent. The sampler reads t.MaxFPS after possession and
     # asks the live GameViewportClient whether the viewport is fullscreen.
     require(gameplay, "PASS45_THERMAL_CAP_RUNTIME_READY", errors, "runtime 60 FPS recovery cap")
@@ -143,6 +148,7 @@ def main() -> int:
         f"SOURCE_SHA={source_sha}\n"
         "BLACK_WORLD_AUTOMATED_CONTRACT=PASS\n"
         "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
+        "REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_CONTRACT=PASS\n"
         "THERMAL_CAP_RUNTIME_CONTRACT=PASS\n"
         "FULLSCREEN_RUNTIME_CONTRACT=PASS\n"
         "BASE_INITIAL_ONLY=PASS\n"
@@ -157,6 +163,7 @@ def main() -> int:
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- physical daylight started and semantic Ground/Roads/Sidewalks materials stayed stable through Pass12 samples")
     print("- Museum and Culture House authoritative owners remained distinct")
+    print("- generic residential/private-fence instances and rejected village/tower/shack presentation were absent after startup")
     print("- UE reported the 60 FPS recovery cap and a live fullscreen viewport after gameplay possession")
     print("- initial BASE deployment is character-only and no recovery failure was logged")
     print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
