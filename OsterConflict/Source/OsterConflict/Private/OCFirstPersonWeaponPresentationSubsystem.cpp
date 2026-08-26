@@ -2,6 +2,7 @@
 
 #include "OCCharacter.h"
 #include "OCGameMode.h"
+#include "OCWeaponAudioComponent.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponPresentationProfiles.h"
 
@@ -140,6 +141,8 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
 
     State.bWeaponAnimationActive = false;
     State.bRiflePoseApplied = false;
+    State.bWasActionCycling = false;
+    State.ActionCycleStartTime = 0.0;
     State.RecoilAlpha = 0.0f;
 }
 
@@ -217,6 +220,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.Weapon = Weapon;
         State.LastAmmo = Weapon->GetAmmoInMagazine();
         State.bWasReloading = Weapon->IsReloading();
+        State.bWasActionCycling = false;
         State.ReloadStartTime = Now;
 
         State.BaseWeaponLocation = Profile.CameraLocation;
@@ -311,6 +315,26 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.bWeaponAnimationActive = false;
     }
 
+    const bool bActionCycling = Weapon->IsActionCycling();
+    if (bActionCycling && !State.bWasActionCycling)
+    {
+        State.ActionCycleStartTime = Now;
+        const EOCWeaponActionType ActionType = Weapon->GetWeaponActionType();
+        if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())
+        {
+            const int32 EventSeed = CurrentAmmo * 31 + static_cast<int32>(ActionType) * 101;
+            Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);
+        }
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_MANUAL_ACTION_PRESENTATION_READY weapon=%s action=%s cue_declared=%d replicated_gate=1 second_gameplay_timer=0"),
+            *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), Profile.bManualActionCueDeclared ? 1 : 0);
+    }
+    else if (!bActionCycling && State.bWasActionCycling)
+    {
+        State.ActionCycleStartTime = 0.0;
+    }
+    State.bWasActionCycling = bActionCycling;
+
     State.RecoilAlpha = FMath::FInterpTo(State.RecoilAlpha, 0.0f, DeltaTime, 19.0f);
 
     FVector WeaponLocation = State.BaseWeaponLocation;
@@ -340,6 +364,17 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         WeaponRotation += Profile.ReloadWeaponRotation * Arc;
         ArmsLocation += Profile.ReloadArmsLocation * Arc;
         ArmsRotation += Profile.ReloadArmsRotation * Arc;
+    }
+
+    if (bActionCycling && Profile.bManualActionCueDeclared)
+    {
+        const float Duration = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
+        const float Alpha = FMath::Clamp(static_cast<float>((Now - State.ActionCycleStartTime) / Duration), 0.0f, 1.0f);
+        const float Arc = FMath::Sin(Alpha * PI);
+        WeaponLocation += Profile.ManualActionWeaponLocation * Arc;
+        WeaponRotation += Profile.ManualActionWeaponRotation * Arc;
+        ArmsLocation += Profile.ManualActionArmsLocation * Arc;
+        ArmsRotation += Profile.ManualActionArmsRotation * Arc;
     }
 
     Weapon->SetActorRelativeLocation(WeaponLocation);
