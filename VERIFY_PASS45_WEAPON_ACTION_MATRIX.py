@@ -226,7 +226,9 @@ for needle in (
 ):
     req(needle in profiles_cpp, f"manual-action profile declaration missing: {needle}")
 
-# Mechanical audio is routed by exact action type. Empty arrays remain an explicit content gap, not fake READY.
+# Mechanical audio is routed by exact action type through whichever event-local profile was selected.
+# The implementation now permits an authored profile first and a repository fallback second, so the verifier
+# must inspect the resolved Profile object rather than requiring the obsolete AudioProfile member spelling.
 req("ManualActionCycle" in audio_types, "manual-action audio event enum missing")
 for needle in ("BoltCycle", "PumpCycle", "LeverCycle"):
     req(needle in audio_profile, f"manual-action audio profile slot missing: {needle}")
@@ -236,9 +238,9 @@ for needle in (
     "EOCWeaponActionType::BoltAction",
     "EOCWeaponActionType::PumpAction",
     "EOCWeaponActionType::LeverAction",
-    "AudioProfile->BoltCycle",
-    "AudioProfile->PumpCycle",
-    "AudioProfile->LeverCycle",
+    "Profile->BoltCycle",
+    "Profile->PumpCycle",
+    "Profile->LeverCycle",
     "MANUAL ACTION(content gap)",
 ):
     req(needle in audio_component, f"manual-action audio routing missing: {needle}")
@@ -274,5 +276,5 @@ print("- supported selector positions are exposed and cycled from weapon tuning 
 print("- Burst3 owns an authoritative finite sequence, but no current production weapon falsely enables it")
 print("- M700/Remington870/LeverAction own explicit replicated post-shot cycle gates instead of low-RPM-only approximation")
 print("- first-person manual-action cues consume the replicated gate and add no second gameplay timer")
-print("- bolt/pump/lever mechanical audio routes are explicit; empty authored sound sets stay visible as content gaps")
+print("- bolt/pump/lever mechanical audio routes are explicit through the selected event profile; empty authored sound sets stay visible as content gaps")
 print("STATUS: ACTION STATE/TIMING/PRESENTATION/AUDIO ROUTING SOURCE-CODED; authored action animation/audio content and local UE 5.8 runtime remain pending")
