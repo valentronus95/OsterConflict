@@ -164,8 +164,15 @@ req(release_start >= 0 and release_end > release_start and
     "ClearTimer(ServerFireTimerHandle)" in character_cpp[release_start:release_end],
     "trigger release no longer preserves an already accepted finite Burst3 sequence")
 
-req("RUNTIME REJECTED 2026-08-26" in tz,
-    "canonical Pass45 TZ lost the latest factual runtime rejection")
+for tz_needle in (
+    "Physically retire legacy Character `LocalFireFeedbackTimerHandle`",
+    "finite Burst3 sequencing",
+    "ManualActionCycleSeconds",
+    "replicated `bActionCycling`",
+    "PASS45_MANUAL_ACTION_CYCLE_READY",
+    "RUNTIME REJECTED 2026-08-26",
+):
+    req(tz_needle in tz, f"canonical Pass45 TZ lost current weapon-action status: {tz_needle}")
 
 if errors:
     print("PASS45 WEAPON ACTION MATRIX: FAIL")
