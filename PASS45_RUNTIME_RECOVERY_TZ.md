@@ -155,7 +155,7 @@ Acceptance:
 
 ### Current corrective source state — 2026-08-26 — CODED_UNTESTED
 
-The old Semi/Auto-only abstraction has been replaced at source level with separate selector capability and mechanical-action metadata.
+The old Semi/Auto-only abstraction has been replaced at source level with separate selector capability, mechanical-action metadata and an authoritative manual-cycle gate.
 
 Implemented model distinguishes:
 
@@ -188,12 +188,24 @@ Selector rules now enforced in source:
 - sprint/reload/equip/drop/death use the hard fire-stop path and clear pending burst state;
 - source marker: `PASS45_BURST3_SEQUENCE_READY authoritative=1 finite_shots=3 release_cancel=0`.
 
+Manual-action source gate now exists independently of low RPM:
+
+- `FOCWeaponTuning::ManualActionCycleSeconds` is explicit action timing rather than an implicit fire-rate trick;
+- M700 bolt cycle = `1.10 s` game tuning;
+- Remington 870 pump cycle = `0.72 s` game tuning;
+- Lever Action .45-70 cycle = `0.85 s` game tuning;
+- `bActionCycling` is replicated so presentation/HUD may observe server truth without owning the timer;
+- a shot from Bolt/Pump/Lever starts the authoritative action cycle;
+- another shot, reload or selector mutation is rejected while the cycle is active;
+- completion clears the replicated gate and re-enables legal actions;
+- source marker: `PASS45_MANUAL_ACTION_CYCLE_READY ... authoritative=1`.
+
 Still pending:
 
 - HUD must clearly display current fire mode/action state;
 - no current weapon may be declared Burst3-capable until its exact modeled selector is factually accepted;
-- bolt/pump/lever cycle time must become real post-shot weapon action state/presentation, not merely a low-RPM approximation;
-- action-specific animation/audio timing remains runtime-unverified.
+- bolt/pump/lever **visual animation and action-specific mechanical audio** must be driven from replicated `bActionCycling` rather than inventing a second timer;
+- cycle timing and feel remain runtime-unverified.
 
 External factual references for MP5/M14/MAC-10/TEC-9/M700/870/M249 are preserved in the 2026-08-26 evidence README. The game configuration must follow the exact modeled variant, not a broad family label.
 
@@ -205,7 +217,7 @@ Source guard:
 
 `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
 
-Runtime acceptance additionally requires deliberate tests for Semi, Auto and any exact Burst3-capable weapon eventually enabled, plus observable bolt/pump/lever cycle behavior for manual-action weapons.
+Runtime acceptance additionally requires deliberate tests for Semi, Auto and any exact Burst3-capable weapon eventually enabled, plus observable bolt/pump/lever cycle animation/audio for manual-action weapons.
 
 ## 5. P0 — ADS / sight alignment
 
@@ -597,8 +609,10 @@ Implemented on PR #94 after the latest screenshot rejection:
 - data-driven Semi/Burst3/Automatic selector API;
 - explicit mechanical action metadata for current weapon variants;
 - finite authoritative Burst3 sequence architecture with no current weapon falsely opting in;
-- `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py` updated to reject resurrection of the retired local-feedback owner;
-- `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py` updated to require the finite Burst3 sequence contract;
+- explicit authoritative M700/Remington870/LeverAction post-shot cycle state and timings;
+- replicated `bActionCycling` now owns manual-action shot/reload/selector gating;
+- `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py` rejects resurrection of the retired local-feedback owner;
+- `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py` requires finite Burst3 plus manual-action cycle contracts;
 - both guards remain in cumulative `RUN_ALL_VERIFY.py`;
 - dedicated `.github/workflows/pass45-weapon-firing-physics.yml` remains active.
 
@@ -611,7 +625,8 @@ This does **not** close the P0 weapon gate. Local UE 5.8 must still prove:
 - recoil/recovery direction feels correct and has no downward release drift;
 - camera shake occurs exactly once per accepted shot;
 - finite burst behavior is correct when an exact accepted Burst3-capable variant is eventually enabled;
-- bolt/pump/lever post-shot action state and presentation are still missing;
+- bolt/pump/lever cycle timing is correct and cannot be bypassed;
+- bolt/pump/lever animation and mechanical audio presentation are still missing;
 - launcher visual is actually production mesh in first person;
 - shot audio assets exist and are audible.
 
@@ -633,7 +648,7 @@ Completed/source-coded items are marked only for source work, not runtime accept
 12. [x] Add source verifier/workflow for firing/muzzle/drop contracts.
 13. [x] Physically retire legacy Character `LocalFireFeedbackTimerHandle` and duplicate local recoil/recovery owner.
 14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
-15. [ ] Implement manual bolt/pump/lever post-shot action state, cycle timing and presentation.
+15. [ ] Complete manual bolt/pump/lever presentation and action-specific audio; authoritative state/timing gate is already source-coded.
 16. [ ] Build per-weapon ADS/sight profiles and validation.
 17. [ ] Close all silent weapon audio-profile gaps.
 18. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
@@ -685,7 +700,8 @@ Pass 45 cannot become `VERIFIED RUNTIME` until every applicable gate below passe
 - no release downward kick;
 - selector exposes only modes supported by the exact weapon;
 - any accepted Burst3 weapon produces a deterministic finite three-shot sequence without stacking or accidental truncation;
-- bolt/pump/lever actions visibly and temporally cycle before the next legal shot;
+- bolt/pump/lever server action gate prevents the next legal shot/reload/selector mutation until cycle completion;
+- bolt/pump/lever cycle is visibly animated and has action-specific mechanical audio;
 - ADS alignment correct;
 - dropped weapon physics passes;
 - grenade/smoke presentation passes.
