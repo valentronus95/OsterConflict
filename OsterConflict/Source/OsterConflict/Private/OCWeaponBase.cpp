@@ -55,14 +55,21 @@ AOCWeaponBase::AOCWeaponBase()
     bReplicates = true;
     SetReplicateMovement(false);
 
-    WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
-    SetRootComponent(WeaponRoot);
-
+    // Pass45 runtime evidence proved that dropped weapons cannot use a non-physical SceneComponent root:
+    // simulating only the hidden child mesh leaves the rendered production visual floating. Make the existing
+    // source/collision mesh the actor physics root and keep WeaponRoot as an absolute-scale visual attach point.
     WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-    WeaponMesh->SetupAttachment(WeaponRoot);
+    SetRootComponent(WeaponMesh);
+
+    WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
+    WeaponRoot->SetupAttachment(WeaponMesh);
+    WeaponRoot->SetAbsolute(false, false, true);
 
     WeaponAudioComponent = CreateDefaultSubobject<UOCWeaponAudioComponent>(TEXT("WeaponAudio"));
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponMesh->SetEnableGravity(true);
+    WeaponMesh->SetLinearDamping(0.55f);
+    WeaponMesh->SetAngularDamping(1.10f);
     WeaponMesh->SetRelativeScale3D(FVector(0.35f, 0.08f, 0.08f));
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -361,9 +368,12 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
     --AmmoInMagazine;
 
     const FVector SafeDirection = TraceDirection.GetSafeNormal();
+    const FVector PresentationMuzzleOrigin = ResolvePresentationMuzzleOrigin(TraceOrigin, SafeDirection);
     const float SpreadRadians = FMath::DegreesToRadians(CalculateSpreadDegrees(bAiming, bMoving));
     const int32 PelletCount = FMath::Clamp(Tuning.PelletsPerShot, 1, 16);
 
+    // Aim/hit authority remains the view ray so close cover and crosshair semantics do not regress. Presentation
+    // is reconciled to the production muzzle below, preventing tracers/flash/audio from appearing under the barrel.
     FVector RepresentativeTraceEnd = TraceOrigin + SafeDirection * Tuning.RangeCm;
     bool bRepresentativeHit = false;
 
@@ -424,10 +434,11 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
         }
     }
 
-    MulticastFireTraceFX(TraceOrigin, RepresentativeTraceEnd, bRepresentativeHit);
+    MulticastFireTraceFX(PresentationMuzzleOrigin, RepresentativeTraceEnd, bRepresentativeHit);
     const EOCAcousticEnvironment AcousticEnvironment = WeaponAudioComponent
-        ? WeaponAudioComponent->DetectEnvironmentAt(TraceOrigin) : EOCAcousticEnvironment::Outdoor;
-    MulticastShotAudio(TraceOrigin, RepresentativeTraceEnd, IsSuppressed(), Tuning.bSupersonicAmmo, AcousticEnvironment, ++ServerAudioEventCounter);
+        ? WeaponAudioComponent->DetectEnvironmentAt(PresentationMuzzleOrigin) : EOCAcousticEnvironment::Outdoor;
+    MulticastShotAudio(PresentationMuzzleOrigin, RepresentativeTraceEnd, IsSuppressed(), Tuning.bSupersonicAmmo,
+        AcousticEnvironment, ++ServerAudioEventCounter);
     if (bRepresentativeHit)
     {
         MulticastImpactFX(OutHit.ImpactPoint, OutHit.ImpactNormal.GetSafeNormal(), ResolveImpactSurface(OutHit));
@@ -509,6 +520,8 @@ void AOCWeaponBase::EquipToCharacterServer(AOCCharacter* NewOwnerCharacter)
     SetInstigator(NewOwnerCharacter);
     SetReplicateMovement(false);
     WeaponMesh->SetSimulatePhysics(false);
+    WeaponMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    WeaponMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     ForceNetUpdate();
     MulticastWeaponStateAudio(EOCWeaponAudioEvent::Equip, GetActorLocation(), ++ServerAudioEventCounter);
@@ -526,6 +539,7 @@ void AOCWeaponBase::DropToWorldServer(const FVector& DropLocation, const FRotato
         return;
     }
 
+    const FVector InheritedVelocity = GetOwner() ? GetOwner()->GetVelocity() : FVector::ZeroVector;
     CancelReloadServer();
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     SetOwner(nullptr);
@@ -534,6 +548,19 @@ void AOCWeaponBase::DropToWorldServer(const FVector& DropLocation, const FRotato
     bIsWorldPickup = true;
     SetReplicateMovement(true);
     ApplyWorldPickupPresentation();
+
+    // Only a deliberate player drop becomes a simulated rigid body. Static/rack world pickups keep their authored
+    // placement, while dropped weapons now actually fall, collide, settle and sleep instead of hovering in mid-air.
+    if (WeaponMesh)
+    {
+        WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        WeaponMesh->SetSimulatePhysics(true);
+        WeaponMesh->SetEnableGravity(true);
+        WeaponMesh->SetPhysicsLinearVelocity(InheritedVelocity);
+        WeaponMesh->SetPhysicsAngularVelocityInDegrees(FVector(0.0f, 0.0f, 28.0f));
+        WeaponMesh->WakeAllRigidBodies();
+    }
+
     ForceNetUpdate();
     MulticastWeaponStateAudio(EOCWeaponAudioEvent::Drop, GetActorLocation(), ++ServerAudioEventCounter);
 }
@@ -618,13 +645,19 @@ void AOCWeaponBase::ApplyWorldPickupPresentation()
     if (bIsWorldPickup)
     {
         SetActorHiddenInGame(false);
-        WeaponMesh->SetSimulatePhysics(false);
+        // Rack/static pickups are intentionally not simulated here. DropToWorldServer enables authority physics
+        // only for a weapon that has actually been dropped by a character.
+        if (!HasAuthority())
+        {
+            WeaponMesh->SetSimulatePhysics(false);
+        }
         WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         WeaponMesh->SetCollisionResponseToAllChannels(ECR_Block);
         WeaponMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
     }
     else
     {
+        WeaponMesh->SetSimulatePhysics(false);
         WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
 }
@@ -719,4 +752,3 @@ void AOCWeaponBase::MulticastImpactFX_Implementation(FVector_NetQuantize ImpactL
         Impact->ConfigureImpact(FVector(ImpactLocation), FVector(ImpactNormal), ImpactColor, Radius);
     }
 }
-
