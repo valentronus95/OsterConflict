@@ -23,6 +23,7 @@ echo   5. Museum має бути одним R13.7 visible exterior; R13.8 не �
 echo   6. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
 echo   7. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
 echo   8. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
+echo      Exact production payload gap дозволений лише з explicit real-mesh fallback; fallback не є production READY.
 echo   9. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
 echo  10. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
 echo  11. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
@@ -67,6 +68,7 @@ for %%M in (
     PASS30_MUSEUM_WINDOW_FRAME_CLEAN_READY
     PASS37_MUSEUM_VISIBLE_BASES_READY
     PASS42_BASE_RACK_GROUNDED_READY
+    PASS45_REQUIRED_AVAILABLE_WEAPONS_READY
     PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY
     PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY
     PASS45_HMMWV_PROPORTIONAL_VISUAL_READY
@@ -163,6 +165,13 @@ if not errorlevel 1 (
     exit /b 47
 )
 
+findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [WEAPONS] One or more required classes have neither exact production nor explicit real fallback visual.
+    findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%LOG%"
+    exit /b 54
+)
+
 findstr /C:"PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP" "%LOG%" >nul
 if not errorlevel 1 (
     echo [WEAPONS] One or more rack meshes still have missing/default/BasicShape authored material slots.
@@ -229,7 +238,7 @@ echo [PASS] R13.7 is the one visible Museum exterior; R13.8 stayed collision/int
 echo [PASS] Museum layer validation passed without late visibility/collision/instance repair.
 echo [PASS] Landmark separation found no foreign late-repair requirement.
 echo [PASS] All 11 Museum BASE pickups are grounded.
-echo [PASS] Weapon authored materials passed without BasicShape/grey runtime disguise.
+echo [PASS] Required available weapon visuals passed authored material audit; exact payload gaps remain explicit CONTENT GAP.
 echo [PASS] VehicleBase did not repaint production assets; read-only HMMWV/M2/BTR material validation passed.
 echo [PASS] HMMWV/BTR proportional transforms and M2 mount passed.
 echo [PASS] Driver enter/exit and gunner exit preserved the current vehicle location without Museum respawn fallback.
@@ -239,11 +248,12 @@ echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
 findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
+findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
 findstr /C:"PASS45_HMMWV_PROPORTIONAL_VISUAL_READY" /C:"PASS45_BTR4_PROPORTIONAL_VISUAL_READY" /C:"PASS45_M2_MOUNT_ALIGNMENT_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_READY" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_READY" /C:"PASS45_GUNNER_EXIT_TRANSFORM_READY" /C:"PASS45_M2_GUNNER_PITCH_CONTRACT_READY" "%LOG%"
 findstr /C:"PASS44_COMPACT_PLAYABLE_AREA_READY" /C:"PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY" /C:"PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" "%LOG%"
-findstr /C:"PASS42_BASE_RACK_GROUNDED_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
+findstr /C:"PASS42_BASE_RACK_GROUNDED_READY" "%LOG%"
 findstr /C:"PASS35_TACTICAL_PLAYER_MARKER_FOREGROUND" /C:"PASS39_MINIMAP_UPDATE_BUDGET_READY" "%LOG%"
 findstr /C:"PASS31_GAMEPLAY_INPUT_READY" /C:"PASS41_INPUT_RECOVERY_POLL_BUDGET_READY" /C:"PASS39_FP_LOCAL_PAWN_FAST_PATH_READY" "%LOG%"
 findstr /C:"PASS40_UI_STABILIZER_BUDGET_READY" /C:"PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY" "%LOG%"
