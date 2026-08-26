@@ -79,6 +79,18 @@ for forbidden in (
 req("R14_PRODUCTION_WEAPONS=PASS" not in material,
     "strict material gate resurrected impossible all-exact production weapon sentinel")
 
+# P0 black-world recovery is part of strict acceptance, not an optional side validation. Automated evidence must
+# prove the physical daylight owner started and the semantic Ground/Roads/Sidewalks MID contract survived the
+# Pass12 12s/16s/20s stability window. A geometry/material FAIL must be fatal.
+for marker in (
+    "PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY",
+    "PASS12_WORLD_GEOMETRY_STABLE",
+    "PASS45_WORLD_MATERIAL_STABLE",
+    "PASS12_WORLD_GEOMETRY_STABILITY_FAIL",
+    "BLACK_WORLD_AUTOMATED_CONTRACT=PASS",
+):
+    req(marker in evidence, f"Pass45 black-world evidence verifier missing marker/contract: {marker}")
+
 # Acceptance must force the actual interaction sequence that reproduces the rejected teleport/M2 bugs and must
 # require material truth for the rack actually rendered in gameplay.
 for marker in (
@@ -129,8 +141,9 @@ if errors:
 print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
 print("- START_HERE full test -> strict main wrapper -> playflow/performance -> one canonical gameplay process")
 print("- production vehicle import is not duplicated by START_HERE strict preparation")
+print("- P0 black-world automated evidence requires physical daylight plus stable semantic world materials")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
-print("- vehicle/weapon material gaps and transform failures are fatal")
+print("- world/material, vehicle/weapon material and transform failures are fatal")
 print("- automated evidence cannot mark visual acceptance complete")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 playtest still required")
