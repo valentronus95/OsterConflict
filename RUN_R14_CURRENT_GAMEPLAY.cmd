@@ -98,7 +98,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
 
 if "%IS_ACCEPTANCE%"=="1" if /I "%CURRENT_BRANCH%"=="main" (
   echo [ACCEPTANCE] Running strict runtime acceptance from current main.
-  echo [ACCEPTANCE] The launcher will reject missing Museum / weapon / vehicle READY evidence after the game closes.
+  echo [ACCEPTANCE] The launcher will reject missing Museum / required-available weapon / vehicle READY evidence after the game closes.
 )
 
 echo [PRECHECK] Fetching origin/%FETCH_BRANCH% so a stale local build cannot be tested...
@@ -296,9 +296,17 @@ if "%IS_ACCEPTANCE%"=="1" (
     exit /b 22
   )
 
-  findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
+  findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
   if not errorlevel 1 (
-    echo [STOP] Production weapon runtime validation failed. Generic fallback weapons are playable but do not satisfy exact production-art acceptance.
+    echo [STOP] Required weapon rack validation failed. Every class needs either its exact production visual or an explicit real-mesh fallback.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 23
+  )
+
+  findstr /C:"PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP" "%PLAYTEST_LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] One or more required rack weapon visuals still have missing/default authored materials.
     echo Log: %PLAYTEST_LOG%
     pause
     exit /b 23
@@ -313,10 +321,18 @@ if "%IS_ACCEPTANCE%"=="1" (
     exit /b 24
   )
 
-  findstr /C:"PASS7_PRODUCTION_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
+  findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
   if errorlevel 1 (
-    echo [STOP] No exact production weapon READY marker was recorded for the Museum 11-weapon rack.
-    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo [STOP] No required-available weapon READY marker was recorded for the Museum 11-class rack.
+    echo Exact production gaps may use explicit real fallbacks, but primitive-only or missing visuals are not accepted.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 25
+  )
+
+  findstr /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] Rack material audit never reached READY. White/default materials remain a Pass45 failure.
     echo Log: %PLAYTEST_LOG%
     pause
     exit /b 25
@@ -332,8 +348,10 @@ if "%IS_ACCEPTANCE%"=="1" (
   )
 
   echo [ACCEPTANCE] PASS7_PRODUCTION_VEHICLES_READY found.
-  echo [ACCEPTANCE] PASS7_PRODUCTION_WEAPONS_READY found.
+  echo [ACCEPTANCE] PASS45_REQUIRED_AVAILABLE_WEAPONS_READY found.
+  echo [ACCEPTANCE] PASS36_WEAPON_MATERIAL_AUDIT_READY found.
   echo [ACCEPTANCE] PASS7_MUSEUM_BASES_READY found.
+  echo [ACCEPTANCE] Exact weapon payload gaps, if any, remain CONTENT GAP and are not called production-ready.
   echo [ACCEPTANCE] Automated runtime evidence gates passed. Visual/UI checklist still requires direct observation.
 )
 
