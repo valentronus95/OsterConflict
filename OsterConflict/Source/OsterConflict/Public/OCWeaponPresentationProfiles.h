@@ -34,6 +34,17 @@ struct FOCFirstPersonWeaponProfile
     FVector ReloadArmsLocation = FVector(-5.0f, 2.0f, -7.0f);
     FRotator ReloadArmsRotation = FRotator(-8.0f, 3.0f, 11.0f);
 
+    /**
+     * Procedural camera-space cue used while the replicated manual-action gate is active.
+     * These values make bolt/pump/lever state visibly legible without pretending an authored
+     * skeletal animation exists. They remain separate from bGripCalibrated and need UE visual approval.
+     */
+    FVector ManualActionWeaponLocation = FVector::ZeroVector;
+    FRotator ManualActionWeaponRotation = FRotator::ZeroRotator;
+    FVector ManualActionArmsLocation = FVector::ZeroVector;
+    FRotator ManualActionArmsRotation = FRotator::ZeroRotator;
+    bool bManualActionCueDeclared = false;
+
     bool bGripCalibrated = false;
 };
 
