@@ -40,7 +40,7 @@ if errorlevel 2 (
   call :prepare_materials_strict
   if errorlevel 1 goto menu
   set "OC_RHI_COMPAT=0"
-  call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
+  call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
   set "OC_RHI_COMPAT="
   goto menu
 )
@@ -72,16 +72,9 @@ exit /b 0
 
 :prepare_materials_strict
 echo.
-echo [PASS45] STRICT: підготовка поточних authored materials перед runtime acceptance...
-if not exist "%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd" (
-  echo [STOP] Production vehicle importer відсутній.
-  exit /b 20
-)
-call "%~dp0OsterConflict\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
-if errorlevel 1 (
-  echo [STOP] Production vehicle/BTR authored-material import не пройшов.
-  exit /b 21
-)
+echo [PASS45] STRICT: підготовка Stein authored materials перед єдиним runtime acceptance route...
+rem Production HMMWV/M2/BTR import is intentionally NOT duplicated here. RUN_R14_CURRENT_GAMEPLAY.cmd,
+rem called once through the full acceptance wrapper, owns the strict production vehicle intake.
 if not exist "%~dp0OsterConflict\PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd" (
   echo [STOP] Stein authored-material importer відсутній.
   exit /b 22
@@ -91,7 +84,7 @@ if errorlevel 1 (
   echo [STOP] Stein authored-material import не пройшов.
   exit /b 23
 )
-echo [PASS45] STRICT material preparation PASS. Rendered runtime appearance remains the final authority.
+echo [PASS45] STRICT Stein material preparation PASS. Vehicle intake, playflow, dependencies and rendered runtime are validated downstream.
 exit /b 0
 
 :end
