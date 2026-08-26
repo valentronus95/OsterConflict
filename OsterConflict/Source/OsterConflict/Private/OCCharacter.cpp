@@ -19,6 +19,7 @@
 #include "OCDeployableTrap.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
+#include "CollisionShape.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -1514,18 +1515,76 @@ void AOCCharacter::CycleTrapPressed()
 
 void AOCCharacter::ServerThrowSelectedGrenade_Implementation()
 {
-    if (!HealthComponent || !HealthComponent->IsAlive() || bInVehicle) return;
+    if (!HasAuthority() || !GetWorld() || !HealthComponent || !HealthComponent->IsAlive() || bInVehicle) return;
+
     int32* Count = SelectedGrenadeType == EOCGrenadeType::Fragmentation ? &FragGrenades :
         (SelectedGrenadeType == EOCGrenadeType::Smoke ? &SmokeGrenades : &FlashGrenades);
     if (!Count || *Count <= 0) return;
-    --(*Count);
-    const FVector Origin = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation()+FVector(0,0,60);
-    const FVector Forward = FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector();
-    FActorSpawnParameters Params; Params.Owner=this; Params.Instigator=this; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    if (AOCGrenadeProjectile* G = GetWorld()->SpawnActor<AOCGrenadeProjectile>(AOCGrenadeProjectile::StaticClass(), Origin+Forward*70.0f, Forward.Rotation(), Params))
+
+    const FVector ViewOrigin = FirstPersonCamera
+        ? FirstPersonCamera->GetComponentLocation()
+        : GetActorLocation() + FVector(0.0f, 0.0f, 60.0f);
+    const FVector Forward = (FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector()).GetSafeNormal();
+    const FVector DesiredSpawn = ViewOrigin + Forward * 85.0f;
+    const FCollisionShape ClearanceShape = FCollisionShape::MakeSphere(9.0f);
+
+    FCollisionQueryParams SweepParams(SCENE_QUERY_STAT(Pass45GrenadeSafeSpawn), false, this);
+    SweepParams.AddIgnoredActor(this);
+    if (CurrentWeapon) SweepParams.AddIgnoredActor(CurrentWeapon);
+    if (PrimaryWeapon && PrimaryWeapon != CurrentWeapon) SweepParams.AddIgnoredActor(PrimaryWeapon);
+    if (SecondaryWeapon && SecondaryWeapon != CurrentWeapon && SecondaryWeapon != PrimaryWeapon) SweepParams.AddIgnoredActor(SecondaryWeapon);
+
+    FHitResult SweepHit;
+    FVector SpawnLocation = DesiredSpawn;
+    const bool bSweepBlocked = GetWorld()->SweepSingleByChannel(
+        SweepHit, ViewOrigin, DesiredSpawn, FQuat::Identity, ECC_Visibility, ClearanceShape, SweepParams);
+
+    if (bSweepBlocked)
     {
-        G->InitializeGrenadeServer(SelectedGrenadeType, Forward*1350.0f + FVector::UpVector*190.0f);
+        if (SweepHit.bStartPenetrating)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_GRENADE_SAFE_SPAWN_REJECTED reason=start_penetrating inventory_consumed=0"));
+            return;
+        }
+        SpawnLocation = SweepHit.Location - Forward * 2.0f;
     }
+
+    if (GetWorld()->OverlapBlockingTestByChannel(
+        SpawnLocation, FQuat::Identity, ECC_Visibility, ClearanceShape, SweepParams))
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_GRENADE_SAFE_SPAWN_REJECTED reason=overlap inventory_consumed=0"));
+        return;
+    }
+
+    FActorSpawnParameters Params;
+    Params.Owner = this;
+    Params.Instigator = this;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+
+    AOCGrenadeProjectile* Grenade = GetWorld()->SpawnActor<AOCGrenadeProjectile>(
+        AOCGrenadeProjectile::StaticClass(), SpawnLocation, Forward.Rotation(), Params);
+    if (!Grenade)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_GRENADE_SPAWN_FAIL inventory_consumed=0 safe_sweep=1"));
+        return;
+    }
+
+    const FVector ThrowVelocity = Forward * 1350.0f + FVector::UpVector * 190.0f + GetVelocity();
+    Grenade->InitializeGrenadeServer(SelectedGrenadeType, ThrowVelocity);
+
+    // Inventory is transactional: commit only after the authoritative projectile exists.
+    --(*Count);
+    if (CharacterVisualComponent)
+    {
+        CharacterVisualComponent->BroadcastActionServer(EOCCharacterActionEvent::GrenadeThrow);
+    }
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GRENADE_THROW_COMMIT_READY safe_sweep=1 spawn_success=1 inventory_committed_after_spawn=1 inherited_velocity=1 presentation_event=1"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY event=GrenadeThrow authored_animation_pending=1 second_gameplay_timer=0"));
     ForceNetUpdate();
 }
 
