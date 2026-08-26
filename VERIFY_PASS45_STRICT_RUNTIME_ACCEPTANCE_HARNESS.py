@@ -99,6 +99,15 @@ for marker in (
 ):
     req(marker in evidence, f"Pass45 landmark identity evidence verifier missing marker/contract: {marker}")
 
+# Gate E must prove the final runtime world did not resurrect retired generic residences/fences or the rejected
+# village/tower/shack presentation through another owner after primary authoring completed.
+for marker in (
+    "PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_READY",
+    "PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_FAIL",
+    "REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_CONTRACT=PASS",
+):
+    req(marker in evidence, f"Pass45 Gate E residential evidence verifier missing marker/contract: {marker}")
+
 # Gate C/H must prove actual UE runtime state after possession, not merely the launcher command line.
 for marker in (
     "PASS45_THERMAL_CAP_RUNTIME_READY",
@@ -162,9 +171,10 @@ print("- START_HERE full test -> strict main wrapper -> playflow/performance -> 
 print("- production vehicle import is not duplicated by START_HERE strict preparation")
 print("- P0 black-world automated evidence requires physical daylight plus stable semantic world materials")
 print("- Gate D automated evidence requires distinct Museum/Culture House authoritative identities and rejects cross-parcel placement")
+print("- Gate E automated evidence requires zero generic residential/private-fence instances and zero rejected village/tower/shack presentation")
 print("- Gate C/H automated evidence requires actual UE t.MaxFPS=60 and a live fullscreen viewport after possession")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
-print("- world/material, landmark identity, thermal/display, vehicle/weapon material and transform failures are fatal")
+print("- world/material, landmark identity, Gate E, thermal/display, vehicle/weapon material and transform failures are fatal")
 print("- automated evidence cannot mark visual acceptance complete")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 playtest still required")
