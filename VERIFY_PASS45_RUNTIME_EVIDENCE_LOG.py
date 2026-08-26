@@ -43,6 +43,14 @@ def main() -> int:
     weapon_report = read_required(weapon_report_path, "weapon dependency report")
     errors: list[str] = []
 
+    # Pass45 P0 black-world acceptance is part of the strict main route, not an optional side launcher.
+    # The daylight/exposure source contract must instantiate and the semantic Ground/Roads/Sidewalks MID
+    # contract must remain intact through the 12s/16s/20s world-stability samples.
+    require(gameplay, "PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY", errors, "physical daylight/exposure contract")
+    require(gameplay, "PASS12_WORLD_GEOMETRY_STABLE", errors, "world geometry stability")
+    require(gameplay, "PASS45_WORLD_MATERIAL_STABLE", errors, "semantic world material stability")
+    forbid(gameplay, "PASS12_WORLD_GEOMETRY_STABILITY_FAIL", errors, "world geometry/material stability failure")
+
     # Baseline deployment must occur once for the character and must not revive the vehicle-possession teleport bug.
     require(gameplay, "PASS7_MUSEUM_BASES_READY", errors, "Museum BASE readiness")
     require_any(
@@ -123,6 +131,7 @@ def main() -> int:
         "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS\n"
         "VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION\n"
         f"SOURCE_SHA={source_sha}\n"
+        "BLACK_WORLD_AUTOMATED_CONTRACT=PASS\n"
         "BASE_INITIAL_ONLY=PASS\n"
         "DRIVER_ENTER_EXIT_TRANSFORM=PASS\n"
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
@@ -133,6 +142,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
+    print("- physical daylight started and semantic Ground/Roads/Sidewalks materials stayed stable through Pass12 samples")
     print("- initial BASE deployment is character-only and no recovery failure was logged")
     print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
     print("- authored HMMWV/M2/BTR materials passed")
