@@ -79,7 +79,7 @@ for path in RETIRED_GENERIC_OWNERS:
         )
 
 # Pass45 P0 black-world correction is one coherent exposure/lighting contract. UE 5.8 Directional Light
-# intensity is lux, so physical daylight must not be paired with the previous disabled exposure adaptation.
+# intensity is lux, so physical daylight must not be paired with disabled adaptation or the legacy luminance range.
 for needle in (
     "bReplicates = true;",
     "bAlwaysRelevant = true;",
@@ -99,7 +99,9 @@ for stale in (
 ):
     forbid(visual_environment, stale, "retired black-world lighting contract")
 require(engine_config, "r.DefaultFeature.AutoExposure=True", "Pass45 renderer exposure contract")
+require(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True", "Pass45 EV100 exposure contract")
 forbid(engine_config, "r.DefaultFeature.AutoExposure=False", "Pass45 renderer exposure contract")
+forbid(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=False", "Pass45 EV100 exposure contract")
 
 # The accepted source-only semantic world baseline remains owned by AOCWorldSectorOster. Do not allow
 # a new late owner to target Ground/Roads/Sidewalks with SetMaterial after that baseline.
@@ -216,7 +218,7 @@ print("WORLD GEOMETRY STABILITY PASS12/PASS45 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
 print("- landmark separation is one bounded validation-only pass with mutation=0")
 print("- rejected generic world/decorator/recovered owners remain physically retired")
-print("- Pass45 daylight is component-owned, replicated and paired: 120000 lux + AutoExposure=True")
+print("- Pass45 daylight is component-owned, replicated and paired: 120000 lux + AutoExposure=True + extended EV100 range")
 print("- AOCWorldSectorOster remains the accepted Ground/Roads/Sidewalks semantic-material owner")
 print("- no second source owner may target those semantic families with SetMaterial")
 print("- validation completes before the 12 s Pass12 baseline")
