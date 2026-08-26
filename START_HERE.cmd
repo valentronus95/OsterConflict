@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -38,7 +38,8 @@ if errorlevel 3 (
 )
 if errorlevel 2 (
   call :prepare_materials_strict
-  if errorlevel 1 goto menu
+  set "STRICT_PREP_RC=!ERRORLEVEL!"
+  if not "!STRICT_PREP_RC!"=="0" goto menu
   set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
   set "OC_RHI_COMPAT="
@@ -64,7 +65,8 @@ if exist "%~dp0OsterConflict\TRY_PRODUCTION_VEHICLES_UE58.cmd" (
 )
 if exist "%~dp0OsterConflict\TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd" (
   call "%~dp0OsterConflict\TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd"
-  if errorlevel 1 echo [PASS45] WARNING: Stein material reimport не пройшов. Звичайний запуск продовжується лише для діагностики; білі/default weapons = FAIL.
+  set "STEIN_OPTIONAL_RC=!ERRORLEVEL!"
+  if not "!STEIN_OPTIONAL_RC!"=="0" echo [PASS45] WARNING: Stein material reimport/fresh-load не пройшов. Звичайний запуск продовжується лише для діагностики; білі/default weapons = FAIL.
 ) else (
   echo [PASS45] WARNING: TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd відсутній. Stein material state не вважається перевіреним.
 )
@@ -80,8 +82,9 @@ if not exist "%~dp0OsterConflict\PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd
   exit /b 22
 )
 call "%~dp0OsterConflict\PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd"
-if errorlevel 1 (
-  echo [STOP] Stein authored-material import не пройшов.
+set "STEIN_STRICT_RC=!ERRORLEVEL!"
+if not "!STEIN_STRICT_RC!"=="0" (
+  echo [STOP] Stein authored-material import/fresh-load не пройшов. code=!STEIN_STRICT_RC!
   exit /b 23
 )
 echo [PASS45] STRICT Stein material preparation PASS. Vehicle intake, playflow, dependencies and rendered runtime are validated downstream.
