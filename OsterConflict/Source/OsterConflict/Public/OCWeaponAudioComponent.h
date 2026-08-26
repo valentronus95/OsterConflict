@@ -45,4 +45,16 @@ private:
     void PlayAt(USoundBase* Sound, const FVector& Location, float Volume = 1.0f) const;
     void Play2D(USoundBase* Sound, float Volume = 1.0f) const;
     void EmitDebugEvent(const FString& Label, const FVector& Location) const;
+
+    /**
+     * Pass45 safety net for currently unassigned/empty weapon audio profiles. It reuses audio already committed
+     * in the project and never changes authoritative fire timing, ammo, damage or projectile ownership.
+     * Exact per-weapon authored profiles still win whenever they contain the requested event.
+     */
+    UOCWeaponAudioProfile* EnsureRepositoryFallbackProfile();
+
+    UPROPERTY(Transient)
+    TObjectPtr<UOCWeaponAudioProfile> RepositoryFallbackProfile;
+
+    bool bRepositoryFallbackAttempted = false;
 };
