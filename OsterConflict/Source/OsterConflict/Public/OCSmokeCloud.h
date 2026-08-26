@@ -5,9 +5,11 @@
 #include "OCSmokeCloud.generated.h"
 
 class USceneComponent;
-class UStaticMeshComponent;
 
-/** Source-only smoke stand-in. Gameplay/AI can query its radius; final visuals move to Niagara. */
+/**
+ * Replicated gameplay smoke volume. Pass45 intentionally renders no primitive stand-in: final smoke
+ * requires accepted authored particle/Niagara content, while AI/gameplay can continue querying this radius.
+ */
 UCLASS()
 class OSTERCONFLICT_API AOCSmokeCloud : public AActor
 {
@@ -24,7 +26,6 @@ public:
 
 protected:
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> SceneRoot;
-    UPROPERTY(VisibleAnywhere) TArray<TObjectPtr<UStaticMeshComponent>> Puffs;
     UPROPERTY(EditDefaultsOnly, Category="Smoke") float SmokeRadiusCm = 620.0f;
     UPROPERTY(EditDefaultsOnly, Category="Smoke") float LifetimeSeconds = 18.0f;
 };
