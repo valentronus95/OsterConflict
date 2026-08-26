@@ -32,17 +32,19 @@ markers = {
         'MapHeightCm =',
         'FVector AOCWorldSectorOster::CollegeAnchor()',
         'FVector AOCWorldSectorOster::ParkAnchor()',
+        'BuildRoadNetwork();',
         'BuildMuseumAndStadium();',
         'BuildCentralPark();',
         'BuildCollegeSector();',
-        'BuildResidentialBlocks();',
         'BuildVegetation();',
+        'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED',
         'OSTER LOCAL HISTORY MUSEUM / TATARIVSKA 30',
         'OSTER COLLEGE / SOLOMII KRUSHELNYTSKOI 7A',
     ],
     'OCGameMode.cpp': [
         'SpawnOsterCenterSector();',
         'SpawnActor<AOCWorldSectorOster>',
+        'PASS45_GENERIC_ENTERABLE_HOUSE_RETIRED',
         'AOCWorldSectorOster::MuseumAnchor()',
         'AOCWorldSectorOster::StadiumAnchor()',
         'AOCWorldSectorOster::ParkAnchor()',
@@ -69,10 +71,32 @@ for name, needles in markers.items():
             print(f'Missing marker {n!r} in {name}')
             sys.exit(1)
 
+world = (root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(encoding='utf-8', errors='ignore')
+world_h = (root/'Source/OsterConflict/Public/OCWorldSectorOster.h').read_text(encoding='utf-8', errors='ignore')
+
+# Pass45 supersedes the old S07 procedural private-sector visual layer. S07 may continue to protect
+# compact topology and POI anchors, but must never require the rejected generic residential owners back.
+for stale in (
+    'BuildResidentialBlocks();',
+    'void AOCWorldSectorOster::BuildResidentialBlocks()',
+    'BuildSolomiiKrushelnytskoiStreet();',
+    'void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()',
+):
+    if stale in world:
+        print('Pass45 retired generic residential owner resurrected in S07 world:', stale)
+        sys.exit(1)
+for stale in ('void BuildResidentialBlocks();', 'void BuildSolomiiKrushelnytskoiStreet();'):
+    if stale in world_h:
+        print('Pass45 retired generic residential declaration resurrected in S07 header:', stale)
+        sys.exit(1)
+
 # Old tiny arena must not be spawned by the active GameMode anymore.
 gm = (root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(encoding='utf-8', errors='ignore')
 if 'SpawnActor<AOCTestArena>' in gm or 'SpawnPrototypeArena();' in gm:
     print('Old OCTestArena still active in S07 GameMode')
+    sys.exit(1)
+if 'SpawnActor<AOCEnterableHouse>' in gm:
+    print('Pass45 rejected generic enterable-house spawn returned in S07 GameMode')
     sys.exit(1)
 
 # Basic delimiter sanity for C++ source. Strings/comments stripped enough to catch integration accidents.
@@ -126,3 +150,4 @@ for p in list((root/'Docs').rglob('*.md')) + [root/'README.md']:
 
 print('S07 structural verification: PASS')
 print(f'Checked {len(required)} required files and {sum(map(len, markers.values()))} S07 markers.')
+print('Pass45 forward-port: compact topology/POIs retained; rejected generic residential owners remain physically absent.')
