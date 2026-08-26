@@ -119,6 +119,25 @@ req('"PythonScriptPlugin"' in uproject and '"Enabled": true' in uproject,
 req("VERIFY_PASS45_WEAPON_MATERIAL_DEPENDENCY_AUDIT.py" in run_all,
     "RUN_ALL_VERIFY.py must execute the Pass45 weapon dependency audit")
 
+# The cumulative UE validator must run the corrective import and gate every repository-available weapon.
+for needle in (
+    "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
+    "call \"%STEIN_REIMPORT_CMD%\"",
+    "every repository-available canonical weapon passed mesh + authored material + runtime material dependency checks",
+    "CONTENT GAP: Remington 870 exact production payload is absent; it is not counted READY.",
+    "CONTENT GAP: M249 exact production payload is absent; it is not counted READY.",
+    'call :require_weapon_pass "AK-47"',
+    'call :require_weapon_pass "MP5"',
+    'call :require_weapon_pass "M1911"',
+    'call :require_weapon_pass "M700"',
+    'call :require_weapon_pass "M14"',
+    'call :require_weapon_pass "MAC-10"',
+    'call :require_weapon_pass "TEC-9"',
+    'call :require_weapon_pass "Lever Action .45-70"',
+    'call :require_weapon_pass "Anti-Armor Launcher"',
+):
+    req(needle in validator_cmd, f"available-weapon acceptance contract missing: {needle}")
+
 # These two remain explicit CONTENT GAP when their production payload is absent. Do not fake READY.
 production_gaps = []
 for label, relative_path in (
@@ -129,10 +148,10 @@ for label, relative_path in (
     if not asset.is_file():
         production_gaps.append(label)
 
-req("R14_PRODUCTION_WEAPONS=PASS" in validator_cmd,
-    "local UE production-model validation no longer requires the production weapon runtime sentinel")
 req("weapon_runtime_validation.txt" in validator_cmd,
     "local UE production-model validation no longer exposes the weapon runtime report")
+req("R14_PRODUCTION_WEAPONS=PASS" not in validator_cmd,
+    "cumulative validator must not require an all-classes READY sentinel when explicit production CONTENT GAP assets are absent")
 
 if errors:
     print("PASS45 WEAPON MATERIAL DEPENDENCY AUDIT: FAIL")
@@ -145,9 +164,9 @@ print("- runtime report exposes exact weapon mesh/material/runtime-material/used
 print("- BasicShape/Default/WorldGrid/_defaultMat aliases are hard placeholder failures")
 print("- Stein corrective path imports committed authored PNG textures before reimporting each runtime FBX")
 print("- Stein corrective import rejects placeholder slots and zero/local-missing texture dependency chains")
-print("- current Stein/AK/launcher repository assets remain available for factual UE material inspection")
+print("- cumulative UE validator gates every repository-available canonical weapon instead of conflating absent payload with white-material failure")
 if production_gaps:
-    print("- explicit production CONTENT GAP:", ", ".join(production_gaps))
+    print("- explicit production CONTENT GAP (not READY):", ", ".join(production_gaps))
 else:
     print("- Remington870 and M249 production payloads exist and must pass the same runtime dependency gate")
-print("STATUS: SOURCE CONTRACT ONLY; UE editor reimport + local UE 5.8 runtime rack appearance remain authoritative")
+print("STATUS: SOURCE CONTRACT ONLY; UE editor reimport + local UE 5.8 rendered rack appearance remain authoritative")
