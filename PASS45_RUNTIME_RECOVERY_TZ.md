@@ -105,10 +105,14 @@ Current correction:
 - production muzzle presentation is resolved from the visible component tagged `OC_ProductionWeaponVisual`;
 - muzzle flash, tracer and shot audio now use the production-muzzle origin rather than the camera origin;
 - a bounded cadence tolerance handles small timer-scheduler jitter without intentionally raising configured RPM;
-- locally-owned legacy Character recoil getters are neutralized;
-- confirmed camera recoil is now emitted from the server-accepted shot multicast and recovered by `AOCWeaponBase`;
-- current compatibility `LocalFireFeedbackTimerHandle` code still exists in `AOCCharacter`; it must not regain camera-motion authority and should be physically retired after the confirmed-shot route proves stable in UE runtime;
-- direct runtime proof remains mandatory because a configured legacy camera-shake class could still expose a residual presentation path even when legacy pitch/yaw values are zero.
+- `LocalFireFeedbackTimerHandle`, `StartLocalFireFeedback`, `StopLocalFireFeedback`, `ApplyLocalShotFeedback`, Character-local recoil offsets and their recovery loop are physically retired;
+- the temporary `ShouldNeutralizeLegacyLocalRecoil` shim is removed because no second local recoil owner remains;
+- confirmed camera recoil is emitted only from the server-accepted shot multicast and recovered by `AOCWeaponBase`;
+- crosshair recoil expansion reads the same confirmed-shot recoil state from the active weapon;
+- camera shake is requested through `NotifyConfirmedWeaponShotPresentation()` only from that confirmed-shot path;
+- trigger press/release no longer creates an independent local shot/recoil stream.
+
+This closes the duplicate local feedback owner at source level. It does **not** prove recoil feel, release behavior or camera-shake behavior in UE runtime.
 
 Source guard:
 
@@ -149,34 +153,59 @@ Acceptance:
 
 ## 4. P0 — data-driven weapon actions and fire modes
 
-Current source only models `SemiAutomatic` and `Automatic`. That is insufficient.
+### Current corrective source state — 2026-08-26 — CODED_UNTESTED
 
-Required model must distinguish at minimum:
+The old Semi/Auto-only abstraction has been replaced at source level with separate selector capability and mechanical-action metadata.
+
+Implemented model distinguishes:
 
 - semi-automatic;
 - full automatic;
-- burst where the exact variant supports it;
+- opt-in three-round burst;
+- gas-operated action;
+- delayed blowback;
+- blowback;
+- short recoil;
 - bolt action;
 - pump action;
 - lever action;
-- launcher/single-shot/manual reload behavior;
+- belt-fed action;
+- launcher/single-shot behavior;
 - weapon-specific selector availability.
 
-Rules:
+Current exact source action declarations cover AK-47, MP5, M1911, M700, Remington 870, M249, M14, MAC-10, TEC-9, Lever Action .45-70 and the anti-armor launcher.
+
+Selector rules now enforced in source:
 
 - no universal automatic-fire rule inherited merely from a generic weapon class;
-- exact variant controls supported modes;
-- `B` may remain the default fire-mode key, but only selectable modes supported by that exact weapon may be cycled;
+- exact tuning controls supported selector positions;
+- `B` cycles only supported modes and skips unsupported positions;
+- `EOCFireMode::Burst3` is opt-in rather than silently granted to all weapons;
+- no current production weapon has `bSupportsBurst3=true` without an explicitly accepted exact selector configuration;
+- when Burst3 is eventually enabled for an accepted variant, the server owns a finite maximum three-shot sequence;
+- an accepted burst is not truncated merely because LMB is released between its pulses;
+- a second press cannot stack another burst while the current finite sequence is active;
+- sprint/reload/equip/drop/death use the hard fire-stop path and clear pending burst state;
+- source marker: `PASS45_BURST3_SEQUENCE_READY authoritative=1 finite_shots=3 release_cancel=0`.
+
+Still pending:
+
 - HUD must clearly display current fire mode/action state;
-- semi-only/manual-action weapons may not cycle into AUTO;
-- burst count must be deterministic and stop after configured burst count even while LMB remains held;
-- bolt/pump/lever cycle time is part of weapon action state, not merely a very low automatic RPM hack.
+- no current weapon may be declared Burst3-capable until its exact modeled selector is factually accepted;
+- bolt/pump/lever cycle time must become real post-shot weapon action state/presentation, not merely a low-RPM approximation;
+- action-specific animation/audio timing remains runtime-unverified.
 
 External factual references for MP5/M14/MAC-10/TEC-9/M700/870/M249 are preserved in the 2026-08-26 evidence README. The game configuration must follow the exact modeled variant, not a broad family label.
 
 Acceptance matrix must include every runtime weapon class and list:
 
 `weapon id | exact visual/fallback | action type | allowed fire modes | default mode | RPM/cycle time | magazine | audio profile | ADS profile | muzzle owner`
+
+Source guard:
+
+`VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
+
+Runtime acceptance additionally requires deliberate tests for Semi, Auto and any exact Burst3-capable weapon eventually enabled, plus observable bolt/pump/lever cycle behavior for manual-action weapons.
 
 ## 5. P0 — ADS / sight alignment
 
@@ -549,9 +578,9 @@ Must remain true:
 - obsolete conflicting owners are physically deleted together with stale verifier expectations;
 - historical pass numbering never grants mutation authority.
 
-## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop pass
+## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action pass
 
-State: **CODED_UNTESTED / SOURCE VERIFICATION IN PROGRESS / NOT RUNTIME ACCEPTED**.
+State: **CODED_UNTESTED / CURRENT-HEAD SOURCE VERIFICATION PENDING / NOT RUNTIME ACCEPTED**.
 
 Implemented on PR #94 after the latest screenshot rejection:
 
@@ -562,10 +591,16 @@ Implemented on PR #94 after the latest screenshot rejection:
 - fail-visible anti-armor production visual markers;
 - deliberate dropped-weapon rigid-body physics with gravity/collision and replicated movement;
 - confirmed-shot recoil state moved into `AOCWeaponBase`;
-- local held-input pitch/yaw recoil path neutralized for the locally owned weapon;
+- legacy Character `LocalFireFeedbackTimerHandle` and its independent pitch/yaw recovery state physically retired;
+- camera shake and crosshair recoil now derive from confirmed-shot weapon state rather than held input;
 - bounded fire-cadence scheduling tolerance;
-- `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py` added to cumulative source verification;
-- dedicated `.github/workflows/pass45-weapon-firing-physics.yml` added.
+- data-driven Semi/Burst3/Automatic selector API;
+- explicit mechanical action metadata for current weapon variants;
+- finite authoritative Burst3 sequence architecture with no current weapon falsely opting in;
+- `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py` updated to reject resurrection of the retired local-feedback owner;
+- `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py` updated to require the finite Burst3 sequence contract;
+- both guards remain in cumulative `RUN_ALL_VERIFY.py`;
+- dedicated `.github/workflows/pass45-weapon-firing-physics.yml` remains active.
 
 This does **not** close the P0 weapon gate. Local UE 5.8 must still prove:
 
@@ -574,7 +609,9 @@ This does **not** close the P0 weapon gate. Local UE 5.8 must still prove:
 - drops settle correctly;
 - muzzle placement is visually correct for every mesh orientation;
 - recoil/recovery direction feels correct and has no downward release drift;
-- no residual legacy camera-shake timer survives as an independent shot source;
+- camera shake occurs exactly once per accepted shot;
+- finite burst behavior is correct when an exact accepted Burst3-capable variant is eventually enabled;
+- bolt/pump/lever post-shot action state and presentation are still missing;
 - launcher visual is actually production mesh in first person;
 - shot audio assets exist and are audible.
 
@@ -592,25 +629,26 @@ Completed/source-coded items are marked only for source work, not runtime accept
 8. [x] Code base weapon production-muzzle presentation for FX/audio.
 9. [x] Code launcher production-muzzle projectile/FX/audio and no-ammo-on-spawn-failure.
 10. [x] Code authority-simulated deliberate weapon drops.
-11. [x] Code confirmed-shot recoil migration/legacy local pitch-yaw neutralization.
+11. [x] Code confirmed-shot recoil migration.
 12. [x] Add source verifier/workflow for firing/muzzle/drop contracts.
-13. [ ] Fully retire/replace legacy Character `LocalFireFeedbackTimerHandle` after confirmed-shot path is source/build safe.
-14. [ ] Expand fire-mode/action model beyond Semi/Auto and build exact per-weapon matrix.
-15. [ ] Build per-weapon ADS/sight profiles and validation.
-16. [ ] Close all silent weapon audio-profile gaps.
-17. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
-18. [ ] Replace grenade models/throw presentation/smoke VFX.
-19. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
-20. [ ] Replace rejected vegetation family.
-21. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
-22. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
-23. [ ] Close BTR white material state across pre/post possession.
-24. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
-25. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
-26. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
-27. [ ] Validate tactical map screenshot.
-28. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
-29. [ ] Merge PR #94 only after factual current-head runtime acceptance.
+13. [x] Physically retire legacy Character `LocalFireFeedbackTimerHandle` and duplicate local recoil/recovery owner.
+14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
+15. [ ] Implement manual bolt/pump/lever post-shot action state, cycle timing and presentation.
+16. [ ] Build per-weapon ADS/sight profiles and validation.
+17. [ ] Close all silent weapon audio-profile gaps.
+18. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
+19. [ ] Replace grenade models/throw presentation/smoke VFX.
+20. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
+21. [ ] Replace rejected vegetation family.
+22. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
+23. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
+24. [ ] Close BTR white material state across pre/post possession.
+25. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
+26. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
+27. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
+28. [ ] Validate tactical map screenshot.
+29. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+30. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 24. Final acceptance gates
 
@@ -645,7 +683,9 @@ Pass 45 cannot become `VERIFIED RUNTIME` until every applicable gate below passe
 - muzzle/tracer/projectile at visible barrel;
 - no held-input ghost recoil;
 - no release downward kick;
-- action/fire modes correct per exact weapon;
+- selector exposes only modes supported by the exact weapon;
+- any accepted Burst3 weapon produces a deterministic finite three-shot sequence without stacking or accidental truncation;
+- bolt/pump/lever actions visibly and temporally cycle before the next legal shot;
 - ADS alignment correct;
 - dropped weapon physics passes;
 - grenade/smoke presentation passes.
@@ -704,4 +744,4 @@ Pass 45 cannot become `VERIFIED RUNTIME` until every applicable gate below passe
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The newest weapon firing/muzzle/drop/action corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
