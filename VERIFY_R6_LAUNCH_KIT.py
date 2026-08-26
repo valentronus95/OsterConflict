@@ -26,6 +26,7 @@ pc = ptext('Source/OsterConflict/Private/OCPlayerController.cpp')
 gm = ptext('Source/OsterConflict/Private/OCGameMode.cpp')
 start = text('START_HERE.cmd')
 normal = text('RUN_R14_CURRENT_GAMEPLAY.cmd')
+strict_main = text('RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd')
 playflow = text('RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd')
 production_import = ptext('IMPORT_PRODUCTION_VEHICLES_UE58.cmd')
 source_recovery = ptext('Scripts/prepare_local_production_sources.ps1')
@@ -54,8 +55,8 @@ req('GetNetMode() == NM_Standalone' in pc and 'FParse::Param(FCommandLine::Get()
 req('Frontend-only standalone session' in gm and 'bFrontendOnlySession' in gm,
     'frontend-only gameplay suppression retained')
 
-# START_HERE remains the single user entry point. Pass 45 adds an explicit compatibility A/B route instead
-# of forcing -norhithread onto the normal route, so the historical four-choice R6 menu is superseded.
+# START_HERE remains the single user entry point. Pass45 full acceptance now deliberately enters the strict main
+# wrapper first; that wrapper delegates through playflow and adds post-run material/dependency/evidence gates.
 req('OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК' in start, 'START_HERE identifies current Oster Conflict launcher')
 for marker in (
     '1. ЗВИЧАЙНА ГРА',
@@ -74,8 +75,14 @@ req('Compatibility route adds -norhithread only for A/B crash/performance diagno
     'START_HERE documents compatibility-only -norhithread')
 req('call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in start,
     'START_HERE normal/compat routes use current R14 gameplay launcher')
-req('call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' in start,
-    'START_HERE full-test route uses current playflow acceptance wrapper')
+req('call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"' in start,
+    'START_HERE full-test route enters strict main acceptance wrapper')
+req('call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' not in start,
+    'START_HERE full-test route cannot bypass strict post-run material/evidence gates')
+req('RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in strict_main and 'call "%PLAYFLOW%"' in strict_main,
+    'strict main wrapper delegates to current playflow acceptance wrapper')
+req('RUN_PASS45_STRICT_MATERIAL_GATE.cmd' in strict_main and 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py' in strict_main,
+    'strict main wrapper owns post-run material/dependency and interaction evidence gates')
 req('RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start,
     'internal Pass 21 runtime acceptance is not exposed in START_HERE')
 req('RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd' not in start,
@@ -101,6 +108,7 @@ req('set "FETCH_BRANCH=main"' in normal and 'set "REMOTE_REF=origin/main"' in no
 req('findstr /B /I /C:"fix/runtime-acceptance-"' in normal and
     '/C:"fix/runtime-map-spawn-fps-assets-"' in normal and
     '/C:"fix/runtime-recovery-"' in normal and
+    '/C:"fix/pass45-runtime-rejection-"' in normal and
     'set "REMOTE_REF=origin/%CURRENT_BRANCH%"' in normal,
     'current runtime-fix branch route exists for pre-merge UE testing')
 for marker in [
@@ -128,7 +136,7 @@ req(strict_stage >= 0 and acceptance_gate >= 0 and import_call >= 0 and normal_e
     acceptance_gate < strict_stage < import_call < normal_else,
     'production vehicle ingest stays inside strict acceptance branch')
 
-# Exact local source names now belong to the importer/source-recovery owner, not duplicated gameplay text.
+# Exact local source names belong to the importer/source-recovery owner, not duplicated gameplay text.
 for marker in [
     'import_production_vehicle_assets.py', 'production_import_success.txt',
     '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA', '/Game/Production/Weapons/M2/SM_M2_Browning',
