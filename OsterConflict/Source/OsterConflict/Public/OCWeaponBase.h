@@ -229,8 +229,8 @@ protected:
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|State")
     bool bIsReloading = false;
 
-    /** Replicated post-shot gate for bolt/pump/lever actions. Presentation may observe this without owning timing. */
-    UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|Action")
+    /** Replicated post-shot gate for bolt/pump/lever actions. Presentation observes it; authority owns timing. */
+    UPROPERTY(ReplicatedUsing=OnRep_ActionCycling, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|Action")
     bool bActionCycling = false;
 
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|FireMode")
@@ -263,6 +263,9 @@ protected:
 
     UFUNCTION()
     void OnRep_Attachments();
+
+    UFUNCTION()
+    void OnRep_ActionCycling();
 
     void ConfigureBuiltInTuning(const FOCWeaponTuning& NewTuning);
 
