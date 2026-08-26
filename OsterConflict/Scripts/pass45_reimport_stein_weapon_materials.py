@@ -9,9 +9,9 @@ RAW_ROOT = PROJECT_DIR / "Content" / "Raw" / "R13" / "Weapons" / "SteinClassicWe
 DEST_ROOT = "/Game/R13/Weapons/Stein"
 CACHE_DIR = PROJECT_DIR / "Saved" / "ProductionAssetImportCache" / "SteinWeapons"
 SENTINEL = CACHE_DIR / "pass45_stein_material_reimport_success.txt"
-IMPORT_CONTRACT_REVISION = "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R2"
+IMPORT_CONTRACT_REVISION = "PASS45_STEIN_MATERIAL_CLOSURE_20260826_R3"
 
-# Only the Stein models that are part of the current runtime rack contract are repaired here.
+# Only the Stein models that are part of the current runtime rack contract are authored here.
 # AK-47 uses its separate canonical /Game/AK-47 production asset and is intentionally untouched.
 WEAPONS = {
     "1911": "SKM_1911.fbx",
@@ -119,12 +119,13 @@ def choose_texture_source(source_dir: Path, suffixes: tuple[str, ...]) -> Path |
 
 
 def create_explicit_authored_material(folder: str, source_dir: Path, destination: str):
-    """Build a deterministic UE material from the committed Stein PNG source set.
+    """Create the deterministic material asset that the runtime mesh will actually own.
 
-    UE 5.8 factual import evidence on 2026-08-26 showed that texture-first import alone is not enough:
-    the FBX importer can create non-placeholder material slots that still reference zero textures.
-    R2 therefore treats the committed PNGs as the authored source of truth and explicitly creates the
-    material graph instead of assuming Interchange/FBX will discover the dependency chain for us.
+    R2 still allowed the FBX-created material to decide whether explicit binding was necessary. The factual
+    UE 5.8 run on 2026-08-26 showed that this remained ambiguous: the commandlet reached validation with zero
+    discoverable texture dependencies. R3 removes that ambiguity. Every Stein runtime mesh receives one
+    revisioned material authored directly from the committed PNG source, and a separate fresh UE process is
+    responsible for proving that the saved package reopens with real texture dependencies.
     """
     color_source = choose_texture_source(
         source_dir,
@@ -133,18 +134,17 @@ def create_explicit_authored_material(folder: str, source_dir: Path, destination
     if color_source is None:
         fail(f"{folder} has PNG source textures but no identifiable authored color texture")
 
-    material_name = f"M_PASS45_{folder}_Authored_R2"
+    material_name = f"M_PASS45_{folder}_Authored_R3"
     material_path = f"{destination}/{material_name}"
     if unreal.EditorAssetLibrary.does_asset_exist(material_path):
         if not unreal.EditorAssetLibrary.delete_asset(material_path):
             fail(f"could not replace stale generated authored material: {material_path}")
 
-    factory = unreal.MaterialFactoryNew()
     material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
         material_name,
         destination,
         unreal.Material,
-        factory,
+        unreal.MaterialFactoryNew(),
     )
     if material is None:
         fail(f"could not create explicit authored material: {material_path}")
@@ -166,8 +166,6 @@ def create_explicit_authored_material(folder: str, source_dir: Path, destination
     ):
         fail(f"could not connect authored BaseColor texture for {folder}")
 
-    # Optional mask maps improve the deterministic fallback without making their naming mandatory.
-    # They are only connected when an unambiguous authored source exists beside the FBX.
     optional_maps = (
         (("_m", "_metallic"), unreal.MaterialProperty.MP_METALLIC, "R", -420, 180),
         (("_r", "_roughness"), unreal.MaterialProperty.MP_ROUGHNESS, "R", -420, 320),
@@ -194,13 +192,22 @@ def create_explicit_authored_material(folder: str, source_dir: Path, destination
         ):
             fail(f"could not connect optional authored texture {source.name} for {folder}")
 
-    unreal.MaterialEditingLibrary.recompile_material(material)
-    unreal.EditorAssetLibrary.save_asset(material_path, only_if_is_dirty=False)
+    compiler_errors = list(unreal.MaterialEditingLibrary.recompile_material(material) or [])
+    if compiler_errors:
+        fail(f"{folder} explicit authored material compile errors: {' | '.join(str(item) for item in compiler_errors)}")
+
+    expression_count = unreal.MaterialEditingLibrary.get_num_material_expressions(material)
+    if expression_count < 1:
+        fail(f"{folder} explicit authored material contains no graph expressions")
+
+    if not unreal.EditorAssetLibrary.save_asset(material_path, only_if_is_dirty=False):
+        fail(f"could not save explicit authored material: {material_path}")
+
     log(
-        f"{folder}: explicit UE58 authored material graph created from committed PNG source; "
-        f"material={material_path}; baseColor={color_source.name}"
+        f"{folder}: R3 explicit UE58 material authored from committed PNG source; "
+        f"material={material_path}; baseColor={color_source.name}; expressions={expression_count}"
     )
-    return material
+    return material, material_path
 
 
 def bind_material_to_mesh_slots(mesh, material, folder: str) -> int:
@@ -214,92 +221,54 @@ def bind_material_to_mesh_slots(mesh, material, folder: str) -> int:
     return len(static_materials)
 
 
-def collect_used_texture_paths(mesh) -> set[str]:
-    aggregate_texture_paths: set[str] = set()
-    for static_material in list(mesh.get_editor_property("static_materials")):
-        material = static_material.get_editor_property("material_interface")
-        if material is None:
-            continue
-        for texture in unreal.MaterialEditingLibrary.get_material_used_textures(material):
+def advisory_used_texture_paths(material) -> set[str]:
+    """Best-effort same-process visibility only; fresh-load verification is authoritative in R3."""
+    texture_paths: set[str] = set()
+    try:
+        for texture in list(unreal.MaterialEditingLibrary.get_material_used_textures(material) or []):
             if texture is not None:
-                aggregate_texture_paths.add(texture.get_path_name())
-    return aggregate_texture_paths
+                texture_paths.add(texture.get_path_name())
+    except Exception as exc:
+        log(f"same-process GetMaterialUsedTextures advisory failed: {type(exc).__name__}: {exc}")
+
+    if not texture_paths and isinstance(material, unreal.Material):
+        try:
+            for texture in list(unreal.MaterialEditingLibrary.get_used_textures(material) or []):
+                if texture is not None:
+                    texture_paths.add(texture.get_path_name())
+        except Exception as exc:
+            log(f"same-process GetUsedTextures advisory failed: {type(exc).__name__}: {exc}")
+    return texture_paths
 
 
-def ensure_explicit_source_texture_binding(folder: str, fbx_name: str, source_dir: Path, destination: str) -> str:
+def validate_authored_assignment(folder: str, fbx_name: str, destination: str, material_path: str) -> tuple[int, int]:
     mesh_name = Path(fbx_name).stem
     mesh_path = f"{destination}/{mesh_name}.{mesh_name}"
     mesh = unreal.EditorAssetLibrary.load_asset(mesh_path)
     if mesh is None:
-        fail(f"runtime Stein mesh missing after reimport: {mesh_path}")
+        fail(f"runtime Stein mesh missing after R3 reimport: {mesh_path}")
 
     static_materials = list(mesh.get_editor_property("static_materials"))
     if not static_materials:
-        fail(f"{folder} mesh has zero material slots after reimport")
+        fail(f"{folder} mesh has zero material slots after R3 reimport")
 
-    existing_textures = collect_used_texture_paths(mesh)
-    existing_local = [
-        path for path in existing_textures
-        if path.lower().startswith((destination + "/").lower())
-    ]
-    existing_materials_are_valid = all(
-        not is_placeholder(static_material.get_editor_property("material_interface"))
-        for static_material in static_materials
-    )
-
-    if existing_materials_are_valid and existing_local:
-        log(
-            f"{folder}: FBX material dependency chain already resolves to authored local textures; "
-            f"explicit repair not required. textures={len(existing_textures)}"
-        )
-        return "FBX_LOCAL_TEXTURE_CHAIN"
-
-    material = create_explicit_authored_material(folder, source_dir, destination)
-    slot_count = bind_material_to_mesh_slots(mesh, material, folder)
-    unreal.EditorAssetLibrary.save_asset(mesh_path, only_if_is_dirty=False)
-    log(
-        f"{folder}: UE58 FBX dependency discovery was incomplete; bound explicit authored source material "
-        f"to {slot_count} mesh slot(s)."
-    )
-    return "PASS45_EXPLICIT_UE58_SOURCE_TEXTURE_GRAPH"
-
-
-def validate_mesh_dependencies(folder: str, fbx_name: str, destination: str) -> tuple[int, int]:
-    mesh_name = Path(fbx_name).stem
-    mesh_path = f"{destination}/{mesh_name}.{mesh_name}"
-    mesh = unreal.EditorAssetLibrary.load_asset(mesh_path)
-    if mesh is None:
-        fail(f"runtime Stein mesh missing after reimport: {mesh_path}")
-
-    static_materials = list(mesh.get_editor_property("static_materials"))
-    if not static_materials:
-        fail(f"{folder} mesh has zero material slots after reimport")
-
-    aggregate_texture_paths: set[str] = set()
     for slot_index, static_material in enumerate(static_materials):
         material = static_material.get_editor_property("material_interface")
         if is_placeholder(material):
-            material_path = material.get_path_name() if material else "<missing>"
-            fail(f"{folder} slot {slot_index} is placeholder/missing after reimport: {material_path}")
+            actual = material.get_path_name() if material else "<missing>"
+            fail(f"{folder} slot {slot_index} is placeholder/missing after R3 authoring: {actual}")
+        if material.get_path_name().split(".", 1)[0] != material_path:
+            fail(
+                f"{folder} slot {slot_index} does not own the R3 authored material; "
+                f"expected={material_path} actual={material.get_path_name()}"
+            )
 
-        for texture in unreal.MaterialEditingLibrary.get_material_used_textures(material):
-            if texture is not None:
-                aggregate_texture_paths.add(texture.get_path_name())
+    material = unreal.EditorAssetLibrary.load_asset(material_path)
+    if material is None:
+        fail(f"{folder} R3 authored material cannot be reloaded in authoring process: {material_path}")
 
-    if not aggregate_texture_paths:
-        fail(f"{folder} authored materials still use zero textures after explicit UE58 binding")
-
-    local_dependencies = [
-        path for path in aggregate_texture_paths
-        if path.lower().startswith((destination + "/").lower())
-    ]
-    if not local_dependencies:
-        fail(
-            f"{folder} materials have textures, but none resolve to the weapon destination {destination}; "
-            "the authored material dependency chain is still broken"
-        )
-
-    return len(static_materials), len(aggregate_texture_paths)
+    same_process_textures = advisory_used_texture_paths(material)
+    return len(static_materials), len(same_process_textures)
 
 
 def reimport_weapon(folder: str, fbx_name: str) -> str:
@@ -307,22 +276,38 @@ def reimport_weapon(folder: str, fbx_name: str) -> str:
     fbx_source = source_dir / fbx_name
     destination = f"{DEST_ROOT}/{folder}"
 
-    # R2 factual UE 5.8 contract: PNG files are imported first, then FBX geometry/material slots are imported,
-    # then dependency ownership is inspected. If UE did not bind those slots to the authored PNGs, create one
-    # deterministic material graph from the same committed source and bind it explicitly before validation.
     imported_textures = import_source_textures(source_dir, destination)
     import_stein_fbx(fbx_source, destination)
-    binding_mode = ensure_explicit_source_texture_binding(folder, fbx_name, source_dir, destination)
+
+    # R3 always owns the final mesh slots. We no longer accept the FBX-created material as sufficient merely
+    # because it exists; that was exactly the state that produced the zero-texture R2 failure.
+    material, material_path = create_explicit_authored_material(folder, source_dir, destination)
+
+    mesh_name = Path(fbx_name).stem
+    mesh_path = f"{destination}/{mesh_name}.{mesh_name}"
+    mesh = unreal.EditorAssetLibrary.load_asset(mesh_path)
+    if mesh is None:
+        fail(f"runtime Stein mesh missing after FBX import: {mesh_path}")
+    slot_count = bind_material_to_mesh_slots(mesh, material, folder)
+    if not unreal.EditorAssetLibrary.save_asset(mesh_path, only_if_is_dirty=False):
+        fail(f"could not save R3 Stein mesh assignment: {mesh_path}")
     unreal.EditorAssetLibrary.save_directory(destination, only_if_is_dirty=False, recursive=True)
 
-    material_slots, used_textures = validate_mesh_dependencies(folder, fbx_name, destination)
+    material_slots, same_process_used_textures = validate_authored_assignment(
+        folder,
+        fbx_name,
+        destination,
+        material_path,
+    )
     log(
-        f"{folder}: authored texture assets imported={len(imported_textures)}; "
-        f"material_slots={material_slots}; used_textures={used_textures}; binding={binding_mode}"
+        f"{folder}: authored texture assets imported={len(imported_textures)}; material_slots={material_slots}; "
+        f"same_process_used_textures={same_process_used_textures}; binding=R3_ALWAYS_EXPLICIT; "
+        "fresh_load=MANDATORY"
     )
     return (
-        f"{folder}=PASS | importedTextureAssets={len(imported_textures)} | "
-        f"materialSlots={material_slots} | usedTextures={used_textures} | binding={binding_mode}"
+        f"{folder}=AUTHORED | importedTextureAssets={len(imported_textures)} | "
+        f"materialSlots={slot_count} | sameProcessUsedTextures={same_process_used_textures} | "
+        f"material={material_path}"
     )
 
 
@@ -337,18 +322,17 @@ def main() -> None:
 
     SENTINEL.write_text(
         f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}\n"
-        "PASS45_STEIN_AUTHORED_DEPENDENCIES=PASS\n"
+        "PASS45_STEIN_AUTHORED_GRAPH=PASS\n"
         "PASS45_STEIN_UE58_EXPLICIT_BINDING=READY\n"
-        "STATUS=EDITOR_IMPORT_VALIDATED_RUNTIME_VISUAL_PENDING\n"
+        "STATUS=EDITOR_GRAPH_AUTHORED_FRESH_LOAD_PENDING\n"
         + "\n".join(results)
         + "\n",
         encoding="utf-8",
     )
     log(
-        "Stein reimport completed with non-placeholder material slots and used texture dependencies. "
-        "UE58 source-texture binding is explicit when FBX discovery is incomplete. "
-        f"revision={IMPORT_CONTRACT_REVISION}. This is editor import evidence only; "
-        "runtime rack screenshot remains authoritative."
+        "Stein R3 authoring completed. Every runtime Stein mesh slot owns a revisioned material graph built "
+        "from committed PNG source. Same-process texture enumeration is advisory only; a fresh UE process "
+        f"must still reopen and prove dependencies. revision={IMPORT_CONTRACT_REVISION}."
     )
 
 
