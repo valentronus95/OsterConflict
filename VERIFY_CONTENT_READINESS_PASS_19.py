@@ -37,9 +37,19 @@ require(fallback, 'RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"))
 require(fallback, "exact_production=0 playable_fallback=1", "fallback truth log")
 forbid(fallback, "Visual->ComponentTags.Add(ProductionVisualTag);", "generic fallback pretending to be production")
 
-# Exact production validation remains present and independent.
-for needle in ("PASS7_PRODUCTION_WEAPONS_READY", "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL", "OC_ProductionWeaponVisual"):
-    require(strict, needle, "strict production gate")
+# Pass45 Gate F validates the required rack as exact production OR explicit real fallback. The fallback remains
+# truthfully labelled CONTENT GAP for exact art and the validator is observation-only for rack visuals.
+for needle in (
+    "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
+    "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
+    "OC_ProductionWeaponVisual",
+    "OC_RealFallbackWeaponVisual",
+    "exactProductionReadyNotClaimed=1",
+    "validation_only=1 mutation=0",
+):
+    require(strict, needle, "required-available weapon runtime gate")
+forbid(strict, "PASS7_PRODUCTION_WEAPONS_READY", "obsolete all-exact rack readiness")
+forbid(strict, "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL", "obsolete all-exact rack failure")
 
 # Pass 19 proves all 11 classes are playable through exact OR explicit real fallback visuals.
 for needle in (
@@ -117,7 +127,7 @@ require(btr_launcher, "source_kind=local_user_fbx", "dedicated local BTR4 source
 
 print("CONTENT READINESS PASS 19 + PASS45 MATERIAL INTAKE CONTRACT PASS")
 print("- generic weapon fallback meshes do not impersonate production art")
-print("- Pass 7 remains strict exact-production certification")
+print("- Gate F validates exact production OR explicit real fallback while exact payload gaps stay CONTENT GAP")
 print("- Pass 19 separately proves an 11-class playable real-mesh rack")
 print("- HMMWV/M2 remain independent external-source imports")
 print("- BTR canonical intake prefers local FBX and otherwise uses the repository-safe authored GLB material path")
