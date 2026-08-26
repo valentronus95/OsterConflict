@@ -44,8 +44,6 @@ def main() -> int:
     errors: list[str] = []
 
     # Pass45 P0 black-world acceptance is part of the strict main route, not an optional side launcher.
-    # The daylight/exposure source contract must instantiate and the semantic Ground/Roads/Sidewalks MID
-    # contract must remain intact through the 12s/16s/20s world-stability samples.
     require(gameplay, "PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY", errors, "physical daylight/exposure contract")
     require(gameplay, "PASS12_WORLD_GEOMETRY_STABLE", errors, "world geometry stability")
     require(gameplay, "PASS45_WORLD_MATERIAL_STABLE", errors, "semantic world material stability")
@@ -64,8 +62,7 @@ def main() -> int:
     require(gameplay, "PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_READY", errors, "reference-driven residential runtime")
     forbid(gameplay, "PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_FAIL", errors, "generic residential/tower runtime failure")
 
-    # Gate C/H must be actual UE state, not launcher intent. The sampler reads t.MaxFPS after possession and
-    # asks the live GameViewportClient whether the viewport is fullscreen.
+    # Gate C/H must be actual UE state, not launcher intent.
     require(gameplay, "PASS45_THERMAL_CAP_RUNTIME_READY", errors, "runtime 60 FPS recovery cap")
     require(gameplay, "PASS45_FULLSCREEN_RUNTIME_READY", errors, "runtime fullscreen viewport")
     forbid(gameplay, "PASS45_THERMAL_CAP_RUNTIME_FAIL", errors, "runtime FPS cap failure")
@@ -95,8 +92,11 @@ def main() -> int:
     # Gate F is required-available truth, not an impossible all-exact production claim.
     require(gameplay, "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY", errors, "required available weapon rack")
     require(gameplay, "PASS36_WEAPON_MATERIAL_AUDIT_READY", errors, "rack authored material audit")
+    require(gameplay, "PASS45_PRIMITIVE_WEAPON_RUNTIME_READY", errors, "zero visible BasicShape weapon rack")
     forbid(gameplay, "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL", errors, "required available weapon failure")
     forbid(gameplay, "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP", errors, "rack authored material gap")
+    forbid(gameplay, "PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL", errors, "visible BasicShape weapon")
+    forbid(gameplay, "PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL", errors, "launcher production visual gap")
 
     # Production vehicle authored materials remain a hard Gate G requirement.
     require(material, "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY", errors, "vehicle material readiness")
@@ -159,6 +159,7 @@ def main() -> int:
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
         "PRODUCTION_VEHICLE_MATERIALS=PASS\n"
         "REQUIRED_AVAILABLE_WEAPON_MATERIALS=PASS\n"
+        "PRIMITIVE_WEAPON_VISUALS=PASS\n"
         "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
         "EXACT_WEAPON_CONTENT_GAPS=ALLOWED_IF_EXPLICIT_FALLBACK_PASSES\n",
         encoding="utf-8",
@@ -171,7 +172,8 @@ def main() -> int:
     print("- initial BASE deployment is character-only and no recovery failure was logged")
     print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
     print("- authored HMMWV/M2/BTR materials passed")
-    print("- all required available rack visuals passed material/texture dependency checks; exact payload gaps remain CONTENT GAP")
+    print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
+    print("- launcher production visual did not fall back to rejected primitive geometry")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0
