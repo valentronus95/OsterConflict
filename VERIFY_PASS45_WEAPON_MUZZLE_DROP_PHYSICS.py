@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parent
 WEAPON_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponBase.cpp"
 WEAPON_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponBase.h"
 CHARACTER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCCharacter.cpp"
+CHARACTER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCCharacter.h"
 LAUNCHER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
 LAUNCHER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCAntiArmorLauncher.h"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
@@ -27,6 +28,7 @@ def req(condition: bool, message: str) -> None:
 weapon_cpp = read(WEAPON_CPP)
 weapon_h = read(WEAPON_H)
 character_cpp = read(CHARACTER_CPP)
+character_h = read(CHARACTER_H)
 launcher_cpp = read(LAUNCHER_CPP)
 launcher_h = read(LAUNCHER_H)
 tz = read(TZ)
@@ -55,35 +57,55 @@ req("MulticastFireTraceFX(TraceOrigin, RepresentativeTraceEnd" not in weapon_cpp
 req("DetectEnvironmentAt(TraceOrigin)" not in weapon_cpp,
     "base weapon reverted to camera-origin shot-audio presentation")
 
-# The old Character implementation drove recoil from a second local held-input timer. We keep the legacy code
-# temporarily for compatibility, but locally-owned weapon recoil getters are neutralized and real recoil now comes
-# only from the server-accepted shot multicast. This prevents an early authoritative cadence stop from leaving a
-# live camera-recoil stream and prevents the old release/recovery path from adding a false downward correction.
+# Pass45 now physically retires the second Character-side held-input recoil timer. Recoil, crosshair expansion
+# and camera shake are all derived from the one server-confirmed shot multicast owned by AOCWeaponBase.
 for needle in (
     "virtual void Tick(float DeltaSeconds) override;",
     "ApplyConfirmedLocalShotRecoil",
     "RecoverConfirmedLocalShotRecoil",
-    "ShouldNeutralizeLegacyLocalRecoil",
     "ConfirmedLocalRecoilPitchOffset",
     "ConfirmedLocalRecoilYawOffset",
+    "GetConfirmedLocalRecoilPitchOffset",
 ):
     req(needle in weapon_h, f"confirmed-shot recoil state contract missing: {needle}")
 
 for needle in (
     "PrimaryActorTick.bCanEverTick = true",
     "RecoverConfirmedLocalShotRecoil(DeltaSeconds)",
-    "return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f",
     "ApplyConfirmedLocalShotRecoil();",
     "LastConfirmedLocalShotTime",
     "ConfirmedRecoilRecoveryDelay",
     "ConfirmedRecoilRecoverySpeed",
+    "LocalShooter->NotifyConfirmedWeaponShotPresentation();",
     "CadenceTolerance",
 ):
     req(needle in weapon_cpp, f"confirmed-shot recoil/cadence implementation missing: {needle}")
 
-req("StartLocalFireFeedback" in character_cpp and "LocalFireFeedbackTimerHandle" in character_cpp,
-    "legacy local feedback path unexpectedly disappeared without a coordinated character migration")
-req("This multicast is emitted only after TryFireServer accepts a factual shot" in weapon_cpp,
+for needle in (
+    "NotifyConfirmedWeaponShotPresentation();",
+    "CurrentWeapon->GetConfirmedLocalRecoilPitchOffset()",
+    "ClientStartCameraShake",
+):
+    req(needle in character_h + character_cpp,
+        f"Character confirmed-shot presentation migration missing: {needle}")
+
+for retired in (
+    "LocalFireFeedbackTimerHandle",
+    "StartLocalFireFeedback",
+    "StopLocalFireFeedback",
+    "ApplyLocalShotFeedback",
+    "RecoverLocalRecoil",
+    "bLocalFireHeld",
+    "CurrentRecoilPitchOffset",
+    "CurrentRecoilYawOffset",
+    "LastLocalShotTime",
+):
+    req(retired not in character_h + character_cpp,
+        f"retired Character held-input recoil path still exists: {retired}")
+
+req("ShouldNeutralizeLegacyLocalRecoil" not in weapon_h + weapon_cpp,
+    "temporary local-recoil neutralization shim survived after Character feedback retirement")
+req("This multicast exists only after TryFireServer accepted a factual shot" in weapon_cpp,
     "confirmed-shot presentation source no longer documents factual-shot ownership")
 
 # A deliberate player drop must be an authority-simulated rigid body. Static rack pickups remain authored
@@ -139,7 +161,7 @@ if errors:
 
 print("PASS45 WEAPON FIRING + MUZZLE + DROP PHYSICS: PASS")
 print("- base hitscan keeps view-ray hit authority but muzzle/tracer/audio presentation resolves from production weapon")
-print("- local recoil movement is neutralized on the old held-input path and emitted/recovered from confirmed shots")
+print("- Character held-input recoil timer/state is physically retired; confirmed shots own recoil/crosshair/camera shake")
 print("- bounded server cadence tolerance prevents tiny timer jitter from killing automatic fire early")
 print("- deliberate player drops enable authority gravity/collision/rigid-body simulation")
 print("- anti-armor projectile/FX/audio originate from production muzzle and ammo commits only after spawn")
