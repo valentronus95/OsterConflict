@@ -42,7 +42,11 @@ fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
+perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
+perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
+launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
+evidence = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
 # Current Museum startup has one coordinated startup window and explicitly reports no old recovery owners.
 for needle in (
@@ -82,6 +86,34 @@ for needle in (
 ):
     require(runtime_safe, needle, "runtime-safe local bot suppression")
 
+# Pass45 thermal recovery must be a real UE runtime contract, not just the string `t.MaxFPS 60` in a batch file.
+for needle in (
+    "bRecoveryRuntimeContractLogged",
+    "ValidatePass45RecoveryRuntimeContract",
+):
+    require(perf_h, needle, "thermal/display sampler state")
+for needle in (
+    '#include "HAL/IConsoleManager.h"',
+    'FindConsoleVariable(TEXT("t.MaxFPS"))',
+    'MaxFpsVariable->GetFloat()',
+    'FMath::IsNearlyEqual(RuntimeMaxFps, 60.0f, 0.5f)',
+    'PASS45_THERMAL_CAP_RUNTIME_READY',
+    'PASS45_THERMAL_CAP_RUNTIME_FAIL',
+    'quality_mutation=0 render_scale_mutation=0',
+):
+    require(perf, needle, "actual runtime thermal cap evidence")
+for needle in ('-fullscreen', 't.MaxFPS 60'):
+    require(launcher, needle, "normal recovery launcher request")
+forbid(launcher, '-windowed', "normal recovery route must not force windowed mode")
+
+# Strict evidence must reject a run where the CVar request was overridden or never applied.
+for needle in (
+    'require(gameplay, "PASS45_THERMAL_CAP_RUNTIME_READY"',
+    'forbid(gameplay, "PASS45_THERMAL_CAP_RUNTIME_FAIL"',
+    '"THERMAL_CAP_RUNTIME_CONTRACT=PASS\\n"',
+):
+    require(evidence, needle, "strict thermal runtime evidence")
+
 # Acceptance must no longer demand logs from physically deleted recovery/palette owners.
 for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
@@ -105,4 +137,6 @@ print("- obsolete palette owner is physically deleted")
 print("- landmark startup is coordinated once and historical delayed stage timers are cancelled")
 print("- weapon fallback/material audit remains finite and fail-visible")
 print("- normal local game defaults to zero filler bots unless explicitly requested")
+print("- normal recovery launcher requests 60 FPS, and UE runtime must confirm actual t.MaxFPS=60 with fail-visible evidence")
+print("- low-FPS/thermal recovery never lowers render scale to disguise the problem")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
