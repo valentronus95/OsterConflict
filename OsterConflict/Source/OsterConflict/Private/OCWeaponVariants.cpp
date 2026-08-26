@@ -203,6 +203,7 @@ AOCWeapon_Sniper::AOCWeapon_Sniper()
     FOCWeaponTuning T = BasePreset(TEXT("OC_SNP1"), TEXT("M700"), EOCWeaponClass::SniperRifle,
         EOCInventorySlot::Primary, EOCAmmoType::Precision);
     T.ActionType = EOCWeaponActionType::BoltAction;
+    T.ManualActionCycleSeconds = 1.10f;
     T.Damage = 90.0f; T.RangeCm = 35000.0f; T.RoundsPerMinute = 55.0f;
     T.HipSpreadDegrees = 3.25f; T.ADSSpreadDegrees = 0.035f; T.MovingSpreadMultiplier = 2.40f;
     T.RecoilPitchMin = 1.90f; T.RecoilPitchMax = 2.60f; T.RecoilYawMax = 0.55f;
@@ -228,6 +229,7 @@ AOCWeapon_Shotgun::AOCWeapon_Shotgun()
     FOCWeaponTuning T = BasePreset(TEXT("OC_SG1"), TEXT("Remington 870"), EOCWeaponClass::Shotgun,
         EOCInventorySlot::Primary, EOCAmmoType::Shell);
     T.ActionType = EOCWeaponActionType::PumpAction;
+    T.ManualActionCycleSeconds = 0.72f;
     T.Damage = 11.5f; T.PelletsPerShot = 8; T.RangeCm = 4200.0f; T.RoundsPerMinute = 85.0f;
     T.HipSpreadDegrees = 2.60f; T.ADSSpreadDegrees = 1.10f; T.MovingSpreadMultiplier = 1.35f;
     T.RecoilPitchMin = 1.65f; T.RecoilPitchMax = 2.20f; T.RecoilYawMax = 0.65f;
@@ -360,6 +362,7 @@ AOCWeapon_LeverAction::AOCWeapon_LeverAction()
     FOCWeaponTuning T = BasePreset(TEXT("R13_LEVER4570"), TEXT("Lever Action .45-70"), EOCWeaponClass::SniperRifle,
         EOCInventorySlot::Primary, EOCAmmoType::Precision);
     T.ActionType = EOCWeaponActionType::LeverAction;
+    T.ManualActionCycleSeconds = 0.85f;
     T.Damage = 78.0f; T.RangeCm = 22000.0f; T.RoundsPerMinute = 72.0f;
     T.HipSpreadDegrees = 2.05f; T.ADSSpreadDegrees = 0.11f; T.MovingSpreadMultiplier = 1.85f;
     T.RecoilPitchMin = 1.45f; T.RecoilPitchMax = 2.05f; T.RecoilYawMax = 0.42f;
