@@ -9,6 +9,7 @@ class AOCWeaponBase;
 class UAnimSequence;
 class UPrimitiveComponent;
 class USkeletalMeshComponent;
+struct FOCFirstPersonWeaponProfile;
 
 struct FOCFirstPersonWeaponState
 {
@@ -16,6 +17,7 @@ struct FOCFirstPersonWeaponState
     int32 LastAmmo = INDEX_NONE;
     bool bWasReloading = false;
     bool bWasActionCycling = false;
+    bool bWasAiming = false;
     bool bADSArmsPose = false;
     bool bRiflePoseApplied = false;
     bool bWeaponAnimationActive = false;
@@ -46,6 +48,8 @@ private:
     void ApplyArmsPose(AOCCharacter& Character, FOCFirstPersonWeaponState& State, bool bADS);
     void PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
         FOCFirstPersonWeaponState& State, double ResetDelaySeconds);
+    void ValidateADSAlignment(AOCCharacter& Character, AOCWeaponBase& Weapon,
+        UPrimitiveComponent* ProductionVisual, const FOCFirstPersonWeaponProfile& Profile) const;
 
     UPrimitiveComponent* FindProductionWeaponVisual(AOCWeaponBase& Weapon) const;
     USkeletalMeshComponent* FindProductionSkeletalWeaponVisual(AOCWeaponBase& Weapon) const;
