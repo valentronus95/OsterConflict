@@ -91,6 +91,17 @@ for marker in (
 ):
     req(marker in evidence, f"Pass45 black-world evidence verifier missing marker/contract: {marker}")
 
+# Gate D Museum/Culture identity is also part of strict evidence. Generic parcel separation alone is insufficient:
+# the six-column authoritative civic actor must stay on the Culture House parcel and never occupy Museum.
+for marker in (
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
+    "PASS45_LANDMARK_IDENTITY_VALIDATION_READY",
+    "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
+    "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL",
+    "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS",
+):
+    req(marker in evidence, f"Pass45 landmark identity evidence verifier missing marker/contract: {marker}")
+
 # Acceptance must force the actual interaction sequence that reproduces the rejected teleport/M2 bugs and must
 # require material truth for the rack actually rendered in gameplay.
 for marker in (
@@ -142,8 +153,9 @@ print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
 print("- START_HERE full test -> strict main wrapper -> playflow/performance -> one canonical gameplay process")
 print("- production vehicle import is not duplicated by START_HERE strict preparation")
 print("- P0 black-world automated evidence requires physical daylight plus stable semantic world materials")
+print("- Gate D automated evidence requires distinct Museum/Culture House authoritative identities and rejects cross-parcel placement")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
-print("- world/material, vehicle/weapon material and transform failures are fatal")
+print("- world/material, landmark identity, vehicle/weapon material and transform failures are fatal")
 print("- automated evidence cannot mark visual acceptance complete")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 playtest still required")
