@@ -44,7 +44,7 @@ req("start /wait" not in main and "start /wait" not in playflow,
     "a wrapper became a second gameplay process launcher")
 req("start /wait" in normal, "canonical normal-game launcher no longer owns the gameplay process")
 req("-fullscreen" in normal and 't.MaxFPS 60' in normal,
-    "normal gameplay route lost Pass45 fullscreen/60 FPS recovery contract")
+    "normal gameplay route lost Pass45 fullscreen/60 FPS recovery request")
 
 # START_HERE strict preparation may repair Stein authored assets once, but production vehicle intake belongs to
 # CURRENT_GAMEPLAY strict stage so HMMWV/M2/BTR are not imported twice before one acceptance run.
@@ -79,9 +79,7 @@ for forbidden in (
 req("R14_PRODUCTION_WEAPONS=PASS" not in material,
     "strict material gate resurrected impossible all-exact production weapon sentinel")
 
-# P0 black-world recovery is part of strict acceptance, not an optional side validation. Automated evidence must
-# prove the physical daylight owner started and the semantic Ground/Roads/Sidewalks MID contract survived the
-# Pass12 12s/16s/20s stability window. A geometry/material FAIL must be fatal.
+# P0 black-world recovery is part of strict acceptance, not an optional side validation.
 for marker in (
     "PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY",
     "PASS12_WORLD_GEOMETRY_STABLE",
@@ -91,8 +89,7 @@ for marker in (
 ):
     req(marker in evidence, f"Pass45 black-world evidence verifier missing marker/contract: {marker}")
 
-# Gate D Museum/Culture identity is also part of strict evidence. Generic parcel separation alone is insufficient:
-# the six-column authoritative civic actor must stay on the Culture House parcel and never occupy Museum.
+# Gate D Museum/Culture identity is also part of strict evidence.
 for marker in (
     "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
     "PASS45_LANDMARK_IDENTITY_VALIDATION_READY",
@@ -101,6 +98,17 @@ for marker in (
     "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS",
 ):
     req(marker in evidence, f"Pass45 landmark identity evidence verifier missing marker/contract: {marker}")
+
+# Gate C/H must prove actual UE runtime state after possession, not merely the launcher command line.
+for marker in (
+    "PASS45_THERMAL_CAP_RUNTIME_READY",
+    "PASS45_THERMAL_CAP_RUNTIME_FAIL",
+    "PASS45_FULLSCREEN_RUNTIME_READY",
+    "PASS45_FULLSCREEN_RUNTIME_FAIL",
+    "THERMAL_CAP_RUNTIME_CONTRACT=PASS",
+    "FULLSCREEN_RUNTIME_CONTRACT=PASS",
+):
+    req(marker in evidence, f"Pass45 thermal/fullscreen evidence verifier missing marker/contract: {marker}")
 
 # Acceptance must force the actual interaction sequence that reproduces the rejected teleport/M2 bugs and must
 # require material truth for the rack actually rendered in gameplay.
@@ -154,8 +162,9 @@ print("- START_HERE full test -> strict main wrapper -> playflow/performance -> 
 print("- production vehicle import is not duplicated by START_HERE strict preparation")
 print("- P0 black-world automated evidence requires physical daylight plus stable semantic world materials")
 print("- Gate D automated evidence requires distinct Museum/Culture House authoritative identities and rejects cross-parcel placement")
+print("- Gate C/H automated evidence requires actual UE t.MaxFPS=60 and a live fullscreen viewport after possession")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
-print("- world/material, landmark identity, vehicle/weapon material and transform failures are fatal")
+print("- world/material, landmark identity, thermal/display, vehicle/weapon material and transform failures are fatal")
 print("- automated evidence cannot mark visual acceptance complete")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 playtest still required")
