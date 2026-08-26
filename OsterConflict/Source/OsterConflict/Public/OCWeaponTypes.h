@@ -34,11 +34,31 @@ enum class EOCAmmoType : uint8
     Rocket UMETA(DisplayName="Rocket")
 };
 
+/** Live selector positions. Safe is represented by input/state gating rather than a fake fire pulse. */
 UENUM(BlueprintType)
 enum class EOCFireMode : uint8
 {
     SemiAutomatic UMETA(DisplayName="Semi"),
+    Burst3 UMETA(DisplayName="3-Round Burst"),
     Automatic UMETA(DisplayName="Automatic")
+};
+
+/**
+ * Mechanical action family. This is presentation/gameplay metadata, not a weapon-class alias: two rifles can share
+ * a class while requiring completely different post-shot actions and animation/audio contracts.
+ */
+UENUM(BlueprintType)
+enum class EOCWeaponActionType : uint8
+{
+    GasOperated UMETA(DisplayName="Gas Operated"),
+    DelayedBlowback UMETA(DisplayName="Delayed Blowback"),
+    Blowback UMETA(DisplayName="Blowback"),
+    ShortRecoil UMETA(DisplayName="Short Recoil"),
+    BoltAction UMETA(DisplayName="Bolt Action"),
+    PumpAction UMETA(DisplayName="Pump Action"),
+    LeverAction UMETA(DisplayName="Lever Action"),
+    BeltFed UMETA(DisplayName="Belt Fed"),
+    LauncherSingleShot UMETA(DisplayName="Single-Shot Launcher")
 };
 
 UENUM(BlueprintType)
@@ -76,6 +96,10 @@ struct FOCWeaponTuning
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EOCWeaponClass WeaponClass = EOCWeaponClass::AssaultRifle;
+
+    /** Mechanical action drives bolt/pump/lever/belt presentation and post-shot state. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EOCWeaponActionType ActionType = EOCWeaponActionType::GasOperated;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EOCInventorySlot PreferredSlot = EOCInventorySlot::Primary;
@@ -128,6 +152,10 @@ struct FOCWeaponTuning
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bSupportsSemiAutomatic = true;
+
+    /** Explicit because a family/model name alone does not prove a 3-round selector is fitted. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bSupportsBurst3 = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bSupportsAutomatic = true;
