@@ -8,6 +8,9 @@ COORDINATOR = SRC / "Private/OCLandmarkStartupCoordinatorSubsystem.cpp"
 SEPARATION = SRC / "Private/OCR146LandmarkSeparationSubsystem.cpp"
 VALIDATOR_H = SRC / "Public/OCWorldGeometryStabilitySubsystem.h"
 VALIDATOR_CPP = SRC / "Private/OCWorldGeometryStabilitySubsystem.cpp"
+VISUAL_ENVIRONMENT = SRC / "Private/OCVisualEnvironment.cpp"
+WORLD_SECTOR = SRC / "Private/OCWorldSectorOster.cpp"
+ENGINE_CONFIG = ROOT / "OsterConflict/Config/DefaultEngine.ini"
 LAUNCHER = ROOT / "RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd"
 
 RETIRED_GENERIC_OWNERS = (
@@ -44,6 +47,9 @@ coordinator = read(COORDINATOR)
 separation = read(SEPARATION)
 header = read(VALIDATOR_H)
 validator = read(VALIDATOR_CPP)
+visual_environment = read(VISUAL_ENVIRONMENT)
+world_sector = read(WORLD_SECTOR)
+engine_config = read(ENGINE_CONFIG)
 launcher = read(LAUNCHER)
 
 # Pass45 runtime evidence rejected the old generic AdvancedVillagePack/recovered presentation owners.
@@ -52,6 +58,50 @@ for path in RETIRED_GENERIC_OWNERS:
     if path.exists():
         raise SystemExit(
             f"PASS12 WORLD STABILITY VERIFY FAIL: rejected generic/recovered owner resurrected: {path.relative_to(ROOT)}"
+        )
+
+# Pass45 P0 black-world correction is one coherent exposure/lighting contract. UE 5.8 Directional Light
+# intensity is lux, so physical daylight must not be paired with the previous disabled exposure adaptation.
+for needle in (
+    "bReplicates = true;",
+    "bAlwaysRelevant = true;",
+    "CreateDefaultSubobject<UDirectionalLightComponent>",
+    "CreateDefaultSubobject<USkyLightComponent>",
+    "CreateDefaultSubobject<USkyAtmosphereComponent>",
+    "SunLight->SetIntensity(120000.0f);",
+    "PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY",
+    "expected_auto_exposure=1",
+):
+    require(visual_environment, needle, "Pass45 component-owned daylight contract")
+for stale in (
+    "SunLight->SetIntensity(4.0f);",
+    "SpawnActor<ADirectionalLight>",
+    "SpawnActor<ASkyLight>",
+    "SpawnActor<AExponentialHeightFog>",
+):
+    forbid(visual_environment, stale, "retired black-world lighting contract")
+require(engine_config, "r.DefaultFeature.AutoExposure=True", "Pass45 renderer exposure contract")
+forbid(engine_config, "r.DefaultFeature.AutoExposure=False", "Pass45 renderer exposure contract")
+
+# The accepted source-only semantic world baseline remains owned by AOCWorldSectorOster. Do not allow
+# a new late owner to target Ground/Roads/Sidewalks with SetMaterial after that baseline.
+for needle in (
+    "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "Tint(Ground",
+    "Tint(Roads",
+    "Tint(Sidewalks",
+):
+    require(world_sector, needle, "accepted semantic world-material owner")
+
+material_families = ('TEXT("Ground")', 'TEXT("Roads")', 'TEXT("Sidewalks")')
+for cpp_path in (SRC / "Private").glob("*.cpp"):
+    if cpp_path == WORLD_SECTOR or cpp_path.name == "OCR13StadiumSurfaceSubsystem.cpp":
+        continue
+    source = read(cpp_path)
+    if "AOCWorldSectorOster" in source and "SetMaterial(" in source and any(name in source for name in material_families):
+        raise SystemExit(
+            "PASS12 WORLD STABILITY VERIFY FAIL: second semantic world-material owner detected: "
+            f"{cpp_path.relative_to(ROOT)}"
         )
 
 # The authoritative location startup must cancel historical delayed timers before immediate builds.
@@ -116,15 +166,25 @@ for needle in (
     'TEXT("LandmarkWindows")',
     'TEXT("LandmarkDetails")',
     'TEXT("ParkGeometry")',
+    'TEXT("Ground")',
     'TEXT("Roads")',
     'TEXT("Sidewalks")',
+    "ValidateSemanticMaterials",
+    "UMaterialInstanceDynamic",
+    "GetAllVectorParameterInfo",
+    'Parameter.Name == TEXT("Color")',
+    "semantic_material_missing_",
+    "semantic_mid_missing_",
+    "semantic_color_parameter_missing_",
+    "PASS45_WORLD_MATERIAL_BASELINE_READY",
+    "PASS45_WORLD_MATERIAL_STABLE",
     "late_geometry_mutation_",
     "PASS12_WORLD_GEOMETRY_BASELINE_CAPTURED",
     "PASS12_WORLD_GEOMETRY_STABLE_SAMPLE",
     "PASS12_WORLD_GEOMETRY_STABLE",
     "PASS12_WORLD_GEOMETRY_STABILITY_FAIL",
 ):
-    require(validator, needle, "Pass12 runtime validator")
+    require(validator, needle, "Pass12/Pass45 runtime validator")
 
 for needle in (
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
@@ -139,7 +199,10 @@ print("WORLD GEOMETRY STABILITY PASS12/PASS45 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
 print("- landmark separation is one bounded validation-only pass with mutation=0")
 print("- rejected generic world/decorator/recovered owners remain physically retired")
+print("- Pass45 daylight is component-owned, replicated and paired: 120000 lux + AutoExposure=True")
+print("- AOCWorldSectorOster remains the accepted Ground/Roads/Sidewalks semantic-material owner")
+print("- no second source owner may target those semantic families with SetMaterial")
 print("- validation completes before the 12 s Pass12 baseline")
-print("- Pass12 snapshots source geometry families at 12s and compares again at 16s/20s")
-print("- any late instance-count mutation emits a family-specific runtime FAIL marker")
+print("- Pass12 snapshots source geometry and validates semantic MID/Color at 12s, 16s and 20s")
+print("- missing/broken semantic materials emit a family-specific runtime FAIL marker")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence still required")
