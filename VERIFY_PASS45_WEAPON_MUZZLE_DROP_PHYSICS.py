@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 WEAPON_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponBase.cpp"
 WEAPON_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponBase.h"
+CHARACTER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCCharacter.cpp"
 LAUNCHER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
 LAUNCHER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCAntiArmorLauncher.h"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
@@ -25,6 +26,7 @@ def req(condition: bool, message: str) -> None:
 
 weapon_cpp = read(WEAPON_CPP)
 weapon_h = read(WEAPON_H)
+character_cpp = read(CHARACTER_CPP)
 launcher_cpp = read(LAUNCHER_CPP)
 launcher_h = read(LAUNCHER_H)
 tz = read(TZ)
@@ -52,6 +54,37 @@ req("MulticastFireTraceFX(TraceOrigin, RepresentativeTraceEnd" not in weapon_cpp
     "base weapon reverted to camera-origin muzzle/tracer presentation")
 req("DetectEnvironmentAt(TraceOrigin)" not in weapon_cpp,
     "base weapon reverted to camera-origin shot-audio presentation")
+
+# The old Character implementation drove recoil from a second local held-input timer. We keep the legacy code
+# temporarily for compatibility, but locally-owned weapon recoil getters are neutralized and real recoil now comes
+# only from the server-accepted shot multicast. This prevents an early authoritative cadence stop from leaving a
+# live camera-recoil stream and prevents the old release/recovery path from adding a false downward correction.
+for needle in (
+    "virtual void Tick(float DeltaSeconds) override;",
+    "ApplyConfirmedLocalShotRecoil",
+    "RecoverConfirmedLocalShotRecoil",
+    "ShouldNeutralizeLegacyLocalRecoil",
+    "ConfirmedLocalRecoilPitchOffset",
+    "ConfirmedLocalRecoilYawOffset",
+):
+    req(needle in weapon_h, f"confirmed-shot recoil state contract missing: {needle}")
+
+for needle in (
+    "PrimaryActorTick.bCanEverTick = true",
+    "RecoverConfirmedLocalShotRecoil(DeltaSeconds)",
+    "return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f",
+    "ApplyConfirmedLocalShotRecoil();",
+    "LastConfirmedLocalShotTime",
+    "ConfirmedRecoilRecoveryDelay",
+    "ConfirmedRecoilRecoverySpeed",
+    "CadenceTolerance",
+):
+    req(needle in weapon_cpp, f"confirmed-shot recoil/cadence implementation missing: {needle}")
+
+req("StartLocalFireFeedback" in character_cpp and "LocalFireFeedbackTimerHandle" in character_cpp,
+    "legacy local feedback path unexpectedly disappeared without a coordinated character migration")
+req("This multicast is emitted only after TryFireServer accepts a factual shot" in weapon_cpp,
+    "confirmed-shot presentation source no longer documents factual-shot ownership")
 
 # A deliberate player drop must be an authority-simulated rigid body. Static rack pickups remain authored
 # placements and are not globally forced into physics merely because bIsWorldPickup is true.
@@ -99,13 +132,15 @@ req("RUNTIME REJECTED 2026-08-26" in tz,
     "canonical Pass45 TZ lost the latest 2026-08-26 runtime rejection")
 
 if errors:
-    print("PASS45 WEAPON MUZZLE + DROP PHYSICS: FAIL")
+    print("PASS45 WEAPON FIRING + MUZZLE + DROP PHYSICS: FAIL")
     for error in errors:
         print("[FAIL]", error)
     raise SystemExit(1)
 
-print("PASS45 WEAPON MUZZLE + DROP PHYSICS: PASS")
+print("PASS45 WEAPON FIRING + MUZZLE + DROP PHYSICS: PASS")
 print("- base hitscan keeps view-ray hit authority but muzzle/tracer/audio presentation resolves from production weapon")
+print("- local recoil movement is neutralized on the old held-input path and emitted/recovered from confirmed shots")
+print("- bounded server cadence tolerance prevents tiny timer jitter from killing automatic fire early")
 print("- deliberate player drops enable authority gravity/collision/rigid-body simulation")
 print("- anti-armor projectile/FX/audio originate from production muzzle and ammo commits only after spawn")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 build, drop settling, muzzle alignment and rendered firing remain authoritative")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 build, recoil feel, drop settling, muzzle alignment and rendered firing remain authoritative")
