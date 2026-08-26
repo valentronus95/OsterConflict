@@ -67,12 +67,13 @@ for needle in (
 ):
     require(normal, needle, "strict production runtime route")
 
-# Command wrapper still owns independent per-model intake results.
+# Command wrapper still owns independent per-model intake results. A failed local source recovery may no longer
+# imply a missing BTR because the canonical importer owns a repository-authored fallback.
 for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
-    "Continuing independent intake for any available source files",
+    "Continuing independent intake; BTR authored fallback remains available.",
 ):
     require(importer, needle, "independent production intake command")
 
