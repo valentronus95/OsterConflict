@@ -21,6 +21,9 @@ world_h = read(SRC/'Public/OCWorldSectorOster.h')
 world = read(SRC/'Private/OCWorldSectorOster.cpp')
 weapon_h = read(SRC/'Public/OCWeaponBase.h')
 weapon = read(SRC/'Private/OCWeaponBase.cpp')
+weapon_variants = read(SRC/'Private/OCWeaponVariants.cpp')
+weapon_fallback = read(SRC/'Private/OCRealWeaponFallbackSubsystem.cpp')
+launcher = read(SRC/'Private/OCAntiArmorLauncher.cpp')
 fx_h = read(SRC/'Public/OCTransientVisualFX.h')
 fx = read(SRC/'Private/OCTransientVisualFX.cpp')
 char = read(SRC/'Private/OCCharacterVisualComponent.cpp')
@@ -54,8 +57,20 @@ for token in ['Tint(Ground','Tint(Roads','Tint(Buildings','Tint(ResidentialRoofs
 req('ReferenceMarkers->SetVisibility(false, true)' in world, 'authoring reference markers hidden in gameplay')
 req('Label->SetVisibility(false, true)' in world, 'authoring labels hidden in gameplay')
 
-req('TObjectPtr<USceneComponent> WeaponRoot' in weapon_h, 'weapon has unscaled scene root for composite visuals')
-req('BuildSourceOnlyWeaponVisual();' in weapon and 'RifleBarrel' in weapon and 'SniperScope' in weapon and 'PistolGrip' in weapon, 'recognizable composite weapon silhouettes implemented')
+req('TObjectPtr<USceneComponent> WeaponRoot' in weapon_h, 'weapon has unscaled scene root for real production/fallback visuals')
+# Historical R11 accepted source composite Cube/Cylinder silhouettes. Pass45 runtime evidence rejected those visuals.
+# The builder may remain temporarily as invisible physics/debug history, but concrete weapons must fail closed visually.
+req('BuildSourceOnlyWeaponVisual();' in weapon and '/Engine/BasicShapes/Cube.Cube' in weapon,
+    'hidden source collision/prototype history remains explicit during migration')
+req('HideStaticWeaponFallback(Owner);' in weapon_variants and
+    'PASS45_WEAPON_PRODUCTION_VISUAL_GAP' in weapon_variants and 'primitive_visible=0' in weapon_variants,
+    'concrete weapon variants hide source primitives before production-load failure can render them')
+req('PASS45_PRIMITIVE_WEAPON_RUNTIME_READY' in weapon_fallback and
+    'PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL' in weapon_fallback and
+    'Weapon.GetWeaponVisualRoot()' in weapon_fallback,
+    'runtime fallback path enforces zero visible BasicShape weapons and uses the unscaled visual root')
+req('PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL' in launcher and 'primitive_visible=0 runtime_acceptance=0' in launcher,
+    'anti-armor launcher fails closed instead of rendering its primitive source body')
 req('AOCTransientVisualFX' in weapon and 'ConfigureMuzzle' in weapon and 'ConfigureTracer' in weapon and 'ConfigureImpact' in weapon, 'combat FX use transient scene visuals')
 req('DrawDebugLine(GetWorld(), TraceStart' not in weapon and 'DrawDebugPoint(GetWorld(), ImpactLocation' not in weapon, 'weapon fire/impact debug primitives removed')
 req('SetLifeSpan' in fx and 'UPointLightComponent' in fx_h and 'BasicShapeMaterial' in fx, 'transient FX self-clean and use lit material geometry')
@@ -90,4 +105,4 @@ req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick a
 for bad in ['Binaries','Intermediate','Saved','DerivedDataCache']:
     req(not (P/bad).exists(), f'archive excludes generated {bad}')
 
-print(f'R11 VISUAL FOUNDATION / PASS45 launcher verifier: PASS ({len(checks)} checks)')
+print(f'R11 VISUAL FOUNDATION / PASS45 launcher+primitive-retirement verifier: PASS ({len(checks)} checks)')
