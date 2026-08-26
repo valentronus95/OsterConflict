@@ -177,12 +177,22 @@ Manual-action source gate now exists independently of low RPM:
 - presentation/HUD may observe `bActionCycling` but may not own a second timing source;
 - source marker: `PASS45_MANUAL_ACTION_CYCLE_READY ... authoritative=1`.
 
+Manual-action presentation/audio routing is now also source-coded without creating a second gameplay clock:
+
+- `UOCFirstPersonWeaponPresentationSubsystem` detects the replicated `bActionCycling` transition and shapes a local procedural action cue using the authoritative cycle duration;
+- M700, Remington 870 and Lever Action profiles declare separate bolt/pump/lever weapon+arms cue transforms while remaining explicitly **UNCALIBRATED** for final UE visual approval;
+- source marker: `PASS45_MANUAL_ACTION_PRESENTATION_READY ... replicated_gate=1 second_gameplay_timer=0`;
+- `EOCWeaponAudioEvent::ManualActionCycle` routes by exact `EOCWeaponActionType` into separate `BoltCycle`, `PumpCycle` and `LeverCycle` sound sets;
+- local first-person mechanical audio is emitted on the local replicated-gate transition; remote listeners use `OnRep_ActionCycling` and explicitly skip the local owner to prevent double playback;
+- empty/manual-action sound arrays remain an explicit **AUDIO CONTENT GAP** and are not promoted to READY.
+
 Still pending:
 
 - HUD current mode/action state;
 - exact Burst3-capable asset approval if such a variant is introduced;
-- bolt/pump/lever visual animation and action-specific mechanical audio driven from replicated action truth;
-- local UE 5.8 timing/feel verification.
+- authored skeletal bolt/pump/lever animation or exact moving-part presentation for production meshes;
+- actual accepted bolt/pump/lever mechanical sound assets in the audio profiles;
+- local UE 5.8 timing/feel/visual/audio verification.
 
 Source guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
 
@@ -236,6 +246,13 @@ Requirements:
 ## 8. P0 — weapon audio
 
 Current audio subsystem supports confirmed shot/state/impact events, but some runtime weapons remain silent.
+
+Current source state for manual actions:
+
+- manual-action mechanical audio is a distinct event from the gunshot report;
+- exact action type selects `BoltCycle`, `PumpCycle` or `LeverCycle` rather than one generic mechanical sound;
+- the local-owner and remote-listener routes are separated so one action does not intentionally double-count;
+- missing profile/empty action set remains observable as a content gap; source routing alone is not audible-content acceptance.
 
 Requirements:
 
@@ -367,10 +384,14 @@ Implemented:
 - finite authoritative Burst3 architecture with no current false opt-in;
 - M700/Remington870/LeverAction explicit post-shot cycle timings;
 - replicated `bActionCycling` authoritative action gate;
-- source verifiers reject resurrection of old feedback/action shortcuts;
+- procedural first-person bolt/pump/lever cues driven only by that replicated gate and authoritative duration;
+- `PASS45_MANUAL_ACTION_PRESENTATION_READY` proves the presentation path adds no second gameplay timer;
+- exact manual-action mechanical audio routing through `BoltCycle` / `PumpCycle` / `LeverCycle` with explicit empty-set content-gap behavior;
+- local/remote manual-action audio ownership split to avoid intentional double playback;
+- source verifiers reject resurrection of old feedback/action shortcuts and validate the new presentation/audio route;
 - cumulative `RUN_ALL_VERIFY.py` includes both weapon guards.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, production hierarchy, drop settling, muzzle alignment, launcher visual, audio availability, manual-action animation/audio.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, real mechanical sound content, production hierarchy, drop settling, muzzle alignment, launcher visual and general audio availability.
 
 ## 23. Corrective execution order
 
@@ -390,22 +411,23 @@ Completed/source-coded items are marked only for source work, not runtime accept
 12. [x] Add source verifier/workflow for firing/muzzle/drop contracts.
 13. [x] Physically retire legacy Character `LocalFireFeedbackTimerHandle` and duplicate local recoil/recovery owner.
 14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
-15. [ ] Complete manual bolt/pump/lever presentation and action-specific audio; authoritative state/timing gate is already source-coded.
-16. [ ] Build per-weapon ADS/sight profiles and validation.
-17. [ ] Close all silent weapon audio-profile gaps.
-18. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
-19. [ ] Replace grenade models/throw presentation/smoke VFX.
-20. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
-21. [ ] Replace rejected vegetation family.
-22. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
-23. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
-24. [ ] Close BTR white material state across pre/post possession.
-25. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
-26. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
-27. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
-28. [ ] Validate tactical map screenshot.
-29. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
-30. [ ] Merge PR #94 only after factual current-head runtime acceptance.
+15. [x] Code replicated-gate first-person bolt/pump/lever procedural presentation and exact action-type mechanical audio routing without a second gameplay timer.
+16. [ ] Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
+17. [ ] Build per-weapon ADS/sight profiles and validation.
+18. [ ] Close all remaining silent weapon audio-profile gaps.
+19. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
+20. [ ] Replace grenade models/throw presentation/smoke VFX.
+21. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
+22. [ ] Replace rejected vegetation family.
+23. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
+24. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
+25. [ ] Close BTR white material state across pre/post possession.
+26. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
+27. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
+28. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
+29. [ ] Validate tactical map screenshot.
+30. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+31. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 24. Final acceptance gates
 
@@ -419,7 +441,7 @@ daylight/exposure; stable ground/roads/sidewalks; no black-world or blown-out sc
 real accepted visual/material/texture chain; no visible primitive fallback; launcher visual valid; unresolved exact items remain CONTENT GAP.
 
 ### Gate D — weapon firing physics
-factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate and visible action animation/audio; ADS alignment; drop physics; grenade/smoke presentation.
+factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; ADS alignment; drop physics; grenade/smoke presentation.
 
 ### Gate E — landmarks/environment
 Museum/Culture/Silpo separated and identified; rejected residential/tree families absent; Gate K passes.
@@ -448,4 +470,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop/action corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The newest weapon firing/muzzle/drop/action/presentation/audio-routing corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
