@@ -1,0 +1,93 @@
+name: Pass45 guarded residential retirement patch
+
+on:
+  push:
+    branches:
+      - fix/runtime-acceptance-pass45-generic-residential-retirement-20260826
+    paths:
+      - '.github/workflows/_pass45_apply_reference_residential_retirement.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-guarded-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/runtime-acceptance-pass45-generic-residential-retirement-20260826
+          fetch-depth: 0
+      - name: Apply source retirement patch with exact guards
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path: Path, old: str, new: str, label: str):
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          root = Path('.')
+          gm = root / 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
+          world = root / 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+          header = root / 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+
+          replace_once(gm, '#include "OCEnterableHouse.h"\n', '', 'retire enterable-house include')
+          replace_once(gm, '#include "OCHouseTypes.h"\n', '', 'retire house-types include')
+
+          old_spawn = '''    // S08 first true enterable private-sector house. The lot is gameplay-authored and is not a copy of a specific residence.\n    if (AOCEnterableHouse* House = GetWorld()->SpawnActor<AOCEnterableHouse>(AOCEnterableHouse::StaticClass(),\n        AOCWorldSectorOster::KrushelnytskaEnterableHouseAnchor(),\n        FRotator(0.0f, AOCWorldSectorOster::KrushelnytskaEnterableHouseYaw(), 0.0f), SpawnParams))\n    {\n        House->ConfigureInteriorVariantServer(1408, EOCHouseCondition::Worn, 1);\n    }\n'''
+          new_spawn = '''    // Pass45: the old S08 enterable house was explicitly gameplay-authored rather than tied to a\n    // verified residence. Do not spawn it in normal runtime. The class remains available for future\n    // location-specific authored use, while the existing anchor may still seed non-visual ambient audio.\n    UE_LOG(LogTemp, Display,\n        TEXT("PASS45_GENERIC_ENTERABLE_HOUSE_RETIRED normal_runtime_spawn=0 reference_required=1"));\n'''
+          replace_once(gm, old_spawn, new_spawn, 'retire generic enterable-house spawn')
+
+          replace_once(
+              world,
+              '    BuildCollegeSector();\n    BuildSolomiiKrushelnytskoiStreet();\n    BuildResidentialBlocks();\n    BuildVegetation();\n',
+              '    BuildCollegeSector();\n    // Pass45: generic private-residence/fence generators are physically retired from primary authoring.\n    // Road topology remains owned by BuildRoadNetwork; private structures return only from location-specific references.\n    BuildVegetation();\n',
+              'retire generic residential constructor calls',
+          )
+
+          text = world.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r'\nvoid AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet\(\)\n\{.*?\n\}\n\n'
+              r'void AOCWorldSectorOster::BuildResidentialBlocks\(\)\n\{.*?\n\}\n\n'
+              r'(?=void AOCWorldSectorOster::BuildVegetation\(\))',
+              re.S,
+          )
+          text, count = pattern.subn('\n', text, count=1)
+          if count != 1:
+              raise SystemExit(f'retire generic residential owner bodies: expected 1 match, got {count}')
+          world.write_text(text, encoding='utf-8')
+
+          marker_anchor = '''    UE_LOG(LogTemp, Display,\n        TEXT("PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] old_ground_2400m=0 far_legacy_base_geometry=0 peripheral_hydrography=0"));\n'''
+          marker_insert = '''    UE_LOG(LogTemp, Display,\n        TEXT("PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED procedural_residential_grids=0 generic_private_fences=0 reference_specific_private_structures_required=1"));\n\n''' + marker_anchor
+          replace_once(world, marker_anchor, marker_insert, 'add Pass45 residential retirement runtime marker')
+
+          replace_once(
+              header,
+              ' * vegetation character and major outdoor features. Private residences use reference-informed archetypes and are\n * not claimed to reproduce individual homes.\n',
+              ' * vegetation character and major outdoor features. Private generic residences are intentionally omitted until\n * location-specific reference evidence exists; procedural house/fence archetypes are not player-facing runtime content.\n',
+              'update world header truth',
+          )
+          replace_once(header, '    void BuildSolomiiKrushelnytskoiStreet();\n', '', 'remove street generic owner declaration')
+          replace_once(header, '    void BuildResidentialBlocks();\n', '', 'remove residential grid owner declaration')
+
+          print('PASS45_GUARDED_SOURCE_PATCH=PASS')
+          PY
+      - name: Commit guarded patch and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/_pass45_apply_reference_residential_retirement.yml
+          git config user.name "Pass45 Source Guard"
+          git config user.email "actions@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp \
+                  OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp \
+                  OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h \
+                  .github/workflows/_pass45_apply_reference_residential_retirement.yml
+          git diff --cached --check
+          git commit -m "fix(pass45): retire unreferenced generic residential visuals"
+          git push origin HEAD:fix/runtime-acceptance-pass45-generic-residential-retirement-20260826
