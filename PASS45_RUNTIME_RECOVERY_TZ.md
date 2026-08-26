@@ -114,13 +114,8 @@ Current correction:
 
 This closes the duplicate local feedback owner at source level. It does **not** prove recoil feel, release behavior or camera-shake behavior in UE runtime.
 
-Source guard:
-
-`VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py`
-
-Workflow:
-
-`.github/workflows/pass45-weapon-firing-physics.yml`
+Source guard: `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py`  
+Workflow: `.github/workflows/pass45-weapon-firing-physics.yml`
 
 Acceptance:
 
@@ -157,67 +152,39 @@ Acceptance:
 
 The old Semi/Auto-only abstraction has been replaced at source level with separate selector capability, mechanical-action metadata and an authoritative manual-cycle gate.
 
-Implemented model distinguishes:
-
-- semi-automatic;
-- full automatic;
-- opt-in three-round burst;
-- gas-operated action;
-- delayed blowback;
-- blowback;
-- short recoil;
-- bolt action;
-- pump action;
-- lever action;
-- belt-fed action;
-- launcher/single-shot behavior;
-- weapon-specific selector availability.
+Implemented model distinguishes Semi, full Auto, opt-in Burst3, gas-operated, delayed blowback, blowback, short recoil, bolt, pump, lever, belt-fed and single-shot launcher behavior.
 
 Current exact source action declarations cover AK-47, MP5, M1911, M700, Remington 870, M249, M14, MAC-10, TEC-9, Lever Action .45-70 and the anti-armor launcher.
 
 Selector rules now enforced in source:
 
-- no universal automatic-fire rule inherited merely from a generic weapon class;
 - exact tuning controls supported selector positions;
 - `B` cycles only supported modes and skips unsupported positions;
-- `EOCFireMode::Burst3` is opt-in rather than silently granted to all weapons;
-- no current production weapon has `bSupportsBurst3=true` without an explicitly accepted exact selector configuration;
-- when Burst3 is eventually enabled for an accepted variant, the server owns a finite maximum three-shot sequence;
-- an accepted burst is not truncated merely because LMB is released between its pulses;
-- a second press cannot stack another burst while the current finite sequence is active;
-- sprint/reload/equip/drop/death use the hard fire-stop path and clear pending burst state;
+- Burst3 is opt-in and no current production weapon falsely claims it;
+- an accepted Burst3 sequence is finite, server-owned and not truncated by ordinary trigger release;
+- a second trigger press cannot stack another burst while the current sequence is active;
+- hard stop paths clear pending burst state;
 - source marker: `PASS45_BURST3_SEQUENCE_READY authoritative=1 finite_shots=3 release_cancel=0`.
 
 Manual-action source gate now exists independently of low RPM:
 
-- `FOCWeaponTuning::ManualActionCycleSeconds` is explicit action timing rather than an implicit fire-rate trick;
+- `FOCWeaponTuning::ManualActionCycleSeconds` is explicit post-shot action timing;
 - M700 bolt cycle = `1.10 s` game tuning;
 - Remington 870 pump cycle = `0.72 s` game tuning;
 - Lever Action .45-70 cycle = `0.85 s` game tuning;
-- `bActionCycling` is replicated so presentation/HUD may observe server truth without owning the timer;
-- a shot from Bolt/Pump/Lever starts the authoritative action cycle;
-- another shot, reload or selector mutation is rejected while the cycle is active;
-- completion clears the replicated gate and re-enables legal actions;
+- replicated `bActionCycling` owns authoritative state;
+- Bolt/Pump/Lever shots start the cycle and another shot, reload or selector mutation is rejected until completion;
+- presentation/HUD may observe `bActionCycling` but may not own a second timing source;
 - source marker: `PASS45_MANUAL_ACTION_CYCLE_READY ... authoritative=1`.
 
 Still pending:
 
-- HUD must clearly display current fire mode/action state;
-- no current weapon may be declared Burst3-capable until its exact modeled selector is factually accepted;
-- bolt/pump/lever **visual animation and action-specific mechanical audio** must be driven from replicated `bActionCycling` rather than inventing a second timer;
-- cycle timing and feel remain runtime-unverified.
+- HUD current mode/action state;
+- exact Burst3-capable asset approval if such a variant is introduced;
+- bolt/pump/lever visual animation and action-specific mechanical audio driven from replicated action truth;
+- local UE 5.8 timing/feel verification.
 
-External factual references for MP5/M14/MAC-10/TEC-9/M700/870/M249 are preserved in the 2026-08-26 evidence README. The game configuration must follow the exact modeled variant, not a broad family label.
-
-Acceptance matrix must include every runtime weapon class and list:
-
-`weapon id | exact visual/fallback | action type | allowed fire modes | default mode | RPM/cycle time | magazine | audio profile | ADS profile | muzzle owner`
-
-Source guard:
-
-`VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
-
-Runtime acceptance additionally requires deliberate tests for Semi, Auto and any exact Burst3-capable weapon eventually enabled, plus observable bolt/pump/lever cycle animation/audio for manual-action weapons.
+Source guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
 
 ## 5. P0 — ADS / sight alignment
 
@@ -241,34 +208,18 @@ Acceptance:
 
 ## 6. P0 — weapon drop physics
 
-### Runtime rejection
-
 Dropped weapons can leave the hands and remain floating instead of falling and settling on the ground.
 
-### Exact source cause found
-
-Previous `AOCWeaponBase::ApplyWorldPickupPresentation()` explicitly set `WeaponMesh->SetSimulatePhysics(false)`, and the actor used a non-physical scene root. A child physics body therefore could not own the complete rendered weapon transform correctly.
-
-### Current corrective source state — CODED_UNTESTED
+Current corrective source state — **CODED_UNTESTED**:
 
 - `WeaponMesh` is now the actor physics root;
 - `WeaponRoot` remains the stable production-visual attach point;
 - deliberate `DropToWorldServer()` enables collision, gravity and rigid-body simulation on authority;
 - inherited carrier velocity is preserved;
-- a modest angular velocity is applied so a dropped weapon is not frozen in an artificial pose;
-- static/rack world pickups are not globally forced into simulation merely because they are interactable pickups;
+- static/rack pickups are not globally forced into simulation;
 - equip disables physics and clears residual velocities.
 
-Acceptance:
-
-- drop from standing, walking and running;
-- weapon falls under gravity;
-- collides with ground/geometry;
-- does not tunnel through floor;
-- settles naturally and sleeps;
-- replicated clients observe the settled transform;
-- production visual stays attached to the collision/physics body;
-- pickup after settling works normally.
+Acceptance: standing/walking/running drop, gravity, collision, no floor tunneling, natural settle/sleep, replicated settled transform, production visual attached, pickup works after settling.
 
 ## 7. P0 — visible primitive weapon/pickup geometry
 
@@ -276,15 +227,11 @@ Current source still contains `BuildSourceOnlyWeaponVisual()` using Engine Cube/
 
 Requirements:
 
-- Cube/Cylinder/Sphere/BasicShape may remain only for invisible collision/debug roles;
-- once an accepted real visual exists, all source primitive visual parts must remain hidden in pickup, equipped and dropped states;
-- runtime validator must fail if a primitive fallback becomes visible for a required-available weapon;
-- MAC-10 pickup must have readable real scale rather than appearing as a tiny speck;
-- no weapon may be represented by anonymous boxes/cylinders on the rack.
-
-Long-term migration:
-
-- retire visible `BuildSourceOnlyWeaponVisual()` production fallback path entirely after every required gameplay class has a truthful visual policy (`exact production` or explicitly labelled real fallback).
+- BasicShape may remain only for invisible collision/debug roles;
+- accepted real visuals must keep source primitive parts hidden in pickup/equipped/dropped states;
+- runtime validator fails if a primitive fallback becomes visible for a required-available weapon;
+- MAC-10 pickup must have readable real scale;
+- no anonymous boxes/cylinders on accepted weapon racks.
 
 ## 8. P0 — weapon audio
 
@@ -292,241 +239,90 @@ Current audio subsystem supports confirmed shot/state/impact events, but some ru
 
 Requirements:
 
-- every accepted weapon visual must resolve a non-empty factual audio profile or be explicit `AUDIO CONTENT GAP`;
+- every accepted weapon visual resolves non-empty factual audio or explicit `AUDIO CONTENT GAP`;
 - no silent production READY state;
-- shot sound originates from production muzzle;
-- reload, dry fire, fire-mode switch and mechanical action events are weapon/action appropriate;
-- shot sound is emitted only after accepted shot;
-- no sound when cadence gate rejects a shot;
-- local mechanical audio and world muzzle report must not double-count as two gunshots.
-
-Acceptance:
-
-- per-weapon audio audit with outdoor and indoor shot;
-- reload/dry-fire/mode-switch coverage where applicable;
-- no silent weapon among accepted required-available classes.
+- shot audio originates from production muzzle and only after accepted shot;
+- reload/dry fire/mode switch/mechanical action events are appropriate;
+- rejected cadence pulses create no shot sound;
+- local mechanical audio and world muzzle report do not double-count as two gunshots.
 
 ## 9. P0 — grenade model, throw physics and smoke VFX
 
-Latest runtime presentation is prototype-grade and rejected.
-
 Requirements:
 
-- real recognizable grenade model for fragmentation/smoke/flash classes;
-- visible in-hand/throw presentation rather than an anonymous primitive;
-- gravity, collision, bounce and roll;
-- fuse starts at defined gameplay event;
-- grenade may not remain floating;
-- smoke grows volumetrically over time, has believable density/dispersion and blocks sight appropriately for gameplay;
-- smoke cannot be a small static sprite/blob;
-- fragmentation/flash/smoke VFX and audio are distinct;
-- throw origin must not intersect the player's own capsule/weapon.
-
-Acceptance:
-
-- first-person throw capture;
-- bounce/settle capture;
-- smoke progression screenshots at early/mid/full state;
-- no BasicShape visible as final grenade.
+- recognizable fragmentation/smoke/flash models;
+- visible first-person throw presentation;
+- gravity/collision/bounce/roll;
+- defined fuse start;
+- no floating grenade;
+- growing volumetric smoke with useful sight blocking;
+- distinct frag/flash/smoke VFX and audio;
+- safe throw origin outside player collision/weapon.
 
 ## 10. P0 — Museum / Culture House / Silpo ownership and identity
 
-Latest screenshots still reject landmark composition.
-
 Requirements:
 
-- Oster Local History Museum and Culture House are separate visible buildings at separate canonical sites;
-- six-column Culture-House facade at/inside Museum site = hard FAIL;
+- Museum and Culture House are separate visible buildings at separate canonical sites;
+- six-column Culture-House facade at Museum site = hard FAIL;
 - exactly one mutating visible shell owner per landmark;
-- late validation/detail systems may not relocate, replace or hide the authoritative shell;
-- obsolete shell/recovery/replacement owners are deleted, not kept dormant;
-- Silpo identity/sign belongs only to the canonical Silpo site and must not remain attached to the wrong landmark;
-- Museum/Culture/Silpo each receive separate runtime identity markers and screenshot evidence.
-
-Acceptance:
-
-- Museum screenshot with no six-column Culture-House facade;
-- Culture House screenshot at its own site;
-- Silpo screenshot at its own site with identity/sign correctly owned;
-- source audit proves no second mutating owner can overwrite these after startup.
+- late validators/details may not replace/relocate authoritative shells;
+- Silpo identity/sign belongs only to canonical Silpo site;
+- each landmark needs separate runtime identity and screenshot evidence.
 
 ## 11. P0 — vegetation replacement
 
-Latest trees remain visually rejected: malformed thick trunks, repeated silhouettes, primitive/blob crowns and weak reference fidelity.
-
 Requirements:
 
-- do not cosmetically retint the rejected tree family and call it fixed;
-- replace the actual runtime tree meshes/family;
-- no Cylinder/Sphere fantasy tree forest;
-- use verified real conifer/pine assets where suitable;
-- oak remains explicit `CONTENT GAP` until a suitable real asset is verified;
-- placement/species character follows supplied Oster references;
-- remove obvious repeated identical rotations/scales in the visible test area;
-- LOD transitions may not collapse trees into crude silhouettes at ordinary combat distances.
-
-Acceptance:
-
-- close/mid/far screenshots;
-- no rejected blob/tree proxy family visible;
-- reference trace recorded for each accepted major vegetation family.
+- replace, do not merely recolor, rejected tree family;
+- no Cylinder/Sphere fantasy forest;
+- verified real conifer/pine assets where suitable;
+- oak remains explicit CONTENT GAP until verified;
+- placement/species follow Oster references;
+- avoid obvious repeated rotations/scales and crude LOD collapse.
 
 ## 12. P0 — visual fidelity / no prototype acceptance
 
-The latest scene is brighter and more stable but still looks prototype-grade. Stable 60 FPS is not permission to ship primitive visuals.
+Stable 60 FPS is not permission to ship primitive visuals.
 
-Rejected visual traits:
-
-- flat low-detail ground;
-- weak material variation/detail;
-- visible proxy geometry;
-- primitive weapon/grenade objects;
-- malformed vegetation;
-- landmark composition that does not match reference identity;
-- crude/floating turret parts;
-- obvious white/default material regions;
-- aggressive or visibly bad LOD substitution.
-
-Requirements:
-
-- native render scale stays intact unless a separately approved performance decision changes it;
-- material fidelity, geometry fidelity, lighting readability and LOD quality are assessed together;
-- no performance verifier may declare visual acceptance solely from FPS/frame time;
-- reference-faithful replacement beats another layer of procedural disguise over rejected geometry.
-
-Acceptance Gate K:
-
-- no visible BasicShape production fallback;
-- no white/default material surface on accepted production content;
-- no rejected tree family;
-- no wrong landmark identity;
-- no large flat/proxy regions in the core photographed gameplay area;
-- direct screenshots are mandatory.
+Gate K requires no visible production BasicShape/proxy content, no major white/default materials, acceptable ground/material/vegetation/LOD quality, reference-faithful landmark composition and direct screenshots.
 
 ## 13. P0 — HMMWV movement and M2 turret station
 
-### HMMWV
+HMMWV forward direction improved, but road top speed must be at least 80 km/h without breaking handling.
 
-Confirmed improvement: visual forward direction now reads correctly and the vehicle drives forward normally.
-
-Remaining requirements:
-
-- road gameplay top speed **at least 80 km/h** under normal healthy vehicle state;
-- acceleration/braking must remain controllable rather than instantly snapping to speed;
-- visual wheel/body proportions remain coherent;
-- no regression to reversed forward axis.
-
-External reference note: the evidence README preserves the AM General performance reference used to establish that an 80 km/h game target is not physically absurd for the represented HMMWV family.
-
-### M2 Browning station
-
-Latest runtime is rejected: shield, mount and weapon appear detached/clipped/floating, and gunner view poorly exposes the actual Browning.
-
-Required hierarchy:
+M2 required hierarchy:
 
 `vehicle roof mount -> rotating ring/shield/gunner station -> elevation cradle -> M2 weapon`
 
-Requirements:
-
-- ring/shield/gunner station rotates as one assembly in yaw;
-- selected project configuration requires full **360° yaw traversal**;
-- weapon elevation occurs inside the cradle without tearing shield/mount hierarchy apart;
-- Browning is visibly centered/aligned on mount;
-- no floating/exploded shield or weapon components;
-- gunner camera is attached to the station and keeps the Browning usable/visible;
-- normal vertical aim is not inverted;
-- firing/releasing does not create persistent downward camera drift;
-- one consistent turret pivot owns yaw.
-
-Acceptance:
-
-- exterior 0°/90°/180°/270° turret screenshots;
-- interior/gunner camera screenshot;
-- full 360° traversal test;
-- elevation test;
-- firing/release recoil test.
+Requirements include coherent assembly, full 360° yaw for selected project configuration, correct elevation, no floating parts, useful gunner camera, non-inverted vertical aim and no release camera drift.
 
 ## 14. P0 — BTR-4 material, orientation and remote operator view
 
-Latest runtime remains rejected.
-
-Failures:
-
-- large white/default material region remains on BTR upper/front hull;
-- after possession a major portion can become white/default;
-- visual/physics forward direction remains suspect/reversed from user observation;
-- current gunner/turret camera is illogical for the represented remote weapon station.
-
 Requirements:
 
-- every BTR material slot must reopen and retain non-placeholder dependencies before gameplay;
-- possession may not change production material ownership or replace authored materials;
-- pre-enter, post-enter and post-movement material state must be identical unless an intentional damage material is active;
-- vehicle forward axis, input forward axis, wheel/drive physics and visual front must agree;
-- BM-7 Parus gameplay uses an **interior remote-operator optic/monitor presentation**;
-- operator remains inside hull rather than pretending to put their head through the external weapon module;
-- monitor/optic UI must show aiming reticle, weapon state/ammunition and useful sight picture;
-- external turret yaw/elevation follows remote operator input independently of interior camera body placement.
-
-Acceptance:
-
-- BTR front/side/rear screenshots before entry;
-- same angles after possession;
-- forward driving test;
-- operator monitor screenshot;
-- no white/default region in any accepted state.
+- no white/default material before or after possession;
+- material ownership stable through possession/movement;
+- visual/physics/input forward axes agree;
+- BM-7 Parus uses interior remote-operator optic/monitor presentation;
+- external turret follows remote operator aim independently of interior camera placement.
 
 ## 15. P0 — world daylight/material stability
 
-Earlier black-world rejection must not return.
-
 Current source contract:
 
-- Directional Light approximately `120000 lux`;
-- `r.DefaultFeature.AutoExposure=True`;
-- `r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True`;
-- `AOCWorldSectorOster` owns semantic Ground/Roads/Sidewalks material baseline;
-- Pass12 checks semantic MID/`Color` stability through runtime window.
-
-Strict evidence requires:
-
-- `PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY`;
-- `PASS12_WORLD_GEOMETRY_STABLE`;
-- `PASS45_WORLD_MATERIAL_STABLE`;
-- absence of `PASS12_WORLD_GEOMETRY_STABILITY_FAIL`.
-
-Acceptance:
-
-- no large black world regions;
-- no blown-out white scene;
-- readable ground/roads/sidewalks;
-- direct runtime screenshot.
+- Directional Light ~`120000 lux`;
+- auto exposure enabled with extended luminance range;
+- semantic Ground/Roads/Sidewalks material baseline;
+- strict runtime evidence requires daylight, geometry-stable and world-material-stable markers and rejects stability FAIL marker.
 
 ## 16. P0 — vehicle possession/exit must never teleport to Museum
 
-Retain the current initial-character-only BASE recovery architecture.
-
-Requirements:
-
-- ordinary character -> vehicle -> character possession is never treated as fresh BASE deployment;
-- `EnterDriver` preserves current vehicle transform;
-- exit places pawn beside vehicle's current transform;
-- no generic `RestartPlayer` Museum fallback on normal vehicle exit;
-- repeat with civilian vehicle, HMMWV and BTR.
-
-Any return of Museum teleport = hard runtime FAIL.
+Ordinary character -> vehicle -> character possession is never fresh BASE deployment. Repeat exit tests with civilian vehicle, HMMWV and BTR. Any Museum teleport is hard FAIL.
 
 ## 17. P1 — reference-driven houses/fences/tower retirement
 
-Requirements:
-
-- no rejected generic AdvancedVillagePack/OCEnterableHouse-style family may return as Oster-authentic production content without reference support;
-- no unreferenced dark steep-roof tower/shack;
-- fences must match supplied Oster reference character;
-- previously retired generic residential/fence generators remain physically retired;
-- reference-driven placement beats synthetic filler.
-
-Gate E runtime evidence remains mandatory.
+No rejected generic residential/fence/tower family may return as Oster-authentic production content without reference support. Retired generic generators remain physically retired.
 
 ## 18. P1 — weapon material/texture closure
 
@@ -534,101 +330,47 @@ Required chain:
 
 `weapon class -> exact production visual OR explicit real fallback -> material slots -> authored material -> real texture dependencies -> fresh load -> runtime appearance`
 
-Rules:
+White/default/BasicShape or zero texture dependencies = FAIL. Fallback stays exact-production CONTENT GAP, never fake READY. Current Stein path remains R3 authored material + independent fresh UE load.
 
-- white/default/BasicShape = FAIL;
-- zero used texture dependencies = FAIL;
-- fallback stays exact-production `CONTENT GAP`, never fake READY;
-- mesh-load success alone is not material readiness;
-- stale `.uasset` existence is not current revision proof.
-
-Current Stein contract:
-
-- R3 deterministic authored material from committed PNG source;
-- independent fresh UE process validates material/texture dependencies;
-- rendered rack screenshot still authoritative.
-
-Explicit exact-production gaps unless later content closes them:
-
-- Remington 870 exact payload;
-- M249 exact payload;
-- M16/M4 exact payload.
+Explicit exact-production gaps unless later content closes them: Remington 870, M249, M16/M4.
 
 ## 19. P1 — display, FPS and thermal behavior
 
-Confirmed improvement: current screenshots report approximately 60 FPS.
-
-Requirements:
-
-- normal route uses intended fullscreen/borderless state;
-- strict recovery cap remains approximately 60 FPS;
-- no render-scale downgrade used to fake performance;
-- after visual fidelity is restored, run at least a 10-minute soak containing infantry movement, repeated firing, HMMWV and BTR use;
-- monitor for progressive frame-time collapse or abnormal heat behavior;
-- `60 FPS` in an empty/proxy scene is not final performance acceptance.
+Current screenshots report ~60 FPS. Final acceptance still needs intended fullscreen/borderless, native render scale, and at least 10-minute mixed infantry/weapon/HMMWV/BTR thermal soak after visual fidelity is restored.
 
 ## 20. Tactical map
 
-Requirements remain:
-
-- north-up;
-- compact central-Oster playable topology;
-- one geo-reference authority;
-- visible player marker;
-- Museum / Culture House / Silpo / Stadium clearly distinct;
-- no return of giant synthetic diagonal/X road topology.
-
-Runtime `M` screenshot remains mandatory.
+North-up, compact central Oster topology, one geo-reference authority, player marker, distinct Museum/Culture/Silpo/Stadium, no giant synthetic diagonal/X topology. Runtime `M` screenshot mandatory.
 
 ## 21. Stale-owner retirement
-
-Must remain true:
 
 - `OCWorldProductionVisualsSubsystem` stays physically deleted;
 - stale completion verifier/workflow cannot require it back;
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
-- obsolete conflicting owners are physically deleted together with stale verifier expectations;
-- historical pass numbering never grants mutation authority.
+- obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
 ## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action pass
 
 State: **CODED_UNTESTED / CURRENT-HEAD SOURCE VERIFICATION PENDING / NOT RUNTIME ACCEPTED**.
 
-Implemented on PR #94 after the latest screenshot rejection:
+Implemented:
 
-- production muzzle resolver based on the visible `OC_ProductionWeaponVisual` component;
-- base weapon muzzle flash/tracer/audio presentation moved away from camera `TraceOrigin`;
-- anti-armor projectile/FX/audio moved to production muzzle;
-- anti-armor projectile spawn failure no longer consumes ammo;
-- fail-visible anti-armor production visual markers;
-- deliberate dropped-weapon rigid-body physics with gravity/collision and replicated movement;
-- confirmed-shot recoil state moved into `AOCWeaponBase`;
-- legacy Character `LocalFireFeedbackTimerHandle` and its independent pitch/yaw recovery state physically retired;
-- camera shake and crosshair recoil now derive from confirmed-shot weapon state rather than held input;
-- bounded fire-cadence scheduling tolerance;
-- data-driven Semi/Burst3/Automatic selector API;
-- explicit mechanical action metadata for current weapon variants;
-- finite authoritative Burst3 sequence architecture with no current weapon falsely opting in;
-- explicit authoritative M700/Remington870/LeverAction post-shot cycle state and timings;
-- replicated `bActionCycling` now owns manual-action shot/reload/selector gating;
-- `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py` rejects resurrection of the retired local-feedback owner;
-- `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py` requires finite Burst3 plus manual-action cycle contracts;
-- both guards remain in cumulative `RUN_ALL_VERIFY.py`;
-- dedicated `.github/workflows/pass45-weapon-firing-physics.yml` remains active.
+- production muzzle resolver and view-ray/presentation separation;
+- launcher production-muzzle projectile/FX/audio and no-ammo-on-spawn-failure;
+- deliberate dropped-weapon rigid-body physics;
+- confirmed-shot recoil state in `AOCWeaponBase`;
+- legacy Character `LocalFireFeedbackTimerHandle` and duplicate recoil/recovery owner physically retired;
+- confirmed-shot camera shake and crosshair recoil ownership;
+- bounded cadence tolerance;
+- data-driven Semi/Burst3/Automatic selector;
+- exact mechanical action metadata;
+- finite authoritative Burst3 architecture with no current false opt-in;
+- M700/Remington870/LeverAction explicit post-shot cycle timings;
+- replicated `bActionCycling` authoritative action gate;
+- source verifiers reject resurrection of old feedback/action shortcuts;
+- cumulative `RUN_ALL_VERIFY.py` includes both weapon guards.
 
-This does **not** close the P0 weapon gate. Local UE 5.8 must still prove:
-
-- compile succeeds;
-- production visual hierarchy survives the new physics root;
-- drops settle correctly;
-- muzzle placement is visually correct for every mesh orientation;
-- recoil/recovery direction feels correct and has no downward release drift;
-- camera shake occurs exactly once per accepted shot;
-- finite burst behavior is correct when an exact accepted Burst3-capable variant is eventually enabled;
-- bolt/pump/lever cycle timing is correct and cannot be bypassed;
-- bolt/pump/lever animation and mechanical audio presentation are still missing;
-- launcher visual is actually production mesh in first person;
-- shot audio assets exist and are audible.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, production hierarchy, drop settling, muzzle alignment, launcher visual, audio availability, manual-action animation/audio.
 
 ## 23. Corrective execution order
 
@@ -640,7 +382,7 @@ Completed/source-coded items are marked only for source work, not runtime accept
 4. [x] Retain initial-character-only vehicle BASE recovery architecture.
 5. [x] Retain proportional vehicle visual fit and HMMWV forward-axis improvement.
 6. [x] Stein R3 authored-material + independent fresh-load source path.
-7. [x] Source-audit weapon firing, recoil, muzzle and drop-physics defects from latest screenshots.
+7. [x] Source-audit weapon firing, recoil, muzzle and drop-physics defects.
 8. [x] Code base weapon production-muzzle presentation for FX/audio.
 9. [x] Code launcher production-muzzle projectile/FX/audio and no-ammo-on-spawn-failure.
 10. [x] Code authority-simulated deliberate weapon drops.
@@ -667,92 +409,38 @@ Completed/source-coded items are marked only for source work, not runtime accept
 
 ## 24. Final acceptance gates
 
-Pass 45 cannot become `VERIFIED RUNTIME` until every applicable gate below passes.
-
 ### Gate A — source/build/import
-
-- current branch/head matches origin;
-- source workflows green;
-- Stein R3 authoring + independent fresh load pass;
-- production HMMWV/M2/BTR import + fresh load pass;
-- UE 5.8 editor target builds exit code 0.
+current branch/head; source workflows; Stein R3 fresh load; production HMMWV/M2/BTR import/fresh load; UE 5.8 editor build exit 0.
 
 ### Gate B — world rendering
-
-- daylight/exposure READY;
-- world geometry/material stability READY;
-- no black-world corruption;
-- no blown-out scene;
-- direct screenshot pass.
+daylight/exposure; stable ground/roads/sidewalks; no black-world or blown-out scene; screenshots.
 
 ### Gate C — weapon materials and visible content
-
-- every required-available weapon has real accepted visual/material/texture chain;
-- no visible primitive fallback;
-- launcher production visual valid;
-- unresolved exact production items remain explicit CONTENT GAP.
+real accepted visual/material/texture chain; no visible primitive fallback; launcher visual valid; unresolved exact items remain CONTENT GAP.
 
 ### Gate D — weapon firing physics
-
-- factual shot count = ammo decrement = recoil count = muzzle event count = audio count;
-- muzzle/tracer/projectile at visible barrel;
-- no held-input ghost recoil;
-- no release downward kick;
-- selector exposes only modes supported by the exact weapon;
-- any accepted Burst3 weapon produces a deterministic finite three-shot sequence without stacking or accidental truncation;
-- bolt/pump/lever server action gate prevents the next legal shot/reload/selector mutation until cycle completion;
-- bolt/pump/lever cycle is visibly animated and has action-specific mechanical audio;
-- ADS alignment correct;
-- dropped weapon physics passes;
-- grenade/smoke presentation passes.
+factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate and visible action animation/audio; ADS alignment; drop physics; grenade/smoke presentation.
 
 ### Gate E — landmarks/environment
-
-- Museum/Culture/Silpo separate and correctly identified;
-- no rejected generic house/fence/tower family;
-- rejected tree family absent;
-- visual fidelity Gate K passes.
+Museum/Culture/Silpo separated and identified; rejected residential/tree families absent; Gate K passes.
 
 ### Gate F — HMMWV/M2
-
-- HMMWV forward axis correct;
-- road top speed >=80 km/h;
-- correct proportional body;
-- coherent M2 ring/shield/gunner assembly;
-- 360° yaw;
-- correct elevation and gunner view;
-- no inverted aim or release camera drift.
+forward axis; >=80 km/h; proportional body; coherent ring/shield/gunner; 360° yaw; correct elevation/view; no inverted aim/drift.
 
 ### Gate G — BTR-4
-
-- no white/default material before or after possession;
-- forward axis correct;
-- proportional visual retained;
-- remote interior operator optic/monitor works;
-- turret control and camera logic coherent.
+no white/default material; forward axis; proportional visual; remote interior optic/monitor; coherent turret/camera.
 
 ### Gate H — possession
-
-- no Museum teleport on vehicle enter/exit for civilian vehicle, HMMWV or BTR.
+no Museum teleport on civilian vehicle/HMMWV/BTR enter/exit.
 
 ### Gate I — display/performance/thermal
-
-- intended fullscreen/borderless state;
-- ~60 FPS recovery cap verified at runtime;
-- native render scale retained;
-- 10-minute mixed gameplay soak without severe thermal/frame collapse.
+intended fullscreen; ~60 FPS; native render scale; 10-minute mixed soak.
 
 ### Gate J — tactical map
-
-- current compact Oster topology screenshot accepted.
+current compact Oster topology screenshot accepted.
 
 ### Gate K — visual fidelity
-
-- no visible production BasicShape/proxy content in core test area;
-- no major white/default materials;
-- acceptable ground/material/vegetation/LOD quality;
-- reference-faithful landmark composition;
-- screenshots visually accepted by the user.
+no production BasicShape/proxy core content; no major white/default materials; acceptable world/vegetation/LOD; reference-faithful landmarks; screenshots accepted.
 
 ## 25. Current verdict
 
