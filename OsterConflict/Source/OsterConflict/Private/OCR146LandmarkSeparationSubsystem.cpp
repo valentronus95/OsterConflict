@@ -14,6 +14,10 @@ namespace
     constexpr float MuseumRadiusCm = 2600.0f;
     constexpr float SilpoRadiusCm = 2600.0f;
     constexpr float CultureRadiusCm = 2600.0f;
+    constexpr float MinimumMuseumCultureSeparationCm = 10000.0f;
+
+    const FName MuseumOwnerTag(TEXT("R137_MuseumPhotoModel"));
+    const FName CultureOwnerTag(TEXT("R146_CultureHouseAuthoritative"));
 
     FVector GeoToWorld(const FOCGeoReferencePoint& Point)
     {
@@ -54,6 +58,40 @@ namespace
             if (FVector::DistSquared2D(Transform.GetLocation(), Center) <= RadiusSq) ++Count;
         }
         return Count;
+    }
+
+    int32 CountActorInstancesNear(AActor* Actor, const FVector& Center, const float RadiusCm)
+    {
+        if (!Actor) return 0;
+        int32 Count = 0;
+        TInlineComponentArray<UInstancedStaticMeshComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UInstancedStaticMeshComponent* Component : Components)
+        {
+            Count += CountInstancesNear(Component, Center, RadiusCm);
+        }
+        return Count;
+    }
+
+    int32 CountCultureColumnShafts(AActor* Actor)
+    {
+        if (!Actor) return 0;
+        int32 Shafts = 0;
+        TInlineComponentArray<UInstancedStaticMeshComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UInstancedStaticMeshComponent* Component : Components)
+        {
+            if (!Component || !Component->GetFName().ToString().StartsWith(TEXT("R146Culture_Columns"))) continue;
+            for (int32 Index = 0; Index < Component->GetInstanceCount(); ++Index)
+            {
+                FTransform Transform;
+                if (!Component->GetInstanceTransform(Index, Transform, false)) continue;
+                // The six reference facade shafts are 610 cm high on the engine Cylinder (Z scale 6.1).
+                // Bases/caps use sub-1.0 Z scale, so this distinguishes six columns from their trim pieces.
+                if (Transform.GetScale3D().Z > 4.0f) ++Shafts;
+            }
+        }
+        return Shafts;
     }
 }
 
@@ -109,12 +147,39 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
     int32 MuseumGenericInstances = 0;
     int32 SilpoGenericInstances = 0;
     int32 CultureGenericInstances = 0;
+    int32 MuseumOwnerCount = 0;
+    int32 CultureOwnerCount = 0;
+    int32 MuseumIdentityInstancesAtMuseum = 0;
+    int32 CultureIdentityInstancesAtCulture = 0;
+    int32 CultureIdentityInstancesAtMuseum = 0;
+    int32 MuseumIdentityInstancesAtCulture = 0;
+    int32 CultureColumnShafts = 0;
+    float CultureOwnerAnchorErrorCm = TNumericLimits<float>::Max();
 
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
         if (!Actor || Actor->IsActorBeingDestroyed()) continue;
         if (IsForbiddenLegacyLandmarkActor(Actor)) ++ForbiddenLegacyActors;
+
+        const bool bMuseumOwner = Actor->ActorHasTag(MuseumOwnerTag);
+        const bool bCultureOwner = Actor->ActorHasTag(CultureOwnerTag);
+        if (bMuseumOwner)
+        {
+            ++MuseumOwnerCount;
+            MuseumIdentityInstancesAtMuseum += CountActorInstancesNear(Actor, Museum, MuseumRadiusCm);
+            MuseumIdentityInstancesAtCulture += CountActorInstancesNear(Actor, CultureHouse, CultureRadiusCm);
+        }
+        if (bCultureOwner)
+        {
+            ++CultureOwnerCount;
+            CultureIdentityInstancesAtCulture += CountActorInstancesNear(Actor, CultureHouse, CultureRadiusCm);
+            CultureIdentityInstancesAtMuseum += CountActorInstancesNear(Actor, Museum, MuseumRadiusCm);
+            CultureColumnShafts += CountCultureColumnShafts(Actor);
+            CultureOwnerAnchorErrorCm = FMath::Min(
+                CultureOwnerAnchorErrorCm,
+                FVector::Dist2D(Actor->GetActorLocation(), CultureHouse));
+        }
 
         TInlineComponentArray<UInstancedStaticMeshComponent*> Components;
         Actor->GetComponents(Components);
@@ -128,13 +193,20 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
     }
 
     const float MuseumToSilpoM = FVector::Dist2D(Museum, Silpo) / 100.0f;
-    const float MuseumToCultureM = FVector::Dist2D(Museum, CultureHouse) / 100.0f;
+    const float MuseumToCultureCm = FVector::Dist2D(Museum, CultureHouse);
+    const float MuseumToCultureM = MuseumToCultureCm / 100.0f;
     const float SilpoToCultureM = FVector::Dist2D(Silpo, CultureHouse) / 100.0f;
 
-    const bool bReady = ForbiddenLegacyActors == 0 &&
+    const bool bParcelReady = ForbiddenLegacyActors == 0 &&
         MuseumGenericInstances == 0 && SilpoGenericInstances == 0 && CultureGenericInstances == 0;
 
-    if (bReady)
+    const bool bIdentityReady = MuseumOwnerCount == 1 && CultureOwnerCount == 1 &&
+        MuseumIdentityInstancesAtMuseum > 0 && CultureIdentityInstancesAtCulture > 0 &&
+        CultureIdentityInstancesAtMuseum == 0 && MuseumIdentityInstancesAtCulture == 0 &&
+        CultureColumnShafts == 6 && MuseumToCultureCm >= MinimumMuseumCultureSeparationCm &&
+        CultureOwnerAnchorErrorCm <= 100.0f;
+
+    if (bParcelReady)
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_LANDMARK_SEPARATION_VALIDATION_READY legacyActors=0 genericMuseum=0 genericSilpo=0 genericCulture=0 mutation=0 periodic_scan=0 distancesM=%.1f/%.1f/%.1f"),
@@ -149,5 +221,22 @@ void UOCR146LandmarkSeparationSubsystem::ValidateSeparation()
             SilpoGenericInstances,
             CultureGenericInstances,
             MuseumToSilpoM, MuseumToCultureM, SilpoToCultureM);
+    }
+
+    if (bIdentityReady)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_LANDMARK_IDENTITY_VALIDATION_READY museumOwners=1 cultureOwners=1 museumAtMuseum=%d cultureAtCulture=%d cultureAtMuseum=0 museumAtCulture=0 cultureColumnShafts=6 cultureAnchorErrorCm=%.1f museumCultureDistanceM=%.1f mutation=0"),
+            MuseumIdentityInstancesAtMuseum, CultureIdentityInstancesAtCulture,
+            CultureOwnerAnchorErrorCm, MuseumToCultureM);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL museumOwners=%d cultureOwners=%d museumAtMuseum=%d cultureAtCulture=%d cultureAtMuseum=%d museumAtCulture=%d cultureColumnShafts=%d cultureAnchorErrorCm=%.1f museumCultureDistanceM=%.1f mutation=0 primary_authoring_fix_required=1"),
+            MuseumOwnerCount, CultureOwnerCount,
+            MuseumIdentityInstancesAtMuseum, CultureIdentityInstancesAtCulture,
+            CultureIdentityInstancesAtMuseum, MuseumIdentityInstancesAtCulture,
+            CultureColumnShafts, CultureOwnerAnchorErrorCm, MuseumToCultureM);
     }
 }
