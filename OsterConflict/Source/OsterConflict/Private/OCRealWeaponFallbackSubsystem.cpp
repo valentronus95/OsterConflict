@@ -18,6 +18,7 @@ namespace
     const FName MaterialAuditCompleteTag(TEXT("OC_WeaponMaterialAuditComplete"));
     const FName AuthoredMaterialGapTag(TEXT("OC_WeaponAuthoredMaterialGap"));
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
+    const FName PrimitiveVisualRetiredTag(TEXT("OC_PrimitiveWeaponVisualRetired"));
     constexpr int32 RequiredRackWeaponCountPerTeam = 11;
     constexpr int32 MaxExpectedRackWeapons = 22;
     constexpr int32 MaxRefreshPasses = 12;
@@ -29,6 +30,54 @@ namespace
         for (const UActorComponent* Component : Components)
         {
             if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;
+        }
+        return false;
+    }
+
+    bool IsRejectedPrimitiveMesh(const UStaticMeshComponent* Component)
+    {
+        if (!IsValid(Component) || !IsValid(Component->GetStaticMesh())) return false;
+        const FString MeshPath = Component->GetStaticMesh()->GetPathName();
+        return MeshPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase);
+    }
+
+    int32 HideRejectedPrimitiveVisuals(AOCWeaponBase& Weapon)
+    {
+        TArray<UStaticMeshComponent*> StaticComponents;
+        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
+        int32 HiddenCount = 0;
+        for (UStaticMeshComponent* Component : StaticComponents)
+        {
+            if (!IsRejectedPrimitiveMesh(Component)) continue;
+
+            const bool bWasRendered = Component->IsVisible() && !Component->bHiddenInGame;
+            Component->SetVisibility(false, true);
+            Component->SetHiddenInGame(true, true);
+            Component->SetCastShadow(false);
+            Component->SetCanEverAffectNavigation(false);
+            if (bWasRendered) ++HiddenCount;
+        }
+
+        if (!Weapon.ActorHasTag(PrimitiveVisualRetiredTag))
+        {
+            Weapon.Tags.AddUnique(PrimitiveVisualRetiredTag);
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_PRIMITIVE_WEAPON_VISUAL_RETIRED weapon=%s hidden_basicshape_components=%d collision_authority_preserved=1"),
+                *Weapon.GetWeaponDisplayName(), HiddenCount);
+        }
+        return HiddenCount;
+    }
+
+    bool HasVisibleRejectedPrimitive(const AOCWeaponBase& Weapon)
+    {
+        TArray<UStaticMeshComponent*> StaticComponents;
+        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
+        for (const UStaticMeshComponent* Component : StaticComponents)
+        {
+            if (IsRejectedPrimitiveMesh(Component) && Component->IsVisible() && !Component->bHiddenInGame)
+            {
+                return true;
+            }
         }
         return false;
     }
@@ -69,7 +118,7 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
         0.50f,
         true,
-        0.05f);
+        0.0f);
 }
 
 void UOCRealWeaponFallbackSubsystem::Deinitialize()
@@ -151,11 +200,22 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     int32 RackWeapons = 0;
     int32 RackAudited = 0;
     int32 RackGapWeapons = 0;
+    int32 RackVisiblePrimitiveWeapons = 0;
 
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
         AOCWeaponBase* Weapon = *It;
         if (!IsValid(Weapon) || Weapon->IsActorBeingDestroyed()) continue;
+
+        // Pass45 source invariant: even when production/fallback content is missing, BasicShape must be invisible.
+        HideRejectedPrimitiveVisuals(*Weapon);
+        if (HasVisibleRejectedPrimitive(*Weapon))
+        {
+            if (Weapon->ActorHasTag(RuntimeBaseRackTag)) ++RackVisiblePrimitiveWeapons;
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL weapon=%s basicshape_visible=1 runtime_acceptance=0"),
+                *Weapon->GetWeaponDisplayName());
+        }
 
         if (Weapon->ActorHasTag(RuntimeBaseRackTag)) ++RackWeapons;
 
@@ -188,6 +248,13 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     }
 
     const bool bRackCountValid = RackWeapons >= RequiredRackWeaponCountPerTeam && RackWeapons <= MaxExpectedRackWeapons;
+    if (bRackCountValid && RackVisiblePrimitiveWeapons == 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_PRIMITIVE_WEAPON_RUNTIME_READY rack_weapons=%d visible_basicshape_weapons=0 content_readiness_separate=1"),
+            RackWeapons);
+    }
+
     const bool bRackAuditComplete = bRackCountValid && RackAudited == RackWeapons;
 
     if (bRackAuditComplete)
@@ -234,8 +301,10 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     float DesiredLengthCm,
     const TCHAR* FallbackLabel)
 {
-    USceneComponent* RootComponent = Weapon.GetRootComponent();
-    if (!IsValid(&Weapon) || Weapon.IsActorBeingDestroyed() || !IsValid(Mesh) || !IsValid(RootComponent))
+    USceneComponent* PhysicsRoot = Weapon.GetRootComponent();
+    USceneComponent* VisualRoot = Weapon.GetWeaponVisualRoot();
+    if (!IsValid(&Weapon) || Weapon.IsActorBeingDestroyed() || !IsValid(Mesh) ||
+        !IsValid(PhysicsRoot) || !IsValid(VisualRoot))
     {
         return false;
     }
@@ -252,7 +321,13 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
         if (!IsValid(Existing) || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
         Existing->SetVisibility(false, true);
         Existing->SetHiddenInGame(true, true);
-        Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Existing->SetCastShadow(false);
+        Existing->SetCanEverAffectNavigation(false);
+        // The BasicShape root remains invisible collision/physics authority for pickup/drop. Do not disable it.
+        if (Existing != PhysicsRoot)
+        {
+            Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        }
     }
 
     const FName ComponentName = MakeUniqueObjectName(
@@ -262,22 +337,24 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(&Weapon, ComponentName);
     if (!IsValid(Visual)) return false;
 
-    Visual->SetupAttachment(RootComponent);
+    Visual->SetupAttachment(VisualRoot);
     Visual->SetStaticMesh(Mesh);
-    Visual->SetRelativeLocation(FVector::ZeroVector);
+    Visual->SetRelativeLocation(-Bounds.Origin * (DesiredLengthCm / NativeLength));
     Visual->SetRelativeRotation(FRotator::ZeroRotator);
     Visual->SetRelativeScale3D(FVector(DesiredLengthCm / NativeLength));
     Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Visual->SetGenerateOverlapEvents(false);
     Visual->SetCanEverAffectNavigation(false);
     Visual->SetCastShadow(false);
+    Visual->SetHiddenInGame(false, true);
+    Visual->SetVisibility(true, true);
     Visual->ComponentTags.Add(RealFallbackComponentTag);
     Weapon.AddInstanceComponent(Visual);
     Visual->RegisterComponent();
 
     Weapon.Tags.AddUnique(RealFallbackTag);
     UE_LOG(LogTemp, Warning,
-        TEXT("Weapon '%s' exact production visual is unavailable; primitive hidden and %s real-mesh fallback applied. exact_production=0 playable_fallback=1"),
+        TEXT("PASS45_REAL_WEAPON_FALLBACK_READY weapon=%s fallback=%s exact_production=0 playable_fallback=1 primitive_visible=0 visual_root_unscaled=1 physics_root_preserved=1"),
         *Weapon.GetWeaponDisplayName(), FallbackLabel);
     return true;
 }
