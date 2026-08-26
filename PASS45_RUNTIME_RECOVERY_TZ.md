@@ -269,9 +269,29 @@ Requirements:
 
 ## 8. P0 — weapon audio
 
-Current audio subsystem supports confirmed shot/state/impact events, but some runtime weapons remain silent.
+Current audio subsystem supports confirmed shot/state/impact events, but the 2026-08-26 runtime proved that some weapons can still be silent.
 
-Current source state for manual actions:
+### Current corrective source state — 2026-08-26 — SOURCE-CODED / RUNTIME UNTESTED
+
+A repository weapon-audio fallback now closes the **source-level silent-shot path** without pretending that generic sound identity is final authored content:
+
+- an assigned authored `UOCWeaponAudioProfile` still wins whenever it contains the requested event;
+- if the requested near-shot event is unassigned/empty, `UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile()` lazily creates a transient presentation-only profile;
+- the represented AK first prefers the already tracked `/Game/AK-47/.../AK47_Fire_Cue`, `Reload_Cue` and `AK47_Empty_Cue` assets;
+- other current weapons may temporarily reuse the tracked `/Game/R13/Audio/gunfire_sfx` shot and tracked reload assets rather than disappear acoustically;
+- if no authored distant tail exists, the fallback uses the factual near report at reduced distance volume rather than becoming fully silent;
+- tracked `/Game/R13/Audio/shotguncock` is wired only to the pump-action fallback; bolt and lever mechanical sounds remain explicit **AUDIO CONTENT GAP** until exact content exists;
+- tracked `snd_bullethit` is available as a temporary impact fallback;
+- fallback profile creation never mutates ammo, fire cadence, damage, projectile/trace authority, weapon transforms or action timing;
+- source marker: `PASS45_WEAPON_AUDIO_FALLBACK_READY ... authoritative_mutation=0 runtime_acceptance=0`;
+- failed repository sound load emits `PASS45_WEAPON_AUDIO_CONTENT_GAP` instead of a fake READY state.
+
+Source guard: `VERIFY_PASS45_WEAPON_AUDIO_FALLBACK.py`  
+Workflow: `.github/workflows/pass45-weapon-audio-fallback.yml`
+
+This is **not final audio acceptance**. Exact per-weapon shot character, indoor/outdoor variants, distant tails, suppressor behavior, reload layers, bolt/lever mechanics, mix levels and local UE audibility still require authored content and factual playtest.
+
+Current manual-action routing remains:
 
 - manual-action mechanical audio is a distinct event from the gunshot report;
 - exact action type selects `BoltCycle`, `PumpCycle` or `LeverCycle` rather than one generic mechanical sound;
@@ -390,7 +410,7 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS pass
+## 22. Current source implementation milestone — 2026-08-26 weapon firing/drop/action/ADS/audio pass
 
 State: **CODED_UNTESTED / CURRENT-HEAD SOURCE VERIFICATION PENDING / NOT RUNTIME ACCEPTED**.
 
@@ -415,10 +435,14 @@ Implemented:
 - explicit per-weapon ADS socket-reference fields and separate factual `bADSCalibrated` state;
 - fail-visible ADS entry diagnostics through `PASS45_ADS_PROFILE_UNCALIBRATED` / `PASS45_ADS_ALIGNMENT_FAIL` / `PASS45_ADS_ALIGNMENT_SAMPLE`;
 - `oc.Weapon.ADS.Debug` calibration rays for camera vs authored sight axis;
-- source verifiers reject resurrection of old feedback/action shortcuts and fake ADS calibration;
-- cumulative `RUN_ALL_VERIFY.py` includes weapon firing, action and ADS guards.
+- repository fallback prevents an unassigned/empty near-shot profile from silently swallowing a factual shot;
+- exact tracked AK cues are preferred for AK; tracked R13 gunfire/reload/impact assets are temporary source fallbacks for current gaps;
+- pump fallback may use tracked `shotguncock`; bolt/lever mechanical audio remains fail-visible content gap;
+- `PASS45_WEAPON_AUDIO_FALLBACK_READY` / `PASS45_WEAPON_AUDIO_CONTENT_GAP` distinguish source fallback from missing content;
+- source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration and silent-profile acceptance;
+- cumulative `RUN_ALL_VERIFY.py` includes weapon firing, action, ADS and audio-fallback guards.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, real mechanical sound content, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual and general audio availability.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment and launcher visual.
 
 ## 23. Corrective execution order
 
@@ -442,20 +466,21 @@ Completed/source-coded items are marked only for source work, not runtime accept
 16. [ ] Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
 17. [x] Build fail-visible per-weapon ADS/sight profile architecture, socket-based alignment diagnostics and source validation without inventing calibration data.
 18. [ ] Calibrate exact rear/front/optic references and ADS transforms for every accepted production weapon in local UE 5.8; only then set factual `bADSCalibrated=true` per weapon.
-19. [ ] Close all remaining silent weapon audio-profile gaps.
-20. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
-21. [ ] Replace grenade models/throw presentation/smoke VFX.
-22. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
-23. [ ] Replace rejected vegetation family.
-24. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
-25. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
-26. [ ] Close BTR white material state across pre/post possession.
-27. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
-28. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
-29. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
-30. [ ] Validate tactical map screenshot.
-31. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
-32. [ ] Merge PR #94 only after factual current-head runtime acceptance.
+19. [x] Close the source-level silent-shot path with an event-local repository audio fallback and dedicated verifier/workflow; keep runtime audibility and exact sound identity unaccepted.
+20. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever manual-action audio gaps.
+21. [ ] Remove visible primitive weapon/pickup/launcher fallbacks from accepted runtime.
+22. [ ] Replace grenade models/throw presentation/smoke VFX.
+23. [ ] Correct Museum/Culture House/Silpo visible identity and separation.
+24. [ ] Replace rejected vegetation family.
+25. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
+26. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
+27. [ ] Close BTR white material state across pre/post possession.
+28. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
+29. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
+30. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
+31. [ ] Validate tactical map screenshot.
+32. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+33. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 24. Final acceptance gates
 
@@ -469,7 +494,7 @@ daylight/exposure; stable ground/roads/sidewalks; no black-world or blown-out sc
 real accepted visual/material/texture chain; no visible primitive fallback; launcher visual valid; unresolved exact items remain CONTENT GAP.
 
 ### Gate D — weapon firing physics
-factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; exact per-weapon ADS alignment accepted; drop physics; grenade/smoke presentation.
+factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; exact per-weapon ADS alignment accepted; no temporary generic audio fallback remains on a final accepted weapon; drop physics; grenade/smoke presentation.
 
 ### Gate E — landmarks/environment
 Museum/Culture/Silpo separated and identified; rejected residential/tree families absent; Gate K passes.
@@ -498,4 +523,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The newest weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback corrections are **CODED_UNTESTED**. They may not be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
