@@ -25,6 +25,7 @@ public:
     AOCWeaponBase();
 
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     virtual bool TryFireServer(AOCCharacter* Shooter, const FVector& TraceOrigin, const FVector& TraceDirection,
@@ -121,6 +122,10 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon")
     float GetADSSpreadDegrees() const { return Tuning.ADSSpreadDegrees; }
 
+    /**
+     * Legacy Character-side held-input recoil polling is intentionally neutralized for the locally-owned weapon.
+     * Confirmed recoil is emitted from MulticastFireTraceFX only after TryFireServer accepted a factual shot.
+     */
     UFUNCTION(BlueprintPure, Category="Weapon")
     float GetRecoilPitchMin() const;
 
@@ -227,9 +232,19 @@ private:
     int32 ServerAudioEventCounter = 0;
     FTimerHandle ReloadTimerHandle;
 
+    /** Client-local, confirmed-shot recoil state. It is driven by server-accepted shot multicast, never by held input. */
+    double LastConfirmedLocalShotTime = -1000.0;
+    float ConfirmedLocalRecoilPitchOffset = 0.0f;
+    float ConfirmedLocalRecoilYawOffset = 0.0f;
+    float ConfirmedRecoilRecoveryDelay = 0.10f;
+    float ConfirmedRecoilRecoverySpeed = 8.5f;
+
     UPROPERTY(Transient) TArray<TObjectPtr<UStaticMeshComponent>> SourceVisualParts;
     void BuildSourceOnlyWeaponVisual();
 
+    void ApplyConfirmedLocalShotRecoil();
+    void RecoverConfirmedLocalShotRecoil(float DeltaSeconds);
+    bool ShouldNeutralizeLegacyLocalRecoil() const;
     float CalculateSpreadDegrees(bool bAiming, bool bMoving) const;
     float GetRecoilMultiplier() const;
     float GetADSSpreadMultiplier() const;
