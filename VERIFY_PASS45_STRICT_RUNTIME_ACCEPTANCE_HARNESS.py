@@ -3,9 +3,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 MAIN = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
+PLAYFLOW = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+START = ROOT / "START_HERE.cmd"
 errors = []
 
 
@@ -22,25 +24,46 @@ def req(condition: bool, message: str) -> None:
 
 
 main = read(MAIN)
+playflow = read(PLAYFLOW)
 normal = read(NORMAL)
 material = read(MATERIAL)
 evidence = read(EVIDENCE)
+start = read(START)
 
-# Keep one normal gameplay launcher. The strict wrapper orchestrates evidence; it does not invent another gameplay route.
+# Keep one actual gameplay process. START_HERE option 2 enters the strict main wrapper, which delegates to the
+# playflow/performance wrapper; only that wrapper calls RUN_R14_CURRENT_GAMEPLAY.cmd and only CURRENT_GAMEPLAY
+# owns `start /wait` for Unreal gameplay.
+req('call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"' in start,
+    "START_HERE full runtime option bypasses the strict main acceptance wrapper")
 req('set "OC_FORCE_ACCEPTANCE=1"' in main, "strict wrapper no longer enables acceptance mode")
-req('call "%CURRENT_GAMEPLAY%"' in main, "strict wrapper no longer delegates gameplay to RUN_R14_CURRENT_GAMEPLAY.cmd")
-req("start /wait" not in main, "strict wrapper became a second gameplay launcher")
-req("RUN_R14_CURRENT_GAMEPLAY.cmd" in main, "single normal-game launcher identity missing")
+req('call "%PLAYFLOW%"' in main, "strict wrapper no longer delegates to the playflow/performance acceptance wrapper")
+req("RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd" in main, "playflow/performance wrapper identity missing from strict main wrapper")
+req('call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in playflow,
+    "playflow/performance wrapper no longer delegates to the canonical normal-game launcher")
+req("start /wait" not in main and "start /wait" not in playflow,
+    "a wrapper became a second gameplay process launcher")
+req("start /wait" in normal, "canonical normal-game launcher no longer owns the gameplay process")
 req("-fullscreen" in normal and 't.MaxFPS 60' in normal,
     "normal gameplay route lost Pass45 fullscreen/60 FPS recovery contract")
 
-# Headless post-playtest gate must consume the exact authored material/dependency contracts merged in Pass45.
+# START_HERE strict preparation may repair Stein authored assets once, but production vehicle intake belongs to
+# CURRENT_GAMEPLAY strict stage so HMMWV/M2/BTR are not imported twice before one acceptance run.
+strict_prepare = start[start.find(":prepare_materials_strict"):]
+req("PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd" in strict_prepare,
+    "START_HERE strict route no longer prepares Stein authored materials")
+req("IMPORT_PRODUCTION_VEHICLES_UE58.cmd" not in strict_prepare,
+    "START_HERE strict route duplicates production vehicle import before CURRENT_GAMEPLAY")
+
+# Headless post-playtest gate consumes required-available material/dependency truth. Exact production weapon
+# payload gaps may remain CONTENT GAP only when the explicit real fallback passes the same dependency checks.
 for needle in (
     "-ValidateProductionWeapons",
     "-ValidateProductionWeaponsHeadless",
+    "PASS45_REQUIRED_AVAILABLE_WEAPONS=PASS",
     "PASS45_AUTHORED_WEAPON_MATERIALS=PASS",
     "PASS45_WEAPON_DEPENDENCY_REPORT=PASS",
-    "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
+    "PASS45_EXACT_PRODUCTION_CONTENT_GAPS=",
+    "PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY",
     "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
     "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
 ):
@@ -49,11 +72,15 @@ for forbidden in (
     "PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL",
     "PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP",
     "PASS45_PRODUCTION_VEHICLE_CONTENT_GAP",
+    "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
 ):
     req(f'findstr /C:"{forbidden}"' in material,
         f"strict material gate does not fail on: {forbidden}")
+req("R14_PRODUCTION_WEAPONS=PASS" not in material,
+    "strict material gate resurrected impossible all-exact production weapon sentinel")
 
-# Acceptance must force the actual interaction sequence that reproduces the rejected teleport/M2 bugs.
+# Acceptance must force the actual interaction sequence that reproduces the rejected teleport/M2 bugs and must
+# require material truth for the rack actually rendered in gameplay.
 for marker in (
     "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
     "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE",
@@ -61,9 +88,13 @@ for marker in (
     "PASS45_VEHICLE_EXIT_TRANSFORM_READY",
     "PASS45_M2_GUNNER_PITCH_CONTRACT_READY",
     "PASS45_GUNNER_EXIT_TRANSFORM_READY",
+    "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
+    "PASS36_WEAPON_MATERIAL_AUDIT_READY",
     "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
-    "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
-    "SUMMARY=11/11 production weapon classes PASS",
+    "PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY",
+    "required available weapon visuals PASS",
+    "textureGaps=0",
+    "textureDependency=PASS",
 ):
     req(marker in evidence, f"Pass45 evidence verifier missing required marker: {marker}")
 for marker in (
@@ -71,10 +102,15 @@ for marker in (
     "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL",
     "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL",
     "PASS45_GUNNER_EXIT_TRANSFORM_FAIL",
+    "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
+    "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
     "placeholder=1",
+    "textureDependency=GAP",
     "RESULT=FAIL",
 ):
     req(marker in evidence, f"Pass45 evidence verifier does not reject failure marker: {marker}")
+req("SUMMARY=11/11 production weapon classes PASS" not in evidence,
+    "evidence verifier still requires impossible all-exact production weapon summary")
 
 # Automation cannot falsely promote log evidence to visual acceptance.
 req("VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION" in evidence,
@@ -91,8 +127,9 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
-print("- RUN_R14_CURRENT_GAMEPLAY.cmd remains the single normal gameplay launcher")
-print("- strict wrapper adds post-playtest authored material/dependency validation")
+print("- START_HERE full test -> strict main wrapper -> playflow/performance -> one canonical gameplay process")
+print("- production vehicle import is not duplicated by START_HERE strict preparation")
+print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
 print("- vehicle/weapon material gaps and transform failures are fatal")
 print("- automated evidence cannot mark visual acceptance complete")
