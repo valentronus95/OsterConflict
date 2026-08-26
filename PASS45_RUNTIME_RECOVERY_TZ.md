@@ -2,8 +2,9 @@
 
 Date: 2026-08-24
 Latest runtime rejection: 2026-08-25
-Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / CORRECTIVE WORK IN PROGRESS**
-Active corrective branch: `fix/pass45-runtime-rejection-20260825`
+Status: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-25 / SOURCE CONTINUATION CODED_UNTESTED**
+Active corrective branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826`
+Active continuation PR: #91
 Target: UE 5.8.x Windows
 User launcher: `START_HERE.cmd`
 
@@ -225,6 +226,15 @@ Requirements:
 - fence families must match Oster reference character: real local metal/wood/sheet fence types where shown, not generic fantasy/village fencing;
 - no arbitrary decorative building family may be introduced outside the accepted topology/reference set.
 
+Source retirement continuation — 2026-08-26, PR #91, **CODED_UNTESTED**:
+
+- normal runtime no longer spawns the explicitly non-reference-specific `AOCEnterableHouse`;
+- `BuildResidentialBlocks()` procedural house/shed/private-fence grid owner is physically removed from `AOCWorldSectorOster`;
+- the generic `BuildSolomiiKrushelnytskoiStreet()` house/shed/fence generator is physically removed; road topology remains owned by `BuildRoadNetwork()`;
+- Museum/Stadium/College reference-driven fence geometry remains;
+- `VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py` prevents silent resurrection of those generic owners;
+- runtime absence of the previously observed dark tower/shack remains Gate E evidence and is not claimed from source alone.
+
 Acceptance:
 
 - no rejected fence family visible near Museum/current test area;
@@ -345,7 +355,7 @@ Pass 45 explicitly forbids:
 8. [x] Remove normal-route forced windowed mode and apply recovery 60 FPS cap.
 9. [x] Consolidate Museum ownership: R13.7 visible exterior; R13.8 hidden collision + final glass; R13.9/R14.0 final doors/facade; R14.5 sole tree owner; physically delete obsolete R14.1 window replacement.
 10. [x] Correct default mounted M2 Browning pitch direction in source; runtime input proof still required.
-11. [ ] Remove unreferenced tower/shack and any remaining rejected generic fence/house visuals.
+11. [x] Source-retire the traced unreferenced generic house/fence owners (`AOCEnterableHouse` normal spawn, `BuildResidentialBlocks`, generic Krushelnytska house generator); **CODED_UNTESTED**, and runtime Gate E still must prove the dark tower/shack artifact is absent.
 12. [ ] Close BTR white/default material slot and remaining weapon authored material/texture dependencies that existing content can support.
 13. [x] Forward-port stale production/Museum verifiers and lock deleted R14.1/material-repair owners out of current CI.
 14. [x] Update work ledger with Museum ownership, production-material, vehicle-transform and M2 pitch corrective state.
@@ -420,8 +430,8 @@ Pass 45 cannot become `VERIFIED RUNTIME` until all applicable factual gates pass
 - Pass 44: **RUNTIME REJECTED** historical evidence.
 - Pass 45 source corrections through PR #82: historical source/build progress only.
 - Latest factual 2026-08-25 gameplay: **RUNTIME REJECTED**.
-- Corrective source work now includes stale-owner physical retirement, initial-only Museum BASE recovery, proportional HMMWV/BTR fitting, M2 mount alignment, fullscreen + 60 FPS recovery guard.
-- Current branch: `fix/pass45-runtime-rejection-20260825`.
+- Corrective source work now includes stale-owner physical retirement, initial-only Museum BASE recovery, proportional HMMWV/BTR fitting, M2 mount alignment, fullscreen + 60 FPS recovery guard, and source retirement of unreferenced generic residential visual owners.
+- Current branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826` (PR #91).
 - Current corrective source status: **CODED_UNTESTED**.
 - Runtime verification: **NOT ACHIEVED**.
 
