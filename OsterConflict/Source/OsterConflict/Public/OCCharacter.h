@@ -130,6 +130,9 @@ public:
 
     void NotifyDamageReceived(const FVector& DamageOrigin);
 
+    /** Local presentation hook called only from a server-confirmed weapon shot multicast. */
+    void NotifyConfirmedWeaponShotPresentation();
+
     /** Server-only ammo distribution entry point used by ammo boxes. Returns amount actually granted. */
     int32 AddAmmoFromBoxServer(EOCAmmoType AmmoType, int32 Amount);
 
@@ -183,12 +186,6 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category="Combat|ADS")
     float ADSInterpSpeed = 14.0f;
-
-    UPROPERTY(EditDefaultsOnly, Category="Combat|Recoil")
-    float RecoilRecoveryDelay = 0.10f;
-
-    UPROPERTY(EditDefaultsOnly, Category="Combat|Recoil")
-    float RecoilRecoverySpeed = 8.5f;
 
     UPROPERTY(EditDefaultsOnly, Category="Combat|Feedback")
     TSubclassOf<UCameraShakeBase> FireCameraShakeClass;
@@ -386,18 +383,14 @@ private:
     UPROPERTY() TObjectPtr<UInputAction> CycleTrapAction;
 
     FTimerHandle ServerFireTimerHandle;
-    FTimerHandle LocalFireFeedbackTimerHandle;
     FTimerHandle ReviveTimerHandle;
     FTimerHandle GiveUpTimerHandle;
 
     bool bServerFireHeld = false;
-    bool bLocalFireHeld = false;
+    int32 ServerBurstShotsRemaining = 0;
     bool bLastHitFatal = false;
     float DefaultFieldOfView = 90.0f;
     FVector StandingCameraRelativeLocation = FVector(0.0f, 0.0f, 64.0f);
-    float CurrentRecoilPitchOffset = 0.0f;
-    float CurrentRecoilYawOffset = 0.0f;
-    double LastLocalShotTime = -1000.0;
     double LastHitConfirmTime = -1000.0;
     double LastDamageFeedbackTime = -1000.0;
     float LastDamageDirectionDegrees = 0.0f;
@@ -435,10 +428,6 @@ private:
     void DeployTrapPressed();
     void CycleTrapPressed();
 
-    void StartLocalFireFeedback();
-    void StopLocalFireFeedback();
-    void ApplyLocalShotFeedback();
-    void RecoverLocalRecoil(float DeltaSeconds);
     void ServerHandleFirePulse();
     void StopServerFireTimer();
     void ApplyMovementSpeed();
