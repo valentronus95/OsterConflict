@@ -81,16 +81,26 @@ echo.
 
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%PY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%IMPORT_LOG%"
 set "RESULT=!ERRORLEVEL!"
+
+rem UE 5.8 Interchange may return a non-zero commandlet code for material-expression diagnostics even when
+rem the Python intake completed and wrote its canonical result sentinel. A commandlet code alone is therefore
+rem not accepted as final truth. Non-zero may continue ONLY when a fresh current-revision sentinel exists,
+rem and the independent fresh UE process below must still reopen and validate every reported canonical asset.
 if not "!RESULT!"=="0" (
+    if not exist "%SUCCESS_SENTINEL%" (
+        echo.
+        echo ERROR: production import commandlet failed with code !RESULT! and wrote no result sentinel.
+        echo Log: %IMPORT_LOG%
+        exit /b !RESULT!
+    )
     echo.
-    echo ERROR: no usable production import completed. code=!RESULT!
-    echo Log: %IMPORT_LOG%
-    exit /b !RESULT!
+    echo [IMPORT] PASS45_NONZERO_COMMANDLET_DEFERRED_TO_FRESH_LOAD code=!RESULT! sentinel=1
+    echo [IMPORT] UE commandlet diagnostics are not being called PASS; fresh-load validation remains mandatory.
 )
 
 if not exist "%SUCCESS_SENTINEL%" (
     echo.
-    echo ERROR: Unreal exited with code 0 but the production import result sentinel is missing.
+    echo ERROR: Unreal import produced no production result sentinel.
     echo Log: %IMPORT_LOG%
     exit /b 6
 )
