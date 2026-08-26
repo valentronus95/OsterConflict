@@ -42,18 +42,25 @@ public:
     void ApplyInventoryPresentation(bool bActive, USceneComponent* ActiveAttachParent);
 
     /**
+     * Resolve the rendered muzzle from the active production visual while retaining camera-origin aim reconciliation.
+     * Damage traces can still use the camera aim ray, but tracer/muzzle/audio/projectile presentation must originate
+     * from the weapon instead of an arbitrary camera/under-barrel point.
+     */
+    FVector ResolvePresentationMuzzleOrigin(const FVector& AimOrigin, const FVector& AimDirection) const;
+
+    /**
      * AActor exposes relative-transform setters but no matching getters in UE 5.8.
-     * Presentation code needs the exact transform of the authoritative weapon root so ADS/recoil
-     * offsets can be restored without accidentally mixing camera-relative and world-space values.
+     * Presentation code needs the exact transform of the actor root so ADS/recoil offsets can be restored without
+     * mixing camera-relative and world-space values. WeaponMesh may become the physics root for dropped weapons.
      */
     FVector GetActorRelativeLocation() const
     {
-        return WeaponRoot ? WeaponRoot->GetRelativeLocation() : GetActorLocation();
+        return GetRootComponent() ? GetRootComponent()->GetRelativeLocation() : GetActorLocation();
     }
 
     FRotator GetActorRelativeRotation() const
     {
-        return WeaponRoot ? WeaponRoot->GetRelativeRotation() : GetActorRotation();
+        return GetRootComponent() ? GetRootComponent()->GetRelativeRotation() : GetActorRotation();
     }
 
     UFUNCTION(BlueprintPure, Category="Weapon")
@@ -123,9 +130,11 @@ public:
     UOCWeaponAudioComponent* GetWeaponAudioComponent() const { return WeaponAudioComponent; }
 
 protected:
+    /** Stable visual attach point. This intentionally remains separate from the physics root. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
     TObjectPtr<USceneComponent> WeaponRoot;
 
+    /** Hidden/source collision body and physics root; production visuals attach beneath WeaponRoot. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
     TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
