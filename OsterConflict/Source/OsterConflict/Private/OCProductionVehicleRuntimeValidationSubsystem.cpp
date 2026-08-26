@@ -28,6 +28,7 @@ namespace
     const FName ProductionM2Tag(TEXT("OC_ProductionM2"));
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
     const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
+    const FName RealFallbackWeaponVisualTag(TEXT("OC_RealFallbackWeaponVisual"));
 
     bool HasUsableBounds(const UStaticMesh* Mesh)
     {
@@ -71,7 +72,7 @@ namespace
         return false;
     }
 
-    bool WeaponUsesProductionVisual(AOCWeaponBase* Weapon)
+    bool WeaponUsesVisualTag(AOCWeaponBase* Weapon, const FName VisualTag)
     {
         if (!Weapon) return false;
 
@@ -79,7 +80,7 @@ namespace
         Weapon->GetComponents(Components);
         for (const UMeshComponent* Component : Components)
         {
-            if (Component && Component->ComponentHasTag(ProductionWeaponVisualTag) && Component->IsVisible())
+            if (Component && Component->ComponentHasTag(VisualTag) && Component->IsVisible())
             {
                 return true;
             }
@@ -108,8 +109,8 @@ namespace
     {
         if (!Actor) return;
 
-        // A production-validation failure must never continue presenting the constructor proxy as if it were the
-        // requested vehicle. Hide it and disable collision so the failed visual cannot become an invisible blocker.
+        // Vehicle exact-production identity remains a hard Gate G requirement. A failed body/turret must not
+        // continue masquerading as the requested production vehicle.
         Actor->SetActorHiddenInGame(true);
         Actor->SetActorEnableCollision(false);
 
@@ -120,18 +121,6 @@ namespace
             bBodyReady ? 1 : 0,
             bWeaponReady ? 1 : 0,
             *Actor->GetActorLocation().ToCompactString());
-    }
-
-    void QuarantineInvalidRackWeapon(AOCWeaponBase* Weapon)
-    {
-        if (!Weapon) return;
-        Weapon->SetActorHiddenInGame(true);
-        Weapon->SetActorEnableCollision(false);
-        UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL actor=%s class=%s location=%s"),
-            *Weapon->GetName(),
-            *Weapon->GetClass()->GetName(),
-            *Weapon->GetActorLocation().ToCompactString());
     }
 }
 
@@ -264,7 +253,8 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
     }
 
     int32 RackWeaponCount = 0;
-    int32 RackWeaponsUsingProductionVisual = 0;
+    int32 RackWeaponsUsingExactProductionVisual = 0;
+    int32 RackWeaponsUsingRealFallbackVisual = 0;
     uint32 RackWeaponClassMask = 0u;
 
     for (TActorIterator<AOCWeaponBase> It(&World); It; ++It)
@@ -274,32 +264,57 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
 
         ++RackWeaponCount;
         RackWeaponClassMask |= RequiredRackWeaponClassBit(Weapon);
-        if (WeaponUsesProductionVisual(Weapon))
+
+        const bool bUsesExactProduction = WeaponUsesVisualTag(Weapon, ProductionWeaponVisualTag);
+        const bool bUsesRealFallback = !bUsesExactProduction && WeaponUsesVisualTag(Weapon, RealFallbackWeaponVisualTag);
+        if (bUsesExactProduction)
         {
-            ++RackWeaponsUsingProductionVisual;
+            ++RackWeaponsUsingExactProductionVisual;
+        }
+        else if (bUsesRealFallback)
+        {
+            ++RackWeaponsUsingRealFallbackVisual;
         }
         else
         {
-            QuarantineInvalidRackWeapon(Weapon);
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL actor=%s class=%s reason=no_exact_or_real_fallback_visual location=%s validation_only=1 mutation=0"),
+                *Weapon->GetName(),
+                *Weapon->GetClass()->GetName(),
+                *Weapon->GetActorLocation().ToCompactString());
         }
     }
 
     const bool bAllRequiredRackWeaponClassesPresent = RackWeaponClassMask == AllRequiredRackWeaponClassesMask;
+    const int32 RackWeaponsUsingAllowedVisual =
+        RackWeaponsUsingExactProductionVisual + RackWeaponsUsingRealFallbackVisual;
     const bool bWeaponRuntimePass = RackWeaponCount >= 11 && bAllRequiredRackWeaponClassesPresent &&
-        RackWeaponsUsingProductionVisual == RackWeaponCount;
+        RackWeaponsUsingAllowedVisual == RackWeaponCount;
 
     if (bWeaponRuntimePass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS7_PRODUCTION_WEAPONS_READY rackWeapons=%d productionVisuals=%d requiredClasses=11/11 classMask=0x%X"),
-            RackWeaponCount, RackWeaponsUsingProductionVisual, RackWeaponClassMask);
+            TEXT("PASS45_REQUIRED_AVAILABLE_WEAPONS_READY rackWeapons=%d exactProductionVisuals=%d realFallbackVisuals=%d requiredClasses=11/11 classMask=0x%X validation_only=1 mutation=0"),
+            RackWeaponCount,
+            RackWeaponsUsingExactProductionVisual,
+            RackWeaponsUsingRealFallbackVisual,
+            RackWeaponClassMask);
+
+        if (RackWeaponsUsingRealFallbackVisual > 0)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_EXACT_WEAPON_CONTENT_GAP realFallbackWeapons=%d exactProductionReadyNotClaimed=1 gameplayVisualReady=1"),
+                RackWeaponsUsingRealFallbackVisual);
+        }
     }
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL summary=1 rackWeapons=%d productionVisuals=%d requiredClassesComplete=%d classMask=0x%X expectedMask=0x%X"),
+            TEXT("PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL summary=1 rackWeapons=%d exactProductionVisuals=%d realFallbackVisuals=%d allowedVisuals=%d requiredClassesComplete=%d classMask=0x%X expectedMask=0x%X validation_only=1 mutation=0"),
             RackWeaponCount,
-            RackWeaponsUsingProductionVisual,
+            RackWeaponsUsingExactProductionVisual,
+            RackWeaponsUsingRealFallbackVisual,
+            RackWeaponsUsingAllowedVisual,
             bAllRequiredRackWeaponClassesPresent ? 1 : 0,
             RackWeaponClassMask,
             AllRequiredRackWeaponClassesMask);
