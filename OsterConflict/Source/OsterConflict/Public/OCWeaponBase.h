@@ -43,6 +43,9 @@ public:
     /** Called locally by Character after inventory replication. */
     void ApplyInventoryPresentation(bool bActive, USceneComponent* ActiveAttachParent);
 
+    /** Stable unscaled visual attachment root. Real fallbacks must attach here, never to the scaled physics body. */
+    USceneComponent* GetWeaponVisualRoot() const { return WeaponRoot; }
+
     /**
      * Resolve the rendered muzzle from the active production visual while retaining camera-origin aim reconciliation.
      * This deliberately uses the visible production component bounds instead of the camera as a muzzle surrogate.
