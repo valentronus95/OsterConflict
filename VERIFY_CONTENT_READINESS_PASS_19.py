@@ -77,13 +77,14 @@ for needle in (
 forbid(vehicle_import, 'attempt("BTR4"', "obsolete BTR source-missing attempt path")
 forbid(vehicle_import, "ensure_sources_exist()", "obsolete all-or-nothing production source gate")
 
-# The command wrapper still exposes independent model outcomes. BTR is expected to be importable through the
-# repository-safe authored fallback even if the local FBX is absent.
+# The command wrapper still exposes independent model outcomes. Local source recovery may fail while the
+# repository-authored BTR fallback remains available; the wrapper must say that explicitly instead of reverting
+# to the old "missing local FBX == missing BTR" assumption.
 for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
-    "Continuing independent intake for any available source files",
+    "Continuing independent intake; BTR authored fallback remains available.",
 ):
     require(vehicle_cmd, needle, "independent production vehicle command truth")
 
