@@ -52,6 +52,8 @@ namespace
 
 AOCWeaponBase::AOCWeaponBase()
 {
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
     bReplicates = true;
     SetReplicateMovement(false);
 
@@ -100,6 +102,12 @@ void AOCWeaponBase::BeginPlay()
     ApplyWorldPickupPresentation();
 }
 
+void AOCWeaponBase::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    RecoverConfirmedLocalShotRecoil(DeltaSeconds);
+}
+
 void AOCWeaponBase::ConfigureBuiltInTuning(const FOCWeaponTuning& NewTuning)
 {
     Tuning = NewTuning;
@@ -127,7 +135,6 @@ void AOCWeaponBase::ApplyDefinitionIfAssigned()
         CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
     }
 }
-
 
 void AOCWeaponBase::BuildSourceOnlyWeaponVisual()
 {
@@ -311,19 +318,25 @@ bool AOCWeaponBase::IsSuppressed() const
     return HasAttachment(FName(TEXT("Suppressor")));
 }
 
+bool AOCWeaponBase::ShouldNeutralizeLegacyLocalRecoil() const
+{
+    const AOCCharacter* OwnerCharacter = Cast<AOCCharacter>(GetOwner());
+    return OwnerCharacter && OwnerCharacter->IsLocallyControlled();
+}
+
 float AOCWeaponBase::GetRecoilPitchMin() const
 {
-    return Tuning.RecoilPitchMin * GetRecoilMultiplier();
+    return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f : Tuning.RecoilPitchMin * GetRecoilMultiplier();
 }
 
 float AOCWeaponBase::GetRecoilPitchMax() const
 {
-    return Tuning.RecoilPitchMax * GetRecoilMultiplier();
+    return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f : Tuning.RecoilPitchMax * GetRecoilMultiplier();
 }
 
 float AOCWeaponBase::GetRecoilYawMax() const
 {
-    return Tuning.RecoilYawMax * GetRecoilMultiplier();
+    return ShouldNeutralizeLegacyLocalRecoil() ? 0.0f : Tuning.RecoilYawMax * GetRecoilMultiplier();
 }
 
 float AOCWeaponBase::CalculateSpreadDegrees(bool bAiming, bool bMoving) const
@@ -343,7 +356,7 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
     bOutFatalHit = false;
     OutHit = FHitResult();
 
-    if (!HasAuthority() || !Shooter || bIsWorldPickup || Tuning.RoundsPerMinute <= 0.0f || bIsReloading)
+    if (!HasAuthority() || !Shooter || bIsWorldPickup || Tuning.RoundsPerMinute <= 0.0f || bIsReloading || !GetWorld())
     {
         return false;
     }
@@ -359,7 +372,11 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
         return false;
     }
     const double FireInterval = static_cast<double>(GetFireInterval());
-    if ((CurrentTime - LastServerFireTime) + KINDA_SMALL_NUMBER < FireInterval)
+    // Timer callbacks can arrive a few milliseconds before their nominal cadence. The old exact comparison could
+    // reject that pulse, after which Character stopped authoritative autofire while its local held-input recoil timer
+    // kept running. Accept a small bounded scheduler tolerance without permitting materially faster fire rates.
+    const double CadenceTolerance = FMath::Min(0.008, FireInterval * 0.10);
+    if ((CurrentTime - LastServerFireTime) + CadenceTolerance < FireInterval)
     {
         return false;
     }
@@ -672,6 +689,50 @@ void AOCWeaponBase::OnRep_Attachments()
     // Presentation hooks are intentionally light in S04. Functional modifiers already apply from replicated IDs.
 }
 
+void AOCWeaponBase::ApplyConfirmedLocalShotRecoil()
+{
+    AOCCharacter* LocalShooter = Cast<AOCCharacter>(GetOwner());
+    if (!LocalShooter || !LocalShooter->IsLocallyControlled() || !GetWorld())
+    {
+        return;
+    }
+
+    const float RecoilMultiplier = GetRecoilMultiplier();
+    const float PitchKick = FMath::FRandRange(Tuning.RecoilPitchMin, Tuning.RecoilPitchMax) * RecoilMultiplier;
+    const float YawKick = FMath::FRandRange(-Tuning.RecoilYawMax, Tuning.RecoilYawMax) * RecoilMultiplier;
+
+    LocalShooter->AddControllerPitchInput(-PitchKick);
+    LocalShooter->AddControllerYawInput(YawKick);
+    ConfirmedLocalRecoilPitchOffset += PitchKick;
+    ConfirmedLocalRecoilYawOffset += YawKick;
+    LastConfirmedLocalShotTime = GetWorld()->GetTimeSeconds();
+}
+
+void AOCWeaponBase::RecoverConfirmedLocalShotRecoil(float DeltaSeconds)
+{
+    AOCCharacter* LocalShooter = Cast<AOCCharacter>(GetOwner());
+    if (!LocalShooter || !LocalShooter->IsLocallyControlled() || !GetWorld() ||
+        GetWorld()->GetTimeSeconds() - LastConfirmedLocalShotTime < ConfirmedRecoilRecoveryDelay)
+    {
+        return;
+    }
+
+    if (ConfirmedLocalRecoilPitchOffset > KINDA_SMALL_NUMBER)
+    {
+        const float PitchStep = FMath::Min(ConfirmedLocalRecoilPitchOffset, ConfirmedRecoilRecoverySpeed * DeltaSeconds);
+        LocalShooter->AddControllerPitchInput(PitchStep);
+        ConfirmedLocalRecoilPitchOffset -= PitchStep;
+    }
+
+    if (!FMath::IsNearlyZero(ConfirmedLocalRecoilYawOffset, 0.001f))
+    {
+        const float NewYawOffset = FMath::FInterpTo(
+            ConfirmedLocalRecoilYawOffset, 0.0f, DeltaSeconds, ConfirmedRecoilRecoverySpeed);
+        LocalShooter->AddControllerYawInput(NewYawOffset - ConfirmedLocalRecoilYawOffset);
+        ConfirmedLocalRecoilYawOffset = NewYawOffset;
+    }
+}
+
 void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize TraceStart, FVector_NetQuantize TraceEnd, bool bHit)
 {
     if (!GetWorld()) return;
@@ -680,7 +741,11 @@ void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize Trac
     const FVector End(TraceEnd);
     const FVector Direction = (End - Start).GetSafeNormal();
 
-    // R11: actual short-lived scene geometry/light instead of editor DrawDebug primitives.
+    // This multicast is emitted only after TryFireServer accepts a factual shot, so local recoil is now tied to
+    // accepted shot count rather than the duration of LMB input. The legacy Character timer receives zero recoil
+    // values for the locally-owned weapon and therefore cannot create the old post-shot downward recovery drift.
+    ApplyConfirmedLocalShotRecoil();
+
     if (AOCTransientVisualFX* Muzzle = GetWorld()->SpawnActor<AOCTransientVisualFX>(
         AOCTransientVisualFX::StaticClass(), Start, Direction.Rotation()))
     {
@@ -702,7 +767,6 @@ void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize Trac
         }
     }
 }
-
 
 void AOCWeaponBase::MulticastShotAudio_Implementation(FVector_NetQuantize ShotOrigin, FVector_NetQuantize TraceEnd,
     bool bSuppressed, bool bSupersonic, EOCAcousticEnvironment Environment, int32 EventSeed)
