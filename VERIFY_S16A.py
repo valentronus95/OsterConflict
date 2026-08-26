@@ -29,7 +29,8 @@ markers={
         '50.949419, 30.877258', '50.952622, 30.877788', '50.954472, 30.873668',
         'MetersPerDegreeLongitude'
     ],
-    # S16A established georeference/topology. Pass 44 explicitly supersedes its old 2.4 km blockout size.
+    # S16A established georeference/topology. Pass 44 explicitly supersedes its old 2.4 km blockout size,
+    # and Pass45 retires its later generic private-residence approximation layer.
     'OCWorldSectorOster.cpp': [
         'MinPlayableX = -78000.0f', 'MaxPlayableX =  18000.0f',
         'MinPlayableY = -12000.0f', 'MaxPlayableY =  82000.0f',
@@ -41,7 +42,7 @@ markers={
         'S16A topology pass', 'official general plan',
         'FOCGeoReference::CentralPark()', 'FOCGeoReference::CultureParkNorth()',
         'S16A VERIFIED ANCHOR', '10500, 6800',
-        'S16A variation: houses/lots are intentionally imperfect',
+        'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED',
         'PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY'
     ],
     # Current runtime seeds are also compact. Historical far-edge BASE and vehicle coordinates are no longer
@@ -77,10 +78,12 @@ world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(err
 for stale in [
     'MapWidthCm = 240000.0f', 'MapHeightCm = 240000.0f',
     'FVector(-104000.0f, -92000.0f', 'FVector( 104000.0f,  92000.0f',
-    'FVector(-112000, -25000', 'FVector( 82000, -52000'
+    'FVector(-112000, -25000', 'FVector( 82000, -52000',
+    'BuildResidentialBlocks();', 'void AOCWorldSectorOster::BuildResidentialBlocks()',
+    'BuildSolomiiKrushelnytskoiStreet();', 'void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()'
 ]:
     if stale in world:
-        print('Superseded Pass 44 world authoring returned:', stale); sys.exit(1)
+        print('Superseded Pass44/Pass45 world authoring returned:', stale); sys.exit(1)
 
 game=(root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(errors='ignore')
 for stale in [
@@ -91,10 +94,11 @@ for stale in [
     'FVector(-69000.0f, -61000.0f, 180.0f)',
     'FVector( 69000.0f,  61000.0f, 180.0f)',
     'FVector(43000.0f, -43000.0f, 180.0f)',
-    'else TargetPopulation = MaxPlayerSlots;'
+    'else TargetPopulation = MaxPlayerSlots;',
+    'SpawnActor<AOCEnterableHouse>'
 ]:
     if stale in game:
-        print('Superseded Pass 44 gameplay seed/default returned:', stale); sys.exit(1)
+        print('Superseded Pass44/Pass45 gameplay seed/default returned:', stale); sys.exit(1)
 
 # Museum origin should be deterministic and coordinates separated from layout code.
 gh=(root/'Source/OsterConflict/Public/OCGeoReference.h').read_text(errors='ignore')
@@ -141,5 +145,5 @@ for cpp_name,class_name in [('OCGeoReference.cpp','FOCGeoReference'),('OCWorldSe
     if dup:
         print('Duplicate method definitions',cpp_name,dup); sys.exit(1)
 
-print('S16A structural verification: PASS (Pass 44 compact authoring/runtime seeds supersede old 2.4 km extent)')
-print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A/Pass44 markers.')
+print('S16A structural verification: PASS (Pass44 compact authoring + Pass45 generic-residential retirement supersede old private-sector approximation)')
+print(f'Checked {len(required)} required files and {sum(map(len,markers.values()))} S16A/Pass44/Pass45 markers.')

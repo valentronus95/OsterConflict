@@ -20,8 +20,8 @@ class UTextRenderComponent;
  *
  * This remains a gameplay reconstruction, NOT survey-grade architectural documentation.
  * Public references determine silhouette, storey count, facade rhythm, roof character, site relationships,
- * vegetation character and major outdoor features. Private residences use reference-informed archetypes and are
- * not claimed to reproduce individual homes.
+ * vegetation character and major outdoor features. Private generic residences are intentionally omitted until
+ * location-specific reference evidence exists; procedural house/fence archetypes are not player-facing runtime content.
  *
  * Unreal units are centimeters. +X = east, +Y = north.
  */
@@ -105,8 +105,6 @@ private:
     void BuildMuseumAndStadium();
     void BuildCentralPark();
     void BuildCollegeSector();
-    void BuildSolomiiKrushelnytskoiStreet();
-    void BuildResidentialBlocks();
     void BuildVegetation();
     void BuildGameplayBases();
 

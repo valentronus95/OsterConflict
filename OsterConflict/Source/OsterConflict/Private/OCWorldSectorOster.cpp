@@ -160,8 +160,8 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     BuildMuseumAndStadium();
     BuildCentralPark();
     BuildCollegeSector();
-    BuildSolomiiKrushelnytskoiStreet();
-    BuildResidentialBlocks();
+    // Pass45: generic private-residence/fence generators are physically retired from primary authoring.
+    // Road topology remains owned by BuildRoadNetwork; private structures return only from location-specific references.
     BuildVegetation();
     BuildGameplayBases();
 
@@ -243,6 +243,9 @@ void AOCWorldSectorOster::BeginPlay()
     if (GrassRough) GrassRough->SetCastShadow(false);
     if (GrassWetland) GrassWetland->SetCastShadow(false);
     if (Waterways) Waterways->SetCastShadow(false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED procedural_residential_grids=0 generic_private_fences=0 reference_specific_private_structures_required=1"));
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] old_ground_2400m=0 far_legacy_base_geometry=0 peripheral_hydrography=0"));
@@ -634,167 +637,6 @@ void AOCWorldSectorOster::BuildCollegeSector()
     AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);
     AddBox(Fences, College + FVector(0, 9300, 110), FVector(11200, 45, 220), Yaw);
     AddBox(Fences, College + FVector(-5600, 3400, 110), FVector(45, 11700, 220), Yaw);
-}
-
-void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()
-{
-    const float WestHouseX = -39200.0f;
-    const float EastHouseX = -27800.0f;
-    const float StartY = 20500.0f;
-
-    for (int32 Index = 0; Index < 8; ++Index)
-    {
-        const float Y = StartY + static_cast<float>(Index) * 4800.0f;
-        const float WestYaw = 87.0f + static_cast<float>((Index % 3) - 1) * 2.0f;
-        const float EastYaw = -88.0f + static_cast<float>((Index % 2) * 3);
-
-        auto AddHouseArchetype = [this](const FVector& Center, float Width, float Depth, float Height, float Yaw, int32 Variant)
-        {
-            AddBox(Buildings, Center, FVector(Width, Depth, Height), Yaw);
-            AddGableRoof(ResidentialRoofs, Center, Width + 120.0f, Depth + 160.0f,
-                Center.Z + Height * 0.5f + 245.0f, Yaw, 24.0f + static_cast<float>((Variant % 3) * 3));
-
-            // Two or three front windows and one door proxy to make the street read like Oster's low-rise housing stock.
-            const int32 WindowCount = Variant % 2 == 0 ? 3 : 2;
-            for (int32 W = 0; W < WindowCount; ++W)
-            {
-                const float X = (static_cast<float>(W) - (WindowCount - 1) * 0.5f) * (Width / (WindowCount + 0.8f));
-                AddFacadeWindow(ResidentialDetails, Center, FVector(X, -Depth * 0.505f, 40.0f),
-                    FVector(280, 18, 190), Yaw, true);
-            }
-            AddFacadeWindow(ResidentialDetails, Center, FVector(Width * 0.34f, -Depth * 0.51f, -25.0f),
-                FVector(220, 22, 310), Yaw, true);
-        };
-
-        if (Index != 2)
-        {
-            AddHouseArchetype(FVector(EastHouseX, Y, 270.0f),
-                1780.0f + static_cast<float>((Index % 3) * 170), 1180.0f, 540.0f, EastYaw, Index);
-        }
-        AddHouseArchetype(FVector(WestHouseX, Y + 700.0f, 260.0f),
-            1700.0f, 1120.0f + static_cast<float>((Index % 2) * 160), 520.0f, WestYaw, Index + 1);
-
-        // Common Oster visual language from aerial/street references: long narrow lots, separate sheds, fences and gates.
-        AddBox(Buildings, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 150.0f), FVector(700, 1100, 300), WestYaw);
-        AddGableRoof(ResidentialRoofs, FVector(WestHouseX - 1700.0f, Y + 1950.0f, 150.0f),
-            780, 1200, 390, WestYaw, 24.0f);
-        AddBox(Buildings, FVector(EastHouseX + 1600.0f, Y + 1750.0f, 140.0f), FVector(650, 1000, 280), EastYaw);
-
-        AddBox(Fences, FVector(-37100.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
-        AddBox(Fences, FVector(-29900.0f, Y - 1200.0f, 85.0f), FVector(3200.0f, 35.0f, 170.0f), 90.0f);
-        AddBox(Sidewalks, FVector(-36500.0f, Y + 450.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
-        AddBox(Sidewalks, FVector(-30500.0f, Y - 350.0f, 18.0f), FVector(2100.0f, 160.0f, 18.0f), 0.0f);
-    }
-
-    // S08 service alleys remain as infantry flanking routes.
-    AddBox(Roads, FVector(-43000.0f, 36000.0f, RoadZ), FVector(560.0f, 42000.0f, 14.0f), 0.0f);
-    AddBox(Roads, FVector(-24200.0f, 37000.0f, RoadZ), FVector(560.0f, 39000.0f, 14.0f), 0.0f);
-}
-
-void AOCWorldSectorOster::BuildResidentialBlocks()
-{
-    struct FBlockSeed
-    {
-        FVector Origin;
-        int32 Rows;
-        int32 Columns;
-        FVector Spacing;
-        float Yaw;
-    };
-
-    const FBlockSeed Blocks[] =
-    {
-        { FVector(16000, 15000, 0), 3, 4, FVector(4200, 4300, 0), 4.0f },
-        { FVector(36500, 12500, 0), 3, 4, FVector(4100, 4400, 0), -3.0f },
-        { FVector(35000, -22000, 0), 3, 4, FVector(4200, 4100, 0), 1.0f },
-        { FVector(-52000, -21000, 0), 3, 4, FVector(4000, 4300, 0), 2.0f },
-        { FVector(-50000, 28000, 0), 3, 4, FVector(4100, 4200, 0), -2.0f },
-        { FVector(-12000, -33000, 0), 3, 5, FVector(3900, 4200, 0), 3.0f },
-        { FVector(-82000,  15000, 0), 3, 4, FVector(4100, 4300, 0), 8.0f },
-        { FVector(-76000, -41000, 0), 3, 4, FVector(4050, 4250, 0), -4.0f },
-        { FVector( 52000,  33000, 0), 3, 4, FVector(4200, 4400, 0), 5.0f },
-        { FVector( 47000, -50000, 0), 3, 4, FVector(4100, 4200, 0), -7.0f },
-        { FVector(-24000,  76000, 0), 2, 5, FVector(4200, 4100, 0), 12.0f }
-    };
-
-    int32 HouseCounter = 0;
-    for (const FBlockSeed& Block : Blocks)
-    {
-        // Avoid even iterating full outlying residential grids that cannot contribute to the compact battlefield.
-        if (!IsPointInsidePlayableAuthoringBounds(Block.Origin, 8000.0f)) continue;
-
-        for (int32 Row = 0; Row < Block.Rows; ++Row)
-        {
-            for (int32 Col = 0; Col < Block.Columns; ++Col)
-            {
-                const float OffsetJitter = static_cast<float>((HouseCounter % 3) - 1) * 170.0f;
-                const FVector Center = Block.Origin + FVector(Col * Block.Spacing.X + OffsetJitter,
-                    Row * Block.Spacing.Y - OffsetJitter, 260.0f);
-                const float Width = 1600.0f + static_cast<float>((HouseCounter % 4) * 180);
-                const float Depth = 1050.0f + static_cast<float>((HouseCounter % 3) * 130);
-                const float Height = 480.0f + static_cast<float>((HouseCounter % 2) * 120);
-                const float HouseYaw = Block.Yaw + (HouseCounter % 2 == 0 ? -5.0f : 5.0f);
-
-                AddBox(Buildings, Center, FVector(Width, Depth, Height), HouseYaw);
-                AddGableRoof(ResidentialRoofs, Center, Width + 120.0f, Depth + 140.0f,
-                    Center.Z + Height * 0.5f + 230.0f, HouseYaw, 24.0f + (HouseCounter % 3) * 2.0f);
-
-                // Detached rear shed/outbuilding creates the irregular courtyard silhouettes visible in Oster aerial imagery.
-                const FVector ShedOffset = Rotate2D(FVector(-Width * 0.32f, Depth * 1.35f, -120.0f), HouseYaw);
-                AddBox(Buildings, Center + ShedOffset, FVector(620, 900, 280), HouseYaw + 90.0f);
-                AddGableRoof(ResidentialRoofs, Center + ShedOffset, 700, 980,
-                    Center.Z + ShedOffset.Z + 260.0f, HouseYaw + 90.0f, 22.0f);
-
-                const int32 WindowCount = (HouseCounter % 3 == 0) ? 3 : 2;
-                for (int32 W = 0; W < WindowCount; ++W)
-                {
-                    const float X = (static_cast<float>(W) - (WindowCount - 1) * 0.5f) * (Width / (WindowCount + 0.8f));
-                    AddFacadeWindow(ResidentialDetails, Center, FVector(X, -Depth * 0.505f, 30.0f),
-                        FVector(260, 18, 180), HouseYaw, true);
-                }
-
-                // S16A variation: houses/lots are intentionally imperfect. Some have porches/extensions, some
-                // have missing/short fences, matching the mixed maintained/worn character seen in public imagery.
-                if ((HouseCounter % 4) == 0)
-                {
-                    const FVector PorchOffset = Rotate2D(FVector(Width * 0.25f, -Depth * 0.70f, -65.0f), HouseYaw);
-                    AddBox(Buildings, Center + PorchOffset, FVector(520, 430, 250), HouseYaw);
-                }
-                if ((HouseCounter % 5) == 0)
-                {
-                    const FVector AnnexOffset = Rotate2D(FVector(-Width * 0.58f, Depth * 0.25f, -70.0f), HouseYaw);
-                    AddBox(Buildings, Center + AnnexOffset, FVector(650, 780, 320), HouseYaw + 90.0f);
-                }
-                // S16B Oster fence fidelity: street-facing yards are commonly screened by tall opaque fences.
-                // Distribution is deliberately weighted toward wood, with metal and light corrugated sheet variants.
-                if ((HouseCounter % 11) != 0)
-                {
-                    const float FenceLength = (HouseCounter % 3 == 0) ? 2100.0f : 2850.0f;
-                    const float FenceHeight = 190.0f + static_cast<float>((HouseCounter % 4) * 15);
-                    UInstancedStaticMeshComponent* FenceFamily = WoodFences;
-                    const int32 FenceRoll = HouseCounter % 20;
-                    if (FenceRoll >= 12 && FenceRoll < 17) FenceFamily = MetalFences;
-                    else if (FenceRoll >= 17) FenceFamily = LightSheetFences;
-
-                    AddBox(FenceFamily, Center + Rotate2D(FVector(0, -1500, -120), HouseYaw),
-                        FVector(FenceLength, 45, FenceHeight), HouseYaw);
-
-                    // Side boundary is usually simpler and slightly lower than the street facade.
-                    if ((HouseCounter % 4) != 1)
-                    {
-                        AddBox(FenceFamily, Center + Rotate2D(FVector(-FenceLength * 0.48f, 150.0f, -135.0f), HouseYaw),
-                            FVector(38, 3000.0f, FMath::Max(160.0f, FenceHeight - 25.0f)), HouseYaw);
-                    }
-                }
-                ++HouseCounter;
-            }
-        }
-    }
-
-    AddBox(Buildings, FVector(8500, 9000, 520), FVector(4200, 2600, 1040), 3.0f);
-    AddBox(Buildings, FVector(-10000, 11500, 460), FVector(3600, 2200, 920), -2.0f);
-    AddBox(Buildings, FVector(9500, -15000, 420), FVector(5000, 2100, 840), 0.0f);
-    AddBox(Buildings, FVector(-19000, -16500, 380), FVector(3900, 2400, 760), 1.0f);
 }
 
 void AOCWorldSectorOster::BuildVegetation()

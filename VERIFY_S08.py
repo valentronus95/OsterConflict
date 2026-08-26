@@ -50,15 +50,16 @@ markers = {
         'BuildYard();', 'S08 ENTERABLE HOUSE'
     ],
     'OCWorldSectorOster.cpp': [
-        'BuildSolomiiKrushelnytskoiStreet();', 'KrushelnytskaEnterableHouseAnchor',
-        'SOLOMII KRUSHELNYTSKOI STREET / S08', 'service alleys'
+        'BuildRoadNetwork();', 'KrushelnytskaEnterableHouseAnchor',
+        'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED',
+        'SOLOMII KRUSHELNYTSKOI STREET / S08'
     ],
     'OCCharacter.cpp': [
         'FindFocusedWorldInteractable', 'OCWorldInteractionTrace', 'Interactable->CanInteractServer(this)',
         'Interactable->InteractServer(this)', 'Interactable->GetInteractionPrompt(this)'
     ],
     'OCGameMode.cpp': [
-        'SpawnActor<AOCEnterableHouse>', 'KrushelnytskaEnterableHouseAnchor()', 'KrushelnytskaEnterableHouseYaw()'
+        'PASS45_GENERIC_ENTERABLE_HOUSE_RETIRED', 'KrushelnytskaEnterableHouseAnchor()'
     ],
     'ROADMAP_SESSIONS.md': [
         'S08 — Остер Greybox, Sector B [ВИКОНАНО В ЦЬОМУ АРХІВІ]'
@@ -75,6 +76,28 @@ for name, needles in markers.items():
         if needle not in text:
             print(f'Missing marker {needle!r} in {name}')
             sys.exit(1)
+
+# Pass45 keeps the reusable S08 interaction classes but retires their old gameplay-authored private-house
+# placement from normal Oster runtime. Historical S08 must not force that rejected visual owner back.
+world = (root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
+world_h = (root/'Source/OsterConflict/Public/OCWorldSectorOster.h').read_text(errors='ignore')
+gm = (root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(errors='ignore')
+for stale in (
+    'BuildSolomiiKrushelnytskoiStreet();',
+    'void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()',
+    'BuildResidentialBlocks();',
+    'void AOCWorldSectorOster::BuildResidentialBlocks()',
+):
+    if stale in world:
+        print('Pass45 retired generic residential owner returned:', stale)
+        sys.exit(1)
+for stale in ('void BuildSolomiiKrushelnytskoiStreet();', 'void BuildResidentialBlocks();'):
+    if stale in world_h:
+        print('Pass45 retired generic residential declaration returned:', stale)
+        sys.exit(1)
+if 'SpawnActor<AOCEnterableHouse>' in gm:
+    print('Pass45 rejected generic AOCEnterableHouse normal-runtime spawn returned')
+    sys.exit(1)
 
 # C++ delimiter sanity after removing comments and strings.
 for p in list((root/'Source').rglob('*.h')) + list((root/'Source').rglob('*.cpp')):
@@ -141,10 +164,10 @@ if min(order) < 0 or order != sorted(order):
     sys.exit(1)
 
 # The active game mode must still use the city sector, not the retired tiny arena.
-gm = (root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(errors='ignore')
 if 'SpawnActor<AOCTestArena>' in gm or 'SpawnPrototypeArena();' in gm:
     print('Old OCTestArena became active again')
     sys.exit(1)
 
 print('S08 structural verification: PASS')
 print(f'Checked {len(required)} required files and {sum(map(len, markers.values()))} S08 markers.')
+print('Pass45 forward-port: S08 interaction classes retained; unreferenced private-house runtime placement remains retired.')

@@ -17,15 +17,15 @@ if missing:
 
 markers = {
     'OCWorldSectorOster.h': [
-        'reference-driven', 'ResidentialRoofs', 'LandmarkRoofs', 'LandmarkWindows',
+        'Private generic residences are intentionally omitted', 'LandmarkRoofs', 'LandmarkWindows',
         'StadiumDetails', 'ParkDetails', 'AddGableRoof', 'AddFacadeWindow'
     ],
     'OCWorldSectorOster.cpp': [
-        'SOLONYNA HOUSE', 'Stadium:',
-        'SOLOMII KRUSHELNYTSKOI 7A',
+        'BuildCentralPark();', 'BuildCollegeSector();', 'BuildMuseumAndStadium();',
+        'Stadium:', 'SOLOMII KRUSHELNYTSKOI 7A',
         'red-brick single-storey wings', '10500, 6800', 'Columns = 9', 'Rows = 4',
-        'Small skate/active-recreation pad', 'Detached rear shed/outbuilding',
-        'AddGableRoof(ResidentialRoofs', 'tall conifers'
+        'Small skate/active-recreation pad',
+        'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED'
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
     'OSTER_REFERENCE_MANIFEST_S09.md': ['Travels in Ukraine', 'OTG.cn.ua', 'Матеріально-технічна база', 'Остер з висоти пташиного польоту'],
@@ -36,6 +36,25 @@ for name, needles in markers.items():
     for needle in needles:
         if needle not in text:
             print(f'Missing marker {needle!r} in {name}'); sys.exit(1)
+
+world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
+world_h=(root/'Source/OsterConflict/Public/OCWorldSectorOster.h').read_text(errors='ignore')
+
+# Pass45 supersedes S09 private-sector approximations. Keep the public-reference manifest and
+# reference-driven POI work, including the valid Solonyna museum/estate identity, but never force
+# rejected arbitrary residence/fence generators back.
+for stale in (
+    'BuildResidentialBlocks();',
+    'void AOCWorldSectorOster::BuildResidentialBlocks()',
+    'BuildSolomiiKrushelnytskoiStreet();',
+    'void AOCWorldSectorOster::BuildSolomiiKrushelnytskoiStreet()',
+    'AddGableRoof(ResidentialRoofs',
+):
+    if stale in world:
+        print('Pass45 rejected S09 private-sector visual returned:', stale); sys.exit(1)
+for stale in ('void BuildResidentialBlocks();', 'void BuildSolomiiKrushelnytskoiStreet();'):
+    if stale in world_h:
+        print('Pass45 rejected S09 private-sector declaration returned:', stale); sys.exit(1)
 
 # delimiter sanity
 for p in list((root/'Source').rglob('*.h')) + list((root/'Source').rglob('*.cpp')):
@@ -58,11 +77,14 @@ for p in (root/'Source/OsterConflict/Public').rglob('*.h'):
         inc=[i for i,l in enumerate(lines) if l.strip().startswith('#include')]
         if gen[-1] != max(inc): print('generated.h is not last include',p); sys.exit(1)
 
-# older gameplay must remain active
+# Older gameplay/city-sector routing remains active, but the unreferenced S08 house placement must not.
 gm=(root/'Source/OsterConflict/Private/OCGameMode.cpp').read_text(errors='ignore')
-for needle in ['SpawnActor<AOCWorldSectorOster>', 'SpawnActor<AOCEnterableHouse>', 'ObjectiveSeeds', 'SpawnSeeds']:
+for needle in ['SpawnActor<AOCWorldSectorOster>', 'PASS45_GENERIC_ENTERABLE_HOUSE_RETIRED', 'ObjectiveSeeds', 'SpawnSeeds']:
     if needle not in gm: print('Gameplay/map regression', needle); sys.exit(1)
+if 'SpawnActor<AOCEnterableHouse>' in gm:
+    print('Pass45 rejected generic enterable-house normal-runtime spawn returned'); sys.exit(1)
 if 'SpawnActor<AOCTestArena>' in gm: print('Old arena became active'); sys.exit(1)
 
 print('S09 structural verification: PASS')
 print(f'Checked {len(required)} required files and {sum(map(len, markers.values()))} S09 markers.')
+print('Pass45 forward-port: public-reference POI fidelity retained; rejected private-sector generators remain retired.')

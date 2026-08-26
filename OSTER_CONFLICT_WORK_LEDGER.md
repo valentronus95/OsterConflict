@@ -3,12 +3,12 @@
 > Current authoritative work state with only the historical rejection/build facts that must remain explicit.
 > Latest explicit user requirement + latest factual local UE runtime/build evidence always override older source/verifier claims.
 
-## 1. Current context — 2026-08-25
+## 1. Current context — 2026-08-26
 
 - Repository: `valentronus95/OsterConflict`.
-- `main` runtime baseline before current corrective branch: `1d6f57227bb15e84d7df911c192f53685b08544f` (PR #82).
-- Active corrective branch: `fix/pass45-runtime-rejection-20260825`.
-- Corrective PR: #83, **NOT MERGED** until current-head source CI is green.
+- Current `main` baseline before this continuation: `a375f52635fbe9fa07c1000aa706e28c53eb42f4` (PR #89 merged).
+- Active corrective branch: `fix/runtime-acceptance-pass45-generic-residential-retirement-20260826`.
+- Active continuation PR: #91, **NOT MERGED** until current-head source CI is green.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Latest factual evidence: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/`.
 - Previous rejected evidence: `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
@@ -156,6 +156,20 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 
 `RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd` is forward-ported to current initial-only Museum deployment markers and may not treat vehicle possession as a new BASE deployment.
 
+### 4.7 Reference-driven residential visual retirement — 2026-08-26
+
+Current status: **CODED_UNTESTED**.
+
+- normal `OCGameMode` no longer spawns the gameplay-authored/non-reference-specific `AOCEnterableHouse`;
+- `AOCWorldSectorOster` no longer owns `BuildResidentialBlocks()` procedural houses/sheds/private fences;
+- the generic Krushelnytska house/shed/fence generator is physically removed while `BuildRoadNetwork()` retains road topology;
+- Museum/Stadium/College reference-driven fence geometry remains;
+- runtime markers: `PASS45_GENERIC_ENTERABLE_HOUSE_RETIRED` and `PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED`;
+- `VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py` + workflow guard against resurrection;
+- old Pass11 road verifier was forward-ported when CI exposed stale dependencies on already-deleted `OCAssetModelDecorator` / `OCRecoveredRoadsidePropsSubsystem`; those deleted owners are not restored.
+
+Runtime still must prove the rejected dark tower/shack and generic visual family are absent.
+
 ## 5. Active requirements
 
 | ID | Requirement | Repeat | Status | Current action |
@@ -166,7 +180,8 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 | LOC-MUSEUM-001 | Correct visible Oster Local History Museum near BASE | ≥11 | CODED_UNTESTED | R13.7 single visible exterior; R13.8 hidden collision/interactivity/glass; Pass32 validation-only. |
 | LOC-CULTURE-001 | Culture House separate from Museum | ≥3 | IN_PROGRESS / CODED_UNTESTED | R14.6 separate geo anchor; validation-only parcel check. |
 | LOC-SILPO-001 | Silpo one correct site owner | ≥2 | CODED_UNTESTED | Coordinated startup retained; parcel overlap fail-visible. |
-| LOC-TOWER-001 | Remove unreferenced dark steep-roof tower/shack | 1 | CODED_UNTESTED / INVESTIGATE | Pass35 recovery carrier/roof owner removed; trace if artifact remains next runtime. |
+| LOC-TOWER-001 | Remove unreferenced dark steep-roof tower/shack | 1 | CODED_UNTESTED / RUNTIME CHECK | Pass35 roof/recovery owner plus traced generic residential source owners are removed; next runtime must prove the artifact is absent. |
+| VIS-GENERIC-RESIDENTIAL-001 | No unreferenced generic house/private-fence family in normal runtime | 1 | CODED_UNTESTED | `AOCEnterableHouse` normal spawn, `BuildResidentialBlocks`, and generic Krushelnytska house/fence generator retired; reference-driven POI fences retained. |
 | GAME-SPAWN-001 | Initial live pawn spawns near Museum BASE | ≥10 | CODED_UNTESTED | Initial-character-only validation/correction; no vehicle revalidation. |
 | GAME-VEHICLE-TELEPORT-001 | Enter/drive/exit never teleports back to Museum | 1 | CODED_UNTESTED | Possession-triggered BASE cause removed; local car/HMMWV/BTR test required. |
 | VEH-HMMWV-001 | HMMWV proportions/orientation correct | ≥6 | CODED_UNTESTED | Uniform scale + axis correction; runtime multi-angle screenshot required. |
@@ -198,7 +213,8 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 13. grey/BasicShape weapon material repair;
 14. late landmark `Destroy/RemoveInstance` cleanup used to hide primary-authoring errors;
 15. late Museum layer `SetVisibility/RemoveInstance/collision` repair;
-16. production vehicle material repair that hides a primary material-owner bug.
+16. production vehicle material repair that hides a primary material-owner bug;
+17. procedural `BuildResidentialBlocks`, generic Krushelnytska house/fence generation, or normal spawn of a non-reference-specific `AOCEnterableHouse`.
 
 ## 7. Current execution order
 
@@ -219,9 +235,9 @@ The BTR white/default material artifact remains a **runtime/content acceptance g
 15. [x] `AOCVehicleBase` legacy tint stopped from touching production assets; production guard validation-only.
 16. [x] Pass15/33/35/37/40/41/42/44/45 and related historical contracts forward-ported away from retired behavior as discovered.
 17. [ ] Close BTR white material artifact and remaining weapon authored material/texture gaps supported by current content.
-18. [ ] Trace/remove any remaining unreferenced tower/shack or rejected generic near-Museum visual.
+18. [x] Source-trace and retire remaining generic residential house/fence owners; dark tower/shack absence remains a factual runtime gate.
 19. [ ] Complete full current-head source CI; forward-port remaining stale verifier instead of restoring old behavior.
-20. [ ] Refresh PR #83 summary/check state after source scope is coherent.
+20. [x] Refresh active continuation as PR #91 with source scope and `CODED_UNTESTED` status.
 21. [ ] Merge only after current-head source CI green.
 22. [ ] Local `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` factual UE build/runtime acceptance.
 
