@@ -27,6 +27,7 @@ strict = read(SRC / "Private" / "OCProductionVehicleRuntimeValidationSubsystem.c
 launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
 vehicle_import = read(ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py")
 vehicle_cmd = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
+vehicle_try = read(ROOT / "OsterConflict" / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
 vehicle_fresh = read(ROOT / "OsterConflict" / "Scripts" / "verify_production_vehicle_fresh_load.py")
 m2_launcher = read(ROOT / "RUN_IMPORT_M2_PRODUCTION.cmd")
 btr_launcher = read(ROOT / "RUN_IMPORT_BTR4_PRODUCTION.cmd")
@@ -54,45 +55,70 @@ require(launcher, "PASS19_PLAYABLE_WEAPON_SET_READY", "focused launcher playable
 require(launcher, "PASS19_PLAYABLE_WEAPON_SET_FAIL", "focused launcher failure gate")
 forbid(launcher, "PASS7_PRODUCTION_WEAPONS_READY", "focused launcher exact-art false certification")
 
-# Pass 44 supersedes the old all-or-nothing ensure_sources_exist() rule. Every production source remains real,
-# but an absent BTR is a named content gap and must not prevent an available HMMWV or M2 from importing.
+# Pass45 supersedes the old all-or-nothing / absent-BTR contract. HMMWV and M2 remain independent external
+# sources. BTR resolves through a dedicated canonical path: local user FBX when available, otherwise the
+# repository-safe authored GLB with an explicit PBR material. Neither path is runtime acceptance by itself.
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
     "BTR4_Bucephalus.fbx",
     'attempt("HMMWV"',
     'attempt("M2"',
-    'attempt("BTR4"',
+    "def import_btr4(",
+    "BTR_GENERATED_SOURCE",
+    "build_btr4_glb(BTR_GENERATED_SOURCE)",
+    "authored_external_visual",
+    "M_BTR4_OC_Authored",
+    'IMPORT_CONTRACT_REVISION = "PASS45_MATERIAL_CLOSURE_20260826_R1"',
     "other independent assets will continue",
     "CONTENT_GAP=",
 ):
-    require(vehicle_import, needle, "independent production vehicle source truth")
+    require(vehicle_import, needle, "current production vehicle source truth")
+forbid(vehicle_import, 'attempt("BTR4"', "obsolete BTR source-missing attempt path")
 forbid(vehicle_import, "ensure_sources_exist()", "obsolete all-or-nothing production source gate")
 
+# The command wrapper still exposes independent model outcomes. BTR is expected to be importable through the
+# repository-safe authored fallback even if the local FBX is absent.
 for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
     "Continuing independent intake for any available source files",
-    "CONTENT GAP: BTR-4 production source/import is still unavailable",
 ):
     require(vehicle_cmd, needle, "independent production vehicle command truth")
+
+# Normal intake freshness is revision-based, not file-existence based.
+for needle in (
+    "PASS45_MATERIAL_CLOSURE_20260826_R1",
+    "production_import_success.txt",
+    "production_fresh_load_success.txt",
+    "Existing .uasset files are not sufficient proof of current materials.",
+    "FRESH_LOADED=/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus",
+):
+    require(vehicle_try, needle, "current production freshness gate")
 
 for needle in (
     "AUTHORED_MATERIALS_READY",
     "placeholder_slots",
     "basicshapematerial",
     "defaultmaterial",
+    "_defaultmat",
+    "PASS45_MATERIAL_CLOSURE_20260826_R1",
+    "M_BTR4_OC_Authored",
+    "SOURCE_KIND=BTR4:",
 ):
     require(vehicle_fresh, needle, "fresh-load authored material truth")
 
+# Standalone asset-intake helpers retain their narrower truth semantics. The M2 helper requires downloaded source;
+# the dedicated BTR user-source helper proves only the local-user-FBX route, not the canonical fallback route.
 require(m2_launcher, "source_kind=downloaded", "real M2 source requirement")
-require(btr_launcher, "source_kind=local_user_fbx", "real BTR4 source requirement")
+require(btr_launcher, "source_kind=local_user_fbx", "dedicated local BTR4 source helper")
 
-print("CONTENT READINESS PASS 19 + PASS 44 INDEPENDENT INTAKE CONTRACT PASS")
+print("CONTENT READINESS PASS 19 + PASS45 MATERIAL INTAKE CONTRACT PASS")
 print("- generic weapon fallback meshes do not impersonate production art")
 print("- Pass 7 remains strict exact-production certification")
 print("- Pass 19 separately proves an 11-class playable real-mesh rack")
-print("- HMMWV/M2/BTR4 each still require a real source, but missing BTR cannot block available HMMWV/M2")
-print("- imported vehicle meshes must reopen with authored materials, not Default/BasicShape placeholders")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime and exact asset intake remain required")
+print("- HMMWV/M2 remain independent external-source imports")
+print("- BTR canonical intake prefers local FBX and otherwise uses the repository-safe authored GLB material path")
+print("- imported vehicle meshes must reopen under the current revision with authored non-placeholder materials")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime and rendered asset intake remain required")
