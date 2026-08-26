@@ -24,6 +24,16 @@ struct FOCFirstPersonWeaponProfile
     FVector ADSArmsOffset = FVector(-2.0f, -3.0f, 1.5f);
     FRotator ADSArmsRotationOffset = FRotator::ZeroRotator;
 
+    /**
+     * Optional authored sight references. Iron-sight profiles use rear+front sockets; optic profiles
+     * may use one optic socket whose local forward axis is the intended sight line. Empty names mean
+     * the asset is not yet calibrated and must remain fail-visible rather than receiving fake READY status.
+     */
+    FName ADSRearSightSocket = NAME_None;
+    FName ADSFrontSightSocket = NAME_None;
+    FName ADSOpticSocket = NAME_None;
+    bool bADSCalibrated = false;
+
     FVector RecoilWeaponLocation = FVector(-4.5f, 0.0f, 1.4f);
     FRotator RecoilWeaponRotation = FRotator(-4.0f, 0.0f, 0.8f);
     FVector RecoilArmsLocation = FVector(-2.0f, 0.0f, 0.6f);
