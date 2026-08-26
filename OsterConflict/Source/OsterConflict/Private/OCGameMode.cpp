@@ -9,8 +9,6 @@
 #include "OCCharacter.h"
 #include "OCDamageTarget.h"
 #include "OCDestructibleProp.h"
-#include "OCEnterableHouse.h"
-#include "OCHouseTypes.h"
 #include "OCGameState.h"
 #include "OCHealthComponent.h"
 #include "OCInteractableDoor.h"
@@ -1238,13 +1236,11 @@ void AOCGameMode::SpawnOsterCenterSector()
 
     GetWorld()->SpawnActor<AOCWorldSectorOster>(AOCWorldSectorOster::StaticClass(), FTransform::Identity, SpawnParams);
 
-    // S08 first true enterable private-sector house. The lot is gameplay-authored and is not a copy of a specific residence.
-    if (AOCEnterableHouse* House = GetWorld()->SpawnActor<AOCEnterableHouse>(AOCEnterableHouse::StaticClass(),
-        AOCWorldSectorOster::KrushelnytskaEnterableHouseAnchor(),
-        FRotator(0.0f, AOCWorldSectorOster::KrushelnytskaEnterableHouseYaw(), 0.0f), SpawnParams))
-    {
-        House->ConfigureInteriorVariantServer(1408, EOCHouseCondition::Worn, 1);
-    }
+    // Pass45: the old S08 enterable house was explicitly gameplay-authored rather than tied to a
+    // verified residence. Do not spawn it in normal runtime. The class remains available for future
+    // location-specific authored use, while the existing anchor may still seed non-visual ambient audio.
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GENERIC_ENTERABLE_HOUSE_RETIRED normal_runtime_spawn=0 reference_required=1"));
 
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
     const FVector Stadium = AOCWorldSectorOster::StadiumAnchor();
