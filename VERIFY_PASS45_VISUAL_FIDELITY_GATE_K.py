@@ -57,20 +57,35 @@ for needle in (
     require(foliage_guard, needle, "runtime obsolete-proxy destruction")
 forbid(foliage_guard, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only foliage evidence")
 
-# Roads/Sidewalks and the visible general Fences family must be converted to committed authored meshes before
-# Gate K. Bounds-origin compensation and long-axis matching preserve factual geo/topology instead of blindly
-# stretching a mesh across whichever axis happens to be longest.
+# Roads/Sidewalks, the five park-path proxies and the visible general Fences family must be converted to committed
+# authored meshes before Gate K. Bounds-origin compensation and long-axis matching preserve factual geo/topology
+# instead of blindly stretching a mesh across whichever axis happens to be longest.
 for needle in (
     "UOCAuthoredWorldSurfaceUpgradeSubsystem",
     "Before visual acceptance and before the Pass12 12-second stability baseline",
+    "exactly five central-park path transforms",
+    "ParkPaths",
+    "SM_Stonepath_Var01",
+    "ParkDetails remains reserved",
     "visible Fences family",
 ):
     require(surface_h, needle, "authored world upgrade header")
 for needle in (
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01",
+    "/Game/AdvancedVillagePack/Meshes/SM_Stonepath_Var01.SM_Stonepath_Var01",
     "/Game/AdvancedVillagePack/Meshes/SM_Fence_Var01.SM_Fence_Var01",
     "IsEngineCube",
+    "BuildExpectedParkPathProxySpecs",
+    "SeparateParkPathFamily",
+    'FindISM(Sector, TEXT("ParkPaths"))',
+    'NewObject<UInstancedStaticMeshComponent>(Sector, TEXT("ParkPaths"))',
+    "SourceIndices.Num() != 5",
+    "SourceTransforms.Num() != 5",
+    "RemainingInSidewalks != 0",
+    "park_path_preflight_not_exactly_five",
+    "PASS45_PARK_PATH_OWNERSHIP_READY",
+    "sidewalk_park_path_matches=0",
     "const FVector DesiredSizeCm = OldScale * 100.0f;",
     "const bool bDesiredLongAxisY",
     "bNativeLongAxisY != bDesiredLongAxisY",
@@ -83,13 +98,44 @@ for needle in (
     "PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP",
     "PASS45_AUTHORED_WORLD_SURFACE_FAIL",
     "PASS45_AUTHORED_ROAD_SURFACE_READY",
+    "PASS45_AUTHORED_PARK_PATH_SURFACE_READY",
+    "park_paths_mesh=SM_Stonepath_Var01",
+    "park_path_instances=%d",
+    "bounds_aware_upgrade=1",
     "PASS45_AUTHORED_WORLD_FENCE_READY",
     "fence_mesh=SM_Fence_Var01",
     "basicshape_meshes=0",
     "basicshape_material_overrides=0",
     "topology_preserved=1",
 ):
-    require(surface, needle, "authored Roads/Sidewalks/Fences upgrade")
+    require(surface, needle, "authored Roads/Sidewalks/ParkPaths/Fences upgrade")
+forbid(surface, 'FindISM(Sector, TEXT("ParkDetails"))', "ParkDetails must not own the authored park-path replacement")
+
+# There are factually five source park-path Cube transforms today: four central alleys + the CultureParkNorth link.
+# They remain deterministic source topology, but runtime ownership must remove all five from Sidewalks before either
+# family is upgraded. This catches an accidental sixth path or a regression that leaves one of the five in Sidewalks.
+park_begin = world.find("void AOCWorldSectorOster::BuildCentralPark()")
+park_end = world.find("\nvoid AOCWorldSectorOster::BuildCollegeSector()", park_begin)
+if park_begin < 0 or park_end < 0:
+    raise SystemExit("PASS45 GATE K SOURCE VERIFY FAIL: cannot isolate BuildCentralPark")
+park_source = world[park_begin:park_end]
+if park_source.count("AddBox(Sidewalks,") != 5:
+    raise SystemExit(
+        "PASS45 GATE K SOURCE VERIFY FAIL: BuildCentralPark must contain exactly five park-path Sidewalk source proxies"
+    )
+if surface.count("Specs.Add({") != 5:
+    raise SystemExit(
+        "PASS45 GATE K SOURCE VERIFY FAIL: ParkPaths migration must describe exactly five park-path transforms"
+    )
+for needle in (
+    "Park + FVector(0, 0, 14)",
+    "Park + FVector(0, -300, 14)",
+    "Park + FVector(1800, 900, 14)",
+    "Park + FVector(-2300, 1300, 14)",
+    "Mid + FVector(0, 0, 15)",
+    "CultureParkNorthAnchor()",
+):
+    require(surface, needle, "exact ParkPaths migration signature")
 
 # Pass12 no longer certifies Roads/Sidewalks by demanding BasicShape Color MIDs. Ground remains an explicit
 # legacy terrain gap while road/sidewalk stability requires authored mesh identity and non-BasicShape material.
@@ -140,6 +186,8 @@ for needle in (
     "PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED",
     "PASS45_AUTHORED_VEGETATION_READY",
     "PASS45_AUTHORED_ROAD_SURFACE_READY",
+    "PASS45_PARK_PATH_OWNERSHIP_READY",
+    "PASS45_AUTHORED_PARK_PATH_SURFACE_READY",
     "PASS45_AUTHORED_WORLD_FENCE_READY",
     "PASS45_GATE_K_RUNTIME_READY",
     "PASS45_VISUAL_FIDELITY_CONTENT_GAP",
@@ -164,11 +212,13 @@ require(visual_perf, "GameSettings->SetTextureQuality(3);", "texture quality con
 print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
 print("- Roads/Sidewalks upgrade from Cube topology to tracked RoadsideConstruction authored surfaces before Pass12 baseline")
+print("- exactly five park-path source proxies are separated from Sidewalks into ParkPaths and upgraded to SM_Stonepath_Var01")
+print("- ParkPaths separation fails closed unless all five expected transforms move and zero remain under Sidewalks")
 print("- visible AOCWorldSectorOster Fences upgrade to committed AdvancedVillagePack SM_Fence_Var01 with bounds-aware axis fitting")
 print("- Gate K workflow is triggered by authored-world subsystem source/header changes")
 print("- Pass12 certifies authored road materials rather than BasicShape Color MIDs")
 print("- final-world Gate K is observation-only and fails closed on visible Engine BasicShape static meshes")
 print("- main PASS45 runtime acceptance requires Gate K, not a side workflow")
 print("- native 100% render scale / high texture contract remains intact")
-print("- CURRENT CONTENT GAP: legacy Ground/Park and authoritative stadium/remaining core BasicShape families still block Gate K")
+print("- CURRENT CONTENT GAP: legacy Ground/ParkGeometry/ParkDetails and authoritative stadium/remaining core BasicShape families still block Gate K")
 print("STATUS: ITEM 31 PARTIAL; Gate K cannot be marked complete until those authored replacements exist and runtime reports READY")
