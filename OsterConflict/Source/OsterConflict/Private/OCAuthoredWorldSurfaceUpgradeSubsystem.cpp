@@ -5,6 +5,7 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -12,6 +13,10 @@
 
 namespace
 {
+    const TCHAR* AuthoredGroundMeshPath =
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1");
+    const TCHAR* AuthoredGroundMaterialPath =
+        TEXT("/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape");
     const TCHAR* AuthoredRoadPath =
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01");
     const TCHAR* AuthoredSidewalkPath =
@@ -27,6 +32,18 @@ namespace
         FVector SizeCm = FVector::ZeroVector;
         float YawDegrees = 0.0f;
     };
+
+    UStaticMeshComponent* FindStaticMeshComponent(AActor* Actor, const FName Name)
+    {
+        if (!Actor) return nullptr;
+        TInlineComponentArray<UStaticMeshComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == Name) return Component;
+        }
+        return nullptr;
+    }
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
@@ -48,6 +65,101 @@ namespace
     bool IsBasicShapeMaterial(const UMaterialInterface* Material)
     {
         return Material && Material->GetPathName().Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase);
+    }
+
+    bool UpgradeGroundSurface(
+        UStaticMeshComponent* Component,
+        UStaticMesh* AuthoredMesh,
+        UMaterialInterface* AuthoredMaterial,
+        FString& OutFailure)
+    {
+        if (!Component || !AuthoredMesh || !AuthoredMaterial)
+        {
+            OutFailure = TEXT("ground_component_mesh_or_material_missing");
+            return false;
+        }
+
+        UStaticMesh* CurrentMesh = Component->GetStaticMesh();
+        if (CurrentMesh == AuthoredMesh)
+        {
+            if (Component->GetMaterial(0) != AuthoredMaterial)
+            {
+                OutFailure = TEXT("ground_authored_material_contract_drift");
+                return false;
+            }
+            return true;
+        }
+
+        if (!IsEngineCube(CurrentMesh))
+        {
+            OutFailure = FString::Printf(TEXT("ground_unexpected_source_mesh_%s"),
+                CurrentMesh ? *CurrentMesh->GetPathName() : TEXT("null"));
+            return false;
+        }
+
+        const FTransform Old = Component->GetRelativeTransform();
+        const FRotator OldRotation = Old.Rotator();
+        if (FMath::Abs(OldRotation.Pitch) > 0.1f || FMath::Abs(OldRotation.Roll) > 0.1f)
+        {
+            OutFailure = TEXT("ground_source_tilt_not_supported");
+            return false;
+        }
+
+        const FBoxSphereBounds OldBounds = CurrentMesh->GetBounds();
+        const FBoxSphereBounds NewBounds = AuthoredMesh->GetBounds();
+        const FVector OldNativeSize = OldBounds.BoxExtent * 2.0f;
+        const FVector NewNativeSize = NewBounds.BoxExtent * 2.0f;
+        if (OldNativeSize.X <= 1.0f || OldNativeSize.Y <= 1.0f ||
+            NewNativeSize.X <= 1.0f || NewNativeSize.Y <= 1.0f)
+        {
+            OutFailure = TEXT("ground_xy_bounds_invalid");
+            return false;
+        }
+
+        const FVector OldScale = Old.GetScale3D().GetAbs();
+        const FVector DesiredSizeCm(
+            OldNativeSize.X * OldScale.X,
+            OldNativeSize.Y * OldScale.Y,
+            OldNativeSize.Z * OldScale.Z);
+        const FVector NewScale(
+            DesiredSizeCm.X / NewNativeSize.X,
+            DesiredSizeCm.Y / NewNativeSize.Y,
+            1.0f);
+
+        const FQuat RotationQuat = OldRotation.Quaternion();
+        const FVector OldScaledOrigin(
+            OldBounds.Origin.X * OldScale.X,
+            OldBounds.Origin.Y * OldScale.Y,
+            OldBounds.Origin.Z * OldScale.Z);
+        const FVector SurfaceCenter = Old.GetLocation() + RotationQuat.RotateVector(OldScaledOrigin);
+        const FVector NewScaledOrigin(
+            NewBounds.Origin.X * NewScale.X,
+            NewBounds.Origin.Y * NewScale.Y,
+            NewBounds.Origin.Z * NewScale.Z);
+        FVector NewLocation = SurfaceCenter - RotationQuat.RotateVector(NewScaledOrigin);
+
+        const float OldTopZ = Old.GetLocation().Z +
+            (OldBounds.Origin.Z + OldBounds.BoxExtent.Z) * OldScale.Z;
+        const float NewTopOffsetZ = RotationQuat.RotateVector(FVector(
+            0.0f,
+            0.0f,
+            (NewBounds.Origin.Z + NewBounds.BoxExtent.Z) * NewScale.Z)).Z;
+        NewLocation.Z = OldTopZ - NewTopOffsetZ;
+
+        Component->SetStaticMesh(AuthoredMesh);
+        Component->EmptyOverrideMaterials();
+        Component->SetMaterial(0, AuthoredMaterial);
+        Component->SetRelativeTransform(FTransform(RotationQuat, NewLocation, NewScale));
+        Component->MarkRenderStateDirty();
+
+        UMaterialInterface* RuntimeMaterial = Component->GetMaterial(0);
+        if (Component->GetStaticMesh() != AuthoredMesh || RuntimeMaterial != AuthoredMaterial ||
+            IsBasicShapeMaterial(RuntimeMaterial))
+        {
+            OutFailure = TEXT("ground_authored_surface_postcondition_failed");
+            return false;
+        }
+        return true;
     }
 
     TArray<FParkPathProxySpec> BuildExpectedParkPathProxySpecs()
@@ -388,15 +500,19 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         return;
     }
 
+    UStaticMesh* GroundMesh = LoadObject<UStaticMesh>(nullptr, AuthoredGroundMeshPath);
+    UMaterialInterface* GroundMaterial = LoadObject<UMaterialInterface>(nullptr, AuthoredGroundMaterialPath);
     UStaticMesh* RoadMesh = LoadObject<UStaticMesh>(nullptr, AuthoredRoadPath);
     UStaticMesh* SidewalkMesh = LoadObject<UStaticMesh>(nullptr, AuthoredSidewalkPath);
     UStaticMesh* ParkPathMesh = LoadObject<UStaticMesh>(nullptr, AuthoredParkPathPath);
     UStaticMesh* FenceMesh = LoadObject<UStaticMesh>(nullptr, AuthoredFencePath);
-    if (!RoadMesh || !SidewalkMesh || !ParkPathMesh || !FenceMesh)
+    if (!GroundMesh || !GroundMaterial || !RoadMesh || !SidewalkMesh || !ParkPathMesh || !FenceMesh)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=AdvancedVillagePack tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0"),
+            GroundMesh ? 1 : 0,
+            GroundMaterial ? 1 : 0,
             RoadMesh ? 1 : 0,
             SidewalkMesh ? 1 : 0,
             ParkPathMesh ? 1 : 0,
@@ -404,6 +520,7 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         return;
     }
 
+    UStaticMeshComponent* Ground = FindStaticMeshComponent(Sector, TEXT("Ground"));
     UInstancedStaticMeshComponent* Roads = FindISM(Sector, TEXT("Roads"));
     UInstancedStaticMeshComponent* Sidewalks = FindISM(Sector, TEXT("Sidewalks"));
     UInstancedStaticMeshComponent* Fences = FindISM(Sector, TEXT("Fences"));
@@ -426,27 +543,31 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     int32 SidewalkInstances = 0;
     int32 ParkPathInstances = 0;
     int32 FenceInstances = 0;
+    FString GroundFailure;
     FString RoadFailure;
     FString SidewalkFailure;
     FString ParkPathFailure;
     FString FenceFailure;
+    const bool bGroundReady = UpgradeGroundSurface(Ground, GroundMesh, GroundMaterial, GroundFailure);
     const bool bRoadsReady = UpgradeCubeFamily(Roads, RoadMesh, RoadInstances, RoadFailure);
     const bool bSidewalksReady = UpgradeCubeFamily(Sidewalks, SidewalkMesh, SidewalkInstances, SidewalkFailure);
     const bool bParkPathsReady = UpgradeCubeFamily(ParkPaths, ParkPathMesh, ParkPathInstances, ParkPathFailure);
     const bool bFencesReady = UpgradeCubeFamily(Fences, FenceMesh, FenceInstances, FenceFailure);
 
     bFinished = true;
-    if (!bRoadsReady || !bSidewalksReady || !bParkPathsReady || !bFencesReady ||
+    if (!bGroundReady || !bRoadsReady || !bSidewalksReady || !bParkPathsReady || !bFencesReady ||
         SeparatedParkPathInstances != 5 || ParkPathInstances != 5)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL roads_ready=%d sidewalks_ready=%d park_paths_ready=%d fences_ready=%d park_path_source_instances=%d park_path_runtime_instances=%d road_reason=%s sidewalk_reason=%s park_path_reason=%s fence_reason=%s gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL ground_ready=%d roads_ready=%d sidewalks_ready=%d park_paths_ready=%d fences_ready=%d park_path_source_instances=%d park_path_runtime_instances=%d ground_reason=%s road_reason=%s sidewalk_reason=%s park_path_reason=%s fence_reason=%s gate_k_complete=0"),
+            bGroundReady ? 1 : 0,
             bRoadsReady ? 1 : 0,
             bSidewalksReady ? 1 : 0,
             bParkPathsReady ? 1 : 0,
             bFencesReady ? 1 : 0,
             SeparatedParkPathInstances,
             ParkPathInstances,
+            *GroundFailure,
             *RoadFailure,
             *SidewalkFailure,
             *ParkPathFailure,
@@ -454,6 +575,8 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         return;
     }
 
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_AUTHORED_GROUND_SURFACE_READY ground_mesh=SM_Plane_1x1 ground_material=M_Inst_Landscape basicshape_meshes=0 basicshape_material_overrides=0 playable_footprint_preserved=1 ground_top_z_preserved=1 bounds_aware_upgrade=1 pass12_baseline_deadline_s=12"));
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_AUTHORED_ROAD_SURFACE_READY roads_mesh=SM_Urb_Roa_Asphalt_01 sidewalks_mesh=SM_Urb_Roa_Sidewalk_01 road_instances=%d sidewalk_instances=%d basicshape_meshes=0 basicshape_material_overrides=0 topology_preserved=1 pass12_baseline_deadline_s=12"),
         RoadInstances,
