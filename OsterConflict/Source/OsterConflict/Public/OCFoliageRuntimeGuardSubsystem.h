@@ -5,8 +5,9 @@
 #include "OCFoliageRuntimeGuardSubsystem.generated.h"
 
 /**
- * Retires source-only ground-cover proxies and proves that normal runtime vegetation is not owned by
- * primitive Cube/Cylinder/Sphere tree families. PASS45 item 26 requires authored tree meshes at source.
+ * Proves that normal runtime vegetation is owned by authored tree/foliage meshes and physically retires
+ * obsolete source ground-cover/debug presentation components. PASS45 items 26/31 do not allow hidden
+ * Cube/Cylinder/Sphere scenery to survive as player-facing runtime content.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCFoliageRuntimeGuardSubsystem : public UTickableWorldSubsystem
@@ -20,7 +21,8 @@ public:
     virtual bool IsTickable() const override { return !bFinished; }
 
 private:
-    bool RetireSourceGroundCoverProxies();
+    bool DestroySourceGroundCoverProxies();
+    bool DestroyDeveloperVisualMarkers();
     bool ValidateSourceAuthoredTrees();
     bool ValidateDenseFoliage(int32 MinGrassInstances, int32& OutGrassInstances, int32& OutDenseGrassComponents) const;
     void FailValidation(const FString& Reason);
@@ -28,6 +30,7 @@ private:
     float ElapsedSeconds = 0.0f;
     float ValidationAccumulator = 0.0f;
     bool bFinished = false;
-    bool bProxyRetirementObserved = false;
+    bool bGroundProxyDestructionObserved = false;
+    bool bDeveloperMarkerDestructionObserved = false;
     bool bAuthoredTreeValidationObserved = false;
 };
