@@ -8,6 +8,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -214,6 +215,8 @@ void AOCBTR::ApplyVehicleStyle()
 
         UE_LOG(LogTemp, Display,
             TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell with preserved native proportions; visual proxies disabled."));
+
+        ValidateProductionBTR4MaterialState(TEXT("ApplyVehicleStyle"));
     }
     else if (Chassis)
     {
@@ -223,4 +226,77 @@ void AOCBTR::ApplyVehicleStyle()
     InteriorCamera->SetRelativeLocation(bUsingBTR4 ? FVector(145.0f, -58.0f, 112.0f) : FVector(130.0f, -52.0f, 105.0f));
     ThirdPersonSpringArm->TargetArmLength = bUsingBTR4 ? 900.0f : 820.0f;
     ThirdPersonSpringArm->SetRelativeLocation(bUsingBTR4 ? FVector(-110.0f, 0.0f, 245.0f) : FVector(-80.0f, 0.0f, 220.0f));
+}
+
+void AOCBTR::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+    ValidateProductionBTR4MaterialState(TEXT("PossessedBy"));
+}
+
+void AOCBTR::UnPossessed()
+{
+    Super::UnPossessed();
+    ValidateProductionBTR4MaterialState(TEXT("UnPossessed"));
+}
+
+void AOCBTR::PawnClientRestart()
+{
+    Super::PawnClientRestart();
+    ValidateProductionBTR4MaterialState(TEXT("PawnClientRestart"));
+}
+
+bool AOCBTR::ValidateProductionBTR4MaterialState(const TCHAR* Phase)
+{
+    if (!Chassis)
+    {
+        return false;
+    }
+
+    UStaticMesh* Mesh = Chassis->GetStaticMesh();
+    const FString MeshPath = Mesh ? Mesh->GetPathName() : FString();
+    if (!MeshPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/")))
+    {
+        return false;
+    }
+
+    const int32 MaterialSlots = Chassis->GetNumMaterials();
+    bool bAllAuthored = MaterialSlots > 0;
+    FString InvalidSlots;
+
+    for (int32 Slot = 0; Slot < MaterialSlots; ++Slot)
+    {
+        UMaterialInterface* Material = Chassis->GetMaterial(Slot);
+        const FString MaterialPath = Material ? Material->GetPathName() : FString();
+        const bool bDefaultOrPrimitive = !Material ||
+            MaterialPath.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial")) ||
+            MaterialPath.Contains(TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
+        const bool bBTRAuthored = MaterialPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/"));
+        if (bDefaultOrPrimitive || !bBTRAuthored)
+        {
+            bAllAuthored = false;
+            if (!InvalidSlots.IsEmpty()) InvalidSlots += TEXT(",");
+            InvalidSlots += FString::Printf(TEXT("%d:%s"), Slot, Material ? *MaterialPath : TEXT("NULL"));
+        }
+    }
+
+    const TCHAR* SafePhase = Phase ? Phase : TEXT("Unknown");
+    if (bAllAuthored)
+    {
+        Chassis->SetVisibility(true, true);
+        Chassis->SetHiddenInGame(false, true);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BTR4_MATERIAL_STATE_READY phase=%s slots=%d mesh=%s default_material=0 primitive_material=0"),
+            SafePhase, MaterialSlots, *MeshPath);
+        return true;
+    }
+
+    // Fail closed. A missing/DefaultMaterial production BTR is not allowed to become the familiar
+    // bright-white vehicle after possession just because Unreal can render an emergency material.
+    Chassis->SetVisibility(false, true);
+    Chassis->SetHiddenInGame(true, true);
+    UE_LOG(LogTemp, Error,
+        TEXT("PASS45_BTR4_MATERIAL_STATE_FAIL phase=%s slots=%d invalid=%s mesh=%s production_visible=0"),
+        SafePhase, MaterialSlots, *InvalidSlots, *MeshPath);
+    return false;
 }
