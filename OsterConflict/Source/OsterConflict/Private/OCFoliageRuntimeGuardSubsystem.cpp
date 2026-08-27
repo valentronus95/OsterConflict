@@ -5,6 +5,7 @@
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -12,13 +13,13 @@
 namespace
 {
     const FName DenseFoliageActorTag(TEXT("OC_DenseGroundFoliage"));
-    const FName ProxyGroundCoverNames[] =
+    const FName ProxyGroundCoverNames[]
     {
         TEXT("GrassMown"),
         TEXT("GrassRough"),
         TEXT("GrassWetland")
     };
-    const FName PrimitiveTreeProxyNames[] =
+    const FName RejectedPrimitiveTreeProxyNames[]
     {
         TEXT("TreeTrunks"),
         TEXT("TreeCrowns"),
@@ -28,6 +29,12 @@ namespace
         TEXT("BirchCrowns"),
         TEXT("PineTrunks"),
         TEXT("PineCrowns")
+    };
+    const FName AuthoredTreeComponentNames[]
+    {
+        TEXT("AuthoredDeciduousTrees"),
+        TEXT("AuthoredPine01Trees"),
+        TEXT("AuthoredPine03Trees")
     };
 
     bool IsLowCPUProfile(const UWorld& World)
@@ -58,6 +65,14 @@ namespace
         Proxy->SetCanEverAffectNavigation(false);
         Proxy->SetCastShadow(false);
         return !Proxy->IsVisible() && Proxy->GetCollisionEnabled() == ECollisionEnabled::NoCollision;
+    }
+
+    bool IsRejectedPrimitiveTreeMesh(const UStaticMesh* Mesh)
+    {
+        if (!Mesh) return true;
+        const FString Path = Mesh->GetPathName();
+        return Path.Contains(TEXT("/Engine/BasicShapes/Cylinder"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("/Engine/BasicShapes/Sphere"), ESearchCase::IgnoreCase);
     }
 }
 
@@ -119,14 +134,17 @@ bool UOCFoliageRuntimeGuardSubsystem::RetireSourceGroundCoverProxies()
     return bFoundSector && bAllRetired && RetiredComponents >= 3;
 }
 
-bool UOCFoliageRuntimeGuardSubsystem::RetireSourceTreeProxies()
+bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
 {
     UWorld* World = GetWorld();
     if (!World) return false;
 
     bool bFoundSector = false;
-    bool bAllRetired = true;
-    int32 RetiredComponents = 0;
+    bool bAllValid = true;
+    int32 AuthoredComponents = 0;
+    int32 AuthoredInstances = 0;
+    int32 RejectedProxyComponents = 0;
+    int32 PrimitiveTreeMeshes = 0;
 
     for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
@@ -134,29 +152,51 @@ bool UOCFoliageRuntimeGuardSubsystem::RetireSourceTreeProxies()
         if (!Sector) continue;
         bFoundSector = true;
 
-        for (const FName ProxyName : PrimitiveTreeProxyNames)
+        for (const FName RejectedName : RejectedPrimitiveTreeProxyNames)
         {
-            UInstancedStaticMeshComponent* Proxy = FindISM(Sector, ProxyName);
-            if (!Proxy || !RetireProxyComponent(Proxy))
+            if (FindISM(Sector, RejectedName))
             {
-                bAllRetired = false;
+                ++RejectedProxyComponents;
+                bAllValid = false;
+            }
+        }
+
+        for (const FName AuthoredName : AuthoredTreeComponentNames)
+        {
+            UInstancedStaticMeshComponent* Component = FindISM(Sector, AuthoredName);
+            if (!Component || !Component->GetStaticMesh() || Component->GetInstanceCount() <= 0)
+            {
+                bAllValid = false;
                 continue;
             }
-            ++RetiredComponents;
+
+            if (IsRejectedPrimitiveTreeMesh(Component->GetStaticMesh()))
+            {
+                ++PrimitiveTreeMeshes;
+                bAllValid = false;
+                continue;
+            }
+
+            ++AuthoredComponents;
+            AuthoredInstances += Component->GetInstanceCount();
         }
     }
 
-    if (bFoundSector && bAllRetired && RetiredComponents >= static_cast<int32>(UE_ARRAY_COUNT(PrimitiveTreeProxyNames)) &&
-        !bTreeProxyRetirementObserved)
+    const bool bReady = bFoundSector && bAllValid && RejectedProxyComponents == 0 && PrimitiveTreeMeshes == 0 &&
+        AuthoredComponents >= static_cast<int32>(UE_ARRAY_COUNT(AuthoredTreeComponentNames));
+
+    if (bReady && !bAuthoredTreeValidationObserved)
     {
-        bTreeProxyRetirementObserved = true;
+        bAuthoredTreeValidationObserved = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_PRIMITIVE_TREE_PROXIES_RETIRED components=%d cylinder_sphere_visible=0 verified_real_pine_owner=R145 oak_asset_verified=0"),
-            RetiredComponents);
+            TEXT("PASS45_AUTHORED_VEGETATION_READY authored_components=%d authored_instances=%d rejected_proxy_components=%d primitive_tree_meshes=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 oak_asset_verified=0"),
+            AuthoredComponents,
+            AuthoredInstances,
+            RejectedProxyComponents,
+            PrimitiveTreeMeshes);
     }
 
-    return bFoundSector && bAllRetired &&
-        RetiredComponents >= static_cast<int32>(UE_ARRAY_COUNT(PrimitiveTreeProxyNames));
+    return bReady;
 }
 
 bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
@@ -220,12 +260,12 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
     ValidationAccumulator += FMath::Max(0.0f, DeltaTime);
 
-    // Acceptance guard, not gameplay logic. Sample at 4 Hz and stop touching source components once retirement is proven.
+    // Acceptance guard, not gameplay logic. Sample at 4 Hz and stop touching source components once validation is proven.
     if (ValidationAccumulator < 0.25f) return;
     ValidationAccumulator = 0.0f;
 
     const bool bGroundProxiesRetired = bProxyRetirementObserved || RetireSourceGroundCoverProxies();
-    const bool bTreeProxiesRetired = bTreeProxyRetirementObserved || RetireSourceTreeProxies();
+    const bool bAuthoredTreesReady = bAuthoredTreeValidationObserved || ValidateSourceAuthoredTrees();
 
     if (ElapsedSeconds < 2.0f) return;
 
@@ -235,11 +275,11 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     int32 DenseGrassComponents = 0;
     const bool bDenseReady = ValidateDenseFoliage(MinGrassInstances, GrassInstances, DenseGrassComponents);
 
-    if (bGroundProxiesRetired && bTreeProxiesRetired && bDenseReady)
+    if (bGroundProxiesRetired && bAuthoredTreesReady && bDenseReady)
     {
         bFinished = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=3 primitiveTreeProxyComponents=8 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s"),
+            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=3 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s"),
             DenseGrassComponents,
             GrassInstances,
             MinGrassInstances,
@@ -263,9 +303,9 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
         FailValidation(TEXT("source_ground_cover_proxy_not_retired"));
         return;
     }
-    if (!bTreeProxiesRetired)
+    if (!bAuthoredTreesReady)
     {
-        FailValidation(TEXT("primitive_tree_proxy_not_retired"));
+        FailValidation(TEXT("source_authored_tree_family_not_ready"));
         return;
     }
     if (DenseGrassComponents <= 0)
