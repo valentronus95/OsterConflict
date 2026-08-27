@@ -55,6 +55,7 @@ foliage = text(SRC / "OCFoliageRuntimeGuardSubsystem.cpp")
 foliage_h = text(PUB / "OCFoliageRuntimeGuardSubsystem.h")
 budget = text(SRC / "OCWorldRenderBudgetPass17Subsystem.cpp")
 world = text(SRC / "OCWorldSectorOster.cpp")
+world_h = text(PUB / "OCWorldSectorOster.h")
 trees = text(SRC / "OCR145MuseumTreeLayoutSubsystem.cpp")
 weapon_preflight = text(SCRIPTS / "verify_required_weapon_assets.py")
 pass43 = text(ROOT / "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py")
@@ -281,20 +282,30 @@ req("130000" not in budget, "historical 1300 m source-family cull distance retur
 req('TEXT("GrassMown"),              0,  16000' in budget, "ground-cover cull was not reduced")
 req('TEXT("ResidentialDetails"),  6000,  24000' in budget, "residential detail cull was not reduced")
 
-# Primitive source trees stay audit-visible but hidden from normal gameplay; verified pine stays real, oak stays unverified.
-for family in (
+# PASS45 item 26: primitive Cylinder/Sphere tree authoring is physically gone; tracked authored trees own vegetation.
+primitive_tree_names = (
     "TreeTrunks", "TreeCrowns", "SovietPoplarTrunks", "SovietPoplarCrowns",
     "BirchTrunks", "BirchCrowns", "PineTrunks", "PineCrowns",
+)
+for family in primitive_tree_names:
+    req(f'TEXT("{family}")' not in world and family not in world_h,
+        f"rejected primitive tree authoring returned: {family}")
+req("/Engine/BasicShapes/Cylinder" not in world and "/Engine/BasicShapes/Sphere" not in world,
+    "Cylinder/Sphere tree source authoring returned")
+for needle in (
+    "AuthoredDeciduousTrees", "AuthoredPine01Trees", "AuthoredPine03Trees",
+    "SM_Tree_Var01", "SM_Pine_Tree_01", "SM_Pine_Tree_03", "AddGroundedTree",
 ):
-    req(f'TEXT("{family}")' in foliage, f"foliage guard does not own primitive family retirement: {family}")
-req("RetireSourceTreeProxies" in foliage and "bTreeProxyRetirementObserved" in foliage_h,
-    "primitive tree retirement path is incomplete")
-req("PASS45_PRIMITIVE_TREE_PROXIES_RETIRED" in foliage and "cylinder_sphere_visible=0" in foliage,
-    "primitive tree visual retirement evidence missing")
-req("oak_asset_verified=0" in foliage, "Pass45 must not invent a verified oak asset")
-req(has_all(trees, ["SM_Pine_Tree_01", "SM_Pine_Tree_03"]), "known real pine assets are no longer referenced")
-req("/Engine/BasicShapes/Cylinder" in world and "/Engine/BasicShapes/Sphere" in world,
-    "historical source proxy authoring unexpectedly vanished before primary-authoring migration")
+    req(needle in world + world_h, f"authored vegetation source contract missing: {needle}")
+for needle in (
+    "PASS45_AUTHORED_TREE_FAMILY_READY", "primitive_tree_components=0", "authored_tree_components=3",
+    "basicshape_tree_meshes=0", "oak_asset_verified=0",
+):
+    req(needle in foliage, f"authored vegetation runtime guard missing: {needle}")
+req("RetireSourceTreeProxies" not in foliage + foliage_h and "bTreeProxyRetirementObserved" not in foliage_h,
+    "late-hide primitive tree retirement path must be physically retired after primary-authoring migration")
+req(has_all(trees, ["SM_Pine_Tree_01", "SM_Pine_Tree_03"]), "known real Museum pine assets are no longer referenced")
+req("SM_Oak" not in world + trees + foliage, "Pass45 must not invent an unverified oak asset")
 
 # Every required weapon gets mesh -> material -> texture dependency truth in fresh NullRHI preflight.
 for needle in (
@@ -325,6 +336,6 @@ print("- R13.7 is the one visible Museum exterior; R13.8 is hidden collision/int
 print("- VehicleBase owns production-material preservation at source; validation layer is read-only")
 print("- driver/gunner transform evidence proves ordinary vehicle possession cannot silently respawn at Museum")
 print("- M2 default gunner pitch is direct/non-inverted")
-print("- compact reference tactical topology / render budget / bounded foliage contracts remain")
+print("- compact reference tactical topology / render budget / authored vegetation contracts remain")
 print("- all required weapons emit mesh/material/texture dependency truth")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")
