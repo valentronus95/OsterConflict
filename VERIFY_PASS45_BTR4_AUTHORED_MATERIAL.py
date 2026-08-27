@@ -60,7 +60,12 @@ vehicle_importer_text = read(VEHICLE_IMPORTER)
 
 for needle in (
     'BTR4_MATERIAL_NAME = "M_BTR4_OC_Authored"',
-    '+X is vehicle forward',
+    'Internal modeling coordinates are +X forward, +Y lateral, +Z up',
+    'glTF is Y-up',
+    'BTR4_Z_UP_TO_GLTF_Y_UP_ROTATION = [-0.7071067811865476, 0.0, 0.0, 0.7071067811865476]',
+    '"rotation": BTR4_Z_UP_TO_GLTF_Y_UP_ROTATION',
+    '"internal_axis_contract": "+X forward, +Z up"',
+    '"gltf_axis_contract": "+X forward, +Y up"',
     '"pass45_authored_material_contract": True',
     '"materials": [{',
     '"material": 0',
@@ -80,13 +85,17 @@ for needle in (
         fail(f"canonical BTR import path missing {needle!r}")
 
 for needle in (
-    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"',
     'SOURCE_KIND=BTR4:authored_external_visual_canonical_plus_x',
     'BTR4_FORWARD_AXIS=+X',
+    'BTR4_GLTF_UP_AXIS=+Y',
+    'BTR4_INTERNAL_UP_AXIS=+Z',
     'build_btr4_glb(BTR_GENERATED_SOURCE)',
 ):
     if needle not in vehicle_importer_text:
         fail(f"main production importer canonical-axis contract missing {needle!r}")
+if 'PASS45_BTR_AXIS_OPTIC_20260827_R2' in vehicle_importer_text:
+    fail("stale R2 importer revision can reuse the sideways BTR asset")
 
 # Keep the development-only FBX helper material-safe, but it must not be the automatic canonical path.
 for needle in (
@@ -142,9 +151,16 @@ if "COLOR_0" not in attributes:
 extras = (document.get("asset") or {}).get("extras") or {}
 if extras.get("pass45_authored_material_contract") is not True:
     fail("Pass45 authored material provenance marker missing from generated GLB")
+if extras.get("internal_axis_contract") != "+X forward, +Z up":
+    fail(f"unexpected internal axis contract: {extras.get('internal_axis_contract')!r}")
+if extras.get("gltf_axis_contract") != "+X forward, +Y up":
+    fail(f"unexpected glTF axis contract: {extras.get('gltf_axis_contract')!r}")
+nodes = document.get("nodes") or []
+if not nodes or nodes[0].get("rotation") != [-0.7071067811865476, 0.0, 0.0, 0.7071067811865476]:
+    fail("generated BTR root no longer carries the explicit Z-up to glTF Y-up rotation")
 
 print("PASS45 BTR4 AUTHORED MATERIAL: PASS")
-print("- repository-safe BTR-4 GLB carries an explicit authored PBR material and factual +X-forward contract")
-print("- canonical import no longer changes source merely because an uncalibrated local FBX exists")
+print("- repository-safe BTR-4 GLB carries explicit authored PBR material and +X-forward / glTF +Y-up contracts")
+print("- R3 forbids reuse of the sideways R2 asset and canonical import cannot switch to an uncalibrated local FBX")
 print("- development FBX helper still preserves authored materials/textures when deliberately used")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 import/runtime material and orientation validation remains authoritative")
