@@ -79,8 +79,6 @@ namespace
         const FVector CorrectedExtent = AxisCorrection.RotateVector(Bounds.BoxExtent).GetAbs();
 
         FVector Location = -CorrectedOrigin * UniformScale;
-        // Parent origin is the physical gun mount plane. Rest the mesh bottom on it instead of centering
-        // the imported mesh through the roof/turret, which produced the visibly crooked M2 mount.
         Location.Z = -(CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale;
 
         Visual->SetupAttachment(Parent);
@@ -96,10 +94,42 @@ namespace
         Visual->ComponentTags.Add(VisualTag);
         Owner->AddInstanceComponent(Visual);
         Visual->RegisterComponent();
+        return Visual;
+    }
+
+    UStaticMeshComponent* AddAuthoredPivotTurretVisual(AActor* Owner, USceneComponent* Parent,
+        UStaticMesh* Mesh, float DesiredLengthCm, const FName ComponentName, const FName VisualTag)
+    {
+        if (!Owner || !Parent || !Mesh) return nullptr;
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+        if (NativeLength <= 1.0f) return nullptr;
+
+        UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(Owner, ComponentName);
+        if (!Visual) return nullptr;
+
+        // The exact M2 source was already established with its receiver/mount at the asset origin.
+        // Do not re-center it from bounds or infer its axis from the longest dimension: the 2026-08-27
+        // runtime rejection proved that heuristic can lift/rotate the Browning away from the roof ring.
+        const float UniformScale = DesiredLengthCm / NativeLength;
+        Visual->SetupAttachment(Parent);
+        Visual->SetStaticMesh(Mesh);
+        Visual->SetRelativeLocation(FVector::ZeroVector);
+        Visual->SetRelativeRotation(FRotator::ZeroRotator);
+        Visual->SetRelativeScale3D(FVector(UniformScale));
+        Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Visual->SetGenerateOverlapEvents(false);
+        Visual->SetCanEverAffectNavigation(false);
+        Visual->SetCastShadow(true);
+        Visual->EmptyOverrideMaterials();
+        Visual->ComponentTags.Add(VisualTag);
+        Owner->AddInstanceComponent(Visual);
+        Visual->RegisterComponent();
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_M2_MOUNT_ALIGNMENT_READY native_cm=%s uniform_scale=%.4f bottom_on_mount=1 axis_correction=%s"),
-            *NativeSize.ToCompactString(), UniformScale, *AxisCorrection.Rotator().ToCompactString());
+            TEXT("PASS45_M2_AUTHORED_PIVOT_READY native_cm=%s uniform_scale=%.4f relative_location_zero=1 relative_rotation_zero=1 bounds_recenter=0 longest_axis_guess=0"),
+            *NativeSize.ToCompactString(), UniformScale);
         return Visual;
     }
 
@@ -127,8 +157,6 @@ AOCPickupGunTruck::AOCPickupGunTruck()
     TurretReloadSeconds = 4.2f;
     TurretDamageTypeClass = UOCBallisticDamageType::StaticClass();
 
-    // PASS45 item 27: the open HMMWV ring has full azimuth travel. The client-facing yaw limit
-    // becomes effectively unbounded and the authoritative presentation is normalized each update.
     bContinuousTurretYaw = true;
     MaxTurretYaw = 180.0f;
 
@@ -220,8 +248,6 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
 
     if (bUsingHMMWV && TurretPivot)
     {
-        // TurretPivot is the ring yaw owner. BarrelPivot is the M2 pitch owner. GunnerCameraPivot is
-        // also parented to TurretPivot, so gunner view and weapon cannot drift into separate hierarchies.
         TurretPivot->SetRelativeLocation(FVector(20.0f, 0.0f, 132.0f));
         if (BarrelPivot) BarrelPivot->SetRelativeLocation(FVector::ZeroVector);
         if (GunnerCameraPivot) GunnerCameraPivot->SetRelativeLocation(FVector(-24.0f, 0.0f, 62.0f));
@@ -233,11 +259,11 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
     {
-        if (AddGroundedTurretVisual(this, M2Parent, M2, 165.0f,
+        if (AddAuthoredPivotTurretVisual(this, M2Parent, M2, 165.0f,
             FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
             bUsingMountedGunAsset = true;
-            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(82.5f, 0.0f, 18.0f));
+            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(82.5f, 0.0f, 0.0f));
         }
     }
 
@@ -273,12 +299,10 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     if (bUsingHMMWV)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_HMMWV_M2_RUNTIME_CORRECTION_READY proportional_vehicle=1 m2_grounded_mount=1 proxies_disabled=1"));
+            TEXT("PASS45_HMMWV_M2_RUNTIME_CORRECTION_READY proportional_vehicle=1 m2_authored_pivot=1 proxies_disabled=1"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_HMMWV_M2_HIERARCHY_READY ring_owner=TurretPivot gun_owner=BarrelPivot muzzle_owner=BarrelPivot camera_owner=GunnerCameraPivot continuous_yaw=1 hard_stop=0 authored_m2=%d primitive_turret_visible=0"),
             bUsingMountedGunAsset ? 1 : 0);
-        // No separate authored shield asset is tracked today. Never resurrect a Cube as fake armour just to turn
-        // a checkbox green; the shield remains an explicit content gap until a real asset is committed/imported.
         UE_LOG(LogTemp, Warning,
             TEXT("PASS45_HMMWV_M2_SHIELD_CONTENT_GAP separate_authored_shield=0 primitive_shield_fallback=0 ring_hierarchy_ready=1"));
     }
