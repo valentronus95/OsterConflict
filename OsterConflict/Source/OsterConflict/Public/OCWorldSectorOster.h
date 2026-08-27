@@ -86,7 +86,12 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StadiumGeometry;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StadiumDetails;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkGeometry;
+    // PASS45 Gate K: legacy mixed park-detail bucket is retained as a zero-instance quarantine only.
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkDetails;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialPlaza;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialApproach;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateFitness;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkBenches;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Waterways;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Bridges;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ReferenceMarkers;

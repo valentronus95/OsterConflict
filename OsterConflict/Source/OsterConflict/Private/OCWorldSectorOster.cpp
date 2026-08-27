@@ -114,6 +114,10 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     StadiumDetails = MakeISM(TEXT("StadiumDetails"), TEXT("BlockAll"));
     ParkGeometry = MakeISM(TEXT("ParkGeometry"), TEXT("BlockAll"));
     ParkDetails = MakeISM(TEXT("ParkDetails"), TEXT("BlockAll"));
+    ParkMemorialPlaza = MakeISM(TEXT("ParkMemorialPlaza"), TEXT("BlockAll"));
+    ParkMemorialApproach = MakeISM(TEXT("ParkMemorialApproach"), TEXT("BlockAll"));
+    ParkSkateFitness = MakeISM(TEXT("ParkSkateFitness"), TEXT("BlockAll"));
+    ParkBenches = MakeISM(TEXT("ParkBenches"), TEXT("BlockAll"));
     Waterways = MakeISM(TEXT("Waterways"), TEXT("NoCollision"));
     Bridges = MakeISM(TEXT("Bridges"), TEXT("BlockAll"));
     ReferenceMarkers = MakeISM(TEXT("ReferenceMarkers"), TEXT("NoCollision"));
@@ -144,7 +148,8 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         {
             Roads, Sidewalks, Buildings, ResidentialRoofs, ResidentialDetails,
             LandmarkBlocks, LandmarkRoofs, LandmarkWindows, LandmarkDetails,
-            Fences, WoodFences, MetalFences, LightSheetFences, StadiumGeometry, StadiumDetails, ParkGeometry, ParkDetails,
+            Fences, WoodFences, MetalFences, LightSheetFences, StadiumGeometry, StadiumDetails,
+            ParkGeometry, ParkDetails, ParkMemorialPlaza, ParkMemorialApproach, ParkSkateFitness, ParkBenches,
             GrassMown, GrassRough, GrassWetland,
             Waterways, Bridges, ReferenceMarkers
         };
@@ -236,6 +241,10 @@ void AOCWorldSectorOster::BeginPlay()
     Tint(StadiumDetails,      FLinearColor(0.82f, 0.82f, 0.76f));
     Tint(ParkGeometry,        FLinearColor(0.12f, 0.31f, 0.075f));
     Tint(ParkDetails,         FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialPlaza,   FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialApproach,FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkSkateFitness,    FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkBenches,         FLinearColor(0.40f, 0.34f, 0.25f));
     Tint(Waterways,           FLinearColor(0.055f, 0.22f, 0.36f));
     Tint(Bridges,             FLinearColor(0.32f, 0.31f, 0.29f));
 
@@ -537,6 +546,14 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
 
 void AOCWorldSectorOster::BuildCentralPark()
 {
+    constexpr int32 ExpectedMemorialPlaza = 2;
+    constexpr int32 ExpectedMemorialApproach = 4;
+    constexpr int32 ExpectedSkateFitness = 3;
+    constexpr int32 ExpectedBenches = 14;
+    constexpr int32 ExpectedSemanticDetails =
+        ExpectedMemorialPlaza + ExpectedMemorialApproach + ExpectedSkateFitness + ExpectedBenches;
+    static_assert(ExpectedSemanticDetails == 23, "Central Park semantic detail contract must remain exactly 23 proxies");
+
     const FVector Park = ParkAnchor();
 
     // City-park footprint centered on a documented park monument/reference coordinate.
@@ -548,19 +565,20 @@ void AOCWorldSectorOster::BuildCentralPark()
     AddBox(Sidewalks, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);
     AddBox(Sidewalks, Park + FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f);
 
-    // Civic center / memorial plaza block and stepped approach.
-    AddBox(ParkDetails, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
-    AddBox(ParkDetails, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
-    for (int32 Step = 0; Step < 4; ++Step)
+    // Gate K semantic split: the legacy ParkDetails bucket must remain empty. Do not blanket-upgrade these groups.
+    // Civic center / memorial plaza block and stepped approach are separate authored-replacement domains.
+    AddBox(ParkMemorialPlaza, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
+    AddBox(ParkMemorialPlaza, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
+    for (int32 Step = 0; Step < ExpectedMemorialApproach; ++Step)
     {
-        AddBox(ParkDetails, Park + FVector(-6100 + Step * 150.0f, -4900, 18 + Step * 14.0f),
+        AddBox(ParkMemorialApproach, Park + FVector(-6100 + Step * 150.0f, -4900, 18 + Step * 14.0f),
             FVector(1900 - Step * 120.0f, 260, 28), 0.0f);
     }
 
     // Small skate/active-recreation pad is present in recent public park coverage; placement is approximate.
-    AddBox(ParkDetails, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
-    AddBoxRotated(ParkDetails, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
-    AddBoxRotated(ParkDetails, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
+    AddBox(ParkSkateFitness, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
+    AddBoxRotated(ParkSkateFitness, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
+    AddBoxRotated(ParkSkateFitness, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
 
     // The separate published "city park near culture house" point lies farther north. Keep it as a secondary
     // civic grove/reference instead of incorrectly using it as the whole central-park centroid (S09 behavior).
@@ -571,12 +589,42 @@ void AOCWorldSectorOster::BuildCentralPark()
     AddBox(ParkGeometry, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));
     AddBox(Sidewalks, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);
 
-    // Benches along main alleys. Simple source-only proxies now; final assets arrive in art pass.
+    // Benches along main alleys. Simple source-only proxies now; final assets arrive only from a verified exact candidate.
     for (int32 I = -3; I <= 3; ++I)
     {
-        AddBox(ParkDetails, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120));
-        AddBox(ParkDetails, Park + FVector(I * 1900.0f, 850.0f, 60.0f), FVector(180, 55, 120));
+        AddBox(ParkBenches, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120));
+        AddBox(ParkBenches, Park + FVector(I * 1900.0f, 850.0f, 60.0f), FVector(180, 55, 120));
     }
+
+    const int32 LegacyCount = ParkDetails ? ParkDetails->GetInstanceCount() : -1;
+    const int32 MemorialPlazaCount = ParkMemorialPlaza ? ParkMemorialPlaza->GetInstanceCount() : -1;
+    const int32 MemorialApproachCount = ParkMemorialApproach ? ParkMemorialApproach->GetInstanceCount() : -1;
+    const int32 SkateFitnessCount = ParkSkateFitness ? ParkSkateFitness->GetInstanceCount() : -1;
+    const int32 BenchCount = ParkBenches ? ParkBenches->GetInstanceCount() : -1;
+    const int32 SemanticDetailCount = MemorialPlazaCount + MemorialApproachCount + SkateFitnessCount + BenchCount;
+
+    const bool bSemanticSplitValid = LegacyCount == 0 &&
+        MemorialPlazaCount == ExpectedMemorialPlaza &&
+        MemorialApproachCount == ExpectedMemorialApproach &&
+        SkateFitnessCount == ExpectedSkateFitness &&
+        BenchCount == ExpectedBenches &&
+        SemanticDetailCount == ExpectedSemanticDetails;
+
+    if (!bSemanticSplitValid)
+    {
+        if (ParkDetails) ParkDetails->ClearInstances();
+        if (ParkMemorialPlaza) ParkMemorialPlaza->ClearInstances();
+        if (ParkMemorialApproach) ParkMemorialApproach->ClearInstances();
+        if (ParkSkateFitness) ParkSkateFitness->ClearInstances();
+        if (ParkBenches) ParkBenches->ClearInstances();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED legacy=%d memorial_plaza=%d memorial_approach=%d skate_fitness=%d benches=%d total=%d expected=0/2/4/3/14/23"),
+            LegacyCount, MemorialPlazaCount, MemorialApproachCount, SkateFitnessCount, BenchCount, SemanticDetailCount);
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY legacy=0 memorial_plaza=2 memorial_approach=4 skate_fitness=3 benches=14 total=23 authored_detail_replacements=0"));
 }
 
 void AOCWorldSectorOster::BuildCollegeSector()
