@@ -73,15 +73,13 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> WoodFences;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> MetalFences;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> LightSheetFences;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TreeTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TreeCrowns;
-    // S16B source-only vegetation families. Final foliage meshes/materials are content assets.
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> SovietPoplarTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> SovietPoplarCrowns;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> BirchTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> BirchCrowns;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PineTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PineCrowns;
+
+    // PASS45 item 26: player-facing trees are authored meshes. Generic deciduous is intentionally
+    // not promoted to oak/poplar/birch without a verified species-specific asset.
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> AuthoredDeciduousTrees;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> AuthoredPine01Trees;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> AuthoredPine03Trees;
+
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassMown;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassRough;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassWetland;
@@ -112,8 +110,6 @@ private:
         float YawDegrees = 0.0f);
     static void AddBoxRotated(UInstancedStaticMeshComponent* Component, const FVector& Center, const FVector& SizeCm,
         const FRotator& Rotation);
-    static void AddCylinder(UInstancedStaticMeshComponent* Component, const FVector& Center, float RadiusCm,
-        float HeightCm);
     static void AddGableRoof(UInstancedStaticMeshComponent* Component, const FVector& Center, float WidthCm,
         float DepthCm, float RidgeZCm, float YawDegrees, float SlopeDegrees = 28.0f);
     static void AddFacadeWindow(UInstancedStaticMeshComponent* Component, const FVector& BuildingCenter,
