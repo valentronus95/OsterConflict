@@ -7,6 +7,7 @@ set "OC_FORCE_ACCEPTANCE=1"
 set "PLAYFLOW=%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
 set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
 set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
+set "GATE_K_VERIFY=%~dp0VERIFY_PASS45_GATE_K_RUNTIME_LOG.py"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
@@ -17,7 +18,7 @@ echo ============================================================
 echo OSTER CONFLICT - STRICT PASS45 MAIN RUNTIME ACCEPTANCE
 echo ============================================================
 echo This route executes the normal game exactly once through the playflow/performance wrapper,
-echo then applies Pass45 material/dependency and interaction evidence gates.
+echo then applies Pass45 Gate K visual truth, material/dependency and interaction evidence gates.
 echo RUN_R14_CURRENT_GAMEPLAY.cmd remains the only process that launches gameplay.
 echo A log-only PASS still does NOT replace the required visual/screenshots acceptance.
 echo.
@@ -33,6 +34,10 @@ if not exist "%CURRENT_GAMEPLAY%" (
 if not exist "%MATERIAL_GATE%" (
   echo [ACCEPTANCE] FAILED - strict material gate is missing: %MATERIAL_GATE%
   exit /b 3
+)
+if not exist "%GATE_K_VERIFY%" (
+  echo [ACCEPTANCE] FAILED - Pass45 Gate K verifier is missing: %GATE_K_VERIFY%
+  exit /b 4
 )
 if not exist "%EVIDENCE_VERIFY%" (
   echo [ACCEPTANCE] FAILED - Pass45 evidence verifier is missing: %EVIDENCE_VERIFY%
@@ -74,6 +79,17 @@ for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=
 set "PASS45_SOURCE_SHA=%PASS45_SOURCE_SHA%"
 
 echo.
+echo [ACCEPTANCE] Verifying Gate K final-world visual truth...
+%PY_CMD% "%GATE_K_VERIFY%" "%GAMEPLAY_LOG%"
+set "GATE_K_RC=%ERRORLEVEL%"
+if not "%GATE_K_RC%"=="0" (
+  echo.
+  echo [ACCEPTANCE] FAILED - Pass45 Gate K still contains visible BasicShape/proxy core content.
+  echo Gameplay log: %GAMEPLAY_LOG%
+  exit /b %GATE_K_RC%
+)
+
+echo.
 echo [ACCEPTANCE] Verifying Pass45 interaction/material evidence from the exact run...
 %PY_CMD% "%EVIDENCE_VERIFY%" "%GAMEPLAY_LOG%" "%MATERIAL_LOG%" "%WEAPON_REPORT%"
 set "EVIDENCE_RC=%ERRORLEVEL%"
@@ -90,6 +106,7 @@ echo ============================================================
 echo [ACCEPTANCE] PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED.
 echo [ACCEPTANCE] Source: %PASS45_SOURCE_SHA%
 echo [ACCEPTANCE] Evidence: %EVIDENCE_OUT%
+echo [ACCEPTANCE] Gate K: zero visible Engine BasicShape core content in final Oster/stadium presentation.
 echo [ACCEPTANCE] Exact weapon payload gaps remain CONTENT GAP unless real production content is later supplied.
 echo [ACCEPTANCE] VISUAL ACCEPTANCE IS STILL PENDING direct screenshots/observation.
 echo ============================================================
