@@ -5,6 +5,7 @@
 #include "OCBTR.generated.h"
 
 class AController;
+class AOCCharacter;
 class UStaticMeshComponent;
 
 /** S11 armoured personnel carrier prototype. Small-arms and vehicle-gun damage cannot destroy its hull. */
@@ -15,6 +16,7 @@ class OSTERCONFLICT_API AOCBTR : public AOCArmedVehicleBase
 
 public:
     AOCBTR();
+    virtual void Tick(float DeltaSeconds) override;
     virtual void PossessedBy(AController* NewController) override;
     virtual void UnPossessed() override;
     virtual void PawnClientRestart() override;
@@ -27,6 +29,12 @@ protected:
 
 private:
     bool ValidateProductionBTR4MaterialState(const TCHAR* Phase);
+
+    // PASS45 item 30: unlike the open HMMWV ring, BTR gunner gameplay is a remote optic.
+    // The inherited gunner camera pivot is re-parented to BarrelPivot so the sensor follows
+    // both turret yaw and barrel pitch. This value is presentation-only and does not alter aim authority.
+    float BTRRemoteOpticFieldOfView = 48.0f;
+    TWeakObjectPtr<AOCCharacter> OpticTickDependency;
 
     UPROPERTY() TObjectPtr<UStaticMeshComponent> UpperHull;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> NoseArmor;
