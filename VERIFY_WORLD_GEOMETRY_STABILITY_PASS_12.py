@@ -47,9 +47,25 @@ def forbid(text: str, needle: str, where: str) -> None:
         raise SystemExit(f"PASS12 WORLD STABILITY VERIFY FAIL: {where}: forbidden {needle!r}")
 
 
+def function_slice(source: str, signature: str, next_signature: str) -> str:
+    start = source.find(signature)
+    end = source.find(next_signature, start + len(signature))
+    if start < 0 or end < 0:
+        raise SystemExit(
+            f"PASS12 WORLD STABILITY VERIFY FAIL: cannot isolate {signature!r} before {next_signature!r}"
+        )
+    return source[start:end]
+
+
 def has_semantic_material_write(source: str) -> bool:
-    """Detect a SetMaterial write tied locally to a tracked world-sector family."""
-    semantic_tokens = ('TEXT("Ground")', 'TEXT("Roads")', 'TEXT("Sidewalks")')
+    """Detect a SetMaterial write tied locally to a tracked world-sector surface family."""
+    semantic_tokens = (
+        'TEXT("Ground")',
+        'TEXT("Roads")',
+        'TEXT("Sidewalks")',
+        'TEXT("ParkPaths")',
+        'TEXT("Fences")',
+    )
     for match in re.finditer(r"\bSetMaterial\s*\(", source):
         start = max(0, match.start() - 1800)
         end = min(len(source), match.end() + 500)
@@ -103,8 +119,9 @@ require(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRang
 forbid(engine_config, "r.DefaultFeature.AutoExposure=False", "Pass45 renderer exposure contract")
 forbid(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=False", "Pass45 EV100 exposure contract")
 
-# AOCWorldSectorOster may still author the initial semantic Cube transforms, but item31 requires Roads/Sidewalks
-# to be upgraded to tracked authored Scene_RoadsideConstruction meshes before the 12-second stability baseline.
+# AOCWorldSectorOster still owns deterministic initial Cube transforms. Item 31 upgrades verified surface families
+# before the 12-second baseline. Ground now has an explicit committed landscape material; the ISM road/path/fence
+# families must continue to use the authored meshes' packaged materials rather than receiving runtime recolors.
 for needle in (
     "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
     "Tint(Ground",
@@ -114,24 +131,41 @@ for needle in (
     require(world_sector, needle, "initial semantic world-material owner")
 
 for needle in (
+    "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
+    "/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01",
+    "/Game/AdvancedVillagePack/Meshes/SM_Stonepath_Var01.SM_Stonepath_Var01",
+    "/Game/AdvancedVillagePack/Meshes/SM_Fence_Var01.SM_Fence_Var01",
+    "UpgradeGroundSurface",
     "UpgradeCubeFamily",
     "Component->SetStaticMesh(AuthoredMesh);",
     "Component->EmptyOverrideMaterials();",
+    "Component->SetMaterial(0, AuthoredMaterial);",
+    "ground_top_z_preserved=1",
+    "playable_footprint_preserved=1",
     "ElapsedSeconds < 0.75f",
+    "PASS45_AUTHORED_GROUND_SURFACE_READY",
     "PASS45_AUTHORED_ROAD_SURFACE_READY",
+    "PASS45_AUTHORED_PARK_PATH_SURFACE_READY",
+    "PASS45_AUTHORED_WORLD_FENCE_READY",
     "basicshape_meshes=0",
     "basicshape_material_overrides=0",
     "topology_preserved=1",
     "pass12_baseline_deadline_s=12",
 ):
-    require(surface_upgrade, needle, "item31 authored road/sidewalk upgrade")
+    require(surface_upgrade, needle, "item31 authored surface upgrade")
+
+cube_family = function_slice(
+    surface_upgrade,
+    "bool UpgradeCubeFamily(",
+    "}\n\nbool UOCAuthoredWorldSurfaceUpgradeSubsystem::ShouldCreateSubsystem",
+)
 for stale in (
     "SetMaterial(",
     "BasicShapeMaterial.BasicShapeMaterial",
 ):
-    forbid(surface_upgrade, stale, "authored surface upgrade must preserve packaged materials")
+    forbid(cube_family, stale, "authored ISM surface upgrade must preserve packaged materials")
 
 for cpp_path in (SRC / "Private").glob("*.cpp"):
     if cpp_path in (WORLD_SECTOR, SURFACE_UPGRADE) or cpp_path.name == "OCR13StadiumSurfaceSubsystem.cpp":
@@ -239,27 +273,32 @@ for needle in (
     'TEXT("LandmarkWindows")',
     'TEXT("LandmarkDetails")',
     'TEXT("ParkGeometry")',
+    'TEXT("ParkPaths")',
+    'TEXT("Fences")',
     'TEXT("Ground")',
     'TEXT("Roads")',
     'TEXT("Sidewalks")',
     "ValidateSemanticMaterials",
-    "HasColorMID",
+    "HasAuthoredGroundSurface",
     "HasAuthoredSurface",
-    "UMaterialInstanceDynamic",
-    "GetAllVectorParameterInfo",
-    'Parameter.Name == TEXT("Color")',
+    "SM_Plane_1x1",
+    "M_Inst_Landscape",
     "SM_Urb_Roa_Asphalt_01",
     "SM_Urb_Roa_Sidewalk_01",
-    "semantic_mid_missing_",
-    "semantic_color_parameter_missing_",
+    "SM_Stonepath_Var01",
+    "SM_Fence_Var01",
+    "authored_ground_mesh_missing",
+    "authored_ground_mesh_invalid_",
+    "authored_ground_material_missing",
+    "authored_ground_material_invalid_",
     "authored_surface_mesh_missing_",
     "authored_surface_mesh_invalid_",
     "authored_surface_material_missing_",
     "authored_surface_basicshape_material_",
     "PASS45_WORLD_MATERIAL_BASELINE_READY",
-    "ground_legacy_mid=1",
-    "authored_surface_families=2",
-    "basicshape_road_materials=0",
+    "ground_authored=1",
+    "authored_surface_families=5",
+    "basicshape_surface_materials=0",
     "PASS45_WORLD_MATERIAL_STABLE",
     "late_geometry_mutation_",
     "PASS12_WORLD_GEOMETRY_BASELINE_CAPTURED",
@@ -268,6 +307,14 @@ for needle in (
     "PASS12_WORLD_GEOMETRY_STABILITY_FAIL",
 ):
     require(validator, needle, "Pass12/Pass45 runtime validator")
+for stale in (
+    "HasColorMID",
+    "UMaterialInstanceDynamic",
+    "semantic_mid_missing_",
+    "semantic_color_parameter_missing_",
+    "ground_legacy_mid=1",
+):
+    forbid(validator, stale, "retired BasicShape MID stability acceptance")
 
 for needle in (
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
@@ -281,8 +328,8 @@ for needle in (
 print("WORLD GEOMETRY STABILITY PASS12/PASS45 ITEM31 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers remain cancelled and identity validation stays mutation-free")
 print("- Pass45 daylight remains component-owned: 120000 lux + AutoExposure=True + extended EV100 range")
-print("- Ground remains the explicit legacy semantic MID content gap")
-print("- Roads/Sidewalks upgrade before baseline to tracked authored asphalt/sidewalk meshes with packaged materials")
-print("- Pass12 requires those authored surfaces at 12s, 16s and 20s and rejects BasicShape road materials")
-print("- no unrelated late source owner may mutate Ground/Roads/Sidewalks materials")
+print("- playable Ground upgrades before baseline to tracked SM_Plane_1x1 + M_Inst_Landscape with XY/top-Z preserved")
+print("- Roads/Sidewalks/ParkPaths/Fences upgrade before baseline to tracked authored meshes with packaged materials")
+print("- Pass12 validates Ground plus four authored ISM surface families at 12s, 16s and 20s")
+print("- no unrelated late source owner may mutate Ground/Roads/Sidewalks/ParkPaths/Fences materials")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence still required")
