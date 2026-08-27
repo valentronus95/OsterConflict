@@ -15,6 +15,8 @@ namespace
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01");
     const TCHAR* AuthoredSidewalkPath =
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01");
+    const TCHAR* AuthoredFencePath =
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var01.SM_Fence_Var01");
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
@@ -103,13 +105,17 @@ namespace
 
             // The retired Engine Cube is exactly 100 cm per axis, so its old scale is factual desired size in metres.
             const FVector DesiredSizeCm = OldScale * 100.0f;
+            const bool bDesiredLongAxisY = DesiredSizeCm.Y > DesiredSizeCm.X * 1.05f;
             FVector NewScale;
             FRotator NewRotation = Old.Rotator();
-            if (bNativeLongAxisY)
+
+            // Preserve the source footprint even when an authored mesh's native long axis differs from the Cube family.
+            // This matters for Fences, whose canonical topology contains both X-long and Y-long segments.
+            if (bNativeLongAxisY != bDesiredLongAxisY)
             {
                 NewScale.X = DesiredSizeCm.Y / NativeSize.X;
                 NewScale.Y = DesiredSizeCm.X / NativeSize.Y;
-                NewRotation.Yaw -= 90.0f;
+                NewRotation.Yaw += bNativeLongAxisY ? -90.0f : 90.0f;
             }
             else
             {
@@ -195,35 +201,43 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
 
     UStaticMesh* RoadMesh = LoadObject<UStaticMesh>(nullptr, AuthoredRoadPath);
     UStaticMesh* SidewalkMesh = LoadObject<UStaticMesh>(nullptr, AuthoredSidewalkPath);
-    if (!RoadMesh || !SidewalkMesh)
+    UStaticMesh* FenceMesh = LoadObject<UStaticMesh>(nullptr, AuthoredFencePath);
+    if (!RoadMesh || !SidewalkMesh || !FenceMesh)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP road_loaded=%d sidewalk_loaded=%d tracked_pack=Scene_RoadsideConstruction gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP road_loaded=%d sidewalk_loaded=%d fence_loaded=%d tracked_road_pack=Scene_RoadsideConstruction tracked_fence_pack=AdvancedVillagePack gate_k_complete=0"),
             RoadMesh ? 1 : 0,
-            SidewalkMesh ? 1 : 0);
+            SidewalkMesh ? 1 : 0,
+            FenceMesh ? 1 : 0);
         return;
     }
 
     UInstancedStaticMeshComponent* Roads = FindISM(Sector, TEXT("Roads"));
     UInstancedStaticMeshComponent* Sidewalks = FindISM(Sector, TEXT("Sidewalks"));
+    UInstancedStaticMeshComponent* Fences = FindISM(Sector, TEXT("Fences"));
 
     int32 RoadInstances = 0;
     int32 SidewalkInstances = 0;
+    int32 FenceInstances = 0;
     FString RoadFailure;
     FString SidewalkFailure;
+    FString FenceFailure;
     const bool bRoadsReady = UpgradeCubeFamily(Roads, RoadMesh, RoadInstances, RoadFailure);
     const bool bSidewalksReady = UpgradeCubeFamily(Sidewalks, SidewalkMesh, SidewalkInstances, SidewalkFailure);
+    const bool bFencesReady = UpgradeCubeFamily(Fences, FenceMesh, FenceInstances, FenceFailure);
 
     bFinished = true;
-    if (!bRoadsReady || !bSidewalksReady)
+    if (!bRoadsReady || !bSidewalksReady || !bFencesReady)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL roads_ready=%d sidewalks_ready=%d road_reason=%s sidewalk_reason=%s gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL roads_ready=%d sidewalks_ready=%d fences_ready=%d road_reason=%s sidewalk_reason=%s fence_reason=%s gate_k_complete=0"),
             bRoadsReady ? 1 : 0,
             bSidewalksReady ? 1 : 0,
+            bFencesReady ? 1 : 0,
             *RoadFailure,
-            *SidewalkFailure);
+            *SidewalkFailure,
+            *FenceFailure);
         return;
     }
 
@@ -231,4 +245,7 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         TEXT("PASS45_AUTHORED_ROAD_SURFACE_READY roads_mesh=SM_Urb_Roa_Asphalt_01 sidewalks_mesh=SM_Urb_Roa_Sidewalk_01 road_instances=%d sidewalk_instances=%d basicshape_meshes=0 basicshape_material_overrides=0 topology_preserved=1 pass12_baseline_deadline_s=12"),
         RoadInstances,
         SidewalkInstances);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_AUTHORED_WORLD_FENCE_READY fence_mesh=SM_Fence_Var01 fence_instances=%d basicshape_meshes=0 basicshape_material_overrides=0 topology_preserved=1 gate_k_complete=0"),
+        FenceInstances);
 }
