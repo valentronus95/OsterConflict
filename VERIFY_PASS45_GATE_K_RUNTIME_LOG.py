@@ -19,6 +19,7 @@ def main() -> int:
         "PASS45_GROUND_COVER_PRIMITIVES_DESTROYED",
         "PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED",
         "PASS45_AUTHORED_VEGETATION_READY",
+        "PASS45_AUTHORED_GROUND_SURFACE_READY",
         "PASS45_AUTHORED_ROAD_SURFACE_READY",
         "PASS45_PARK_PATH_OWNERSHIP_READY",
         "PASS45_AUTHORED_PARK_PATH_SURFACE_READY",
@@ -49,6 +50,8 @@ def main() -> int:
     print("PASS45 GATE K: PASS")
     print("- obsolete ground-cover cubes were destroyed and authored dense foliage owns runtime grass")
     print("- developer reference markers/text labels were destroyed")
+    print("- playable Ground was upgraded to committed AdvancedVillagePack SM_Plane_1x1 + M_Inst_Landscape")
+    print("- Ground playable footprint and top-Z were preserved by bounds-aware replacement")
     print("- Roads/Sidewalks were upgraded to tracked Scene_RoadsideConstruction authored meshes/materials")
     print("- exactly five central-park path proxies moved out of Sidewalks into ParkPaths")
     print("- ParkPaths were upgraded to committed AdvancedVillagePack SM_Stonepath_Var01 with bounds-aware fitting")
