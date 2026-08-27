@@ -50,7 +50,6 @@ req('USceneComponent* GetWeaponVisualRoot() const { return WeaponRoot; }' in bas
 # Concrete variants must hide source primitives before any production load can fail.
 for function_name in ('ApplySkeletalProductionWeapon', 'ApplyStaticProductionWeapon'):
     start = variants.find(function_name + '(AOCWeaponBase* Owner')
-    next_marker = variants.find('\n}', start)
     req(start >= 0, f'missing production helper: {function_name}')
 
 skeletal_start = variants.find('UPrimitiveComponent* ApplySkeletalProductionWeapon')
@@ -95,6 +94,24 @@ for needle in (
 ):
     req(needle in launcher, f'launcher fail-closed primitive contract missing: {needle}')
 
+# 2026-08-27 runtime regression: AK/MP5 could show briefly and then disappear because a tag-only production
+# component suppressed real fallback after BasicShape retirement. A production visual must own a real assigned mesh.
+for needle in (
+    '#include "Components/SkeletalMeshComponent.h"',
+    'Component->ComponentHasTag(ProductionVisualTag) &&',
+    'IsValid(Component->GetStaticMesh())',
+    'IsValid(Component->GetSkeletalMeshAsset())',
+    '/Game/AK-47/Mesh/SM_AK-47.SM_AK-47',
+    'committed AK-47 static sibling',
+    'Name.Equals(TEXT("MP5"), ESearchCase::IgnoreCase)',
+    'R13 real SMG temporary MP5 fallback',
+):
+    req(needle in fallback, f'2026-08-27 renderable weapon fallback guard missing: {needle}')
+forbid(
+    fallback,
+    'if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;',
+    'tag-only production visual acceptance returned; invisible tagged weapon can suppress fallback again')
+
 # Runtime real fallback must keep the primitive invisible, attach the real mesh to unscaled WeaponRoot,
 # and preserve the physical root collision authority needed by pickup/drop physics.
 for needle in (
@@ -123,7 +140,7 @@ for needle in (
     'visible primitive weapon/pickup geometry',
     'PASS45_PRIMITIVE_WEAPON_RUNTIME_READY',
     'PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL',
-    'RUNTIME REJECTED 2026-08-26',
+    'RUNTIME REJECTED',
 ):
     req(needle in tz, f'canonical Pass45 TZ lost primitive retirement truth: {needle}')
 
@@ -135,6 +152,8 @@ if errors:
 
 print('PASS45 PRIMITIVE WEAPON RETIREMENT: PASS')
 print('- concrete weapon variants hide source BasicShape geometry before production loading can fail')
+print('- production visual acceptance requires an assigned static/skeletal mesh, never only a component tag')
+print('- AK exact static sibling and MP5 tracked real-SMG fallback prevent invisible actors when exact production fails')
 print('- launcher fails closed with primitive_visible=0')
 print('- real fallbacks attach to the unscaled visual root while preserving physics-root collision authority')
 print('- strict runtime evidence requires zero visible BasicShape rack weapons')
