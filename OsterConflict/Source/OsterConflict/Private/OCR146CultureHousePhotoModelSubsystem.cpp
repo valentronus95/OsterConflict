@@ -9,17 +9,13 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
 {
-    // The sector actor is spawned synchronously from GameMode BeginPlay. This short startup handoff keeps the
-    // Culture House out of the old multi-second late-replacement chain while still letting source geometry exist first.
     constexpr float CultureHouseStartupDelaySeconds = 0.28f;
-    // Hranovskoho 3 is verified. Exact facade bearing is not survey data, so yaw stays provisional rather than invented.
+    // Hranovskoho 3 is verified. Exact facade bearing is still provisional rather than invented.
     constexpr float CultureHouseYawDegrees = 0.0f;
 
     FVector CultureHouseAnchor()
@@ -28,29 +24,18 @@ namespace
         return FOCGeoReference::ToLocalCm(Ref.Latitude, Ref.Longitude, 0.0);
     }
 
-    UMaterialInstanceDynamic* MakeColor(AActor* Owner, UMaterialInterface* Base,
-        const FName Name, const FLinearColor& Color)
-    {
-        if (!Owner || !Base) return nullptr;
-        UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(Base, Owner, Name);
-        if (Material) Material->SetVectorParameterValue(TEXT("Color"), Color);
-        return Material;
-    }
-
-    UInstancedStaticMeshComponent* MakeISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh,
-        UMaterialInterface* Material, const TCHAR* RequestedName, const bool bCollision, const bool bShadow = true)
+    UInstancedStaticMeshComponent* MakeAuthoredISM(AActor* Owner, USceneComponent* Root, UStaticMesh* Mesh,
+        const TCHAR* RequestedName, const bool bCollision, const bool bShadow = true)
     {
         if (!Owner || !Root || !Mesh) return nullptr;
         UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(
             Owner, MakeUniqueObjectName(Owner, UInstancedStaticMeshComponent::StaticClass(), FName(RequestedName)));
         if (!Component) return nullptr;
+
         Component->SetupAttachment(Root);
         Component->SetStaticMesh(Mesh);
-        if (Material)
-        {
-            const int32 Slots = FMath::Max(1, Mesh->GetStaticMaterials().Num());
-            for (int32 Slot = 0; Slot < Slots; ++Slot) Component->SetMaterial(Slot, Material);
-        }
+        // Pass45 Gate K: authored mesh materials stay authoritative. Do not repaint a landmark with
+        // engine primitive materials just to approximate a reference colour in source code.
         Component->SetMobility(EComponentMobility::Static);
         Component->SetCollisionProfileName(FName(bCollision ? TEXT("BlockAll") : TEXT("NoCollision")));
         Component->SetCollisionEnabled(bCollision ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
@@ -63,31 +48,29 @@ namespace
         return Component;
     }
 
-    void AddBox(UInstancedStaticMeshComponent* Component, const FVector& Center, const FVector& SizeCm)
+    bool AddFittedAuthoredMesh(UInstancedStaticMeshComponent* Component, const FVector& Center,
+        const FVector& DesiredSizeCm, const FRotator& Rotation = FRotator::ZeroRotator)
     {
-        if (Component) Component->AddInstance(FTransform(FRotator::ZeroRotator, Center, SizeCm / 100.0f), false);
+        if (!Component || !Component->GetStaticMesh()) return false;
+        UStaticMesh* Mesh = Component->GetStaticMesh();
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
+
+        const FVector Scale(
+            DesiredSizeCm.X / NativeSize.X,
+            DesiredSizeCm.Y / NativeSize.Y,
+            DesiredSizeCm.Z / NativeSize.Z);
+        const FQuat Quat = Rotation.Quaternion();
+        const FVector Location = Center - Quat.RotateVector(Bounds.Origin * Scale);
+        return Component->AddInstance(FTransform(Quat, Location, Scale), false) != INDEX_NONE;
     }
 
-    void AddBoxRotated(UInstancedStaticMeshComponent* Component, const FVector& Center,
-        const FVector& SizeCm, const FRotator& Rotation)
+    void AddAuthoredFrame(UInstancedStaticMeshComponent* Frame, const FVector& Center,
+        const FVector& HorizontalDirection, const float WidthCm, const float HeightCm)
     {
-        if (Component) Component->AddInstance(FTransform(Rotation, Center, SizeCm / 100.0f), false);
-    }
-
-    void AddCylinder(UInstancedStaticMeshComponent* Component, const FVector& Center,
-        const float DiameterCm, const float HeightCm, const FRotator& Rotation = FRotator::ZeroRotator)
-    {
-        if (!Component) return;
-        Component->AddInstance(FTransform(Rotation, Center,
-            FVector(DiameterCm / 100.0f, DiameterCm / 100.0f, HeightCm / 100.0f)), false);
-    }
-
-    void AddFittedFrameSegment(UInstancedStaticMeshComponent* Component, const FVector& Center,
-        const FVector& TargetDirection, const float DesiredLengthCm)
-    {
-        if (!Component || !Component->GetStaticMesh() || DesiredLengthCm <= 1.0f) return;
-
-        const FBoxSphereBounds Bounds = Component->GetStaticMesh()->GetBounds();
+        if (!Frame || !Frame->GetStaticMesh()) return;
+        const FBoxSphereBounds Bounds = Frame->GetStaticMesh()->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
         const float NativeLengths[3] = { NativeSize.X, NativeSize.Y, NativeSize.Z };
         int32 NativeLongestAxis = 0;
@@ -95,46 +78,23 @@ namespace
         {
             if (NativeLengths[Axis] > NativeLengths[NativeLongestAxis]) NativeLongestAxis = Axis;
         }
-        if (NativeLengths[NativeLongestAxis] <= 1.0f || TargetDirection.IsNearlyZero()) return;
+        if (NativeLengths[NativeLongestAxis] <= 1.0f) return;
 
         const FVector UnitAxes[3] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
-        const FQuat Rotation = FQuat::FindBetweenNormals(
-            UnitAxes[NativeLongestAxis], TargetDirection.GetSafeNormal());
-        const float UniformScale = DesiredLengthCm / NativeLengths[NativeLongestAxis];
-        const FVector CenterOffset = Rotation.RotateVector(Bounds.Origin * UniformScale);
-        Component->AddInstance(FTransform(Rotation, Center - CenterOffset, FVector(UniformScale)), false);
-    }
-
-    void AddAuthoredRectFrame(UInstancedStaticMeshComponent* AuthoredFrames, const FVector& Center,
-        const FVector& HorizontalDirection, const float WidthCm, const float HeightCm)
-    {
-        if (!AuthoredFrames || !AuthoredFrames->GetStaticMesh()) return;
+        auto AddSegment = [&](const FVector& SegmentCenter, const FVector& TargetDirection, const float LengthCm)
+        {
+            const FQuat Rotation = FQuat::FindBetweenNormals(UnitAxes[NativeLongestAxis], TargetDirection.GetSafeNormal());
+            const float UniformScale = LengthCm / NativeLengths[NativeLongestAxis];
+            const FVector Location = SegmentCenter - Rotation.RotateVector(Bounds.Origin * UniformScale);
+            Frame->AddInstance(FTransform(Rotation, Location, FVector(UniformScale)), false);
+        };
 
         const FVector Horizontal = HorizontalDirection.GetSafeNormal();
         const FVector Vertical = FVector::UpVector;
-        const float HalfWidth = WidthCm * 0.5f;
-        const float HalfHeight = HeightCm * 0.5f;
-
-        AddFittedFrameSegment(AuthoredFrames, Center + Vertical * HalfHeight, Horizontal, WidthCm);
-        AddFittedFrameSegment(AuthoredFrames, Center - Vertical * HalfHeight, Horizontal, WidthCm);
-        AddFittedFrameSegment(AuthoredFrames, Center - Horizontal * HalfWidth, Vertical, HeightCm);
-        AddFittedFrameSegment(AuthoredFrames, Center + Horizontal * HalfWidth, Vertical, HeightCm);
-    }
-
-    void AddSideWindow(UInstancedStaticMeshComponent* FallbackFrames,
-        UInstancedStaticMeshComponent* AuthoredFrames, UInstancedStaticMeshComponent* Glass,
-        const float X, const float Y, const float Z)
-    {
-        const float OutwardX = X + (X < 0.0f ? -14.0f : 14.0f);
-        if (AuthoredFrames && AuthoredFrames->GetStaticMesh())
-        {
-            AddAuthoredRectFrame(AuthoredFrames, FVector(OutwardX, Y, Z), FVector::RightVector, 250.0f, 220.0f);
-        }
-        else
-        {
-            AddBox(FallbackFrames, FVector(X, Y, Z), FVector(24.0f, 250.0f, 220.0f));
-        }
-        AddBox(Glass, FVector(OutwardX, Y, Z), FVector(8.0f, 205.0f, 176.0f));
+        AddSegment(Center + Vertical * HeightCm * 0.5f, Horizontal, WidthCm);
+        AddSegment(Center - Vertical * HeightCm * 0.5f, Horizontal, WidthCm);
+        AddSegment(Center - Horizontal * WidthCm * 0.5f, Vertical, HeightCm);
+        AddSegment(Center + Horizontal * WidthCm * 0.5f, Vertical, HeightCm);
     }
 }
 
@@ -170,30 +130,50 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
         AActor* Existing = *It;
         if (!Existing) continue;
         if (Existing->ActorHasTag(TEXT("R146_CultureHouseAuthoritative"))) return;
-        if (Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel")))
-        {
-            Existing->Destroy();
-        }
+        if (Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))) Existing->Destroy();
     }
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UStaticMesh* AuthoredWindowFrame = LoadObject<UStaticMesh>(nullptr,
+    const TCHAR* ModularRoot = TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/");
+    UStaticMesh* Wall8 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_8m.Wall_8m"));
+    UStaticMesh* WindowWall4 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Window_4m.Wall_Window_4m"));
+    UStaticMesh* DoorWindowWall8 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Door_Windows_8m.Wall_Door_Windows_8m"));
+    UStaticMesh* WallTop4 = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Top_4m.Wall_Top_4m"));
+    UStaticMesh* Pillar = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Pillar.Wall_Pillar"));
+    UStaticMesh* Door = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Door_01.Door_01"));
+    UStaticMesh* RoofTile = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Porch_Roof_8x4m.Porch_Roof_8x4m"));
+    UStaticMesh* BottomExtender = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Bottom_Extender_4m.Bottom_Extender_4m"));
+    UStaticMesh* Porch = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Porch_4x4m.Porch_4x4m"));
+    UStaticMesh* WindowFramePart = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Window_Frame_Part.Window_Frame_Part"));
-    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    UMaterialInterface* GlassAsset = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Glass_Window.Glass_Window"));
-    if (!Cube || !Cylinder || !Basic) return;
+
+    if (!Wall8 || !WindowWall4 || !DoorWindowWall8 || !WallTop4 || !Pillar || !Door ||
+        !RoofTile || !BottomExtender || !Porch || !WindowFramePart)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_CULTURE_HOUSE_AUTHORED_SHELL_FAIL reason=missing_committed_modular_asset modular_root=%s basicshape_fallback=0 runtime_acceptance=0"),
+            ModularRoot);
+        return;
+    }
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.Name = MakeUniqueObjectName(&World, AActor::StaticClass(), TEXT("R146_OsterCultureHouse"));
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     AActor* Model = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
     if (!Model) return;
+
     Model->SetReplicates(false);
     Model->SetActorEnableCollision(true);
     Model->Tags.Add(TEXT("R146_CultureHouseAuthoritative"));
+    Model->Tags.Add(TEXT("R146_CultureHouseModel"));
     Model->Tags.Add(TEXT("CultureHouseOster_Hranovskoho3"));
 
     USceneComponent* Root = NewObject<USceneComponent>(Model,
@@ -209,106 +189,120 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
     Root->RegisterComponent();
     Model->SetActorLocationAndRotation(CultureHouseAnchor(), FRotator(0.0f, CultureHouseYawDegrees, 0.0f));
 
-    UMaterialInstanceDynamic* Facade = MakeColor(Model, Basic, TEXT("R146Culture_FacadeMat"),
-        FLinearColor(0.63f, 0.45f, 0.26f, 1.0f));
-    UMaterialInstanceDynamic* Classical = MakeColor(Model, Basic, TEXT("R146Culture_TrimMat"),
-        FLinearColor(0.80f, 0.78f, 0.68f, 1.0f));
-    UMaterialInstanceDynamic* DoorWood = MakeColor(Model, Basic, TEXT("R146Culture_DoorMat"),
-        FLinearColor(0.30f, 0.13f, 0.07f, 1.0f));
-    UMaterialInstanceDynamic* RoofMat = MakeColor(Model, Basic, TEXT("R146Culture_RoofMat"),
-        FLinearColor(0.18f, 0.15f, 0.12f, 1.0f));
-    UMaterialInstanceDynamic* Stone = MakeColor(Model, Basic, TEXT("R146Culture_StoneMat"),
-        FLinearColor(0.41f, 0.39f, 0.35f, 1.0f));
-    UMaterialInstanceDynamic* Path = MakeColor(Model, Basic, TEXT("R146Culture_PathMat"),
-        FLinearColor(0.27f, 0.27f, 0.25f, 1.0f));
-    UMaterialInstanceDynamic* GlassFallback = MakeColor(Model, Basic, TEXT("R146Culture_GlassFallback"),
-        FLinearColor(0.10f, 0.20f, 0.25f, 1.0f));
-    UMaterialInterface* GlassMat = GlassAsset ? GlassAsset : GlassFallback;
+    UInstancedStaticMeshComponent* FrontShell = MakeAuthoredISM(Model, Root, DoorWindowWall8,
+        TEXT("R146Culture_AuthoredFrontShell"), true);
+    UInstancedStaticMeshComponent* WindowShell = MakeAuthoredISM(Model, Root, WindowWall4,
+        TEXT("R146Culture_AuthoredWindowShell"), true);
+    UInstancedStaticMeshComponent* RearShell = MakeAuthoredISM(Model, Root, Wall8,
+        TEXT("R146Culture_AuthoredRearShell"), true);
+    UInstancedStaticMeshComponent* TopTrim = MakeAuthoredISM(Model, Root, WallTop4,
+        TEXT("R146Culture_AuthoredTopTrim"), false);
+    UInstancedStaticMeshComponent* Columns = MakeAuthoredISM(Model, Root, Pillar,
+        TEXT("R146Culture_AuthoredColumns"), false);
+    UInstancedStaticMeshComponent* Doors = MakeAuthoredISM(Model, Root, Door,
+        TEXT("R146Culture_AuthoredDoors"), false);
+    UInstancedStaticMeshComponent* Roof = MakeAuthoredISM(Model, Root, RoofTile,
+        TEXT("R146Culture_AuthoredRoof"), false);
+    UInstancedStaticMeshComponent* Foundation = MakeAuthoredISM(Model, Root, BottomExtender,
+        TEXT("R146Culture_AuthoredFoundation"), true);
+    UInstancedStaticMeshComponent* Ground = MakeAuthoredISM(Model, Root, Porch,
+        TEXT("R146Culture_AuthoredForecourt"), true, false);
+    UInstancedStaticMeshComponent* Frames = MakeAuthoredISM(Model, Root, WindowFramePart,
+        TEXT("R146Culture_AuthoredWindowFrames"), false);
 
-    UInstancedStaticMeshComponent* Shell = MakeISM(Model, Root, Cube, Facade, TEXT("R146Culture_Shell"), true);
-    UInstancedStaticMeshComponent* Trim = MakeISM(Model, Root, Cube, Classical, TEXT("R146Culture_Trim"), false);
-    UInstancedStaticMeshComponent* Columns = MakeISM(Model, Root, Cylinder, Classical, TEXT("R146Culture_Columns"), false);
-    UInstancedStaticMeshComponent* DoorFrames = MakeISM(Model, Root, Cube, Classical, TEXT("R146Culture_DoorFrames"), false);
-    UInstancedStaticMeshComponent* AuthoredWindowFrames = AuthoredWindowFrame
-        ? MakeISM(Model, Root, AuthoredWindowFrame, nullptr, TEXT("R146Culture_AuthoredWindowFrames"), false)
-        : nullptr;
-    UInstancedStaticMeshComponent* Doors = MakeISM(Model, Root, Cube, DoorWood, TEXT("R146Culture_Doors"), false);
-    UInstancedStaticMeshComponent* Glass = MakeISM(Model, Root, Cube, GlassMat, TEXT("R146Culture_Glass"), false);
-    UInstancedStaticMeshComponent* RoundGlass = MakeISM(Model, Root, Cylinder, GlassMat, TEXT("R146Culture_ArchedGlass"), false);
-    UInstancedStaticMeshComponent* Roof = MakeISM(Model, Root, Cube, RoofMat, TEXT("R146Culture_Roof"), false);
-    UInstancedStaticMeshComponent* Stonework = MakeISM(Model, Root, Cube, Stone, TEXT("R146Culture_Stonework"), true);
-    UInstancedStaticMeshComponent* Ground = MakeISM(Model, Root, Cube, Path, TEXT("R146Culture_Ground"), true, false);
+    if (!FrontShell || !WindowShell || !RearShell || !TopTrim || !Columns || !Doors ||
+        !Roof || !Foundation || !Ground || !Frames)
+    {
+        Model->Destroy();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_CULTURE_HOUSE_AUTHORED_SHELL_FAIL reason=component_creation basicshape_fallback=0 runtime_acceptance=0"));
+        return;
+    }
 
-    // Main hall. All dimensions are local to this one site root, so a map relocation moves the complete building
-    // atomically and cannot leave a second shell inside another landmark.
-    AddBox(Shell, FVector(0.0f, 0.0f, 365.0f), FVector(3200.0f, 1850.0f, 730.0f));
-    AddBox(Stonework, FVector(0.0f, 0.0f, 42.0f), FVector(3280.0f, 1910.0f, 84.0f));
+    // Main 32 m x 18.5 m hall. The old one-piece Cube is replaced by authored modular wall families.
+    const float FacadeXs[] = { -1200.0f, -400.0f, 400.0f, 1200.0f };
+    for (const float X : FacadeXs)
+    {
+        AddFittedAuthoredMesh(FrontShell, FVector(X, -925.0f, 365.0f), FVector(800.0f, 52.0f, 730.0f));
+        AddFittedAuthoredMesh(RearShell, FVector(X, 925.0f, 365.0f), FVector(800.0f, 52.0f, 730.0f),
+            FRotator(0.0f, 180.0f, 0.0f));
+        AddFittedAuthoredMesh(TopTrim, FVector(X, -960.0f, 720.0f), FVector(800.0f, 70.0f, 120.0f));
+    }
 
-    AddBox(Trim, FVector(0.0f, -940.0f, 690.0f), FVector(3260.0f, 42.0f, 72.0f));
-    AddBox(Trim, FVector(-1560.0f, -940.0f, 365.0f), FVector(56.0f, 42.0f, 620.0f));
-    AddBox(Trim, FVector(1560.0f, -940.0f, 365.0f), FVector(56.0f, 42.0f, 620.0f));
+    const float SideYs[] = { -600.0f, 0.0f, 600.0f };
+    for (const float Y : SideYs)
+    {
+        AddFittedAuthoredMesh(WindowShell, FVector(-1600.0f, Y, 365.0f), FVector(600.0f, 52.0f, 730.0f),
+            FRotator(0.0f, -90.0f, 0.0f));
+        AddFittedAuthoredMesh(WindowShell, FVector(1600.0f, Y, 365.0f), FVector(600.0f, 52.0f, 730.0f),
+            FRotator(0.0f, 90.0f, 0.0f));
+    }
 
+    // Six-column civic facade, now authored Wall_Pillar geometry instead of Engine cylinders.
     const float ColumnXs[] = { -1130.0f, -680.0f, -230.0f, 230.0f, 680.0f, 1130.0f };
     for (const float X : ColumnXs)
     {
-        AddCylinder(Columns, FVector(X, -1080.0f, 365.0f), 92.0f, 610.0f);
-        AddCylinder(Columns, FVector(X, -1080.0f, 75.0f), 126.0f, 34.0f);
-        AddCylinder(Columns, FVector(X, -1080.0f, 660.0f), 132.0f, 40.0f);
+        AddFittedAuthoredMesh(Columns, FVector(X, -1080.0f, 365.0f), FVector(96.0f, 96.0f, 610.0f));
     }
-    AddBox(Trim, FVector(0.0f, -1070.0f, 708.0f), FVector(2650.0f, 225.0f, 86.0f));
 
+    // Three entrance bays use authored door meshes. The surrounding wall modules already own the facade openings.
     for (const float X : { -650.0f, 0.0f, 650.0f })
     {
-        AddBox(DoorFrames, FVector(X, -954.0f, 300.0f), FVector(250.0f, 30.0f, 420.0f));
-        AddBox(Doors, FVector(X, -972.0f, 215.0f), FVector(195.0f, 24.0f, 250.0f));
-        AddBox(Glass, FVector(X, -977.0f, 415.0f), FVector(182.0f, 10.0f, 150.0f));
-        AddCylinder(RoundGlass, FVector(X, -982.0f, 520.0f), 176.0f, 9.0f, FRotator(0.0f, 0.0f, 90.0f));
+        AddFittedAuthoredMesh(Doors, FVector(X, -972.0f, 215.0f), FVector(195.0f, 36.0f, 250.0f));
+        AddAuthoredFrame(Frames, FVector(X, -982.0f, 385.0f), FVector::ForwardVector, 220.0f, 360.0f);
     }
 
-    AddBox(Trim, FVector(0.0f, -1065.0f, 760.0f), FVector(2740.0f, 235.0f, 34.0f));
-    AddBoxRotated(Trim, FVector(-650.0f, -1065.0f, 925.0f), FVector(1420.0f, 220.0f, 42.0f),
-        FRotator(-14.0f, 0.0f, 0.0f));
-    AddBoxRotated(Trim, FVector(650.0f, -1065.0f, 925.0f), FVector(1420.0f, 220.0f, 42.0f),
-        FRotator(14.0f, 0.0f, 0.0f));
-    AddBox(Roof, FVector(0.0f, 60.0f, 752.0f), FVector(3300.0f, 1960.0f, 66.0f));
-    AddBoxRotated(Roof, FVector(0.0f, -470.0f, 815.0f), FVector(3260.0f, 1040.0f, 56.0f),
-        FRotator(0.0f, 0.0f, -8.0f));
-    AddBoxRotated(Roof, FVector(0.0f, 470.0f, 815.0f), FVector(3260.0f, 1040.0f, 56.0f),
-        FRotator(0.0f, 0.0f, 8.0f));
-
-    AddBox(Stonework, FVector(0.0f, -1170.0f, 64.0f), FVector(2500.0f, 460.0f, 44.0f));
-    AddBox(Stonework, FVector(0.0f, -1375.0f, 43.0f), FVector(2660.0f, 190.0f, 34.0f));
-    AddBox(Stonework, FVector(0.0f, -1500.0f, 25.0f), FVector(2780.0f, 150.0f, 26.0f));
-    AddBox(Ground, FVector(0.0f, -2450.0f, 10.0f), FVector(760.0f, 1900.0f, 20.0f));
-
-    // Conservative side/rear detail. Where the authored modular frame is hydrated, use four genuine
-    // frame-profile segments around each glass pane instead of a solid Cube plate. Glass geometry and
-    // building collision remain owned exactly as before.
-    for (const float Y : { -560.0f, 0.0f, 560.0f })
+    // Tiled authored roof. No giant stretched primitive slab remains over the building.
+    const float RoofXs[] = { -1200.0f, -400.0f, 400.0f, 1200.0f };
+    const float RoofYs[] = { -700.0f, -300.0f, 100.0f, 500.0f, 900.0f };
+    for (const float X : RoofXs)
     {
-        AddSideWindow(DoorFrames, AuthoredWindowFrames, Glass, -1608.0f, Y, 390.0f);
-        AddSideWindow(DoorFrames, AuthoredWindowFrames, Glass, 1608.0f, Y, 390.0f);
+        for (const float Y : RoofYs)
+        {
+            AddFittedAuthoredMesh(Roof, FVector(X, Y, 790.0f), FVector(800.0f, 400.0f, 150.0f));
+        }
+    }
+
+    // Authored base/foundation strips replace the old Cube plinth and steps.
+    for (const float X : FacadeXs)
+    {
+        AddFittedAuthoredMesh(Foundation, FVector(X, -925.0f, 42.0f), FVector(800.0f, 100.0f, 84.0f));
+        AddFittedAuthoredMesh(Foundation, FVector(X, 925.0f, 42.0f), FVector(800.0f, 100.0f, 84.0f),
+            FRotator(0.0f, 180.0f, 0.0f));
+    }
+    for (const float Y : SideYs)
+    {
+        AddFittedAuthoredMesh(Foundation, FVector(-1600.0f, Y, 42.0f), FVector(600.0f, 100.0f, 84.0f),
+            FRotator(0.0f, -90.0f, 0.0f));
+        AddFittedAuthoredMesh(Foundation, FVector(1600.0f, Y, 42.0f), FVector(600.0f, 100.0f, 84.0f),
+            FRotator(0.0f, 90.0f, 0.0f));
+    }
+
+    // Modular 4x4 m forecourt tiles. The old single grey Cube path is gone.
+    for (const float X : { -200.0f, 200.0f })
+    {
+        for (const float Y : { -1300.0f, -1700.0f, -2100.0f, -2500.0f })
+        {
+            AddFittedAuthoredMesh(Ground, FVector(X, Y, 12.0f), FVector(400.0f, 400.0f, 24.0f));
+        }
+    }
+
+    // Side/rear window-profile detail remains authored and independent from the load-bearing shell.
+    for (const float Y : SideYs)
+    {
+        AddAuthoredFrame(Frames, FVector(-1632.0f, Y, 390.0f), FVector::RightVector, 250.0f, 220.0f);
+        AddAuthoredFrame(Frames, FVector(1632.0f, Y, 390.0f), FVector::RightVector, 250.0f, 220.0f);
     }
     for (const float X : { -1050.0f, -525.0f, 0.0f, 525.0f, 1050.0f })
     {
-        if (AuthoredWindowFrames && AuthoredWindowFrames->GetStaticMesh())
-        {
-            AddAuthoredRectFrame(AuthoredWindowFrames, FVector(X, 952.0f, 390.0f),
-                FVector::ForwardVector, 230.0f, 220.0f);
-        }
-        else
-        {
-            AddBox(DoorFrames, FVector(X, 938.0f, 390.0f), FVector(230.0f, 24.0f, 220.0f));
-        }
-        AddBox(Glass, FVector(X, 952.0f, 390.0f), FVector(190.0f, 8.0f, 178.0f));
+        AddAuthoredFrame(Frames, FVector(X, 952.0f, 390.0f), FVector::ForwardVector, 230.0f, 220.0f);
     }
-    // Eaves and two downspouts make the long elevations read as one finished building rather than nested primitives.
-    AddBox(Trim, FVector(0.0f, 948.0f, 700.0f), FVector(3260.0f, 32.0f, 28.0f));
-    AddBox(Trim, FVector(-1580.0f, 930.0f, 345.0f), FVector(20.0f, 24.0f, 650.0f));
-    AddBox(Trim, FVector(1580.0f, 930.0f, 345.0f), FVector(20.0f, 24.0f, 650.0f));
 
     const FVector Site = CultureHouseAnchor();
     UE_LOG(LogTemp, Display,
-        TEXT("R14.6 Culture House authoritative owner built at Hranovskoho 3 [%.1f %.1f]; separate site root, six-column facade, three arched entrance bays and conservative side/rear detail active."),
+        TEXT("PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY site=Hranovskoho3 x=%.1f y=%.1f authored_wall=1 authored_pillar=1 authored_door=1 authored_roof=1 authored_forecourt=1 basicshape_visible=0 basicshape_material=0 six_column_facade=1 runtime_visual_acceptance=pending"),
+        Site.X, Site.Y);
+    UE_LOG(LogTemp, Display,
+        TEXT("R14.6 Culture House authoritative owner built at Hranovskoho 3 [%.1f %.1f]; separate site root, authored modular shell, six-column facade and conservative side/rear detail active."),
         Site.X, Site.Y);
 }
