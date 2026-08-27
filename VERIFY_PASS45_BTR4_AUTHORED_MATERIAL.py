@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source-level Pass45 gate for the repository-safe BTR-4 fallback material contract."""
+"""Source-level Pass45 gate for the repository-safe BTR-4 material and canonical source contract."""
 
 from __future__ import annotations
 
@@ -60,6 +60,7 @@ vehicle_importer_text = read(VEHICLE_IMPORTER)
 
 for needle in (
     'BTR4_MATERIAL_NAME = "M_BTR4_OC_Authored"',
+    '+X is vehicle forward',
     '"pass45_authored_material_contract": True',
     '"materials": [{',
     '"material": 0',
@@ -72,28 +73,40 @@ for needle in (
 for needle in (
     'build_btr4_glb(GENERATED_SOURCE)',
     'import_glb_combined(GENERATED_SOURCE, DESTINATION, ASSET_NAME)',
-    'source_kind = "authored_external_visual"',
+    'source_kind = "authored_external_visual_canonical_plus_x"',
+    'forward_axis=+X',
 ):
     if needle not in importer_text:
-        fail(f"BTR fallback import path missing {needle!r}")
+        fail(f"canonical BTR import path missing {needle!r}")
 
+for needle in (
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'SOURCE_KIND=BTR4:authored_external_visual_canonical_plus_x',
+    'BTR4_FORWARD_AXIS=+X',
+    'build_btr4_glb(BTR_GENERATED_SOURCE)',
+):
+    if needle not in vehicle_importer_text:
+        fail(f"main production importer canonical-axis contract missing {needle!r}")
+
+# Keep the development-only FBX helper material-safe, but it must not be the automatic canonical path.
 for needle in (
     'options.set_editor_property("import_materials", True)',
     'options.set_editor_property("import_textures", True)',
 ):
     if needle not in vehicle_importer_text:
-        fail(f"local FBX authored material import contract missing {needle!r}")
+        fail(f"development FBX authored material helper missing {needle!r}")
+
+if 'SOURCE_KIND=BTR4:local_user_fbx' in vehicle_importer_text:
+    fail("unverified local FBX is still auto-promoted to canonical BTR source")
 
 if not (BTR_SOURCE / "SOURCE_METADATA.txt").is_file():
     fail("BTR source metadata is missing")
 
-# The repository intentionally does not ship the user-selected FBX/texture payload unless its
-# redistribution status is verified. When absent, the generated fallback is therefore authoritative.
 local_fbx = BTR_SOURCE / "BTR4_Bucephalus.fbx"
 if local_fbx.exists():
-    print("- local BTR4 FBX exists; importer must use its authored material/texture path")
+    print("- local BTR4 FBX exists but remains development-only until forward-axis/provenance calibration is accepted")
 else:
-    print("- local BTR4 FBX absent; repository-safe authored GLB fallback is the active source path")
+    print("- local BTR4 FBX absent; repository-safe +X-forward authored GLB remains canonical")
 
 module = load_generator()
 with tempfile.TemporaryDirectory() as temp_dir:
@@ -131,7 +144,7 @@ if extras.get("pass45_authored_material_contract") is not True:
     fail("Pass45 authored material provenance marker missing from generated GLB")
 
 print("PASS45 BTR4 AUTHORED MATERIAL: PASS")
-print("- repository-safe BTR-4 fallback GLB carries an explicit authored PBR material")
-print("- primitive slot 0 is bound to that material and retains COLOR_0 presentation data")
-print("- local FBX path still imports authored materials/textures when the licensed payload is present")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 import/runtime material validation remains authoritative")
+print("- repository-safe BTR-4 GLB carries an explicit authored PBR material and factual +X-forward contract")
+print("- canonical import no longer changes source merely because an uncalibrated local FBX exists")
+print("- development FBX helper still preserves authored materials/textures when deliberately used")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 import/runtime material and orientation validation remains authoritative")
