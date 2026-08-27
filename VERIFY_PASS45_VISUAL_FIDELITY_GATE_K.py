@@ -95,7 +95,7 @@ for needle in (
 
 # Visual cleanup must not be 'solved' by reducing native render scale or automatic quality.
 require(visual_perf, "SetResolutionScaleValueEx(100.0f)", "native render scale contract")
-require(visual_perf, "Texture Quality 3", "texture quality contract")
+require(visual_perf, "GameSettings->SetTextureQuality(3);", "texture quality contract")
 
 print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
