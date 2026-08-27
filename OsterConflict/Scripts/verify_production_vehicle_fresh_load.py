@@ -7,7 +7,7 @@ PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.proje
 CACHE_DIR = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 IMPORT_SENTINEL = CACHE_DIR / "production_import_success.txt"
 SENTINEL = CACHE_DIR / "production_fresh_load_success.txt"
-IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"
+IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"
 
 EXPECTED = (
     ("HMMWV", "/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA"),
@@ -84,9 +84,16 @@ def main():
         source_kinds[label] = source_kind
 
     btr_forward_axis = parsed.get("BTR4_FORWARD_AXIS", [])
+    btr_gltf_up_axis = parsed.get("BTR4_GLTF_UP_AXIS", [])
+    btr_internal_up_axis = parsed.get("BTR4_INTERNAL_UP_AXIS", [])
     if "/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" in imported_paths:
         if btr_forward_axis != ["+X"]:
             fail(f"BTR4 canonical import is missing factual +X forward provenance: {btr_forward_axis}")
+        if btr_gltf_up_axis != ["+Y"] or btr_internal_up_axis != ["+Z"]:
+            fail(
+                "BTR4 R3 canonical import is missing factual up-axis provenance: "
+                f"gltf_up={btr_gltf_up_axis} internal_up={btr_internal_up_axis}"
+            )
 
     loaded = []
     fresh_lines = [f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}"]
@@ -129,6 +136,8 @@ def main():
                 )
             fresh_lines.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
             fresh_lines.append("BTR4_FORWARD_AXIS=+X")
+            fresh_lines.append("BTR4_GLTF_UP_AXIS=+Y")
+            fresh_lines.append("BTR4_INTERNAL_UP_AXIS=+Z")
             fresh_lines.append(f"SOURCE_KIND=BTR4:{source_kind}")
 
         loaded.append(object_path)
