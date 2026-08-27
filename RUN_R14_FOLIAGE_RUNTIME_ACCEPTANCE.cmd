@@ -13,10 +13,10 @@ if not exist "%BASE_ACCEPTANCE%" (
 )
 
 echo ============================================================
-echo OSTER CONFLICT - FOLIAGE RUNTIME ACCEPTANCE PASS 10
+echo OSTER CONFLICT - FOLIAGE RUNTIME ACCEPTANCE PASS 10 / PASS45
 echo ============================================================
 echo This run proves that source-only cube ground-cover proxies are
- echo retired and real dense foliage owns visible gameplay grass.
+ echo physically destroyed and real dense foliage owns visible gameplay grass.
 echo.
 
 call "%BASE_ACCEPTANCE%"
@@ -40,12 +40,20 @@ if not errorlevel 1 (
   exit /b 41
 )
 
-findstr /C:"PASS10_GROUND_COVER_PROXY_RETIRED" "%PLAYTEST_LOG%" >nul
+findstr /C:"PASS45_GROUND_COVER_PRIMITIVES_DESTROYED" "%PLAYTEST_LOG%" >nul
 if errorlevel 1 (
-  echo [STOP] Source-only GrassMown/GrassRough/GrassWetland proxies were not proved retired.
+  echo [STOP] GrassMown/GrassRough/GrassWetland proxy components were not proved destroyed.
   echo Log: %PLAYTEST_LOG%
   pause
   exit /b 42
+)
+
+findstr /C:"PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED" "%PLAYTEST_LOG%" >nul
+if errorlevel 1 (
+  echo [STOP] Developer reference markers/text labels were not proved destroyed.
+  echo Log: %PLAYTEST_LOG%
+  pause
+  exit /b 44
 )
 
 findstr /C:"PASS10_FOLIAGE_RUNTIME_READY" "%PLAYTEST_LOG%" >nul
@@ -57,9 +65,11 @@ if errorlevel 1 (
   exit /b 43
 )
 
-echo [PASS] PASS10_GROUND_COVER_PROXY_RETIRED found.
+echo [PASS] PASS45_GROUND_COVER_PRIMITIVES_DESTROYED found.
+echo [PASS] PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED found.
 echo [PASS] PASS10_FOLIAGE_RUNTIME_READY found.
 echo [PASS] Runtime uses real DenseGrass HISM ground cover instead of source-only cube slabs.
+echo [NOTE] Gate K remains open while other BasicShape/proxy core families still exist.
 echo [NOTE] Shimmer/density still requires direct visual observation while moving the camera.
 pause
 exit /b 0
