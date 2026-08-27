@@ -20,6 +20,7 @@ def main() -> int:
         "PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED",
         "PASS45_AUTHORED_VEGETATION_READY",
         "PASS45_AUTHORED_ROAD_SURFACE_READY",
+        "PASS45_AUTHORED_WORLD_FENCE_READY",
         "PASS45_GATE_K_RUNTIME_READY",
     )
     forbidden = (
@@ -47,6 +48,7 @@ def main() -> int:
     print("- obsolete ground-cover cubes were destroyed and authored dense foliage owns runtime grass")
     print("- developer reference markers/text labels were destroyed")
     print("- Roads/Sidewalks were upgraded to tracked Scene_RoadsideConstruction authored meshes/materials")
+    print("- visible general world Fences were upgraded to committed AdvancedVillagePack SM_Fence_Var01")
     print("- final Oster sector + authoritative stadium contain zero visible Engine BasicShape static meshes")
     print("STATUS: AUTOMATED RUNTIME CONTRACT ONLY; direct screenshot fidelity acceptance remains required")
     return 0
