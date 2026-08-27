@@ -11,6 +11,7 @@ CULTURE_MODEL = SRC / "Private/OCR146CultureHousePhotoModelSubsystem.cpp"
 GEO_REFERENCE = SRC / "Private/OCGeoReference.cpp"
 VALIDATOR_H = SRC / "Public/OCWorldGeometryStabilitySubsystem.h"
 VALIDATOR_CPP = SRC / "Private/OCWorldGeometryStabilitySubsystem.cpp"
+SURFACE_UPGRADE = SRC / "Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
 VISUAL_ENVIRONMENT = SRC / "Private/OCVisualEnvironment.cpp"
 WORLD_SECTOR = SRC / "Private/OCWorldSectorOster.cpp"
 ENGINE_CONFIG = ROOT / "OsterConflict/Config/DefaultEngine.ini"
@@ -47,13 +48,7 @@ def forbid(text: str, needle: str, where: str) -> None:
 
 
 def has_semantic_material_write(source: str) -> bool:
-    """Detect a SetMaterial write tied locally to a tracked world-sector family.
-
-    A whole-file token co-occurrence is intentionally insufficient: Pass6 legitimately references
-    Roads/Sidewalks while removing obsolete BASE instances and separately calls SetMaterial on weapons.
-    The ownership gate therefore requires the semantic family token to be in the same local material-write
-    context rather than elsewhere in an unrelated function.
-    """
+    """Detect a SetMaterial write tied locally to a tracked world-sector family."""
     semantic_tokens = ('TEXT("Ground")', 'TEXT("Roads")', 'TEXT("Sidewalks")')
     for match in re.finditer(r"\bSetMaterial\s*\(", source):
         start = max(0, match.start() - 1800)
@@ -71,21 +66,20 @@ culture_model = read(CULTURE_MODEL)
 geo_reference = read(GEO_REFERENCE)
 header = read(VALIDATOR_H)
 validator = read(VALIDATOR_CPP)
+surface_upgrade = read(SURFACE_UPGRADE)
 visual_environment = read(VISUAL_ENVIRONMENT)
 world_sector = read(WORLD_SECTOR)
 engine_config = read(ENGINE_CONFIG)
 launcher = read(LAUNCHER)
 
 # Pass45 runtime evidence rejected the old generic AdvancedVillagePack/recovered presentation owners.
-# World-stability CI must protect their physical retirement rather than requiring their resurrection.
 for path in RETIRED_GENERIC_OWNERS:
     if path.exists():
         raise SystemExit(
             f"PASS12 WORLD STABILITY VERIFY FAIL: rejected generic/recovered owner resurrected: {path.relative_to(ROOT)}"
         )
 
-# Pass45 P0 black-world correction is one coherent exposure/lighting contract. UE 5.8 Directional Light
-# intensity is lux, so physical daylight must not be paired with disabled adaptation or the legacy luminance range.
+# Pass45 P0 black-world correction is one coherent exposure/lighting contract.
 for needle in (
     "bReplicates = true;",
     "bAlwaysRelevant = true;",
@@ -109,18 +103,38 @@ require(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRang
 forbid(engine_config, "r.DefaultFeature.AutoExposure=False", "Pass45 renderer exposure contract")
 forbid(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=False", "Pass45 EV100 exposure contract")
 
-# The accepted source-only semantic world baseline remains owned by AOCWorldSectorOster. Do not allow
-# a new late owner to target Ground/Roads/Sidewalks with SetMaterial after that baseline.
+# AOCWorldSectorOster may still author the initial semantic Cube transforms, but item31 requires Roads/Sidewalks
+# to be upgraded to tracked authored Scene_RoadsideConstruction meshes before the 12-second stability baseline.
 for needle in (
     "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
     "Tint(Ground",
     "Tint(Roads",
     "Tint(Sidewalks",
 ):
-    require(world_sector, needle, "accepted semantic world-material owner")
+    require(world_sector, needle, "initial semantic world-material owner")
+
+for needle in (
+    "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01",
+    "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01",
+    "UpgradeCubeFamily",
+    "Component->SetStaticMesh(AuthoredMesh);",
+    "Component->EmptyOverrideMaterials();",
+    "ElapsedSeconds < 0.75f",
+    "PASS45_AUTHORED_ROAD_SURFACE_READY",
+    "basicshape_meshes=0",
+    "basicshape_material_overrides=0",
+    "topology_preserved=1",
+    "pass12_baseline_deadline_s=12",
+):
+    require(surface_upgrade, needle, "item31 authored road/sidewalk upgrade")
+for stale in (
+    "SetMaterial(",
+    "BasicShapeMaterial.BasicShapeMaterial",
+):
+    forbid(surface_upgrade, stale, "authored surface upgrade must preserve packaged materials")
 
 for cpp_path in (SRC / "Private").glob("*.cpp"):
-    if cpp_path == WORLD_SECTOR or cpp_path.name == "OCR13StadiumSurfaceSubsystem.cpp":
+    if cpp_path in (WORLD_SECTOR, SURFACE_UPGRADE) or cpp_path.name == "OCR13StadiumSurfaceSubsystem.cpp":
         continue
     source = read(cpp_path)
     if has_semantic_material_write(source):
@@ -129,8 +143,7 @@ for cpp_path in (SRC / "Private").glob("*.cpp"):
             f"{cpp_path.relative_to(ROOT)}"
         )
 
-# Gate D identity contract: R13.7 must encode a residential Solonyna-house silhouette, while the explicitly
-# six-column civic facade belongs only to R14.6 Culture House on its own georeferenced site.
+# Gate D identity contract remains unchanged.
 for needle in (
     'Model->Tags.Add(TEXT("R137_MuseumPhotoModel"));',
     'TEXT("R137Museum_BrickBody")',
@@ -158,7 +171,6 @@ for needle in (
 require(geo_reference, 'TEXT("MuseumSolonyna"), 50.948239, 30.883865', "Museum geo identity")
 require(geo_reference, 'TEXT("OsterCultureHouse"), 50.948694, 30.881435', "Culture House geo identity")
 
-# The authoritative location startup must cancel historical delayed timers before immediate builds.
 for needle in (
     "SetTimerForNextTick",
     "RunAuthoritativeStartup",
@@ -169,8 +181,6 @@ for needle in (
 ):
     require(coordinator, needle, "landmark startup coordinator")
 
-# Pass45 retires the old mutating reconciliation loop. Separation is one bounded validation-only pass after
-# current landmark startup and now validates authoritative Museum/Culture identity as well as generic parcels.
 for needle in (
     "constexpr float ValidationDelaySeconds",
     "ValidateSeparation",
@@ -207,7 +217,7 @@ if not delay_match:
     raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark validation delay is not explicit")
 delay_seconds = float(delay_match.group(1))
 if delay_seconds <= 0.0 or delay_seconds >= 12.0:
-    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark validation must be bounded and finish before 12 s baseline capture")
+    raise SystemExit("PASS12 WORLD STABILITY VERIFY FAIL: landmark validation must finish before 12 s baseline capture")
 
 for needle in (
     "UOCWorldGeometryStabilitySubsystem",
@@ -233,13 +243,23 @@ for needle in (
     'TEXT("Roads")',
     'TEXT("Sidewalks")',
     "ValidateSemanticMaterials",
+    "HasColorMID",
+    "HasAuthoredSurface",
     "UMaterialInstanceDynamic",
     "GetAllVectorParameterInfo",
     'Parameter.Name == TEXT("Color")',
-    "semantic_material_missing_",
+    "SM_Urb_Roa_Asphalt_01",
+    "SM_Urb_Roa_Sidewalk_01",
     "semantic_mid_missing_",
     "semantic_color_parameter_missing_",
+    "authored_surface_mesh_missing_",
+    "authored_surface_mesh_invalid_",
+    "authored_surface_material_missing_",
+    "authored_surface_basicshape_material_",
     "PASS45_WORLD_MATERIAL_BASELINE_READY",
+    "ground_legacy_mid=1",
+    "authored_surface_families=2",
+    "basicshape_road_materials=0",
     "PASS45_WORLD_MATERIAL_STABLE",
     "late_geometry_mutation_",
     "PASS12_WORLD_GEOMETRY_BASELINE_CAPTURED",
@@ -258,16 +278,11 @@ for needle in (
 ):
     require(launcher, needle, "Pass12 Windows launcher")
 
-print("WORLD GEOMETRY STABILITY PASS12/PASS45 SOURCE CONTRACT PASS")
-print("- historical landmark delayed timers are cancelled by the authoritative startup coordinator")
-print("- landmark separation/identity is one bounded validation-only pass with mutation=0")
-print("- R13.7 Museum source has no six-column civic signature; R14.6 Culture House owns the six-column facade")
-print("- runtime identity validation requires one Museum owner, one Culture owner, zero cross-parcel authoritative instances and six Culture column shafts")
-print("- rejected generic world/decorator/recovered owners remain physically retired")
-print("- Pass45 daylight is component-owned, replicated and paired: 120000 lux + AutoExposure=True + extended EV100 range")
-print("- AOCWorldSectorOster remains the accepted Ground/Roads/Sidewalks semantic-material owner")
-print("- no second source owner may target those semantic families with SetMaterial")
-print("- validation completes before the 12 s Pass12 baseline")
-print("- Pass12 snapshots source geometry and validates semantic MID/Color at 12s, 16s and 20s")
-print("- missing/broken semantic materials emit a family-specific runtime FAIL marker")
+print("WORLD GEOMETRY STABILITY PASS12/PASS45 ITEM31 SOURCE CONTRACT PASS")
+print("- historical landmark delayed timers remain cancelled and identity validation stays mutation-free")
+print("- Pass45 daylight remains component-owned: 120000 lux + AutoExposure=True + extended EV100 range")
+print("- Ground remains the explicit legacy semantic MID content gap")
+print("- Roads/Sidewalks upgrade before baseline to tracked authored asphalt/sidewalk meshes with packaged materials")
+print("- Pass12 requires those authored surfaces at 12s, 16s and 20s and rejects BasicShape road materials")
+print("- no unrelated late source owner may mutate Ground/Roads/Sidewalks materials")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence still required")
