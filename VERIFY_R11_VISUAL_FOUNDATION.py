@@ -52,8 +52,12 @@ req('SpawnActor<AOCVisualEnvironment>' in gm, 'GameMode spawns visual environmen
 req(gm.find('SpawnActor<AOCVisualEnvironment>') < gm.find('SpawnActor<AOCWorldSectorOster>'), 'lighting spawns before source world')
 
 req('virtual void BeginPlay() override;' in world_h, 'world has runtime material pass')
-for token in ['Tint(Ground','Tint(Roads','Tint(Buildings','Tint(ResidentialRoofs','Tint(TreeCrowns','Tint(Waterways','Tint(StadiumGeometry']:
+for token in ['Tint(Ground','Tint(Roads','Tint(Buildings','Tint(ResidentialRoofs','Tint(Waterways','Tint(StadiumGeometry']:
     req(token in world, f'world palette marker {token}')
+req(all(token in world for token in ['AuthoredDeciduousTrees','AuthoredPine01Trees','AuthoredPine03Trees']),
+    'PASS45 authored vegetation family is present')
+req('Tint(AuthoredDeciduousTrees' not in world and 'Tint(AuthoredPine01Trees' not in world and 'Tint(AuthoredPine03Trees' not in world,
+    'PASS45 authored tree materials are not overwritten by BasicShape palette tint')
 req('ReferenceMarkers->SetVisibility(false, true)' in world, 'authoring reference markers hidden in gameplay')
 req('Label->SetVisibility(false, true)' in world, 'authoring labels hidden in gameplay')
 
