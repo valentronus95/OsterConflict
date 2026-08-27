@@ -194,6 +194,9 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
             AuthoredInstances,
             RejectedProxyComponents,
             PrimitiveTreeMeshes);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_AUTHORED_TREE_FAMILY_READY primitive_tree_components=0 authored_tree_components=3 basicshape_tree_meshes=0 authored_instances=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 oak_asset_verified=0"),
+            AuthoredInstances);
     }
 
     return bReady;
