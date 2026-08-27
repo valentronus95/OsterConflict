@@ -11,7 +11,7 @@ PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.proje
 SOURCE_ROOT = PROJECT_DIR / "SourceAssets" / "Production"
 CACHE_ROOT = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 SUCCESS_SENTINEL = CACHE_ROOT / "production_import_success.txt"
-IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"
+IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -263,9 +263,6 @@ def attempt(label, source, import_fn, gaps, imported, provenance, source_kind):
 
 
 def import_btr4(provenance):
-    # PASS45 item 30: only the repository-authored fallback has a factual positive-X nose contract.
-    # A local FBX may still be used manually for development, but never auto-promoted to canonical runtime
-    # until its forward sign and redistribution provenance are explicitly verified.
     if BTR_SOURCE.exists():
         log(
             f"BTR-4 local FBX detected at {BTR_SOURCE}, but canonical import skips it because "
@@ -277,14 +274,16 @@ def import_btr4(provenance):
     if not BTR_GENERATED_SOURCE.is_file() or BTR_GENERATED_SOURCE.stat().st_size <= 0:
         fail("Repository-safe authored BTR-4 fallback GLB generation produced no usable file.")
     log(
-        "BTR-4 importing repository-safe authored GLB fallback with explicit +X forward and "
-        "M_BTR4_OC_Authored PBR material contracts."
+        "BTR-4 importing repository-safe authored GLB fallback with explicit +X forward, glTF +Y up, "
+        "and M_BTR4_OC_Authored PBR material contracts."
     )
     imported_path = import_glb_combined(BTR_GENERATED_SOURCE, BTR_DEST, BTR_NAME)
     provenance.append("SOURCE_KIND=BTR4:authored_external_visual_canonical_plus_x")
     provenance.append(f"SOURCE_PATH=BTR4:{BTR_GENERATED_SOURCE}")
     provenance.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
     provenance.append("BTR4_FORWARD_AXIS=+X")
+    provenance.append("BTR4_GLTF_UP_AXIS=+Y")
+    provenance.append("BTR4_INTERNAL_UP_AXIS=+Z")
     return imported_path
 
 
