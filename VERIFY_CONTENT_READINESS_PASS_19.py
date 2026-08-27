@@ -32,13 +32,10 @@ vehicle_fresh = read(ROOT / "OsterConflict" / "Scripts" / "verify_production_veh
 m2_launcher = read(ROOT / "RUN_IMPORT_M2_PRODUCTION.cmd")
 btr_launcher = read(ROOT / "RUN_IMPORT_BTR4_PRODUCTION.cmd")
 
-# Generic real meshes are explicitly fallback-only and can never manufacture a production-ready tag.
 require(fallback, 'RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"))', "fallback identity")
 require(fallback, "exact_production=0 playable_fallback=1", "fallback truth log")
 forbid(fallback, "Visual->ComponentTags.Add(ProductionVisualTag);", "generic fallback pretending to be production")
 
-# Pass45 Gate F validates the required rack as exact production OR explicit real fallback. The fallback remains
-# truthfully labelled CONTENT GAP for exact art and the validator is observation-only for rack visuals.
 for needle in (
     "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
     "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
@@ -51,7 +48,6 @@ for needle in (
 forbid(strict, "PASS7_PRODUCTION_WEAPONS_READY", "obsolete all-exact rack readiness")
 forbid(strict, "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL", "obsolete all-exact rack failure")
 
-# Pass 19 proves all 11 classes are playable through exact OR explicit real fallback visuals.
 for needle in (
     "AllRequiredRackWeaponClassesMask", "OC_RuntimeBaseWeaponRack", "OC_ProductionWeaponVisual",
     "OC_RealFallbackWeaponVisual", "AOCWeapon_M14", "AOCWeapon_Mac10", "AOCWeapon_Tec9",
@@ -65,10 +61,6 @@ require(launcher, "PASS19_PLAYABLE_WEAPON_SET_READY", "focused launcher playable
 require(launcher, "PASS19_PLAYABLE_WEAPON_SET_FAIL", "focused launcher failure gate")
 forbid(launcher, "PASS7_PRODUCTION_WEAPONS_READY", "focused launcher exact-art false certification")
 
-# Pass45 supersedes the old all-or-nothing / absent-BTR contract. HMMWV and M2 remain independent external
-# sources. BTR canonical runtime intake is the repository-authored GLB with explicit PBR material and factual
-# +X-forward provenance. A detected local FBX remains development-only until its axis sign and provenance are
-# explicitly calibrated; merely existing on disk may never override the canonical Pass45 asset.
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
@@ -80,8 +72,10 @@ for needle in (
     "build_btr4_glb(BTR_GENERATED_SOURCE)",
     "authored_external_visual_canonical_plus_x",
     "M_BTR4_OC_Authored",
-    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"',
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
     "canonical import skips it",
     "other independent assets will continue",
     "CONTENT_GAP=",
@@ -90,32 +84,38 @@ for needle in (
 forbid(vehicle_import, 'attempt("BTR4"', "obsolete BTR source-missing attempt path")
 forbid(vehicle_import, "ensure_sources_exist()", "obsolete all-or-nothing production source gate")
 forbid(vehicle_import, "PASS45_MATERIAL_CLOSURE_20260826_R1", "stale pre-axis BTR import revision")
+forbid(vehicle_import, "PASS45_BTR_AXIS_OPTIC_20260827_R2", "sideways BTR R2 import revision")
 
-# The command wrapper exposes independent model outcomes and enforces current BTR axis provenance before and
-# after fresh load. Local source recovery may fail while the repository-authored canonical BTR remains available.
 for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
     'set "BTR_AXIS_READY=0"',
+    'set "BTR_GLTF_UP_READY=0"',
+    'set "BTR_INTERNAL_UP_READY=0"',
     "canonical BTR authored fallback remains available.",
     "BTR4_FORWARD_AXIS=+X",
-    "PASS45_BTR_AXIS_OPTIC_20260827_R2",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
+    "PASS45_BTR_GLTF_Y_UP_20260827_R3",
 ):
     require(vehicle_cmd, needle, "independent production vehicle command truth")
 forbid(vehicle_cmd, "PASS45_MATERIAL_CLOSURE_20260826_R1", "stale pre-axis command revision")
+forbid(vehicle_cmd, "PASS45_BTR_AXIS_OPTIC_20260827_R2", "sideways BTR R2 command revision")
 
-# Normal intake freshness is revision-based, authored-material based and axis-provenance based, not file existence.
 for needle in (
-    "PASS45_BTR_AXIS_OPTIC_20260827_R2",
+    "PASS45_BTR_GLTF_Y_UP_20260827_R3",
     "production_import_success.txt",
     "production_fresh_load_success.txt",
     "Existing .uasset files are not sufficient proof of current materials/orientation.",
     "FRESH_LOADED=/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus",
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
 ):
     require(vehicle_try, needle, "current production freshness gate")
 forbid(vehicle_try, "PASS45_MATERIAL_CLOSURE_20260826_R1", "stale pre-axis quick-intake revision")
+forbid(vehicle_try, "PASS45_BTR_AXIS_OPTIC_20260827_R2", "sideways BTR R2 quick-intake revision")
 
 for needle in (
     "AUTHORED_MATERIALS_READY",
@@ -123,25 +123,26 @@ for needle in (
     "basicshapematerial",
     "defaultmaterial",
     "_defaultmat",
-    "PASS45_BTR_AXIS_OPTIC_20260827_R2",
+    "PASS45_BTR_GLTF_Y_UP_20260827_R3",
     "M_BTR4_OC_Authored",
     "BTR4_FORWARD_AXIS",
+    "BTR4_GLTF_UP_AXIS",
+    "BTR4_INTERNAL_UP_AXIS",
     'source_kind != "authored_external_visual_canonical_plus_x"',
     "SOURCE_KIND=BTR4:",
 ):
     require(vehicle_fresh, needle, "fresh-load authored material/axis truth")
 forbid(vehicle_fresh, "PASS45_MATERIAL_CLOSURE_20260826_R1", "stale pre-axis fresh-load revision")
+forbid(vehicle_fresh, "PASS45_BTR_AXIS_OPTIC_20260827_R2", "sideways BTR R2 fresh-load revision")
 
-# Standalone asset-intake helpers retain their narrower truth semantics. The M2 helper requires downloaded source;
-# the dedicated BTR user-source helper proves only the local-user-FBX route, not the canonical fallback route.
 require(m2_launcher, "source_kind=downloaded", "real M2 source requirement")
 require(btr_launcher, "source_kind=local_user_fbx", "dedicated local BTR4 source helper")
 
-print("CONTENT READINESS PASS 19 + PASS45 BTR R2 MATERIAL/AXIS INTAKE CONTRACT PASS")
+print("CONTENT READINESS PASS 19 + PASS45 BTR R3 MATERIAL/AXIS INTAKE CONTRACT PASS")
 print("- generic weapon fallback meshes do not impersonate production art")
 print("- Gate F validates exact production OR explicit real fallback while exact payload gaps stay CONTENT GAP")
 print("- Pass 19 separately proves an 11-class playable real-mesh rack")
 print("- HMMWV/M2 remain independent external-source imports")
-print("- BTR canonical runtime intake is the repository-authored +X-forward GLB; uncalibrated local FBX cannot override it")
-print("- imported vehicle meshes must reopen under the current revision with authored non-placeholder materials and BTR +X provenance")
+print("- BTR canonical runtime intake is repository-authored +X-forward with explicit glTF +Y-up/internal +Z-up provenance")
+print("- imported vehicle meshes must reopen under R3 with authored non-placeholder materials and complete BTR axis provenance")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime and rendered asset intake remain required")
