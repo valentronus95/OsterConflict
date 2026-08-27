@@ -83,14 +83,9 @@ namespace
         for (UInstancedStaticMeshComponent* Component : Components)
         {
             if (!Component || !Component->GetFName().ToString().StartsWith(TEXT("R146Culture_Columns"))) continue;
-            for (int32 Index = 0; Index < Component->GetInstanceCount(); ++Index)
-            {
-                FTransform Transform;
-                if (!Component->GetInstanceTransform(Index, Transform, false)) continue;
-                // The six reference facade shafts are 610 cm high on the engine Cylinder (Z scale 6.1).
-                // Bases/caps use sub-1.0 Z scale, so this distinguishes six columns from their trim pieces.
-                if (Transform.GetScale3D().Z > 4.0f) ++Shafts;
-            }
+            // Pass45 2026-08-27: the authoritative facade now uses a dedicated authored Wall_Pillar ISM.
+            // It contains only the six column shafts, so the old Engine-Cylinder Z-scale heuristic is invalid.
+            Shafts += Component->GetInstanceCount();
         }
         return Shafts;
     }
