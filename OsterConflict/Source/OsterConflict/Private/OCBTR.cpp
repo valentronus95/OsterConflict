@@ -1,10 +1,13 @@
 #include "OCBTR.h"
 
+#include "OCCharacter.h"
 #include "OCDamageTypes.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
@@ -13,20 +16,6 @@
 
 namespace
 {
-    FQuat ResolveLongAxisToForward(const FVector& NativeSize)
-    {
-        FVector NativeForward = FVector::ForwardVector;
-        if (NativeSize.Y >= NativeSize.X && NativeSize.Y >= NativeSize.Z)
-        {
-            NativeForward = FVector::RightVector;
-        }
-        else if (NativeSize.Z >= NativeSize.X && NativeSize.Z >= NativeSize.Y)
-        {
-            NativeForward = FVector::UpVector;
-        }
-        return FQuat::FindBetweenNormals(NativeForward, FVector::ForwardVector);
-    }
-
     bool ApplyProportionalGroundedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
         float DesiredLengthCm, float GroundZCm)
     {
@@ -39,10 +28,23 @@ namespace
             return false;
         }
 
-        const float UniformScale = DesiredLengthCm / NativeLength;
-        const FQuat AxisCorrection = ResolveLongAxisToForward(NativeSize);
-        const FVector CorrectedOrigin = AxisCorrection.RotateVector(Bounds.Origin);
-        const FVector CorrectedExtent = AxisCorrection.RotateVector(Bounds.BoxExtent).GetAbs();
+        // PASS45 item 30: the canonical BTR source is authored with +X as the nose/forward axis.
+        // Do not guess another longest axis or its sign at runtime. If import transposes that contract,
+        // reject the production presentation instead of confidently driving a BTR backwards.
+        const bool bCanonicalPositiveXForward =
+            NativeSize.X >= NativeSize.Y && NativeSize.X >= NativeSize.Z;
+        if (!bCanonicalPositiveXForward)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_BTR4_FORWARD_AXIS_FAIL native_cm=%s expected_long_axis=X canonical_forward=+X production_visible=0"),
+                *NativeSize.ToCompactString());
+            return false;
+        }
+
+        const float UniformScale = DesiredLengthCm / NativeSize.X;
+        const FQuat AxisCorrection = FQuat::Identity;
+        const FVector CorrectedOrigin = Bounds.Origin;
+        const FVector CorrectedExtent = Bounds.BoxExtent.GetAbs();
 
         FVector Location = -CorrectedOrigin * UniformScale;
         Location.Z = GroundZCm - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale;
@@ -53,6 +55,9 @@ namespace
         Component->SetRelativeLocation(Location);
         Component->EmptyOverrideMaterials();
 
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BTR4_FORWARD_AXIS_READY canonical_forward=+X runtime_axis_correction=identity native_cm=%s"),
+            *NativeSize.ToCompactString());
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_BTR4_PROPORTIONAL_VISUAL_READY native_cm=%s uniform_scale=%.4f desired_length_cm=%.1f axis_correction=%s nonuniform_stretch=0"),
             *NativeSize.ToCompactString(), UniformScale, DesiredLengthCm, *AxisCorrection.Rotator().ToCompactString());
@@ -105,6 +110,15 @@ AOCBTR::AOCBTR()
     BarrelMesh->SetRelativeLocation(FVector(118.0f, 0.0f, 0.0f));
     BarrelMesh->SetRelativeScale3D(FVector(2.35f, 0.11f, 0.11f));
     TurretBaseMesh->SetRelativeScale3D(FVector(1.05f, 1.05f, 0.34f));
+
+    // Remote weapon station optic: unlike the HMMWV open-ring camera, the BTR operator looks
+    // through a sensor that follows both the turret yaw hierarchy and the barrel pitch hierarchy.
+    if (GunnerCameraPivot && BarrelPivot)
+    {
+        GunnerCameraPivot->SetupAttachment(BarrelPivot);
+        GunnerCameraPivot->SetRelativeLocation(FVector(64.0f, -36.0f, 35.0f));
+        GunnerCameraPivot->SetRelativeRotation(FRotator::ZeroRotator);
+    }
 
     UpperHull = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("UpperHull"));
     NoseArmor = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NoseArmor"));
@@ -170,6 +184,39 @@ AOCBTR::AOCBTR()
     }
 }
 
+void AOCBTR::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    AOCCharacter* CurrentGunner = GetGunnerCharacter();
+    AOCCharacter* PreviousGunner = ActiveOpticGunner.Get();
+    if (PreviousGunner != CurrentGunner)
+    {
+        if (PreviousGunner && PreviousGunner->IsLocallyControlled())
+        {
+            if (APlayerController* PC = Cast<APlayerController>(PreviousGunner->GetController()))
+            {
+                if (PC->PlayerCameraManager)
+                {
+                    PC->PlayerCameraManager->UnlockFOV();
+                }
+            }
+        }
+        ActiveOpticGunner = CurrentGunner;
+    }
+
+    if (CurrentGunner && CurrentGunner->IsLocallyControlled())
+    {
+        if (APlayerController* PC = Cast<APlayerController>(CurrentGunner->GetController()))
+        {
+            if (PC->PlayerCameraManager)
+            {
+                PC->PlayerCameraManager->SetFOV(BTRRemoteOpticFieldOfView);
+            }
+        }
+    }
+}
+
 bool AOCBTR::CanHullAcceptDamage(const FDamageEvent& DamageEvent) const
 {
     const UClass* DamageClass = DamageEvent.DamageTypeClass;
@@ -215,6 +262,20 @@ void AOCBTR::ApplyVehicleStyle()
 
         UE_LOG(LogTemp, Display,
             TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell with preserved native proportions; visual proxies disabled."));
+
+        const bool bRemoteOpticHierarchyReady = GunnerCameraPivot && BarrelPivot &&
+            GunnerCameraPivot->GetAttachParent() == BarrelPivot;
+        if (bRemoteOpticHierarchyReady)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_BTR4_REMOTE_OPTIC_READY owner=GunnerCameraPivot parent=BarrelPivot follows_yaw=1 follows_pitch=1 locked_fov=%.1f open_ring_view=0"),
+                BTRRemoteOpticFieldOfView);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_BTR4_REMOTE_OPTIC_FAIL parent=BarrelPivot follows_yaw=0 follows_pitch=0"));
+        }
 
         ValidateProductionBTR4MaterialState(TEXT("ApplyVehicleStyle"));
     }
