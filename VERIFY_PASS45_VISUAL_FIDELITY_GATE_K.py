@@ -163,6 +163,36 @@ for needle in (
 ):
     require(surface, needle, "exact ParkPaths migration signature")
 
+# Gate K semantic split regression: the old ParkDetails mixed bucket is quarantine-only. Memorial plaza, stepped
+# approach, skate/fitness and benches have distinct ownership so future authored replacement can be exact rather
+# than blanket-replacing 23 unrelated cubes with one mesh.
+for needle in (
+    'ParkMemorialPlaza = MakeISM(TEXT("ParkMemorialPlaza")',
+    'ParkMemorialApproach = MakeISM(TEXT("ParkMemorialApproach")',
+    'ParkSkateFitness = MakeISM(TEXT("ParkSkateFitness")',
+    'ParkBenches = MakeISM(TEXT("ParkBenches")',
+    "ExpectedMemorialPlaza = 2",
+    "ExpectedMemorialApproach = 4",
+    "ExpectedSkateFitness = 3",
+    "ExpectedBenches = 14",
+    "ExpectedSemanticDetails == 23",
+    "LegacyCount == 0",
+    "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED",
+    "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY",
+    "legacy=0 memorial_plaza=2 memorial_approach=4 skate_fitness=3 benches=14 total=23",
+):
+    require(world, needle, "Central Park semantic detail split")
+forbid(park_source, "AddBox(ParkDetails,", "legacy ParkDetails detail authoring")
+forbid(park_source, "AddBoxRotated(ParkDetails,", "legacy ParkDetails rotated detail authoring")
+for needle in (
+    "AddBox(ParkMemorialPlaza,",
+    "AddBox(ParkMemorialApproach,",
+    "AddBox(ParkSkateFitness,",
+    "AddBoxRotated(ParkSkateFitness,",
+    "AddBox(ParkBenches,",
+):
+    require(park_source, needle, "semantic Central Park detail authoring")
+
 # Pass12 now rejects the old Ground Color MID contract as well. It validates Ground + the four upgraded ISM surface
 # families and tracks ParkPaths/Fences counts so late mutation cannot escape the stability gate.
 for needle in (
@@ -219,12 +249,14 @@ for needle in (
     "PASS45_GROUND_COVER_PRIMITIVES_DESTROYED",
     "PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED",
     "PASS45_AUTHORED_VEGETATION_READY",
+    "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY",
     "PASS45_AUTHORED_GROUND_SURFACE_READY",
     "PASS45_AUTHORED_ROAD_SURFACE_READY",
     "PASS45_PARK_PATH_OWNERSHIP_READY",
     "PASS45_AUTHORED_PARK_PATH_SURFACE_READY",
     "PASS45_AUTHORED_WORLD_FENCE_READY",
     "PASS45_GATE_K_RUNTIME_READY",
+    "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED",
     "PASS45_VISUAL_FIDELITY_CONTENT_GAP",
     "PASS45_GATE_K_RUNTIME_FAIL",
     "PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP",
@@ -246,6 +278,7 @@ require(visual_perf, "GameSettings->SetTextureQuality(3);", "texture quality con
 
 print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
+print("- Central Park detail ownership is fail-closed: legacy ParkDetails=0 and semantic groups=2/4/3/14 (23 total)")
 print("- playable Ground upgrades from Cube + BasicShape MID to tracked SM_Plane_1x1 + M_Inst_Landscape before Pass12 baseline")
 print("- Ground playable footprint and top-Z are preserved by bounds-aware replacement")
 print("- Roads/Sidewalks upgrade from Cube topology to tracked RoadsideConstruction authored surfaces before Pass12 baseline")
@@ -257,5 +290,5 @@ print("- Gate K workflow is triggered by authored-world subsystem source/header 
 print("- final-world Gate K is observation-only and fails closed on visible Engine BasicShape static meshes")
 print("- main PASS45 runtime acceptance requires Gate K, not a side workflow")
 print("- native 100% render scale / high texture contract remains intact")
-print("- CURRENT CONTENT GAP: ParkGeometry/ParkDetails and authoritative stadium/remaining core BasicShape families still block Gate K")
-print("STATUS: ITEM 31 PARTIAL; Gate K cannot be marked complete until those authored replacements exist and runtime reports READY")
+print("- CURRENT CONTENT GAP: ParkGeometry + four semantic park-detail proxy families and authoritative stadium/remaining core BasicShape families still block Gate K")
+print("STATUS: ITEM 31 PARTIAL; semantic ownership is guarded, but Gate K cannot be complete until exact authored replacements and runtime READY evidence exist")
