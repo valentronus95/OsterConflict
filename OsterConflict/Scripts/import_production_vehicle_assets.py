@@ -11,7 +11,7 @@ PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.proje
 SOURCE_ROOT = PROJECT_DIR / "SourceAssets" / "Production"
 CACHE_ROOT = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 SUCCESS_SENTINEL = CACHE_ROOT / "production_import_success.txt"
-IMPORT_CONTRACT_REVISION = "PASS45_MATERIAL_CLOSURE_20260826_R1"
+IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -200,6 +200,11 @@ def import_glb_combined(filename, destination_path, asset_name):
 
 
 def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
+    """Development-only helper retained for explicitly calibrated local experiments.
+
+    PASS45 canonical runtime import does not call this helper until the local FBX has a factual
+    forward-axis sign contract and redistribution provenance.
+    """
     stage = CACHE_ROOT / "BTR4"
     if stage.exists():
         shutil.rmtree(stage)
@@ -258,25 +263,28 @@ def attempt(label, source, import_fn, gaps, imported, provenance, source_kind):
 
 
 def import_btr4(provenance):
+    # PASS45 item 30: only the repository-authored fallback has a factual positive-X nose contract.
+    # A local FBX may still be used manually for development, but never auto-promoted to canonical runtime
+    # until its forward sign and redistribution provenance are explicitly verified.
     if BTR_SOURCE.exists():
-        log(f"BTR-4 using local user-selected FBX source: {BTR_SOURCE}")
-        imported_path = import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME)
-        provenance.append("SOURCE_KIND=BTR4:local_user_fbx")
-        provenance.append(f"SOURCE_PATH=BTR4:{BTR_SOURCE}")
-        return imported_path
+        log(
+            f"BTR-4 local FBX detected at {BTR_SOURCE}, but canonical import skips it because "
+            "forward-axis sign/provenance are unverified."
+        )
 
     BTR_GENERATED_SOURCE.parent.mkdir(parents=True, exist_ok=True)
     build_btr4_glb(BTR_GENERATED_SOURCE)
     if not BTR_GENERATED_SOURCE.is_file() or BTR_GENERATED_SOURCE.stat().st_size <= 0:
         fail("Repository-safe authored BTR-4 fallback GLB generation produced no usable file.")
     log(
-        "BTR-4 local FBX is absent; importing repository-safe authored GLB fallback with explicit "
-        "M_BTR4_OC_Authored PBR material contract."
+        "BTR-4 importing repository-safe authored GLB fallback with explicit +X forward and "
+        "M_BTR4_OC_Authored PBR material contracts."
     )
     imported_path = import_glb_combined(BTR_GENERATED_SOURCE, BTR_DEST, BTR_NAME)
-    provenance.append("SOURCE_KIND=BTR4:authored_external_visual")
+    provenance.append("SOURCE_KIND=BTR4:authored_external_visual_canonical_plus_x")
     provenance.append(f"SOURCE_PATH=BTR4:{BTR_GENERATED_SOURCE}")
     provenance.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
+    provenance.append("BTR4_FORWARD_AXIS=+X")
     return imported_path
 
 
