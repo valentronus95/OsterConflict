@@ -17,8 +17,8 @@ namespace
 
     // Pass 45: Pass 17 budgets were authored for the historical much larger sector. On the current
     // 960 x 940 m battlefield, 700-1300 m cull distances effectively kept almost every source family
-    // alive at once. These values preserve long landmark/road silhouette only where useful and keep
-    // small detail, fences, proxy vegetation and park/stadium detail local to infantry sight lines.
+    // alive at once. Primitive tree families are retired by item 26; only authored tree components
+    // receive tree budgets now.
     constexpr FISMRenderBudget Budgets[] =
     {
         { TEXT("Roads"),                  0,  90000, false },
@@ -34,14 +34,9 @@ namespace
         { TEXT("WoodFences"),          6000,  28000, false },
         { TEXT("MetalFences"),         6000,  28000, false },
         { TEXT("LightSheetFences"),    6000,  28000, false },
-        { TEXT("TreeTrunks"),         12000,  36000, false },
-        { TEXT("TreeCrowns"),         12000,  36000, false },
-        { TEXT("SovietPoplarTrunks"), 12000,  36000, false },
-        { TEXT("SovietPoplarCrowns"), 12000,  36000, false },
-        { TEXT("BirchTrunks"),        12000,  36000, false },
-        { TEXT("BirchCrowns"),        12000,  36000, false },
-        { TEXT("PineTrunks"),         12000,  36000, false },
-        { TEXT("PineCrowns"),         12000,  36000, false },
+        { TEXT("AuthoredDeciduousTrees"), 12000, 42000, true  },
+        { TEXT("AuthoredPine01Trees"),    12000, 46000, true  },
+        { TEXT("AuthoredPine03Trees"),    12000, 46000, true  },
         { TEXT("GrassMown"),              0,  16000, false },
         { TEXT("GrassRough"),             0,  18000, false },
         { TEXT("GrassWetland"),           0,  20000, false },
@@ -144,7 +139,7 @@ void UOCWorldRenderBudgetPass17Subsystem::TryApplyBudget()
     World->GetTimerManager().ClearTimer(RetryHandle);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_COMPACT_WORLD_CULL_BUDGET_READY tuned=%d nav_disabled=%d families=%d map_m=960x940 max_landmark_cull_m=950 small_detail_cull_m=240_400"),
+        TEXT("PASS45_COMPACT_WORLD_CULL_BUDGET_READY tuned=%d nav_disabled=%d families=%d map_m=960x940 max_landmark_cull_m=950 authored_tree_max_cull_m=460 small_detail_cull_m=240_400 primitive_tree_budget=0"),
         TunedCount,
         NavigationDisabledCount,
         static_cast<int32>(UE_ARRAY_COUNT(Budgets)));
