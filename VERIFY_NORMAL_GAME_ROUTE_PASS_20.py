@@ -33,7 +33,6 @@ require(start, 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"', "START_HERE fu
 if 'call "%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"' in start:
     raise SystemExit("PASS20 VERIFY FAIL: START_HERE option 1 is incorrectly routed through recovery acceptance")
 
-# Pass45 item 12 makes material freshness part of the user launcher while option 1 remains the normal frontend.
 for needle in (
     ":prepare_materials_optional",
     "TRY_PRODUCTION_VEHICLES_UE58.cmd",
@@ -72,21 +71,23 @@ for needle in (
 if "PASS7_PRODUCTION_WEAPONS_READY" in normal or "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" in normal:
     raise SystemExit("PASS20 VERIFY FAIL: obsolete all-exact rack acceptance returned")
 
-# Command wrapper still owns independent per-model intake results. A failed local source recovery may no longer
-# imply a missing BTR because the canonical importer owns a repository-authored +X-forward fallback.
 for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
     'set "BTR_AXIS_READY=0"',
+    'set "BTR_GLTF_UP_READY=0"',
+    'set "BTR_INTERNAL_UP_READY=0"',
     "Continuing independent intake; canonical BTR authored fallback remains available.",
-    'set "REQUIRED_REVISION=PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'set "REQUIRED_REVISION=PASS45_BTR_GLTF_Y_UP_20260827_R3"',
     'BTR4_FORWARD_AXIS=+X',
+    'BTR4_GLTF_UP_AXIS=+Y',
+    'BTR4_INTERNAL_UP_AXIS=+Z',
 ):
     require(importer, needle, "independent production intake command")
+if "PASS45_BTR_AXIS_OPTIC_20260827_R2" in importer:
+    raise SystemExit("PASS20 VERIFY FAIL: strict production intake still permits stale BTR R2")
 
-# Pass45 supersedes the old `attempt("BTR4")` contract. HMMWV/M2 remain independent external sources;
-# BTR has a dedicated canonical resolver and R2 requires explicit +X-forward provenance for the remote-optic path.
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
@@ -98,14 +99,17 @@ for needle in (
     "build_btr4_glb(BTR_GENERATED_SOURCE)",
     "authored_external_visual",
     "M_BTR4_OC_Authored",
-    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"',
+    "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
 ):
     require(import_py, needle, "current production asset implementation")
 if 'attempt("BTR4"' in import_py:
     raise SystemExit("PASS20 VERIFY FAIL: obsolete BTR-only-missing-source attempt path returned")
+if "PASS45_BTR_AXIS_OPTIC_20260827_R2" in import_py:
+    raise SystemExit("PASS20 VERIFY FAIL: current production importer regressed to BTR R2")
 
-# Local source recovery may still discover a higher-authority user FBX. Its absence no longer means canonical
-# BTR presentation must vanish, because the authored repository fallback is now the current normal intake fallback.
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
@@ -129,9 +133,9 @@ for needle in (
 ):
     require(playable, needle, "focused recovery route remains intact")
 
-print("NORMAL GAME ROUTE PASS 20 + PASS45 BTR R2 MATERIAL/AXIS INTAKE SOURCE CONTRACT PASS")
+print("NORMAL GAME ROUTE PASS 20 + PASS45 BTR R3 MATERIAL/AXIS INTAKE SOURCE CONTRACT PASS")
 print("- START_HERE option 1 stays on the canonical normal-game launcher; option 2 uses the strict main wrapper")
 print("- HMMWV/M2 remain independent external-source imports")
-print("- BTR R2 canonical intake keeps repository-authored fallback and requires +X-forward provenance")
+print("- BTR R3 canonical intake forces repository-authored +X-forward / glTF +Y-up provenance")
 print("- Gate F uses exact production OR explicit real fallback without false production READY")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime still required")
