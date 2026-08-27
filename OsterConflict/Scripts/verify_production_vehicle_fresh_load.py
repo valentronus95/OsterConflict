@@ -7,7 +7,7 @@ PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.proje
 CACHE_DIR = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 IMPORT_SENTINEL = CACHE_DIR / "production_import_success.txt"
 SENTINEL = CACHE_DIR / "production_fresh_load_success.txt"
-IMPORT_CONTRACT_REVISION = "PASS45_MATERIAL_CLOSURE_20260826_R1"
+IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"
 
 EXPECTED = (
     ("HMMWV", "/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA"),
@@ -83,6 +83,11 @@ def main():
         label, source_kind = value.split(":", 1)
         source_kinds[label] = source_kind
 
+    btr_forward_axis = parsed.get("BTR4_FORWARD_AXIS", [])
+    if "/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" in imported_paths:
+        if btr_forward_axis != ["+X"]:
+            fail(f"BTR4 canonical import is missing factual +X forward provenance: {btr_forward_axis}")
+
     loaded = []
     fresh_lines = [f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}"]
 
@@ -111,16 +116,19 @@ def main():
 
         if label == "BTR4":
             source_kind = source_kinds.get("BTR4", "")
-            if not source_kind:
-                fail("BTR4 fresh-load verification has no source provenance marker")
-            if source_kind == "authored_external_visual":
-                authored_names = [str(material.get_name()) for material in materials if material is not None]
-                if not any("M_BTR4_OC_Authored" in name for name in authored_names):
-                    fail(
-                        "Repository-safe BTR4 fallback was imported but its explicit "
-                        f"M_BTR4_OC_Authored material is not bound: materials={material_paths}"
-                    )
-                fresh_lines.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
+            if source_kind != "authored_external_visual_canonical_plus_x":
+                fail(
+                    "BTR4 canonical source kind is not the calibrated +X authored fallback: "
+                    f"source_kind={source_kind!r}"
+                )
+            authored_names = [str(material.get_name()) for material in materials if material is not None]
+            if not any("M_BTR4_OC_Authored" in name for name in authored_names):
+                fail(
+                    "Repository-safe canonical BTR4 was imported but its explicit "
+                    f"M_BTR4_OC_Authored material is not bound: materials={material_paths}"
+                )
+            fresh_lines.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
+            fresh_lines.append("BTR4_FORWARD_AXIS=+X")
             fresh_lines.append(f"SOURCE_KIND=BTR4:{source_kind}")
 
         loaded.append(object_path)
