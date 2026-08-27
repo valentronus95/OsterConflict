@@ -176,12 +176,16 @@ for needle in (
 req("LastValidatedPawnByController" not in spawn_guard_h + spawn_guard,
     "legacy arbitrary-pawn BASE revalidation cache returned")
 
-# Production vehicle visuals preserve mesh proportions and M2 is grounded to its mount plane.
+# Production vehicle visuals preserve mesh proportions. Exact M2 must keep its authored receiver/mount pivot;
+# the runtime-rejected bounds-grounding/longest-axis heuristic may not return.
 for needle in (
     "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY", "nonuniform_stretch=0",
-    "PASS45_M2_MOUNT_ALIGNMENT_READY", "bottom_on_mount=1",
+    "PASS45_M2_AUTHORED_PIVOT_READY", "m2_authored_pivot=1",
+    "bounds_recenter=0", "longest_axis_guess=0",
 ):
     req(needle in pickup, f"HMMWV/M2 corrective transform contract missing: {needle}")
+req("AddGroundedTurretVisual(this, M2Parent, M2, 165.0f" not in pickup,
+    "runtime-rejected exact-M2 bounds grounding returned")
 for needle in ("PASS45_BTR4_PROPORTIONAL_VISUAL_READY", "nonuniform_stretch=0"):
     req(needle in btr, f"BTR4 corrective transform contract missing: {needle}")
 for forbidden in ("DesiredSizeCm.X / NativeSize.X", "DesiredSizeCm.Y / NativeSize.Y", "DesiredSizeCm.Z / NativeSize.Z"):
@@ -335,6 +339,7 @@ print("- latest runtime rejection remains authoritative and retired mutating own
 print("- R13.7 is the one visible Museum exterior; R13.8 is hidden collision/interactivity only")
 print("- VehicleBase owns production-material preservation at source; validation layer is read-only")
 print("- driver/gunner transform evidence proves ordinary vehicle possession cannot silently respawn at Museum")
+print("- exact M2 uses its authored receiver/mount pivot; bounds/longest-axis recenter is rejected")
 print("- M2 default gunner pitch is direct/non-inverted")
 print("- compact reference tactical topology / render budget / authored vegetation contracts remain")
 print("- all required weapons emit mesh/material/texture dependency truth")
