@@ -63,7 +63,7 @@ forbid(foliage_guard, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only f
 for needle in (
     "UOCAuthoredWorldSurfaceUpgradeSubsystem",
     "Before visual acceptance and before the Pass12 12-second stability baseline",
-    "exactly five central-park path transforms",
+    "five central-park path transforms",
     "ParkPaths",
     "SM_Stonepath_Var01",
     "ParkDetails remains reserved",
