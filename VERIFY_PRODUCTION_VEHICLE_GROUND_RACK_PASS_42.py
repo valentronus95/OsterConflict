@@ -62,15 +62,21 @@ for needle in (
 ):
     require(importer, needle, "canonical production importer")
 
-# Runtime classes request imported models and Pass45 preserves native proportions rather than fitting each axis separately.
+# Runtime classes request imported models and preserve native proportions. Exact M2 uses its authored
+# receiver/mount pivot; the rejected bounds-grounding/longest-axis correction must not return.
 for needle in (
     '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
     '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
     'PASS45_HMMWV_PROPORTIONAL_VISUAL_READY',
-    'PASS45_M2_MOUNT_ALIGNMENT_READY',
+    'PASS45_M2_AUTHORED_PIVOT_READY',
+    'm2_authored_pivot=1',
+    'bounds_recenter=0',
+    'longest_axis_guess=0',
     'nonuniform_stretch=0',
 ):
     require(pickup, needle, "HMMWV/M2 runtime visual")
+forbid(pickup, 'AddGroundedTurretVisual(this, M2Parent, M2, 165.0f',
+       "rejected exact-M2 bounds grounding")
 for needle in (
     '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
     'PASS45_BTR4_PROPORTIONAL_VISUAL_READY',
@@ -193,6 +199,7 @@ for needle in (
 
 print("PRODUCTION VEHICLE + GROUNDED RACK + VISUAL/FPS RECOVERY PASS 42/45 SOURCE CONTRACT PASS")
 print("- exact local HMMWV/M2/BTR intake remains wired and production meshes preserve native proportions")
+print("- exact M2 uses its authored receiver/mount pivot; rejected bounds/longest-axis recenter is forbidden")
 print("- VehicleBase skips legacy tint for /Game/Production meshes at the primary source")
 print("- production vehicle guard is one-shot validation-only: no material repair, no polling")
 print("- Museum BASE rack remains grounded with 12 cm clearance")
