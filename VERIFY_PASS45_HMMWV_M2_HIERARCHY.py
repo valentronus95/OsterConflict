@@ -22,16 +22,31 @@ def req(cond: bool, msg: str) -> None:
         errors.append(msg)
 
 
-# Real HMMWV + real M2 must remain the production path.
 for needle in (
     "/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA",
     "/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning",
     "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY",
-    "PASS45_M2_MOUNT_ALIGNMENT_READY",
+    "PASS45_M2_AUTHORED_PIVOT_READY",
 ):
     req(needle in pickup, f"missing production HMMWV/M2 contract: {needle}")
 
-# PASS45 item 27 hierarchy: yaw ring -> pitch root -> M2/muzzle, with the camera owned by the yaw ring.
+# 2026-08-27 runtime rejection: exact M2 floated above the HMMWV after bounds/longest-axis correction.
+# The imported M2 has an authored receiver/mount pivot; exact production must use it unchanged.
+for needle in (
+    "AddAuthoredPivotTurretVisual(this, M2Parent, M2, 165.0f",
+    "Visual->SetRelativeLocation(FVector::ZeroVector);",
+    "Visual->SetRelativeRotation(FRotator::ZeroRotator);",
+    "bounds_recenter=0",
+    "longest_axis_guess=0",
+    "m2_authored_pivot=1",
+):
+    req(needle in pickup, f"exact M2 authored-pivot guard missing: {needle}")
+
+exact_m2_call = pickup.find("AddAuthoredPivotTurretVisual(this, M2Parent, M2, 165.0f")
+req(exact_m2_call >= 0, "exact M2 does not use authored-pivot helper")
+req("AddGroundedTurretVisual(this, M2Parent, M2, 165.0f" not in pickup,
+    "exact M2 regressed to bounds-grounding/longest-axis heuristic")
+
 for needle in (
     'TurretPivot = CreateDefaultSubobject<USceneComponent>(TEXT("TurretPivot"))',
     'BarrelPivot = CreateDefaultSubobject<USceneComponent>(TEXT("BarrelPivot"))',
@@ -49,7 +64,6 @@ req("if (!M2Parent) M2Parent = TurretPivot.Get();" in pickup,
 req("DisableVisualProxy(TurretBaseMesh);" in pickup and "DisableVisualProxy(BarrelMesh);" in pickup,
     "primitive turret/barrel presentation is visible alongside production M2")
 
-# Open HMMWV ring must not retain the generic +/-170-degree hard stop.
 for needle in (
     "bContinuousTurretYaw = true;",
     "FMath::UnwindDegrees(RelativeYaw)",
@@ -60,7 +74,6 @@ for needle in (
 req("GetMaxTurretYawLimit()" in character,
     "gunner input does not consume the vehicle-specific yaw policy")
 
-# Gunner camera must stay on the turret hierarchy while the vehicle and ring move.
 for needle in (
     "GetGunnerCameraWorldLocation() - FVector(0.0f, 0.0f, 64.0f)",
     "GunnerCameraPivot->GetComponentLocation()",
@@ -71,7 +84,6 @@ for needle in (
 ):
     req(needle in pickup + armed, f"turret-owned gunner camera contract missing: {needle}")
 
-# No fake Cube shield: separate shield remains an explicit content gap until authored content exists.
 for needle in (
     "PASS45_HMMWV_M2_SHIELD_CONTENT_GAP",
     "separate_authored_shield=0",
@@ -89,6 +101,7 @@ if errors:
 
 print("PASS45 HMMWV M2 HIERARCHY: PASS")
 print("- real HMMWV and authored M2 remain production owners")
+print("- exact M2 uses its authored receiver/mount pivot; bounds recenter and longest-axis guessing are forbidden")
 print("- TurretPivot owns yaw; BarrelPivot owns pitch/M2/muzzle; GunnerCameraPivot owns the mounted view")
 print("- HMMWV yaw is continuous and no longer limited by the generic +/-170-degree stop")
 print("- separate authored shield is explicitly NOT claimed; no primitive shield fallback is allowed")
