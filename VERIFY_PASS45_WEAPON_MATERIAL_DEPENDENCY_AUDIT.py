@@ -164,50 +164,67 @@ for needle in (
 ):
     req(needle in stein_try, f"Stein R3 freshness wrapper missing: {needle}")
 
-# PASS45 item 30: BTR intake is revision-based and canonical source is the authored +X-forward GLB.
-# The development-only local FBX may not auto-promote until its forward sign/provenance are accepted.
+# PASS45 item 30: BTR intake is R3 revision-based. Canonical source is +X forward internally,
+# with internal +Z up exported through an explicit glTF +Y-up root transform.
 for needle in (
-    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"',
     "from generate_btr4_game_visual import build_btr4_glb",
     "BTR_GENERATED_SOURCE",
     "build_btr4_glb(BTR_GENERATED_SOURCE)",
     "authored_external_visual_canonical_plus_x",
     "BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored",
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
 ):
-    req(needle in production_import, f"production/BTR R2 import contract missing: {needle}")
+    req(needle in production_import, f"production/BTR R3 import contract missing: {needle}")
+req("PASS45_BTR_AXIS_OPTIC_20260827_R2" not in production_import,
+    "sideways BTR R2 import revision returned")
 req("SOURCE_KIND=BTR4:local_user_fbx" not in production_import,
     "uncalibrated local BTR FBX was re-promoted to canonical runtime intake")
 
 for needle in (
-    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"',
     "M_BTR4_OC_Authored",
     "SOURCE_KIND=BTR4:",
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
     "authored_external_visual_canonical_plus_x",
     "AUTHORED_MATERIALS_READY",
 ):
     req(needle in production_fresh, f"production fresh-load material/axis gate missing: {needle}")
+req("PASS45_BTR_AXIS_OPTIC_20260827_R2" not in production_fresh,
+    "production fresh-load regressed to BTR R2")
+
 for needle in (
-    "REQUIRED_REVISION=PASS45_BTR_AXIS_OPTIC_20260827_R2",
+    "REQUIRED_REVISION=PASS45_BTR_GLTF_Y_UP_20260827_R3",
     "Existing .uasset files are not sufficient proof of current materials/orientation.",
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
     "production_fresh_load_success.txt",
 ):
     req(needle in production_try, f"normal production freshness material/axis gate missing: {needle}")
+req("PASS45_BTR_AXIS_OPTIC_20260827_R2" not in production_try,
+    "normal production freshness gate regressed to BTR R2")
 
 for needle in (
-    "REQUIRED_REVISION=PASS45_BTR_AXIS_OPTIC_20260827_R2",
+    "REQUIRED_REVISION=PASS45_BTR_GLTF_Y_UP_20260827_R3",
     "PASS45_NONZERO_COMMANDLET_DEFERRED_TO_FRESH_LOAD",
     "if not exist \"%SUCCESS_SENTINEL%\"",
     "IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%",
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
     "Reopening imported production assets in a fresh UE process",
     "verify_production_vehicle_fresh_load.py",
     "production_fresh_load_success.txt",
     "fresh UE process could not validate imported production models",
 ):
-    req(needle in production_import_cmd, f"production import commandlet/fresh-load R2 contract missing: {needle}")
+    req(needle in production_import_cmd, f"production import commandlet/fresh-load R3 contract missing: {needle}")
+req("PASS45_BTR_AXIS_OPTIC_20260827_R2" not in production_import_cmd,
+    "strict production command regressed to BTR R2")
 
 # One user launcher, one strict vehicle-import owner. START_HERE prepares Stein; CURRENT_GAMEPLAY owns strict vehicle intake.
 for needle in (
@@ -277,7 +294,7 @@ print("- every accepted visual requires non-placeholder material and used-textur
 print("- Stein R3 always owns its runtime mesh slots and requires independent fresh-load dependency proof")
 print("- negative UnrealEditor-Cmd failures cannot slip through START_HERE as PASS")
 print("- production Interchange non-zero diagnostics may continue only through current sentinel + independent fresh-load verification")
-print("- BTR R2 intake is revisioned, authored-material guarded and canonical +X-forward")
+print("- BTR R3 intake is revisioned, authored-material guarded, canonical +X-forward and explicit glTF +Y-up")
 print("- START_HERE/full-test chain has one gameplay launch and one strict vehicle-import owner")
 if production_gaps:
     print("- explicit exact-production CONTENT GAP (not READY):", ", ".join(production_gaps))
