@@ -14,6 +14,7 @@ on:
       - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
       - 'VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py'
+      - 'VERIFY_PASS45_GATE_K_LANDMARK_BASICSHAPE_SCOPE.py'
       - 'VERIFY_VISUAL_QUALITY_TICK_BUDGET_PASS_39.py'
       - '.github/workflows/pass45-visual-fidelity-gate-k.yml'
   push:
@@ -30,6 +31,7 @@ on:
       - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
       - 'VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py'
+      - 'VERIFY_PASS45_GATE_K_LANDMARK_BASICSHAPE_SCOPE.py'
       - 'VERIFY_VISUAL_QUALITY_TICK_BUDGET_PASS_39.py'
       - '.github/workflows/pass45-visual-fidelity-gate-k.yml'
 
@@ -45,3 +47,5 @@ jobs:
           python-version: '3.12'
       - name: Verify Pass45 Gate K source truth
         run: python VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py
+      - name: Verify Pass45 landmark BasicShape inspection scope
+        run: python VERIFY_PASS45_GATE_K_LANDMARK_BASICSHAPE_SCOPE.py
