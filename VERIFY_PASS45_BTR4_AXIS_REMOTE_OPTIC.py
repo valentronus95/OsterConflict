@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pass45 item 30 source gate: BTR canonical +X forward axis and remote optic gameplay."""
+"""Pass45 item 30 source gate: BTR canonical +X forward, glTF Y-up and remote optic gameplay."""
 
 from pathlib import Path
 
@@ -53,8 +53,18 @@ for needle in (
 if "ResolveLongAxisToForward" in cpp:
     fail("ambiguous longest-axis helper was resurrected; forward sign would again be guessed")
 
-if "+X is vehicle forward" not in generator:
-    fail("authored BTR generator no longer declares +X as forward")
+# 2026-08-27 runtime rejection proved that declaring internal +Z up is not enough for a glTF file.
+# glTF is Y-up; the generated root must explicitly map internal +Z -> glTF +Y while preserving +X forward.
+for needle in (
+    "Internal modeling coordinates are +X forward, +Y lateral, +Z up",
+    "glTF is Y-up",
+    "BTR4_Z_UP_TO_GLTF_Y_UP_ROTATION = [-0.7071067811865476, 0.0, 0.0, 0.7071067811865476]",
+    '"rotation": BTR4_Z_UP_TO_GLTF_Y_UP_ROTATION',
+    '"internal_axis_contract": "+X forward, +Z up"',
+    '"gltf_axis_contract": "+X forward, +Y up"',
+):
+    if needle not in generator:
+        fail(f"authored BTR glTF up-axis guard missing {needle!r}")
 
 for needle in (
     'source_kind = "authored_external_visual_canonical_plus_x"',
@@ -64,20 +74,25 @@ for needle in (
         fail(f"dedicated BTR importer missing {needle!r}")
 
 for needle in (
-    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"',
     "SOURCE_KIND=BTR4:authored_external_visual_canonical_plus_x",
     "BTR4_FORWARD_AXIS=+X",
+    "BTR4_GLTF_UP_AXIS=+Y",
+    "BTR4_INTERNAL_UP_AXIS=+Z",
     "build_btr4_glb(BTR_GENERATED_SOURCE)",
 ):
     if needle not in vehicle_importer:
         fail(f"main production importer missing {needle!r}")
 
+if "PASS45_BTR_AXIS_OPTIC_20260827_R2" in vehicle_importer:
+    fail("stale R2 import revision can reuse the sideways BTR asset")
 if "SOURCE_KIND=BTR4:local_user_fbx" in vehicle_importer:
     fail("uncalibrated local FBX is still auto-promoted to canonical runtime BTR")
 
 print("PASS45 BTR4 AXIS REMOTE OPTIC: PASS")
-print("- canonical runtime BTR source is the authored +X-forward GLB")
-print("- runtime refuses ambiguous axis transposition instead of guessing the nose")
+print("- canonical runtime BTR source is authored +X-forward internal geometry exported through an explicit glTF Y-up root")
+print("- R3 import revision forces replacement of any stale sideways R2 asset")
+print("- runtime refuses ambiguous forward-axis transposition instead of guessing the nose")
 print("- BTR gunner viewpoint follows yaw + pitch through BarrelPivot with a locked remote-optic FOV")
 print("- local uncalibrated FBX remains development-only")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 orientation/view gameplay acceptance remains required")
