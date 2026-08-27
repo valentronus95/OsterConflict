@@ -19,6 +19,7 @@ def main() -> int:
         "PASS45_GROUND_COVER_PRIMITIVES_DESTROYED",
         "PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED",
         "PASS45_AUTHORED_VEGETATION_READY",
+        "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY",
         "PASS45_AUTHORED_GROUND_SURFACE_READY",
         "PASS45_AUTHORED_ROAD_SURFACE_READY",
         "PASS45_PARK_PATH_OWNERSHIP_READY",
@@ -27,6 +28,7 @@ def main() -> int:
         "PASS45_GATE_K_RUNTIME_READY",
     )
     forbidden = (
+        "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED",
         "PASS45_VISUAL_FIDELITY_CONTENT_GAP",
         "PASS45_GATE_K_RUNTIME_FAIL",
         "PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP",
@@ -50,6 +52,7 @@ def main() -> int:
     print("PASS45 GATE K: PASS")
     print("- obsolete ground-cover cubes were destroyed and authored dense foliage owns runtime grass")
     print("- developer reference markers/text labels were destroyed")
+    print("- Central Park detail ownership split is exact: legacy ParkDetails=0, semantic groups=2/4/3/14, total=23")
     print("- playable Ground was upgraded to committed AdvancedVillagePack SM_Plane_1x1 + M_Inst_Landscape")
     print("- Ground playable footprint and top-Z were preserved by bounds-aware replacement")
     print("- Roads/Sidewalks were upgraded to tracked Scene_RoadsideConstruction authored meshes/materials")
