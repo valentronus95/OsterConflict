@@ -1,0 +1,43 @@
+name: Pass 45 visual fidelity Gate K
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumSurfaceSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCVisualFidelityGateKSubsystem.h'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
+      - 'VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py'
+      - 'VERIFY_VISUAL_QUALITY_TICK_BUDGET_PASS_39.py'
+      - '.github/workflows/pass45-visual-fidelity-gate-k.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumSurfaceSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCVisualFidelityGateKSubsystem.h'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
+      - 'VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py'
+      - 'VERIFY_VISUAL_QUALITY_TICK_BUDGET_PASS_39.py'
+      - '.github/workflows/pass45-visual-fidelity-gate-k.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass45 Gate K source truth
+        run: python VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py
