@@ -198,7 +198,7 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
     UInstancedStaticMeshComponent* TopTrim = MakeAuthoredISM(Model, Root, WallTop4,
         TEXT("R146Culture_AuthoredTopTrim"), false);
     UInstancedStaticMeshComponent* Columns = MakeAuthoredISM(Model, Root, Pillar,
-        TEXT("R146Culture_AuthoredColumns"), false);
+        TEXT("R146Culture_Columns"), false);
     UInstancedStaticMeshComponent* Doors = MakeAuthoredISM(Model, Root, Door,
         TEXT("R146Culture_AuthoredDoors"), false);
     UInstancedStaticMeshComponent* Roof = MakeAuthoredISM(Model, Root, RoofTile,
