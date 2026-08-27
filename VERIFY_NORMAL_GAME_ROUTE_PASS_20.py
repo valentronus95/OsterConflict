@@ -73,17 +73,20 @@ if "PASS7_PRODUCTION_WEAPONS_READY" in normal or "PASS7_PRODUCTION_WEAPON_RUNTIM
     raise SystemExit("PASS20 VERIFY FAIL: obsolete all-exact rack acceptance returned")
 
 # Command wrapper still owns independent per-model intake results. A failed local source recovery may no longer
-# imply a missing BTR because the canonical importer owns a repository-authored fallback.
+# imply a missing BTR because the canonical importer owns a repository-authored +X-forward fallback.
 for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
-    "Continuing independent intake; BTR authored fallback remains available.",
+    'set "BTR_AXIS_READY=0"',
+    "Continuing independent intake; canonical BTR authored fallback remains available.",
+    'set "REQUIRED_REVISION=PASS45_BTR_AXIS_OPTIC_20260827_R2"',
+    'BTR4_FORWARD_AXIS=+X',
 ):
     require(importer, needle, "independent production intake command")
 
 # Pass45 supersedes the old `attempt("BTR4")` contract. HMMWV/M2 remain independent external sources;
-# BTR has a dedicated canonical resolver: user FBX when available, otherwise the repository-safe authored GLB.
+# BTR has a dedicated canonical resolver and R2 requires explicit +X-forward provenance for the remote-optic path.
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
@@ -95,7 +98,7 @@ for needle in (
     "build_btr4_glb(BTR_GENERATED_SOURCE)",
     "authored_external_visual",
     "M_BTR4_OC_Authored",
-    'IMPORT_CONTRACT_REVISION = "PASS45_MATERIAL_CLOSURE_20260826_R1"',
+    'IMPORT_CONTRACT_REVISION = "PASS45_BTR_AXIS_OPTIC_20260827_R2"',
 ):
     require(import_py, needle, "current production asset implementation")
 if 'attempt("BTR4"' in import_py:
@@ -126,9 +129,9 @@ for needle in (
 ):
     require(playable, needle, "focused recovery route remains intact")
 
-print("NORMAL GAME ROUTE PASS 20 + PASS45 MATERIAL INTAKE SOURCE CONTRACT PASS")
+print("NORMAL GAME ROUTE PASS 20 + PASS45 BTR R2 MATERIAL/AXIS INTAKE SOURCE CONTRACT PASS")
 print("- START_HERE option 1 stays on the canonical normal-game launcher; option 2 uses the strict main wrapper")
 print("- HMMWV/M2 remain independent external-source imports")
-print("- BTR canonical intake prefers local FBX and otherwise uses the repository-safe authored GLB material path")
+print("- BTR R2 canonical intake keeps repository-authored fallback and requires +X-forward provenance")
 print("- Gate F uses exact production OR explicit real fallback without false production READY")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime still required")
