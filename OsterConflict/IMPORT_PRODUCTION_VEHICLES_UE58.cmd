@@ -17,7 +17,7 @@ set "UE_CMD="
 set "HMMWV_ASSET=/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA"
 set "M2_ASSET=/Game/Production/Weapons/M2/SM_M2_Browning"
 set "BTR_ASSET=/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus"
-set "REQUIRED_REVISION=PASS45_BTR_AXIS_OPTIC_20260827_R2"
+set "REQUIRED_REVISION=PASS45_BTR_GLTF_Y_UP_20260827_R3"
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" (
     set "UE_CMD=%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -114,10 +114,14 @@ set "HMMWV_IMPORTED=0"
 set "M2_IMPORTED=0"
 set "BTR_IMPORTED=0"
 set "BTR_AXIS_READY=0"
+set "BTR_GLTF_UP_READY=0"
+set "BTR_INTERNAL_UP_READY=0"
 findstr /L /C:"IMPORTED=%HMMWV_ASSET%" "%SUCCESS_SENTINEL%" >nul && set "HMMWV_IMPORTED=1"
 findstr /L /C:"IMPORTED=%M2_ASSET%" "%SUCCESS_SENTINEL%" >nul && set "M2_IMPORTED=1"
 findstr /L /C:"IMPORTED=%BTR_ASSET%" "%SUCCESS_SENTINEL%" >nul && set "BTR_IMPORTED=1"
 findstr /L /C:"BTR4_FORWARD_AXIS=+X" "%SUCCESS_SENTINEL%" >nul && set "BTR_AXIS_READY=1"
+findstr /L /C:"BTR4_GLTF_UP_AXIS=+Y" "%SUCCESS_SENTINEL%" >nul && set "BTR_GLTF_UP_READY=1"
+findstr /L /C:"BTR4_INTERNAL_UP_AXIS=+Z" "%SUCCESS_SENTINEL%" >nul && set "BTR_INTERNAL_UP_READY=1"
 
 if "!HMMWV_IMPORTED!"=="0" if "!M2_IMPORTED!"=="0" if "!BTR_IMPORTED!"=="0" (
     echo ERROR: importer produced no canonical production asset marker.
@@ -128,6 +132,16 @@ if "!BTR_IMPORTED!"=="1" if "!BTR_AXIS_READY!"=="0" (
     echo ERROR: BTR-4 import is missing canonical +X forward provenance.
     type "%SUCCESS_SENTINEL%"
     exit /b 27
+)
+if "!BTR_IMPORTED!"=="1" if "!BTR_GLTF_UP_READY!"=="0" (
+    echo ERROR: BTR-4 import is missing canonical glTF +Y up provenance.
+    type "%SUCCESS_SENTINEL%"
+    exit /b 28
+)
+if "!BTR_IMPORTED!"=="1" if "!BTR_INTERNAL_UP_READY!"=="0" (
+    echo ERROR: BTR-4 import is missing canonical internal +Z up provenance.
+    type "%SUCCESS_SENTINEL%"
+    exit /b 29
 )
 
 echo.
@@ -151,12 +165,14 @@ if "!M2_IMPORTED!"=="1" findstr /L /C:"FRESH_LOADED=%M2_ASSET%" "%FRESH_SENTINEL
 if "!BTR_IMPORTED!"=="1" findstr /L /C:"FRESH_LOADED=%BTR_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_FORWARD_AXIS=+X" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_GLTF_UP_AXIS=+Y" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_INTERNAL_UP_AXIS=+Z" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 
 echo.
-echo [ASSETS] Import result: HMMWV=!HMMWV_IMPORTED! M2=!M2_IMPORTED! BTR4=!BTR_IMPORTED! BTR4_PLUS_X=!BTR_AXIS_READY!
+echo [ASSETS] Import result: HMMWV=!HMMWV_IMPORTED! M2=!M2_IMPORTED! BTR4=!BTR_IMPORTED! BTR4_PLUS_X=!BTR_AXIS_READY! BTR4_GLTF_PLUS_Y_UP=!BTR_GLTF_UP_READY! BTR4_INTERNAL_PLUS_Z_UP=!BTR_INTERNAL_UP_READY!
 if "!HMMWV_IMPORTED!"=="1" echo [ASSETS] HMMWV canonical production mesh imported and fresh-load material verified.
 if "!M2_IMPORTED!"=="1" echo [ASSETS] M2 Browning canonical production mesh imported and fresh-load material verified.
-if "!BTR_IMPORTED!"=="1" echo [ASSETS] BTR-4 canonical +X-forward mesh imported and fresh-load material/orientation provenance verified.
+if "!BTR_IMPORTED!"=="1" echo [ASSETS] BTR-4 canonical +X-forward / glTF +Y-up mesh imported and fresh-load material/orientation provenance verified.
 
 if "!HMMWV_IMPORTED!"=="0" echo [ASSETS] CONTENT GAP: HMMWV production source/import is still unavailable.
 if "!M2_IMPORTED!"=="0" echo [ASSETS] CONTENT GAP: M2 Browning production source/import is still unavailable.
@@ -167,6 +183,8 @@ if "!HMMWV_IMPORTED!"=="0" exit /b 30
 if "!M2_IMPORTED!"=="0" exit /b 31
 if "!BTR_IMPORTED!"=="0" exit /b 32
 if "!BTR_AXIS_READY!"=="0" exit /b 33
+if "!BTR_GLTF_UP_READY!"=="0" exit /b 34
+if "!BTR_INTERNAL_UP_READY!"=="0" exit /b 35
 
 exit /b 0
 
