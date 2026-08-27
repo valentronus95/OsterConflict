@@ -150,7 +150,8 @@ for needle in (
 ):
     require(settings_h + settings, needle, "native-scale graphics clarity recovery")
 
-# LowCPU foliage remains bounded and its guard is throttled.
+# LowCPU foliage remains bounded and its guard is throttled. PASS45 item 31 upgrades old hide-only ground
+# proxy retirement to physical destruction, and removes developer reference markers/text labels as scenery.
 for needle in (
     'LowCPUHalfExtentCm = 10000.0f',
     'LowCPUGridStepCm = 1500.0f',
@@ -163,12 +164,20 @@ for needle in (
 for needle in (
     'float ValidationAccumulator = 0.0f',
     'ValidationAccumulator < 0.25f',
-    'bProxyRetirementObserved || RetireSourceGroundCoverProxies()',
+    'bGroundProxyDestructionObserved || DestroySourceGroundCoverProxies()',
+    'bDeveloperMarkerDestructionObserved || DestroyDeveloperVisualMarkers()',
+    'PASS45_GROUND_COVER_PRIMITIVES_DESTROYED',
+    'PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED',
     'PASS42_FOLIAGE_GUARD_THROTTLED_READY',
     'sample_hz=4',
     'proxy_rescan_after_ready=0',
 ):
     require(foliage_guard_h + foliage_guard, needle, "throttled foliage acceptance guard")
+for forbidden in (
+    'bProxyRetirementObserved || RetireSourceGroundCoverProxies()',
+    'PASS10_GROUND_COVER_PROXY_RETIRED',
+):
+    forbid(foliage_guard_h + foliage_guard, forbidden, "obsolete hide-only foliage retirement")
 
 # Pass45 supersedes the old timer/rebuild choreography. Coordinator cancels historical stage timers and
 # runs current Museum/Silpo/Culture stages once; the destructive visibility owner stays deleted.
@@ -188,5 +197,6 @@ print("- VehicleBase skips legacy tint for /Game/Production meshes at the primar
 print("- production vehicle guard is one-shot validation-only: no material repair, no polling")
 print("- Museum BASE rack remains grounded with 12 cm clearance")
 print("- native-scale graphics clarity and bounded LowCPU foliage/audio budgets remain intact")
+print("- PASS45 item31 physically destroys source ground-cover proxies and developer visual markers")
 print("- historical Museum visibility/rebuild owner is deleted; current landmark startup is coordinated once")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
