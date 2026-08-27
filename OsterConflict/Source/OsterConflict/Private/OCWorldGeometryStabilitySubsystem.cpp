@@ -4,11 +4,10 @@
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
-#include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
 namespace
@@ -28,8 +27,22 @@ namespace
         TEXT("LandmarkDetails"),
         TEXT("ParkGeometry"),
         TEXT("Roads"),
-        TEXT("Sidewalks")
+        TEXT("Sidewalks"),
+        TEXT("ParkPaths"),
+        TEXT("Fences")
     };
+
+    UStaticMeshComponent* FindStaticMeshComponent(AActor* Actor, const FName Name)
+    {
+        if (!Actor) return nullptr;
+        TInlineComponentArray<UStaticMeshComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == Name) return Component;
+        }
+        return nullptr;
+    }
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
@@ -43,44 +56,40 @@ namespace
         return nullptr;
     }
 
-    UPrimitiveComponent* FindPrimitive(AActor* Actor, const FName Name)
+    bool HasAuthoredGroundSurface(
+        UStaticMeshComponent* Component,
+        const TCHAR* ExpectedMeshToken,
+        const TCHAR* ExpectedMaterialToken,
+        FString& OutFailure)
     {
-        if (!Actor) return nullptr;
-        TInlineComponentArray<UPrimitiveComponent*> Components;
-        Actor->GetComponents(Components);
-        for (UPrimitiveComponent* Component : Components)
+        if (!Component || !Component->GetStaticMesh())
         {
-            if (Component && Component->GetFName() == Name) return Component;
+            OutFailure = TEXT("authored_ground_mesh_missing");
+            return false;
         }
-        return nullptr;
-    }
 
-    bool HasColorMID(UPrimitiveComponent* Component, FString& OutFailure, const TCHAR* Family)
-    {
-        if (!Component)
+        const FString MeshPath = Component->GetStaticMesh()->GetPathName();
+        if (!MeshPath.Contains(ExpectedMeshToken, ESearchCase::IgnoreCase) ||
+            MeshPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase))
         {
-            OutFailure = FString::Printf(TEXT("semantic_material_component_missing_%s"), Family);
+            OutFailure = FString::Printf(TEXT("authored_ground_mesh_invalid_%s"), *MeshPath);
             return false;
         }
 
         UMaterialInterface* Material = Component->GetMaterial(0);
-        UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
-        if (!MID)
+        if (!Material)
         {
-            OutFailure = FString::Printf(TEXT("semantic_mid_missing_%s"), Family);
+            OutFailure = TEXT("authored_ground_material_missing");
             return false;
         }
-
-        TArray<FMaterialParameterInfo> VectorParameters;
-        TArray<FGuid> ParameterIds;
-        MID->GetAllVectorParameterInfo(VectorParameters, ParameterIds);
-        for (const FMaterialParameterInfo& Parameter : VectorParameters)
+        const FString MaterialPath = Material->GetPathName();
+        if (!MaterialPath.Contains(ExpectedMaterialToken, ESearchCase::IgnoreCase) ||
+            MaterialPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase))
         {
-            if (Parameter.Name == TEXT("Color")) return true;
+            OutFailure = FString::Printf(TEXT("authored_ground_material_invalid_%s"), *MaterialPath);
+            return false;
         }
-
-        OutFailure = FString::Printf(TEXT("semantic_color_parameter_missing_%s"), Family);
-        return false;
+        return true;
     }
 
     bool HasAuthoredSurface(
@@ -125,10 +134,13 @@ namespace
             return false;
         }
 
-        // Ground remains the legacy semantic-color owner until a verified authored terrain surface is integrated.
-        // Roads and sidewalks are no longer allowed to satisfy stability through BasicShape MIDs: item 31 upgrades
-        // them before the 12-second baseline to tracked Scene_RoadsideConstruction meshes/materials.
-        if (!HasColorMID(FindPrimitive(Sector, TEXT("Ground")), OutFailure, TEXT("Ground"))) return false;
+        // Item 31 upgrades all verified surface families before the 12-second stability baseline. None of these
+        // families may fall back to Engine BasicShape material/mesh acceptance after startup.
+        if (!HasAuthoredGroundSurface(
+            FindStaticMeshComponent(Sector, TEXT("Ground")),
+            TEXT("SM_Plane_1x1"),
+            TEXT("M_Inst_Landscape"),
+            OutFailure)) return false;
         if (!HasAuthoredSurface(
             FindISM(Sector, TEXT("Roads")),
             TEXT("SM_Urb_Roa_Asphalt_01"),
@@ -139,6 +151,16 @@ namespace
             TEXT("SM_Urb_Roa_Sidewalk_01"),
             OutFailure,
             TEXT("Sidewalks"))) return false;
+        if (!HasAuthoredSurface(
+            FindISM(Sector, TEXT("ParkPaths")),
+            TEXT("SM_Stonepath_Var01"),
+            OutFailure,
+            TEXT("ParkPaths"))) return false;
+        if (!HasAuthoredSurface(
+            FindISM(Sector, TEXT("Fences")),
+            TEXT("SM_Fence_Var01"),
+            OutFailure,
+            TEXT("Fences"))) return false;
 
         return true;
     }
@@ -261,7 +283,7 @@ void UOCWorldGeometryStabilitySubsystem::Tick(float DeltaTime)
             TEXT("PASS12_WORLD_GEOMETRY_BASELINE_CAPTURED families=%d at=%.1fs startupWindow=8.0s"),
             BaselineCounts.Num(), ElapsedSeconds);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_WORLD_MATERIAL_BASELINE_READY ground_legacy_mid=1 authored_surface_families=2 basicshape_road_materials=0 owner=OCWorldSectorOster"));
+            TEXT("PASS45_WORLD_MATERIAL_BASELINE_READY ground_authored=1 authored_surface_families=5 basicshape_surface_materials=0 owner=OCWorldSectorOster"));
         return;
     }
 
@@ -294,6 +316,6 @@ void UOCWorldGeometryStabilitySubsystem::Tick(float DeltaTime)
             TEXT("PASS12_WORLD_GEOMETRY_STABLE families=%d baseline=12.0s final=20.0s result=no_late_source_geometry_mutation"),
             BaselineCounts.Num());
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_WORLD_MATERIAL_STABLE ground_legacy_mid=1 authored_surface_families=2 samples=12s,16s,20s result=semantic_material_contract_preserved"));
+            TEXT("PASS45_WORLD_MATERIAL_STABLE ground_authored=1 authored_surface_families=5 samples=12s,16s,20s result=semantic_material_contract_preserved"));
     }
 }
