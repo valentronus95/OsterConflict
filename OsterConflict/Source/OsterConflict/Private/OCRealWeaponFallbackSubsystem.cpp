@@ -3,6 +3,7 @@
 #include "OCWeaponBase.h"
 
 #include "Components/MeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -25,11 +26,29 @@ namespace
 
     bool HasProductionVisual(const AOCWeaponBase& Weapon)
     {
-        TArray<UActorComponent*> Components;
-        Weapon.GetComponents(Components);
-        for (const UActorComponent* Component : Components)
+        // A tag alone is not renderable evidence. Pass45 2026-08-27 runtime showed actors where a tagged
+        // production component existed in source truth while the player saw no weapon after the primitive
+        // retirement pass. Require an assigned real mesh before suppressing the explicit real fallback path.
+        TArray<UStaticMeshComponent*> StaticComponents;
+        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
+        for (const UStaticMeshComponent* Component : StaticComponents)
         {
-            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;
+            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag) &&
+                IsValid(Component->GetStaticMesh()))
+            {
+                return true;
+            }
+        }
+
+        TArray<USkeletalMeshComponent*> SkeletalComponents;
+        Weapon.GetComponents<USkeletalMeshComponent>(SkeletalComponents);
+        for (const USkeletalMeshComponent* Component : SkeletalComponents)
+        {
+            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag) &&
+                IsValid(Component->GetSkeletalMeshAsset()))
+            {
+                return true;
+            }
         }
         return false;
     }
@@ -229,7 +248,21 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
         if (Weapon->ActorHasTag(RealFallbackTag) || HasProductionVisual(*Weapon)) continue;
 
         const FString Name = Weapon->GetWeaponDisplayName();
-        if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
+        if (Name.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
+        {
+            // The current-head runtime can fail to resolve the skeletal AK while the committed package still contains
+            // an authored static AK sibling. Prefer that exact real AK over either a BasicShape or an invisible actor.
+            UStaticMesh* AuthoredAKFallback = LoadObject<UStaticMesh>(
+                nullptr, TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
+            ApplyRealFallback(*Weapon, AuthoredAKFallback, 88.0f, TEXT("committed AK-47 static sibling"));
+        }
+        else if (Name.Equals(TEXT("MP5"), ESearchCase::IgnoreCase))
+        {
+            // Stein MP5 fresh-load is a factual 2026-08-27 content gap. Keep gameplay visible with a tracked real SMG;
+            // never call this exact production readiness.
+            ApplyRealFallback(*Weapon, GenericSMG.Get(), 68.0f, TEXT("R13 real SMG temporary MP5 fallback"));
+        }
+        else if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
         {
             ApplyRealFallback(*Weapon, GenericMachineGun.Get(), 104.0f, TEXT("R13 generic machinegun"));
         }
