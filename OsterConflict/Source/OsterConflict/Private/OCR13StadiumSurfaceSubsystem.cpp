@@ -109,6 +109,43 @@ namespace
             SitePoint(SiteCenter, LocalCenter), SizeCm / 100.0f), true);
     }
 
+    void AddAuthoredSurfaceLocal(UInstancedStaticMeshComponent* Target, UStaticMesh* Mesh,
+        const FVector& SiteCenter, const FVector& LocalCenter, const FVector& DesiredSizeCm,
+        const float LocalYawDegrees = 0.0f)
+    {
+        if (!Target || !Mesh) return;
+
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f) return;
+
+        const bool bNativeLongAxisY = NativeSize.Y > NativeSize.X * 1.05f;
+        FVector Scale(1.0f);
+        float Yaw = FieldYawDegrees + LocalYawDegrees;
+        if (bNativeLongAxisY)
+        {
+            Scale.X = DesiredSizeCm.Y / NativeSize.X;
+            Scale.Y = DesiredSizeCm.X / NativeSize.Y;
+            Yaw -= 90.0f;
+        }
+        else
+        {
+            Scale.X = DesiredSizeCm.X / NativeSize.X;
+            Scale.Y = DesiredSizeCm.Y / NativeSize.Y;
+        }
+        Scale.Z = NativeSize.Z > 1.0f
+            ? FMath::Max(0.05f, DesiredSizeCm.Z / NativeSize.Z)
+            : 1.0f;
+
+        const FQuat RotationQuat = FRotator(0.0f, Yaw, 0.0f).Quaternion();
+        const FVector ScaledBoundsOrigin(
+            Bounds.Origin.X * Scale.X,
+            Bounds.Origin.Y * Scale.Y,
+            Bounds.Origin.Z * Scale.Z);
+        const FVector Location = SitePoint(SiteCenter, LocalCenter) - RotationQuat.RotateVector(ScaledBoundsOrigin);
+        Target->AddInstance(FTransform(RotationQuat, Location, Scale), true);
+    }
+
     void AddPathPolyline(UInstancedStaticMeshComponent* Target, const FVector& SiteCenter,
         const TArray<FVector>& LocalPoints, const float WidthCm, const float ZCm)
     {
@@ -126,6 +163,27 @@ namespace
             Mid.Z = ZCm;
             const float LocalYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
             AddBoxLocal(Target, SiteCenter, Mid, FVector(Length + 24.0f, WidthCm, 4.0f), LocalYaw);
+        }
+    }
+
+    void AddAuthoredPathPolyline(UInstancedStaticMeshComponent* Target, UStaticMesh* Mesh,
+        const FVector& SiteCenter, const TArray<FVector>& LocalPoints, const float WidthCm, const float ZCm)
+    {
+        if (!Target || !Mesh || LocalPoints.Num() < 2) return;
+
+        for (int32 Index = 1; Index < LocalPoints.Num(); ++Index)
+        {
+            const FVector A = LocalPoints[Index - 1];
+            const FVector B = LocalPoints[Index];
+            const FVector Delta = B - A;
+            const float Length = FVector2D(Delta.X, Delta.Y).Size();
+            if (Length <= 1.0f) continue;
+
+            FVector Mid = (A + B) * 0.5f;
+            Mid.Z = ZCm;
+            const float LocalYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
+            AddAuthoredSurfaceLocal(Target, Mesh, SiteCenter, Mid,
+                FVector(Length + 24.0f, WidthCm, 4.0f), LocalYaw);
         }
     }
 
@@ -252,6 +310,18 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
     UStaticMesh* Tree04 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
+    UStaticMesh* TrackSurfaceMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Ground_01/SM_Urb_Roa_Ground_01.SM_Urb_Roa_Ground_01"));
+    UStaticMesh* FootpathSurfaceMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01"));
+    if (!TrackSurfaceMesh || !FootpathSurfaceMesh)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_STADIUM_AUTHORED_SURFACE_CONTENT_GAP track_loaded=%d footpath_loaded=%d gate_k_complete=0"),
+            TrackSurfaceMesh ? 1 : 0,
+            FootpathSurfaceMesh ? 1 : 0);
+        return;
+    }
 
     const FOCGeoReferencePoint StadiumGeo = FOCGeoReference::Stadium();
     FVector Stadium = FOCGeoReference::ToLocalCm(StadiumGeo.Latitude, StadiumGeo.Longitude, 0.0);
@@ -288,14 +358,10 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
 
     UMaterialInstanceDynamic* TurfMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterTurfMat"), FLinearColor(0.055f, 0.31f, 0.11f, 1.0f));
-    UMaterialInstanceDynamic* TrackMat = MakeColor(SiteActor, BaseMaterial,
-        TEXT("StadionOsterTrackMat"), FLinearColor(0.22f, 0.07f, 0.045f, 1.0f));
     UMaterialInstanceDynamic* LineMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterLineMat"), FLinearColor(0.93f, 0.93f, 0.89f, 1.0f));
     UMaterialInstanceDynamic* MetalMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterMetalMat"), FLinearColor(0.76f, 0.78f, 0.76f, 1.0f));
-    UMaterialInstanceDynamic* DirtMat = MakeColor(SiteActor, BaseMaterial,
-        TEXT("StadionOsterDirtMat"), FLinearColor(0.28f, 0.20f, 0.12f, 1.0f));
     UMaterialInstanceDynamic* BlueMat = MakeColor(SiteActor, BaseMaterial,
         TEXT("StadionOsterBlueMat"), FLinearColor(0.015f, 0.24f, 0.62f, 1.0f));
     UMaterialInstanceDynamic* YellowMat = MakeColor(SiteActor, BaseMaterial,
@@ -303,13 +369,13 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
 
     UInstancedStaticMeshComponent* Turf = MakeISM(SiteActor, Root, Cube, TurfMat,
         TEXT("StadionOsterMainPitch"), false, false);
-    UInstancedStaticMeshComponent* Track = MakeISM(SiteActor, Root, Cube, TrackMat,
+    UInstancedStaticMeshComponent* Track = MakeISM(SiteActor, Root, TrackSurfaceMesh, nullptr,
         TEXT("StadionOsterRunningSurface"), false, false);
     UInstancedStaticMeshComponent* Lines = MakeISM(SiteActor, Root, Cube, LineMat,
         TEXT("StadionOsterPitchLines"), false, false);
     UInstancedStaticMeshComponent* SportsMetal = MakeISM(SiteActor, Root, Cube, MetalMat,
         TEXT("StadionOsterSportsMetal"), true, true);
-    UInstancedStaticMeshComponent* Paths = MakeISM(SiteActor, Root, Cube, DirtMat,
+    UInstancedStaticMeshComponent* Paths = MakeISM(SiteActor, Root, FootpathSurfaceMesh, nullptr,
         TEXT("StadionOsterFootpaths"), false, false);
     UInstancedStaticMeshComponent* SignBlue = MakeISM(SiteActor, Root, Cube, BlueMat,
         TEXT("StadionOsterEntranceBlue"), true, true);
@@ -334,10 +400,14 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     AddBoxLocal(Turf, Stadium, FVector(0.0f, 0.0f, 12.0f), FVector(FieldLengthCm, FieldWidthCm, 8.0f));
 
     constexpr float TrackZ = 10.0f;
-    AddBoxLocal(Track, Stadium, FVector(0.0f, 3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
-    AddBoxLocal(Track, Stadium, FVector(0.0f,-3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
-    AddBoxLocal(Track, Stadium, FVector(5525.0f,0.0f, TrackZ), FVector(550.0f, 7000.0f, 5.0f));
-    AddBoxLocal(Track, Stadium, FVector(-5525.0f,0.0f,TrackZ), FVector(550.0f, 7000.0f, 5.0f));
+    AddAuthoredSurfaceLocal(Track, TrackSurfaceMesh, Stadium,
+        FVector(0.0f, 3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
+    AddAuthoredSurfaceLocal(Track, TrackSurfaceMesh, Stadium,
+        FVector(0.0f,-3750.0f, TrackZ), FVector(11000.0f, 500.0f, 5.0f));
+    AddAuthoredSurfaceLocal(Track, TrackSurfaceMesh, Stadium,
+        FVector(5525.0f,0.0f, TrackZ), FVector(550.0f, 7000.0f, 5.0f));
+    AddAuthoredSurfaceLocal(Track, TrackSurfaceMesh, Stadium,
+        FVector(-5525.0f,0.0f,TrackZ), FVector(550.0f, 7000.0f, 5.0f));
 
     constexpr float LineZ = 18.0f;
     constexpr float LineWidth = 12.0f;
@@ -392,7 +462,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         FVector(-1200.0f, 5580.0f, 0.0f), FVector(700.0f, 5530.0f, 0.0f),
         FVector(2500.0f, 5460.0f, 0.0f), FVector(4550.0f, 5560.0f, 0.0f)
     };
-    AddPathPolyline(Paths, Stadium, NorthPath, 112.0f, 8.0f);
+    AddAuthoredPathPolyline(Paths, FootpathSurfaceMesh, Stadium, NorthPath, 112.0f, 8.0f);
 
     const TArray<FVector> EntrancePath =
     {
@@ -400,7 +470,7 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
         FVector(-5650.0f, 4350.0f, 0.0f), FVector(-5200.0f, 3650.0f, 0.0f),
         FVector(-4900.0f, 2850.0f, 0.0f)
     };
-    AddPathPolyline(Paths, Stadium, EntrancePath, 104.0f, 8.0f);
+    AddAuthoredPathPolyline(Paths, FootpathSurfaceMesh, Stadium, EntrancePath, 104.0f, 8.0f);
 
     AddBoxLocal(SignBlue, Stadium, FVector(-6550.0f, 5050.0f, 170.0f), FVector(70.0f, 95.0f, 340.0f));
     AddBoxLocal(SignBlue, Stadium, FVector(-5650.0f, 5050.0f, 105.0f), FVector(1800.0f, 80.0f, 210.0f));
@@ -443,6 +513,8 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     }
 
     bApplied = true;
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_STADIUM_SURFACE_PARTIAL_AUTHORED_READY running_mesh=SM_Urb_Roa_Ground_01 footpath_mesh=SM_Urb_Roa_Sidewalk_01 authored_surface_families=2 remaining_basicshape_families=5 gate_k_complete=0"));
     UE_LOG(LogTemp, Display,
         TEXT("Stadion Oster authoritative site created: geo=(%.6f, %.6f), local=(%.1f, %.1f, %.1f), yaw=%.1f, field=%.0fx%.0f cm, radius=%.0f cm. Runtime ground Z sampled; giant grass apron removed; legacy stadium visuals/fences retired; references=REFERENCE_PHOTOS/stadion_oster."),
         StadiumGeo.Latitude, StadiumGeo.Longitude, Stadium.X, Stadium.Y, Stadium.Z, FieldYawDegrees,
