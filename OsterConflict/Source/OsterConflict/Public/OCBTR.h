@@ -34,7 +34,7 @@ private:
     // The inherited gunner camera pivot is re-parented to BarrelPivot so the sensor follows
     // both turret yaw and barrel pitch. This value is presentation-only and does not alter aim authority.
     float BTRRemoteOpticFieldOfView = 48.0f;
-    TWeakObjectPtr<AOCCharacter> OpticTickDependency;
+    TWeakObjectPtr<AOCCharacter> ActiveOpticGunner;
 
     UPROPERTY() TObjectPtr<UStaticMeshComponent> UpperHull;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> NoseArmor;
