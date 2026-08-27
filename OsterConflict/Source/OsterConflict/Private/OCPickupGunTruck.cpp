@@ -127,6 +127,11 @@ AOCPickupGunTruck::AOCPickupGunTruck()
     TurretReloadSeconds = 4.2f;
     TurretDamageTypeClass = UOCBallisticDamageType::StaticClass();
 
+    // PASS45 item 27: the open HMMWV ring has full azimuth travel. The client-facing yaw limit
+    // becomes effectively unbounded and the authoritative presentation is normalized each update.
+    bContinuousTurretYaw = true;
+    MaxTurretYaw = 180.0f;
+
     VehicleMassKg = 2250.0f;
     DriveForce = 720000.0f;
     SteeringTorque = 91000000.0f;
@@ -215,10 +220,11 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
 
     if (bUsingHMMWV && TurretPivot)
     {
-        // Keep the physical turret pivot independent from the imported mesh scale. Production M2 is
-        // grounded on this mount plane by bounds rather than centred through the roof.
+        // TurretPivot is the ring yaw owner. BarrelPivot is the M2 pitch owner. GunnerCameraPivot is
+        // also parented to TurretPivot, so gunner view and weapon cannot drift into separate hierarchies.
         TurretPivot->SetRelativeLocation(FVector(20.0f, 0.0f, 132.0f));
         if (BarrelPivot) BarrelPivot->SetRelativeLocation(FVector::ZeroVector);
+        if (GunnerCameraPivot) GunnerCameraPivot->SetRelativeLocation(FVector(-24.0f, 0.0f, 62.0f));
     }
 
     bool bUsingMountedGunAsset = false;
@@ -268,6 +274,13 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_HMMWV_M2_RUNTIME_CORRECTION_READY proportional_vehicle=1 m2_grounded_mount=1 proxies_disabled=1"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_HMMWV_M2_HIERARCHY_READY ring_owner=TurretPivot gun_owner=BarrelPivot muzzle_owner=BarrelPivot camera_owner=GunnerCameraPivot continuous_yaw=1 hard_stop=0 authored_m2=%d primitive_turret_visible=0"),
+            bUsingMountedGunAsset ? 1 : 0);
+        // No separate authored shield asset is tracked today. Never resurrect a Cube as fake armour just to turn
+        // a checkbox green; the shield remains an explicit content gap until a real asset is committed/imported.
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_HMMWV_M2_SHIELD_CONTENT_GAP separate_authored_shield=0 primitive_shield_fallback=0 ring_hierarchy_ready=1"));
     }
     else if (bUsingProductionVehicle)
     {
