@@ -8,7 +8,7 @@ set "BTR=%PROJECT_DIR%Content\Production\Vehicles\BTR4\SM_BTR4_Bucephalus.uasset
 set "IMPORTER=%PROJECT_DIR%IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 set "IMPORT_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_import_success.txt"
 set "FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_fresh_load_success.txt"
-set "REQUIRED_REVISION=PASS45_BTR_AXIS_OPTIC_20260827_R2"
+set "REQUIRED_REVISION=PASS45_BTR_GLTF_Y_UP_20260827_R3"
 
 set "ASSETS_PRESENT=0"
 if exist "%HMMWV%" if exist "%M2%" if exist "%BTR%" set "ASSETS_PRESENT=1"
@@ -20,6 +20,8 @@ set "FRESH_M2=0"
 set "FRESH_BTR=0"
 set "FRESH_BTR_AUTHORED=0"
 set "FRESH_BTR_AXIS=0"
+set "FRESH_BTR_GLTF_UP=0"
+set "FRESH_BTR_INTERNAL_UP=0"
 
 if exist "%IMPORT_SENTINEL%" (
   findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%IMPORT_SENTINEL%" >nul && set "IMPORT_REVISION_OK=1"
@@ -31,10 +33,12 @@ if exist "%FRESH_SENTINEL%" (
   findstr /L /C:"FRESH_LOADED=/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR=1"
   findstr /L /C:"BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR_AUTHORED=1"
   findstr /L /C:"BTR4_FORWARD_AXIS=+X" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR_AXIS=1"
+  findstr /L /C:"BTR4_GLTF_UP_AXIS=+Y" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR_GLTF_UP=1"
+  findstr /L /C:"BTR4_INTERNAL_UP_AXIS=+Z" "%FRESH_SENTINEL%" >nul && set "FRESH_BTR_INTERNAL_UP=1"
 )
 
-if "%ASSETS_PRESENT%"=="1" if "%IMPORT_REVISION_OK%"=="1" if "%FRESH_REVISION_OK%"=="1" if "%FRESH_HMMWV%"=="1" if "%FRESH_M2%"=="1" if "%FRESH_BTR%"=="1" if "%FRESH_BTR_AUTHORED%"=="1" if "%FRESH_BTR_AXIS%"=="1" (
-  echo [ASSETS] Production HMMWV + M2 + BTR-4 match current Pass45 import revision, authored-material and BTR +X-axis fresh-load checks.
+if "%ASSETS_PRESENT%"=="1" if "%IMPORT_REVISION_OK%"=="1" if "%FRESH_REVISION_OK%"=="1" if "%FRESH_HMMWV%"=="1" if "%FRESH_M2%"=="1" if "%FRESH_BTR%"=="1" if "%FRESH_BTR_AUTHORED%"=="1" if "%FRESH_BTR_AXIS%"=="1" if "%FRESH_BTR_GLTF_UP%"=="1" if "%FRESH_BTR_INTERNAL_UP%"=="1" (
+  echo [ASSETS] Production HMMWV + M2 + BTR-4 match current Pass45 R3 import revision, authored-material and BTR +X/+Y-up fresh-load checks.
   exit /b 0
 )
 
@@ -44,7 +48,7 @@ if not exist "%IMPORTER%" (
 )
 
 echo [ASSETS] Existing .uasset files are not sufficient proof of current materials/orientation.
-echo [ASSETS] Reimport required: revision=%REQUIRED_REVISION% assets=%ASSETS_PRESENT% import_revision=%IMPORT_REVISION_OK% fresh_revision=%FRESH_REVISION_OK% fresh_hmmwv=%FRESH_HMMWV% fresh_m2=%FRESH_M2% fresh_btr=%FRESH_BTR% btr_material=%FRESH_BTR_AUTHORED% btr_axis=%FRESH_BTR_AXIS%
+echo [ASSETS] Reimport required: revision=%REQUIRED_REVISION% assets=%ASSETS_PRESENT% import_revision=%IMPORT_REVISION_OK% fresh_revision=%FRESH_REVISION_OK% fresh_hmmwv=%FRESH_HMMWV% fresh_m2=%FRESH_M2% fresh_btr=%FRESH_BTR% btr_material=%FRESH_BTR_AUTHORED% btr_axis=%FRESH_BTR_AXIS% btr_gltf_up=%FRESH_BTR_GLTF_UP% btr_internal_up=%FRESH_BTR_INTERNAL_UP%
 echo [ASSETS] Importing HMMWV + M2 + BTR-4 through the current authored-material/axis contract...
 call "%IMPORTER%"
 set "IMPORT_RC=%ERRORLEVEL%"
@@ -67,7 +71,7 @@ if "%M2_READY%"=="0" echo [ASSETS] CONTENT GAP: M2 Browning production model is 
 if "%BTR_READY%"=="0" echo [ASSETS] ERROR: repository-safe BTR-4 fallback should be importable even without a local FBX.
 
 if "%IMPORT_RC%"=="0" if "%HMMWV_READY%"=="1" if "%M2_READY%"=="1" if "%BTR_READY%"=="1" (
-  echo [ASSETS] PASS: all three production models were imported/fresh-load validated under the current Pass45 material/axis revision.
+  echo [ASSETS] PASS: all three production models were imported/fresh-load validated under the current Pass45 R3 material/axis revision.
   exit /b 0
 )
 
