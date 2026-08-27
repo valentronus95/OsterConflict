@@ -49,6 +49,25 @@ namespace
         return Point.X >= MinPlayableX - PaddingCm && Point.X <= MaxPlayableX + PaddingCm &&
             Point.Y >= MinPlayableY - PaddingCm && Point.Y <= MaxPlayableY + PaddingCm;
     }
+
+    void AddGroundedTree(UInstancedStaticMeshComponent* Component, const FVector& GroundLocation,
+        const float DesiredHeightCm, const float YawDegrees, const float WidthScale)
+    {
+        if (!Component) return;
+        UStaticMesh* Mesh = Component->GetStaticMesh();
+        if (!Mesh) return;
+
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.Z <= 10.0f) return;
+
+        const float HeightScale = FMath::Clamp(DesiredHeightCm / NativeSize.Z, 0.25f, 4.0f);
+        const FVector Scale(HeightScale * WidthScale, HeightScale * WidthScale, HeightScale);
+        const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        FVector Location = GroundLocation;
+        Location.Z += -LocalBottom * HeightScale;
+        Component->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f), Location, Scale), true);
+    }
 }
 
 AOCWorldSectorOster::AOCWorldSectorOster()
@@ -85,14 +104,9 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     WoodFences = MakeISM(TEXT("WoodFences"), TEXT("BlockAll"));
     MetalFences = MakeISM(TEXT("MetalFences"), TEXT("BlockAll"));
     LightSheetFences = MakeISM(TEXT("LightSheetFences"), TEXT("BlockAll"));
-    TreeTrunks = MakeISM(TEXT("TreeTrunks"), TEXT("BlockAll"));
-    TreeCrowns = MakeISM(TEXT("TreeCrowns"), TEXT("NoCollision"));
-    SovietPoplarTrunks = MakeISM(TEXT("SovietPoplarTrunks"), TEXT("BlockAll"));
-    SovietPoplarCrowns = MakeISM(TEXT("SovietPoplarCrowns"), TEXT("NoCollision"));
-    BirchTrunks = MakeISM(TEXT("BirchTrunks"), TEXT("BlockAll"));
-    BirchCrowns = MakeISM(TEXT("BirchCrowns"), TEXT("NoCollision"));
-    PineTrunks = MakeISM(TEXT("PineTrunks"), TEXT("BlockAll"));
-    PineCrowns = MakeISM(TEXT("PineCrowns"), TEXT("NoCollision"));
+    AuthoredDeciduousTrees = MakeISM(TEXT("AuthoredDeciduousTrees"), TEXT("BlockAll"));
+    AuthoredPine01Trees = MakeISM(TEXT("AuthoredPine01Trees"), TEXT("BlockAll"));
+    AuthoredPine03Trees = MakeISM(TEXT("AuthoredPine03Trees"), TEXT("BlockAll"));
     GrassMown = MakeISM(TEXT("GrassMown"), TEXT("NoCollision"));
     GrassRough = MakeISM(TEXT("GrassRough"), TEXT("NoCollision"));
     GrassWetland = MakeISM(TEXT("GrassWetland"), TEXT("NoCollision"));
@@ -116,8 +130,12 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     KrushelnytskaStreetLabel->SetupAttachment(SceneRoot);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> DeciduousTreeMesh(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> Pine01Mesh(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> Pine03Mesh(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
 
     if (CubeMesh.Succeeded())
     {
@@ -135,19 +153,19 @@ AOCWorldSectorOster::AOCWorldSectorOster()
             Component->SetStaticMesh(CubeMesh.Object);
         }
     }
-    if (CylinderMesh.Succeeded())
+
+    if (DeciduousTreeMesh.Succeeded()) AuthoredDeciduousTrees->SetStaticMesh(DeciduousTreeMesh.Object);
+    if (Pine01Mesh.Succeeded()) AuthoredPine01Trees->SetStaticMesh(Pine01Mesh.Object);
+    if (Pine03Mesh.Succeeded()) AuthoredPine03Trees->SetStaticMesh(Pine03Mesh.Object);
+
+    UInstancedStaticMeshComponent* AuthoredTrees[] =
     {
-        TreeTrunks->SetStaticMesh(CylinderMesh.Object);
-        SovietPoplarTrunks->SetStaticMesh(CylinderMesh.Object);
-        BirchTrunks->SetStaticMesh(CylinderMesh.Object);
-        PineTrunks->SetStaticMesh(CylinderMesh.Object);
-    }
-    if (SphereMesh.Succeeded())
+        AuthoredDeciduousTrees, AuthoredPine01Trees, AuthoredPine03Trees
+    };
+    for (UInstancedStaticMeshComponent* Component : AuthoredTrees)
     {
-        TreeCrowns->SetStaticMesh(SphereMesh.Object);
-        SovietPoplarCrowns->SetStaticMesh(SphereMesh.Object);
-        BirchCrowns->SetStaticMesh(SphereMesh.Object);
-        PineCrowns->SetStaticMesh(SphereMesh.Object);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCullDistances(0, 90000);
     }
 
     // Pass 44 primary authoring: never create the old 2.4 km ground in the first place.
@@ -179,13 +197,12 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         FVector(-33500.0f, 32000.0f, 720.0f));
 }
 
-
 void AOCWorldSectorOster::BeginPlay()
 {
     Super::BeginPlay();
 
-    // R11 visual foundation: the source-only world already has a useful layout, but R10 left every
-    // primitive on the engine default material. Give each semantic family a readable outdoor palette.
+    // R11 visual foundation: source-only blockout geometry still uses a readable outdoor palette.
+    // PASS45 authored trees keep their packaged materials and are never overwritten by BasicShapeMaterial.
     UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
@@ -212,14 +229,6 @@ void AOCWorldSectorOster::BeginPlay()
     Tint(WoodFences,          FLinearColor(0.30f, 0.16f, 0.075f));
     Tint(MetalFences,         FLinearColor(0.18f, 0.21f, 0.22f));
     Tint(LightSheetFences,    FLinearColor(0.46f, 0.49f, 0.45f));
-    Tint(TreeTrunks,          FLinearColor(0.19f, 0.095f, 0.035f));
-    Tint(TreeCrowns,          FLinearColor(0.09f, 0.27f, 0.055f));
-    Tint(SovietPoplarTrunks,  FLinearColor(0.20f, 0.11f, 0.045f));
-    Tint(SovietPoplarCrowns,  FLinearColor(0.075f, 0.30f, 0.065f));
-    Tint(BirchTrunks,         FLinearColor(0.63f, 0.62f, 0.54f));
-    Tint(BirchCrowns,         FLinearColor(0.15f, 0.38f, 0.075f));
-    Tint(PineTrunks,          FLinearColor(0.17f, 0.085f, 0.035f));
-    Tint(PineCrowns,          FLinearColor(0.035f, 0.18f, 0.055f));
     Tint(GrassMown,           FLinearColor(0.18f, 0.34f, 0.095f));
     Tint(GrassRough,          FLinearColor(0.24f, 0.38f, 0.10f));
     Tint(GrassWetland,        FLinearColor(0.13f, 0.28f, 0.12f));
@@ -325,17 +334,6 @@ void AOCWorldSectorOster::AddBoxRotated(UInstancedStaticMeshComponent* Component
     Component->AddInstance(Transform);
 }
 
-void AOCWorldSectorOster::AddCylinder(UInstancedStaticMeshComponent* Component, const FVector& Center,
-    float RadiusCm, float HeightCm)
-{
-    if (!Component) return;
-    if (!IsPointInsidePlayableAuthoringBounds(Center, RadiusCm)) return;
-    FTransform Transform;
-    Transform.SetLocation(Center);
-    Transform.SetScale3D(FVector(RadiusCm / 50.0f, RadiusCm / 50.0f, HeightCm / 100.0f));
-    Component->AddInstance(Transform);
-}
-
 void AOCWorldSectorOster::AddGableRoof(UInstancedStaticMeshComponent* Component, const FVector& Center,
     float WidthCm, float DepthCm, float RidgeZCm, float YawDegrees, float SlopeDegrees)
 {
@@ -362,7 +360,6 @@ void AOCWorldSectorOster::AddFacadeWindow(UInstancedStaticMeshComponent* Compone
     const float WindowYaw = BuildingYawDegrees + (bFrontFacade ? 0.0f : 90.0f);
     AddBox(Component, BuildingCenter + WorldOffset, SizeCm, WindowYaw);
 }
-
 
 void AOCWorldSectorOster::BuildGameplayBases()
 {
@@ -641,44 +638,24 @@ void AOCWorldSectorOster::BuildCollegeSector()
 
 void AOCWorldSectorOster::BuildVegetation()
 {
-    enum class ETreeProxy : uint8 { Broadleaf, Poplar, Birch, Pine };
+    enum class ETreeFamily : uint8 { Deciduous, Pine };
 
-    auto AddTreeFamily = [this](const FVector& Base, float Scale, ETreeProxy Family)
+    auto AddAuthoredTree = [this](const FVector& Base, const float Scale, const ETreeFamily Family, const int32 Salt)
     {
         if (!IsPointInsidePlayableAuthoringBounds(Base, 600.0f)) return;
 
-        UInstancedStaticMeshComponent* Trunks = TreeTrunks;
-        UInstancedStaticMeshComponent* Crowns = TreeCrowns;
-        float TrunkRadius = 38.0f;
-        float TrunkHeight = 440.0f;
-        FVector CrownScale(2.4f, 2.4f, 2.1f);
-        float CrownZ = 520.0f;
-
-        switch (Family)
+        UInstancedStaticMeshComponent* Component = AuthoredDeciduousTrees;
+        float BaseHeightCm = 1650.0f;
+        if (Family == ETreeFamily::Pine)
         {
-            case ETreeProxy::Poplar:
-                Trunks = SovietPoplarTrunks; Crowns = SovietPoplarCrowns;
-                TrunkRadius = 34.0f; TrunkHeight = 720.0f; CrownScale = FVector(1.25f, 1.25f, 4.4f); CrownZ = 760.0f;
-                break;
-            case ETreeProxy::Birch:
-                Trunks = BirchTrunks; Crowns = BirchCrowns;
-                TrunkRadius = 27.0f; TrunkHeight = 520.0f; CrownScale = FVector(1.8f, 1.8f, 2.6f); CrownZ = 585.0f;
-                break;
-            case ETreeProxy::Pine:
-                Trunks = PineTrunks; Crowns = PineCrowns;
-                TrunkRadius = 32.0f; TrunkHeight = 610.0f; CrownScale = FVector(1.65f, 1.65f, 3.4f); CrownZ = 675.0f;
-                break;
-            default: break;
+            Component = (Salt & 1) == 0 ? AuthoredPine01Trees : AuthoredPine03Trees;
+            BaseHeightCm = 2150.0f;
         }
 
-        AddCylinder(Trunks, Base + FVector(0, 0, (TrunkHeight * 0.5f) * Scale), TrunkRadius * Scale, TrunkHeight * Scale);
-        if (Crowns)
-        {
-            FTransform Crown;
-            Crown.SetLocation(Base + FVector(0, 0, CrownZ * Scale));
-            Crown.SetScale3D(CrownScale * Scale);
-            Crowns->AddInstance(Crown);
-        }
+        const float Yaw = FMath::Fmod(
+            FMath::Abs(Base.X * 0.013f + Base.Y * 0.019f + static_cast<float>(Salt) * 47.0f), 360.0f);
+        const float WidthScale = 0.94f + 0.035f * static_cast<float>(FMath::Abs(Salt) % 5);
+        AddGroundedTree(Component, Base, BaseHeightCm * Scale, Yaw, WidthScale);
     };
 
     auto AddGrassPatch = [this](UInstancedStaticMeshComponent* Family, const FVector& Center, const FVector& Size, float Yaw)
@@ -706,24 +683,18 @@ void AOCWorldSectorOster::BuildVegetation()
     // Pass 44 removes the old Desna/Oster wetland proxies outside the compact map. Water-edge vegetation
     // comes back only when a newer reference places that shoreline inside the battlefield.
 
-    // Museum garden: old broadleaf canopy seen in reference photos, with a few tall Soviet-era poplar silhouettes nearby.
-    for (int32 Index = 0; Index < 16; ++Index)
-    {
-        const float X = -4700.0f + static_cast<float>(Index % 8) * 1350.0f;
-        const float Y = 2500.0f + static_cast<float>(Index / 8) * 1750.0f;
-        const ETreeProxy Family = (Index==2 || Index==11) ? ETreeProxy::Poplar : ETreeProxy::Broadleaf;
-        AddTreeFamily(FVector(X, Y, 0), 0.88f + 0.07f * static_cast<float>(Index % 3), Family);
-    }
+    // PASS45 item 26: Museum vegetation has a dedicated R145 authored owner. Do not create a second generic
+    // tree grid here and do not fabricate an oak family that is not present in tracked content.
 
-    // Stadium perimeter: mixed mature rows, including tall poplar forms typical of Soviet-era town planting.
+    // Stadium perimeter: preserve the designed edge, but stop making unsupported poplar/birch species claims.
     for (int32 I = -6; I <= 6; ++I)
     {
-        const ETreeProxy Family = (I % 3 == 0) ? ETreeProxy::Poplar : ((I % 4 == 0) ? ETreeProxy::Birch : ETreeProxy::Broadleaf);
-        AddTreeFamily(Stadium + FVector(I * 1500.0f, 5700.0f + (I % 2) * 350.0f, 0), 0.9f, Family);
+        AddAuthoredTree(Stadium + FVector(I * 1500.0f, 5700.0f + (I % 2) * 350.0f, 0),
+            0.90f + 0.03f * static_cast<float>(FMath::Abs(I) % 3), ETreeFamily::Deciduous, I + 30);
     }
 
-    // Central park: Soviet-era urban palette is represented by broadleaf/linden-maple proxies,
-    // tall poplars, birch groups and occasional pine. Exact species placement remains reference-driven.
+    // Central park: authored deciduous planting with occasional verified pine/conifer assets. Exact deciduous
+    // species remain intentionally unspecified until a species-specific asset is actually imported.
     for (int32 Row = -3; Row <= 3; ++Row)
     {
         for (int32 Col = -4; Col <= 4; ++Col)
@@ -732,36 +703,29 @@ void AOCWorldSectorOster::BuildVegetation()
             const float JitterX = static_cast<float>(((Row * 7 + Col * 3) % 5) - 2) * 180.0f;
             const float JitterY = static_cast<float>(((Row * 5 + Col * 11) % 5) - 2) * 160.0f;
             const int32 Roll = FMath::Abs(Row * 9 + Col * 5) % 12;
-            ETreeProxy Family = ETreeProxy::Broadleaf;
-            if (Roll <= 2) Family = ETreeProxy::Poplar;
-            else if (Roll == 3 || Roll == 4) Family = ETreeProxy::Birch;
-            else if (Roll == 5) Family = ETreeProxy::Pine;
-            AddTreeFamily(Park + FVector(Col * 1850.0f + JitterX, Row * 1700.0f + JitterY, 0),
-                0.85f + 0.05f * static_cast<float>((Row + Col + 8) % 4), Family);
+            const ETreeFamily Family = Roll == 5 ? ETreeFamily::Pine : ETreeFamily::Deciduous;
+            const int32 Salt = (Row + 4) * 17 + (Col + 5);
+            AddAuthoredTree(Park + FVector(Col * 1850.0f + JitterX, Row * 1700.0f + JitterY, 0),
+                0.85f + 0.05f * static_cast<float>((Row + Col + 8) % 4), Family, Salt);
         }
     }
 
-    // College: official photos show tall conifers framing the facade, with mixed broadleaf planting around campus.
-    AddTreeFamily(College + FVector(-3800, -1100, 0), 1.2f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(3900, -950, 0), 1.15f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(-4600, 1500, 0), 1.0f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(4700, 2100, 0), 0.9f, ETreeProxy::Birch);
+    // College: official photos support tall conifers framing the facade. Alternate two tracked authored pine
+    // meshes so the family does not read as one repeated primitive silhouette.
+    AddAuthoredTree(College + FVector(-3800, -1100, 0), 1.20f, ETreeFamily::Pine, 100);
+    AddAuthoredTree(College + FVector(3900, -950, 0), 1.15f, ETreeFamily::Pine, 101);
+    AddAuthoredTree(College + FVector(-4600, 1500, 0), 1.00f, ETreeFamily::Pine, 102);
+    AddAuthoredTree(College + FVector(4700, 2100, 0), 0.90f, ETreeFamily::Deciduous, 103);
 
-    // Street rows: not every street receives formal planting; selected corridors get old poplar/broadleaf rhythm.
+    // Selected street corridors retain mature authored deciduous rows. No poplar/birch/oak label is asserted
+    // because no verified species-specific asset exists in the tracked packs used by this source owner.
     for (int32 Index = -7; Index <= 7; ++Index)
     {
-        const ETreeProxy WestEast = (Index % 4 == 0) ? ETreeProxy::Poplar : ETreeProxy::Broadleaf;
-        AddTreeFamily(FVector(Index * 7000.0f, -11500.0f, 0), 0.75f, WestEast);
+        AddAuthoredTree(FVector(Index * 7000.0f, -11500.0f, 0), 0.75f, ETreeFamily::Deciduous, 200 + Index);
         if ((Index % 2) == 0)
-            AddTreeFamily(FVector(28500.0f, Index * 6500.0f, 0), 0.8f, (Index % 4 == 0) ? ETreeProxy::Poplar : ETreeProxy::Birch);
+            AddAuthoredTree(FVector(28500.0f, Index * 6500.0f, 0), 0.80f, ETreeFamily::Deciduous, 300 + Index);
     }
 
-    // Private yards: fruit-tree silhouettes are intentionally represented with smaller broadleaf proxies;
-    // exact species (apple/cherry/plum/walnut) will be assigned in the final foliage content pass.
-    for (int32 I=0; I<24; ++I)
-    {
-        const float X = -62000.0f + (I%8)*15000.0f;
-        const float Y = -48000.0f + (I/8)*42000.0f + ((I%3)-1)*1800.0f;
-        AddTreeFamily(FVector(X,Y,0), 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
-    }
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SOURCE_AUTHORED_VEGETATION_READY deciduous_asset=SM_Tree_Var01 pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 primitive_tree_components=0 cylinder_sphere_trees=0 oak_asset_verified=0"));
 }
