@@ -5,12 +5,13 @@
 #include "OCAuthoredWorldSurfaceUpgradeSubsystem.generated.h"
 
 /**
- * PASS45 item 31 runtime upgrade for the canonical Oster road family.
+ * PASS45 item 31 runtime upgrade for canonical Oster Cube-authored topology that already has verified tracked assets.
  *
  * OCWorldSectorOster still carries legacy Cube transforms as deterministic geo/topology authoring data.
  * Before visual acceptance and before the Pass12 12-second stability baseline, this subsystem replaces the
- * player-facing Roads/Sidewalks meshes with tracked Scene_RoadsideConstruction authored surfaces while
- * preserving each authored transform's geometric bounds. It never converts unrelated/unknown meshes.
+ * player-facing Roads/Sidewalks meshes with tracked Scene_RoadsideConstruction authored surfaces and replaces
+ * the visible Fences family with the committed AdvancedVillagePack authored fence mesh. Existing transforms,
+ * footprint orientation and bounds are preserved. It never converts unrelated/unknown meshes.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCAuthoredWorldSurfaceUpgradeSubsystem : public UTickableWorldSubsystem
