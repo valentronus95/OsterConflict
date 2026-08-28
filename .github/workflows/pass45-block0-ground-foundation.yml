@@ -11,7 +11,9 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
       - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'RUN_PASS45_BLOCK0_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
+      - 'VERIFY_PASS45_BLOCK0_RUNTIME_HANDOFF.py'
       - 'PASS45_BLOCK_EXECUTION_PLAN.md'
       - '.github/workflows/pass45-block0-ground-foundation.yml'
   pull_request:
@@ -24,7 +26,9 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
       - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'RUN_PASS45_BLOCK0_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
+      - 'VERIFY_PASS45_BLOCK0_RUNTIME_HANDOFF.py'
       - 'PASS45_BLOCK_EXECUTION_PLAN.md'
       - '.github/workflows/pass45-block0-ground-foundation.yml'
 
@@ -38,3 +42,5 @@ jobs:
           python-version: '3.12'
       - name: Verify Block0 authored ground and strict spatial grass contracts
         run: python VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py
+      - name: Verify isolated Block0 UE58 evidence handoff
+        run: python VERIFY_PASS45_BLOCK0_RUNTIME_HANDOFF.py
