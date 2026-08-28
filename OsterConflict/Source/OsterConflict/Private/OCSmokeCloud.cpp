@@ -1,6 +1,14 @@
 #include "OCSmokeCloud.h"
 
 #include "Components/SceneComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+
+namespace
+{
+    constexpr const TCHAR* Pass45SmokeNiagaraPath =
+        TEXT("/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop");
+}
 
 AOCSmokeCloud::AOCSmokeCloud()
 {
@@ -11,9 +19,13 @@ AOCSmokeCloud::AOCSmokeCloud()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    // Pass45 runtime evidence rejected the old cluster of Engine BasicShape spheres as smoke.
-    // Until an authored particle/Niagara payload exists in the repository, this actor remains gameplay-only.
-    // Missing visual content is intentionally visible in logs instead of being disguised with primitive geometry.
+    SmokeVFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SmokeVFX"));
+    SmokeVFX->SetupAttachment(SceneRoot);
+    SmokeVFX->SetAutoActivate(false);
+    SmokeVFX->SetIsReplicated(false);
+
+    // Pass45 runtime evidence rejected Engine BasicShape spheres as a smoke substitute.
+    // The imported Niagara system is the sole visible presentation owner; load failure stays visually fail-closed.
 }
 
 void AOCSmokeCloud::BeginPlay()
@@ -21,9 +33,29 @@ void AOCSmokeCloud::BeginPlay()
     Super::BeginPlay();
     SetLifeSpan(LifetimeSeconds);
 
-    UE_LOG(LogTemp, Error,
-        TEXT("PASS45_SMOKE_VFX_CONTENT_GAP authored_vfx=0 primitive_visible=0 gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-        SmokeRadiusCm, LifetimeSeconds);
+    if (GetNetMode() == NM_DedicatedServer)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_SMOKE_VFX_SERVER_SKIP gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            SmokeRadiusCm, LifetimeSeconds);
+        return;
+    }
+
+    UNiagaraSystem* SmokeSystem = LoadObject<UNiagaraSystem>(nullptr, Pass45SmokeNiagaraPath);
+    if (!SmokeSystem)
+    {
+        SmokeVFX->DeactivateImmediate();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            Pass45SmokeNiagaraPath, SmokeRadiusCm, LifetimeSeconds);
+        return;
+    }
+
+    SmokeVFX->SetAsset(SmokeSystem);
+    SmokeVFX->Activate(true);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+        Pass45SmokeNiagaraPath, SmokeRadiusCm, LifetimeSeconds);
 }
 
 bool AOCSmokeCloud::ContainsPoint(const FVector& WorldPoint) const
