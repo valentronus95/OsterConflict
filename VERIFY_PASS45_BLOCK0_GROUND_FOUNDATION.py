@@ -3,10 +3,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0GroundFoundationSubsystem.h"
 CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0GroundFoundationSubsystem.cpp"
-COVERAGE_HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0FoliageCoverageValidationSubsystem.h"
-COVERAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0FoliageCoverageValidationSubsystem.cpp"
+FOLIAGE_HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCFoliageRuntimeGuardSubsystem.h"
+FOLIAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCFoliageRuntimeGuardSubsystem.cpp"
 LATE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
+ACCEPTANCE = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
 PLAN = ROOT / "PASS45_BLOCK_EXECUTION_PLAN.md"
+RETIRED_COVERAGE_HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0FoliageCoverageValidationSubsystem.h"
+RETIRED_COVERAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0FoliageCoverageValidationSubsystem.cpp"
 
 errors: list[str] = []
 
@@ -30,9 +33,10 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 header = read(HEADER)
 cpp = read(CPP)
-coverage_header = read(COVERAGE_HEADER)
-coverage_cpp = read(COVERAGE_CPP)
+foliage_header = read(FOLIAGE_HEADER)
+foliage_cpp = read(FOLIAGE_CPP)
 late_cpp = read(LATE_CPP)
+acceptance = read(ACCEPTANCE)
 plan = read(PLAN)
 
 for needle in (
@@ -81,14 +85,19 @@ for needle in (
 ):
     require(late_cpp, needle, "late world-surface Ground idempotence")
 
-# A completed cursor traversal is not sufficient evidence for a 960x940 m visual foundation. Require a
-# validation-only spatial distribution gate that samples final DenseGrass instances across the map.
+# Spatial grass coverage belongs to the existing strict foliage runtime guard. A second tick subsystem would
+# duplicate a full HISM scan and could disagree with the PASS10/PASS36 gate consumed by runtime acceptance.
+for retired in (RETIRED_COVERAGE_HEADER, RETIRED_COVERAGE_CPP):
+    if retired.exists():
+        errors.append(f"duplicate Block0 foliage coverage tick owner still exists: {retired.relative_to(ROOT)}")
+
 for needle in (
-    "class OSTERCONFLICT_API UOCBlock0FoliageCoverageValidationSubsystem : public UTickableWorldSubsystem",
-    "virtual void Tick(float DeltaTime) override;",
-    "virtual bool IsTickable() const override { return !bFinished; }",
+    "ValidateDenseFoliage(",
+    "int32& OutOccupiedBins",
+    "int32 OutQuadrantOccupied[4]",
+    "bool& bOutEdgeReach",
 ):
-    require(coverage_header, needle, "Block0 spatial coverage validator contract")
+    require(foliage_header, needle, "single-owner spatial foliage guard contract")
 
 for needle in (
     "CompactMinX = -78000.0f",
@@ -101,26 +110,27 @@ for needle in (
     "EdgeToleranceFraction = 0.20f",
     "OC_Block0FullMapGrassComplete",
     "GetInstanceTransform(Index, InstanceTransform, true)",
+    "OutOccupiedBins >= MinOccupiedBins",
+    "bOutEdgeReach",
     "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL",
     "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY",
     "full_playable_distribution=1",
-    "mutation=0",
-    "runtime_acceptance=0",
+    "strict_runtime_owner=OCFoliageRuntimeGuard",
+    "PASS10_FOLIAGE_RUNTIME_FAIL",
+    "PASS10_FOLIAGE_RUNTIME_READY",
+    "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
+    "spatial_coverage=1",
+    "block0_spatial_grass_distribution_insufficient",
 ):
-    require(coverage_cpp, needle, "Block0 full-map grass distribution gate")
+    require(foliage_cpp, needle, "Block0 full-map grass distribution strict gate")
 
-for forbidden_validation_mutation in (
-    "SetStaticMesh(",
-    "SetMaterial(",
-    "AddInstance(",
-    "RemoveInstance(",
-    "DestroyComponent(",
-    "SetVisibility(",
-    "SetHiddenInGame(",
-    "SetActorLocation(",
-    "SetRelativeTransform(",
+# Runtime acceptance already consumes PASS36 READY and rejects PASS10 FAIL. Because both are emitted only after
+# the integrated spatial test, Block0 distribution can no longer fail silently behind an unrelated marker.
+for needle in (
+    "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
+    'findstr /C:"PASS10_FOLIAGE_RUNTIME_FAIL"',
 ):
-    forbid(coverage_cpp, forbidden_validation_mutation, "mutation inside validation-only spatial coverage gate")
+    require(acceptance, needle, "Block0 runtime acceptance wiring")
 
 for needle in (
     "| 0 | Ground + grass foundation | **ACTIVE** |",
@@ -138,7 +148,8 @@ print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: PASS")
 print("- tracked authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
 print("- compact source footprint and top-Z are preserved with bounds-aware conversion")
 print("- the new Ground owner contains no Tick/timer delay")
-print("- later world-surface Ground handling remains idempotent validation when authored state already exists")
-print("- final DenseGrass distribution is validated across 4x4 bins, all quadrants and map-edge reach")
-print("- the spatial coverage validator is observation-only and cannot repair/mutate the world")
+print("- later world-surface Ground handling remains idempotent when authored state already exists")
+print("- the existing foliage runtime guard is the single strict owner for 4x4 spatial grass distribution")
+print("- PASS36 READY cannot emit until bin/quadrant/edge coverage passes; spatial failure also emits PASS10 hard FAIL")
+print("- duplicate Block0 coverage tick subsystem is physically absent")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile, first-frame visual evidence, spatial coverage log and Block0 screenshots remain authoritative")
