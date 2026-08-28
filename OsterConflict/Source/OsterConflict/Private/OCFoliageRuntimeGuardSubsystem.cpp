@@ -15,6 +15,19 @@ namespace
 {
     const FName DenseFoliageActorTag(TEXT("OC_DenseGroundFoliage"));
     const FName Block0PopulationCompleteTag(TEXT("OC_Block0FullMapGrassComplete"));
+
+    constexpr float CompactMinX = -78000.0f;
+    constexpr float CompactMaxX =  18000.0f;
+    constexpr float CompactMinY = -12000.0f;
+    constexpr float CompactMaxY =  82000.0f;
+    constexpr float CompactWidthCm = CompactMaxX - CompactMinX;
+    constexpr float CompactHeightCm = CompactMaxY - CompactMinY;
+    constexpr int32 CoverageBinsPerAxis = 4;
+    constexpr int32 CoverageBinCount = CoverageBinsPerAxis * CoverageBinsPerAxis;
+    constexpr int32 MinOccupiedBins = 12;
+    constexpr int32 MinOccupiedBinsPerQuadrant = 2;
+    constexpr float EdgeToleranceFraction = 0.20f;
+
     const FName ProxyGroundCoverNames[]
     {
         TEXT("GrassMown"),
@@ -65,6 +78,12 @@ namespace
             bPopulationComplete = Actor->ActorHasTag(Block0PopulationCompleteTag);
         }
         return DenseActorCount == 1 && bPopulationComplete;
+    }
+
+    int32 CoverageBin(const float Value, const float MinValue, const float MaxValue)
+    {
+        const float Alpha = FMath::Clamp((Value - MinValue) / (MaxValue - MinValue), 0.0f, 1.0f);
+        return FMath::Clamp(FMath::FloorToInt(Alpha * CoverageBinsPerAxis), 0, CoverageBinsPerAxis - 1);
     }
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
@@ -296,10 +315,19 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
 bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
     int32 MinGrassInstances,
     int32& OutGrassInstances,
-    int32& OutDenseGrassComponents) const
+    int32& OutDenseGrassComponents,
+    int32& OutOccupiedBins,
+    int32 OutQuadrantOccupied[4],
+    bool& bOutEdgeReach) const
 {
     OutGrassInstances = 0;
     OutDenseGrassComponents = 0;
+    OutOccupiedBins = 0;
+    OutQuadrantOccupied[0] = 0;
+    OutQuadrantOccupied[1] = 0;
+    OutQuadrantOccupied[2] = 0;
+    OutQuadrantOccupied[3] = 0;
+    bOutEdgeReach = false;
 
     UWorld* World = GetWorld();
     if (!World) return false;
@@ -318,6 +346,12 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
 
     if (DenseActorCount != 1 || !DenseActor || !DenseActor->ActorHasTag(Block0PopulationCompleteTag)) return false;
 
+    bool OccupiedBins[CoverageBinCount] = {};
+    float ObservedMinX = BIG_NUMBER;
+    float ObservedMaxX = -BIG_NUMBER;
+    float ObservedMinY = BIG_NUMBER;
+    float ObservedMaxY = -BIG_NUMBER;
+
     TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> Components;
     DenseActor->GetComponents(Components);
     for (UHierarchicalInstancedStaticMeshComponent* Component : Components)
@@ -327,15 +361,68 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
         if (!Name.StartsWith(TEXT("DenseGrass_"))) continue;
 
         ++OutDenseGrassComponents;
-        OutGrassInstances += Component->GetInstanceCount();
-
         if (Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
         {
             return false;
         }
+
+        for (int32 Index = 0; Index < Component->GetInstanceCount(); ++Index)
+        {
+            FTransform InstanceTransform;
+            if (!Component->GetInstanceTransform(Index, InstanceTransform, true)) continue;
+            const FVector Location = InstanceTransform.GetLocation();
+            if (Location.X < CompactMinX || Location.X > CompactMaxX ||
+                Location.Y < CompactMinY || Location.Y > CompactMaxY)
+            {
+                continue;
+            }
+
+            ++OutGrassInstances;
+            ObservedMinX = FMath::Min(ObservedMinX, Location.X);
+            ObservedMaxX = FMath::Max(ObservedMaxX, Location.X);
+            ObservedMinY = FMath::Min(ObservedMinY, Location.Y);
+            ObservedMaxY = FMath::Max(ObservedMaxY, Location.Y);
+
+            const int32 BinX = CoverageBin(Location.X, CompactMinX, CompactMaxX);
+            const int32 BinY = CoverageBin(Location.Y, CompactMinY, CompactMaxY);
+            OccupiedBins[BinY * CoverageBinsPerAxis + BinX] = true;
+        }
     }
 
-    return OutDenseGrassComponents > 0 && OutGrassInstances >= MinGrassInstances;
+    for (int32 BinY = 0; BinY < CoverageBinsPerAxis; ++BinY)
+    {
+        for (int32 BinX = 0; BinX < CoverageBinsPerAxis; ++BinX)
+        {
+            if (!OccupiedBins[BinY * CoverageBinsPerAxis + BinX]) continue;
+            ++OutOccupiedBins;
+            const int32 QuadrantX = BinX >= CoverageBinsPerAxis / 2 ? 1 : 0;
+            const int32 QuadrantY = BinY >= CoverageBinsPerAxis / 2 ? 1 : 0;
+            ++OutQuadrantOccupied[QuadrantY * 2 + QuadrantX];
+        }
+    }
+
+    if (OutGrassInstances > 0)
+    {
+        const float EdgeToleranceX = CompactWidthCm * EdgeToleranceFraction;
+        const float EdgeToleranceY = CompactHeightCm * EdgeToleranceFraction;
+        bOutEdgeReach =
+            ObservedMinX <= CompactMinX + EdgeToleranceX &&
+            ObservedMaxX >= CompactMaxX - EdgeToleranceX &&
+            ObservedMinY <= CompactMinY + EdgeToleranceY &&
+            ObservedMaxY >= CompactMaxY - EdgeToleranceY;
+    }
+
+    const bool bQuadrantsReady =
+        OutQuadrantOccupied[0] >= MinOccupiedBinsPerQuadrant &&
+        OutQuadrantOccupied[1] >= MinOccupiedBinsPerQuadrant &&
+        OutQuadrantOccupied[2] >= MinOccupiedBinsPerQuadrant &&
+        OutQuadrantOccupied[3] >= MinOccupiedBinsPerQuadrant;
+
+    return OutDenseGrassComponents > 0 &&
+        OutGrassInstances >= MinGrassInstances &&
+        OutOccupiedBins >= MinOccupiedBins &&
+        bQuadrantsReady &&
+        bOutEdgeReach;
 }
 
 void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
@@ -369,27 +456,48 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     const bool bPopulationComplete = HasCompletedDenseFoliagePopulation(*World);
     int32 GrassInstances = 0;
     int32 DenseGrassComponents = 0;
-    const bool bDenseReady = bPopulationComplete &&
-        ValidateDenseFoliage(MinGrassInstances, GrassInstances, DenseGrassComponents);
+    int32 OccupiedBins = 0;
+    int32 QuadrantOccupied[4] = {};
+    bool bEdgeReach = false;
+    const bool bDenseReady = bPopulationComplete && ValidateDenseFoliage(
+        MinGrassInstances,
+        GrassInstances,
+        DenseGrassComponents,
+        OccupiedBins,
+        QuadrantOccupied,
+        bEdgeReach);
 
     if (bGroundProxiesDestroyed && bDeveloperMarkersDestroyed && bAuthoredTreesReady && bDenseReady)
     {
         bFinished = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0 population_complete=1 full_playable_bounds=1"),
+            TEXT("PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY grass=%d occupied_bins=%d/%d quadrants=%d,%d,%d,%d edge_reach=1 full_playable_distribution=1 strict_runtime_owner=OCFoliageRuntimeGuard mutation=0 runtime_acceptance=0"),
+            GrassInstances,
+            OccupiedBins,
+            CoverageBinCount,
+            QuadrantOccupied[0],
+            QuadrantOccupied[1],
+            QuadrantOccupied[2],
+            QuadrantOccupied[3]);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0 population_complete=1 full_playable_bounds=1 spatial_coverage=1 occupied_bins=%d/%d edge_reach=1"),
             DenseGrassComponents,
             GrassInstances,
             MinGrassInstances,
-            bLowCPU ? TEXT("LowCPU") : TEXT("Full"));
+            bLowCPU ? TEXT("LowCPU") : TEXT("Full"),
+            OccupiedBins,
+            CoverageBinCount);
         if (bLowCPU)
         {
             UE_LOG(LogTemp, Display,
-                TEXT("PASS36_LOWCPU_FOLIAGE_RUNTIME_READY grassInstances=%d minRequired=%d full_sector_population=1 population_complete=1 density_policy_only=1"),
+                TEXT("PASS36_LOWCPU_FOLIAGE_RUNTIME_READY grassInstances=%d minRequired=%d full_sector_population=1 population_complete=1 density_policy_only=1 spatial_coverage=1 occupied_bins=%d/%d edge_reach=1"),
                 GrassInstances,
-                MinGrassInstances);
+                MinGrassInstances,
+                OccupiedBins,
+                CoverageBinCount);
         }
         UE_LOG(LogTemp, Display,
-            TEXT("PASS42_FOLIAGE_GUARD_THROTTLED_READY sample_hz=4 proxy_rescan_after_ready=0"));
+            TEXT("PASS42_FOLIAGE_GUARD_THROTTLED_READY sample_hz=4 proxy_rescan_after_ready=0 spatial_scan_terminal=1"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_VISUAL_CLEANUP_PARTIAL_READY ground_cover_cube_proxies=0 developer_reference_markers=0 developer_text_labels=0 authored_dense_foliage=1 native_render_scale_required=1 gate_k_complete=0"));
         return;
@@ -425,6 +533,26 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     if (GrassInstances < MinGrassInstances)
     {
         FailValidation(FString::Printf(TEXT("dense_grass_instances_%d_lt_%d"), GrassInstances, MinGrassInstances));
+        return;
+    }
+    if (OccupiedBins < MinOccupiedBins ||
+        QuadrantOccupied[0] < MinOccupiedBinsPerQuadrant ||
+        QuadrantOccupied[1] < MinOccupiedBinsPerQuadrant ||
+        QuadrantOccupied[2] < MinOccupiedBinsPerQuadrant ||
+        QuadrantOccupied[3] < MinOccupiedBinsPerQuadrant ||
+        !bEdgeReach)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL grass=%d occupied_bins=%d/%d quadrants=%d,%d,%d,%d edge_reach=%d full_playable_distribution=0 strict_runtime_owner=OCFoliageRuntimeGuard mutation=0 runtime_acceptance=0"),
+            GrassInstances,
+            OccupiedBins,
+            CoverageBinCount,
+            QuadrantOccupied[0],
+            QuadrantOccupied[1],
+            QuadrantOccupied[2],
+            QuadrantOccupied[3],
+            bEdgeReach ? 1 : 0);
+        FailValidation(TEXT("block0_spatial_grass_distribution_insufficient"));
         return;
     }
 
