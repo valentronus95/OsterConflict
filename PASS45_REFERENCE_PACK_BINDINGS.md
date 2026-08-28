@@ -45,15 +45,82 @@ Current status:
 
 **REFERENCE BOUND / SOURCE AUDIT REQUIRED / UE 5.8 RUNTIME ACCEPTANCE REQUIRED**
 
+### `LOC_SILPO_002_OSTER_SILPO`
+
+Normative repository appendix:
+
+`_DOCS/REFERENCE_PACKS/LOC_SILPO_002_OSTER_SILPO/REFERENCE_SPEC.md`
+
+Evidence basis: reviewed user pack containing 3 detailed description files, source-photo manifest, scene anchors and 20 facade/interior/street/water-tower photographs.
+
+Applies to:
+
+- Pass45 Gate E Silpo ownership/separation and branded-site identity;
+- Pass45 Gate K Silpo photo-fidelity acceptance;
+- selected-period facade state and explicit prohibition on mixing 2017–2019 light facade with the 2020 graphite state;
+- stepped parapet, volumetric `Сільпо` sign, lower entrance wing and long advertisement wall;
+- checkout-zone identity and interior acceptance where interior is in scope;
+- parking/street/opposite-block context;
+- `LOC_TOWER_002A_OSTER_WATER_TOWER` silhouette/material/sightline contract;
+- conservative fail-visible treatment of the still-provisional exact water-tower world transform.
+
+Required screenshot set defined by the appendix:
+
+`CAM-SILPO-01_FRONT_WIDE`  
+`CAM-SILPO-02_FRONT_CLOSE`  
+`CAM-SILPO-03_ENTRANCE_SIDE`  
+`CAM-SILPO-04_LONG_WALL`  
+`CAM-SILPO-05_OPPOSITE_SIDE`  
+`CAM-SILPO-06_STREET_AXIS`  
+`CAM-SILPO-07_WATER_TOWER_SIGHTLINE`
+
+Current status:
+
+**REFERENCE BOUND / NORMATIVE USER EVIDENCE / UE 5.8 RUNTIME ACCEPTANCE REQUIRED**
+
+### `LOC_CULTURE_003_OSTER_CULTURE_HOUSE`
+
+Repository appendix:
+
+`_DOCS/REFERENCE_PACKS/LOC_CULTURE_003_OSTER_CULTURE_HOUSE/REFERENCE_SPEC.md`
+
+Evidence basis: verified address/identity and public historical/site grounding plus current project source inspection. No dedicated user photo pack has yet been promoted for this location.
+
+Applies to:
+
+- Pass45 Gate E strict Culture House separation from Museum/Silpo;
+- Pass45 Gate K direct Culture House screenshot acceptance;
+- verified `Hranovskoho 3` identity/site context;
+- former-synagogue / Soviet Culture House historical context without speculative pre-Soviet reconstruction;
+- old-park relationship;
+- current six-column source facade as a **PROVISIONAL WORKING HYPOTHESIS**, not photo-verified exact geometry;
+- fail-visible handling of unverified bearing, dimensions, exact facade materials and hidden/rear geometry.
+
+Required provisional screenshot set:
+
+`CUL-CAM-01_FRONT_WIDE`  
+`CUL-CAM-02_FRONT_CLOSE`  
+`CUL-CAM-03_OBLIQUE_LEFT`  
+`CUL-CAM-04_OBLIQUE_RIGHT`  
+`CUL-CAM-05_SITE_CONTEXT`
+
+Current status:
+
+**REFERENCE BOUND / VERIFIED IDENTITY+SITE / VISUAL GEOMETRY PARTLY PROVISIONAL / UE 5.8 RUNTIME ACCEPTANCE REQUIRED**
+
+A later dedicated user Culture House photo pack outranks and replaces conflicting provisional geometry assumptions in this appendix.
+
 ## 2. Evidence classification rule
 
 Each location pack must distinguish:
 
-- `VERIFIED` — directly supported by repeated visual evidence;
+- `VERIFIED` — directly supported by repeated visual/factual evidence;
 - `PROBABLE` — strongly implied but incomplete;
 - `UNKNOWN` / `PROVISIONAL` — insufficient evidence; conservative placeholder permitted but may not be called exact.
 
 Generic asset-pack assumptions cannot upgrade `UNKNOWN` to `VERIFIED`.
+
+A current C++ constant or green structural verifier cannot by itself upgrade a visual hypothesis to `VERIFIED`.
 
 ## 3. Repository rule
 
@@ -71,8 +138,10 @@ Museum evidence cannot define Culture House geometry. Culture House evidence can
 
 If two packs disagree about what appears to be the same runtime owner, resolve ownership explicitly before implementation rather than averaging the references into a fictional hybrid.
 
+For Pass45 the Museum, Silpo and Culture House bindings above are all active simultaneously. Their evidence may share citywide context, but their hero-building geometry, material identity and screenshot acceptance remain independent.
+
 ## 5. Future bindings
 
-Add future location packs here only after their evidence has been reviewed and their scope is explicit. Examples may include Culture House, Silpo, Central Park, street/road archetypes, and Oster private-sector archetypes.
+Add future location packs here only after their evidence has been reviewed and their scope is explicit. Examples may include Central Park, street/road archetypes, and Oster private-sector house/fence archetypes.
 
 A pack is not runtime accepted merely because it is listed here.
