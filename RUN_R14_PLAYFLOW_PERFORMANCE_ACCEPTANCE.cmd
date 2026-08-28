@@ -10,9 +10,10 @@ echo OSTER CONFLICT - PASS 45 CURRENT RUNTIME ACCEPTANCE
 echo ============================================================
 echo.
 echo Перевіряється фактичний normal-game runtime, а не старі source-only припущення.
-echo Pass 45 gates: live pawn біля Museum, compact central Oster, zero implicit filler bots,
-echo single visible Museum owner, no runtime material/layer repair, proportional production vehicles,
-echo vehicle enter/exit transform preservation, M2 normal pitch, grounded rack та >=30 FPS.
+echo Pass 45 gates: authored Block0 ground + full-map grass, live pawn біля Museum, compact central Oster,
+echo zero implicit filler bots, single visible Museum owner, no runtime material/layer repair,
+echo proportional production vehicles, vehicle enter/exit transform preservation, M2 normal pitch,
+echo grounded rack та >=30 FPS.
 echo.
 echo Послідовність:
 echo   1. У головному меню натисніть START.
@@ -59,6 +60,9 @@ for %%M in (
     PASS44_COMPACT_PLAYABLE_AREA_READY
     PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY
     PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY
+    PASS45_BLOCK0_PRETICK_GROUND_READY
+    PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY
+    PASS45_REGIONAL_TREE_INTAKE_WIRED
     PASS45_LANDMARK_STARTUP_COORDINATED_READY
     PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED
     PASS45_MUSEUM_R138_COLLISION_ONLY_READY
@@ -99,6 +103,20 @@ for %%M in (
         echo Log: %LOG%
         exit /b 32
     )
+)
+
+findstr /C:"PASS45_BLOCK0_PRETICK_GROUND_FAIL" /C:"PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [BLOCK0] Authored Ground failed or required ground content did not load.
+    findstr /C:"PASS45_BLOCK0_PRETICK_GROUND_FAIL" /C:"PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP" "%LOG%"
+    exit /b 55
+)
+
+findstr /C:"PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL" /C:"PASS45_REGIONAL_TREE_INTAKE_FAIL" "%LOG%" >nul
+if not errorlevel 1 (
+    echo [BLOCK0] Full-map grass distribution or imported regional-tree intake failed.
+    findstr /C:"PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL" /C:"PASS45_REGIONAL_TREE_INTAKE_FAIL" "%LOG%"
+    exit /b 56
 )
 
 findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%" >nul
@@ -230,6 +248,8 @@ if errorlevel 1 (
 )
 
 echo.
+echo [PASS] Block0 authored Ground READY was recorded with no Ground FAIL/CONTENT GAP.
+echo [PASS] Block0 spatial grass coverage and imported regional-tree intake were proved READY.
 echo [PASS] Frontend START/travel path is stable.
 echo [PASS] Normal local run did not silently auto-fill filler bots.
 echo [PASS] Primary world/gameplay/BASE/vehicle seeds remained inside compact central Oster.
@@ -247,6 +267,7 @@ echo [PASS] Tactical Map marker and character input passed.
 echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
+findstr /C:"PASS45_BLOCK0_PRETICK_GROUND_READY" /C:"PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY" /C:"PASS45_REGIONAL_TREE_INTAKE_WIRED" "%LOG%"
 findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
 findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
