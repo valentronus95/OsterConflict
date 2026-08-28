@@ -21,9 +21,10 @@ namespace
         if (!Actor) return nullptr;
         TInlineComponentArray<UStaticMeshComponent*> Components;
         Actor->GetComponents(Components);
+        const FName GroundName(TEXT("Ground"));
         for (UStaticMeshComponent* Component : Components)
         {
-            if (Component && Component->GetFName() == TEXT("Ground")) return Component;
+            if (Component && Component->GetFName() == GroundName) return Component;
         }
         return nullptr;
     }
