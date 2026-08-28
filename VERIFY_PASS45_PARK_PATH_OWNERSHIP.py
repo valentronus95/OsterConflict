@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parent
 WORLD_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWorldSectorOster.h"
 WORLD_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWorldSectorOster.cpp"
 UPGRADER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
+TACTICAL_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTacticalMapVisual.cpp"
 
 errors: list[str] = []
 
@@ -25,6 +25,7 @@ def req(condition: bool, message: str) -> None:
 world_h = read(WORLD_H)
 world_cpp = read(WORLD_CPP)
 upgrader_cpp = read(UPGRADER_CPP)
+tactical_cpp = read(TACTICAL_CPP)
 
 req("TObjectPtr<UInstancedStaticMeshComponent> ParkPaths;" in world_h,
     "AOCWorldSectorOster does not own a canonical ParkPaths component")
@@ -34,8 +35,10 @@ req("ExpectedParkPaths = 5" in world_cpp,
     "central-park source contract does not declare exactly five ParkPaths")
 req(world_cpp.count("AddBox(ParkPaths,") == 5,
     f"expected exactly five AddBox(ParkPaths, ...) calls, found {world_cpp.count('AddBox(ParkPaths,')}")
+req("PASS45_SOURCE_PARK_PATH_OWNERSHIP_READY" in world_cpp,
+    "source-owned ParkPaths readiness marker is missing")
 
-# These are the four central alleys plus the link to the north civic grove. They must not leak back into Sidewalks.
+# Four central alleys plus the link to the north civic grove must never leak back into Sidewalks.
 for forbidden in (
     "AddBox(Sidewalks, Park + FVector(0, 0, 14), FVector(17800, 360, 18));",
     "AddBox(Sidewalks, Park + FVector(0, -300, 14), FVector(360, 13200, 18));",
@@ -47,7 +50,7 @@ for forbidden in (
 
 for needle in (
     "SM_Stonepath_Var01.SM_Stonepath_Var01",
-    "ExpectedParkPathCount = 5",
+    "Specs.Num() != 5",
     "ExistingParkPaths->GetInstanceCount() != 5",
     "RemainingInSidewalks != 0",
     "UpgradeCubeFamily(ParkPaths, ParkPathMesh",
@@ -55,9 +58,7 @@ for needle in (
 ):
     req(needle in upgrader_cpp, f"bounds-aware authored ParkPaths upgrade contract missing: {needle}")
 
-# Tactical map must not depend on the Sidewalks ISM family; moving these five paths therefore cannot erase topology.
-tactical = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTacticalMapVisual.cpp"
-tactical_cpp = read(tactical)
+# Moving the source family must not erase tactical topology: the map explicitly ignores historical blockout ISMs.
 req("do NOT read Roads/Sidewalks/Buildings/LandmarkBlocks ISM families here" in tactical_cpp,
     "tactical-map independence from world blockout ISMs is no longer explicit")
 
