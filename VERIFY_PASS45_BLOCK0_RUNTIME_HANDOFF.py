@@ -36,24 +36,32 @@ for needle in (
     "Block0 foliage/tree source gate failed. UE runtime test cancelled.",
     "OsterConflictEditor Win64 Development",
     "/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1?LocationTest=1",
-    "-game -NoFrontend",
+    "-game -NoFrontend -Pass45Block0Evidence",
     "-d3d11 -sm5 -nohdr",
     '-ExecCmds="t.MaxFPS 60"',
+    "OsterConflict\\Saved\\Screenshots\\Pass45Block0",
     "PASS45_BLOCK0_PRETICK_GROUND_FAIL",
     "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL",
     "PASS10_FOLIAGE_RUNTIME_FAIL",
     "PASS45_REGIONAL_TREE_INTAKE_FAIL",
+    "PASS45_BLOCK0_EVIDENCE_CAMERA_FAIL",
     "PASS45_BLOCK0_PRETICK_GROUND_READY",
     "geometry_postcondition=1",
     "collision_enabled=1",
     "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY",
     "PASS10_FOLIAGE_RUNTIME_READY",
     "PASS45_REGIONAL_TREE_INTAKE_WIRED",
-    "Museum / central-sector ground context",
-    "Central park",
-    "College / urban lawn context",
-    "Ordinary roadside / private-sector context",
-    "Long sightline showing grass-ground LOD transition",
+    "PASS45_BLOCK0_EVIDENCE_CAPTURE_COMPLETE",
+    "screenshots=5",
+    "exact_required_views=1",
+    "No F9/manual camera work is required.",
+    "01_museum_central_ground.png",
+    "02_central_park_ground.png",
+    "03_college_urban_lawn.png",
+    "04_roadside_private_sector.png",
+    "05_long_sightline_lod.png",
+    "CaptureMode=AUTO_5_VIEW",
+    "EvidenceCameraComplete=PASS",
     "if %SHOT_COUNT% LSS 5",
     "PENDING_VISUAL_REVIEW",
     "This script never self-declares RUNTIME ACCEPTED",
@@ -70,6 +78,17 @@ for needle in (
 req(
     launcher.find('"%SOURCE_VERIFY%"') < launcher.find('"%FOLIAGE_SOURCE_VERIFY%"') < launcher.find("[BUILD]"),
     "complete Block0 source preflight must run both ground and foliage verifiers before UE build",
+)
+
+# Exact Block0 evidence must now be hands-off after launch: the command-line flag arms the five-view camera,
+# the camera emits a completion marker, and the launcher requires all five canonical filenames before push.
+req("capture with F9" not in launcher,
+    "Block0 runtime launcher regressed to manual F9 evidence capture")
+req("-Pass45Block0Evidence" in launcher,
+    "Block0 evidence subsystem is present in source but not armed by the runtime launcher")
+req(
+    launcher.find("-Pass45Block0Evidence") < launcher.find("PASS45_BLOCK0_EVIDENCE_CAPTURE_COMPLETE"),
+    "automated evidence mode must be armed before its completion marker is evaluated",
 )
 
 # The isolated Block0 route must not drag locked content blocks into the acceptance path.
@@ -114,7 +133,8 @@ print("PASS45 BLOCK0 RUNTIME HANDOFF: PASS")
 print("- one isolated launcher verifies current remote head, hydrates LFS and runs both Block0 source authorities before build")
 print("- ground/spatial contracts plus Pass10 foliage surface/zoning/tree-intake contracts must pass before UE 5.8 starts")
 print("- direct Sandbox/LocationTest launch avoids weapon/vehicle/landmark acceptance dependencies")
-print("- runtime FAIL/READY markers are enforced before evidence collection")
-print("- at least five exact-session screenshots are collected and tied to the tested source head")
+print("- -Pass45Block0Evidence arms the existing five-view camera; manual F9/camera work is forbidden")
+print("- runtime FAIL/READY markers plus the evidence-camera completion marker are enforced")
+print("- all five canonical screenshot filenames must exist in the exact-session evidence pack")
 print("- evidence may auto-commit/push only if GitHub still equals the tested head")
 print("- visual evidence remains PENDING_VISUAL_REVIEW; the launcher cannot self-declare runtime acceptance")
