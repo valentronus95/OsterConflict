@@ -221,7 +221,20 @@ void AOCWorldSectorOster::BeginPlay()
         Component->SetMaterial(0, MID);
     };
 
-    Tint(Ground,              FLinearColor(0.16f, 0.25f, 0.10f));
+    // Block 0 ordering guard: UWorldSubsystem::OnWorldBeginPlay may already have replaced Ground with the exact
+    // authored mesh/material. Never let this legacy source-palette step reclaim that authored state.
+    const bool bGroundStillSourceCube = Ground && Ground->GetStaticMesh() &&
+        Ground->GetStaticMesh()->GetPathName().Contains(TEXT("/Engine/BasicShapes/Cube"), ESearchCase::IgnoreCase);
+    if (bGroundStillSourceCube)
+    {
+        Tint(Ground, FLinearColor(0.16f, 0.25f, 0.10f));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BLOCK0_SOURCE_GROUND_TINT_SKIPPED authored_ground_preserved=1 basicshape_material_reclaim=0 runtime_acceptance=0"));
+    }
+
     Tint(Roads,               FLinearColor(0.055f, 0.060f, 0.065f));
     Tint(Sidewalks,           FLinearColor(0.42f, 0.43f, 0.41f));
     Tint(ParkPaths,           FLinearColor(0.40f, 0.39f, 0.34f));
