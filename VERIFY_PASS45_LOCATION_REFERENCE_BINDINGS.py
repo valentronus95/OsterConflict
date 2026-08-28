@@ -95,7 +95,7 @@ for needle in (
     "CAM-SILPO-07_WATER_TOWER_SIGHTLINE",
     "CUL-CAM-01_FRONT_WIDE",
     "CUL-CAM-05_SITE_CONTEXT",
-    "Source tests alone cannot close this gate",
+    "source tests alone cannot close this gate",
 ):
     req(needle in tz, f"Pass45 Gate E/K lost bound reference acceptance rule: {needle}")
 
