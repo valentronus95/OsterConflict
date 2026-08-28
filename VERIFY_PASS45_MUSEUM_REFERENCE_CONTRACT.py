@@ -4,8 +4,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
 BINDINGS = ROOT / "PASS45_REFERENCE_PACK_BINDINGS.md"
-REF = ROOT / "_DOCS" / "REFERENCE_PACKS" / "LOC_MUSEUM_001_OSTER_MUSEUM" / "REFERENCE_SPEC.md"
-AUDIT = ROOT / "_DOCS" / "REFERENCE_PACKS" / "LOC_MUSEUM_001_OSTER_MUSEUM" / "CURRENT_SOURCE_GAP_AUDIT_2026-08-28.md"
+PACK_ROOT = ROOT / "_DOCS" / "REFERENCE_PACKS" / "LOC_MUSEUM_001_OSTER_MUSEUM"
+REF = PACK_ROOT / "REFERENCE_SPEC.md"
+AUDIT = PACK_ROOT / "CURRENT_SOURCE_GAP_AUDIT_2026-08-28.md"
+GROUNDING = PACK_ROOT / "PUBLIC_GROUNDING_RECONCILIATION_2026-08-28.md"
 
 errors: list[str] = []
 
@@ -26,6 +28,7 @@ tz = read(TZ)
 bindings = read(BINDINGS)
 ref = read(REF)
 audit = read(AUDIT)
+grounding = read(GROUNDING)
 
 # Canonical Pass45 remains the execution/status owner; the location pack is a bound subordinate Gate E/K contract.
 req("single canonical active TZ for Pass 45" in tz,
@@ -74,6 +77,15 @@ for needle in (
 ):
     req(needle in audit, f"Museum source-gap audit lost required open conflict/ownership truth: {needle}")
 
+# Public text is grounding, not permission to overwrite the user-photo exterior.
+for needle in (
+    "вул. Татарівська, 30",
+    "wooden house",
+    "photo-driven",
+    "does **not** authorize replacing the photo-visible brick exterior",
+):
+    req(needle in grounding, f"Museum public/photo discrepancy note lost required authority rule: {needle}")
+
 # Prevent the most dangerous evidence bleed: three hero landmarks are independent owners.
 for needle in ("Museum", "Culture House", "Silpo"):
     req(needle in ref, f"Museum reference separation contract lost landmark: {needle}")
@@ -90,6 +102,7 @@ print("PASS45 MUSEUM REFERENCE CONTRACT: PASS")
 print("- canonical Pass45 TZ remains the execution/status owner")
 print("- LOC_MUSEUM_001 is bound as a normative Gate E/K visual-reference appendix")
 print("- VERIFIED/PROBABLE/UNKNOWN evidence classes and Museum identity anchors are guarded")
+print("- public identity/address grounding cannot overwrite the photo-driven visible exterior")
 print("- MUS-CAM-01..07 remain mandatory direct UE 5.8 visual evidence")
 print("- Museum-adjacent field vs modernized stadium conflict remains fail-visible until explicitly resolved")
 print("- Central Park ParkPaths and the Museum hero approach cannot be silently merged")
