@@ -5,6 +5,7 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
