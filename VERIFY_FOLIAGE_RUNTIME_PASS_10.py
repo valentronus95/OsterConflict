@@ -5,10 +5,12 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict/Source/OsterConflict"
 
 WORLD = SRC / "Private/OCWorldSectorOster.cpp"
+DENSE_H = SRC / "Public/OCDenseGroundFoliageSubsystem.h"
 DENSE = SRC / "Private/OCDenseGroundFoliageSubsystem.cpp"
 GUARD_H = SRC / "Public/OCFoliageRuntimeGuardSubsystem.h"
 GUARD_CPP = SRC / "Private/OCFoliageRuntimeGuardSubsystem.cpp"
 LAUNCHER = ROOT / "RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd"
+LATEST_RUNTIME_EVIDENCE = ROOT / "RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/README.md"
 
 
 def read(path: Path) -> str:
@@ -28,10 +30,12 @@ def forbid(text: str, needle: str, where: str) -> None:
 
 
 world = read(WORLD)
+dense_h = read(DENSE_H)
 dense = read(DENSE)
 guard_h = read(GUARD_H)
 guard = read(GUARD_CPP)
 launcher = read(LAUNCHER)
+latest_runtime_evidence = read(LATEST_RUNTIME_EVIDENCE)
 
 # Source zoning is still present for tactical/world-layout compatibility, but PASS45 item 31 no longer accepts
 # "hidden forever" as retirement. These Cube proxies must be physically destroyed before runtime acceptance.
@@ -52,8 +56,8 @@ for needle in (
 ):
     require(world, needle, "developer marker source semantics")
 
-# Real visible runtime grass must remain the batched mesh/HISM owner. Pass 36 may reduce the LowCPU spatial
-# budget after measured performance collapse, but it must remain bounded/batched and authored-mesh based.
+# Real visible runtime grass must remain the batched mesh/HISM owner. LowCPU changes density/render budget,
+# never the factual central-Oster spatial scope.
 for needle in (
     "UHierarchicalInstancedStaticMeshComponent",
     'TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh")',
@@ -62,11 +66,71 @@ for needle in (
     "Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);",
     "Component->SetCastShadow(false);",
     "PopulateBatch",
+    "CompactMinX = -78000.0f",
+    "CompactMaxX =  18000.0f",
+    "CompactMinY = -12000.0f",
+    "CompactMaxY =  82000.0f",
+    "full_playable_bounds=1",
+    "museum_only=0",
 ):
     require(dense, needle, "dense foliage owner")
-batch = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", dense)
-if not batch or not 1 <= int(batch.group(1)) <= 48:
-    raise SystemExit("PASS10 FOLIAGE VERIFY FAIL: dense foliage batch is missing or exceeds the performance ceiling")
+
+for name, ceiling in (("FullCellsPerBatch", 48), ("LowCPUCellsPerBatch", 48)):
+    match = re.search(rf"constexpr\s+int32\s+{name}\s*=\s*(\d+)\s*;", dense)
+    if not match or not 1 <= int(match.group(1)) <= ceiling:
+        raise SystemExit(
+            f"PASS10 FOLIAGE VERIFY FAIL: {name} is missing or exceeds the {ceiling}-cell performance ceiling"
+        )
+require(dense, "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch;",
+        "profile-specific batched population budget")
+
+# PASS45 Block 0 regression: a cell-center trace is only a cheap preflight. Every actual randomized candidate
+# must be independently traced and rejected on road/sidewalk/path/building/plaza/foundation surfaces. Otherwise
+# an accepted cell near a hard surface can spill grass several metres onto that surface.
+for needle in (
+    "int32 ProcessedCells = 0;",
+    "int32 CandidateTraceAttempts = 0;",
+    "int32 CandidateAccepted = 0;",
+    "int32 CandidateRejectedBlocked = 0;",
+    "int32 CandidateRejectedTrace = 0;",
+    "int32 CandidateRejectedBounds = 0;",
+):
+    require(dense_h, needle, "Block0 foliage state contract")
+
+for needle in (
+    "auto ResolveCandidateSurface =",
+    "XY.X < PopulationMinX || XY.X > PopulationMaxX",
+    "XY.Y < PopulationMinY || XY.Y > PopulationMaxY",
+    "++CandidateTraceAttempts;",
+    "World->LineTraceSingleByChannel(",
+    "CandidateHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams",
+    "CandidateHit.ImpactNormal.Z < 0.72f || IsBlockedSurface(CandidateHit)",
+    "++CandidateRejectedBlocked;",
+    "++CandidateRejectedTrace;",
+    "++CandidateRejectedBounds;",
+    "++CandidateAccepted;",
+    "candidate_surface_guard=1",
+    "candidate_traces=%d",
+    "candidate_accepted=%d",
+    "candidate_rejected_blocked=%d",
+    "candidate_rejected_trace=%d",
+    "candidate_rejected_bounds=%d",
+):
+    require(dense, needle, "Block0 per-candidate surface guard")
+
+# All three randomized foliage families must pass the same guard before AddInstance.
+if dense.count("if (!ResolveCandidateSurface(CandidateXY, CandidateLocation)) continue;") < 1:
+    raise SystemExit("PASS10 FOLIAGE VERIFY FAIL: grass candidate can bypass per-instance surface validation")
+if dense.count("if (ResolveCandidateSurface(CandidateXY, CandidateLocation))") < 2:
+    raise SystemExit("PASS10 FOLIAGE VERIFY FAIL: plant/flower candidate can bypass per-instance surface validation")
+
+for blocked_term in (
+    'TEXT("road")', 'TEXT("street")', 'TEXT("sidewalk")', 'TEXT("pavement")',
+    'TEXT("asphalt")', 'TEXT("concrete")', 'TEXT("path")', 'TEXT("building")',
+    'TEXT("house")', 'TEXT("landmark")', 'TEXT("fence")', 'TEXT("plaza")',
+    'TEXT("stadium")', 'TEXT("parking")', 'TEXT("foundation")',
+):
+    require(dense, blocked_term, "blocked-surface vocabulary")
 
 for needle in (
     "UOCFoliageRuntimeGuardSubsystem",
@@ -125,10 +189,17 @@ for needle in (
     require(launcher, needle, "Windows foliage acceptance launcher")
 forbid(launcher, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only launcher evidence")
 
-print("FOLIAGE RUNTIME PASS 10 + PASS45 ITEM 31 PARTIAL SOURCE CONTRACT PASS")
+# Source checks cannot erase the user's newest direct UE evidence.
+for needle in ("RUNTIME REJECTED", "2026-08-27"):
+    require(latest_runtime_evidence, needle, "latest runtime evidence authority")
+
+print("FOLIAGE RUNTIME PASS 10 + PASS45 BLOCK0 SOURCE CONTRACT PASS")
 print("- source zoning/debug components are physically destroyed rather than merely hidden at runtime")
-print("- real batched DenseGrass HISM remains the visible runtime owner with a bounded performance budget")
+print("- real batched DenseGrass HISM covers the 960m x 940m compact playable bounds with profile-specific budgets")
+print("- every randomized grass/plant/flower candidate is independently traced before AddInstance")
+print("- road/sidewalk/path/building/plaza/foundation spill is fail-closed at the final candidate position")
 print("- five developer text labels and ReferenceMarkers cannot survive as player-facing scenery")
 print("- full profile preserves >=250 real grass instances; LowCPU uses its explicit bounded >=48 contract")
-print("- Gate K remains explicitly OPEN while other BasicShape/proxy core families still exist")
+print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
+print("- Gate K remains explicitly OPEN while major ground/other proxy visual work remains")
 print("STATUS: SOURCE CONTRACT ONLY; UE 5.8 visual/runtime acceptance still required")
