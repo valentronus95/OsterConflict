@@ -31,6 +31,9 @@ for needle in (
     "git status --porcelain --untracked-files=all",
     "git lfs pull origin",
     "VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py",
+    "VERIFY_FOLIAGE_RUNTIME_PASS_10.py",
+    "complete Block0 ground/grass/tree handoff contracts",
+    "Block0 foliage/tree source gate failed. UE runtime test cancelled.",
     "OsterConflictEditor Win64 Development",
     "/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1?LocationTest=1",
     "-game -NoFrontend",
@@ -60,6 +63,14 @@ for needle in (
     'git push origin "%CURRENT_BRANCH%"',
 ):
     req(needle in launcher, f"Block0 runtime handoff contract missing: {needle}")
+
+# The expensive local UE build must not begin until both source authorities pass. The ground verifier owns the
+# authored plane/spatial acceptance wiring; Pass10 owns final-candidate surface exclusions, maintained-vs-rough
+# foliage policy and the imported regional-tree acceptance contract.
+req(
+    launcher.find('"%SOURCE_VERIFY%"') < launcher.find('"%FOLIAGE_SOURCE_VERIFY%"') < launcher.find("[BUILD]"),
+    "complete Block0 source preflight must run both ground and foliage verifiers before UE build",
+)
 
 # The isolated Block0 route must not drag locked content blocks into the acceptance path.
 for forbidden in (
@@ -100,7 +111,8 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 BLOCK0 RUNTIME HANDOFF: PASS")
-print("- one isolated launcher verifies current remote head, hydrates LFS, source-checks and builds UE 5.8")
+print("- one isolated launcher verifies current remote head, hydrates LFS and runs both Block0 source authorities before build")
+print("- ground/spatial contracts plus Pass10 foliage surface/zoning/tree-intake contracts must pass before UE 5.8 starts")
 print("- direct Sandbox/LocationTest launch avoids weapon/vehicle/landmark acceptance dependencies")
 print("- runtime FAIL/READY markers are enforced before evidence collection")
 print("- at least five exact-session screenshots are collected and tied to the tested source head")
