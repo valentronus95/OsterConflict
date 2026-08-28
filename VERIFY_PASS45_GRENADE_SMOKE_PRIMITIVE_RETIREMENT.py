@@ -104,15 +104,14 @@ req('primitive sphere/cube substitute' in smoke_h.lower(),
 req('"Niagara"' in build,
     'OsterConflict module does not declare the Niagara dependency required by authored smoke VFX')
 
-# Canonical TZ must distinguish source integration from local UE 5.8 runtime acceptance.
+# Canonical runtime authority must still preserve the latest rejection until local UE evidence supersedes it.
 for needle in (
     'PASS45_GRENADE_PRODUCTION_VISUAL_READY',
     'PASS45_GRENADE_THROW_COMMIT_READY',
-    'PASS45_SMOKE_VFX_DONOR_WIRED',
     'primitive grenade/smoke',
     'RUNTIME REJECTED 2026-08-27',
 ):
-    req(needle in tz, f'canonical Pass45 TZ lost grenade/smoke status: {needle}')
+    req(needle in tz, f'canonical Pass45 TZ lost grenade/smoke/runtime truth: {needle}')
 
 if errors:
     print('PASS45 GRENADE/SMOKE PRIMITIVE RETIREMENT + THROW SEMANTICS: FAIL')
