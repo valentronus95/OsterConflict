@@ -258,12 +258,23 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         }
     }
 
-    const bool bADS = Character.IsAiming();
-    if (bADS && !State.bWasAiming && bDeclaredProfile)
+    const bool bRequestedADS = Character.IsAiming();
+    if (bRequestedADS && !State.bWasAiming && bDeclaredProfile)
     {
         ValidateADSAlignment(Character, *Weapon, FindProductionWeaponVisual(*Weapon), Profile);
+        if (!Profile.bADSCalibrated)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_ADS_PRESENTATION_FAIL_CLOSED weapon=%s requested_ads=1 calibrated=0 hip_transform_preserved=1 runtime_visual_acceptance=pending"),
+                *WeaponId.ToString());
+        }
     }
-    State.bWasAiming = bADS;
+    State.bWasAiming = bRequestedADS;
+
+    // Latest 2026-08-27 runtime evidence rejected the AK ADS/hand presentation. Until an exact per-weapon
+    // sight calibration is proven in UE 5.8, aiming may affect gameplay state elsewhere but this presentation
+    // subsystem must not apply guessed ADS arms/weapon transforms that can clip or hide the production mesh.
+    const bool bADS = bRequestedADS && Profile.bADSCalibrated;
 
     const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
     const bool bLongGun = WeaponClass != EOCWeaponClass::Pistol;
