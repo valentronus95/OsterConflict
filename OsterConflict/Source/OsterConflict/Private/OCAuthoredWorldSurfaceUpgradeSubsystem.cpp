@@ -16,7 +16,7 @@ namespace
     const TCHAR* AuthoredGroundMeshPath =
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1");
     const TCHAR* AuthoredGroundMaterialPath =
-        TEXT("/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape");
+        TEXT("/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2");
     const TCHAR* AuthoredRoadPath =
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01");
     const TCHAR* AuthoredSidewalkPath =
@@ -510,7 +510,7 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=AdvancedVillagePack tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=KiteDemo tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0"),
             GroundMesh ? 1 : 0,
             GroundMaterial ? 1 : 0,
             RoadMesh ? 1 : 0,
@@ -576,7 +576,7 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_GROUND_SURFACE_READY ground_mesh=SM_Plane_1x1 ground_material=M_Inst_Landscape basicshape_meshes=0 basicshape_material_overrides=0 playable_footprint_preserved=1 ground_top_z_preserved=1 bounds_aware_upgrade=1 pass12_baseline_deadline_s=12"));
+        TEXT("PASS45_AUTHORED_GROUND_SURFACE_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_meshes=0 basicshape_material_overrides=0 playable_footprint_preserved=1 ground_top_z_preserved=1 bounds_aware_upgrade=1 pass12_baseline_deadline_s=12"));
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_AUTHORED_ROAD_SURFACE_READY roads_mesh=SM_Urb_Roa_Asphalt_01 sidewalks_mesh=SM_Urb_Roa_Sidewalk_01 road_instances=%d sidewalk_instances=%d basicshape_meshes=0 basicshape_material_overrides=0 topology_preserved=1 pass12_baseline_deadline_s=12"),
         RoadInstances,
