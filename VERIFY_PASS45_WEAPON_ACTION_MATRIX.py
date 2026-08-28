@@ -260,7 +260,7 @@ for tz_needle in (
     "PASS45_MANUAL_ACTION_CYCLE_READY",
     "PASS45_MANUAL_ACTION_PRESENTATION_READY",
     "manual-action mechanical audio",
-    "RUNTIME REJECTED 2026-08-26",
+    "RUNTIME REJECTED 2026-08-27",
 ):
     req(tz_needle in tz, f"canonical Pass45 TZ lost current weapon-action status: {tz_needle}")
 
