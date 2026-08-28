@@ -22,6 +22,15 @@ function Write-Step([string]$Message) {
     Write-Host "[OC Gameplay Intake] $Message"
 }
 
+function Get-RelativePathCompat([string]$Root, [string]$FullPath) {
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd([char]'\', [char]'/') + [IO.Path]::DirectorySeparatorChar
+    $fileFull = [IO.Path]::GetFullPath($FullPath)
+    if (-not $fileFull.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Path '$fileFull' is outside intake root '$rootFull'."
+    }
+    return $fileFull.Substring($rootFull.Length).Replace("\", "/")
+}
+
 function Assert-Sha256([string]$Path, [string]$ExpectedSha256) {
     if ([string]::IsNullOrWhiteSpace($ExpectedSha256)) {
         return
@@ -183,15 +192,15 @@ Get-RemoteFile -Id "fps-asset-kit source README" `
     -Url "https://raw.githubusercontent.com/petroulacl/fps-asset-kit/a19b7458a593598211c95ec46ef4eb4b6d1f94d7/README.md" `
     -Destination (Join-Path $IntakeRoot "FPSAssetKit\SOURCE_README.md")
 
-# Generate a complete local byte receipt. This lets later import/PR work refer to
-# exact acquired bytes rather than vague filenames.
+# Generate a complete local byte receipt. Windows PowerShell 5.1 uses .NET
+# Framework, which does not expose Path.GetRelativePath, so keep this compatible.
 Write-Step "Writing SHA-256 receipt"
 $receiptRows = Get-ChildItem -LiteralPath $IntakeRoot -Recurse -File |
     Where-Object { $_.FullName -ne $ReceiptPath } |
     Sort-Object FullName |
     ForEach-Object {
         [pscustomobject]@{
-            RelativePath = [IO.Path]::GetRelativePath($IntakeRoot, $_.FullName).Replace("\", "/")
+            RelativePath = Get-RelativePathCompat -Root $IntakeRoot -FullPath $_.FullName
             Bytes = $_.Length
             Sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToUpperInvariant()
         }
