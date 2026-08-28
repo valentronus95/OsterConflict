@@ -14,6 +14,7 @@
 namespace
 {
     const FName DenseFoliageActorTag(TEXT("OC_DenseGroundFoliage"));
+    const FName Block0PopulationCompleteTag(TEXT("OC_Block0FullMapGrassComplete"));
     const FName ProxyGroundCoverNames[]
     {
         TEXT("GrassMown"),
@@ -50,6 +51,20 @@ namespace
     {
         const TCHAR* Value = World.URL.GetOption(TEXT("PerfProfile="), TEXT(""));
         return Value && FString(Value).Equals(TEXT("LowCPU"), ESearchCase::IgnoreCase);
+    }
+
+    bool HasCompletedDenseFoliagePopulation(UWorld& World)
+    {
+        int32 DenseActorCount = 0;
+        bool bPopulationComplete = false;
+        for (TActorIterator<AActor> It(&World); It; ++It)
+        {
+            AActor* Actor = *It;
+            if (!Actor || !Actor->ActorHasTag(DenseFoliageActorTag)) continue;
+            ++DenseActorCount;
+            bPopulationComplete = Actor->ActorHasTag(Block0PopulationCompleteTag);
+        }
+        return DenseActorCount == 1 && bPopulationComplete;
     }
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
@@ -301,7 +316,7 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
         }
     }
 
-    if (DenseActorCount != 1 || !DenseActor) return false;
+    if (DenseActorCount != 1 || !DenseActor || !DenseActor->ActorHasTag(Block0PopulationCompleteTag)) return false;
 
     TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> Components;
     DenseActor->GetComponents(Components);
@@ -351,15 +366,17 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
 
     const bool bLowCPU = IsLowCPUProfile(*World);
     const int32 MinGrassInstances = bLowCPU ? 48 : 250;
+    const bool bPopulationComplete = HasCompletedDenseFoliagePopulation(*World);
     int32 GrassInstances = 0;
     int32 DenseGrassComponents = 0;
-    const bool bDenseReady = ValidateDenseFoliage(MinGrassInstances, GrassInstances, DenseGrassComponents);
+    const bool bDenseReady = bPopulationComplete &&
+        ValidateDenseFoliage(MinGrassInstances, GrassInstances, DenseGrassComponents);
 
     if (bGroundProxiesDestroyed && bDeveloperMarkersDestroyed && bAuthoredTreesReady && bDenseReady)
     {
         bFinished = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0"),
+            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0 population_complete=1 full_playable_bounds=1"),
             DenseGrassComponents,
             GrassInstances,
             MinGrassInstances,
@@ -367,7 +384,7 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
         if (bLowCPU)
         {
             UE_LOG(LogTemp, Display,
-                TEXT("PASS36_LOWCPU_FOLIAGE_RUNTIME_READY grassInstances=%d minRequired=%d full_sector_population=0"),
+                TEXT("PASS36_LOWCPU_FOLIAGE_RUNTIME_READY grassInstances=%d minRequired=%d full_sector_population=1 population_complete=1 density_policy_only=1"),
                 GrassInstances,
                 MinGrassInstances);
         }
@@ -393,6 +410,11 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     if (!bAuthoredTreesReady)
     {
         FailValidation(TEXT("source_authored_tree_family_not_ready"));
+        return;
+    }
+    if (!bPopulationComplete)
+    {
+        FailValidation(TEXT("full_map_foliage_population_incomplete"));
         return;
     }
     if (DenseGrassComponents <= 0)
