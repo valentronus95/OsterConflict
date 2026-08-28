@@ -16,7 +16,8 @@ echo ============================================================
 echo OSTER CONFLICT - FOLIAGE RUNTIME ACCEPTANCE PASS 10 / PASS45
 echo ============================================================
 echo This run proves that source-only cube ground-cover proxies are
- echo physically destroyed and real dense foliage owns visible gameplay grass.
+echo physically destroyed, imported regional trees are actually wired,
+echo and real dense foliage owns visible gameplay grass.
 echo.
 
 call "%BASE_ACCEPTANCE%"
@@ -38,6 +39,22 @@ if not errorlevel 1 (
   echo Log: %PLAYTEST_LOG%
   pause
   exit /b 41
+)
+
+findstr /C:"PASS45_REGIONAL_TREE_INTAKE_FAIL" "%PLAYTEST_LOG%" >nul
+if not errorlevel 1 (
+  echo [STOP] Imported HillTree/ScotsPine runtime intake reported FAIL.
+  echo Log: %PLAYTEST_LOG%
+  pause
+  exit /b 45
+)
+
+findstr /C:"PASS45_REGIONAL_TREE_INTAKE_WIRED" "%PLAYTEST_LOG%" >nul
+if errorlevel 1 (
+  echo [STOP] Imported HillTree/ScotsPine runtime intake was not proved wired.
+  echo Log: %PLAYTEST_LOG%
+  pause
+  exit /b 46
 )
 
 findstr /C:"PASS45_GROUND_COVER_PRIMITIVES_DESTROYED" "%PLAYTEST_LOG%" >nul
@@ -65,10 +82,11 @@ if errorlevel 1 (
   exit /b 43
 )
 
+echo [PASS] PASS45_REGIONAL_TREE_INTAKE_WIRED found.
 echo [PASS] PASS45_GROUND_COVER_PRIMITIVES_DESTROYED found.
 echo [PASS] PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED found.
 echo [PASS] PASS10_FOLIAGE_RUNTIME_READY found.
-echo [PASS] Runtime uses real DenseGrass HISM ground cover instead of source-only cube slabs.
+echo [PASS] Runtime uses imported regional tree families plus real DenseGrass HISM ground cover.
 echo [NOTE] Gate K remains open while other BasicShape/proxy core families still exist.
 echo [NOTE] Shimmer/density still requires direct visual observation while moving the camera.
 pause
