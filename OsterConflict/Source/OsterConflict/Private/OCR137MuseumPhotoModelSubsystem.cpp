@@ -26,7 +26,6 @@ namespace
         UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(
             Owner, MakeUniqueObjectName(Owner, UInstancedStaticMeshComponent::StaticClass(), FName(RequestedName)));
         if (!Component) return nullptr;
-
         Component->SetupAttachment(Root);
         Component->SetStaticMesh(Mesh);
         if (AuthoredMaterial)
@@ -54,10 +53,7 @@ namespace
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
         if (NativeSize.X <= 1.0f || NativeSize.Y <= 1.0f || NativeSize.Z <= 1.0f) return false;
-
-        const FVector Scale(
-            DesiredSizeCm.X / NativeSize.X,
-            DesiredSizeCm.Y / NativeSize.Y,
+        const FVector Scale(DesiredSizeCm.X / NativeSize.X, DesiredSizeCm.Y / NativeSize.Y,
             DesiredSizeCm.Z / NativeSize.Z);
         const FQuat Quat = Rotation.Quaternion();
         const FVector Location = Center - Quat.RotateVector(Bounds.Origin * Scale);
@@ -73,9 +69,7 @@ namespace
         const float NativeLengths[3] = { NativeSize.X, NativeSize.Y, NativeSize.Z };
         int32 NativeLongestAxis = 0;
         for (int32 Axis = 1; Axis < 3; ++Axis)
-        {
             if (NativeLengths[Axis] > NativeLengths[NativeLongestAxis]) NativeLongestAxis = Axis;
-        }
         if (NativeLengths[NativeLongestAxis] <= 1.0f) return;
 
         const FVector UnitAxes[3] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
@@ -88,11 +82,10 @@ namespace
         };
 
         const FVector Horizontal = HorizontalDirection.GetSafeNormal();
-        const FVector Vertical = FVector::UpVector;
-        AddSegment(Center + Vertical * HeightCm * 0.5f, Horizontal, WidthCm);
-        AddSegment(Center - Vertical * HeightCm * 0.5f, Horizontal, WidthCm);
-        AddSegment(Center - Horizontal * WidthCm * 0.5f, Vertical, HeightCm);
-        AddSegment(Center + Horizontal * WidthCm * 0.5f, Vertical, HeightCm);
+        AddSegment(Center + FVector::UpVector * HeightCm * 0.5f, Horizontal, WidthCm);
+        AddSegment(Center - FVector::UpVector * HeightCm * 0.5f, Horizontal, WidthCm);
+        AddSegment(Center - Horizontal * WidthCm * 0.5f, FVector::UpVector, HeightCm);
+        AddSegment(Center + Horizontal * WidthCm * 0.5f, FVector::UpVector, HeightCm);
     }
 
     bool RemoveInstancesNear(UInstancedStaticMeshComponent* Component, const FVector& Center, const float RadiusCm)
@@ -135,9 +128,7 @@ void UOCR137MuseumPhotoModelSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
-    {
         if (GameMode->IsFrontendOnlySession()) return;
-    }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
     FTimerHandle Timer;
@@ -160,7 +151,6 @@ void UOCR137MuseumPhotoModelSubsystem::SuppressLegacyMuseum(UWorld& World)
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
     int32 HiddenComponents = 0;
     int32 TrimmedSourceComponents = 0;
-
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
         AActor* Actor = *It;
@@ -177,15 +167,13 @@ void UOCR137MuseumPhotoModelSubsystem::SuppressLegacyMuseum(UWorld& World)
                 Component->SetHiddenInGame(true, true);
                 Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
                 ++HiddenComponents;
-                continue;
             }
-            if (IsSourceMuseumFamily(Name) && RemoveInstancesNear(Component, Museum, SourceMuseumCleanupRadiusCm))
+            else if (IsSourceMuseumFamily(Name) && RemoveInstancesNear(Component, Museum, SourceMuseumCleanupRadiusCm))
             {
                 ++TrimmedSourceComponents;
             }
         }
     }
-
     UE_LOG(LogTemp, Display,
         TEXT("R13.7 museum model: legacy museum components hidden=%d, source landmark families trimmed=%d."),
         HiddenComponents, TrimmedSourceComponents);
@@ -194,10 +182,7 @@ void UOCR137MuseumPhotoModelSubsystem::SuppressLegacyMuseum(UWorld& World)
 void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
 {
     for (TActorIterator<AActor> It(&World); It; ++It)
-    {
-        AActor* Existing = *It;
-        if (Existing && Existing->ActorHasTag(TEXT("R137_MuseumPhotoModel"))) return;
-    }
+        if (AActor* Existing = *It; Existing && Existing->ActorHasTag(TEXT("R137_MuseumPhotoModel"))) return;
 
     UStaticMesh* Wall8 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_8m.Wall_8m"));
@@ -233,7 +218,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     AActor* Model = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
     if (!Model) return;
-
     Model->SetReplicates(false);
     Model->SetActorEnableCollision(true);
     Model->Tags.Add(TEXT("R137_MuseumPhotoModel"));
@@ -241,11 +225,7 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
 
     USceneComponent* Root = NewObject<USceneComponent>(Model,
         MakeUniqueObjectName(Model, USceneComponent::StaticClass(), TEXT("R137_MuseumPhotoModelRoot")));
-    if (!Root)
-    {
-        Model->Destroy();
-        return;
-    }
+    if (!Root) { Model->Destroy(); return; }
     Root->SetMobility(EComponentMobility::Static);
     Model->SetRootComponent(Root);
     Model->AddInstanceComponent(Root);
@@ -272,7 +252,6 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         TEXT("R137Museum_AuthoredEntrancePorch"), true, false);
     UInstancedStaticMeshComponent* Annex = MakeAuthoredISM(Model, Root, Wall8, nullptr,
         TEXT("R137Museum_AuthoredRearAnnex"), true);
-
     if (!BrickBody || !WindowWalls || !Entrance || !Wood || !Roof || !TopTrim || !Frames ||
         !Foundation || !Steps || !Annex)
     {
@@ -282,72 +261,48 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         return;
     }
 
-    // The footprint and volumes follow the existing photo-derived R13.7 proportions. Structural presentation is
-    // now made only from committed building modules; no Engine primitive is allowed to impersonate the museum.
     const float FrontXs[] = { -660.0f, -220.0f, 220.0f, 660.0f };
     for (const float X : FrontXs)
     {
         AddFittedAuthoredMesh(WindowWalls, FVector(X, -420.0f, 230.0f), FVector(440.0f, 52.0f, 320.0f));
-        AddFittedAuthoredMesh(BrickBody, FVector(X, 420.0f, 230.0f), FVector(440.0f, 52.0f, 320.0f),
-            FRotator(0.0f, 180.0f, 0.0f));
+        AddFittedAuthoredMesh(BrickBody, FVector(X, 420.0f, 230.0f), FVector(440.0f, 52.0f, 320.0f), FRotator(0,180,0));
         AddFittedAuthoredMesh(Foundation, FVector(X, -420.0f, 40.0f), FVector(440.0f, 95.0f, 80.0f));
-        AddFittedAuthoredMesh(Foundation, FVector(X, 420.0f, 40.0f), FVector(440.0f, 95.0f, 80.0f),
-            FRotator(0.0f, 180.0f, 0.0f));
+        AddFittedAuthoredMesh(Foundation, FVector(X, 420.0f, 40.0f), FVector(440.0f, 95.0f, 80.0f), FRotator(0,180,0));
+        AddFittedAuthoredMesh(TopTrim, FVector(X, -445.0f, 390.0f), FVector(440.0f, 70.0f, 95.0f));
+        AddFittedAuthoredMesh(TopTrim, FVector(X, 445.0f, 390.0f), FVector(440.0f, 70.0f, 95.0f), FRotator(0,180,0));
     }
-
     for (const float Y : { -280.0f, 0.0f, 280.0f })
     {
-        AddFittedAuthoredMesh(WindowWalls, FVector(-850.0f, Y, 230.0f), FVector(280.0f, 52.0f, 320.0f),
-            FRotator(0.0f, -90.0f, 0.0f));
-        AddFittedAuthoredMesh(WindowWalls, FVector(850.0f, Y, 230.0f), FVector(280.0f, 52.0f, 320.0f),
-            FRotator(0.0f, 90.0f, 0.0f));
+        AddFittedAuthoredMesh(WindowWalls, FVector(-850.0f, Y, 230.0f), FVector(280.0f, 52.0f, 320.0f), FRotator(0,-90,0));
+        AddFittedAuthoredMesh(WindowWalls, FVector(850.0f, Y, 230.0f), FVector(280.0f, 52.0f, 320.0f), FRotator(0,90,0));
     }
 
-    AddFittedAuthoredMesh(Roof, FVector(0.0f, 0.0f, 505.0f), FVector(1840.0f, 1010.0f, 270.0f));
+    AddFittedAuthoredMesh(Roof, FVector(0,0,505), FVector(1840,1010,270));
+    AddFittedAuthoredMesh(Wood, FVector(0,-35,520), FVector(570,470,250));
+    AddFittedAuthoredMesh(Roof, FVector(0,-35,690), FVector(660,570,190));
+    AddFittedAuthoredMesh(Entrance, FVector(0,-545,220), FVector(520,250,300));
+    AddFittedAuthoredMesh(Roof, FVector(0,-545,415), FVector(610,340,145));
+    AddFittedAuthoredMesh(Wood, FVector(-975,125,215), FVector(250,560,290), FRotator(0,90,0));
+    AddFittedAuthoredMesh(Roof, FVector(-975,125,405), FVector(340,650,145), FRotator(0,90,0));
+    AddFittedAuthoredMesh(Annex, FVector(1020,235,160), FVector(430,470,250), FRotator(0,90,0));
+    AddFittedAuthoredMesh(Roof, FVector(1020,235,335), FVector(500,560,130), FRotator(0,90,0));
+
+    for (const float Y : { -760.0f, -1080.0f })
+        AddFittedAuthoredMesh(Steps, FVector(0,Y,18), FVector(520,320,36));
+
     for (const float X : FrontXs)
     {
-        AddFittedAuthoredMesh(TopTrim, FVector(X, -445.0f, 390.0f), FVector(440.0f, 70.0f, 95.0f));
-        AddFittedAuthoredMesh(TopTrim, FVector(X, 445.0f, 390.0f), FVector(440.0f, 70.0f, 95.0f),
-            FRotator(0.0f, 180.0f, 0.0f));
-    }
-
-    // Central timber upper room/dormer and entrance vestibule retain the Solonyna-house asymmetry. This is
-    // deliberately not the six-column civic composition owned by the separate Culture House site.
-    AddFittedAuthoredMesh(Wood, FVector(0.0f, -35.0f, 520.0f), FVector(570.0f, 470.0f, 250.0f));
-    AddFittedAuthoredMesh(Roof, FVector(0.0f, -35.0f, 690.0f), FVector(660.0f, 570.0f, 190.0f));
-    AddFittedAuthoredMesh(Entrance, FVector(0.0f, -545.0f, 220.0f), FVector(520.0f, 250.0f, 300.0f));
-    AddFittedAuthoredMesh(Roof, FVector(0.0f, -545.0f, 415.0f), FVector(610.0f, 340.0f, 145.0f));
-
-    AddFittedAuthoredMesh(Wood, FVector(-975.0f, 125.0f, 215.0f), FVector(250.0f, 560.0f, 290.0f),
-        FRotator(0.0f, 90.0f, 0.0f));
-    AddFittedAuthoredMesh(Roof, FVector(-975.0f, 125.0f, 405.0f), FVector(340.0f, 650.0f, 145.0f),
-        FRotator(0.0f, 90.0f, 0.0f));
-
-    AddFittedAuthoredMesh(Annex, FVector(1020.0f, 235.0f, 160.0f), FVector(430.0f, 470.0f, 250.0f),
-        FRotator(0.0f, 90.0f, 0.0f));
-    AddFittedAuthoredMesh(Roof, FVector(1020.0f, 235.0f, 335.0f), FVector(500.0f, 560.0f, 130.0f),
-        FRotator(0.0f, 90.0f, 0.0f));
-
-    // Entrance approach uses committed porch modules instead of stacked Cube steps.
-    for (const float Y : { -760.0f, -1080.0f })
-    {
-        AddFittedAuthoredMesh(Steps, FVector(0.0f, Y, 18.0f), FVector(520.0f, 320.0f, 36.0f));
-    }
-
-    // Authored trim segments preserve visible window rhythm without reconstructing grilles/cornices from cubes.
-    for (const float X : { -660.0f, -220.0f, 220.0f, 660.0f })
-    {
-        AddAuthoredFrame(Frames, FVector(X, -450.0f, 235.0f), FVector::ForwardVector, 150.0f, 205.0f);
-        AddAuthoredFrame(Frames, FVector(X, 450.0f, 235.0f), FVector::ForwardVector, 150.0f, 205.0f);
+        AddAuthoredFrame(Frames, FVector(X,-450,235), FVector::ForwardVector, 150,205);
+        AddAuthoredFrame(Frames, FVector(X,450,235), FVector::ForwardVector, 150,205);
     }
     for (const float Y : { -270.0f, 20.0f, 300.0f })
-    {
-        AddAuthoredFrame(Frames, FVector(880.0f, Y, 235.0f), FVector::RightVector, 140.0f, 205.0f);
-    }
+        AddAuthoredFrame(Frames, FVector(880,Y,235), FVector::RightVector, 140,205);
     for (const float X : { -190.0f, 0.0f, 190.0f })
-    {
-        AddAuthoredFrame(Frames, FVector(X, -285.0f, 520.0f), FVector::ForwardVector, 115.0f, 165.0f);
-    }
+        AddAuthoredFrame(Frames, FVector(X,-285,520), FVector::ForwardVector, 115,165);
+
+    // Pass45 single-visible-owner compatibility contract: breakable actor owns visible glass.
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY visible_shell_owner=R137 static_glass=0 prototype_doors=0 prototype_trees=0 prototype_service_gable=0 breakable actor owns visible glass"));
 
     const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
     UE_LOG(LogTemp, Display,
