@@ -84,21 +84,41 @@ for needle in (
 ):
     require(game_mode, needle, "deployment authority gate")
 
-# Later passes may lower the foliage budget further. Preserve HISM/incremental generation and a strict ceiling,
-# but never force the 2026-08-22 values back after a measured 5 FPS runtime failure.
-grid = re.search(r'constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;', foliage)
-batch = re.search(r'constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;', foliage)
-if not grid or float(grid.group(1)) < 1500.0:
-    raise SystemExit("PASS14 VERIFY FAIL: foliage grid is still too dense for the recovery budget")
-if not batch or not 1 <= int(batch.group(1)) <= 32:
-    raise SystemExit("PASS14 VERIFY FAIL: foliage batch exceeds the recovery CPU ceiling")
+# Block 0 supersedes the old single GridStep/CellsPerBatch contract. Full and LowCPU cover the same compact
+# 960x940m area; LowCPU is cheaper through a coarser grid and shorter cull distances, not by cropping Oster.
+full_grid = re.search(r'constexpr\s+float\s+FullGridStepCm\s*=\s*([0-9.]+)f\s*;', foliage)
+low_grid = re.search(r'constexpr\s+float\s+LowCPUGridStepCm\s*=\s*([0-9.]+)f\s*;', foliage)
+full_batch = re.search(r'constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;', foliage)
+low_batch = re.search(r'constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;', foliage)
+if not full_grid or float(full_grid.group(1)) < 1000.0:
+    raise SystemExit("PASS14 VERIFY FAIL: Full foliage grid is denser than the Block0 recovery floor")
+if not low_grid or float(low_grid.group(1)) < 1500.0:
+    raise SystemExit("PASS14 VERIFY FAIL: LowCPU foliage grid is denser than the recovery floor")
+if float(low_grid.group(1)) <= float(full_grid.group(1)):
+    raise SystemExit("PASS14 VERIFY FAIL: LowCPU foliage grid must be coarser than Full")
+if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
+    raise SystemExit("PASS14 VERIFY FAIL: Full foliage batch exceeds the recovery CPU ceiling")
+if not low_batch or not 1 <= int(low_batch.group(1)) <= 48:
+    raise SystemExit("PASS14 VERIFY FAIL: LowCPU foliage batch exceeds the Block0 recovery CPU ceiling")
 for needle in (
+    'CompactMinX = -78000.0f', 'CompactMaxX =  18000.0f',
+    'CompactMinY = -12000.0f', 'CompactMaxY =  82000.0f',
+    'PopulationMinX = CompactMinX', 'PopulationMaxX = CompactMaxX',
+    'PopulationMinY = CompactMinY', 'PopulationMaxY = CompactMaxY',
+    'ActiveGridStep = bLowCPUProfile ? LowCPUGridStepCm : FullGridStepCm',
+    'ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch',
     'UHierarchicalInstancedStaticMeshComponent', 'SetCollisionEnabled(ECollisionEnabled::NoCollision)',
     'SetCastShadow(false)', 'PopulateBatch', 'DenseGrass_',
+    'PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY', 'full_playable_bounds=1', 'museum_only=0',
 ):
-    require(foliage, needle, "foliage recovery")
-forbid(foliage, 'constexpr float GridStep = 900.0f', "old 9 m foliage grid")
-forbid(foliage, 'constexpr int32 CellsPerBatch = 88', "old 88-cell foliage batch")
+    require(foliage, needle, "Block0 foliage recovery")
+for forbidden in (
+    'constexpr float GridStep = 900.0f',
+    'constexpr int32 CellsPerBatch = 88',
+    'LowCPUHalfExtentCm',
+    'full_sector_population=0',
+):
+    forbid(foliage, forbidden, "retired foliage recovery contract")
 
 for needle in (
     'SetDynamicShadowCascades(4)', 'SetDynamicShadowDistanceMovableLight(18000.0f)',
@@ -160,7 +180,8 @@ if pass29_static:
     print("- Pass 29 static START replaces the disproven live server-setup page while preserving hosted travel and Deployment ownership")
 else:
     print("- explicit server setup and Deployment ownership remain intact")
-print("- foliage remains bounded/incremental while later passes may reduce its cost further")
+print("- Block0 Full/LowCPU foliage share the compact Oster bounds; LowCPU uses a coarser grid and shorter culls instead of a spatial crop")
+print("- Full batch stays <=32 cells and LowCPU <=48 cells while generation remains incremental at 50 ms cadence")
 print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
-print("- Pass45 Gate C/H now distinguishes launcher request from live UE t.MaxFPS/fullscreen viewport evidence")
+print("- Pass45 Gate C/H distinguishes launcher request from live UE t.MaxFPS/fullscreen viewport evidence")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime acceptance still required")
