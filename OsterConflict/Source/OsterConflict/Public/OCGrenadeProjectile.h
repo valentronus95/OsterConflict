@@ -44,4 +44,7 @@ private:
     void DetonateServer();
     void ApplyFlashServer();
     void ApplyBoundedPhysicsImpulseServer(float Radius, float Strength);
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastDetonationVFX(EOCGrenadeType Type, FVector_NetQuantize Location);
 };
