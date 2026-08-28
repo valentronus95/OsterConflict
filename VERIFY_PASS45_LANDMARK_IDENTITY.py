@@ -50,22 +50,33 @@ for needle in (
 ):
     require(geo, needle, "canonical Oster landmark georeference")
 
-# Museum must read as the Solonyna house and must not contain the civic six-column identity.
+# Museum must read as the Solonyna house, use committed building modules and never resurrect Engine primitives.
 for needle in (
     'Model->Tags.Add(TEXT("R137_MuseumPhotoModel"));',
+    'Model->Tags.Add(TEXT("MuseumSolonyna_ReferenceExterior"));',
     'TEXT("R137Museum_BrickBody")',
     'TEXT("R137Museum_BlueGreyTimber")',
     'TEXT("R137Museum_SheetMetalRoof")',
+    '/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_8m.Wall_8m',
+    '/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Window_4m.Wall_Window_4m',
+    '/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m',
+    'PASS45_MUSEUM_AUTHORED_SHELL_READY',
+    'basicshape_structural=0',
+    'basicshape_material=0',
+    'museum_columns=0',
     'const FVector Museum = AOCWorldSectorOster::MuseumAnchor();',
 ):
-    require(museum, needle, "Museum authoritative exterior")
+    require(museum, needle, "Museum authoritative authored exterior")
 for forbidden in (
+    '/Engine/BasicShapes/Cube.Cube',
+    '/Engine/BasicShapes/Cylinder.Cylinder',
+    '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial',
     'R146_CultureHouseAuthoritative',
     'R146Culture_Columns',
     'ColumnXs[]',
     'TEXT("Сільпо")',
 ):
-    forbid(museum, forbidden, "Museum must not encode Culture House/Silpo identity")
+    forbid(museum, forbidden, "Museum must not use primitive structure or encode Culture House/Silpo identity")
 
 # Culture House is the only current six-column civic facade and is rooted at its own geo anchor.
 for needle in (
@@ -75,13 +86,19 @@ for needle in (
     'Model->SetActorLocationAndRotation(CultureHouseAnchor()',
     'TEXT("R146Culture_Columns")',
     'const float ColumnXs[] = { -1130.0f, -680.0f, -230.0f, 230.0f, 680.0f, 1130.0f };',
+    'PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY',
+    'basicshape_visible=0',
+    'basicshape_material=0',
 ):
-    require(culture, needle, "Culture House authoritative facade")
+    require(culture, needle, "Culture House authoritative authored facade")
 for forbidden in (
+    '/Engine/BasicShapes/Cube.Cube',
+    '/Engine/BasicShapes/Cylinder.Cylinder',
+    '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial',
     'R137_MuseumPhotoModel',
     'TEXT("Сільпо")',
 ):
-    forbid(culture, forbidden, "Culture House must not impersonate Museum/Silpo")
+    forbid(culture, forbidden, "Culture House must not use primitive structure or impersonate Museum/Silpo")
 
 # Silpo shell and facade identity are both tied to the one canonical Silpo site.
 for needle in (
@@ -137,14 +154,23 @@ for forbidden in (
 ):
     forbid(separation, forbidden, "landmark validator must not become a repair owner")
 
-# Runtime acceptance must require both parcel/owner separation and the actual Silpo facade-identity stage.
+# Runtime acceptance must require parcel/owner separation, authored Museum/Culture shells and Silpo facade identity.
 for needle in (
+    'PASS45_MUSEUM_AUTHORED_SHELL_READY',
+    'PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY',
     'PASS45_LANDMARK_SEPARATION_VALIDATION_READY',
     'PASS45_LANDMARK_IDENTITY_VALIDATION_READY',
     'PASS45_SILPO_IDENTITY_VALIDATION_READY',
     'R14.3 Silpo facade identity pass built at',
 ):
     require(runtime_evidence, needle, "strict runtime evidence")
+
+for needle in (
+    'PASS45_LANDMARK_SEPARATION_VALIDATION_READY',
+    'PASS45_LANDMARK_IDENTITY_VALIDATION_READY',
+    'PASS45_SILPO_IDENTITY_VALIDATION_READY',
+    'R14.3 Silpo facade identity pass built at',
+):
     require(runtime_launcher, needle, "focused landmark runtime launcher")
 
 # The canonical TZ must keep the visual hard-fail rules explicit.
@@ -156,9 +182,10 @@ for needle in (
     require(tz, needle, "canonical Pass45 TZ")
 
 print("PASS45 LANDMARK IDENTITY SOURCE CONTRACT PASS")
+print("- Museum uses committed authored wall/window/roof/foundation modules; Engine BasicShape structure is forbidden")
 print("- Museum retains the Solonyna-house identity and cannot encode the six-column Culture House facade")
-print("- Culture House owns the six-column facade on its separate canonical geo anchor")
+print("- Culture House owns the six-column authored facade on its separate canonical geo anchor")
 print("- Silpo shell and visible Сільпо facade identity are both tied to the canonical Silpo site")
 print("- startup is coordinated; separation/identity validation is observation-only and cannot repair late")
-print("- strict runtime acceptance requires Museum/Culture/Silpo separation plus the factual Silpo facade-identity stage")
+print("- strict runtime acceptance requires authored Museum/Culture shells plus landmark separation and Silpo facade identity")
 print("STATUS: SOURCE CONTRACT ONLY; current-head local UE 5.8 screenshots remain mandatory")

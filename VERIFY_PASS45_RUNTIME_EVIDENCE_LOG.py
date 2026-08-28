@@ -49,11 +49,15 @@ def main() -> int:
     require(gameplay, "PASS45_WORLD_MATERIAL_STABLE", errors, "semantic world material stability")
     forbid(gameplay, "PASS12_WORLD_GEOMETRY_STABILITY_FAIL", errors, "world geometry/material stability failure")
 
-    # Gate D must prove three distinct authoritative landmark identities, not merely empty generic parcels.
+    # Gate D must prove authored landmark shells and three distinct authoritative landmark identities.
+    require(gameplay, "PASS45_MUSEUM_AUTHORED_SHELL_READY", errors, "authored Museum shell")
+    require(gameplay, "PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY", errors, "authored Culture House shell")
     require(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_READY", errors, "generic landmark parcel separation")
     require(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_READY", errors, "Museum/Culture House identity separation")
     require(gameplay, "PASS45_SILPO_IDENTITY_VALIDATION_READY", errors, "authoritative Silpo identity")
     require(gameplay, "R14.3 Silpo facade identity pass built at", errors, "Silpo facade identity/sign stage")
+    forbid(gameplay, "PASS45_MUSEUM_AUTHORED_SHELL_FAIL", errors, "Museum authored shell failure")
+    forbid(gameplay, "PASS45_CULTURE_HOUSE_AUTHORED_SHELL_FAIL", errors, "Culture House authored shell failure")
     forbid(gameplay, "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL", errors, "generic landmark parcel separation failure")
     forbid(gameplay, "PASS45_LANDMARK_IDENTITY_VALIDATION_FAIL", errors, "Museum/Culture House identity failure")
     forbid(gameplay, "PASS45_SILPO_IDENTITY_VALIDATION_FAIL", errors, "Silpo identity failure")
@@ -162,6 +166,8 @@ def main() -> int:
         "VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION\n"
         f"SOURCE_SHA={source_sha}\n"
         "BLACK_WORLD_AUTOMATED_CONTRACT=PASS\n"
+        "MUSEUM_AUTHORED_SHELL_RUNTIME_CONTRACT=PASS\n"
+        "CULTURE_HOUSE_AUTHORED_SHELL_RUNTIME_CONTRACT=PASS\n"
         "LANDMARK_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
         "SILPO_IDENTITY_AUTOMATED_CONTRACT=PASS\n"
         "SILPO_FACADE_SIGN_AUTOMATED_CONTRACT=PASS\n"
@@ -184,6 +190,7 @@ def main() -> int:
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- physical daylight started and semantic Ground/Roads/Sidewalks materials stayed stable through Pass12 samples")
+    print("- Museum and Culture House authored shell stages completed before landmark identity validation")
     print("- Museum, R14.0 Silpo and Culture House authoritative owners remained distinct and on their canonical sites")
     print("- R14.3 visible Silpo facade/sign identity stage completed at the canonical Silpo site")
     print("- generic residential/private-fence instances and rejected village/tower/shack presentation were absent after startup")
