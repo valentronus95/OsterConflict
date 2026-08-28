@@ -81,16 +81,31 @@ for marker in (
 for marker in ('FVector2D(360.0f, 190.0f)', 'Messages.Num() - 5', 'EKeys::Y', 'EKeys::U'):
     require(t["chat"], marker, "compact Y/U chat")
 
-# Foliage remains HISM-based, collision-free and incremental; later passes may make it sparser.
-grid = re.search(r'constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;', t["foliage"])
-batch = re.search(r'constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;', t["foliage"])
-if not grid or not 900.0 <= float(grid.group(1)) <= 5000.0:
-    raise SystemExit("PASS 8 FAIL: foliage grid is missing or outside the supported incremental range")
-if not batch or not 1 <= int(batch.group(1)) <= 48:
-    raise SystemExit("PASS 8 FAIL: foliage batch is missing or exceeds the performance ceiling")
-require(t["foliage"], 'UHierarchicalInstancedStaticMeshComponent', "HISM foliage")
-require(t["foliage"], 'SetCollisionEnabled(ECollisionEnabled::NoCollision)', "foliage collision")
-require(t["foliage"], 'SetCastShadow(false)', "foliage shadows")
+# Block 0 supersedes the old single GridStep/CellsPerBatch constants. Both profiles cover the same compact
+# Oster map; LowCPU remains cheaper through the coarser grid/culls while generation stays incremental.
+full_grid = re.search(r'constexpr\s+float\s+FullGridStepCm\s*=\s*([0-9.]+)f\s*;', t["foliage"])
+low_grid = re.search(r'constexpr\s+float\s+LowCPUGridStepCm\s*=\s*([0-9.]+)f\s*;', t["foliage"])
+full_batch = re.search(r'constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;', t["foliage"])
+low_batch = re.search(r'constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;', t["foliage"])
+if not full_grid or not 1000.0 <= float(full_grid.group(1)) <= 5000.0:
+    raise SystemExit("PASS 8 FAIL: Full foliage grid is missing or outside the supported incremental range")
+if not low_grid or not 1500.0 <= float(low_grid.group(1)) <= 5000.0:
+    raise SystemExit("PASS 8 FAIL: LowCPU foliage grid is missing or outside the supported incremental range")
+if float(low_grid.group(1)) <= float(full_grid.group(1)):
+    raise SystemExit("PASS 8 FAIL: LowCPU foliage grid must remain coarser than Full")
+if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
+    raise SystemExit("PASS 8 FAIL: Full foliage batch is missing or exceeds the performance ceiling")
+if not low_batch or not 1 <= int(low_batch.group(1)) <= 48:
+    raise SystemExit("PASS 8 FAIL: LowCPU foliage batch is missing or exceeds the performance ceiling")
+for marker in (
+    'UHierarchicalInstancedStaticMeshComponent',
+    'SetCollisionEnabled(ECollisionEnabled::NoCollision)',
+    'SetCastShadow(false)',
+    'ActiveGridStep = bLowCPUProfile ? LowCPUGridStepCm : FullGridStepCm',
+    'ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch',
+    'full_playable_bounds=1',
+):
+    require(t["foliage"], marker, "Block0 HISM foliage")
 
 # Frontend travel must not toggle persistent viewport rendering off.
 require(t["viewport"], 'const bool bStartupShell = !bHasGameplayPawn', "pawn-less startup shell")
@@ -153,5 +168,5 @@ for marker in (
 print("RUNTIME RECONCILE PASS 8 + PASS45 WEAPON TRUTH SOURCE CONTRACT PASS")
 print("- Pass 7 frontend/Museum/production vehicle contracts remain intact")
 print("- Pass45 required-available rack replaces impossible all-exact weapon readiness without relabelling fallback production")
-print("- compact minimap/chat, bounded foliage, vehicle proxy and first-person weapon contracts remain intact")
+print("- compact minimap/chat, Block0 profile-bounded foliage, vehicle proxy and first-person weapon contracts remain intact")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance still required")
