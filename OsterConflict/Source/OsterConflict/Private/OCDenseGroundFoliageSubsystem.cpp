@@ -92,7 +92,8 @@ namespace
             TEXT("road"), TEXT("street"), TEXT("sidewalk"), TEXT("pavement"), TEXT("asphalt"),
             TEXT("concrete"), TEXT("path"), TEXT("bridge"), TEXT("floor"), TEXT("wall"),
             TEXT("roof"), TEXT("building"), TEXT("house"), TEXT("landmark"), TEXT("fence"),
-            TEXT("plaza"), TEXT("court"), TEXT("stadium"), TEXT("parking"), TEXT("foundation")
+            TEXT("plaza"), TEXT("court"), TEXT("stadium"), TEXT("parking"), TEXT("foundation"),
+            TEXT("water"), TEXT("river"), TEXT("lake"), TEXT("pond"), TEXT("canal"), TEXT("reservoir")
         };
 
         for (const TCHAR* Term : BlockedTerms)
@@ -105,7 +106,8 @@ namespace
             static const FName BlockedTags[] =
             {
                 TEXT("Road"), TEXT("Street"), TEXT("Building"), TEXT("Bridge"),
-                TEXT("Concrete"), TEXT("Asphalt"), TEXT("NoFoliage")
+                TEXT("Concrete"), TEXT("Asphalt"), TEXT("Water"), TEXT("River"),
+                TEXT("Lake"), TEXT("Pond"), TEXT("Canal"), TEXT("Reservoir"), TEXT("NoFoliage")
             };
             for (const FName Tag : BlockedTags)
             {
@@ -302,7 +304,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 content_intake=KiteDemo"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo"),
         ActiveGridStep,
         ActiveCellsPerBatch,
         GrassCullEnd,
@@ -473,7 +475,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         Owner->Tags.Add(Block0PopulationCompleteTag);
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 water_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0"),
             GrassInstances,
             PlantInstances,
             FlowerInstances,
