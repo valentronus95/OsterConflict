@@ -115,21 +115,21 @@ At this consolidation checkpoint:
 - checked/source-reference completed: 22/36 = 61.1%;
 - still open: 14/36 = 38.9%.
 
-Open numbered items remain:
-- 16: persistent Level Automation/equivalent functional-cluster selector;
-- 18: strict `SteinFP` functional cluster runtime;
-- 20: strict Museum/CultureHouse/Silpo loaders and 1:1 runtime component proof;
-- 24: current-revision full import/build/executable proof;
-- 27: exact per-weapon hands/grip/ADS visual calibration in UE;
-- 28: moving-part/manual-action and mechanical-audio UE validation;
-- 29: HMMWV/M2 hierarchy/yaw/camera/handling/speed/runtime screenshots;
-- 30: BTR material/axis/remote-optic runtime acceptance;
-- 31: dedicated Museum/CultureHouse/Silpo world geometry/component runtime validation;
-- 32: dedicated `ParkPaths` ownership + `SM_Stonepath_Var01` + regression;
-- 33: model-quality/visual-detail cleanup;
-- 34: performance/native scale/fullscreen/thermal soak;
-- 35: tactical-map validation;
-- 36: direct screenshot approval.
+Open numbered items are synchronized to the current canonical `PASS45_RUNTIME_RECOVERY_TZ.md`:
+- 16: replace procedural manual-action cues with accepted authored moving-part/skeletal presentation where supported, and populate real bolt/pump/lever sound content;
+- 18: exact per-weapon rear/front/optic references and ADS transform calibration in local UE 5.8;
+- 20: replace the temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles;
+- 24: accepted first-person grenade hand/throw/recover animation, distinct frag/smoke/flash presentation and real smoke VFX;
+- 27: replace rejected vegetation family and complete broader environment acceptance;
+- 28: runtime-accept HMMWV/M2 ring/shield/gunner hierarchy with authored pivot, 360-degree yaw and correct camera;
+- 29: runtime-calibrate HMMWV top speed to at least 80 km/h without breaking handling;
+- 30: close BTR white-material state across pre/post possession in runtime;
+- 31: runtime-accept BTR R3 Y-up/+X-forward orientation and remote operator monitor/optic gameplay;
+- 32: raise core world/material/LOD fidelity above prototype state, including dedicated `ParkPaths`, ground and landmark surroundings;
+- 33: fullscreen + 60 FPS + thermal-soak validation after visual fixes;
+- 34: tactical-map screenshot validation;
+- 35: current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import/build/gameplay/automated-gates/direct-screenshot run;
+- 36: merge PR #94 only after factual current-head runtime acceptance.
 
 This percentage is checklist/source-reference completion, not release readiness. Final runtime acceptance remains rejected until a current-head full UE 5.8 run passes every mandatory gate and direct visual review.
 
