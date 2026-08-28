@@ -86,7 +86,8 @@ for needle in (
     "repository weapon-audio fallback",
     "PASS45_WEAPON_AUDIO_FALLBACK_READY",
     "AUDIO CONTENT GAP",
-    "RUNTIME REJECTED 2026-08-26",
+    "RUNTIME REJECTED",
+    "2026-08-27",
 ):
     req(needle in tz, f"canonical Pass45 TZ lost current audio truth: {needle}")
 
