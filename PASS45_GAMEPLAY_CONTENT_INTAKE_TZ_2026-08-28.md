@@ -1,13 +1,34 @@
 # OSTER CONFLICT — PASS45 GAMEPLAY CONTENT INTAKE TZ
 
-Date: 2026-08-28  
+Date: 2026-08-29  
 Parent TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`  
 Execution branch: `content/free-gameplay-assets-intake-20260828-r2`  
 Status: **ACTIVE / MUST COMPLETE BEFORE CONTENT MERGE**
 
+## 0. Execution semantics
+
+This TZ is **not documentation-only**. Any executor continuing PASS45 content work must treat this file, `PASS45_CONTENT_INTEGRATION_LEDGER.csv` and the gate scripts as an execution contract.
+
+The mandatory state machine is:
+
+`DISCOVERED -> ACQUIRED -> INVENTORIED -> SELECTED -> MIGRATED/IMPORTED -> INTEGRATED -> RUNTIME_ACCEPTED OR EXCLUDED_WITH_REASON`
+
+Rules:
+
+- `DOWNLOADED`, `ACQUIRED`, `INVENTORIED` and `FILE_EXISTS` are never completion states;
+- after acquisition the executor must continue into migration/import, runtime ownership wiring, production-path selection, optimization and UE 5.8 validation;
+- every selected third-party pack/model/animation/audio/VFX item must have a row in `PASS45_CONTENT_INTEGRATION_LEDGER.csv`;
+- every ledger row must identify role, target integration, runtime owner, required evidence and state;
+- the executor must update ledger states as work progresses;
+- a pack may be excluded only with a factual reason; silent abandonment is forbidden;
+- no item may be marked `INTEGRATED` merely because it exists under `/Game`;
+- no item may be marked `RUNTIME_ACCEPTED` without current UE 5.8 evidence;
+- if a sample project exists only as a separate `.uproject`, the executor must inventory it and selectively migrate the needed assets with dependencies; blind folder copying is forbidden;
+- if direct automated migration cannot be performed safely, the executor must implement the necessary Unreal-side migration/import step or leave the row explicitly `PENDING`, never pretend it was applied.
+
 ## 1. Goal
 
-This subordinate TZ makes the gameplay-content intake an explicit PASS45 gate. The objective is not to dump every free Fab pack into shipping content. The objective is to acquire, inventory, select, migrate, integrate, optimize and runtime-validate the assets needed for a complete first-person gameplay presentation.
+Make gameplay-content intake an explicit PASS45 gate. The objective is not to dump every free Fab pack into shipping content. The objective is to acquire, inventory, select, migrate, integrate, optimize and runtime-validate the assets needed for a complete first-person gameplay presentation.
 
 This file is subordinate to `PASS45_RUNTIME_RECOVERY_TZ.md`. It does not override runtime rejection evidence. A downloaded file is never equivalent to a production-ready asset.
 
@@ -25,7 +46,11 @@ The command must:
 4. inventory local Fab content already added to Oster Conflict;
 5. inventory external Unreal sample projects if present locally;
 6. run `VERIFY_PASS45_GAMEPLAY_CONTENT_INTAKE.py`;
-7. fail closed when a required content category or provenance record is missing.
+7. run `VERIFY_PASS45_GAMEPLAY_CONTENT_INTEGRATION.py`;
+8. return `PENDING`/non-zero when required assets are only downloaded/inventoried but not integrated;
+9. fail closed when a required category, provenance record, integration state or runtime requirement is missing.
+
+`RUN_PASS45_GAMEPLAY_CONTENT_GATE.cmd` is a gate/orchestrator. It does not magically replace Unreal asset migration. Its job is to acquire, inventory and **refuse completion** until the integration ledger proves that implementation work actually happened.
 
 ## 3. Required acquired content categories
 
@@ -44,6 +69,7 @@ At minimum, the intake currently includes and must preserve factual paths for:
 - `Content/PN_FoliageCollection/`;
 - `Content/SampleAnimationPack/`;
 - `Content/VehicleVarietyPack/`;
+- `Content/AdvancedVillagePack/` and other already-added packs only as candidates subject to reference fidelity and anti-bloat rules;
 - other Fab packs already committed on this intake branch.
 
 Their presence only satisfies **ACQUIRED**, not **USED**, **OPTIMIZED** or **RUNTIME ACCEPTED**.
@@ -81,7 +107,27 @@ If these projects exist locally, the intake must inventory their `.uasset/.umap`
 
 If one is absent locally, emit an explicit `LOCAL_SOURCE_MISSING` state. Do not mark the feature complete by assumption.
 
-## 4. Required integration work after acquisition
+## 4. Required application map
+
+The canonical machine-readable mapping is `PASS45_CONTENT_INTEGRATION_LEDGER.csv`. It defines what each downloaded model/pack is for and prevents content from becoming an inert library.
+
+Required application intent:
+
+- existing `SKM_Arms` -> first fix canonical FP arms visibility/attachment/AnimBP; external arms are fallback/donor only;
+- `FPSArms3D` -> first-person arms/AK animation donor when factual retargeting is useful;
+- `SampleAnimationPack` / `GameAnimationSample` -> selected/retargeted animation content, never a replacement gameplay controller;
+- `AK-47` -> exact useful weapon mesh/animation donor only after grip/ADS/material/runtime validation;
+- `SuperSimpleFPSPack` -> HUD/widget/reference donor only; Oster HUD remains authoritative;
+- `InteractionSystem` -> selective interaction components only; Oster retains one authoritative interaction owner;
+- `Fire_EXP_Vol01_Free` -> authored Niagara fire/explosion/debris presentation;
+- `PotaVFX_Smoke` -> smoke grenade/environment smoke presentation;
+- Quixel military sandbags -> selective fortification/world props;
+- street-prop packs -> selective Oster-compatible street furniture/infrastructure;
+- foliage/ground packs -> selective Oster-compatible vegetation/ground assets with performance validation;
+- `VehicleVarietyPack` -> support/civilian candidate only unless exact identity is proven; it must never impersonate HMMWV/BTR production identity;
+- downloaded shotgun/footstep/vehicle/ambient/fire audio -> mapped only through the correct project-owned audio systems and never falsely labelled as exact recordings when they are generic donors.
+
+## 5. Required integration work after acquisition
 
 ### CI-FP-ARMS
 
@@ -150,7 +196,7 @@ Primitive sphere/cube smoke or default placeholder effects are forbidden as acce
 
 Select only environment assets that fit photographed Oster references. Generic houses/roads/vegetation may be used as supporting detail only when they do not replace reference-specific landmarks or contradict the location evidence.
 
-## 5. Anti-bloat rules
+## 6. Anti-bloat rules
 
 - Do not ship demo maps merely because a pack includes them.
 - Do not keep duplicate 8K textures when a lower production resolution is sufficient.
@@ -160,7 +206,7 @@ Select only environment assets that fit photographed Oster references. Generic h
 - No asset may enter production without license/provenance status.
 - Any plugin required by selected assets must be explicitly enabled, documented and justified.
 
-## 6. Gates
+## 7. Gates
 
 ### Gate CI-0 — provenance
 
@@ -176,7 +222,7 @@ PASS requires an inventory for any locally present `SuperSimpleFPSPack`, `GameAn
 
 ### Gate CI-3 — migration/integration
 
-PASS requires dependency-aware migration/import and project-owned integration. Merely existing in `Content/` is not enough.
+PASS requires dependency-aware migration/import and project-owned integration. Merely existing in `Content/` is not enough. Every relevant ledger row must be `INTEGRATED`, `RUNTIME_ACCEPTED`, or `EXCLUDED_WITH_REASON`; candidate-only alternatives may remain unselected.
 
 ### Gate CI-4 — runtime presentation
 
@@ -195,17 +241,18 @@ PASS requires local UE 5.8 evidence for:
 
 PASS requires removal or exclusion of unused demo maps/assets, sensible texture resolution, no obvious duplicate pack payload and no material regression in the target runtime profile.
 
-## 7. Completion contract
+## 8. Completion contract
 
 This TZ is complete only when all of the following are true:
 
 - acquisition receipt exists and verifies;
 - required Fab categories are inventoried;
 - external projects are inventoried or explicitly marked missing locally;
+- `PASS45_CONTENT_INTEGRATION_LEDGER.csv` has no unexplained pending production role;
 - selected assets have production paths and owners;
 - first-person hands and weapon presentation work in UE 5.8;
-- selected animation/audio/VFX content is actually used;
+- selected animation/audio/VFX content is actually referenced and used by project-owned runtime systems;
 - redundant/demo-only assets are excluded from shipping;
 - PASS45 runtime evidence accepts the result.
 
-`DOWNLOADED` alone is never a completion state.
+`DOWNLOADED` alone is never a completion state. The executor must continue until content is either **actually used and runtime-accepted** or **explicitly excluded with reason**.
