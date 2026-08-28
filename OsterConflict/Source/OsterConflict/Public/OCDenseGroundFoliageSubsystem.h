@@ -45,6 +45,12 @@ private:
     int32 GrassInstances = 0;
     int32 PlantInstances = 0;
     int32 FlowerInstances = 0;
+    int32 ProcessedCells = 0;
+    int32 CandidateTraceAttempts = 0;
+    int32 CandidateAccepted = 0;
+    int32 CandidateRejectedBlocked = 0;
+    int32 CandidateRejectedTrace = 0;
+    int32 CandidateRejectedBounds = 0;
     bool bLowCPUProfile = false;
     bool bPopulationStarted = false;
     bool bPopulated = false;
