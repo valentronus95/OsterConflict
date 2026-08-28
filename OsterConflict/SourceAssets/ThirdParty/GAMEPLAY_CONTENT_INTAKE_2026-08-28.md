@@ -3,6 +3,8 @@
 Date: 2026-08-28
 Branch: `content/free-gameplay-assets-intake-20260828-r2`
 Base: `fix/pass45-runtime-rejection-material-closure-20260826@25e7d3e86b9f94edd137aba21995c0d3d5d66bcc`
+Parent execution contract: `PASS45_GAMEPLAY_CONTENT_INTAKE_TZ_2026-08-28.md`
+Mandatory gate launcher: `OsterConflict/Scripts/RUN_PASS45_GAMEPLAY_CONTENT_GATE.cmd`
 
 Purpose: acquire missing presentation/audio/animation donor content without replacing Oster Conflict runtime architecture or pretending that downloaded bytes are production-ready.
 
@@ -14,6 +16,7 @@ Purpose: acquire missing presentation/audio/animation donor content without repl
 4. Network sources are pinned to immutable commits or direct upstream URLs. Known hashes are verified; every acquired local file receives a SHA-256 receipt.
 5. Ambiguous licenses remain candidates and are not promoted to shipping content.
 6. No downloader silently overwrites production `.uasset` files.
+7. `DOWNLOADED` is not a completion state. The mandatory gate in `PASS45_GAMEPLAY_CONTENT_INTAKE_TZ_2026-08-28.md` controls acquisition, migration, integration, optimization and runtime acceptance.
 
 ## Automated intake
 
@@ -32,7 +35,7 @@ The script writes `LOCAL_CONTENT_RECEIPT.csv` for exact acquired bytes.
 
 Fab content added directly to Oster Conflict remains local until committed/pushed from the workstation. Full-project products such as `SuperSimpleFPSPack`, `GameAnimationSample` and `InteractionSystem2` must be inventoried before migration because Unreal package paths and dependencies can collide. Do not copy `.uasset` files blindly into arbitrary subfolders.
 
-Run `OsterConflict/Scripts/PREPARE_GAMEPLAY_CONTENT_58.cmd` after switching to this branch. It runs the network intake and writes a local inventory of Oster `Content/`, Git changes and detected external Unreal projects. That inventory is the factual input for the migration/import pass.
+Run `OsterConflict/Scripts/RUN_PASS45_GAMEPLAY_CONTENT_GATE.cmd` after switching to this branch. It runs acquisition, local inventory and the source-level PASS45 content verifier. The generated inventory is the factual input for the migration/import pass.
 
 ## Still not solved by downloading random packs
 
