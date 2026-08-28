@@ -291,9 +291,14 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     PlantInstances = 0;
     FlowerInstances = 0;
     ProcessedCells = 0;
+    CandidateTraceAttempts = 0;
+    CandidateAccepted = 0;
+    CandidateRejectedBlocked = 0;
+    CandidateRejectedTrace = 0;
+    CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1"),
         ActiveGridStep,
         ActiveCellsPerBatch,
         GrassCullEnd,
@@ -330,6 +335,40 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         return static_cast<UHierarchicalInstancedStaticMeshComponent*>(nullptr);
     };
 
+    // Cell traces are only a cheap preflight. Every final randomized grass/plant/flower XY must pass this
+    // second trace so an accepted cell near a sidewalk cannot spill an instance onto pavement/foundations.
+    auto ResolveCandidateSurface = [this, World, &QueryParams](const FVector2D& XY, FVector& OutLocation)
+    {
+        if (XY.X < PopulationMinX || XY.X > PopulationMaxX ||
+            XY.Y < PopulationMinY || XY.Y > PopulationMaxY)
+        {
+            ++CandidateRejectedBounds;
+            return false;
+        }
+
+        ++CandidateTraceAttempts;
+        const FVector TraceStart(XY.X, XY.Y, 18000.0f);
+        const FVector TraceEnd(XY.X, XY.Y, -3000.0f);
+        FHitResult CandidateHit;
+        if (!World->LineTraceSingleByChannel(
+                CandidateHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams) ||
+            !CandidateHit.bBlockingHit)
+        {
+            ++CandidateRejectedTrace;
+            return false;
+        }
+
+        if (CandidateHit.ImpactNormal.Z < 0.72f || IsBlockedSurface(CandidateHit))
+        {
+            ++CandidateRejectedBlocked;
+            return false;
+        }
+
+        OutLocation = CandidateHit.ImpactPoint + CandidateHit.ImpactNormal * 2.0f;
+        ++CandidateAccepted;
+        return true;
+    };
+
     int32 ProcessedThisBatch = 0;
     while (ProcessedThisBatch < ActiveCellsPerBatch && CursorX <= PopulationMaxX)
     {
@@ -361,16 +400,18 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
                 UHierarchicalInstancedStaticMeshComponent* Grass = ResolveGrassComponent(PreferredVariant);
                 if (!Grass) continue;
 
-                const FVector Offset(
-                    RandomStream.FRandRange(-Spread, Spread),
-                    RandomStream.FRandRange(-Spread, Spread),
-                    RandomStream.FRandRange(-0.8f, 1.8f));
+                const FVector2D CandidateXY(
+                    BaseLocation.X + RandomStream.FRandRange(-Spread, Spread),
+                    BaseLocation.Y + RandomStream.FRandRange(-Spread, Spread));
+                FVector CandidateLocation;
+                if (!ResolveCandidateSurface(CandidateXY, CandidateLocation)) continue;
+
                 const float Yaw = RandomStream.FRandRange(0.0f, 360.0f);
                 const float Scale = bMaintained
                     ? RandomStream.FRandRange(0.68f, 0.94f)
                     : RandomStream.FRandRange(0.82f, 1.18f);
                 Grass->AddInstance(FTransform(
-                    FRotator(0.0f, Yaw, 0.0f), BaseLocation + Offset, FVector(Scale)), true);
+                    FRotator(0.0f, Yaw, 0.0f), CandidateLocation, FVector(Scale)), true);
                 ++GrassInstances;
             }
 
@@ -378,24 +419,36 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             if (UHierarchicalInstancedStaticMeshComponent* Plants = GroundPlants.Get();
                 Plants && RandomStream.FRand() < PlantChance)
             {
-                Plants->AddInstance(FTransform(
-                    FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(RandomStream.FRandRange(-500.0f, 500.0f),
-                        RandomStream.FRandRange(-500.0f, 500.0f), 1.0f),
-                    FVector(RandomStream.FRandRange(0.70f, 1.02f))), true);
-                ++PlantInstances;
+                const FVector2D CandidateXY(
+                    BaseLocation.X + RandomStream.FRandRange(-500.0f, 500.0f),
+                    BaseLocation.Y + RandomStream.FRandRange(-500.0f, 500.0f));
+                FVector CandidateLocation;
+                if (ResolveCandidateSurface(CandidateXY, CandidateLocation))
+                {
+                    Plants->AddInstance(FTransform(
+                        FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
+                        CandidateLocation,
+                        FVector(RandomStream.FRandRange(0.70f, 1.02f))), true);
+                    ++PlantInstances;
+                }
             }
 
             const float FlowerChance = bMaintained ? 0.008f : 0.025f;
             if (UHierarchicalInstancedStaticMeshComponent* FlowerComponent = Flowers.Get();
                 FlowerComponent && RandomStream.FRand() < FlowerChance)
             {
-                FlowerComponent->AddInstance(FTransform(
-                    FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
-                    BaseLocation + FVector(RandomStream.FRandRange(-480.0f, 480.0f),
-                        RandomStream.FRandRange(-480.0f, 480.0f), 1.0f),
-                    FVector(RandomStream.FRandRange(0.64f, 0.88f))), true);
-                ++FlowerInstances;
+                const FVector2D CandidateXY(
+                    BaseLocation.X + RandomStream.FRandRange(-480.0f, 480.0f),
+                    BaseLocation.Y + RandomStream.FRandRange(-480.0f, 480.0f));
+                FVector CandidateLocation;
+                if (ResolveCandidateSurface(CandidateXY, CandidateLocation))
+                {
+                    FlowerComponent->AddInstance(FTransform(
+                        FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
+                        CandidateLocation,
+                        FVector(RandomStream.FRandRange(0.64f, 0.88f))), true);
+                    ++FlowerInstances;
+                }
             }
         }
 
@@ -417,11 +470,16 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         Owner->Tags.Add(Block0PopulationCompleteTag);
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0"),
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d"),
             GrassInstances,
             PlantInstances,
             FlowerInstances,
             ProcessedCells,
-            bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"));
+            bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"),
+            CandidateTraceAttempts,
+            CandidateAccepted,
+            CandidateRejectedBlocked,
+            CandidateRejectedTrace,
+            CandidateRejectedBounds);
     }
 }
