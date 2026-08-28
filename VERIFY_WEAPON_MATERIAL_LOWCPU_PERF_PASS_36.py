@@ -89,20 +89,43 @@ for forbidden in (
 ):
     forbid(dense + foliage_guard, forbidden, "retired Museum-only LowCPU foliage contract")
 
-require(foliage_guard_h, "ValidateDenseFoliage(int32 MinGrassInstances", "profile-aware foliage validation signature")
+# The foliage guard now owns both minimum density and factual spatial distribution. Completion/count alone may
+# not mint PASS36 READY on a 960x940m map.
+for needle in (
+    "ValidateDenseFoliage(",
+    "int32 MinGrassInstances",
+    "int32& OutOccupiedBins",
+    "int32 OutQuadrantOccupied[4]",
+    "bool& bOutEdgeReach",
+):
+    require(foliage_guard_h, needle, "profile-aware spatial foliage validation signature")
+
 for needle in (
     'Block0PopulationCompleteTag(TEXT("OC_Block0FullMapGrassComplete"))',
     "ActorHasTag(Block0PopulationCompleteTag)",
     "const int32 MinGrassInstances = bLowCPU ? 48 : 250",
+    "CoverageBinsPerAxis = 4",
+    "MinOccupiedBins = 12",
+    "MinOccupiedBinsPerQuadrant = 2",
+    "EdgeToleranceFraction = 0.20f",
+    "GetInstanceTransform(Index, InstanceTransform, true)",
+    "OutOccupiedBins >= MinOccupiedBins",
+    "bOutEdgeReach",
+    "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY",
+    "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL",
+    "full_playable_distribution=1",
+    "block0_spatial_grass_distribution_insufficient",
     "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
     "full_sector_population=1",
     "population_complete=1",
     "density_policy_only=1",
+    "spatial_coverage=1",
+    "edge_reach=1",
     "full_map_foliage_population_incomplete",
     "ValidationAccumulator < 0.25f",
     "PASS42_FOLIAGE_GUARD_THROTTLED_READY",
 ):
-    require(foliage_guard, needle, "LowCPU/full-map foliage runtime guard")
+    require(foliage_guard, needle, "LowCPU/full-map spatial foliage runtime guard")
 
 # Pass 44 supersedes the old grey BasicShapeMaterial "repair". A missing/default slot is content evidence,
 # not something the runtime may paint over and then call production-ready.
@@ -136,7 +159,8 @@ require(weapon, "ApplyRealFallback", "existing real-mesh fallback preservation")
 
 print("WEAPON MATERIAL + LOWCPU PERFORMANCE PASS 36/42/44 SOURCE CONTRACT PASS")
 print("- LowCPU foliage covers the same compact 960x940m playable Oster bounds as Full profile and reduces density/cull budget instead of spatially cropping the city")
-print("- runtime foliage READY requires the full-map population-complete tag and cannot false-pass on the first 48 instances")
+print("- runtime foliage READY requires completion, minimum density, 4x4 spatial coverage, quadrant coverage and map-edge reach")
+print("- PASS36 cannot false-pass when accepted grass is concentrated in a small crop")
 print("- foliage acceptance scans are throttled and stop after convergence")
 print("- missing/default weapon materials are reported as authored-content gaps, never painted grey with BasicShapeMaterial")
 print("- a fully audited rack with material gaps stops its scan immediately instead of repeating for the whole budget")
