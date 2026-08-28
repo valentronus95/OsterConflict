@@ -14,7 +14,7 @@
 namespace
 {
     // PASS45 Block 0 uses the same compact central-Oster authoring bounds as AOCWorldSectorOster.
-    // LowCPU is now a density/render-budget policy, never a museum-only spatial crop.
+    // LowCPU is a density/render-budget policy, never a museum-only spatial crop.
     constexpr float CompactMinX = -78000.0f;
     constexpr float CompactMaxX =  18000.0f;
     constexpr float CompactMinY = -12000.0f;
@@ -149,13 +149,12 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch;
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] profile=%s grid_m=%.1f cells_per_batch=%d museum_only=0 full_playable_bounds=1"),
+        TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] profile=%s grid_m=%.1f cells_per_batch=%d museum_only=0 full_playable_bounds=1 content_intake=KiteDemo"),
         bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"),
         ActiveGridStep / 100.0f,
         ActiveCellsPerBatch);
 
-    // Let the foliage runtime guard physically remove the old GrassMown/GrassRough/GrassWetland Cube zoning
-    // before the first planting trace. That avoids planting on a proxy which disappears milliseconds later.
+    // Allow the existing foliage runtime guard to retire source ground-cover proxies before planting traces begin.
     InWorld.GetTimerManager().SetTimer(
         GameplayReadyTimer,
         this,
@@ -209,9 +208,11 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
 {
     if (bPopulationStarted || bPopulated) return false;
 
+    // Intake assets are selected first; already-accepted historical packs remain explicit fallbacks.
     const TArray<const TCHAR*> GrassCandidates[] =
     {
         {
+            TEXT("/Game/KiteDemo/Environments/Foliage/Grass/FieldGrass/SM_FieldGrass_01.SM_FieldGrass_01"),
             TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh"),
             TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01")
         },
@@ -238,10 +239,13 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     }
 
     UStaticMesh* GroundPlantMesh = LoadFirstMesh({
+        TEXT("/Game/KiteDemo/Environments/Foliage/Ferns/SM_Fern_01.SM_Fern_01"),
         TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_01.ground_01_01"),
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plant.SM_Plant")
     });
     UStaticMesh* FlowerMesh = LoadFirstMesh({
+        TEXT("/Game/KiteDemo/Environments/Foliage/Flowers/FieldScabious/SM_FieldScabious_01.SM_FieldScabious_01"),
+        TEXT("/Game/KiteDemo/Environments/Foliage/Flowers/Buttercup/SM_Buttercup_Patch_01.SM_Buttercup_Patch_01"),
         TEXT("/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_01_01.flower_01_01"),
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Flower_Var01.SM_Flower_Var01")
     });
@@ -249,7 +253,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     if (!bAnyGrass)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_FAIL reason=grass_assets_not_loadable full_playable_bounds=0"));
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_FAIL reason=grass_assets_not_loadable full_playable_bounds=0 content_intake=KiteDemo"));
         return false;
     }
 
@@ -298,7 +302,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 content_intake=KiteDemo"),
         ActiveGridStep,
         ActiveCellsPerBatch,
         GrassCullEnd,
@@ -335,8 +339,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         return static_cast<UHierarchicalInstancedStaticMeshComponent*>(nullptr);
     };
 
-    // Cell traces are only a cheap preflight. Every final randomized grass/plant/flower XY must pass this
-    // second trace so an accepted cell near a sidewalk cannot spill an instance onto pavement/foundations.
+    // Cell traces are a cheap preflight. Every randomized final XY is independently traced before AddInstance.
     auto ResolveCandidateSurface = [this, World, &QueryParams](const FVector2D& XY, FVector& OutLocation)
     {
         if (XY.X < PopulationMinX || XY.X > PopulationMaxX ||
@@ -470,7 +473,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         Owner->Tags.Add(Block0PopulationCompleteTag);
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d"),
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0"),
             GrassInstances,
             PlantInstances,
             FlowerInstances,
