@@ -172,10 +172,16 @@ for needle in (
     require(guard, needle, "runtime foliage/visual cleanup guard")
 forbid(guard, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only runtime evidence")
 
-# Pass 10 still protects the original full-profile >=250 contract. Pass 36 deliberately gives the measured
-# LowCPU acceptance path its own lower floor so the guard does not force expensive full-sector population back.
+# Pass 10 protects the full-profile >=250 contract. Under PASS45 Block 0, LowCPU may reduce density/cull range
+# and retain its explicit >=48 floor, but it is forbidden to shrink spatial scope back to a museum-only crop.
 require(guard, 'bLowCPU ? TEXT("LowCPU") : TEXT("Full")', "runtime profile evidence")
-require(guard, 'full_sector_population=0', "bounded LowCPU evidence")
+for needle in (
+    "full_playable_bounds=1",
+    "full_sector_population=1",
+    "density_policy_only=1",
+):
+    require(guard, needle, "Block0 LowCPU full-sector evidence")
+forbid(guard, "full_sector_population=0", "retired LowCPU spatial-crop evidence")
 
 for needle in (
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
@@ -196,10 +202,11 @@ for needle in ("RUNTIME REJECTED", "2026-08-27"):
 print("FOLIAGE RUNTIME PASS 10 + PASS45 BLOCK0 SOURCE CONTRACT PASS")
 print("- source zoning/debug components are physically destroyed rather than merely hidden at runtime")
 print("- real batched DenseGrass HISM covers the 960m x 940m compact playable bounds with profile-specific budgets")
+print("- LowCPU is density/cull policy only and cannot crop the factual full-sector population scope")
 print("- every randomized grass/plant/flower candidate is independently traced before AddInstance")
 print("- road/sidewalk/path/building/plaza/foundation spill is fail-closed at the final candidate position")
 print("- five developer text labels and ReferenceMarkers cannot survive as player-facing scenery")
-print("- full profile preserves >=250 real grass instances; LowCPU uses its explicit bounded >=48 contract")
+print("- full profile preserves >=250 real grass instances; LowCPU retains its explicit >=48 floor")
 print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
 print("- Gate K remains explicitly OPEN while major ground/other proxy visual work remains")
 print("STATUS: SOURCE CONTRACT ONLY; UE 5.8 visual/runtime acceptance still required")
