@@ -230,8 +230,15 @@ for needle in (
     require(guard, needle, "Block0 LowCPU full-sector evidence")
 forbid(guard, "full_sector_population=0", "retired LowCPU spatial-crop evidence")
 
+# The runtime launcher must prove the newer KiteDemo regional tree intake itself. The old generic authored-tree
+# marker can remain useful, but it is insufficient because historical non-primitive trees could otherwise pass
+# while HillTree/ScotsPine loading failed.
 for needle in (
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
+    "PASS45_REGIONAL_TREE_INTAKE_FAIL",
+    "PASS45_REGIONAL_TREE_INTAKE_WIRED",
+    "Imported HillTree/ScotsPine runtime intake reported FAIL.",
+    "Imported HillTree/ScotsPine runtime intake was not proved wired.",
     "PASS45_GROUND_COVER_PRIMITIVES_DESTROYED",
     "PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED",
     "PASS10_FOLIAGE_RUNTIME_READY",
@@ -255,6 +262,7 @@ print("- LowCPU is density/cull policy only and cannot crop the factual full-sec
 print("- every randomized grass/plant/flower candidate is independently traced before AddInstance")
 print("- road/sidewalk/path/building/plaza/foundation/water spill is fail-closed at the final candidate position")
 print("- water/river/lake/pond/canal/reservoir component names and actor tags are explicit no-foliage surfaces")
+print("- runtime acceptance rejects regional-tree intake FAIL and requires the HillTree/ScotsPine WIRED marker")
 print("- five developer text labels and ReferenceMarkers cannot survive as player-facing scenery")
 print("- full profile preserves >=250 real grass instances; LowCPU retains its explicit >=48 floor")
 print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
