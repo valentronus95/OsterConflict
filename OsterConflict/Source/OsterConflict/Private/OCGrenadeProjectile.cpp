@@ -15,6 +15,8 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -22,6 +24,8 @@ namespace
 {
     constexpr float Pass45GrenadeDesiredLengthCm = 14.0f;
     const TCHAR* Pass45GrenadeVisualPath = TEXT("/Game/R13/Weapons/grenade.grenade");
+    const TCHAR* Pass45FragExplosionVFXPath =
+        TEXT("/Game/Fire_EXP_Vol01_Free/Niagara/EXP/NS_Sub_EXP_Small_002.NS_Sub_EXP_Small_002");
 }
 
 AOCGrenadeProjectile::AOCGrenadeProjectile()
@@ -116,6 +120,35 @@ void AOCGrenadeProjectile::InitializeGrenadeServer(EOCGrenadeType NewType, const
     ForceNetUpdate();
 }
 
+void AOCGrenadeProjectile::MulticastDetonationVFX_Implementation(EOCGrenadeType Type, FVector_NetQuantize Location)
+{
+    if (GetNetMode() == NM_DedicatedServer || Type != EOCGrenadeType::Fragmentation) return;
+
+    UNiagaraSystem* ExplosionSystem = LoadObject<UNiagaraSystem>(nullptr, Pass45FragExplosionVFXPath);
+    if (!ExplosionSystem)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_FRAG_EXPLOSION_VFX_LOAD_FAIL asset=%s authored_niagara=0 runtime_acceptance=0"),
+            Pass45FragExplosionVFXPath);
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        this,
+        ExplosionSystem,
+        Location,
+        FRotator::ZeroRotator,
+        FVector::OneVector,
+        true,
+        true,
+        ENCPoolMethod::AutoRelease,
+        true);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_FRAG_EXPLOSION_VFX_DONOR_WIRED asset=%s authored_niagara=1 replicated_presentation=1 runtime_acceptance=0"),
+        Pass45FragExplosionVFXPath);
+}
+
 void AOCGrenadeProjectile::DetonateServer()
 {
     if (!HasAuthority()) return;
@@ -126,6 +159,8 @@ void AOCGrenadeProjectile::DetonateServer()
 
     if (GrenadeType == EOCGrenadeType::Fragmentation)
     {
+        MulticastDetonationVFX(GrenadeType, GetActorLocation());
+
         TArray<TWeakObjectPtr<AOCCharacter>> VisualTargets;
         for (TActorIterator<AOCCharacter> It(GetWorld()); It; ++It)
         {
