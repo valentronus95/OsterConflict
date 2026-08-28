@@ -154,11 +154,18 @@ for needle in (
 ):
     require(foliage_cpp, needle, "Block0 full-map grass distribution strict gate")
 
-# Runtime acceptance already consumes PASS36 READY and rejects PASS10 FAIL. Because both are emitted only after
-# the integrated spatial test, Block0 distribution can no longer fail silently behind an unrelated marker.
+# Main runtime acceptance must now consume the active Block0 facts directly. A later full-game marker may not
+# substitute for a missing authored Ground, failed spatial grass distribution or failed imported regional-tree intake.
 for needle in (
+    "PASS45_BLOCK0_PRETICK_GROUND_READY",
+    "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY",
+    "PASS45_REGIONAL_TREE_INTAKE_WIRED",
+    'findstr /C:"PASS45_BLOCK0_PRETICK_GROUND_FAIL" /C:"PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP"',
+    'findstr /C:"PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL" /C:"PASS45_REGIONAL_TREE_INTAKE_FAIL"',
     "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
     'findstr /C:"PASS10_FOLIAGE_RUNTIME_FAIL"',
+    "Block0 authored Ground READY was recorded with no Ground FAIL/CONTENT GAP.",
+    "Block0 spatial grass coverage and imported regional-tree intake were proved READY.",
 ):
     require(acceptance, needle, "Block0 runtime acceptance wiring")
 
@@ -182,6 +189,8 @@ print("- the new Ground owner contains no Tick/timer delay")
 print("- actor BeginPlay cannot reapply BasicShapeMaterial after authored Ground is installed")
 print("- later world-surface Ground handling remains idempotent when authored state already exists")
 print("- the existing foliage runtime guard is the single strict owner for 4x4 spatial grass distribution")
+print("- main runtime acceptance explicitly requires Ground READY, spatial grass READY and regional-tree WIRED")
+print("- Ground FAIL/CONTENT GAP, spatial grass FAIL and regional-tree intake FAIL are explicit runtime rejection paths")
 print("- PASS36 READY cannot emit until bin/quadrant/edge coverage passes; spatial failure also emits PASS10 hard FAIL")
 print("- duplicate Block0 coverage tick subsystem is physically absent")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile, first-frame visual evidence, spatial coverage log and Block0 screenshots remain authoritative")
