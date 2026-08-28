@@ -1,0 +1,22 @@
+AssetId,SourceOrPack,Role,TargetIntegration,RuntimeOwner,RequiredEvidence,State
+CI-ARMS-001,/Game/QuantumCharacter/Mesh/Modules/SKM_Arms,Canonical first-person arms,Visible owner-only FP arms attached to camera with working AnimBP,AOCCharacter + UOCFirstPersonWeaponPresentationSubsystem,UE5.8 FP screenshot with visible hands and weapon grip,PENDING_INTEGRATION
+CI-ARMS-002,FPSArms3D external donor,Alternative first-person arms/AK animation donor,Use only if canonical arms cannot satisfy production presentation,UOCFirstPersonWeaponPresentationSubsystem,Retarget proof plus runtime comparison,CANDIDATE_ONLY
+CI-ANIM-001,/Game/SampleAnimationPack,Animation donor,Retarget/select FPS and third-person locomotion/weapon animations,Project-owned AnimBP/presentation layer,Idle walk sprint ADS fire reload runtime evidence,PENDING_INTEGRATION
+CI-ANIM-002,GameAnimationSample external project,Animation architecture/donor,Selective migration only when dependency-safe,Project-owned animation layer,Dependency inventory plus runtime evidence,LOCAL_PROJECT_INVENTORY_PENDING
+CI-HUD-001,SuperSimpleFPSPack external project,HUD donor/reference,Selective widgets/icons only; Oster HUD remains authoritative,Oster HUD owner,HUD screenshot plus no competing gameplay framework,LOCAL_PROJECT_INVENTORY_PENDING
+CI-INT-001,InteractionSystem external project,Interaction donor,Selective door/pickup/vehicle interaction components only,Oster interaction owner,Door pickup vehicle interaction runtime evidence,LOCAL_PROJECT_INVENTORY_PENDING
+CI-WPN-001,/Game/AK-47,Weapon mesh/animation donor,Use only exact useful assets with calibrated FP/ADS presentation,UOCFirstPersonWeaponPresentationSubsystem,Grip ADS fire reload runtime evidence,PENDING_INTEGRATION
+CI-VFX-001,/Game/Fire_EXP_Vol01_Free,Fire explosion debris Niagara,Map accepted Niagara assets into Oster VFX presentation,Oster weapon/world VFX owners,Fire explosion debris runtime screenshot,PENDING_INTEGRATION
+CI-VFX-002,/Game/PotaVFX_Smoke,Smoke Niagara,Smoke grenade and selected environmental smoke,Oster grenade/world VFX owners,Smoke grenade/runtime smoke screenshot,PENDING_INTEGRATION
+CI-PROP-001,/Game/Fab/Megascans/3D/Military_Trenches_*Sandbag*,Military fortification props,Selective map placement only where reference/gameplay requires,Oster world/map content,Runtime map screenshot and collision check,PENDING_INTEGRATION
+CI-WORLD-001,/Game/Mega_Street_Props_Pack,Street props,Selective Oster-compatible street furniture and infrastructure,Oster world/map content,Reference-compatible runtime placement,PENDING_INTEGRATION
+CI-WORLD-002,/Game/Street_Props_Pack_V1,Street props,Use only non-duplicate Oster-compatible props,Oster world/map content,Reference-compatible runtime placement,PENDING_INTEGRATION
+CI-WORLD-003,/Game/KiteDemo/Environments,Foliage ground rocks donor,Selective foliage/ground/rocks only; exclude irrelevant demo payload,Oster world surface/foliage owners,Runtime visual plus performance evidence,PENDING_INTEGRATION
+CI-WORLD-004,/Game/Megaplant_Library,Foliage donor,Selective vegetation matching Oster references,Oster foliage owner,Runtime visual plus performance evidence,PENDING_INTEGRATION
+CI-WORLD-005,/Game/PN_FoliageCollection,Foliage donor,Selective vegetation matching Oster references,Oster foliage owner,Runtime visual plus performance evidence,PENDING_INTEGRATION
+CI-VEH-001,/Game/VehicleVarietyPack,Vehicle donor/filler,Civilian/support vehicles only unless exact production identity is proven,Oster vehicle/world owners,Runtime vehicle presentation and collision evidence,PENDING_REVIEW
+CI-AUDIO-001,HardLines/Shotgun,Shotgun report donor,Map only after licensing and weapon identity review,Oster weapon audio owner,Runtime shot audio evidence,PENDING_INTEGRATION
+CI-AUDIO-002,HardLines/Footsteps,Concrete footstep donor,Map through Physical Surface footstep system,Oster character audio owner,Walk/run/sprint/land runtime audio evidence,PENDING_INTEGRATION
+CI-AUDIO-003,BorderRun/VehicleEngine,Generic vehicle RPM donor,Prototype vehicle RPM layers only; never claim exact HMMWV/BTR identity,Oster vehicle audio owner,Runtime RPM transition evidence,PENDING_INTEGRATION
+CI-AUDIO-004,Forest_Ambience.mp3,Ambient forest donor,Localized ambient Oster layer where appropriate,Oster ambient audio owner,Spatial ambient runtime evidence,PENDING_INTEGRATION
+CI-AUDIO-005,fire.wav,Fire ambience donor,Attach to accepted fire VFX where appropriate,Oster world VFX/audio owners,3D fire audio runtime evidence,PENDING_INTEGRATION
