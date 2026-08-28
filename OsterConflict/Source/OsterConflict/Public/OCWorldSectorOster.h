@@ -48,6 +48,7 @@ public:
     /** Read-only semantic geometry for the world-synchronised tactical map vector layer. */
     const UInstancedStaticMeshComponent* GetTacticalRoads() const { return Roads; }
     const UInstancedStaticMeshComponent* GetTacticalSidewalks() const { return Sidewalks; }
+    const UInstancedStaticMeshComponent* GetTacticalParkPaths() const { return ParkPaths; }
     const UInstancedStaticMeshComponent* GetTacticalBuildings() const { return Buildings; }
     const UInstancedStaticMeshComponent* GetTacticalResidentialRoofs() const { return ResidentialRoofs; }
     const UInstancedStaticMeshComponent* GetTacticalLandmarkBlocks() const { return LandmarkBlocks; }
@@ -61,6 +62,8 @@ private:
 
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Roads;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Sidewalks;
+    // PASS45 Gate K: the five central-park pedestrian paths are a canonical source-owned family.
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkPaths;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Buildings;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ResidentialRoofs;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ResidentialDetails;
