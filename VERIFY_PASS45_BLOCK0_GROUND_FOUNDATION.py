@@ -9,6 +9,7 @@ FOLIAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / 
 LATE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
 ACCEPTANCE = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
 PLAN = ROOT / "PASS45_BLOCK_EXECUTION_PLAN.md"
+INTAKE_GROUND_MATERIAL = ROOT / "OsterConflict" / "Content" / "KiteDemo" / "Environments" / "GroundTiles" / "Grass" / "M_Ground_Grass2.uasset"
 RETIRED_COVERAGE_HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0FoliageCoverageValidationSubsystem.h"
 RETIRED_COVERAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0FoliageCoverageValidationSubsystem.cpp"
 
@@ -41,6 +42,9 @@ late_cpp = read(LATE_CPP)
 acceptance = read(ACCEPTANCE)
 plan = read(PLAN)
 
+if not INTAKE_GROUND_MATERIAL.is_file():
+    errors.append(f"missing selected Block0 intake ground material: {INTAKE_GROUND_MATERIAL.relative_to(ROOT)}")
+
 for needle in (
     "class OSTERCONFLICT_API UOCBlock0GroundFoundationSubsystem : public UWorldSubsystem",
     "virtual void OnWorldBeginPlay(UWorld& InWorld) override;",
@@ -49,7 +53,7 @@ for needle in (
 
 for needle in (
     "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
-    "/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape",
+    "/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2",
     "ApplyAuthoredGroundBeforeFirstTick",
     "/Engine/BasicShapes/Cube",
     "EmptyOverrideMaterials()",
@@ -70,6 +74,9 @@ for needle in (
     "pretick_ground_collision_disabled",
     "Ground->GetCollisionEnabled() == ECollisionEnabled::NoCollision",
     "PASS45_BLOCK0_PRETICK_GROUND_READY",
+    "ground_material=M_Ground_Grass2",
+    "ground_pack=KiteDemo",
+    "content_intake_ground_selected=1",
     "authored_before_first_tick=1",
     "footprint_preserved=1",
     "top_z_preserved=1",
@@ -83,8 +90,13 @@ for needle in (
 for needle in (
     "PASS45_BLOCK0_PRETICK_GROUND_FAIL",
     "PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP",
+    "preferred_ground_pack=KiteDemo",
+    "preferred_ground_material=M_Ground_Grass2",
 ):
     require(cpp, needle, "Block0 fail-visible ground evidence")
+
+forbidden_legacy_material_path = "/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape"
+forbid(cpp, forbidden_legacy_material_path, "legacy Block0 ground material selection")
 
 for forbidden_new_owner_term in (
     "Tick(float",
@@ -106,14 +118,20 @@ for needle in (
 forbid(sector_cpp, "    Tint(Ground,              FLinearColor(0.16f, 0.25f, 0.10f));",
     "unconditional legacy Ground BasicShape tint")
 
-# The historical world-surface upgrader may continue owning roads/sidewalks/fences, but Ground must be
-# idempotent when the pre-tick owner has already installed the exact authored mesh/material.
+# The historical world-surface upgrader may continue owning roads/sidewalks/fences, but its Ground contract must
+# resolve the exact same intake material as the pre-tick owner or it would reject/overwrite the first-frame state.
 for needle in (
+    "/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2",
     "if (CurrentMesh == AuthoredMesh)",
     "if (Component->GetMaterial(0) != AuthoredMaterial)",
     "ground_authored_material_contract_drift",
+    "ground_material=M_Ground_Grass2",
+    "ground_pack=KiteDemo",
+    "content_intake_ground_selected=1",
+    "tracked_ground_pack=KiteDemo",
 ):
-    require(late_cpp, needle, "late world-surface Ground idempotence")
+    require(late_cpp, needle, "late world-surface Ground idempotence/intake agreement")
+forbid(late_cpp, forbidden_legacy_material_path, "late owner legacy Block0 ground material selection")
 
 # Spatial grass coverage belongs to the existing strict foliage runtime guard. A second tick subsystem would
 # duplicate a full HISM scan and could disagree with the PASS10/PASS36 gate consumed by runtime acceptance.
@@ -182,12 +200,14 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: PASS")
-print("- tracked authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
+print("- KiteDemo M_Ground_Grass2 is the selected tracked ground material for both first-frame and late idempotent owners")
+print("- the old AdvancedVillagePack landscape material cannot silently reclaim Block0 Ground")
+print("- authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
 print("- compact source footprint and top-Z are preserved by bounds-aware conversion and numerically postvalidated")
 print("- Ground collision must remain enabled before the READY marker is permitted")
 print("- the new Ground owner contains no Tick/timer delay")
 print("- actor BeginPlay cannot reapply BasicShapeMaterial after authored Ground is installed")
-print("- later world-surface Ground handling remains idempotent when authored state already exists")
+print("- later world-surface Ground handling remains idempotent on the same KiteDemo material")
 print("- the existing foliage runtime guard is the single strict owner for 4x4 spatial grass distribution")
 print("- main runtime acceptance explicitly requires Ground READY, spatial grass READY and regional-tree WIRED")
 print("- Ground FAIL/CONTENT GAP, spatial grass FAIL and regional-tree intake FAIL are explicit runtime rejection paths")
