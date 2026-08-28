@@ -1,0 +1,30 @@
+name: Pass 45 Block0 pre-tick ground foundation
+
+on:
+  push:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
+      - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
+      - 'PASS45_BLOCK_EXECUTION_PLAN.md'
+      - '.github/workflows/pass45-block0-ground-foundation.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
+      - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
+      - 'PASS45_BLOCK_EXECUTION_PLAN.md'
+      - '.github/workflows/pass45-block0-ground-foundation.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Block0 pre-tick authored ground contract
+        run: python VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py
