@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0GroundFoundationSubsystem.h"
 CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0GroundFoundationSubsystem.cpp"
+SECTOR_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWorldSectorOster.cpp"
 FOLIAGE_HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCFoliageRuntimeGuardSubsystem.h"
 FOLIAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCFoliageRuntimeGuardSubsystem.cpp"
 LATE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
@@ -33,6 +34,7 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 header = read(HEADER)
 cpp = read(CPP)
+sector_cpp = read(SECTOR_CPP)
 foliage_header = read(FOLIAGE_HEADER)
 foliage_cpp = read(FOLIAGE_CPP)
 late_cpp = read(LATE_CPP)
@@ -75,6 +77,19 @@ for forbidden_new_owner_term in (
     "SetTimer(",
 ):
     forbid(cpp, forbidden_new_owner_term, "delayed/timer-based Block0 ground ownership")
+
+# UWorld/actor BeginPlay ordering must not let the legacy palette overwrite an already-authored Ground.
+for needle in (
+    "bGroundStillSourceCube",
+    'GetPathName().Contains(TEXT("/Engine/BasicShapes/Cube"), ESearchCase::IgnoreCase)',
+    "if (bGroundStillSourceCube)",
+    "PASS45_BLOCK0_SOURCE_GROUND_TINT_SKIPPED",
+    "authored_ground_preserved=1",
+    "basicshape_material_reclaim=0",
+):
+    require(sector_cpp, needle, "Block0 source BeginPlay material-reclaim guard")
+forbid(sector_cpp, "    Tint(Ground,              FLinearColor(0.16f, 0.25f, 0.10f));",
+    "unconditional legacy Ground BasicShape tint")
 
 # The historical world-surface upgrader may continue owning roads/sidewalks/fences, but Ground must be
 # idempotent when the pre-tick owner has already installed the exact authored mesh/material.
@@ -148,6 +163,7 @@ print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: PASS")
 print("- tracked authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
 print("- compact source footprint and top-Z are preserved with bounds-aware conversion")
 print("- the new Ground owner contains no Tick/timer delay")
+print("- actor BeginPlay cannot reapply BasicShapeMaterial after authored Ground is installed")
 print("- later world-surface Ground handling remains idempotent when authored state already exists")
 print("- the existing foliage runtime guard is the single strict owner for 4x4 spatial grass distribution")
 print("- PASS36 READY cannot emit until bin/quadrant/edge coverage passes; spatial failure also emits PASS10 hard FAIL")
