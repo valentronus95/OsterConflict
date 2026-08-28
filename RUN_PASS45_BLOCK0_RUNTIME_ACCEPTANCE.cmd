@@ -9,6 +9,7 @@ set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "SOURCE_VERIFY=%~dp0VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py"
+set "FOLIAGE_SOURCE_VERIFY=%~dp0VERIFY_FOLIAGE_RUNTIME_PASS_10.py"
 set "LOG_DIR=%~dp0Logs"
 set "PLAYTEST_LOG=%LOG_DIR%\PASS45_BLOCK0_RUNTIME.log"
 set "SOURCE_VERIFY_LOG=%LOG_DIR%\PASS45_BLOCK0_SOURCE_VERIFY.log"
@@ -44,8 +45,12 @@ if not exist "%PROJECT%" (
   exit /b 6
 )
 if not exist "%SOURCE_VERIFY%" (
-  echo [STOP] Block0 source verifier is missing: %SOURCE_VERIFY%
+  echo [STOP] Block0 ground source verifier is missing: %SOURCE_VERIFY%
   exit /b 7
+)
+if not exist "%FOLIAGE_SOURCE_VERIFY%" (
+  echo [STOP] Block0 foliage source verifier is missing: %FOLIAGE_SOURCE_VERIFY%
+  exit /b 29
 )
 
 for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
@@ -109,13 +114,20 @@ if not defined PY_CMD (
   exit /b 15
 )
 
-echo [SOURCE] Verifying Block0 ground/grass contracts...
+echo [SOURCE] Verifying complete Block0 ground/grass/tree handoff contracts...
 %PY_CMD% "%SOURCE_VERIFY%" > "%SOURCE_VERIFY_LOG%" 2>&1
 set "VERIFY_RC=%ERRORLEVEL%"
-type "%SOURCE_VERIFY_LOG%"
 if not "%VERIFY_RC%"=="0" (
-  echo [STOP] Block0 source gate failed. UE runtime test cancelled.
+  type "%SOURCE_VERIFY_LOG%"
+  echo [STOP] Block0 ground/spatial source gate failed. UE runtime test cancelled.
   exit /b 16
+)
+%PY_CMD% "%FOLIAGE_SOURCE_VERIFY%" >> "%SOURCE_VERIFY_LOG%" 2>&1
+set "FOLIAGE_VERIFY_RC=%ERRORLEVEL%"
+type "%SOURCE_VERIFY_LOG%"
+if not "%FOLIAGE_VERIFY_RC%"=="0" (
+  echo [STOP] Block0 foliage/tree source gate failed. UE runtime test cancelled.
+  exit /b 30
 )
 
 echo [BUILD] Building OsterConflictEditor Win64 Development from %TESTED_HEAD%...
