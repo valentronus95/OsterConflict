@@ -8,6 +8,7 @@ CHARACTER = SRC / "Private" / "OCCharacter.cpp"
 VISUAL_TYPES = SRC / "Public" / "OCCharacterVisualTypes.h"
 SMOKE = SRC / "Private" / "OCSmokeCloud.cpp"
 SMOKE_H = SRC / "Public" / "OCSmokeCloud.h"
+BUILD = SRC / "OsterConflict.Build.cs"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
 
 errors: list[str] = []
@@ -30,6 +31,7 @@ character = read(CHARACTER)
 visual_types = read(VISUAL_TYPES)
 smoke = read(SMOKE)
 smoke_h = read(SMOKE_H)
+build = read(BUILD)
 tz = read(TZ)
 
 # The visible grenade must use the tracked repository mesh, never an Engine sphere/cube stand-in.
@@ -44,8 +46,7 @@ req('PASS45_GRENADE_PRODUCTION_VISUAL_FAIL' in grenade and 'primitive_visible=0'
 req('OC_ProductionGrenadeVisual' in grenade,
     'production grenade component is not explicitly tagged')
 
-# Throwing is authoritative and transactional. Human beings apparently need a verifier to confirm that a grenade
-# should not vanish from inventory when the server failed to create it, so here we are.
+# Throwing is authoritative and transactional.
 throw_start = character.find('void AOCCharacter::ServerThrowSelectedGrenade_Implementation()')
 throw_end = character.find('void AOCCharacter::ServerCycleGrenadeType_Implementation()', throw_start)
 throw_block = character[throw_start:throw_end] if throw_start >= 0 and throw_end > throw_start else ''
@@ -78,29 +79,38 @@ req(spawn_pos >= 0 and commit_pos > spawn_pos,
 req(throw_block.count('--(*Count)') == 1,
     'grenade throw owns multiple inventory decrement paths')
 
-# Runtime evidence rejected the fake smoke-ball cluster. No visible BasicShape substitute is allowed.
+# The imported authored Niagara donor is now the sole smoke presentation owner.
+smoke_asset = '/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop'
+req(smoke_asset in smoke,
+    'imported authored smoke Niagara system is not wired into AOCSmokeCloud')
+req('UNiagaraComponent' in smoke and 'UNiagaraSystem' in smoke,
+    'smoke runtime does not own/load the authored Niagara presentation')
+req('PASS45_SMOKE_VFX_DONOR_WIRED' in smoke and 'authored_niagara=1' in smoke,
+    'authored smoke Niagara integration does not emit source-visible wiring evidence')
+req('PASS45_SMOKE_VFX_LOAD_FAIL' in smoke and 'primitive_visible=0' in smoke,
+    'smoke VFX load failure is not visibly fail-closed')
+req('PASS45_SMOKE_VFX_CONTENT_GAP' not in smoke,
+    'obsolete smoke content-gap marker remains in the runtime implementation')
 for stale in (
     '/Engine/BasicShapes/Sphere.Sphere',
     'SmokePuff_',
     'UStaticMeshComponent',
 ):
     req(stale not in smoke, f'rejected primitive smoke presentation returned: {stale}')
-req('PASS45_SMOKE_VFX_CONTENT_GAP' in smoke,
-    'missing authored smoke VFX is not fail-visible')
-req('authored_vfx=0' in smoke and 'primitive_visible=0' in smoke and 'runtime_acceptance=0' in smoke,
-    'smoke content gap can impersonate runtime acceptance')
-req('TArray<TObjectPtr<UStaticMeshComponent>> Puffs' not in smoke_h,
-    'primitive smoke puff ownership still exists in header')
-req('gameplay smoke volume' in smoke_h.lower() and 'particle/Niagara' in smoke_h,
-    'smoke header does not separate gameplay volume from authored VFX truth')
+req('TObjectPtr<UNiagaraComponent> SmokeVFX' in smoke_h,
+    'smoke header does not expose the single Niagara presentation owner')
+req('primitive sphere/cube substitute' in smoke_h.lower(),
+    'smoke header does not preserve fail-closed primitive-retirement truth')
+req('"Niagara"' in build,
+    'OsterConflict module does not declare the Niagara dependency required by authored smoke VFX')
 
-# Canonical TZ must preserve the distinction: source progress is real, authored visual/runtime acceptance is separate.
+# Canonical TZ must distinguish source integration from local UE 5.8 runtime acceptance.
 for needle in (
     'PASS45_GRENADE_PRODUCTION_VISUAL_READY',
     'PASS45_GRENADE_THROW_COMMIT_READY',
-    'PASS45_SMOKE_VFX_CONTENT_GAP',
+    'PASS45_SMOKE_VFX_DONOR_WIRED',
     'primitive grenade/smoke',
-    'RUNTIME REJECTED 2026-08-26',
+    'RUNTIME REJECTED 2026-08-27',
 ):
     req(needle in tz, f'canonical Pass45 TZ lost grenade/smoke status: {needle}')
 
@@ -115,6 +125,6 @@ print('- tracked R13 grenade mesh replaces the visible Engine sphere fail-closed
 print('- authoritative throw uses swept/overlap-checked spawn clearance')
 print('- grenade inventory commits only after factual projectile spawn success')
 print('- successful throw emits a presentation event without a second gameplay timer')
-print('- primitive smoke-ball cluster is physically retired from rendering')
-print('- smoke gameplay volume remains available while authored VFX stays explicit CONTENT GAP')
-print('STATUS: SOURCE-CODED; local UE 5.8 throw feel/animation and authored smoke VFX remain pending')
+print('- primitive smoke-ball presentation remains physically retired')
+print('- imported PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
+print('STATUS: SOURCE-INTEGRATED; local UE 5.8 smoke scale/look/performance acceptance remains pending')
