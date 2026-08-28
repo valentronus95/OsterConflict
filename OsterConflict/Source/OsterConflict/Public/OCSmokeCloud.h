@@ -4,11 +4,13 @@
 #include "GameFramework/Actor.h"
 #include "OCSmokeCloud.generated.h"
 
+class UNiagaraComponent;
 class USceneComponent;
 
 /**
- * Replicated gameplay smoke volume. Pass45 intentionally renders no primitive stand-in: final smoke
- * requires accepted authored particle/Niagara content, while AI/gameplay can continue querying this radius.
+ * Replicated gameplay smoke volume. The gameplay radius remains authoritative while the visible
+ * presentation is supplied by the imported authored Niagara donor. Missing VFX fails closed: no
+ * primitive sphere/cube substitute is ever rendered as smoke.
  */
 UCLASS()
 class OSTERCONFLICT_API AOCSmokeCloud : public AActor
@@ -26,6 +28,7 @@ public:
 
 protected:
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> SceneRoot;
+    UPROPERTY(VisibleAnywhere, Category="Smoke|VFX") TObjectPtr<UNiagaraComponent> SmokeVFX;
     UPROPERTY(EditDefaultsOnly, Category="Smoke") float SmokeRadiusCm = 620.0f;
     UPROPERTY(EditDefaultsOnly, Category="Smoke") float LifetimeSeconds = 18.0f;
 };
