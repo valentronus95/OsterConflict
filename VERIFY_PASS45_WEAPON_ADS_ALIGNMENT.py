@@ -64,11 +64,18 @@ for needle in (
     req(needle in presentation_h, f"ADS transition/validation state missing: {needle}")
 
 for needle in (
-    "if (bADS && !State.bWasAiming && bDeclaredProfile)",
+    "const bool bRequestedADS = Character.IsAiming();",
+    "if (bRequestedADS && !State.bWasAiming && bDeclaredProfile)",
     "ValidateADSAlignment(Character, *Weapon, FindProductionWeaponVisual(*Weapon), Profile);",
-    "State.bWasAiming = bADS;",
+    "PASS45_ADS_PRESENTATION_FAIL_CLOSED",
+    "hip_transform_preserved=1",
+    "State.bWasAiming = bRequestedADS;",
+    "const bool bADS = bRequestedADS && Profile.bADSCalibrated;",
 ):
-    req(needle in presentation_cpp, f"ADS entry validation hook missing: {needle}")
+    req(needle in presentation_cpp, f"ADS fail-closed presentation contract missing: {needle}")
+
+req("const bool bADS = Character.IsAiming();" not in presentation_cpp,
+    "raw aiming state can still drive uncalibrated ADS presentation transforms")
 
 for needle in (
     'TEXT("oc.Weapon.ADS.Debug")',
@@ -120,6 +127,7 @@ print("PASS45 WEAPON ADS ALIGNMENT: PASS")
 print("- all current weapon ids resolve through the explicit first-person profile registry")
 print("- ADS profiles carry optional rear/front/optic sight references and a separate factual calibration flag")
 print("- entering ADS runs fail-visible calibration diagnostics; uncalibrated profiles cannot impersonate READY")
+print("- uncalibrated requested ADS preserves the baseline weapon/arms presentation instead of applying guessed offsets")
 print("- calibrated profiles can sample camera-vs-sight angular and line-offset error with optional debug rays")
 print("- latest 2026-08-27 runtime evidence remains authoritative: AK ADS visual acceptance is still REJECTED")
 print("STATUS: ADS VALIDATION ARCHITECTURE SOURCE-CODED; exact per-weapon sight sockets/offsets and UE 5.8 visual acceptance remain pending")
