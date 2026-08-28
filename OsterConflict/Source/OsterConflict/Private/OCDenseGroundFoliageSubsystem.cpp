@@ -13,28 +13,50 @@
 
 namespace
 {
-    constexpr float SectorMin = -96000.0f;
-    constexpr float SectorMax = 96000.0f;
-    // Full profile compatibility. The normal START flow currently requests PerfProfile=LowCPU and therefore
-    // uses the bounded museum-area constants below instead of slowly filling this entire 1.92 km sector.
-    constexpr float GridStep = 4000.0f;
-    constexpr int32 CellsPerBatch = 4;
+    // PASS45 Block 0 uses the same compact central-Oster authoring bounds as AOCWorldSectorOster.
+    // LowCPU is now a density/render-budget policy, never a museum-only spatial crop.
+    constexpr float CompactMinX = -78000.0f;
+    constexpr float CompactMaxX =  18000.0f;
+    constexpr float CompactMinY = -12000.0f;
+    constexpr float CompactMaxY =  82000.0f;
+    constexpr float CompactWidthCm = CompactMaxX - CompactMinX;
+    constexpr float CompactHeightCm = CompactMaxY - CompactMinY;
+    static_assert(CompactWidthCm == 96000.0f, "Block0 compact foliage width must remain 960 m");
+    static_assert(CompactHeightCm == 94000.0f, "Block0 compact foliage height must remain 940 m");
 
-    // Pass 42: keep the safe bounded LowCPU design from Pass 36, but grow the useful museum/BASE play area
-    // from 150 x 150 m to 200 x 200 m. This is still only ~1.1% of the 1.92 km sector area and cannot recreate
-    // the old full-sector 30-second population flood. A slightly longer cull radius makes the grass read as
-    // continuous around BASE without turning thousands of distant clumps into rendered work.
-    constexpr float LowCPUHalfExtentCm = 10000.0f;
+    constexpr float FullGridStepCm = 1000.0f;
+    constexpr int32 FullCellsPerBatch = 32;
+    constexpr int32 FullGrassCullEndCm = 18000;
+    constexpr int32 FullPlantCullEndCm = 12000;
+    constexpr int32 FullFlowerCullEndCm = 8000;
+
     constexpr float LowCPUGridStepCm = 1500.0f;
-    constexpr int32 LowCPUCellsPerBatch = 8;
-    constexpr int32 LowCPUGrassCullEndCm = 8500;
-    constexpr int32 LowCPUPlantCullEndCm = 6500;
-    constexpr int32 LowCPUFlowerCullEndCm = 4500;
+    constexpr int32 LowCPUCellsPerBatch = 48;
+    constexpr int32 LowCPUGrassCullEndCm = 14000;
+    constexpr int32 LowCPUPlantCullEndCm = 9000;
+    constexpr int32 LowCPUFlowerCullEndCm = 6000;
+
+    const FName Block0PopulationCompleteTag(TEXT("OC_Block0FullMapGrassComplete"));
 
     bool IsLowCPUProfile(const UWorld& World)
     {
         const TCHAR* Value = World.URL.GetOption(TEXT("PerfProfile="), TEXT(""));
         return Value && FString(Value).Equals(TEXT("LowCPU"), ESearchCase::IgnoreCase);
+    }
+
+    bool IsInside2DBox(const FVector& Point, const FVector& Center, const float HalfX, const float HalfY)
+    {
+        return FMath::Abs(Point.X - Center.X) <= HalfX && FMath::Abs(Point.Y - Center.Y) <= HalfY;
+    }
+
+    bool IsMaintainedCivicZone(const FVector& Point)
+    {
+        static const FVector Park = AOCWorldSectorOster::ParkAnchor();
+        static const FVector College = AOCWorldSectorOster::CollegeAnchor();
+        static const FVector Stadium = AOCWorldSectorOster::StadiumAnchor();
+        return IsInside2DBox(Point, Park, 10500.0f, 8000.0f) ||
+            IsInside2DBox(Point, College + FVector(0.0f, 4200.0f, 0.0f), 7000.0f, 6500.0f) ||
+            IsInside2DBox(Point, Stadium, 7600.0f, 5600.0f);
     }
 
     UHierarchicalInstancedStaticMeshComponent* MakeFoliageHISM(
@@ -119,42 +141,28 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
     bLowCPUProfile = IsLowCPUProfile(InWorld);
-    if (bLowCPUProfile)
-    {
-        const FVector Museum = AOCWorldSectorOster::MuseumAnchor();
-        PopulationMinX = Museum.X - LowCPUHalfExtentCm;
-        PopulationMaxX = Museum.X + LowCPUHalfExtentCm;
-        PopulationMinY = Museum.Y - LowCPUHalfExtentCm;
-        PopulationMaxY = Museum.Y + LowCPUHalfExtentCm;
-        ActiveGridStep = LowCPUGridStepCm;
-        ActiveCellsPerBatch = LowCPUCellsPerBatch;
+    PopulationMinX = CompactMinX;
+    PopulationMaxX = CompactMaxX;
+    PopulationMinY = CompactMinY;
+    PopulationMaxY = CompactMaxY;
+    ActiveGridStep = bLowCPUProfile ? LowCPUGridStepCm : FullGridStepCm;
+    ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch;
 
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS36_LOWCPU_FOLIAGE_SCOPE_READY center=%s half_extent_m=%.1f grid_m=%.1f cells_per_batch=%d"),
-            *Museum.ToCompactString(),
-            LowCPUHalfExtentCm / 100.0f,
-            LowCPUGridStepCm / 100.0f,
-            LowCPUCellsPerBatch);
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS42_LOWCPU_FOLIAGE_SCOPE_EXPANDED area_m=200x200 grass_cull_m=85 full_sector_population=0"));
-    }
-    else
-    {
-        PopulationMinX = SectorMin;
-        PopulationMaxX = SectorMax;
-        PopulationMinY = SectorMin;
-        PopulationMaxY = SectorMax;
-        ActiveGridStep = GridStep;
-        ActiveCellsPerBatch = CellsPerBatch;
-    }
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] profile=%s grid_m=%.1f cells_per_batch=%d museum_only=0 full_playable_bounds=1"),
+        bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"),
+        ActiveGridStep / 100.0f,
+        ActiveCellsPerBatch);
 
+    // Let the foliage runtime guard physically remove the old GrassMown/GrassRough/GrassWetland Cube zoning
+    // before the first planting trace. That avoids planting on a proxy which disappears milliseconds later.
     InWorld.GetTimerManager().SetTimer(
         GameplayReadyTimer,
         this,
         &UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady,
         0.20f,
         true,
-        0.0f);
+        0.75f);
 }
 
 void UOCDenseGroundFoliageSubsystem::Deinitialize()
@@ -241,7 +249,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     if (!bAnyGrass)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("Dense foliage unavailable: grass assets are not loadable. Hydrate the PN/AdvancedVillage LFS content before playtest."));
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_FAIL reason=grass_assets_not_loadable full_playable_bounds=0"));
         return false;
     }
 
@@ -262,9 +270,9 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     Root->RegisterComponent();
     Owner->SetRootComponent(Root);
 
-    const int32 GrassCullEnd = bLowCPUProfile ? LowCPUGrassCullEndCm : 6000;
-    const int32 PlantCullEnd = bLowCPUProfile ? LowCPUPlantCullEndCm : 5000;
-    const int32 FlowerCullEnd = bLowCPUProfile ? LowCPUFlowerCullEndCm : 3500;
+    const int32 GrassCullEnd = bLowCPUProfile ? LowCPUGrassCullEndCm : FullGrassCullEndCm;
+    const int32 PlantCullEnd = bLowCPUProfile ? LowCPUPlantCullEndCm : FullPlantCullEndCm;
+    const int32 FlowerCullEnd = bLowCPUProfile ? LowCPUFlowerCullEndCm : FullFlowerCullEndCm;
 
     GrassComponents.Reset();
     for (int32 Index = 0; Index < UE_ARRAY_COUNT(GrassCandidates); ++Index)
@@ -276,16 +284,22 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     Flowers = MakeFoliageHISM(Owner, Root, FlowerMesh, TEXT("DenseFlowers"), FlowerCullEnd);
 
     FoliageActor = Owner;
-    RandomStream.Initialize(20260822);
+    RandomStream.Initialize(20260828);
     CursorX = PopulationMinX;
     CursorY = PopulationMinY;
     GrassInstances = 0;
     PlantInstances = 0;
     FlowerInstances = 0;
+    ProcessedCells = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS30_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d profile=%s"),
-        ActiveGridStep, ActiveCellsPerBatch, GrassCullEnd, bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"));
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1"),
+        ActiveGridStep,
+        ActiveCellsPerBatch,
+        GrassCullEnd,
+        PlantCullEnd,
+        FlowerCullEnd,
+        bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"));
     return true;
 }
 
@@ -302,10 +316,24 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OCDenseGroundFoliage), false);
     QueryParams.AddIgnoredActor(Owner);
 
-    int32 Processed = 0;
-    while (Processed < ActiveCellsPerBatch && CursorX <= PopulationMaxX)
+    auto ResolveGrassComponent = [this](const int32 PreferredVariant)
     {
-        const float JitterExtent = bLowCPUProfile ? ActiveGridStep * 0.32f : 700.0f;
+        for (int32 Offset = 0; Offset < GrassComponents.Num(); ++Offset)
+        {
+            const int32 Variant = (PreferredVariant + Offset) % GrassComponents.Num();
+            if (GrassComponents.IsValidIndex(Variant))
+            {
+                if (UHierarchicalInstancedStaticMeshComponent* Component = GrassComponents[Variant].Get())
+                    return Component;
+            }
+        }
+        return static_cast<UHierarchicalInstancedStaticMeshComponent*>(nullptr);
+    };
+
+    int32 ProcessedThisBatch = 0;
+    while (ProcessedThisBatch < ActiveCellsPerBatch && CursorX <= PopulationMaxX)
+    {
+        const float JitterExtent = ActiveGridStep * 0.30f;
         const FVector2D Jitter(
             RandomStream.FRandRange(-JitterExtent, JitterExtent),
             RandomStream.FRandRange(-JitterExtent, JitterExtent));
@@ -317,28 +345,38 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             Hit.bBlockingHit && !IsBlockedSurface(Hit) && Hit.ImpactNormal.Z >= 0.72f)
         {
             const FVector BaseLocation = Hit.ImpactPoint + Hit.ImpactNormal * 2.0f;
-            const int32 ClumpCount = RandomStream.RandRange(1, 2);
+            const bool bMaintained = IsMaintainedCivicZone(BaseLocation);
+            const int32 ClumpCount = bMaintained
+                ? RandomStream.RandRange(bLowCPUProfile ? 3 : 4, bLowCPUProfile ? 4 : 5)
+                : RandomStream.RandRange(bLowCPUProfile ? 2 : 3, bLowCPUProfile ? 4 : 5);
+            const float Spread = FMath::Min(620.0f, ActiveGridStep * 0.42f);
+
             for (int32 ClumpIndex = 0; ClumpIndex < ClumpCount; ++ClumpIndex)
             {
-                const int32 Variant = RandomStream.RandRange(0, GrassComponents.Num() - 1);
-                UHierarchicalInstancedStaticMeshComponent* Grass = GrassComponents.IsValidIndex(Variant)
-                    ? GrassComponents[Variant].Get() : nullptr;
+                const int32 VariantCount = GrassComponents.Num();
+                if (VariantCount <= 0) break;
+                const int32 PreferredVariant = bMaintained
+                    ? RandomStream.RandRange(0, FMath::Min(1, VariantCount - 1))
+                    : RandomStream.RandRange(0, VariantCount - 1);
+                UHierarchicalInstancedStaticMeshComponent* Grass = ResolveGrassComponent(PreferredVariant);
                 if (!Grass) continue;
 
-                const float Spread = bLowCPUProfile ? FMath::Min(520.0f, ActiveGridStep * 0.38f) : 700.0f;
                 const FVector Offset(
                     RandomStream.FRandRange(-Spread, Spread),
                     RandomStream.FRandRange(-Spread, Spread),
                     RandomStream.FRandRange(-0.8f, 1.8f));
                 const float Yaw = RandomStream.FRandRange(0.0f, 360.0f);
-                const float Scale = RandomStream.FRandRange(0.80f, 1.16f);
+                const float Scale = bMaintained
+                    ? RandomStream.FRandRange(0.68f, 0.94f)
+                    : RandomStream.FRandRange(0.82f, 1.18f);
                 Grass->AddInstance(FTransform(
                     FRotator(0.0f, Yaw, 0.0f), BaseLocation + Offset, FVector(Scale)), true);
                 ++GrassInstances;
             }
 
+            const float PlantChance = bMaintained ? 0.03f : 0.12f;
             if (UHierarchicalInstancedStaticMeshComponent* Plants = GroundPlants.Get();
-                Plants && RandomStream.FRand() < 0.08f)
+                Plants && RandomStream.FRand() < PlantChance)
             {
                 Plants->AddInstance(FTransform(
                     FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
@@ -348,8 +386,9 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
                 ++PlantInstances;
             }
 
+            const float FlowerChance = bMaintained ? 0.008f : 0.025f;
             if (UHierarchicalInstancedStaticMeshComponent* FlowerComponent = Flowers.Get();
-                FlowerComponent && RandomStream.FRand() < 0.015f)
+                FlowerComponent && RandomStream.FRand() < FlowerChance)
             {
                 FlowerComponent->AddInstance(FTransform(
                     FRotator(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f),
@@ -360,7 +399,8 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             }
         }
 
-        ++Processed;
+        ++ProcessedThisBatch;
+        ++ProcessedCells;
         CursorY += ActiveGridStep;
         if (CursorY > PopulationMaxY)
         {
@@ -374,15 +414,14 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         World->GetTimerManager().ClearTimer(PopulationBatchTimer);
         bPopulationStarted = false;
         bPopulated = true;
-        UE_LOG(LogTemp, Display,
-            TEXT("Dense Oster foliage batch population complete: %d grass, %d ground plants, %d flowers."),
-            GrassInstances, PlantInstances, FlowerInstances);
+        Owner->Tags.Add(Block0PopulationCompleteTag);
 
-        if (bLowCPUProfile)
-        {
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS36_LOWCPU_FOLIAGE_COMPLETE grass=%d plants=%d flowers=%d area_half_extent_m=%.1f"),
-                GrassInstances, PlantInstances, FlowerInstances, LowCPUHalfExtentCm / 100.0f);
-        }
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0"),
+            GrassInstances,
+            PlantInstances,
+            FlowerInstances,
+            ProcessedCells,
+            bLowCPUProfile ? TEXT("LowCPU") : TEXT("Full"));
     }
 }
