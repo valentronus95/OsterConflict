@@ -124,8 +124,8 @@ require(dense, "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : Ful
         "profile-specific batched population budget")
 
 # PASS45 Block 0 regression: a cell-center trace is only a cheap preflight. Every actual randomized candidate
-# must be independently traced and rejected on road/sidewalk/path/building/plaza/foundation surfaces. Otherwise
-# an accepted cell near a hard surface can spill grass several metres onto that surface.
+# must be independently traced and rejected on road/sidewalk/path/building/plaza/foundation/water surfaces.
+# Otherwise an accepted cell near a hard or water surface can spill grass several metres onto it.
 for needle in (
     "int32 ProcessedCells = 0;",
     "int32 CandidateTraceAttempts = 0;",
@@ -149,6 +149,7 @@ for needle in (
     "++CandidateRejectedBounds;",
     "++CandidateAccepted;",
     "candidate_surface_guard=1",
+    "water_surface_guard=1",
     "candidate_traces=%d",
     "candidate_accepted=%d",
     "candidate_rejected_blocked=%d",
@@ -167,9 +168,16 @@ for blocked_term in (
     'TEXT("road")', 'TEXT("street")', 'TEXT("sidewalk")', 'TEXT("pavement")',
     'TEXT("asphalt")', 'TEXT("concrete")', 'TEXT("path")', 'TEXT("building")',
     'TEXT("house")', 'TEXT("landmark")', 'TEXT("fence")', 'TEXT("plaza")',
-    'TEXT("stadium")', 'TEXT("parking")', 'TEXT("foundation")',
+    'TEXT("stadium")', 'TEXT("parking")', 'TEXT("foundation")', 'TEXT("water")',
+    'TEXT("river")', 'TEXT("lake")', 'TEXT("pond")', 'TEXT("canal")', 'TEXT("reservoir")',
 ):
     require(dense, blocked_term, "blocked-surface vocabulary")
+
+for blocked_tag in (
+    'TEXT("Water")', 'TEXT("River")', 'TEXT("Lake")', 'TEXT("Pond")',
+    'TEXT("Canal")', 'TEXT("Reservoir")', 'TEXT("NoFoliage")',
+):
+    require(dense, blocked_tag, "blocked-surface actor tags")
 
 for needle in (
     "UOCFoliageRuntimeGuardSubsystem",
@@ -245,7 +253,8 @@ print("- maintained civic lawns and rough ordinary terrain are source-guarded as
 print("- tracked landscape foliage variants are preserved as content evidence but are not blindly applied to the Ground plane")
 print("- LowCPU is density/cull policy only and cannot crop the factual full-sector population scope")
 print("- every randomized grass/plant/flower candidate is independently traced before AddInstance")
-print("- road/sidewalk/path/building/plaza/foundation spill is fail-closed at the final candidate position")
+print("- road/sidewalk/path/building/plaza/foundation/water spill is fail-closed at the final candidate position")
+print("- water/river/lake/pond/canal/reservoir component names and actor tags are explicit no-foliage surfaces")
 print("- five developer text labels and ReferenceMarkers cannot survive as player-facing scenery")
 print("- full profile preserves >=250 real grass instances; LowCPU retains its explicit >=48 floor")
 print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
