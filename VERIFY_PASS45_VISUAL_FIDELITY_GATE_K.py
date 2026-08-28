@@ -38,6 +38,7 @@ launcher = read(ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd")
 runtime_verify = read(ROOT / "VERIFY_PASS45_GATE_K_RUNTIME_LOG.py")
 visual_perf = read(ROOT / "VERIFY_VISUAL_QUALITY_TICK_BUDGET_PASS_39.py")
 workflow = read(ROOT / ".github" / "workflows" / "pass45-visual-fidelity-gate-k.yml")
+latest_runtime_evidence = read(ROOT / "RUNTIME_EVIDENCE" / "2026-08-27_PASS45_REJECTED" / "README.md")
 
 # Source topology still carries Engine Cube transforms, and the authoritative stadium still contains BasicShape
 # blockout. Verified families are upgraded before runtime acceptance rather than being allowed to remain visible.
@@ -46,7 +47,7 @@ require(world, '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial', "cur
 require(stadium, '/Engine/BasicShapes/Cube.Cube', "current authoritative stadium BasicShape gap")
 require(stadium, '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial', "current authoritative stadium material gap")
 
-# The new ground contract must point only at assets that are actually tracked in this repository.
+# The ground contract must point only at assets that are actually tracked in this repository.
 require_file(
     ROOT / "OsterConflict" / "Content" / "AdvancedVillagePack" / "Meshes" / "SM_Plane_1x1.uasset",
     "tracked authored ground mesh",
@@ -71,7 +72,7 @@ for needle in (
     require(foliage_guard, needle, "runtime obsolete-proxy destruction")
 forbid(foliage_guard, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only foliage evidence")
 
-# Ground, Roads/Sidewalks, the five park-path proxies and visible general Fences must be converted to committed
+# Ground, Roads/Sidewalks, the five source-owned ParkPaths and visible general Fences must be converted to committed
 # authored surfaces before Gate K. Ground preserves its playable XY footprint and top-Z; ISM families preserve
 # bounds/orientation rather than blindly stretching a replacement asset.
 for needle in (
@@ -105,10 +106,13 @@ for needle in (
     "BuildExpectedParkPathProxySpecs",
     "SeparateParkPathFamily",
     'FindISM(Sector, TEXT("ParkPaths"))',
+    "ExistingParkPaths->GetInstanceCount() != 5",
+    "RemainingInSidewalks != 0",
+    # The runtime-created path remains as backward compatibility for older maps, but canonical current source
+    # must enter the ExistingParkPaths path instead of relying on migration.
     'NewObject<UInstancedStaticMeshComponent>(Sector, TEXT("ParkPaths"))',
     "SourceIndices.Num() != 5",
     "SourceTransforms.Num() != 5",
-    "RemainingInSidewalks != 0",
     "park_path_preflight_not_exactly_five",
     "PASS45_PARK_PATH_OWNERSHIP_READY",
     "sidewalk_park_path_matches=0",
@@ -137,31 +141,51 @@ for needle in (
     require(surface, needle, "authored Ground/Roads/Sidewalks/ParkPaths/Fences upgrade")
 forbid(surface, 'FindISM(Sector, TEXT("ParkDetails"))', "ParkDetails must not own the authored park-path replacement")
 
-# There are factually five source park-path Cube transforms today: four central alleys + the CultureParkNorth link.
-# They remain deterministic source topology, but runtime ownership must remove all five from Sidewalks before either
-# family is upgraded. This catches an accidental sixth path or a regression that leaves one of the five in Sidewalks.
+# Canonical current source owns exactly five ParkPaths: four central alleys + the CultureParkNorth link.
+# Sidewalks may no longer own any of those five. The upgrader keeps its exact five-transform fallback only for
+# backward compatibility with older map instances, and must validate zero matching transforms remain in Sidewalks.
 park_begin = world.find("void AOCWorldSectorOster::BuildCentralPark()")
 park_end = world.find("\nvoid AOCWorldSectorOster::BuildCollegeSector()", park_begin)
 if park_begin < 0 or park_end < 0:
     raise SystemExit("PASS45 GATE K SOURCE VERIFY FAIL: cannot isolate BuildCentralPark")
 park_source = world[park_begin:park_end]
-if park_source.count("AddBox(Sidewalks,") != 5:
+if park_source.count("AddBox(ParkPaths,") != 5:
     raise SystemExit(
-        "PASS45 GATE K SOURCE VERIFY FAIL: BuildCentralPark must contain exactly five park-path Sidewalk source proxies"
+        "PASS45 GATE K SOURCE VERIFY FAIL: BuildCentralPark must source-own exactly five ParkPaths proxies"
     )
+if park_source.count("AddBox(Sidewalks,") != 0:
+    raise SystemExit(
+        "PASS45 GATE K SOURCE VERIFY FAIL: central-park path topology leaked back into Sidewalks"
+    )
+for needle in (
+    "ExpectedParkPaths = 5",
+    "PASS45_SOURCE_PARK_PATH_OWNERSHIP_READY",
+    "park_path_instances=5",
+    "authored_in_sidewalks=0",
+    "runtime_migration_required=0",
+):
+    require(park_source, needle, "canonical ParkPaths source ownership")
 if surface.count("Specs.Add({") != 5:
     raise SystemExit(
-        "PASS45 GATE K SOURCE VERIFY FAIL: ParkPaths migration must describe exactly five park-path transforms"
+        "PASS45 GATE K SOURCE VERIFY FAIL: ParkPaths compatibility matcher must describe exactly five expected transforms"
     )
 for needle in (
     "Park + FVector(0, 0, 14)",
     "Park + FVector(0, -300, 14)",
     "Park + FVector(1800, 900, 14)",
     "Park + FVector(-2300, 1300, 14)",
-    "Mid + FVector(0, 0, 15)",
+    "Mid + FVector(0,0,15)",
     "CultureParkNorthAnchor()",
 ):
-    require(surface, needle, "exact ParkPaths migration signature")
+    require(world, needle, "canonical ParkPaths source signature")
+for needle in (
+    "Park + FVector(0, 0, 14)",
+    "Park + FVector(0, -300, 14)",
+    "Park + FVector(1800, 900, 14)",
+    "Park + FVector(-2300, 1300, 14)",
+    "Mid + FVector(0, 0, 15)",
+):
+    require(surface, needle, "exact ParkPaths compatibility signature")
 
 # Gate K semantic split regression: the old ParkDetails mixed bucket is quarantine-only. Memorial plaza, stepped
 # approach, skate/fitness and benches have distinct ownership so future authored replacement can be exact rather
@@ -193,7 +217,7 @@ for needle in (
 ):
     require(park_source, needle, "semantic Central Park detail authoring")
 
-# Pass12 now rejects the old Ground Color MID contract as well. It validates Ground + the four upgraded ISM surface
+# Pass12 rejects the old Ground Color MID contract as well. It validates Ground + the four upgraded ISM surface
 # families and tracks ParkPaths/Fences counts so late mutation cannot escape the stability gate.
 for needle in (
     "HasAuthoredGroundSurface(",
@@ -276,19 +300,25 @@ for needle in (
 require(visual_perf, "SetResolutionScaleValueEx(100.0f)", "native render scale contract")
 require(visual_perf, "GameSettings->SetTextureQuality(3);", "texture quality contract")
 
+# A source-green result cannot overrule the user's newest UE screenshots.
+for needle in ("RUNTIME REJECTED", "2026-08-27"):
+    require(latest_runtime_evidence, needle, "latest runtime evidence authority")
+
 print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
 print("- Central Park detail ownership is fail-closed: legacy ParkDetails=0 and semantic groups=2/4/3/14 (23 total)")
 print("- playable Ground upgrades from Cube + BasicShape MID to tracked SM_Plane_1x1 + M_Inst_Landscape before Pass12 baseline")
 print("- Ground playable footprint and top-Z are preserved by bounds-aware replacement")
 print("- Roads/Sidewalks upgrade from Cube topology to tracked RoadsideConstruction authored surfaces before Pass12 baseline")
-print("- exactly five park-path source proxies are separated from Sidewalks into ParkPaths and upgraded to SM_Stonepath_Var01")
-print("- ParkPaths separation fails closed unless all five expected transforms move and zero remain under Sidewalks")
+print("- canonical source owns exactly five ParkPaths and zero central-park path proxies remain in Sidewalks")
+print("- existing bounds-aware upgrader validates the five paths and upgrades them to SM_Stonepath_Var01")
+print("- legacy runtime ParkPaths migration remains compatibility-only; current source does not depend on it")
 print("- visible AOCWorldSectorOster Fences upgrade to committed AdvancedVillagePack SM_Fence_Var01 with bounds-aware axis fitting")
 print("- Pass12 tracks ParkPaths/Fences and validates five authored surface families")
 print("- Gate K workflow is triggered by authored-world subsystem source/header changes")
 print("- final-world Gate K is observation-only and fails closed on visible Engine BasicShape static meshes")
 print("- main PASS45 runtime acceptance requires Gate K, not a side workflow")
 print("- native 100% render scale / high texture contract remains intact")
+print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
 print("- CURRENT CONTENT GAP: ParkGeometry + four semantic park-detail proxy families and authoritative stadium/remaining core BasicShape families still block Gate K")
 print("STATUS: ITEM 31 PARTIAL; semantic ownership is guarded, but Gate K cannot be complete until exact authored replacements and runtime READY evidence exist")
