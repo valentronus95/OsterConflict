@@ -44,12 +44,22 @@ for needle in (
 ):
     require(runtime_safe, needle, "Pass 44 actual pawn proof")
 
-# Dense foliage must remain incremental/bounded.
-for needle in ("TryPopulateWhenGameplayReady", "PopulationBatchTimer", "PopulateBatch"):
-    require(foliage_cpp, needle, "incremental foliage")
-batch_match = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
-if not batch_match or not 1 <= int(batch_match.group(1)) <= 96:
+# Block 0 replaced the historical single CellsPerBatch constant with explicit Full/LowCPU budgets.
+# Both profiles cover the same compact Oster bounds; the acceptance check follows the canonical profile ceilings.
+for needle in (
+    "TryPopulateWhenGameplayReady",
+    "PopulationBatchTimer",
+    "PopulateBatch",
+    "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch",
+    "full_playable_bounds=1",
+):
+    require(foliage_cpp, needle, "incremental Block0 foliage")
+full_batch = re.search(r"constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
+low_batch = re.search(r"constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
+if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid full-profile foliage batch ceiling")
+if not low_batch or not 1 <= int(low_batch.group(1)) <= 48:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid LowCPU foliage batch ceiling")
 
 # Weapon presentation still resolves the actual firing weapon/muzzle.
 for needle in (
@@ -117,7 +127,7 @@ for needle in (
 
 print("RUNTIME ACCEPTANCE PASS 3 + PASS 44 CURRENT CONTRACT PASS")
 print("- Museum BASE source remains and actual live-pawn Museum proof is now stronger")
-print("- foliage and weapon helper work stays bounded")
+print("- Block0 Full/LowCPU foliage work stays bounded and incremental across the same compact map bounds")
 print("- normal/strict launch flow follows current independent content intake instead of the retired all-or-nothing rule")
 print("- production fresh-load rejects placeholder materials")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
