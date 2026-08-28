@@ -58,8 +58,23 @@ for needle in (
     "DesiredSizeCm.Y / NewNativeSize.Y",
     "OldTopZ",
     "NewTopOffsetZ",
+    "const FTransform Applied = Ground->GetRelativeTransform();",
+    "const FVector AppliedScale = Applied.GetScale3D().GetAbs();",
+    "const FVector AppliedSizeCm(",
+    "const float AppliedTopZ = Applied.GetLocation().Z + AppliedTopOffsetZ;",
+    "FMath::IsNearlyEqual(AppliedSizeCm.X, DesiredSizeCm.X, 1.0f)",
+    "FMath::IsNearlyEqual(AppliedSizeCm.Y, DesiredSizeCm.Y, 1.0f)",
+    "FMath::IsNearlyEqual(AppliedTopZ, OldTopZ, 0.5f)",
+    "pretick_ground_geometry_postcondition_failed",
+    "existing_authored_ground_collision_disabled",
+    "pretick_ground_collision_disabled",
+    "Ground->GetCollisionEnabled() == ECollisionEnabled::NoCollision",
     "PASS45_BLOCK0_PRETICK_GROUND_READY",
     "authored_before_first_tick=1",
+    "footprint_preserved=1",
+    "top_z_preserved=1",
+    "geometry_postcondition=1",
+    "collision_enabled=1",
     "delayed_ground_mutation_required=0",
     "runtime_acceptance=0",
 ):
@@ -161,7 +176,8 @@ if errors:
 
 print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: PASS")
 print("- tracked authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
-print("- compact source footprint and top-Z are preserved with bounds-aware conversion")
+print("- compact source footprint and top-Z are preserved by bounds-aware conversion and numerically postvalidated")
+print("- Ground collision must remain enabled before the READY marker is permitted")
 print("- the new Ground owner contains no Tick/timer delay")
 print("- actor BeginPlay cannot reapply BasicShapeMaterial after authored Ground is installed")
 print("- later world-surface Ground handling remains idempotent when authored state already exists")
