@@ -1,8 +1,8 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date opened: 2026-08-24  
-Latest factual gameplay evidence: 2026-08-26  
-Latest runtime verdict: **RUNTIME REJECTED 2026-08-26**  
+Latest factual gameplay evidence: 2026-08-27  
+Latest runtime verdict: **RUNTIME REJECTED 2026-08-27**  
 Target: Unreal Engine 5.8.x / Windows  
 Canonical user launcher: `START_HERE.cmd`  
 Active branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
@@ -33,24 +33,29 @@ Rules:
 
 Latest evidence pack:
 
-`RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/`
+`RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`
 
-Screenshot sheet:
+Detailed latest screenshot map / user observations:
 
-`RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/PASS45_RUNTIME_2026-08-26_SCREENSHOTS.svg`
+`RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/README.md`
 
-Detailed screenshot map, user observations and external factual references:
-
-`RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/README.md`
+The 2026-08-27 direct screenshots outrank older green source tests and older preview/source optimism. They explicitly keep the world visual state, AK/hand ADS presentation, M2 presentation/alignment, BTR presentation/orientation and plaza/landmark/ground quality rejected until current-head runtime proof supersedes them.
 
 Historical evidence remains preserved separately:
 
+- `RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/`
 - `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/`
 - `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`
 
-## 1. Latest factual runtime state — 2026-08-26
+Location-specific visual evidence is bound through the repository-controlled subordinate index:
 
-The current branch reaches actual gameplay. Several earlier failures improved, but the rendered/gameplay result is still unacceptable.
+`PASS45_REFERENCE_PACK_BINDINGS.md`
+
+That binding index and its active location specs are normative for Gate E/K, but do not replace this TZ as execution/status owner and do not themselves constitute UE 5.8 runtime acceptance.
+
+## 1. Latest factual runtime state — 2026-08-27
+
+The current branch reaches actual gameplay. Several earlier failures improved, but the rendered/gameplay result is still unacceptable. The 2026-08-27 direct screenshots are the latest factual runtime visual verdict and supersede any older source-only claim of visual readiness.
 
 ### Confirmed improvements that must not regress
 
@@ -59,10 +64,10 @@ The current branch reaches actual gameplay. Several earlier failures improved, b
 - AK-family/M14/MP5/Lever Action and several other firearm meshes/materials now render as recognizable authored assets;
 - HMMWV visual forward direction is now coherent enough that it drives forward normally;
 - HUD evidence shows the recovery **60 FPS** cap functioning;
-- the previous uncapped roughly 100–156 FPS runaway state was not reported in this run;
+- the previous uncapped roughly 100–156 FPS runaway state was not reported in the preceding accepted partial run;
 - HMMWV/BTR/M2 production asset intake reaches gameplay rather than failing at the old source/build barriers.
 
-These are partial improvements only. **PASS 45 remains RUNTIME REJECTED.**
+These are partial improvements only. **PASS 45 remains RUNTIME REJECTED.** The latest 2026-08-27 screenshots specifically keep AK/hand ADS, M2, BTR and core-world/landmark visual fidelity open.
 
 ## 2. P0 — weapon firing pipeline, recoil and factual shot ownership
 
@@ -202,15 +207,17 @@ Source guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
 
 Latest screenshots show inconsistent first-person alignment. ADS cannot be one generic transform for all weapons.
 
-### Current corrective source state — 2026-08-26 — ARCHITECTURE CODED_UNTESTED
+### Current corrective source state — 2026-08-28 — ARCHITECTURE SOURCE-CODED / RUNTIME REJECTED
 
 The source now has an explicit fail-visible calibration contract instead of allowing generic offsets to masquerade as accepted sights:
 
 - every current runtime weapon id remains registered in `FOCFirstPersonWeaponProfile` resolution;
-- each profile now carries optional `ADSRearSightSocket`, `ADSFrontSightSocket`, `ADSOpticSocket` and a separate factual `bADSCalibrated` flag;
+- each profile carries optional `ADSRearSightSocket`, `ADSFrontSightSocket`, `ADSOpticSocket` and a separate factual `bADSCalibrated` flag;
 - current weapons remain `bADSCalibrated=false` because no exact UE 5.8 sight-socket evidence has yet been accepted;
-- entering ADS calls alignment validation once for the active weapon;
+- entering requested ADS calls alignment validation once for the active weapon;
 - an uncalibrated profile emits `PASS45_ADS_PROFILE_UNCALIBRATED ... no_fake_ready=1` instead of claiming READY;
+- after the 2026-08-27 AK/hand rejection, uncalibrated requested ADS is **presentation fail-closed**: gameplay aiming state may remain authoritative elsewhere, but guessed ADS weapon/arms transforms are not applied by the presentation subsystem;
+- fail-closed marker: `PASS45_ADS_PRESENTATION_FAIL_CLOSED ... hip_transform_preserved=1 runtime_visual_acceptance=pending`;
 - a profile marked calibrated but missing its required production visual/socket emits `PASS45_ADS_ALIGNMENT_FAIL`;
 - a valid calibrated profile can sample camera-vs-sight angular error and camera-to-sight-line offset via `PASS45_ADS_ALIGNMENT_SAMPLE`;
 - debug cvar `oc.Weapon.ADS.Debug 1` draws the camera aim ray and authored sight axis for calibration evidence;
@@ -405,11 +412,11 @@ Acceptance:
 - frag/smoke/flash presentation is distinguishable;
 - smoke expands into accepted authored VFX and materially obscures sight without fake sphere geometry.
 
-## 10. P0 — Museum / Culture House / Silpo ownership and identity
+## 10. P0 — Museum / Culture House / Silpo ownership, identity and bound reference evidence
 
-### Current corrective source state — 2026-08-26 — SOURCE-CODED / RUNTIME UNTESTED
+### Current corrective source state — 2026-08-28 — SOURCE-CODED / REFERENCE-BOUND / RUNTIME REJECTED
 
-Source audit and the new fail-visible contract now prove the intended identity ownership without pretending that source geometry is the same thing as visual acceptance:
+Source audit and the fail-visible contract prove intended identity ownership without pretending that source geometry is the same thing as visual acceptance:
 
 - R13.7 is the sole Museum exterior identity owner, rooted through the canonical Museum geo anchor, and its source signature contains no Culture-House six-column civic facade;
 - R14.6 is the sole six-column Culture House identity owner and is rooted at the separate canonical `FOCGeoReference::CultureHouse()` site;
@@ -417,13 +424,46 @@ Source audit and the new fail-visible contract now prove the intended identity o
 - R14.3 owns the visible Silpo facade identity/sign at that same Silpo anchor, including the explicit `Сільпо` text stage;
 - one startup coordinator cancels historical delayed landmark timers and runs the current Museum, Silpo and Culture stages inside one bounded startup sequence;
 - `OCR146LandmarkSeparationSubsystem` remains `mutation=0`: it rejects cross-parcel Museum/Culture/Silpo shell ownership instead of moving, destroying or respawning buildings to manufacture a pass;
-- the strict runtime evidence gate now additionally requires the factual `R14.3 Silpo facade identity pass built at` marker, so an unbranded R14.0 shell can no longer false-pass as completed Silpo identity;
+- the strict runtime evidence gate additionally requires the factual `R14.3 Silpo facade identity pass built at` marker, so an unbranded R14.0 shell can no longer false-pass as completed Silpo identity;
 - the focused `RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd` route requires the same facade/sign stage;
 - source guard: `VERIFY_PASS45_LANDMARK_IDENTITY.py`;
 - dedicated workflow: `.github/workflows/pass45-landmark-identity.yml`;
 - cumulative `RUN_ALL_VERIFY.py` includes the landmark identity guard.
 
-This is **source ownership/identity closure only**. Museum, Silpo and Culture House still contain substantial procedural/BasicShape construction in their current authored source, so Gate K can still reject their visual quality even when ownership and site identity are structurally correct. Local UE 5.8 screenshots remain authoritative.
+### Mandatory subordinate visual contracts
+
+Detailed reviewed evidence is not duplicated wholesale inside this canonical TZ. `PASS45_REFERENCE_PACK_BINDINGS.md` binds the location-specific normative contracts below into Gate E/K:
+
+- Museum: `_DOCS/REFERENCE_PACKS/LOC_MUSEUM_001_OSTER_MUSEUM/REFERENCE_SPEC.md`;
+- Silpo: `_DOCS/REFERENCE_PACKS/LOC_SILPO_002_OSTER_SILPO/REFERENCE_SPEC.md`;
+- Culture House: `_DOCS/REFERENCE_PACKS/LOC_CULTURE_003_OSTER_CULTURE_HOUSE/REFERENCE_SPEC.md`.
+
+Binding state is not runtime acceptance.
+
+Museum contract:
+
+- user-photo-driven massing/material/site/stadium context remains normative;
+- required direct screenshot set: `MUS-CAM-01..07`;
+- Museum evidence cannot define Culture House or Silpo geometry.
+
+Silpo contract:
+
+- user pack includes facade/entrance/long wall/interior checkout/opposite-side context and water-tower evidence;
+- production baseline is the selected **2020 graphite facade state**; 2017–2019 light facade remains an explicit variant only and may not be mixed into one impossible temporal state;
+- stepped parapet, volumetric `Сільпо` sign, lower entrance wing, long advertisement wall, parking/street context and checkout identity are normative;
+- `LOC_TOWER_002A_OSTER_WATER_TOWER` requires the verified aged-brick/ring/opening/telecom silhouette, while its exact world transform remains `PROVISIONAL` until multi-view geographic evidence closes it;
+- required direct screenshot set: `CAM-SILPO-01_FRONT_WIDE`, `CAM-SILPO-02_FRONT_CLOSE`, `CAM-SILPO-03_ENTRANCE_SIDE`, `CAM-SILPO-04_LONG_WALL`, `CAM-SILPO-05_OPPOSITE_SIDE`, `CAM-SILPO-06_STREET_AXIS`, `CAM-SILPO-07_WATER_TOWER_SIGHTLINE`.
+
+Culture House contract:
+
+- verified identity/address: Oster Culture House, Hranovskoho 3;
+- verified public context includes former-synagogue/Soviet Culture House adaptation and the old park beside the building;
+- current six-column source facade remains a **PROVISIONAL WORKING HYPOTHESIS**, useful for source ownership separation but not promoted to photo-verified exact geometry;
+- exact bearing, dimensions, material zones, roof/window/door rhythm and hidden/rear geometry remain provisional until direct evidence closes them;
+- required provisional direct screenshot set: `CUL-CAM-01_FRONT_WIDE`, `CUL-CAM-02_FRONT_CLOSE`, `CUL-CAM-03_OBLIQUE_LEFT`, `CUL-CAM-04_OBLIQUE_RIGHT`, `CUL-CAM-05_SITE_CONTEXT`;
+- a later dedicated user Culture House photo pack supersedes conflicting provisional assumptions.
+
+This is **source ownership/reference closure only**. Museum, Silpo and Culture House can still fail Gate K when rendered quality, composition, materials or site context do not match their bound evidence. Local UE 5.8 screenshots remain authoritative.
 
 Requirements:
 
@@ -432,13 +472,15 @@ Requirements:
 - exactly one mutating visible shell owner per landmark;
 - late validators/details may not replace/relocate authoritative shells;
 - Silpo identity/sign belongs only to canonical Silpo site;
-- each landmark needs separate runtime identity and screenshot evidence.
+- each landmark needs separate runtime identity and screenshot evidence;
+- active location reference packs in `PASS45_REFERENCE_PACK_BINDINGS.md` are mandatory Gate E/K evidence, not optional reading;
+- `VERIFIED`, `PROBABLE`, `UNKNOWN/PROVISIONAL` evidence classes may not be silently upgraded by current source constants or green verifiers.
 
 Acceptance:
 
-- Museum screenshot visibly reads as the Museum/Solonyna-house reference and contains no six-column civic facade;
-- Culture House screenshot visibly reads as the separate civic building at its own site;
-- Silpo screenshot visibly shows the store shell and readable `Сільпо` facade identity at the canonical Silpo site;
+- Museum screenshot set visibly reads as the Museum/Solonyna-house reference and contains no six-column civic facade;
+- Culture House screenshot set visibly reads as the separate civic building at its own site while provisional visual claims remain honestly provisional;
+- Silpo screenshot set visibly proves selected-period shell/sign/entrance/street identity plus the required water-tower sightline;
 - automated log evidence contains all separation/identity READY markers plus the R14.3 facade identity stage;
 - automated structural acceptance cannot substitute for direct visual/photo-fidelity inspection.
 
@@ -457,7 +499,7 @@ Requirements:
 
 Stable 60 FPS is not permission to ship primitive visuals.
 
-Gate K requires no visible production BasicShape/proxy content, no major white/default materials, acceptable ground/material/vegetation/LOD quality, reference-faithful landmark composition and direct screenshots.
+Gate K requires no visible production BasicShape/proxy content, no major white/default materials, acceptable ground/material/vegetation/LOD quality, reference-faithful landmark composition and direct screenshots. For Museum, Silpo and Culture House, “reference-faithful” is defined by their active bound contracts in `PASS45_REFERENCE_PACK_BINDINGS.md`.
 
 ## 13. P0 — HMMWV movement and M2 turret station
 
@@ -469,6 +511,8 @@ M2 required hierarchy:
 
 Requirements include coherent assembly, full 360° yaw for selected project configuration, correct elevation, no floating parts, useful gunner camera, non-inverted vertical aim and no release camera drift.
 
+Authored-pivot source correction already exists and must not regress to the rejected bounds-bottom/longest-axis alignment heuristic. Runtime acceptance of that source correction remains pending after the 2026-08-27 rejection.
+
 ## 14. P0 — BTR-4 material, orientation and remote operator view
 
 Requirements:
@@ -478,6 +522,8 @@ Requirements:
 - visual/physics/input forward axes agree;
 - BM-7 Parus uses interior remote-operator optic/monitor presentation;
 - external turret follows remote operator aim independently of interior camera placement.
+
+BTR glTF Y-up import R3 / +X-forward source contract is already source-coded with one explicit compensation path. The 2026-08-27 runtime screenshots still reject final BTR visual/orientation presentation, so source green is not acceptance.
 
 ## 15. P0 — world daylight/material stability
 
@@ -495,6 +541,8 @@ Ordinary character -> vehicle -> character possession is never fresh BASE deploy
 ## 17. P1 — reference-driven houses/fences/tower retirement
 
 No rejected generic residential/fence/tower family may return as Oster-authentic production content without reference support. Retired generic generators remain physically retired.
+
+The Silpo-bound historic water tower is a specific evidence-owned landmark and is not permission to resurrect a generic tower family. Its silhouette/material contract is normative; exact transform remains provisional until multi-view geographic closure.
 
 ## 18. P1 — weapon material/texture closure
 
@@ -521,20 +569,20 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-26 weapon/ordnance + landmark identity continuation
+## 22. Current source implementation milestone — 2026-08-28 weapon/ordnance + landmark/reference continuation
 
-State: **SOURCE-CODED / PREVIOUS SOURCE MILESTONE VERIFIED / CURRENT-HEAD CI REVALIDATION PENDING / CODED_UNTESTED IN LOCAL UE / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / REFERENCE-BOUND / PREVIOUS SOURCE MILESTONE VERIFIED / CURRENT-HEAD CI REVALIDATION REQUIRED / NOT RUNTIME ACCEPTED**.
 
 Previous verified source milestone:
 
 - source head `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` completed `Source verification` **SUCCESS**;
 - dedicated `Pass 45 grenade smoke primitive retirement` completed **SUCCESS** on that same historical source milestone;
 - all workflow runs returned for that milestone completed **SUCCESS**;
-- newer landmark identity guard/runtime-gate commits are later than that source milestone, therefore those earlier green checks must not be mislabelled as current-head proof;
-- current-head CI must be re-read after the landmark continuation settles;
-- no source CI result overrides the factual `RUNTIME REJECTED 2026-08-26` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
+- newer landmark/reference/ADS corrections are later than that source milestone, therefore earlier green checks must not be mislabelled as current-head proof;
+- current-head CI must be re-read after the current reference continuation settles;
+- no source CI result overrides the factual `RUNTIME REJECTED 2026-08-27` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
-Implemented:
+Implemented/source-prepared:
 
 - production muzzle resolver and view-ray/presentation separation;
 - launcher production-muzzle projectile/FX/audio and no-ammo-on-spawn-failure;
@@ -554,6 +602,7 @@ Implemented:
 - local/remote manual-action audio ownership split to avoid intentional double playback;
 - explicit per-weapon ADS socket-reference fields and separate factual `bADSCalibrated` state;
 - fail-visible ADS entry diagnostics through `PASS45_ADS_PROFILE_UNCALIBRATED` / `PASS45_ADS_ALIGNMENT_FAIL` / `PASS45_ADS_ALIGNMENT_SAMPLE`;
+- uncalibrated requested ADS now preserves baseline hip presentation instead of applying guessed offsets, with `PASS45_ADS_PRESENTATION_FAIL_CLOSED`;
 - `oc.Weapon.ADS.Debug` calibration rays for camera vs authored sight axis;
 - repository fallback prevents an unassigned/empty near-shot profile from silently swallowing a factual shot;
 - exact tracked AK cues are preferred for AK; tracked R13 gunfire/reload/impact assets are temporary source fallbacks for current gaps;
@@ -567,23 +616,26 @@ Implemented:
 - grenade throw uses swept clearance + overlap validation and `DontSpawnIfColliding`;
 - grenade inventory commit occurs only after factual projectile creation; blocked/failed spawn consumes zero inventory;
 - successful grenade throw inherits character velocity and emits `GrenadeThrow` presentation event without a second gameplay timer;
-- strict runtime evidence now requires a factual successful grenade throw marker and forbids safe-spawn/spawn failures in the valid acceptance throw;
+- strict runtime evidence requires a factual successful grenade throw marker and forbids safe-spawn/spawn failures in the valid acceptance throw;
 - Museum source identity is guarded against six-column Culture-House contamination;
-- Culture House is guarded as the sole six-column civic owner at its separate canonical geo anchor;
+- Culture House is guarded as the sole current six-column civic source owner at its separate canonical geo anchor, while the exact six-column visual hypothesis remains provisional until direct photo evidence accepts it;
 - R14.0 Silpo shell and R14.3 visible `Сільпо` facade identity are guarded to the same canonical Silpo site;
-- strict runtime evidence and the focused landmark launcher now require the factual R14.3 Silpo facade/sign stage;
+- strict runtime evidence and the focused landmark launcher require the factual R14.3 Silpo facade/sign stage;
+- Museum, Silpo and Culture House now have separate repository-controlled bound reference specs through `PASS45_REFERENCE_PACK_BINDINGS.md`;
+- Silpo user evidence contract includes its selected-period facade, checkout, street/opposite context and water-tower sightline requirements;
+- Culture House public/source reconciliation explicitly prevents current source constants from impersonating photo-verified truth;
 - `VERIFY_PASS45_LANDMARK_IDENTITY.py` plus `.github/workflows/pass45-landmark-identity.yml` guard the landmark source/acceptance contract;
 - cumulative `RUN_ALL_VERIFY.py` includes weapon, ordnance and landmark identity guards;
 - source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration, silent-profile acceptance, visible primitive weapon/grenade/smoke fallbacks and landmark identity false-pass paths.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, authored smoke VFX, Museum/Culture/Silpo direct visual identity, Silpo sign readability and landmark photo fidelity.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, authored smoke VFX, Museum/Culture/Silpo direct visual identity, Silpo sign readability, water-tower final transform, Culture House exact facade fidelity and broader landmark/photo/world fidelity.
 
 ## 23. Corrective execution order
 
-Completed/source-coded items are marked only for source work, not runtime acceptance.
+Completed/source-coded items are marked only for source/reference work, not runtime acceptance.
 
-1. [x] Preserve 2026-08-26 screenshots and mark latest runtime **RUNTIME REJECTED**.
-2. [x] Promote 2026-08-26 evidence over older runtime verdict wording.
+1. [x] Preserve 2026-08-27 screenshots/evidence and mark latest runtime **RUNTIME REJECTED**.
+2. [x] Promote 2026-08-27 factual evidence over older runtime verdict wording; preserve 2026-08-26 and older packs as history.
 3. [x] Retain black-world daylight/exposure source correction and semantic material stability gate.
 4. [x] Retain initial-character-only vehicle BASE recovery architecture.
 5. [x] Retain proportional vehicle visual fit and HMMWV forward-axis improvement.
@@ -598,7 +650,7 @@ Completed/source-coded items are marked only for source work, not runtime accept
 14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
 15. [x] Code replicated-gate first-person bolt/pump/lever procedural presentation and exact action-type mechanical audio routing without a second gameplay timer.
 16. [ ] Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
-17. [x] Build fail-visible per-weapon ADS/sight profile architecture, socket-based alignment diagnostics and source validation without inventing calibration data.
+17. [x] Build fail-visible per-weapon ADS/sight profile architecture, socket-based alignment diagnostics and source validation without inventing calibration data; uncalibrated ADS presentation now fails closed after the 2026-08-27 AK rejection.
 18. [ ] Calibrate exact rear/front/optic references and ADS transforms for every accepted production weapon in local UE 5.8; only then set factual `bADSCalibrated=true` per weapon.
 19. [x] Close the source-level silent-shot path with an event-local repository audio fallback and dedicated verifier/workflow; keep runtime audibility and exact sound identity unaccepted.
 20. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever manual-action audio gaps.
@@ -606,17 +658,18 @@ Completed/source-coded items are marked only for source work, not runtime accept
 22. [x] Source-retire primitive grenade/smoke visuals: use tracked R13 grenade mesh fail-closed; physically remove fake smoke spheres; add dedicated guard/workflow. **Rendered grenade acceptance and real smoke VFX remain pending.**
 23. [x] Correct grenade source throw semantics: safe swept/overlap-checked origin, `DontSpawnIfColliding`, inventory commit only after successful spawn, inherited movement velocity, explicit `GrenadeThrow` presentation event and strict runtime marker requirement. **Local UE behavior/animation acceptance remains pending.**
 24. [ ] Author/accept first-person grenade hand/throw/recover animation, distinct frag/smoke/flash presentation and real smoke VFX. **Repository authored smoke/Niagara content is currently not proven present, so no fake source READY is allowed.**
-25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence: Museum has no six-column signature, Culture House owns the six-column facade at its separate geo anchor, and R14.3 Silpo facade/sign stage is mandatory. **Rendered identity/fidelity acceptance remains pending.**
-26. [ ] Replace rejected vegetation family.
-27. [ ] Rebuild HMMWV M2 ring/shield/gunner hierarchy with 360° yaw and correct camera.
-28. [ ] Calibrate HMMWV gameplay top speed to >=80 km/h without breaking handling.
-29. [ ] Close BTR white material state across pre/post possession.
-30. [ ] Correct BTR forward axis and remote operator monitor/optic gameplay.
-31. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale.
-32. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
-33. [ ] Validate tactical map screenshot.
-34. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
-35. [ ] Merge PR #94 only after factual current-head runtime acceptance.
+25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence. **Rendered identity/fidelity acceptance remains pending.**
+26. [x] Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts. Silpo uses reviewed user evidence; Culture House keeps unverified exact geometry explicitly `PROVISIONAL`. **Reference binding is not runtime acceptance.**
+27. [ ] Replace rejected vegetation family and complete broader environment acceptance.
+28. [ ] Complete/accept HMMWV M2 ring/shield/gunner hierarchy with authored pivot, 360° yaw and correct camera in UE runtime.
+29. [ ] Calibrate/accept HMMWV gameplay top speed to >=80 km/h without breaking handling.
+30. [ ] Close BTR white material state across pre/post possession in runtime.
+31. [ ] Runtime-accept BTR R3 Y-up/+X-forward orientation and remote operator monitor/optic gameplay.
+32. [ ] Raise core world/material/LOD visual fidelity above prototype state without lowering native render scale, including ParkPaths/ground/landmark surroundings.
+33. [ ] Validate fullscreen + 60 FPS + thermal soak after visual fixes.
+34. [ ] Validate tactical map screenshot.
+35. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+36. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 24. Final acceptance gates
 
@@ -633,13 +686,13 @@ real accepted visual/material/texture chain; `PASS45_PRIMITIVE_WEAPON_RUNTIME_RE
 factual shot count = ammo = recoil = muzzle = audio; production muzzle origin; no ghost recoil; no release downward kick; exact selector modes; deterministic finite Burst3 if enabled; manual-action server gate plus accepted visible action animation and audible action-specific content; exact per-weapon ADS alignment accepted; no temporary generic audio fallback remains on a final accepted weapon; drop physics; no primitive grenade/smoke geometry; factual `PASS45_GRENADE_THROW_COMMIT_READY`; blocked/failed grenade spawn consumes zero inventory; safe swept/overlap-checked throw origin; accepted authored throw animation; accepted type-specific grenade presentation and authored smoke VFX.
 
 ### Gate E — landmarks/environment
-Museum/Culture/Silpo separated and identified; R14.3 Silpo facade/sign stage present; rejected residential/tree families absent; direct landmark screenshots accepted; Gate K passes.
+Museum/Culture/Silpo separated and identified; R14.3 Silpo facade/sign stage present; all active location contracts in `PASS45_REFERENCE_PACK_BINDINGS.md` applied; rejected residential/tree families absent; direct landmark screenshot sets accepted; Gate K passes.
 
 ### Gate F — HMMWV/M2
-forward axis; >=80 km/h; proportional body; coherent ring/shield/gunner; 360° yaw; correct elevation/view; no inverted aim/drift.
+forward axis; >=80 km/h; proportional body; coherent ring/shield/gunner; authored-pivot alignment; 360° yaw; correct elevation/view; no inverted aim/drift.
 
 ### Gate G — BTR-4
-no white/default material; forward axis; proportional visual; remote interior optic/monitor; coherent turret/camera.
+no white/default material; +X forward/Y-up import contract runtime-accepted; proportional visual; remote interior optic/monitor; coherent turret/camera.
 
 ### Gate H — possession
 no Museum teleport on civilian vehicle/HMMWV/BTR enter/exit.
@@ -651,12 +704,12 @@ intended fullscreen; ~60 FPS; native render scale; 10-minute mixed soak.
 current compact Oster topology screenshot accepted.
 
 ### Gate K — visual fidelity
-no production BasicShape/proxy core content; no major white/default materials; acceptable world/vegetation/LOD; reference-faithful landmarks; screenshots accepted.
+no production BasicShape/proxy core content; no major white/default materials; acceptable world/vegetation/LOD; reference-faithful landmarks under the active Museum/Silpo/Culture House contracts; required `MUS-CAM-01..07`, `CAM-SILPO-01..07` intent set and `CUL-CAM-01..05` intent set directly accepted in current-head UE 5.8 screenshots. `VERIFIED` and `PROVISIONAL` evidence classes must remain honest; source tests alone cannot close this gate.
 
 ## 25. Current verdict
 
-**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-26.**
+**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-27.**
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw corrections plus Museum/Culture House/Silpo source identity ownership and branded Silpo evidence gate are **SOURCE-CODED / CODED_UNTESTED IN LOCAL UE**. The earlier source milestone was green, but current-head CI is revalidated separately after the newer landmark commits. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build and playtest proves them.
+The weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/fail-closed-ADS/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw corrections plus Museum/Culture House/Silpo source identity ownership and bound reference contracts are **SOURCE-CODED / REFERENCE-BOUND / UNTESTED OR REJECTED IN CURRENT LOCAL UE RUNTIME**. Historical green source milestones remain structural evidence only. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build, playtest and direct screenshot acceptance proves them.
