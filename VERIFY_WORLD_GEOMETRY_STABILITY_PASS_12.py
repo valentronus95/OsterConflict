@@ -177,13 +177,17 @@ for cpp_path in (SRC / "Private").glob("*.cpp"):
             f"{cpp_path.relative_to(ROOT)}"
         )
 
-# Gate D identity contract remains unchanged.
+# Gate D compatibility must follow semantic Museum ownership, not a historical hard-coded module size.
+# Museum itself is LOCKED while Block 0 is active, so this verifier only checks identity/owner invariants.
 for needle in (
     'Model->Tags.Add(TEXT("R137_MuseumPhotoModel"));',
+    'Model->SetActorLocation(AOCWorldSectorOster::MuseumAnchor());',
     'TEXT("R137Museum_BrickBody")',
     'TEXT("R137Museum_BlueGreyTimber")',
     'TEXT("R137Museum_SheetMetalRoof")',
-    'FVector(1700.0f, 840.0f, 320.0f)',
+    "PASS45_MUSEUM_AUTHORED_SHELL_READY",
+    "basicshape_structural=0",
+    "museum_columns=0",
     "PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY",
 ):
     require(museum_model, needle, "R13.7 Museum identity source")
