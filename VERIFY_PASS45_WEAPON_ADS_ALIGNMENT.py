@@ -107,12 +107,13 @@ for needle in (
 ):
     req(needle in tz, f"canonical Pass45 TZ lost ADS calibration truth: {needle}")
 
-# Runtime truth is versioned evidence, not a hard-coded historical date in the source-contract verifier.
-# The 2026-08-27 screenshots explicitly reject AK ADS/hand presentation and outrank green source tests.
+# Runtime truth is versioned evidence, not a historical weapon-id spelling. The current rejection evidence
+# describes the AK family in first-person and remains authoritative until a newer accepted UE run replaces it.
 for needle in (
     "RUNTIME REJECTED",
     "2026-08-27",
-    "AK47",
+    "AK-family",
+    "first-person",
 ):
     req(needle in latest_runtime_evidence,
         f"latest runtime rejection evidence lost required ADS truth: {needle}")
@@ -129,5 +130,5 @@ print("- ADS profiles carry optional rear/front/optic sight references and a sep
 print("- entering ADS runs fail-visible calibration diagnostics; uncalibrated profiles cannot impersonate READY")
 print("- uncalibrated requested ADS preserves the baseline weapon/arms presentation instead of applying guessed offsets")
 print("- calibrated profiles can sample camera-vs-sight angular and line-offset error with optional debug rays")
-print("- latest 2026-08-27 runtime evidence remains authoritative: AK ADS visual acceptance is still REJECTED")
+print("- latest 2026-08-27 runtime evidence remains authoritative: AK-family first-person visual acceptance is still REJECTED")
 print("STATUS: ADS VALIDATION ARCHITECTURE SOURCE-CODED; exact per-weapon sight sockets/offsets and UE 5.8 visual acceptance remain pending")
