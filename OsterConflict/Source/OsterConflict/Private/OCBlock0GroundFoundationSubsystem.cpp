@@ -14,7 +14,7 @@ namespace
     const TCHAR* AuthoredGroundMeshPath =
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1");
     const TCHAR* AuthoredGroundMaterialPath =
-        TEXT("/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape");
+        TEXT("/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2");
 
     UStaticMeshComponent* FindGroundComponent(AActor* Actor)
     {
@@ -213,7 +213,7 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!AuthoredMesh || !AuthoredMaterial)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d authored_before_first_tick=0 runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d preferred_ground_pack=KiteDemo preferred_ground_material=M_Ground_Grass2 authored_before_first_tick=0 runtime_acceptance=0"),
             AuthoredMesh ? 1 : 0,
             AuthoredMaterial ? 1 : 0);
         return;
@@ -230,5 +230,5 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Inst_Landscape basicshape_material=0 authored_before_first_tick=1 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 delayed_ground_mutation_required=0 runtime_acceptance=0"));
+        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=1 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 delayed_ground_mutation_required=0 runtime_acceptance=0"));
 }
