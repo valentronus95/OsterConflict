@@ -59,6 +59,11 @@ namespace
                 OutFailure = TEXT("existing_authored_ground_material_drift");
                 return false;
             }
+            if (Ground->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+            {
+                OutFailure = TEXT("existing_authored_ground_collision_disabled");
+                return false;
+            }
             return true;
         }
 
@@ -131,6 +136,39 @@ namespace
             OutFailure = TEXT("pretick_authored_ground_postcondition_failed");
             return false;
         }
+
+        const FTransform Applied = Ground->GetRelativeTransform();
+        const FVector AppliedScale = Applied.GetScale3D().GetAbs();
+        const FVector AppliedSizeCm(
+            NewNativeSize.X * AppliedScale.X,
+            NewNativeSize.Y * AppliedScale.Y,
+            NewNativeSize.Z * AppliedScale.Z);
+        const float AppliedTopOffsetZ = Applied.GetRotation().RotateVector(FVector(
+            0.0f,
+            0.0f,
+            (NewBounds.Origin.Z + NewBounds.BoxExtent.Z) * AppliedScale.Z)).Z;
+        const float AppliedTopZ = Applied.GetLocation().Z + AppliedTopOffsetZ;
+
+        if (!FMath::IsNearlyEqual(AppliedSizeCm.X, DesiredSizeCm.X, 1.0f) ||
+            !FMath::IsNearlyEqual(AppliedSizeCm.Y, DesiredSizeCm.Y, 1.0f) ||
+            !FMath::IsNearlyEqual(AppliedTopZ, OldTopZ, 0.5f))
+        {
+            OutFailure = FString::Printf(
+                TEXT("pretick_ground_geometry_postcondition_failed size_x=%.2f/%.2f size_y=%.2f/%.2f top_z=%.2f/%.2f"),
+                AppliedSizeCm.X,
+                DesiredSizeCm.X,
+                AppliedSizeCm.Y,
+                DesiredSizeCm.Y,
+                AppliedTopZ,
+                OldTopZ);
+            return false;
+        }
+
+        if (Ground->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+        {
+            OutFailure = TEXT("pretick_ground_collision_disabled");
+            return false;
+        }
         return true;
     }
 }
@@ -192,5 +230,5 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Inst_Landscape basicshape_material=0 authored_before_first_tick=1 footprint_preserved=1 top_z_preserved=1 delayed_ground_mutation_required=0 runtime_acceptance=0"));
+        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Inst_Landscape basicshape_material=0 authored_before_first_tick=1 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 delayed_ground_mutation_required=0 runtime_acceptance=0"));
 }
