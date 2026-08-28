@@ -9,6 +9,7 @@ CHARACTER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "
 LAUNCHER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
 LAUNCHER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCAntiArmorLauncher.h"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
+LATEST_RUNTIME_EVIDENCE = ROOT / "RUNTIME_EVIDENCE" / "2026-08-27_PASS45_REJECTED" / "README.md"
 
 errors: list[str] = []
 
@@ -32,8 +33,9 @@ character_h = read(CHARACTER_H)
 launcher_cpp = read(LAUNCHER_CPP)
 launcher_h = read(LAUNCHER_H)
 tz = read(TZ)
+latest_runtime_evidence = read(LATEST_RUNTIME_EVIDENCE)
 
-# 2026-08-26 runtime evidence showed tracers/muzzle flash below the visible barrel because the old code
+# Historical runtime evidence showed tracers/muzzle flash below the visible barrel because the old code
 # reused the player-camera trace origin for both hit authority and presentation. Keep camera/view-ray hit
 # authority, but require presentation to reconcile to the visible production weapon.
 for needle in (
@@ -149,9 +151,12 @@ req("LauncherAudioEventCounter" in launcher_h,
 req("TraceOrigin+Dir*90.0f" not in launcher_cpp and "MulticastFireTraceFX(TraceOrigin" not in launcher_cpp,
     "anti-armor launcher regressed to camera-origin projectile/FX")
 
-# The canonical TZ must retain the latest factual runtime authority while this source work remains unverified.
-req("RUNTIME REJECTED 2026-08-26" in tz,
-    "canonical Pass45 TZ lost the latest 2026-08-26 runtime rejection")
+# Runtime authority must follow the newest evidence pack, never a hard-coded historical rejection date.
+req("RUNTIME REJECTED 2026-08-27" in tz,
+    "canonical Pass45 TZ lost the latest 2026-08-27 runtime rejection")
+for needle in ("RUNTIME REJECTED", "2026-08-27"):
+    req(needle in latest_runtime_evidence,
+        f"latest Pass45 runtime evidence lost required authority marker: {needle}")
 
 if errors:
     print("PASS45 WEAPON FIRING + MUZZLE + DROP PHYSICS: FAIL")
@@ -165,4 +170,5 @@ print("- Character held-input recoil timer/state is physically retired; confirme
 print("- bounded server cadence tolerance prevents tiny timer jitter from killing automatic fire early")
 print("- deliberate player drops enable authority gravity/collision/rigid-body simulation")
 print("- anti-armor projectile/FX/audio originate from production muzzle and ammo commits only after spawn")
+print("- latest factual runtime authority remains RUNTIME REJECTED 2026-08-27")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 build, recoil feel, drop settling, muzzle alignment and rendered firing remain authoritative")
