@@ -3,6 +3,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0GroundFoundationSubsystem.h"
 CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0GroundFoundationSubsystem.cpp"
+COVERAGE_HEADER = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCBlock0FoliageCoverageValidationSubsystem.h"
+COVERAGE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCBlock0FoliageCoverageValidationSubsystem.cpp"
 LATE_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
 PLAN = ROOT / "PASS45_BLOCK_EXECUTION_PLAN.md"
 
@@ -28,6 +30,8 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 header = read(HEADER)
 cpp = read(CPP)
+coverage_header = read(COVERAGE_HEADER)
+coverage_cpp = read(COVERAGE_CPP)
 late_cpp = read(LATE_CPP)
 plan = read(PLAN)
 
@@ -61,13 +65,12 @@ for needle in (
 ):
     require(cpp, needle, "Block0 fail-visible ground evidence")
 
-forbidden_new_owner_terms = (
+for forbidden_new_owner_term in (
     "Tick(float",
     "FTimerHandle",
     "SetTimer(",
-)
-for needle in forbidden_new_owner_terms:
-    forbid(cpp, needle, "delayed/timer-based Block0 ground ownership")
+):
+    forbid(cpp, forbidden_new_owner_term, "delayed/timer-based Block0 ground ownership")
 
 # The historical world-surface upgrader may continue owning roads/sidewalks/fences, but Ground must be
 # idempotent when the pre-tick owner has already installed the exact authored mesh/material.
@@ -78,6 +81,47 @@ for needle in (
 ):
     require(late_cpp, needle, "late world-surface Ground idempotence")
 
+# A completed cursor traversal is not sufficient evidence for a 960x940 m visual foundation. Require a
+# validation-only spatial distribution gate that samples final DenseGrass instances across the map.
+for needle in (
+    "class OSTERCONFLICT_API UOCBlock0FoliageCoverageValidationSubsystem : public UTickableWorldSubsystem",
+    "virtual void Tick(float DeltaTime) override;",
+    "virtual bool IsTickable() const override { return !bFinished; }",
+):
+    require(coverage_header, needle, "Block0 spatial coverage validator contract")
+
+for needle in (
+    "CompactMinX = -78000.0f",
+    "CompactMaxX =  18000.0f",
+    "CompactMinY = -12000.0f",
+    "CompactMaxY =  82000.0f",
+    "CoverageBinsPerAxis = 4",
+    "MinOccupiedBins = 12",
+    "MinOccupiedBinsPerQuadrant = 2",
+    "EdgeToleranceFraction = 0.20f",
+    "OC_Block0FullMapGrassComplete",
+    "GetInstanceTransform(Index, InstanceTransform, true)",
+    "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL",
+    "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY",
+    "full_playable_distribution=1",
+    "mutation=0",
+    "runtime_acceptance=0",
+):
+    require(coverage_cpp, needle, "Block0 full-map grass distribution gate")
+
+for forbidden_validation_mutation in (
+    "SetStaticMesh(",
+    "SetMaterial(",
+    "AddInstance(",
+    "RemoveInstance(",
+    "DestroyComponent(",
+    "SetVisibility(",
+    "SetHiddenInGame(",
+    "SetActorLocation(",
+    "SetRelativeTransform(",
+):
+    forbid(coverage_cpp, forbidden_validation_mutation, "mutation inside validation-only spatial coverage gate")
+
 for needle in (
     "| 0 | Ground + grass foundation | **ACTIVE** |",
     "Block 0 cannot close from CI alone.",
@@ -85,14 +129,16 @@ for needle in (
     require(plan, needle, "canonical Block0 execution authority")
 
 if errors:
-    print("PASS45 BLOCK0 PRE-TICK GROUND FOUNDATION: FAIL")
+    print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: FAIL")
     for error in errors:
         print(f"- {error}")
     raise SystemExit(1)
 
-print("PASS45 BLOCK0 PRE-TICK GROUND FOUNDATION: PASS")
+print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: PASS")
 print("- tracked authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
 print("- compact source footprint and top-Z are preserved with bounds-aware conversion")
-print("- the new Block0 owner contains no Tick/timer delay")
+print("- the new Ground owner contains no Tick/timer delay")
 print("- later world-surface Ground handling remains idempotent validation when authored state already exists")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile, first-frame visual evidence and Block0 screenshots remain authoritative")
+print("- final DenseGrass distribution is validated across 4x4 bins, all quadrants and map-edge reach")
+print("- the spatial coverage validator is observation-only and cannot repair/mutate the world")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile, first-frame visual evidence, spatial coverage log and Block0 screenshots remain authoritative")

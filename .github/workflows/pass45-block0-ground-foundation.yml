@@ -1,10 +1,13 @@
-name: Pass 45 Block0 pre-tick ground foundation
+name: Pass 45 Block0 ground and grass foundation
 
 on:
   push:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0FoliageCoverageValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0FoliageCoverageValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
       - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
       - 'PASS45_BLOCK_EXECUTION_PLAN.md'
@@ -13,6 +16,9 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0FoliageCoverageValidationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0FoliageCoverageValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
       - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
       - 'PASS45_BLOCK_EXECUTION_PLAN.md'
@@ -26,5 +32,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify Block0 pre-tick authored ground contract
+      - name: Verify Block0 authored ground and spatial grass contracts
         run: python VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py
