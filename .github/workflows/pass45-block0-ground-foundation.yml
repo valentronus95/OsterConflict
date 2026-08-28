@@ -5,10 +5,11 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
-      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0FoliageCoverageValidationSubsystem.h'
-      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0FoliageCoverageValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
+      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
       - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
       - 'PASS45_BLOCK_EXECUTION_PLAN.md'
       - '.github/workflows/pass45-block0-ground-foundation.yml'
@@ -16,10 +17,11 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
-      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0FoliageCoverageValidationSubsystem.h'
-      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0FoliageCoverageValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
+      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
       - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
       - 'PASS45_BLOCK_EXECUTION_PLAN.md'
       - '.github/workflows/pass45-block0-ground-foundation.yml'
@@ -32,5 +34,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify Block0 authored ground and spatial grass contracts
+      - name: Verify Block0 authored ground and strict spatial grass contracts
         run: python VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py
