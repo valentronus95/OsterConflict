@@ -11,6 +11,11 @@ GUARD_H = SRC / "Public/OCFoliageRuntimeGuardSubsystem.h"
 GUARD_CPP = SRC / "Private/OCFoliageRuntimeGuardSubsystem.cpp"
 LAUNCHER = ROOT / "RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd"
 LATEST_RUNTIME_EVIDENCE = ROOT / "RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/README.md"
+LANDSCAPE_MATERIAL = ROOT / "OsterConflict/Content/AdvancedVillagePack/Materials/M_Inst_Landscape.uasset"
+LANDSCAPE_FOLIAGE_VARIANTS = tuple(
+    ROOT / f"OsterConflict/Content/AdvancedVillagePack/Materials/M_Inst_Landscape_Foliage_Var0{i}.uasset"
+    for i in range(1, 4)
+)
 
 
 def read(path: Path) -> str:
@@ -46,6 +51,40 @@ for needle in (
 ):
     require(world, needle, "source ground-cover zoning")
 
+# Block 0 may not regress to one uniform golf-course treatment. The dense owner already has factual semantic
+# maintained-vs-rough behavior: civic zones use tighter/shorter grass and fewer weeds/flowers; ordinary roadside
+# terrain can use all grass variants, taller scale and more ground plants. Guard these differences explicitly.
+for needle in (
+    "bool IsMaintainedCivicZone(const FVector& Point)",
+    "AOCWorldSectorOster::ParkAnchor()",
+    "AOCWorldSectorOster::CollegeAnchor()",
+    "AOCWorldSectorOster::StadiumAnchor()",
+    "IsInside2DBox(Point, Park, 10500.0f, 8000.0f)",
+    "IsInside2DBox(Point, College + FVector(0.0f, 4200.0f, 0.0f), 7000.0f, 6500.0f)",
+    "IsInside2DBox(Point, Stadium, 7600.0f, 5600.0f)",
+    "const bool bMaintained = IsMaintainedCivicZone(BaseLocation);",
+    "RandomStream.RandRange(bLowCPUProfile ? 3 : 4, bLowCPUProfile ? 4 : 5)",
+    "RandomStream.RandRange(bLowCPUProfile ? 2 : 3, bLowCPUProfile ? 4 : 5)",
+    "RandomStream.RandRange(0, FMath::Min(1, VariantCount - 1))",
+    "RandomStream.RandRange(0, VariantCount - 1)",
+    "RandomStream.FRandRange(0.68f, 0.94f)",
+    "RandomStream.FRandRange(0.82f, 1.18f)",
+    "const float PlantChance = bMaintained ? 0.03f : 0.12f;",
+    "const float FlowerChance = bMaintained ? 0.008f : 0.025f;",
+):
+    require(dense, needle, "Block0 maintained-versus-rough visual zoning")
+
+# These tracked assets are evidence that the landscape pack contains a base landscape material and dedicated
+# foliage material variants. Presence is guarded, but the verifier deliberately does not require applying foliage
+# material instances to the giant Ground plane without UE material-domain/runtime evidence.
+if not LANDSCAPE_MATERIAL.is_file():
+    raise SystemExit("PASS10 FOLIAGE VERIFY FAIL: tracked base landscape material is missing")
+for material_path in LANDSCAPE_FOLIAGE_VARIANTS:
+    if not material_path.is_file():
+        raise SystemExit(
+            f"PASS10 FOLIAGE VERIFY FAIL: tracked landscape foliage variant is missing: {material_path.name}"
+        )
+
 # Developer-only world labels/markers may remain as source semantic/debug data, but they may never survive as
 # runtime scenery. World BeginPlay already hides them immediately; the guard now destroys them entirely.
 for needle in (
@@ -75,7 +114,7 @@ for needle in (
 ):
     require(dense, needle, "dense foliage owner")
 
-for name, ceiling in (("FullCellsPerBatch", 48), ("LowCPUCellsPerBatch", 48)):
+for name, ceiling in (("FullCellsPerBatch", 32), ("LowCPUCellsPerBatch", 48)):
     match = re.search(rf"constexpr\s+int32\s+{name}\s*=\s*(\d+)\s*;", dense)
     if not match or not 1 <= int(match.group(1)) <= ceiling:
         raise SystemExit(
@@ -202,6 +241,8 @@ for needle in ("RUNTIME REJECTED", "2026-08-27"):
 print("FOLIAGE RUNTIME PASS 10 + PASS45 BLOCK0 SOURCE CONTRACT PASS")
 print("- source zoning/debug components are physically destroyed rather than merely hidden at runtime")
 print("- real batched DenseGrass HISM covers the 960m x 940m compact playable bounds with profile-specific budgets")
+print("- maintained civic lawns and rough ordinary terrain are source-guarded as distinct clump/variant/scale/weed policies")
+print("- tracked landscape foliage variants are preserved as content evidence but are not blindly applied to the Ground plane")
 print("- LowCPU is density/cull policy only and cannot crop the factual full-sector population scope")
 print("- every randomized grass/plant/flower candidate is independently traced before AddInstance")
 print("- road/sidewalk/path/building/plaza/foundation spill is fail-closed at the final candidate position")
