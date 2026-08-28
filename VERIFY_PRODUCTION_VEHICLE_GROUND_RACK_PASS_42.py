@@ -156,17 +156,44 @@ for needle in (
 ):
     require(settings_h + settings, needle, "native-scale graphics clarity recovery")
 
-# LowCPU foliage remains bounded and its guard is throttled. PASS45 item 31 upgrades old hide-only ground
-# proxy retirement to physical destruction, and removes developer reference markers/text labels as scenery.
+# PASS45 Block 0 supersedes the historical Pass42 museum-area LowCPU crop. LowCPU is now only a
+# density/grid/cull budget and must retain the same full 960x940m playable spatial scope as Full profile.
 for needle in (
-    'LowCPUHalfExtentCm = 10000.0f',
+    'CompactMinX = -78000.0f',
+    'CompactMaxX =  18000.0f',
+    'CompactMinY = -12000.0f',
+    'CompactMaxY =  82000.0f',
+    'CompactWidthCm == 96000.0f',
+    'CompactHeightCm == 94000.0f',
     'LowCPUGridStepCm = 1500.0f',
-    'LowCPUGrassCullEndCm = 8500',
-    'PASS42_LOWCPU_FOLIAGE_SCOPE_EXPANDED',
+    'LowCPUCellsPerBatch = 48',
+    'LowCPUGrassCullEndCm = 14000',
+    'PopulationMinX = CompactMinX',
+    'PopulationMaxX = CompactMaxX',
+    'PopulationMinY = CompactMinY',
+    'PopulationMaxY = CompactMaxY',
+    'PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY',
+    'bounds_m=960x940',
+    'museum_only=0',
+    'full_playable_bounds=1',
+):
+    require(dense, needle, "Block0 full-sector LowCPU foliage")
+for forbidden in (
+    'LowCPUHalfExtentCm = 10000.0f',
     'area_m=200x200',
     'full_sector_population=0',
 ):
-    require(dense, needle, "bounded expanded LowCPU foliage")
+    forbid(dense + foliage_guard, forbidden, "retired LowCPU spatial crop")
+for needle in (
+    'PASS36_LOWCPU_FOLIAGE_RUNTIME_READY',
+    'full_sector_population=1',
+    'population_complete=1',
+    'density_policy_only=1',
+):
+    require(foliage_guard, needle, "Block0 LowCPU runtime evidence")
+
+# PASS45 item 31 upgrades old hide-only ground proxy retirement to physical destruction, and removes developer
+# reference markers/text labels as scenery. The guard remains throttled and stops after convergence.
 for needle in (
     'float ValidationAccumulator = 0.0f',
     'ValidationAccumulator < 0.25f',
@@ -203,7 +230,8 @@ print("- exact M2 uses its authored receiver/mount pivot; rejected bounds/longes
 print("- VehicleBase skips legacy tint for /Game/Production meshes at the primary source")
 print("- production vehicle guard is one-shot validation-only: no material repair, no polling")
 print("- Museum BASE rack remains grounded with 12 cm clearance")
-print("- native-scale graphics clarity and bounded LowCPU foliage/audio budgets remain intact")
+print("- native-scale graphics clarity remains intact")
+print("- LowCPU foliage retains full compact Oster spatial coverage and reduces density/grid/cull budget only")
 print("- PASS45 item31 physically destroys source ground-cover proxies and developer visual markers")
 print("- historical Museum visibility/rebuild owner is deleted; current landmark startup is coordinated once")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
