@@ -8,29 +8,40 @@ Status: **SOURCE CODED / LOCAL UE 5.8 RUNTIME PENDING**
 
 ## Gap found
 
-The existing foliage runtime guard accepts only a very low total instance threshold after `OC_Block0FullMapGrassComplete`. That completion tag proves that the population cursor finished traversing the configured grid, but it does not prove that line traces actually produced grass across the approved 960 x 940 m playable area. A collision/content regression could therefore leave most of Oster bare while still satisfying the old total-count contract.
+The existing foliage runtime guard previously accepted a very low total instance threshold after `OC_Block0FullMapGrassComplete`. That completion tag proves that the population cursor finished traversing the configured grid, but it does not prove that line traces actually produced grass across the approved 960 x 940 m playable area. A collision/content regression could therefore leave most of Oster bare while still satisfying the old total-count contract.
 
-## Correction
+## Final correction
 
-Added `UOCBlock0FoliageCoverageValidationSubsystem` as validation-only evidence for Block 0.
+The first implementation used a standalone validation-only subsystem. That prototype was retired in the same work cycle because a second tick owner would duplicate full-HISM scans and, more importantly, could disagree with the existing strict `PASS10`/`PASS36` runtime acceptance path.
 
-It waits for the final dense-foliage completion tag and then inspects world-space transforms of the final `DenseGrass_*` HISM instances.
+The final architecture integrates spatial validation directly into `UOCFoliageRuntimeGuardSubsystem`, which is already consumed by strict runtime acceptance.
 
-Acceptance requires:
+After `OC_Block0FullMapGrassComplete`, the guard now inspects world-space transforms of final `DenseGrass_*` HISM instances and requires all of the following before `PASS36_LOWCPU_FOLIAGE_RUNTIME_READY` may emit:
 
+- existing profile minimum grass instance count still passes;
 - at least 12 of 16 coarse 4 x 4 map bins contain factual grass instances;
 - every map quadrant contains at least two occupied bins;
 - observed grass reaches within 20% of all four approved playable-area edges;
-- the validator performs no world mutation or repair.
+- dense grass collision remains disabled.
 
-Success marker:
+Spatial failure emits both:
 
-`PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY ... full_playable_distribution=1 mutation=0 runtime_acceptance=0`
+`PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL ... full_playable_distribution=0 ...`
 
-Failure marker:
+and the existing hard acceptance failure:
 
-`PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL ... mutation=0 runtime_acceptance=0`
+`PASS10_FOLIAGE_RUNTIME_FAIL reason=block0_spatial_grass_distribution_insufficient`
+
+Spatial success emits:
+
+`PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY ... full_playable_distribution=1 ...`
+
+before the existing `PASS10_FOLIAGE_RUNTIME_READY` / `PASS36_LOWCPU_FOLIAGE_RUNTIME_READY` markers, now carrying `spatial_coverage=1` and edge/bin evidence.
+
+## Ownership and performance
+
+There is no second Block 0 foliage coverage tick subsystem. `OCFoliageRuntimeGuardSubsystem` remains the single strict validation owner, samples at 4 Hz during convergence, and stops after terminal success/failure.
 
 ## Why this remains unaccepted
 
-This closes a false-PASS path only. It does not prove visual density, grass quality, boundary cleanup, LOD quality or frame-time cost. Those still require the five direct Block 0 UE 5.8 screenshots and runtime observation defined by the execution plan.
+This closes the false-PASS path only. It does not prove visual density, grass quality, boundary cleanup, LOD quality or frame-time cost. Those still require the five direct Block 0 UE 5.8 screenshots and runtime observation defined by the execution plan.
