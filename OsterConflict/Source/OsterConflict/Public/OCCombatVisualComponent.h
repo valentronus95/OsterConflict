@@ -67,8 +67,11 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="Trauma|Corpse", meta=(ClampMin="0.0"))
     float RagdollImpulseScale = 45.0f;
 
+    // PASS45 Gate K fail-closed default: the legacy detached-limb path still uses an Engine BasicShape Cylinder.
+    // Keep it disabled in production defaults until authored limb/chunk content replaces that source-only proxy.
+    // Authoritative damage, trauma severity and ragdoll behavior remain active; this only suppresses rejected art.
     UPROPERTY(EditDefaultsOnly, Category="Trauma|Dismemberment")
-    bool bAllowDismemberment = true;
+    bool bAllowDismemberment = false;
 
     UFUNCTION()
     void OnRep_LastTraumaEvent();
