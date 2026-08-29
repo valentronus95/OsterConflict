@@ -1,0 +1,28 @@
+name: Pass45 content ledger runtime wiring
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+  pull_request:
+    paths:
+      - 'PASS45_CONTENT_INTEGRATION_LEDGER.csv'
+      - 'VERIFY_PASS45_CONTENT_LEDGER_RUNTIME_WIRING.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGrenadeProjectile.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCSmokeCloud.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTreeContentUpgradeSubsystem.cpp'
+      - '.github/workflows/pass45-content-ledger-runtime-wiring.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify ledger/runtime wiring contract
+        run: python VERIFY_PASS45_CONTENT_LEDGER_RUNTIME_WIRING.py
