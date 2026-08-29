@@ -56,8 +56,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Pass 39: this is first-person LOCAL presentation. Iterating every AOCCharacter in the world every
-    // frame was needless work and scales with bots/respawned pawns. Resolve exactly one local pawn directly.
     APlayerController* LocalPC = World->GetFirstPlayerController();
     AOCCharacter* Character = LocalPC ? Cast<AOCCharacter>(LocalPC->GetPawn()) : nullptr;
     if (Character && Character->IsLocallyControlled())
@@ -271,9 +269,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     }
     State.bWasAiming = bRequestedADS;
 
-    // Latest 2026-08-27 runtime evidence rejected the AK ADS/hand presentation. Until an exact per-weapon
-    // sight calibration is proven in UE 5.8, aiming may affect gameplay state elsewhere but this presentation
-    // subsystem must not apply guessed ADS arms/weapon transforms that can clip or hide the production mesh.
     const bool bADS = bRequestedADS && Profile.bADSCalibrated;
 
     const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
@@ -344,9 +339,16 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
             const int32 EventSeed = CurrentAmmo * 31 + static_cast<int32>(ActionType) * 101;
             Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);
         }
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_MANUAL_ACTION_PRESENTATION_READY weapon=%s action=%s cue_declared=%d replicated_gate=1 second_gameplay_timer=0"),
+
+        // This path is deliberately not production READY. It moves the whole local weapon/arms transform
+        // and cannot prove authored bolt/pump/lever moving-part animation. Keep it as a visible fallback until
+        // an accepted skeletal/moving-part asset is wired and verified in local UE 5.8.
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE weapon=%s action=%s cue_declared=%d replicated_gate=1 whole_transform_only=1 authored_moving_part=0 second_gameplay_timer=0 runtime_acceptance=0"),
             *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), Profile.bManualActionCueDeclared ? 1 : 0);
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=%s action=%s authored_moving_part=0 procedural_fallback=1 runtime_acceptance=0"),
+            *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType));
     }
     else if (!bActionCycling && State.bWasActionCycling)
     {
