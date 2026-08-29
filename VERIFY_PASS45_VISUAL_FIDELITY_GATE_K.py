@@ -53,7 +53,7 @@ require_file(
     "tracked authored ground mesh",
 )
 require_file(
-    ROOT / "OsterConflict" / "Content" / "AdvancedVillagePack" / "Materials" / "M_Inst_Landscape.uasset",
+    ROOT / "OsterConflict" / "Content" / "KiteDemo" / "Environments" / "GroundTiles" / "Grass" / "M_Ground_Grass2.uasset",
     "tracked authored ground material",
 )
 
@@ -78,7 +78,7 @@ forbid(foliage_guard, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only f
 for needle in (
     "UOCAuthoredWorldSurfaceUpgradeSubsystem",
     "Before visual acceptance and before the Pass12 12-second stability baseline",
-    "SM_Plane_1x1 + M_Inst_Landscape",
+    "SM_Plane_1x1 + KiteDemo M_Ground_Grass2",
     "top-Z",
     "five central-park path transforms",
     "ParkPaths",
@@ -89,7 +89,7 @@ for needle in (
     require(surface_h, needle, "authored world upgrade header")
 for needle in (
     "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
-    "/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape",
+    "/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01",
     "/Game/AdvancedVillagePack/Meshes/SM_Stonepath_Var01.SM_Stonepath_Var01",
@@ -222,7 +222,7 @@ for needle in (
 for needle in (
     "HasAuthoredGroundSurface(",
     "SM_Plane_1x1",
-    "M_Inst_Landscape",
+    "M_Ground_Grass2",
     "HasAuthoredSurface(",
     "SM_Urb_Roa_Asphalt_01",
     "SM_Urb_Roa_Sidewalk_01",
@@ -307,7 +307,7 @@ for needle in ("RUNTIME REJECTED", "2026-08-27"):
 print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
 print("- Central Park detail ownership is fail-closed: legacy ParkDetails=0 and semantic groups=2/4/3/14 (23 total)")
-print("- playable Ground upgrades from Cube + BasicShape MID to tracked SM_Plane_1x1 + M_Inst_Landscape before Pass12 baseline")
+print("- playable Ground upgrades from Cube + BasicShape MID to tracked SM_Plane_1x1 + KiteDemo M_Ground_Grass2 before Pass12 baseline")
 print("- Ground playable footprint and top-Z are preserved by bounds-aware replacement")
 print("- Roads/Sidewalks upgrade from Cube topology to tracked RoadsideConstruction authored surfaces before Pass12 baseline")
 print("- canonical source owns exactly five ParkPaths and zero central-park path proxies remain in Sidewalks")
