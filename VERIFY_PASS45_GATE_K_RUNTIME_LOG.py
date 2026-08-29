@@ -43,6 +43,32 @@ def main() -> int:
         if marker in text:
             errors.append(f"forbidden {marker}")
 
+    # Current Gate K readiness is valid only when the READY marker itself proves the expanded final-world scope.
+    # A stale sector/landmark-only READY line from an older runtime must never satisfy a current-head acceptance run.
+    ready_lines = [line for line in text.splitlines() if "PASS45_GATE_K_RUNTIME_READY" in line]
+    if not ready_lines:
+        errors.append("missing PASS45_GATE_K_RUNTIME_READY line")
+    else:
+        ready_line = ready_lines[-1]
+        ready_contract = (
+            "visible_basicshape_components=0",
+            "visible_basicshape_instances=0",
+            "landmark_basicshape_components=0",
+            "landmark_basicshape_instances=0",
+            "sector_owners=1",
+            "stadium_owners=1",
+            "museum_owners=1",
+            "culture_owners=1",
+            "silpo_owners=1",
+            "scope=all_gameplay_actors",
+            "runtime_visible_only=1",
+            "hidden_in_game_ignored=1",
+            "gate_k_complete=1",
+        )
+        for marker in ready_contract:
+            if marker not in ready_line:
+                errors.append(f"Gate K READY line missing current-scope field {marker}")
+
     if errors:
         print("PASS45 GATE K: FAIL")
         for error in errors:
@@ -59,7 +85,8 @@ def main() -> int:
     print("- exactly five central-park path proxies moved out of Sidewalks into ParkPaths")
     print("- ParkPaths were upgraded to committed AdvancedVillagePack SM_Stonepath_Var01 with bounds-aware fitting")
     print("- visible general world Fences were upgraded to committed AdvancedVillagePack SM_Fence_Var01")
-    print("- final Oster sector + authoritative stadium contain zero visible Engine BasicShape static meshes")
+    print("- final gameplay world contains zero runtime-visible Engine BasicShape static meshes across all gameplay actors")
+    print("- hidden-in-game collision/proxy components are ignored because they are not rendered production content")
     print("STATUS: AUTOMATED RUNTIME CONTRACT ONLY; direct screenshot fidelity acceptance remains required")
     return 0
 
