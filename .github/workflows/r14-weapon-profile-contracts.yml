@@ -66,12 +66,22 @@ jobs:
           require('OCHasDeclaredWeaponAnimationProfile' in animation_h and
                   'OCResolveWeaponAnimationProfile' in animation_h,
                   'weapon animation profile public API is incomplete')
+          require('ManualActionAnimationObjectPath' in animation_h and
+                  'bRequiresManualActionAnimation' in animation_h and
+                  'HasRequiredManualActionCoverage' in animation_h,
+                  'manual-action authored animation contract is incomplete')
           require('/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W' in animation_cpp,
                   'AK-47 canonical fire animation path changed')
           require('/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W' in animation_cpp,
                   'AK-47 canonical reload animation path changed')
-          require('{ FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true }' in animation_cpp,
-                  'Remington 870 articulated reload requirement was lost')
+
+          # Manual-action weapons must stay fail-honest: articulation is required, the exact cycle sequence
+          # slot is required, and the slot remains empty until compatible authored content is actually committed.
+          for weapon_id in ('OC_SNP1', 'OC_SG1', 'R13_LEVER4570'):
+              expected = f'{{ FName(TEXT("{weapon_id}")), TEXT(""), TEXT(""), true, TEXT(""), true }}'
+              require(expected in animation_cpp,
+                      f'{weapon_id} manual-action articulated/required-empty sequence contract changed')
+
           require('{ FName(TEXT("OC_LMG1")), TEXT(""), TEXT(""), true }' in animation_cpp,
                   'M249 articulated reload requirement was lost')
           require('HasCompleteAuthoredCoverage' in tests,
