@@ -81,23 +81,42 @@ for needle in (
 
 # First-person presentation may observe the replicated gate and shape a local fallback curve, but it must
 # not own a second gameplay timer and must not claim authored moving-part acceptance when none is wired.
-for needle in ("bWasActionCycling", "ActionCycleStartTime"):
+for needle in ("bWasActionCycling", "ActionCycleStartTime", "bAuthoredManualActionActive"):
     req(needle in presentation_h, f"manual-action presentation state missing: {needle}")
 req("FTimerHandle" not in presentation_h,
     "first-person manual-action presentation introduced a second gameplay timer")
+req("bool PlayWeaponAnimation" in presentation_h,
+    "animation bridge no longer reports whether a production sequence actually started")
 
 for needle in (
     "IsActionCycling()", "GetManualActionCycleDuration()", "GetWeaponActionType()",
     "bManualActionCueDeclared", "ManualActionWeaponLocation", "ManualActionArmsLocation",
     "EOCWeaponAudioEvent::ManualActionCycle",
+    "OCResolveWeaponAnimationProfile", "HasManualActionAnimation()", "ManualActionAnimationObjectPath",
+    "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY",
+    "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL",
     "PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE",
     "PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP",
+    "!State.bAuthoredManualActionActive",
     "whole_transform_only=1", "authored_moving_part=0", "second_gameplay_timer=0", "runtime_acceptance=0",
 ):
     req(needle in presentation_cpp, f"fail-honest manual-action presentation contract missing: {needle}")
 
 req("PASS45_MANUAL_ACTION_PRESENTATION_READY" not in presentation_cpp,
     "procedural whole-transform fallback is falsely labelled production READY")
+
+# The authored bridge is conditional: current exact manual-action sequence slots remain empty, but when a verified
+# sequence is later committed the runtime consumer must load it, verify compatible skeletal playback and only then
+# suppress the whole-transform fallback. It still cannot claim runtime acceptance from source wiring alone.
+for needle in (
+    '#include "OCWeaponAnimationProfiles.h"',
+    "LoadObject<UAnimSequence>",
+    "PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay)",
+    "State.bAuthoredManualActionActive = true",
+    "State.bAuthoredManualActionActive = false",
+    "replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0",
+):
+    req(needle in presentation_cpp, f"manual-action authored source bridge wiring missing: {needle}")
 
 for needle in (
     "ManualActionWeaponLocation", "ManualActionWeaponRotation", "ManualActionArmsLocation",
@@ -160,6 +179,21 @@ req("RepositoryFallbackProfile->LeverCycle.Add" not in audio_component,
 for needle in ("void AOCWeaponBase::OnRep_ActionCycling()", "OwnerCharacter->IsLocallyControlled()", "ManualActionCycle"):
     req(needle in manual_action_cpp, f"remote manual-action replication/audio path missing: {needle}")
 
+# ADS diagnostics used to be declared/called without a definition, which source-only CI could miss until UE link.
+# Keep a real, mutation-free implementation and require authored socket references for any calibrated profile.
+req(presentation_cpp.count("ValidateADSAlignment(") >= 2,
+    "ValidateADSAlignment must have both a concrete definition and its ADS entry call")
+for needle in (
+    "void UOCFirstPersonWeaponPresentationSubsystem::ValidateADSAlignment",
+    "PASS45_ADS_PROFILE_UNCALIBRATED",
+    "PASS45_ADS_ALIGNMENT_FAIL",
+    "PASS45_ADS_ALIGNMENT_SAMPLE",
+    "ADSOpticSocket", "ADSRearSightSocket", "ADSFrontSightSocket",
+    "DoesSocketExist", "GetSocketTransform", "GetSocketLocation", "GetPlayerViewPoint",
+    "AngularErrorDeg", "mutation=0", "runtime_visual_acceptance=pending",
+):
+    req(needle in presentation_cpp, f"ADS alignment diagnostic implementation missing: {needle}")
+
 for needle in (
     "Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation",
     "populate real bolt/pump/lever sound content",
@@ -176,7 +210,8 @@ if errors:
 print("PASS45 WEAPON ACTION MATRIX: PASS")
 print("- bolt/pump/lever remain authoritative replicated post-shot gates with explicit timings")
 print("- M700/870/LeverAction are explicitly marked as requiring articulated manual-action animation")
-print("- authored manual-action animation has a dedicated fail-closed profile slot; current exact sequences remain gaps")
-print("- local first-person procedural cue consumes the authoritative gate and adds no second gameplay timer")
+print("- authored manual-action animation has a dedicated fail-closed profile slot and a production skeletal consumer")
+print("- procedural whole-transform cue remains active only when the authored sequence is absent or cannot start")
+print("- ADS socket diagnostics now have a concrete mutation-free implementation instead of a declaration-only linker gap")
 print("- PumpCycle uses tracked R13/Audio/shotguncock; bolt/lever audio remain visible content gaps")
-print("STATUS: SOURCE CONTRACT FAIL-HONEST; authored moving-part sequences, bolt/lever audio and local UE 5.8 acceptance remain pending")
+print("STATUS: SOURCE CONTRACT FAIL-HONEST; exact authored moving-part sequences, bolt/lever audio and local UE 5.8 acceptance remain pending")
