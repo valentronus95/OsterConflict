@@ -21,6 +21,7 @@ struct FOCFirstPersonWeaponState
     bool bADSArmsPose = false;
     bool bRiflePoseApplied = false;
     bool bWeaponAnimationActive = false;
+    bool bAuthoredManualActionActive = false;
     double ReloadStartTime = 0.0;
     double ActionCycleStartTime = 0.0;
     double WeaponAnimationResetTime = 0.0;
@@ -46,7 +47,7 @@ private:
     void UpdateLocalCharacter(AOCCharacter& Character, float DeltaTime);
     void RestorePresentationState(AOCCharacter& Character, FOCFirstPersonWeaponState& State);
     void ApplyArmsPose(AOCCharacter& Character, FOCFirstPersonWeaponState& State, bool bADS);
-    void PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
+    bool PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
         FOCFirstPersonWeaponState& State, double ResetDelaySeconds);
     void ValidateADSAlignment(AOCCharacter& Character, AOCWeaponBase& Weapon,
         UPrimitiveComponent* ProductionVisual, const FOCFirstPersonWeaponProfile& Profile) const;
