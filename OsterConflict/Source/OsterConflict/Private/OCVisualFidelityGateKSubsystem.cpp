@@ -33,7 +33,11 @@ namespace
 
     void CountVisibleBasicShapes(AActor* Actor, int32& OutComponents, int32& OutInstances, TArray<FString>& OutNames)
     {
-        if (!Actor) return;
+        // Actor-level hidden state is authoritative for runtime rendering too. Inventory weapons and other dormant
+        // gameplay actors may keep registered collision/proxy components whose component visibility flags remain
+        // true while SetActorHiddenInGame(true) suppresses the whole actor. Counting those as rendered BasicShape
+        // content would manufacture a false Gate K failure.
+        if (!Actor || Actor->IsHidden()) return;
 
         TInlineComponentArray<UStaticMeshComponent*> Components;
         Actor->GetComponents(Components);
@@ -106,8 +110,8 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
 
     // Gate K is the final gameplay-world observer, not merely a landmark observer. Scan every actor so a visible
     // Engine BasicShape cannot leak through a character, weapon, grenade, vehicle or another gameplay owner while
-    // the world/landmark subset still reports READY. Hidden-in-game collision/proxy components are intentionally
-    // excluded: they carry gameplay authority but are not rendered production content.
+    // the world/landmark subset still reports READY. Hidden actors and hidden-in-game collision/proxy components
+    // are intentionally excluded because they are not rendered production content.
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
