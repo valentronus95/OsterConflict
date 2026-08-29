@@ -22,6 +22,7 @@ workflow = WORKFLOW.read_text(encoding="utf-8", errors="replace")
 required = (
     "IsRuntimeVisibleBasicShape",
     "Component->bHiddenInGame",
+    "Actor->IsHidden()",
     "for (TActorIterator<AActor> It(World); It; ++It)",
     "CountVisibleBasicShapes(Actor, BasicShapeComponents, BasicShapeInstances, BasicShapeNames);",
     "scope=all_gameplay_actors",
@@ -34,6 +35,12 @@ required = (
 for needle in required:
     if needle not in text:
         fail(f"runtime observer missing {needle!r}")
+
+# The observer must honor both ways Unreal suppresses runtime rendering: an actor may be hidden as a whole while
+# its registered components retain their own visible/hidden flags, and a component may itself be hidden in game.
+# Either case is non-rendered content and must not manufacture a Gate K BasicShape failure.
+if "if (!Actor || Actor->IsHidden()) return;" not in text:
+    fail("actor-level hidden state is not excluded before BasicShape component counting")
 
 # The final observer must not mutate scenery to manufacture a pass.
 for forbidden in ("SetVisibility(false", "SetHiddenInGame(true", "DestroyComponent"):
@@ -77,4 +84,4 @@ for path_token in (
     if workflow.count(path_token) < 2:
         fail(f"workflow does not trigger on both PR/main changes for {path_token}")
 
-print("PASS45 GATE K GLOBAL BASICSHAPE SCOPE PASS: all gameplay actors observed; stale narrow READY logs rejected; hidden-in-game collision/proxy components excluded; observer remains non-mutating")
+print("PASS45 GATE K GLOBAL BASICSHAPE SCOPE PASS: all gameplay actors observed; actor-hidden and component-hidden non-rendered proxies excluded; stale narrow READY logs rejected; observer remains non-mutating")
