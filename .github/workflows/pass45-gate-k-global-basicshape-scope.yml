@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
       - 'VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py'
       - '.github/workflows/pass45-gate-k-global-basicshape-scope.yml'
   push:
     branches: [ main ]
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
       - 'VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py'
       - '.github/workflows/pass45-gate-k-global-basicshape-scope.yml'
 
@@ -26,5 +28,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify global gameplay BasicShape scope
+      - name: Verify global gameplay BasicShape scope and runtime evidence binding
         run: python VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py
