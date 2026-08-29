@@ -56,6 +56,12 @@ void AOCSmokeCloud::BeginPlay()
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
         Pass45SmokeNiagaraPath, SmokeRadiusCm, LifetimeSeconds);
+
+    // Automated runtime readiness proves only that the authored Niagara payload loaded and was activated in a
+    // real gameplay client. It deliberately does NOT claim that smoke scale/look/performance was visually accepted.
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 manual_visual_acceptance=0"),
+        Pass45SmokeNiagaraPath);
 }
 
 bool AOCSmokeCloud::ContainsPoint(const FVector& WorldPoint) const
