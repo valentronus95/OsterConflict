@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pass45 Gate K regression: landmark scan + Culture House authored-shell retirement."""
+"""Pass45 Gate K regression: global gameplay scan + landmark/Culture House authored-shell retirement."""
 
 from pathlib import Path
 
@@ -19,27 +19,34 @@ for path in (GUARD, CULTURE):
 guard = GUARD.read_text(encoding="utf-8", errors="replace")
 culture = CULTURE.read_text(encoding="utf-8", errors="replace")
 
+# Gate K now scans every gameplay actor, while still tracking the four landmark owners as a strict subset.
+# Do not regress to the older landmark/stadium-only observer: a visible BasicShape on a character, weapon,
+# grenade or vehicle must fail the same final-world gate.
 for needle in (
     'MuseumPhotoModelTag(TEXT("R137_MuseumPhotoModel"))',
     'CultureHousePhotoModelTag(TEXT("R146_CultureHouseModel"))',
     'SilpoPhotoModelTag(TEXT("R140_SilpoModel"))',
     'AuthoritativeStadiumTag(TEXT("R13_StadionOsterAuthoritative"))',
+    "const bool bStadium = Actor->ActorHasTag(AuthoritativeStadiumTag);",
     "const bool bMuseum = Actor->ActorHasTag(MuseumPhotoModelTag);",
     "const bool bCultureHouse = Actor->ActorHasTag(CultureHousePhotoModelTag);",
     "const bool bSilpo = Actor->ActorHasTag(SilpoPhotoModelTag);",
     "LandmarkBasicShapeComponents",
     "LandmarkBasicShapeInstances",
     "CountVisibleBasicShapes(Actor, BasicShapeComponents, BasicShapeInstances, BasicShapeNames);",
+    "if (bStadium || bMuseum || bCultureHouse || bSilpo)",
     "reason=landmark_owner_count",
     "stadium=%d museum=%d culture=%d silpo=%d",
     "landmark_basicshape_components=%d",
     "landmark_basicshape_instances=%d",
-    "R137_MuseumPhotoModel,R146_CultureHouseModel,R140_SilpoModel",
+    "scope=all_gameplay_actors",
+    "runtime_visible_only=1",
+    "hidden_in_game_ignored=1",
     "landmark_basicshape_components=0 landmark_basicshape_instances=0",
     "museum_owners=1 culture_owners=1 silpo_owners=1",
 ):
     if needle not in guard:
-        fail(f"missing landmark-scope contract {needle!r}")
+        fail(f"missing global/landmark-scope contract {needle!r}")
 
 stale_stadium_only = 'if (!Actor || !Actor->ActorHasTag(AuthoritativeStadiumTag)) continue;'
 if stale_stadium_only in guard:
@@ -86,7 +93,8 @@ if 'const float ColumnXs[] = { -1130.0f, -680.0f, -230.0f, 230.0f, 680.0f, 1130.
     fail("Culture House six-column source identity changed unexpectedly")
 
 print("PASS45 GATE K LANDMARK BASICSHAPE SCOPE: PASS")
-print("- Museum, Culture House, Silpo and Stadium remain inside final-world BasicShape inspection")
-print("- Culture House visible shell now uses committed modular wall/pillar/door/roof/foundation/forecourt assets")
+print("- final Gate K scans all runtime-visible gameplay actors, not only landmarks")
+print("- Museum, Culture House, Silpo and Stadium remain explicitly counted as the landmark subset")
+print("- Culture House visible shell uses committed modular wall/pillar/door/roof/foundation/forecourt assets")
 print("- Culture House has no Engine BasicShape mesh/material fallback and fails closed if authored assets are missing")
-print("STATUS: SOURCE CONTRACT ONLY; Museum/Silpo authored-shell retirement and local UE 5.8 visual acceptance remain required")
+print("STATUS: SOURCE CONTRACT ONLY; direct local UE 5.8 visual acceptance remains required")
