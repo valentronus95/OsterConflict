@@ -2,6 +2,7 @@
 
 #include "OCCharacter.h"
 #include "OCGameMode.h"
+#include "OCWeaponAnimationProfiles.h"
 #include "OCWeaponAudioComponent.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponPresentationProfiles.h"
@@ -138,6 +139,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     }
 
     State.bWeaponAnimationActive = false;
+    State.bAuthoredManualActionActive = false;
     State.bRiflePoseApplied = false;
     State.bWasActionCycling = false;
     State.bWasAiming = false;
@@ -145,19 +147,20 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     State.RecoilAlpha = 0.0f;
 }
 
-void UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
+bool UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
     FOCFirstPersonWeaponState& State, double ResetDelaySeconds)
 {
-    if (!Sequence) return;
+    if (!Sequence) return false;
     USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(Weapon);
     USkeletalMesh* Mesh = Visual ? Visual->GetSkeletalMeshAsset() : nullptr;
-    if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return;
+    if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return false;
 
-    if (Visual->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Visual->GetAnimClass()) return;
+    if (Visual->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Visual->GetAnimClass()) return false;
 
     Visual->PlayAnimation(Sequence, false);
     State.bWeaponAnimationActive = true;
     State.WeaponAnimationResetTime = GetWorld() ? GetWorld()->GetTimeSeconds() + FMath::Max(0.05, ResetDelaySeconds) : 0.0;
+    return true;
 }
 
 void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Character,
@@ -181,6 +184,95 @@ void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Char
         State.bRiflePoseApplied = true;
         State.bADSArmsPose = bADS;
     }
+}
+
+void UOCFirstPersonWeaponPresentationSubsystem::ValidateADSAlignment(AOCCharacter& Character,
+    AOCWeaponBase& Weapon, UPrimitiveComponent* ProductionVisual, const FOCFirstPersonWeaponProfile& Profile) const
+{
+    const FString WeaponName = Weapon.GetWeaponId().ToString();
+    if (!Profile.bADSCalibrated)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_ADS_PROFILE_UNCALIBRATED weapon=%s calibrated=0 mutation=0 runtime_visual_acceptance=pending"),
+            *WeaponName);
+        return;
+    }
+
+    if (!ProductionVisual)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_ADS_ALIGNMENT_FAIL weapon=%s reason=missing_production_visual calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+            *WeaponName);
+        return;
+    }
+
+    APlayerController* PlayerController = Cast<APlayerController>(Character.GetController());
+    if (!PlayerController)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_ADS_ALIGNMENT_FAIL weapon=%s reason=missing_local_player_controller calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+            *WeaponName);
+        return;
+    }
+
+    FVector SightForward = FVector::ZeroVector;
+    const TCHAR* ReferenceMode = TEXT("none");
+    if (!Profile.ADSOpticSocket.IsNone())
+    {
+        if (!ProductionVisual->DoesSocketExist(Profile.ADSOpticSocket))
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_ADS_ALIGNMENT_FAIL weapon=%s reason=missing_optic_socket socket=%s calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+                *WeaponName, *Profile.ADSOpticSocket.ToString());
+            return;
+        }
+
+        SightForward = ProductionVisual->GetSocketTransform(Profile.ADSOpticSocket, RTS_World)
+            .GetRotation().GetForwardVector().GetSafeNormal();
+        ReferenceMode = TEXT("optic_socket");
+    }
+    else
+    {
+        if (Profile.ADSRearSightSocket.IsNone() || Profile.ADSFrontSightSocket.IsNone())
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_ADS_ALIGNMENT_FAIL weapon=%s reason=missing_authored_sight_reference calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+                *WeaponName);
+            return;
+        }
+        if (!ProductionVisual->DoesSocketExist(Profile.ADSRearSightSocket) ||
+            !ProductionVisual->DoesSocketExist(Profile.ADSFrontSightSocket))
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_ADS_ALIGNMENT_FAIL weapon=%s reason=missing_iron_sight_socket rear=%s front=%s calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+                *WeaponName, *Profile.ADSRearSightSocket.ToString(), *Profile.ADSFrontSightSocket.ToString());
+            return;
+        }
+
+        const FVector Rear = ProductionVisual->GetSocketLocation(Profile.ADSRearSightSocket);
+        const FVector Front = ProductionVisual->GetSocketLocation(Profile.ADSFrontSightSocket);
+        SightForward = (Front - Rear).GetSafeNormal();
+        ReferenceMode = TEXT("rear_front_sockets");
+    }
+
+    if (SightForward.IsNearlyZero())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_ADS_ALIGNMENT_FAIL weapon=%s reason=degenerate_sight_axis calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+            *WeaponName);
+        return;
+    }
+
+    FVector ViewLocation = FVector::ZeroVector;
+    FRotator ViewRotation = FRotator::ZeroRotator;
+    PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+    const FVector ViewForward = ViewRotation.Vector().GetSafeNormal();
+    const float AlignmentDot = FMath::Clamp(FVector::DotProduct(ViewForward, SightForward), -1.0f, 1.0f);
+    const float AngularErrorDeg = FMath::RadiansToDegrees(FMath::Acos(AlignmentDot));
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_ADS_ALIGNMENT_SAMPLE weapon=%s reference=%s angle_error_deg=%.3f calibrated=1 mutation=0 runtime_visual_acceptance=pending"),
+        *WeaponName, ReferenceMode, AngularErrorDeg);
 }
 
 void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacter& Character, float DeltaTime)
@@ -333,6 +425,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     if (bActionCycling && !State.bWasActionCycling)
     {
         State.ActionCycleStartTime = Now;
+        State.bAuthoredManualActionActive = false;
         const EOCWeaponActionType ActionType = Weapon->GetWeaponActionType();
         if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())
         {
@@ -340,19 +433,46 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
             Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);
         }
 
-        // This path is deliberately not production READY. It moves the whole local weapon/arms transform
-        // and cannot prove authored bolt/pump/lever moving-part animation. Keep it as a visible fallback until
-        // an accepted skeletal/moving-part asset is wired and verified in local UE 5.8.
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE weapon=%s action=%s cue_declared=%d replicated_gate=1 whole_transform_only=1 authored_moving_part=0 second_gameplay_timer=0 runtime_acceptance=0"),
-            *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), Profile.bManualActionCueDeclared ? 1 : 0);
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=%s action=%s authored_moving_part=0 procedural_fallback=1 runtime_acceptance=0"),
-            *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType));
+        const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);
+        if (AnimationProfile.HasManualActionAnimation())
+        {
+            UAnimSequence* ManualActionSequence = LoadObject<UAnimSequence>(
+                nullptr, *AnimationProfile.ManualActionAnimationObjectPath);
+            const double ResetDelay = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
+            if (PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay))
+            {
+                State.bAuthoredManualActionActive = true;
+                UE_LOG(LogTemp, Display,
+                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=%s action=%s path=%s replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0"),
+                    *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
+                    *AnimationProfile.ManualActionAnimationObjectPath);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error,
+                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=%s action=%s path=%s reason=load_or_skeleton_or_animation_mode runtime_acceptance=0"),
+                    *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
+                    *AnimationProfile.ManualActionAnimationObjectPath);
+            }
+        }
+
+        if (!State.bAuthoredManualActionActive)
+        {
+            // This path is deliberately not production READY. It moves the whole local weapon/arms transform
+            // and cannot prove authored bolt/pump/lever moving-part animation. Keep it as a visible fallback until
+            // an accepted skeletal/moving-part asset is wired and verified in local UE 5.8.
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE weapon=%s action=%s cue_declared=%d replicated_gate=1 whole_transform_only=1 authored_moving_part=0 second_gameplay_timer=0 runtime_acceptance=0"),
+                *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), Profile.bManualActionCueDeclared ? 1 : 0);
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=%s action=%s authored_moving_part=0 procedural_fallback=1 runtime_acceptance=0"),
+                *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType));
+        }
     }
     else if (!bActionCycling && State.bWasActionCycling)
     {
         State.ActionCycleStartTime = 0.0;
+        State.bAuthoredManualActionActive = false;
     }
     State.bWasActionCycling = bActionCycling;
 
@@ -387,7 +507,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         ArmsRotation += Profile.ReloadArmsRotation * Arc;
     }
 
-    if (bActionCycling && Profile.bManualActionCueDeclared)
+    if (bActionCycling && Profile.bManualActionCueDeclared && !State.bAuthoredManualActionActive)
     {
         const float Duration = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
         const float Alpha = FMath::Clamp(static_cast<float>((Now - State.ActionCycleStartTime) / Duration), 0.0f, 1.0f);
