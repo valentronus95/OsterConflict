@@ -12,13 +12,24 @@ namespace
         },
         { FName(TEXT("OC_SMG1")), TEXT(""), TEXT(""), false },
         { FName(TEXT("OC_PST1")), TEXT(""), TEXT(""), false },
-        { FName(TEXT("OC_SNP1")), TEXT(""), TEXT(""), false },
-        { FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true },
+
+        // M700 is authoritative BoltAction. No committed authored bolt sequence exists yet, so the empty
+        // manual-action path is intentional and must remain fail-visible rather than borrowing AK/reload motion.
+        { FName(TEXT("OC_SNP1")), TEXT(""), TEXT(""), true, TEXT(""), true },
+
+        // Remington 870 is authoritative PumpAction. The project carries a real pump sound fallback, but no
+        // accepted authored pump sequence is currently committed for the production skeletal weapon.
+        { FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true, TEXT(""), true },
+
         { FName(TEXT("OC_LMG1")), TEXT(""), TEXT(""), true },
         { FName(TEXT("R13_M14")), TEXT(""), TEXT(""), false },
         { FName(TEXT("R13_MAC10")), TEXT(""), TEXT(""), false },
         { FName(TEXT("R13_TEC9")), TEXT(""), TEXT(""), false },
-        { FName(TEXT("R13_LEVER4570")), TEXT(""), TEXT(""), false },
+
+        // LeverAction is authoritative LeverAction. The skeletal mesh is committed, but a verified lever-cycle
+        // sequence is not, therefore the authored slot stays empty and explicitly required.
+        { FName(TEXT("R13_LEVER4570")), TEXT(""), TEXT(""), true, TEXT(""), true },
+
         { FName(TEXT("OC_RPG1")), TEXT(""), TEXT(""), false },
     };
 }
