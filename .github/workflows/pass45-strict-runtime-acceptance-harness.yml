@@ -28,3 +28,5 @@ jobs:
           python-version: '3.12'
       - name: Verify strict Pass45 runtime acceptance harness
         run: python VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py
+      - name: Verify grenade type runtime evidence wiring
+        run: python VERIFY_PASS45_GRENADE_TYPE_RUNTIME_EVIDENCE.py
