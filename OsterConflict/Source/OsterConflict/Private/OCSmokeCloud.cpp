@@ -36,8 +36,8 @@ void AOCSmokeCloud::BeginPlay()
     if (GetNetMode() == NM_DedicatedServer)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_SMOKE_VFX_SERVER_SKIP gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-            SmokeRadiusCm, LifetimeSeconds);
+            TEXT("PASS45_SMOKE_VFX_SERVER_SKIP gameplay_occlusion=1 finite_volume=1 radius_cm=%.1f half_height_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            SmokeRadiusCm, SmokeHalfHeightCm, LifetimeSeconds);
         return;
     }
 
@@ -46,25 +46,27 @@ void AOCSmokeCloud::BeginPlay()
     {
         SmokeVFX->DeactivateImmediate();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-            Pass45SmokeNiagaraPath, SmokeRadiusCm, LifetimeSeconds);
+            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 radius_cm=%.1f half_height_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, LifetimeSeconds);
         return;
     }
 
     SmokeVFX->SetAsset(SmokeSystem);
     SmokeVFX->Activate(true);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 radius_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-        Pass45SmokeNiagaraPath, SmokeRadiusCm, LifetimeSeconds);
+        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 radius_cm=%.1f half_height_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+        Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, LifetimeSeconds);
 
     // Automated runtime readiness proves only that the authored Niagara payload loaded and was activated in a
     // real gameplay client. It deliberately does NOT claim that smoke scale/look/performance was visually accepted.
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 manual_visual_acceptance=0"),
+        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 manual_visual_acceptance=0"),
         Pass45SmokeNiagaraPath);
 }
 
 bool AOCSmokeCloud::ContainsPoint(const FVector& WorldPoint) const
 {
-    return FVector::DistSquared2D(GetActorLocation(), WorldPoint) <= FMath::Square(SmokeRadiusCm);
+    const FVector Delta = WorldPoint - GetActorLocation();
+    if (FMath::Abs(Delta.Z) > SmokeHalfHeightCm) return false;
+    return FVector2D(Delta.X, Delta.Y).SizeSquared() <= FMath::Square(SmokeRadiusCm);
 }
