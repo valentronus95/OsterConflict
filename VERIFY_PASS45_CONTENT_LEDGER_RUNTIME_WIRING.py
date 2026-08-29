@@ -43,14 +43,15 @@ trees = read(TREES)
 
 for needle in (
     "/Game/Fire_EXP_Vol01_Free/",
-    "PASS45_FRAG_EXPLOSION_VFX",
+    "PASS45_FRAG_EXPLOSION_VFX_DONOR_WIRED",
 ):
     if needle not in grenade:
         raise SystemExit(f"PASS45 CONTENT LEDGER WIRING FAIL: Fire_EXP runtime wiring missing {needle!r}")
 
 for needle in (
     "/Game/PotaVFX_Smoke/",
-    "PASS45_SMOKE_VFX_RUNTIME_READY",
+    "PASS45_SMOKE_VFX_DONOR_WIRED",
+    "runtime_acceptance=0",
 ):
     if needle not in smoke:
         raise SystemExit(f"PASS45 CONTENT LEDGER WIRING FAIL: PotaVFX runtime wiring missing {needle!r}")
@@ -72,6 +73,7 @@ for needle in (
     "placement_preserved=1",
     "ground_base_preserved=1",
     "height_preserved=1",
+    "runtime_acceptance=0",
 ):
     if needle not in trees:
         raise SystemExit(f"PASS45 CONTENT LEDGER WIRING FAIL: regional tree wiring missing {needle!r}")
@@ -84,5 +86,6 @@ if not row or (row.get("State") or "").strip().upper() != "PENDING_INTEGRATION":
 
 print("PASS45 CONTENT LEDGER RUNTIME WIRING: PASS")
 print("- INTEGRATED VFX/foliage/tree ledger states have matching project-owned runtime source wiring")
+print("- all source wiring stays fail-honest with runtime_acceptance=0 until local UE 5.8 evidence exists")
 print("- KiteDemo GroundTiles/Rocks remain explicitly pending rather than false-ready")
 print("STATUS: SOURCE INTEGRATION ONLY; local UE 5.8 runtime acceptance remains required")
