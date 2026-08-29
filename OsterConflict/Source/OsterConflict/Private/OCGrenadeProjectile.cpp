@@ -64,46 +64,74 @@ void AOCGrenadeProjectile::BeginPlay()
 {
     Super::BeginPlay();
 
-    // The repository already contains a tracked R13 grenade mesh. Use it fail-closed: if it cannot be loaded,
-    // gameplay/collision may continue for diagnosis but the rejected Engine sphere never becomes visible.
-    UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr, Pass45GrenadeVisualPath);
-    if (!ProductionMesh || !GrenadeMesh)
-    {
-        UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s primitive_visible=0 gameplay_collision_preserved=1 runtime_acceptance=0"),
-            Pass45GrenadeVisualPath);
-    }
-    else
-    {
-        const FBoxSphereBounds Bounds = ProductionMesh->GetBounds();
-        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-        const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
-        if (NativeLength <= 1.0f)
-        {
-            UE_LOG(LogTemp, Error,
-                TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s invalid_bounds=1 primitive_visible=0 runtime_acceptance=0"),
-                Pass45GrenadeVisualPath);
-        }
-        else
-        {
-            const float UniformScale = Pass45GrenadeDesiredLengthCm / NativeLength;
-            GrenadeMesh->SetStaticMesh(ProductionMesh);
-            GrenadeMesh->SetRelativeLocation(-Bounds.Origin * UniformScale);
-            GrenadeMesh->SetRelativeRotation(FRotator::ZeroRotator);
-            GrenadeMesh->SetRelativeScale3D(FVector(UniformScale));
-            GrenadeMesh->ComponentTags.AddUnique(FName(TEXT("OC_ProductionGrenadeVisual")));
-            GrenadeMesh->SetHiddenInGame(false, true);
-            GrenadeMesh->SetVisibility(true, true);
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_READY asset=%s primitive_visible=0 production_visual=1 shared_generic_body=1 type_specific_content_gap=1"),
-                Pass45GrenadeVisualPath);
-        }
-    }
+    // Build presentation from the current replicated type. The current repository still has one shared body,
+    // but this lifecycle prevents future type-specific frag/smoke/flash art from being selected only from the
+    // constructor/default Fragmentation value before the authoritative type has replicated.
+    RefreshGrenadePresentation();
 
     if (HasAuthority())
     {
         GetWorldTimerManager().SetTimer(FuseTimerHandle, this, &AOCGrenadeProjectile::DetonateServer, FuseSeconds, false);
     }
+}
+
+void AOCGrenadeProjectile::RefreshGrenadePresentation()
+{
+    if (!GrenadeMesh)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s grenade_mesh_component=0 primitive_visible=0 gameplay_collision_preserved=1 runtime_acceptance=0"),
+            Pass45GrenadeVisualPath);
+        return;
+    }
+
+    GrenadeMesh->SetVisibility(false, true);
+    GrenadeMesh->SetHiddenInGame(true, true);
+
+    // The repository currently contains one tracked shared R13 grenade body. Keep that state explicit rather than
+    // pretending it satisfies the open type-specific frag/smoke/flash presentation requirement.
+    UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr, Pass45GrenadeVisualPath);
+    if (!ProductionMesh)
+    {
+        GrenadeMesh->SetStaticMesh(nullptr);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s type=%d primitive_visible=0 gameplay_collision_preserved=1 runtime_acceptance=0"),
+            Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType));
+        return;
+    }
+
+    const FBoxSphereBounds Bounds = ProductionMesh->GetBounds();
+    const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+    const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
+    if (NativeLength <= 1.0f)
+    {
+        GrenadeMesh->SetStaticMesh(nullptr);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s type=%d invalid_bounds=1 primitive_visible=0 runtime_acceptance=0"),
+            Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType));
+        return;
+    }
+
+    const float UniformScale = Pass45GrenadeDesiredLengthCm / NativeLength;
+    GrenadeMesh->SetStaticMesh(ProductionMesh);
+    GrenadeMesh->SetRelativeLocation(-Bounds.Origin * UniformScale);
+    GrenadeMesh->SetRelativeRotation(FRotator::ZeroRotator);
+    GrenadeMesh->SetRelativeScale3D(FVector(UniformScale));
+    GrenadeMesh->ComponentTags.AddUnique(FName(TEXT("OC_ProductionGrenadeVisual")));
+    GrenadeMesh->SetHiddenInGame(false, true);
+    GrenadeMesh->SetVisibility(true, true);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_READY asset=%s type=%d primitive_visible=0 production_visual=1 shared_generic_body=1 type_specific_content_gap=1 runtime_acceptance=0"),
+        Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GRENADE_PRESENTATION_TYPE_REFRESH type=%d replicated_type_refresh=1 shared_generic_body=1 type_specific_content_gap=1 runtime_acceptance=0"),
+        static_cast<int32>(GrenadeType));
+}
+
+void AOCGrenadeProjectile::OnRep_GrenadeType()
+{
+    RefreshGrenadePresentation();
 }
 
 void AOCGrenadeProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -116,6 +144,7 @@ void AOCGrenadeProjectile::InitializeGrenadeServer(EOCGrenadeType NewType, const
 {
     if (!HasAuthority()) return;
     GrenadeType = NewType;
+    RefreshGrenadePresentation();
     if (ProjectileMovement) ProjectileMovement->Velocity = InitialVelocity;
     ForceNetUpdate();
 }
