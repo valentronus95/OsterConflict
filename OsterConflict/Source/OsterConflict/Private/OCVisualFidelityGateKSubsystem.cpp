@@ -22,6 +22,15 @@ namespace
         return Mesh && Mesh->GetPathName().Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase);
     }
 
+    bool IsRuntimeVisibleBasicShape(const UStaticMeshComponent* Component)
+    {
+        if (!Component || !Component->IsRegistered() || !Component->IsVisible() || Component->bHiddenInGame)
+        {
+            return false;
+        }
+        return IsEngineBasicShape(Component->GetStaticMesh());
+    }
+
     void CountVisibleBasicShapes(AActor* Actor, int32& OutComponents, int32& OutInstances, TArray<FString>& OutNames)
     {
         if (!Actor) return;
@@ -30,8 +39,7 @@ namespace
         Actor->GetComponents(Components);
         for (UStaticMeshComponent* Component : Components)
         {
-            if (!Component || !Component->IsRegistered() || !Component->IsVisible()) continue;
-            if (!IsEngineBasicShape(Component->GetStaticMesh())) continue;
+            if (!IsRuntimeVisibleBasicShape(Component)) continue;
 
             int32 Instances = 1;
             if (const UInstancedStaticMeshComponent* ISM = Cast<UInstancedStaticMeshComponent>(Component))
@@ -94,9 +102,12 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
     for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         ++SectorCount;
-        CountVisibleBasicShapes(*It, BasicShapeComponents, BasicShapeInstances, BasicShapeNames);
     }
 
+    // Gate K is the final gameplay-world observer, not merely a landmark observer. Scan every actor so a visible
+    // Engine BasicShape cannot leak through a character, weapon, grenade, vehicle or another gameplay owner while
+    // the world/landmark subset still reports READY. Hidden-in-game collision/proxy components are intentionally
+    // excluded: they carry gameplay authority but are not rendered production content.
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
@@ -106,7 +117,6 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
         const bool bMuseum = Actor->ActorHasTag(MuseumPhotoModelTag);
         const bool bCultureHouse = Actor->ActorHasTag(CultureHousePhotoModelTag);
         const bool bSilpo = Actor->ActorHasTag(SilpoPhotoModelTag);
-        if (!bStadium && !bMuseum && !bCultureHouse && !bSilpo) continue;
 
         StadiumCount += bStadium ? 1 : 0;
         MuseumCount += bMuseum ? 1 : 0;
@@ -116,8 +126,11 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
         const int32 ComponentsBefore = BasicShapeComponents;
         const int32 InstancesBefore = BasicShapeInstances;
         CountVisibleBasicShapes(Actor, BasicShapeComponents, BasicShapeInstances, BasicShapeNames);
-        LandmarkBasicShapeComponents += BasicShapeComponents - ComponentsBefore;
-        LandmarkBasicShapeInstances += BasicShapeInstances - InstancesBefore;
+        if (bStadium || bMuseum || bCultureHouse || bSilpo)
+        {
+            LandmarkBasicShapeComponents += BasicShapeComponents - ComponentsBefore;
+            LandmarkBasicShapeInstances += BasicShapeInstances - InstancesBefore;
+        }
     }
 
     if (SectorCount != 1)
@@ -142,14 +155,14 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
     {
         const FString Names = FString::Join(BasicShapeNames, TEXT(","));
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_VISUAL_FIDELITY_CONTENT_GAP visible_basicshape_components=%d visible_basicshape_instances=%d landmark_basicshape_components=%d landmark_basicshape_instances=%d owners=OCWorldSectorOster,R13_StadionOsterAuthoritative,R137_MuseumPhotoModel,R146_CultureHouseModel,R140_SilpoModel sample=%s gate_k_complete=0"),
+            TEXT("PASS45_VISUAL_FIDELITY_CONTENT_GAP visible_basicshape_components=%d visible_basicshape_instances=%d landmark_basicshape_components=%d landmark_basicshape_instances=%d scope=all_gameplay_actors runtime_visible_only=1 hidden_in_game_ignored=1 sample=%s gate_k_complete=0"),
             BasicShapeComponents,
             BasicShapeInstances,
             LandmarkBasicShapeComponents,
             LandmarkBasicShapeInstances,
             *Names);
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=visible_basicshape_core_content components=%d instances=%d landmark_components=%d landmark_instances=%d gate_k_complete=0"),
+            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=visible_basicshape_core_content components=%d instances=%d landmark_components=%d landmark_instances=%d scope=all_gameplay_actors gate_k_complete=0"),
             BasicShapeComponents,
             BasicShapeInstances,
             LandmarkBasicShapeComponents,
@@ -158,5 +171,5 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GATE_K_RUNTIME_READY visible_basicshape_components=0 visible_basicshape_instances=0 landmark_basicshape_components=0 landmark_basicshape_instances=0 sector_owners=1 stadium_owners=1 museum_owners=1 culture_owners=1 silpo_owners=1 developer_markers=0 ground_cover_proxies=0 gate_k_complete=1"));
+        TEXT("PASS45_GATE_K_RUNTIME_READY visible_basicshape_components=0 visible_basicshape_instances=0 landmark_basicshape_components=0 landmark_basicshape_instances=0 sector_owners=1 stadium_owners=1 museum_owners=1 culture_owners=1 silpo_owners=1 developer_markers=0 ground_cover_proxies=0 scope=all_gameplay_actors runtime_visible_only=1 hidden_in_game_ignored=1 gate_k_complete=1"));
 }
