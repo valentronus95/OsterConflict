@@ -106,6 +106,14 @@ req('TObjectPtr<UNiagaraComponent> SmokeVFX' in smoke_h,
     'smoke header does not expose the single Niagara presentation owner')
 req('primitive sphere/cube substitute' in smoke_h.lower(),
     'smoke header does not preserve fail-closed primitive-retirement truth')
+req('SmokeHalfHeightCm' in smoke_h and 'GetSmokeHalfHeightCm' in smoke_h,
+    'smoke gameplay volume lost its explicit finite vertical bound')
+req('FMath::Abs(Delta.Z) > SmokeHalfHeightCm' in smoke,
+    'smoke ContainsPoint regressed to vertically unbounded occlusion')
+req('FVector2D(Delta.X, Delta.Y).SizeSquared()' in smoke,
+    'smoke finite-volume horizontal radius check is missing')
+req('finite_volume=1' in smoke and 'half_height_cm=' in smoke,
+    'smoke runtime evidence does not expose finite 3D gameplay-volume truth')
 req('"Niagara"' in build,
     'OsterConflict module does not declare the Niagara dependency required by authored smoke VFX')
 
@@ -131,5 +139,6 @@ print('- grenade inventory commits only after factual projectile spawn success')
 print('- successful throw emits a presentation event without a second gameplay timer')
 print('- primitive smoke-ball presentation remains physically retired')
 print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
+print('- smoke gameplay occlusion is finite in both horizontal radius and vertical half-height')
 print('- runtime smoke readiness proves authored payload load/activation but keeps manual visual acceptance pending')
 print('STATUS: SOURCE-INTEGRATED; local UE 5.8 smoke scale/look/performance acceptance remains pending')
