@@ -14,6 +14,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -24,8 +25,22 @@ namespace
 {
     constexpr float Pass45GrenadeDesiredLengthCm = 14.0f;
     const TCHAR* Pass45GrenadeVisualPath = TEXT("/Game/R13/Weapons/grenade.grenade");
+    const TCHAR* Pass45FragIdentityMaterialPath = TEXT("/Game/R13/Weapons/green.green");
+    const TCHAR* Pass45SmokeIdentityMaterialPath = TEXT("/Game/R13/Weapons/greyLight.greyLight");
+    const TCHAR* Pass45FlashIdentityMaterialPath = TEXT("/Game/R13/Weapons/sand.sand");
     const TCHAR* Pass45FragExplosionVFXPath =
         TEXT("/Game/Fire_EXP_Vol01_Free/Niagara/EXP/NS_Sub_EXP_Small_002.NS_Sub_EXP_Small_002");
+
+    const TCHAR* GetPass45GrenadeIdentityMaterialPath(EOCGrenadeType Type)
+    {
+        switch (Type)
+        {
+            case EOCGrenadeType::Fragmentation: return Pass45FragIdentityMaterialPath;
+            case EOCGrenadeType::Smoke: return Pass45SmokeIdentityMaterialPath;
+            case EOCGrenadeType::Flash: return Pass45FlashIdentityMaterialPath;
+            default: return Pass45FragIdentityMaterialPath;
+        }
+    }
 }
 
 AOCGrenadeProjectile::AOCGrenadeProjectile()
@@ -64,9 +79,8 @@ void AOCGrenadeProjectile::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Build presentation from the current replicated type. The current repository still has one shared body,
-    // but this lifecycle prevents future type-specific frag/smoke/flash art from being selected only from the
-    // constructor/default Fragmentation value before the authoritative type has replicated.
+    // Build presentation from the current replicated type. Exact per-type bodies remain an explicit content gap,
+    // but authored type-identity materials make the shared real body distinguishable without inventing geometry.
     RefreshGrenadePresentation();
 
     if (HasAuthority())
@@ -88,8 +102,8 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
     GrenadeMesh->SetVisibility(false, true);
     GrenadeMesh->SetHiddenInGame(true, true);
 
-    // The repository currently contains one tracked shared R13 grenade body. Keep that state explicit rather than
-    // pretending it satisfies the open type-specific frag/smoke/flash presentation requirement.
+    // The repository still contains one tracked shared R13 grenade body. Keep exact-body truth explicit while
+    // using only tracked authored materials to make frag/smoke/flash readable in flight and on the ground.
     UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr, Pass45GrenadeVisualPath);
     if (!ProductionMesh)
     {
@@ -114,19 +128,42 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
 
     const float UniformScale = Pass45GrenadeDesiredLengthCm / NativeLength;
     GrenadeMesh->SetStaticMesh(ProductionMesh);
+    GrenadeMesh->EmptyOverrideMaterials();
     GrenadeMesh->SetRelativeLocation(-Bounds.Origin * UniformScale);
     GrenadeMesh->SetRelativeRotation(FRotator::ZeroRotator);
     GrenadeMesh->SetRelativeScale3D(FVector(UniformScale));
     GrenadeMesh->ComponentTags.AddUnique(FName(TEXT("OC_ProductionGrenadeVisual")));
+
+    const TCHAR* IdentityMaterialPath = GetPass45GrenadeIdentityMaterialPath(GrenadeType);
+    UMaterialInterface* IdentityMaterial = LoadObject<UMaterialInterface>(nullptr, IdentityMaterialPath);
+    const int32 MaterialSlotCount = ProductionMesh->GetStaticMaterials().Num();
+    const bool bTypeIdentityMaterialReady = IdentityMaterial != nullptr && MaterialSlotCount > 0;
+    if (bTypeIdentityMaterialReady)
+    {
+        for (int32 MaterialIndex = 0; MaterialIndex < MaterialSlotCount; ++MaterialIndex)
+        {
+            GrenadeMesh->SetMaterial(MaterialIndex, IdentityMaterial);
+        }
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_READY material=%s type=%d authored_material=1 shared_generic_body=1 exact_type_body=0 type_distinguishable=1 runtime_acceptance=0"),
+            IdentityMaterialPath, static_cast<int32>(GrenadeType));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL material=%s type=%d material_slots=%d shared_generic_body=1 exact_type_body=0 type_distinguishable=0 runtime_acceptance=0"),
+            IdentityMaterialPath, static_cast<int32>(GrenadeType), MaterialSlotCount);
+    }
+
     GrenadeMesh->SetHiddenInGame(false, true);
     GrenadeMesh->SetVisibility(true, true);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_READY asset=%s type=%d primitive_visible=0 production_visual=1 shared_generic_body=1 type_specific_content_gap=1 runtime_acceptance=0"),
-        Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType));
+        TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_READY asset=%s type=%d primitive_visible=0 production_visual=1 shared_generic_body=1 type_identity_material=%d type_distinguishable=%d exact_type_body=0 type_specific_content_gap=1 runtime_acceptance=0"),
+        Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType), bTypeIdentityMaterialReady ? 1 : 0, bTypeIdentityMaterialReady ? 1 : 0);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GRENADE_PRESENTATION_TYPE_REFRESH type=%d replicated_type_refresh=1 shared_generic_body=1 type_specific_content_gap=1 runtime_acceptance=0"),
-        static_cast<int32>(GrenadeType));
+        TEXT("PASS45_GRENADE_PRESENTATION_TYPE_REFRESH type=%d replicated_type_refresh=1 shared_generic_body=1 type_identity_material=%d type_distinguishable=%d exact_type_body=0 type_specific_content_gap=1 runtime_acceptance=0"),
+        static_cast<int32>(GrenadeType), bTypeIdentityMaterialReady ? 1 : 0, bTypeIdentityMaterialReady ? 1 : 0);
 }
 
 void AOCGrenadeProjectile::OnRep_GrenadeType()
