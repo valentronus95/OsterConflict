@@ -28,6 +28,8 @@ presentation_h = read("OsterConflict/Source/OsterConflict/Public/OCFirstPersonWe
 presentation_cpp = read("OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp")
 profiles_h = read("OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h")
 profiles_cpp = read("OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp")
+animation_profiles_h = read("OsterConflict/Source/OsterConflict/Public/OCWeaponAnimationProfiles.h")
+animation_profiles_cpp = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp")
 audio_types = read("OsterConflict/Source/OsterConflict/Public/OCAudioTypes.h")
 audio_profile = read("OsterConflict/Source/OsterConflict/Public/OCWeaponAudioProfile.h")
 audio_component = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp")
@@ -109,6 +111,30 @@ for needle in (
 ):
     req(needle in profiles_cpp, f"manual-action profile declaration missing: {needle}")
 
+# Authored manual-action coverage must be a first-class animation contract. This does not claim content exists:
+# current M700/870/Lever slots are deliberately empty until exact compatible sequences are committed.
+for needle in (
+    "ManualActionAnimationObjectPath", "bRequiresManualActionAnimation",
+    "HasManualActionAnimation()", "HasRequiredManualActionCoverage()",
+):
+    req(needle in animation_profiles_h, f"manual-action authored animation slot missing: {needle}")
+
+for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT("R13_LEVER4570"))'):
+    start = animation_profiles_cpp.find(weapon_id)
+    end = animation_profiles_cpp.find("},", start)
+    block = animation_profiles_cpp[start:end + 2] if start >= 0 and end > start else ""
+    req(bool(block), f"animation profile missing manual-action weapon: {weapon_id}")
+    req('true, TEXT(""), true' in block,
+        f"{weapon_id} must require articulated/manual-action coverage while exact authored sequence remains empty")
+
+# Do not borrow the AK fire/reload sequences for bolt/pump/lever just to manufacture a green source status.
+for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT("R13_LEVER4570"))'):
+    start = animation_profiles_cpp.find(weapon_id)
+    end = animation_profiles_cpp.find("},", start)
+    block = animation_profiles_cpp[start:end + 2] if start >= 0 and end > start else ""
+    req("AK-47_Fire_W" not in block and "AK-47_Reload_W" not in block,
+        f"unrelated AK animation leaked into manual-action profile: {weapon_id}")
+
 req("ManualActionCycle" in audio_types, "manual-action audio event enum missing")
 for needle in ("BoltCycle", "PumpCycle", "LeverCycle"):
     req(needle in audio_profile, f"manual-action audio profile slot missing: {needle}")
@@ -118,6 +144,18 @@ for needle in (
     "Profile->BoltCycle", "Profile->PumpCycle", "Profile->LeverCycle", "MANUAL ACTION(content gap)",
 ):
     req(needle in audio_component, f"manual-action audio routing/content-gap truth missing: {needle}")
+
+# Pump has one real repository-owned mechanical cue today; bolt and lever remain explicit gaps.
+pump_asset = ROOT / "OsterConflict" / "Content" / "R13" / "Audio" / "shotguncock.uasset"
+req(pump_asset.is_file(), "tracked Remington pump mechanical sound is missing: R13/Audio/shotguncock.uasset")
+req('/Game/R13/Audio/shotguncock.shotguncock' in audio_component,
+    "PumpAction fallback no longer points at the tracked shotguncock asset")
+req("RepositoryFallbackProfile->PumpCycle.Add(Pump)" in audio_component,
+    "tracked pump sound is not routed into PumpCycle")
+req("RepositoryFallbackProfile->BoltCycle.Add" not in audio_component,
+    "bolt cycle acquired an unverified generic repository fallback")
+req("RepositoryFallbackProfile->LeverCycle.Add" not in audio_component,
+    "lever cycle acquired an unverified generic repository fallback")
 
 for needle in ("void AOCWeaponBase::OnRep_ActionCycling()", "OwnerCharacter->IsLocallyControlled()", "ManualActionCycle"):
     req(needle in manual_action_cpp, f"remote manual-action replication/audio path missing: {needle}")
@@ -137,7 +175,8 @@ if errors:
 
 print("PASS45 WEAPON ACTION MATRIX: PASS")
 print("- bolt/pump/lever remain authoritative replicated post-shot gates with explicit timings")
-print("- local first-person cue consumes that gate and adds no second gameplay timer")
-print("- whole-weapon/arms procedural motion is explicitly FALLBACK, never authored moving-part READY")
-print("- bolt/pump/lever audio routing is explicit; missing real content remains a visible content gap")
-print("STATUS: SOURCE FALLBACK FAIL-HONEST; authored moving-part animation/audio and local UE 5.8 acceptance remain pending")
+print("- M700/870/LeverAction are explicitly marked as requiring articulated manual-action animation")
+print("- authored manual-action animation has a dedicated fail-closed profile slot; current exact sequences remain gaps")
+print("- local first-person procedural cue consumes the authoritative gate and adds no second gameplay timer")
+print("- PumpCycle uses tracked R13/Audio/shotguncock; bolt/lever audio remain visible content gaps")
+print("STATUS: SOURCE CONTRACT FAIL-HONEST; authored moving-part sequences, bolt/lever audio and local UE 5.8 acceptance remain pending")
