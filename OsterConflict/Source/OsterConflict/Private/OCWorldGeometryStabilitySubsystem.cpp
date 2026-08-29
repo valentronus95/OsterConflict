@@ -135,11 +135,12 @@ namespace
         }
 
         // Item 31 upgrades all verified surface families before the 12-second stability baseline. None of these
-        // families may fall back to Engine BasicShape material/mesh acceptance after startup.
+        // families may fall back to Engine BasicShape material/mesh acceptance after startup. Block 0 now owns
+        // the imported KiteDemo ground material consistently across first-frame and stability validation.
         if (!HasAuthoredGroundSurface(
             FindStaticMeshComponent(Sector, TEXT("Ground")),
             TEXT("SM_Plane_1x1"),
-            TEXT("M_Inst_Landscape"),
+            TEXT("M_Ground_Grass2"),
             OutFailure)) return false;
         if (!HasAuthoredSurface(
             FindISM(Sector, TEXT("Roads")),
