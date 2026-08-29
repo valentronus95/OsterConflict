@@ -104,9 +104,13 @@ def main() -> int:
     forbid(gameplay, "PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL", errors, "launcher production visual gap")
 
     # Pass45 ordnance is fail-closed too. A strict acceptance run must factually throw at least one grenade in a
-    # valid open-space case so source-only spawn semantics cannot masquerade as gameplay acceptance.
+    # valid open-space case so source-only spawn semantics cannot masquerade as gameplay acceptance. The shared
+    # real grenade body may remain an explicit exact-body content gap, but its authored type-identity material must
+    # load successfully so frag/smoke/flash cannot silently collapse back to one indistinguishable presentation.
     require(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_READY", errors, "grenade production visual")
     forbid(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_FAIL", errors, "grenade production visual failure")
+    require(gameplay, "PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_READY", errors, "authored grenade type identity material")
+    forbid(gameplay, "PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL", errors, "grenade type identity material failure")
     require(gameplay, "PASS45_GRENADE_THROW_COMMIT_READY", errors, "transactional grenade throw")
     require(gameplay, "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY", errors, "grenade throw presentation event bridge")
     forbid(gameplay, "PASS45_GRENADE_SAFE_SPAWN_REJECTED", errors, "grenade spawn clearance rejection during acceptance throw")
@@ -182,6 +186,7 @@ def main() -> int:
         "REQUIRED_AVAILABLE_WEAPON_MATERIALS=PASS\n"
         "PRIMITIVE_WEAPON_VISUALS=PASS\n"
         "GRENADE_PRODUCTION_VISUAL=PASS\n"
+        "GRENADE_TYPE_IDENTITY_MATERIAL=PASS\n"
         "GRENADE_TRANSACTIONAL_THROW=PASS\n"
         "GRENADE_PRESENTATION_EVENT_BRIDGE=PASS\n"
         "SMOKE_AUTHORED_VFX=PASS\n"
@@ -201,7 +206,8 @@ def main() -> int:
     print("- authored HMMWV/M2/BTR materials passed")
     print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
-    print("- grenade production visual loaded; a factual throw committed inventory only after spawn and emitted presentation bridge evidence")
+    print("- grenade production visual and authored type-identity material loaded; exact per-type body content remains explicit")
+    print("- a factual grenade throw committed inventory only after spawn and emitted presentation bridge evidence")
     print("- smoke authored Niagara loaded/activated and no smoke load/content/volume failure was logged")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
