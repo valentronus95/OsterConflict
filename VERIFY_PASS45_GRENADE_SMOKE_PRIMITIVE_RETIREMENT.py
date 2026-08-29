@@ -150,8 +150,30 @@ req('primitive sphere/cube substitute' in smoke_h.lower(),
     'smoke header does not preserve fail-closed primitive-retirement truth')
 req('SmokeHalfHeightCm' in smoke_h and 'GetSmokeHalfHeightCm' in smoke_h,
     'smoke gameplay volume lost its explicit finite vertical bound')
-req('FMath::Abs(Delta.Z) > SmokeHalfHeightCm' in smoke,
-    'smoke ContainsPoint regressed to vertically unbounded occlusion')
+
+# Gameplay occlusion must grow with the smoke instead of becoming a full-radius invisible wall at detonation.
+# This is intentionally query-time math rather than a per-frame Tick owner; exact Niagara synchronization stays
+# pending until local UE 5.8 visual acceptance.
+req('SmokeExpansionSeconds' in smoke_h and 'GetSmokeExpansionSeconds' in smoke_h,
+    'smoke gameplay volume has no explicit expansion duration')
+req('PrimaryActorTick.bCanEverTick = false' in smoke,
+    'smoke expansion introduced a per-frame actor Tick')
+for needle in (
+    'GetGameTimeSinceCreation()',
+    'SafeExpansionSeconds',
+    'ExpansionAlpha',
+    'EffectiveRadiusCm',
+    'EffectiveHalfHeightCm',
+    'SmokeRadiusCm * ExpansionAlpha',
+    'SmokeHalfHeightCm * ExpansionAlpha',
+    'FMath::Abs(Delta.Z) > EffectiveHalfHeightCm',
+    'FMath::Square(EffectiveRadiusCm)',
+):
+    req(needle in smoke, f'smoke bounded expansion contract missing: {needle}')
+req('gameplay_volume_expands=1' in smoke and 'expansion_s=' in smoke,
+    'smoke runtime evidence does not expose expanding gameplay-volume truth')
+req('exact_visual_sync=0' in smoke,
+    'smoke source falsely claims exact Niagara/gameplay expansion synchronization')
 req('FVector2D(Delta.X, Delta.Y).SizeSquared()' in smoke,
     'smoke finite-volume horizontal radius check is missing')
 req('finite_volume=1' in smoke and 'half_height_cm=' in smoke,
@@ -184,6 +206,6 @@ print('- grenade inventory commits only after factual projectile spawn success')
 print('- successful throw emits a presentation event without a second gameplay timer')
 print('- primitive smoke-ball presentation remains physically retired')
 print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
-print('- smoke gameplay occlusion is finite in both horizontal radius and vertical half-height')
-print('- runtime smoke readiness proves authored payload load/activation but keeps manual visual acceptance pending')
+print('- smoke gameplay occlusion is finite and expands by query-time game age without an actor Tick')
+print('- exact Niagara/gameplay expansion synchronization and manual visual acceptance remain pending')
 print('STATUS: SOURCE-INTEGRATED; exact grenade bodies + flash world VFX + local UE 5.8 visual acceptance remain pending')
