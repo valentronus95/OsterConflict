@@ -120,8 +120,8 @@ forbid(engine_config, "r.DefaultFeature.AutoExposure=False", "Pass45 renderer ex
 forbid(engine_config, "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=False", "Pass45 EV100 exposure contract")
 
 # AOCWorldSectorOster still owns deterministic initial Cube transforms. Item 31 upgrades verified surface families
-# before the 12-second baseline. Ground now has an explicit committed landscape material; the ISM road/path/fence
-# families must continue to use the authored meshes' packaged materials rather than receiving runtime recolors.
+# before the 12-second baseline. Ground now has the selected KiteDemo material; the ISM road/path/fence families
+# must continue to use the authored meshes' packaged materials rather than receiving runtime recolors.
 for needle in (
     "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
     "Tint(Ground",
@@ -132,7 +132,7 @@ for needle in (
 
 for needle in (
     "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
-    "/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape",
+    "/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Asphalt_01/SM_Urb_Roa_Asphalt_01.SM_Urb_Roa_Asphalt_01",
     "/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01",
     "/Game/AdvancedVillagePack/Meshes/SM_Stonepath_Var01.SM_Stonepath_Var01",
@@ -286,7 +286,7 @@ for needle in (
     "HasAuthoredGroundSurface",
     "HasAuthoredSurface",
     "SM_Plane_1x1",
-    "M_Inst_Landscape",
+    "M_Ground_Grass2",
     "SM_Urb_Roa_Asphalt_01",
     "SM_Urb_Roa_Sidewalk_01",
     "SM_Stonepath_Var01",
@@ -332,7 +332,7 @@ for needle in (
 print("WORLD GEOMETRY STABILITY PASS12/PASS45 ITEM31 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers remain cancelled and identity validation stays mutation-free")
 print("- Pass45 daylight remains component-owned: 120000 lux + AutoExposure=True + extended EV100 range")
-print("- playable Ground upgrades before baseline to tracked SM_Plane_1x1 + M_Inst_Landscape with XY/top-Z preserved")
+print("- playable Ground upgrades before baseline to tracked SM_Plane_1x1 + KiteDemo M_Ground_Grass2 with XY/top-Z preserved")
 print("- Roads/Sidewalks/ParkPaths/Fences upgrade before baseline to tracked authored meshes with packaged materials")
 print("- Pass12 validates Ground plus four authored ISM surface families at 12s, 16s and 20s")
 print("- no unrelated late source owner may mutate Ground/Roads/Sidewalks/ParkPaths/Fences materials")
