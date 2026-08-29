@@ -6,6 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
@@ -101,14 +102,45 @@ namespace
         return false;
     }
 
+    bool IsPlaceholderTexture(const UTexture* Texture)
+    {
+        if (!Texture) return true;
+        const FString Path = Texture->GetPathName();
+        const FString Name = Texture->GetName();
+        return Path.Contains(TEXT("DefaultTexture"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WhiteSquareTexture"), ESearchCase::IgnoreCase) ||
+            Name.Equals(TEXT("DefaultTexture"), ESearchCase::IgnoreCase) ||
+            Name.Equals(TEXT("WhiteSquareTexture"), ESearchCase::IgnoreCase);
+    }
+
     bool IsMissingOrDefaultMaterial(const UMaterialInterface* Material)
     {
         if (!Material) return true;
         const FString Path = Material->GetPathName();
-        return Path.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial"), ESearchCase::IgnoreCase) ||
+        const bool bPlaceholderMaterial =
+            Path.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial"), ESearchCase::IgnoreCase) ||
             Path.Contains(TEXT("/Engine/BasicShapes/BasicShapeMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WorldGridMaterial"), ESearchCase::IgnoreCase) ||
             Material->GetName().Equals(TEXT("DefaultMaterial"), ESearchCase::IgnoreCase) ||
             Material->GetName().Equals(TEXT("BasicShapeMaterial"), ESearchCase::IgnoreCase);
+        if (bPlaceholderMaterial) return true;
+
+        // Item 18 requires authored material -> real texture dependencies. A non-default material object with
+        // zero render textures is still a factual content gap and must never produce MATERIAL_AUDIT_READY.
+        TArray<UTexture*> UsedTextures;
+        Material->GetUsedTextures(
+            UsedTextures,
+            EMaterialQualityLevel::High,
+            true,
+            ERHIFeatureLevel::SM5,
+            true);
+        if (UsedTextures.IsEmpty()) return true;
+
+        for (const UTexture* Texture : UsedTextures)
+        {
+            if (IsPlaceholderTexture(Texture)) return true;
+        }
+        return false;
     }
 }
 
