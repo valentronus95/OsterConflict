@@ -8,6 +8,7 @@ CHARACTER = SRC / "Private" / "OCCharacter.cpp"
 VISUAL_TYPES = SRC / "Public" / "OCCharacterVisualTypes.h"
 SMOKE = SRC / "Private" / "OCSmokeCloud.cpp"
 SMOKE_H = SRC / "Public" / "OCSmokeCloud.h"
+SMOKE_ASSET = ROOT / "OsterConflict" / "Content" / "PotaVFX_Smoke" / "VFX" / "System" / "ColorSmoke" / "NS_SmokeGradient_Loop.uasset"
 BUILD = SRC / "OsterConflict.Build.cs"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
 
@@ -81,12 +82,16 @@ req(throw_block.count('--(*Count)') == 1,
 
 # The imported authored Niagara donor is now the sole smoke presentation owner.
 smoke_asset = '/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop'
+req(SMOKE_ASSET.is_file(),
+    'authored smoke Niagara payload referenced by runtime code is not committed in the repository')
 req(smoke_asset in smoke,
     'imported authored smoke Niagara system is not wired into AOCSmokeCloud')
 req('UNiagaraComponent' in smoke and 'UNiagaraSystem' in smoke,
     'smoke runtime does not own/load the authored Niagara presentation')
 req('PASS45_SMOKE_VFX_DONOR_WIRED' in smoke and 'authored_niagara=1' in smoke,
     'authored smoke Niagara integration does not emit source-visible wiring evidence')
+req('PASS45_SMOKE_VFX_RUNTIME_READY' in smoke and 'runtime_loaded=1' in smoke and 'manual_visual_acceptance=0' in smoke,
+    'smoke runtime cannot prove factual Niagara load/activation without falsely claiming manual visual acceptance')
 req('PASS45_SMOKE_VFX_LOAD_FAIL' in smoke and 'primitive_visible=0' in smoke,
     'smoke VFX load failure is not visibly fail-closed')
 req('PASS45_SMOKE_VFX_CONTENT_GAP' not in smoke,
@@ -125,5 +130,6 @@ print('- authoritative throw uses swept/overlap-checked spawn clearance')
 print('- grenade inventory commits only after factual projectile spawn success')
 print('- successful throw emits a presentation event without a second gameplay timer')
 print('- primitive smoke-ball presentation remains physically retired')
-print('- imported PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
+print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
+print('- runtime smoke readiness proves authored payload load/activation but keeps manual visual acceptance pending')
 print('STATUS: SOURCE-INTEGRATED; local UE 5.8 smoke scale/look/performance acceptance remains pending')
