@@ -36,8 +36,8 @@ void AOCSmokeCloud::BeginPlay()
     if (GetNetMode() == NM_DedicatedServer)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_SMOKE_VFX_SERVER_SKIP gameplay_occlusion=1 finite_volume=1 radius_cm=%.1f half_height_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-            SmokeRadiusCm, SmokeHalfHeightCm, LifetimeSeconds);
+            TEXT("PASS45_SMOKE_VFX_SERVER_SKIP gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
         return;
     }
 
@@ -46,27 +46,36 @@ void AOCSmokeCloud::BeginPlay()
     {
         SmokeVFX->DeactivateImmediate();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 radius_cm=%.1f half_height_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-            Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, LifetimeSeconds);
+            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
         return;
     }
 
     SmokeVFX->SetAsset(SmokeSystem);
     SmokeVFX->Activate(true);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 radius_cm=%.1f half_height_cm=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-        Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, LifetimeSeconds);
+        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+        Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
 
     // Automated runtime readiness proves only that the authored Niagara payload loaded and was activated in a
-    // real gameplay client. It deliberately does NOT claim that smoke scale/look/performance was visually accepted.
+    // real gameplay client. It deliberately does NOT claim exact visual/gameplay expansion synchronization or
+    // that smoke scale/look/performance was visually accepted.
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 manual_visual_acceptance=0"),
-        Pass45SmokeNiagaraPath);
+        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 expansion_s=%.1f exact_visual_sync=0 manual_visual_acceptance=0"),
+        Pass45SmokeNiagaraPath, SmokeExpansionSeconds);
 }
 
 bool AOCSmokeCloud::ContainsPoint(const FVector& WorldPoint) const
 {
+    // No Tick is required. Game-time age makes each visibility query observe the same bounded expansion curve.
+    // This prevents a full-size invisible occlusion volume from existing before the authored smoke has had time
+    // to develop. The 3 s source default is deliberately not labelled visually calibrated until local UE 5.8.
+    const float SafeExpansionSeconds = FMath::Max(0.05f, SmokeExpansionSeconds);
+    const float ExpansionAlpha = FMath::Clamp(GetGameTimeSinceCreation() / SafeExpansionSeconds, 0.0f, 1.0f);
+    const float EffectiveRadiusCm = SmokeRadiusCm * ExpansionAlpha;
+    const float EffectiveHalfHeightCm = SmokeHalfHeightCm * ExpansionAlpha;
+
     const FVector Delta = WorldPoint - GetActorLocation();
-    if (FMath::Abs(Delta.Z) > SmokeHalfHeightCm) return false;
-    return FVector2D(Delta.X, Delta.Y).SizeSquared() <= FMath::Square(SmokeRadiusCm);
+    if (FMath::Abs(Delta.Z) > EffectiveHalfHeightCm) return false;
+    return FVector2D(Delta.X, Delta.Y).SizeSquared() <= FMath::Square(EffectiveRadiusCm);
 }
