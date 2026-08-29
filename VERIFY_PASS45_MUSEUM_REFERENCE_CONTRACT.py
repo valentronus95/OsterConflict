@@ -8,6 +8,7 @@ PACK_ROOT = ROOT / "_DOCS" / "REFERENCE_PACKS" / "LOC_MUSEUM_001_OSTER_MUSEUM"
 REF = PACK_ROOT / "REFERENCE_SPEC.md"
 AUDIT = PACK_ROOT / "CURRENT_SOURCE_GAP_AUDIT_2026-08-28.md"
 GROUNDING = PACK_ROOT / "PUBLIC_GROUNDING_RECONCILIATION_2026-08-28.md"
+SOURCE = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCR137MuseumPhotoModelSubsystem.cpp"
 
 errors: list[str] = []
 
@@ -29,6 +30,7 @@ bindings = read(BINDINGS)
 ref = read(REF)
 audit = read(AUDIT)
 grounding = read(GROUNDING)
+source = read(SOURCE)
 
 # Canonical Pass45 remains the execution/status owner; the location pack is a bound subordinate Gate E/K contract.
 req("single canonical active TZ for Pass 45" in tz,
@@ -92,6 +94,32 @@ for needle in ("Museum", "Culture House", "Silpo"):
 req("different places and different runtime/site owners" in ref,
     "Museum/Culture House/Silpo separation is no longer a hard reference rule")
 
+# Item 32 source continuation: the current museum owner must now carry a conservative reference-backed site slice.
+# It remains explicitly provisional and must never impersonate direct UE 5.8 screenshot acceptance.
+for needle in (
+    "/Game/KiteDemo/LevelContent/Architecture/SM_1Meter_01.SM_1Meter_01",
+    "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_2_Inst.M_Concrete_2_Inst",
+    "/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01",
+    "R137Museum_AuthoredConcreteApproach",
+    "R137Museum_ReferenceConiferCorridor",
+    "PASS45_MUSEUM_SITE_REFERENCE_SLICE_READY",
+    "path=straight_concrete_pedestrian",
+    "slabs=6",
+    "conifer_corridor=8",
+    "exact_tree_species_claim=0",
+    "exact_site_coordinates_claim=0",
+    "stadium_owner_duplicated=0",
+    "runtime_visual_acceptance=pending",
+):
+    req(needle in source, f"Museum site reference source slice missing/falsified: {needle}")
+
+req("/Engine/BasicShapes/" not in source,
+    "Museum R137 source owner regressed to an Engine BasicShape visual")
+req("SM_Stonepath_Var01" not in source,
+    "Museum hero approach incorrectly reused the Central Park decorative stone-path family")
+req("runtime_visual_acceptance=accepted" not in source and "runtime_photo_acceptance=1" not in source,
+    "Museum source code falsely claims runtime visual/photo acceptance")
+
 if errors:
     print("PASS45 MUSEUM REFERENCE CONTRACT: FAIL")
     for error in errors:
@@ -103,7 +131,9 @@ print("- canonical Pass45 TZ remains the execution/status owner")
 print("- LOC_MUSEUM_001 is bound as a normative Gate E/K visual-reference appendix")
 print("- VERIFIED/PROBABLE/UNKNOWN evidence classes and Museum identity anchors are guarded")
 print("- public identity/address grounding cannot overwrite the photo-driven visible exterior")
+print("- R137 now owns a narrow authored concrete approach plus a conservative mature-conifer corridor source slice")
+print("- the site slice does not claim exact paving dimensions, exact tree species/coordinates, or stadium ownership")
 print("- MUS-CAM-01..07 remain mandatory direct UE 5.8 visual evidence")
 print("- Museum-adjacent field vs modernized stadium conflict remains fail-visible until explicitly resolved")
 print("- Central Park ParkPaths and the Museum hero approach cannot be silently merged")
-print("STATUS: REFERENCE CONTRACT SOURCE-GUARDED; UE 5.8 RUNTIME VISUAL ACCEPTANCE REMAINS REQUIRED")
+print("STATUS: REFERENCE/SITE SOURCE CONTRACT GUARDED; UE 5.8 RUNTIME VISUAL ACCEPTANCE REMAINS REQUIRED")
