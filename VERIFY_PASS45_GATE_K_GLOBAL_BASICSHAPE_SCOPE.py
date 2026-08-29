@@ -3,16 +3,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 GUARD = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCVisualFidelityGateKSubsystem.cpp"
+RUNTIME_VERIFY = ROOT / "VERIFY_PASS45_GATE_K_RUNTIME_LOG.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "pass45-gate-k-global-basicshape-scope.yml"
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"PASS45 GATE K GLOBAL BASICSHAPE SCOPE FAIL: {message}")
 
 
-if not GUARD.is_file():
-    fail(f"missing {GUARD.relative_to(ROOT)}")
+for path in (GUARD, RUNTIME_VERIFY, WORKFLOW):
+    if not path.is_file():
+        fail(f"missing {path.relative_to(ROOT)}")
 
 text = GUARD.read_text(encoding="utf-8", errors="replace")
+runtime_verify = RUNTIME_VERIFY.read_text(encoding="utf-8", errors="replace")
+workflow = WORKFLOW.read_text(encoding="utf-8", errors="replace")
 
 required = (
     "IsRuntimeVisibleBasicShape",
@@ -28,7 +33,7 @@ required = (
 )
 for needle in required:
     if needle not in text:
-        fail(f"missing {needle!r}")
+        fail(f"runtime observer missing {needle!r}")
 
 # The final observer must not mutate scenery to manufacture a pass.
 for forbidden in ("SetVisibility(false", "SetHiddenInGame(true", "DestroyComponent"):
@@ -44,4 +49,32 @@ if "CountVisibleBasicShapes(*It, BasicShapeComponents" in text:
 if text.count("CountVisibleBasicShapes(Actor, BasicShapeComponents, BasicShapeInstances, BasicShapeNames);") != 1:
     fail("global actor BasicShape observation must have exactly one counting site")
 
-print("PASS45 GATE K GLOBAL BASICSHAPE SCOPE PASS: all gameplay actors observed; hidden-in-game collision/proxy components excluded; observer remains non-mutating")
+# Current-head runtime evidence must reject a stale narrow READY marker. Require all zero-count/scope fields on the
+# READY line itself, not merely somewhere else in the gameplay log.
+runtime_required = (
+    'ready_lines = [line for line in text.splitlines() if "PASS45_GATE_K_RUNTIME_READY" in line]',
+    "ready_line = ready_lines[-1]",
+    '"visible_basicshape_components=0"',
+    '"visible_basicshape_instances=0"',
+    '"landmark_basicshape_components=0"',
+    '"landmark_basicshape_instances=0"',
+    '"scope=all_gameplay_actors"',
+    '"runtime_visible_only=1"',
+    '"hidden_in_game_ignored=1"',
+    '"gate_k_complete=1"',
+    "Gate K READY line missing current-scope field",
+)
+for needle in runtime_required:
+    if needle not in runtime_verify:
+        fail(f"runtime evidence verifier missing current-scope guard {needle!r}")
+
+# Changing either the observer or runtime evidence verifier must rerun this dedicated contract on PR and main.
+for path_token in (
+    "OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp",
+    "VERIFY_PASS45_GATE_K_RUNTIME_LOG.py",
+    "VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py",
+):
+    if workflow.count(path_token) < 2:
+        fail(f"workflow does not trigger on both PR/main changes for {path_token}")
+
+print("PASS45 GATE K GLOBAL BASICSHAPE SCOPE PASS: all gameplay actors observed; stale narrow READY logs rejected; hidden-in-game collision/proxy components excluded; observer remains non-mutating")
