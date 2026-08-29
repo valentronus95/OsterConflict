@@ -263,5 +263,13 @@ void UOCCharacterVisualComponent::BroadcastActionServer(EOCCharacterActionEvent 
 
 void UOCCharacterVisualComponent::MulticastCharacterAction_Implementation(EOCCharacterActionEvent Event, int32 EventSeed)
 {
+    if (Event == EOCCharacterActionEvent::GrenadeThrow)
+    {
+        // Pass45 item 24: the replicated cosmetic bridge exists, but the repository has no accepted authored
+        // first-person hand/throw/recover sequence wired here yet. Keep gameplay flowing while making the visual
+        // content gap fatal to final runtime acceptance instead of allowing a Blueprint hook to impersonate proof.
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP event=GrenadeThrow native_authored_sequence=0 blueprint_hook_dispatched=1 second_gameplay_timer=0 runtime_visual_acceptance=0"));
+    }
     BP_OnCharacterAction(Event, EventSeed);
 }
