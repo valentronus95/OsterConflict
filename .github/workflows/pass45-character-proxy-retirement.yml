@@ -1,0 +1,34 @@
+name: Pass 45 character proxy retirement
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'VERIFY_PASS45_CHARACTER_PROXY_RETIREMENT.py'
+      - '.github/workflows/pass45-character-proxy-retirement.yml'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'VERIFY_PASS45_CHARACTER_PROXY_RETIREMENT.py'
+      - '.github/workflows/pass45-character-proxy-retirement.yml'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Pass45 character proxy retirement
+        run: python VERIFY_PASS45_CHARACTER_PROXY_RETIREMENT.py
