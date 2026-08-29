@@ -10,6 +10,7 @@ set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "GATE_K_VERIFY=%~dp0VERIFY_PASS45_GATE_K_RUNTIME_LOG.py"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 set "GRENADE_ANIM_VERIFY=%~dp0VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py"
+set "FLASH_VFX_VERIFY=%~dp0VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
 set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\weapon_runtime_validation.txt"
@@ -46,6 +47,10 @@ if not exist "%EVIDENCE_VERIFY%" (
 )
 if not exist "%GRENADE_ANIM_VERIFY%" (
   echo [ACCEPTANCE] FAILED - Pass45 grenade throw animation verifier is missing: %GRENADE_ANIM_VERIFY%
+  exit /b 4
+)
+if not exist "%FLASH_VFX_VERIFY%" (
+  echo [ACCEPTANCE] FAILED - Pass45 flash grenade VFX verifier is missing: %FLASH_VFX_VERIFY%
   exit /b 4
 )
 
@@ -119,12 +124,25 @@ if not "%GRENADE_ANIM_RC%"=="0" (
 )
 
 echo.
+echo [ACCEPTANCE] Verifying distinct authored flash-grenade world VFX evidence...
+%PY_CMD% "%FLASH_VFX_VERIFY%" "%GAMEPLAY_LOG%"
+set "FLASH_VFX_RC=%ERRORLEVEL%"
+if not "%FLASH_VFX_RC%"=="0" (
+  echo.
+  echo [ACCEPTANCE] FAILED - Pass45 flash grenade has no accepted distinct authored world presentation.
+  echo Gameplay flash semantics alone cannot satisfy item 24 frag/smoke/flash visual distinction.
+  echo Gameplay log: %GAMEPLAY_LOG%
+  exit /b %FLASH_VFX_RC%
+)
+
+echo.
 echo ============================================================
 echo [ACCEPTANCE] PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED.
 echo [ACCEPTANCE] Source: %PASS45_SOURCE_SHA%
 echo [ACCEPTANCE] Evidence: %EVIDENCE_OUT%
 echo [ACCEPTANCE] Gate K: zero visible Engine BasicShape core content in final Oster/stadium presentation.
 echo [ACCEPTANCE] Grenade throw: authored hand/throw/recover runtime evidence present.
+echo [ACCEPTANCE] Flash grenade: distinct authored world VFX runtime evidence present.
 echo [ACCEPTANCE] Exact weapon payload gaps remain CONTENT GAP unless real production content is later supplied.
 echo [ACCEPTANCE] VISUAL ACCEPTANCE IS STILL PENDING direct screenshots/observation.
 echo ============================================================
