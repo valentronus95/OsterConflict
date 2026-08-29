@@ -27,7 +27,7 @@ protected:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Grenade|Audio") TObjectPtr<UOCWorldAudioComponent> WorldAudioComponent;
 
-    UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Grenade")
+    UPROPERTY(ReplicatedUsing=OnRep_GrenadeType, VisibleInstanceOnly, BlueprintReadOnly, Category="Grenade")
     EOCGrenadeType GrenadeType = EOCGrenadeType::Fragmentation;
 
     UPROPERTY(EditDefaultsOnly, Category="Grenade") float FuseSeconds = 3.25f;
@@ -41,6 +41,11 @@ protected:
 
 private:
     FTimerHandle FuseTimerHandle;
+
+    UFUNCTION()
+    void OnRep_GrenadeType();
+
+    void RefreshGrenadePresentation();
     void DetonateServer();
     void ApplyFlashServer();
     void ApplyBoundedPhysicsImpulseServer(float Radius, float Strength);
