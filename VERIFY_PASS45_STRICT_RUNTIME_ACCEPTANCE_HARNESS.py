@@ -122,6 +122,26 @@ for marker in (
 ):
     req(marker in evidence, f"Pass45 thermal/fullscreen evidence verifier missing marker/contract: {marker}")
 
+# Gate D ordnance acceptance must be factual too: authored smoke must load/activate in gameplay and every donor
+# load/content/volume failure remains fatal. Automated readiness never upgrades manual visual acceptance.
+for marker in (
+    "PASS45_GRENADE_PRODUCTION_VISUAL_READY",
+    "PASS45_GRENADE_THROW_COMMIT_READY",
+    "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY",
+    "PASS45_SMOKE_VFX_RUNTIME_READY",
+    "SMOKE_AUTHORED_VFX=PASS",
+):
+    req(marker in evidence, f"Pass45 ordnance evidence verifier missing required marker/contract: {marker}")
+for marker in (
+    "PASS45_GRENADE_PRODUCTION_VISUAL_FAIL",
+    "PASS45_GRENADE_SAFE_SPAWN_REJECTED",
+    "PASS45_GRENADE_SPAWN_FAIL",
+    "PASS45_SMOKE_VFX_LOAD_FAIL",
+    "PASS45_SMOKE_VFX_CONTENT_GAP",
+    "PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL",
+):
+    req(marker in evidence, f"Pass45 ordnance evidence verifier does not reject failure marker: {marker}")
+
 # Acceptance must force the actual interaction sequence that reproduces the rejected teleport/M2 bugs and must
 # require material truth for the rack actually rendered in gameplay.
 for marker in (
@@ -176,6 +196,7 @@ print("- P0 black-world automated evidence requires physical daylight plus stabl
 print("- Gate D automated evidence requires distinct Museum/R14.0 Silpo/Culture House authoritative identities and rejects cross-parcel placement")
 print("- Gate E automated evidence requires zero generic residential/private-fence instances and zero rejected village/tower/shack presentation")
 print("- Gate C/H automated evidence requires actual UE t.MaxFPS=60 and a live fullscreen viewport after possession")
+print("- ordnance evidence requires factual grenade throw plus authored smoke runtime readiness and rejects smoke load/content/volume failures")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
 print("- world/material, landmark identity, Gate E, thermal/display, vehicle/weapon material and transform failures are fatal")
