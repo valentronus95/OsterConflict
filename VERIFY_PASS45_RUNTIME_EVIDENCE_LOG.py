@@ -120,6 +120,21 @@ def main() -> int:
     forbid(gameplay, "PASS45_SMOKE_VFX_CONTENT_GAP", errors, "missing authored smoke VFX")
     forbid(gameplay, "PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL", errors, "smoke gameplay volume spawn failure")
 
+    # A stale smoke READY from before bounded expansion must not pass the current runtime gate. Check the latest
+    # factual READY line itself so unrelated log text cannot satisfy the fields. exact_visual_sync=0 is intentional:
+    # source/gameplay expansion exists, while exact Niagara timing still requires direct UE 5.8 calibration.
+    smoke_ready_lines = [line for line in gameplay.splitlines() if "PASS45_SMOKE_VFX_RUNTIME_READY" in line]
+    if smoke_ready_lines:
+        smoke_ready_line = smoke_ready_lines[-1]
+        for marker in (
+            "gameplay_volume_expands=1",
+            "expansion_s=",
+            "exact_visual_sync=0",
+            "manual_visual_acceptance=0",
+        ):
+            if marker not in smoke_ready_line:
+                errors.append(f"smoke READY line missing current expansion field: {marker}")
+
     # Production vehicle authored materials remain a hard Gate G requirement.
     require(material, "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY", errors, "vehicle material readiness")
     require(material, "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY", errors, "production material bypass")
@@ -190,6 +205,7 @@ def main() -> int:
         "GRENADE_TRANSACTIONAL_THROW=PASS\n"
         "GRENADE_PRESENTATION_EVENT_BRIDGE=PASS\n"
         "SMOKE_AUTHORED_VFX=PASS\n"
+        "SMOKE_GAMEPLAY_EXPANSION_CONTRACT=PASS\n"
         "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
         "EXACT_WEAPON_CONTENT_GAPS=ALLOWED_IF_EXPLICIT_FALLBACK_PASSES\n",
         encoding="utf-8",
@@ -208,7 +224,7 @@ def main() -> int:
     print("- launcher production visual did not fall back to rejected primitive geometry")
     print("- grenade production visual and authored type-identity material loaded; exact per-type body content remains explicit")
     print("- a factual grenade throw committed inventory only after spawn and emitted presentation bridge evidence")
-    print("- smoke authored Niagara loaded/activated and no smoke load/content/volume failure was logged")
+    print("- smoke authored Niagara loaded/activated and current READY proves bounded gameplay expansion without claiming exact visual sync")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0
