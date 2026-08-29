@@ -2,8 +2,10 @@
 
 Date: 2026-08-29  
 Parent TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`  
-Execution branch: `content/free-gameplay-assets-intake-20260828-r2`  
-Status: **ACTIVE / MUST COMPLETE BEFORE CONTENT MERGE**
+Canonical execution branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
+Origin intake branch: `content/free-gameplay-assets-intake-20260828-r2`  
+Merge state: **MERGED INTO CANONICAL PASS45 BRANCH**  
+Status: **ACTIVE INTEGRATION / NOT RUNTIME ACCEPTED**
 
 ## 0. Execution semantics
 
@@ -16,6 +18,7 @@ The mandatory state machine is:
 Rules:
 
 - `DOWNLOADED`, `ACQUIRED`, `INVENTORIED` and `FILE_EXISTS` are never completion states;
+- merge of the former intake branch into canonical PASS45 is not completion and is not runtime acceptance;
 - after acquisition the executor must continue into migration/import, runtime ownership wiring, production-path selection, optimization and UE 5.8 validation;
 - every selected third-party pack/model/animation/audio/VFX item must have a row in `PASS45_CONTENT_INTEGRATION_LEDGER.csv`;
 - every ledger row must identify role, target integration, runtime owner, required evidence and state;
@@ -31,6 +34,8 @@ Rules:
 Make gameplay-content intake an explicit PASS45 gate. The objective is not to dump every free Fab pack into shipping content. The objective is to acquire, inventory, select, migrate, integrate, optimize and runtime-validate the assets needed for a complete first-person gameplay presentation.
 
 This file is subordinate to `PASS45_RUNTIME_RECOVERY_TZ.md`. It does not override runtime rejection evidence. A downloaded file is never equivalent to a production-ready asset.
+
+The former intake branch has already been merged into the canonical PASS45 recovery branch. All further integration, ledger mutation, verifier updates and runtime acceptance work now occurs on the canonical PASS45 branch unless the parent TZ explicitly changes execution authority.
 
 ## 2. Mandatory execution command
 
@@ -127,6 +132,14 @@ Required application intent:
 - `VehicleVarietyPack` -> support/civilian candidate only unless exact identity is proven; it must never impersonate HMMWV/BTR production identity;
 - downloaded shotgun/footstep/vehicle/ambient/fire audio -> mapped only through the correct project-owned audio systems and never falsely labelled as exact recordings when they are generic donors.
 
+Current source-integration facts on the canonical PASS45 branch:
+
+- `Fire_EXP_Vol01_Free` selected explosion Niagara is wired into factual grenade detonation presentation;
+- `PotaVFX_Smoke` selected smoke Niagara is wired to the smoke gameplay volume without restoring primitive smoke spheres;
+- KiteDemo `FieldGrass`, fern, field-flower and selected `HillTree`/`ScotsPine` families are wired through existing Block0 foliage/tree runtime owners;
+- PN Foliage Collection remains an explicit runtime fallback behind the selected intake foliage;
+- these are `INTEGRATED` source states only; direct UE 5.8 visual/performance acceptance remains pending.
+
 ## 5. Required integration work after acquisition
 
 ### CI-FP-ARMS
@@ -195,6 +208,8 @@ Primitive sphere/cube smoke or default placeholder effects are forbidden as acce
 ### CI-WORLD
 
 Select only environment assets that fit photographed Oster references. Generic houses/roads/vegetation may be used as supporting detail only when they do not replace reference-specific landmarks or contradict the location evidence.
+
+For current Block 0, environment work stays scoped to ground/grass foundation, selected regional vegetation and related performance/LOD/source guards. Later landmark, weapon and vehicle blocks remain locked by `PASS45_BLOCK_EXECUTION_PLAN.md` until Block 0 is runtime accepted/frozen.
 
 ## 6. Anti-bloat rules
 
