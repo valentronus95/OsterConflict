@@ -9,6 +9,9 @@ VISUAL_TYPES = SRC / "Public" / "OCCharacterVisualTypes.h"
 SMOKE = SRC / "Private" / "OCSmokeCloud.cpp"
 SMOKE_H = SRC / "Public" / "OCSmokeCloud.h"
 SMOKE_ASSET = ROOT / "OsterConflict" / "Content" / "PotaVFX_Smoke" / "VFX" / "System" / "ColorSmoke" / "NS_SmokeGradient_Loop.uasset"
+FRAG_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "green.uasset"
+SMOKE_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "greyLight.uasset"
+FLASH_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "sand.uasset"
 BUILD = SRC / "OsterConflict.Build.cs"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
 
@@ -46,6 +49,26 @@ req('PASS45_GRENADE_PRODUCTION_VISUAL_FAIL' in grenade and 'primitive_visible=0'
     'grenade production visual does not fail closed with primitive hidden')
 req('OC_ProductionGrenadeVisual' in grenade,
     'production grenade component is not explicitly tagged')
+
+# Until exact per-type bodies are committed, the shared real mesh must still be readable by type through tracked
+# authored materials. This is identity assistance, not permission to claim the exact grenade-body content gap closed.
+for material_path, object_path, label in (
+    (FRAG_IDENTITY_MAT, '/Game/R13/Weapons/green.green', 'fragmentation'),
+    (SMOKE_IDENTITY_MAT, '/Game/R13/Weapons/greyLight.greyLight', 'smoke'),
+    (FLASH_IDENTITY_MAT, '/Game/R13/Weapons/sand.sand', 'flash'),
+):
+    req(material_path.is_file(), f'{label} grenade identity material is not committed: {material_path.relative_to(ROOT)}')
+    req(object_path in grenade, f'{label} authored identity material is not wired into grenade presentation')
+req('GetPass45GrenadeIdentityMaterialPath' in grenade,
+    'grenade presentation lost replicated type-to-authored-material selection')
+req('GrenadeMesh->EmptyOverrideMaterials();' in grenade and 'GrenadeMesh->SetMaterial(' in grenade,
+    'grenade type refresh does not deterministically replace stale material overrides')
+req('PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_READY' in grenade and 'type_distinguishable=1' in grenade,
+    'authored grenade type identity cannot prove a readable successful state')
+req('PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL' in grenade and 'type_distinguishable=0' in grenade,
+    'missing grenade identity material is not fail-visible')
+req('shared_generic_body=1' in grenade and 'exact_type_body=0' in grenade and 'type_specific_content_gap=1' in grenade,
+    'shared grenade body is falsely promoted to exact frag/smoke/flash content closure')
 
 # Throwing is authoritative and transactional.
 throw_start = character.find('void AOCCharacter::ServerThrowSelectedGrenade_Implementation()')
@@ -134,6 +157,8 @@ if errors:
 
 print('PASS45 GRENADE/SMOKE PRIMITIVE RETIREMENT + THROW SEMANTICS: PASS')
 print('- tracked R13 grenade mesh replaces the visible Engine sphere fail-closed')
+print('- frag/smoke/flash share a real body but use distinct tracked authored identity materials')
+print('- exact per-type grenade bodies remain an explicit content gap')
 print('- authoritative throw uses swept/overlap-checked spawn clearance')
 print('- grenade inventory commits only after factual projectile spawn success')
 print('- successful throw emits a presentation event without a second gameplay timer')
@@ -141,4 +166,4 @@ print('- primitive smoke-ball presentation remains physically retired')
 print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
 print('- smoke gameplay occlusion is finite in both horizontal radius and vertical half-height')
 print('- runtime smoke readiness proves authored payload load/activation but keeps manual visual acceptance pending')
-print('STATUS: SOURCE-INTEGRATED; local UE 5.8 smoke scale/look/performance acceptance remains pending')
+print('STATUS: SOURCE-INTEGRATED; exact grenade bodies + local UE 5.8 visual acceptance remain pending')
