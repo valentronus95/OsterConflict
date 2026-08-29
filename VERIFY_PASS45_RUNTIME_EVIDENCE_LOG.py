@@ -111,7 +111,8 @@ def main() -> int:
     require(gameplay, "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY", errors, "grenade throw presentation event bridge")
     forbid(gameplay, "PASS45_GRENADE_SAFE_SPAWN_REJECTED", errors, "grenade spawn clearance rejection during acceptance throw")
     forbid(gameplay, "PASS45_GRENADE_SPAWN_FAIL", errors, "grenade projectile spawn failure")
-    require(gameplay, "PASS45_SMOKE_VFX_RUNTIME_READY", errors, "authored smoke visual runtime acceptance")
+    require(gameplay, "PASS45_SMOKE_VFX_RUNTIME_READY", errors, "authored smoke visual runtime readiness")
+    forbid(gameplay, "PASS45_SMOKE_VFX_LOAD_FAIL", errors, "authored smoke VFX load failure")
     forbid(gameplay, "PASS45_SMOKE_VFX_CONTENT_GAP", errors, "missing authored smoke VFX")
     forbid(gameplay, "PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL", errors, "smoke gameplay volume spawn failure")
 
@@ -201,7 +202,7 @@ def main() -> int:
     print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
     print("- grenade production visual loaded; a factual throw committed inventory only after spawn and emitted presentation bridge evidence")
-    print("- smoke had accepted authored runtime VFX rather than a content gap")
+    print("- smoke authored Niagara loaded/activated and no smoke load/content/volume failure was logged")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0
