@@ -4,6 +4,7 @@
 #include "OCWorldSectorOster.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -36,6 +37,44 @@ namespace
             if (Component && Component->GetFName() == Name) return Component;
         }
         return nullptr;
+    }
+
+    bool IsBlockedGroundDetailSurface(const FHitResult& Hit)
+    {
+        const UPrimitiveComponent* Component = Hit.GetComponent();
+        const AActor* Actor = Hit.GetActor();
+        const FString ComponentName = Component ? Component->GetName() : FString();
+
+        // Keep regional detail on natural ground. This intentionally mirrors the Block0 dense-foliage
+        // surface policy so a nearby tree cannot scatter leaf cards onto roads, roofs or water.
+        static const TCHAR* BlockedTerms[] =
+        {
+            TEXT("road"), TEXT("street"), TEXT("sidewalk"), TEXT("pavement"), TEXT("asphalt"),
+            TEXT("concrete"), TEXT("path"), TEXT("bridge"), TEXT("floor"), TEXT("wall"),
+            TEXT("roof"), TEXT("building"), TEXT("house"), TEXT("landmark"), TEXT("fence"),
+            TEXT("plaza"), TEXT("court"), TEXT("stadium"), TEXT("parking"), TEXT("foundation"),
+            TEXT("water"), TEXT("river"), TEXT("lake"), TEXT("pond"), TEXT("canal"), TEXT("reservoir")
+        };
+        for (const TCHAR* Term : BlockedTerms)
+        {
+            if (ComponentName.Contains(Term, ESearchCase::IgnoreCase)) return true;
+        }
+
+        if (Actor)
+        {
+            static const FName BlockedTags[] =
+            {
+                TEXT("Road"), TEXT("Street"), TEXT("Building"), TEXT("Bridge"),
+                TEXT("Concrete"), TEXT("Asphalt"), TEXT("Water"), TEXT("River"),
+                TEXT("Lake"), TEXT("Pond"), TEXT("Canal"), TEXT("Reservoir"), TEXT("NoFoliage")
+            };
+            for (const FName Tag : BlockedTags)
+            {
+                if (Actor->ActorHasTag(Tag)) return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -149,6 +188,7 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
 
     int32 AddedInstances = 0;
     int32 TraceRejected = 0;
+    int32 BlockedSurfaceRejected = 0;
     const int32 TreeCount = DeciduousTrees->GetInstanceCount();
     for (int32 TreeIndex = 0; TreeIndex < TreeCount && AddedInstances < MaxLeafInstances; ++TreeIndex)
     {
@@ -173,6 +213,11 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
                 ++TraceRejected;
                 continue;
             }
+            if (IsBlockedGroundDetailSurface(Hit))
+            {
+                ++BlockedSurfaceRejected;
+                continue;
+            }
 
             const float UniformScale = RandomStream.FRandRange(0.72f, 1.12f);
             const FRotator Rotation(0.0f, RandomStream.FRandRange(0.0f, 360.0f), 0.0f);
@@ -186,16 +231,19 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
     {
         DetailOwner->Destroy();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_FAIL reason=no_grounded_leaf_instances traces_rejected=%d runtime_acceptance=0"),
-            TraceRejected);
+            TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_FAIL reason=no_grounded_leaf_instances traces_rejected=%d blocked_surfaces=%d runtime_acceptance=0"),
+            TraceRejected,
+            BlockedSurfaceRejected);
         return;
     }
 
     DetailOwner->Tags.AddUnique(TEXT("OC_Block0RegionalGroundDetail"));
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_WIRED asset=SM_DeadLeaves source_tree_family=AuthoredDeciduousTrees tree_instances=%d leaf_instances=%d max_instances=%d profile=%s collision=0 navigation=0 shadow=0 cull_end_cm=6500 deterministic=1 permanent_tick=0 runtime_acceptance=0"),
+        TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_WIRED asset=SM_DeadLeaves source_tree_family=AuthoredDeciduousTrees tree_instances=%d leaf_instances=%d max_instances=%d profile=%s collision=0 navigation=0 shadow=0 cull_end_cm=6500 deterministic=1 permanent_tick=0 candidate_surface_guard=1 water_surface_guard=1 trace_rejected=%d blocked_surface_rejected=%d runtime_acceptance=0"),
         TreeCount,
         AddedInstances,
         MaxLeafInstances,
-        bLowCPU ? TEXT("LowCPU") : TEXT("Full"));
+        bLowCPU ? TEXT("LowCPU") : TEXT("Full"),
+        TraceRejected,
+        BlockedSurfaceRejected);
 }
