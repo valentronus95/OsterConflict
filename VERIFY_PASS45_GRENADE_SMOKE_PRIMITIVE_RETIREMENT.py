@@ -9,6 +9,7 @@ VISUAL_TYPES = SRC / "Public" / "OCCharacterVisualTypes.h"
 SMOKE = SRC / "Private" / "OCSmokeCloud.cpp"
 SMOKE_H = SRC / "Public" / "OCSmokeCloud.h"
 SMOKE_ASSET = ROOT / "OsterConflict" / "Content" / "PotaVFX_Smoke" / "VFX" / "System" / "ColorSmoke" / "NS_SmokeGradient_Loop.uasset"
+FRAG_VFX_ASSET = ROOT / "OsterConflict" / "Content" / "Fire_EXP_Vol01_Free" / "Niagara" / "EXP" / "NS_Sub_EXP_Small_002.uasset"
 FRAG_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "green.uasset"
 SMOKE_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "greyLight.uasset"
 FLASH_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "sand.uasset"
@@ -69,6 +70,24 @@ req('PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL' in grenade and 'type_distinguis
     'missing grenade identity material is not fail-visible')
 req('shared_generic_body=1' in grenade and 'exact_type_body=0' in grenade and 'type_specific_content_gap=1' in grenade,
     'shared grenade body is falsely promoted to exact frag/smoke/flash content closure')
+
+# Fragmentation detonation presentation must use the committed authored Niagara donor and replicate from the factual
+# server detonation. A missing donor must fail visibly instead of falling back to primitive geometry.
+frag_vfx = '/Game/Fire_EXP_Vol01_Free/Niagara/EXP/NS_Sub_EXP_Small_002.NS_Sub_EXP_Small_002'
+req(FRAG_VFX_ASSET.is_file(),
+    'authored frag Niagara payload referenced by runtime code is not committed in the repository')
+req(frag_vfx in grenade,
+    'committed frag Niagara donor is not wired into AOCGrenadeProjectile')
+req('MulticastDetonationVFX(GrenadeType, GetActorLocation());' in grenade,
+    'factual fragmentation detonation no longer emits the replicated VFX presentation event')
+req('Type != EOCGrenadeType::Fragmentation' in grenade,
+    'frag detonation multicast is not restricted to fragmentation presentation')
+req('UNiagaraFunctionLibrary::SpawnSystemAtLocation' in grenade,
+    'fragmentation presentation no longer spawns authored Niagara at the factual detonation location')
+req('PASS45_FRAG_EXPLOSION_VFX_DONOR_WIRED' in grenade and 'authored_niagara=1' in grenade,
+    'frag authored Niagara integration has no source-visible success evidence')
+req('PASS45_FRAG_EXPLOSION_VFX_LOAD_FAIL' in grenade and 'runtime_acceptance=0' in grenade,
+    'frag Niagara load failure is not fail-visible')
 
 # Throwing is authoritative and transactional.
 throw_start = character.find('void AOCCharacter::ServerThrowSelectedGrenade_Implementation()')
@@ -158,6 +177,7 @@ if errors:
 print('PASS45 GRENADE/SMOKE PRIMITIVE RETIREMENT + THROW SEMANTICS: PASS')
 print('- tracked R13 grenade mesh replaces the visible Engine sphere fail-closed')
 print('- frag/smoke/flash share a real body but use distinct tracked authored identity materials')
+print('- committed Fire_EXP Niagara donor is guarded for replicated fragmentation detonation presentation')
 print('- exact per-type grenade bodies remain an explicit content gap')
 print('- authoritative throw uses swept/overlap-checked spawn clearance')
 print('- grenade inventory commits only after factual projectile spawn success')
@@ -166,4 +186,4 @@ print('- primitive smoke-ball presentation remains physically retired')
 print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
 print('- smoke gameplay occlusion is finite in both horizontal radius and vertical half-height')
 print('- runtime smoke readiness proves authored payload load/activation but keeps manual visual acceptance pending')
-print('STATUS: SOURCE-INTEGRATED; exact grenade bodies + local UE 5.8 visual acceptance remain pending')
+print('STATUS: SOURCE-INTEGRATED; exact grenade bodies + flash world VFX + local UE 5.8 visual acceptance remain pending')
