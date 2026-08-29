@@ -205,6 +205,16 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
     UMaterialInterface* BlueWood = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Wood_Planks_Painted_Blue.Wood_Planks_Painted_Blue"));
 
+    // Pass45 item 32 source slice. These are committed authored assets, not Engine BasicShape stand-ins.
+    // The supplied photo pack proves a pale straight pedestrian axis and a mature conifer corridor, but it
+    // does not prove exact paving module dimensions or exact tree species/coordinates. Keep those claims provisional.
+    UStaticMesh* ApproachSlabMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/KiteDemo/LevelContent/Architecture/SM_1Meter_01.SM_1Meter_01"));
+    UMaterialInterface* ApproachConcrete = LoadObject<UMaterialInterface>(nullptr,
+        TEXT("/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_2_Inst.M_Concrete_2_Inst"));
+    UStaticMesh* ConiferMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"));
+
     if (!Wall8 || !WindowWall4 || !DoorWindowWall8 || !WallTop4 || !RoofMesh ||
         !BottomExtender || !Porch || !WindowFramePart)
     {
@@ -261,6 +271,21 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         return;
     }
 
+    UInstancedStaticMeshComponent* Approach = nullptr;
+    UInstancedStaticMeshComponent* Conifers = nullptr;
+    if (ApproachSlabMesh && ApproachConcrete && ConiferMesh)
+    {
+        Approach = MakeAuthoredISM(Model, Root, ApproachSlabMesh, ApproachConcrete,
+            TEXT("R137Museum_AuthoredConcreteApproach"), true, false);
+        Conifers = MakeAuthoredISM(Model, Root, ConiferMesh, nullptr,
+            TEXT("R137Museum_ReferenceConiferCorridor"), false, true);
+    }
+    if (!Approach || !Conifers)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_MUSEUM_SITE_REFERENCE_SLICE_FAIL reason=missing_or_unusable_authored_site_asset basicshape_fallback=0 runtime_visual_acceptance=pending"));
+    }
+
     const float FrontXs[] = { -660.0f, -220.0f, 220.0f, 660.0f };
     for (const float X : FrontXs)
     {
@@ -299,6 +324,37 @@ void UOCR137MuseumPhotoModelSubsystem::BuildMuseum(UWorld& World)
         AddAuthoredFrame(Frames, FVector(880,Y,235), FVector::RightVector, 140,205);
     for (const float X : { -190.0f, 0.0f, 190.0f })
         AddAuthoredFrame(Frames, FVector(X,-285,520), FVector::ForwardVector, 115,165);
+
+    if (Approach && Conifers)
+    {
+        // Reference-backed macro composition only. The path stays narrow, straight and entrance-aligned.
+        // Six modular sections make joints readable without pretending the source pack gives survey dimensions.
+        for (const float Y : { -1320.0f, -1720.0f, -2120.0f, -2520.0f, -2920.0f, -3320.0f })
+            AddFittedAuthoredMesh(Approach, FVector(0.0f, Y, 4.0f), FVector(220.0f, 390.0f, 8.0f));
+
+        struct FConiferPlacement
+        {
+            float X;
+            float Y;
+            float Width;
+            float Height;
+            float Yaw;
+        };
+        const FConiferPlacement Corridor[] = {
+            { -690.0f, -1420.0f, 500.0f, 1650.0f, -9.0f }, { 730.0f, -1490.0f, 530.0f, 1720.0f, 13.0f },
+            { -760.0f, -1990.0f, 560.0f, 1810.0f, 7.0f },  { 810.0f, -2070.0f, 520.0f, 1690.0f, -12.0f },
+            { -720.0f, -2580.0f, 510.0f, 1740.0f, -4.0f }, { 780.0f, -2660.0f, 570.0f, 1840.0f, 10.0f },
+            { -800.0f, -3160.0f, 550.0f, 1790.0f, 12.0f }, { 710.0f, -3240.0f, 500.0f, 1680.0f, -8.0f },
+        };
+        for (const FConiferPlacement& Placement : Corridor)
+        {
+            AddFittedAuthoredMesh(Conifers, FVector(Placement.X, Placement.Y, Placement.Height * 0.5f),
+                FVector(Placement.Width, Placement.Width, Placement.Height), FRotator(0.0f, Placement.Yaw, 0.0f));
+        }
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_MUSEUM_SITE_REFERENCE_SLICE_READY owner=R137 path=straight_concrete_pedestrian slabs=6 conifer_corridor=8 exact_tree_species_claim=0 exact_site_coordinates_claim=0 basicshape=0 stadium_owner_duplicated=0 runtime_visual_acceptance=pending"));
+    }
 
     // Pass45 single-visible-owner compatibility contract: breakable actor owns visible glass.
     UE_LOG(LogTemp, Display,
