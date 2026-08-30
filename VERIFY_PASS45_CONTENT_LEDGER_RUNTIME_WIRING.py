@@ -8,7 +8,8 @@ SRC = ROOT / "OsterConflict/Source/OsterConflict/Private"
 GRENADE = SRC / "OCGrenadeProjectile.cpp"
 SMOKE = SRC / "OCSmokeCloud.cpp"
 DENSE = SRC / "OCDenseGroundFoliageSubsystem.cpp"
-TREES = SRC / "OCTreeContentUpgradeSubsystem.cpp"
+WORLD = SRC / "OCWorldSectorOster.cpp"
+RETIRED_TREES = SRC / "OCTreeContentUpgradeSubsystem.cpp"
 
 
 def read(path: Path) -> str:
@@ -39,7 +40,9 @@ for asset_id, label in required_integrated.items():
 grenade = read(GRENADE)
 smoke = read(SMOKE)
 dense = read(DENSE)
-trees = read(TREES)
+world = read(WORLD)
+if RETIRED_TREES.exists():
+    raise SystemExit("PASS45 CONTENT LEDGER WIRING FAIL: late tree upgrade owner is not physically retired")
 
 for needle in (
     "/Game/Fire_EXP_Vol01_Free/",
@@ -70,12 +73,11 @@ for needle in (
     "/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01",
     "/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01",
     "PASS45_REGIONAL_TREE_INTAKE_WIRED",
-    "placement_preserved=1",
-    "ground_base_preserved=1",
-    "height_preserved=1",
+    "primary_authoring=1",
+    "late_mutation=0",
     "runtime_acceptance=0",
 ):
-    if needle not in trees:
+    if needle not in world:
         raise SystemExit(f"PASS45 CONTENT LEDGER WIRING FAIL: regional tree wiring missing {needle!r}")
 
 # GroundTiles/Rocks intentionally remain pending. The current compact map must not invent river/water topology or

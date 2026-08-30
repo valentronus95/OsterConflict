@@ -136,11 +136,11 @@ AOCWorldSectorOster::AOCWorldSectorOster()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> DeciduousTreeMesh(
-        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
+        TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Pine01Mesh(
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"));
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Pine03Mesh(
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"));
 
     if (CubeMesh.Succeeded())
     {
@@ -279,6 +279,16 @@ void AOCWorldSectorOster::BeginPlay()
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED procedural_residential_grids=0 generic_private_fences=0 reference_specific_private_structures_required=1"));
+
+    // PASS45 item 27: the final player-facing tree family is selected during primary sector construction.
+    // There is no late world-subsystem remap, transform rewrite or second mutating tree owner after BeginPlay.
+    const int32 TreeInstances =
+        (AuthoredDeciduousTrees ? AuthoredDeciduousTrees->GetInstanceCount() : 0) +
+        (AuthoredPine01Trees ? AuthoredPine01Trees->GetInstanceCount() : 0) +
+        (AuthoredPine03Trees ? AuthoredPine03Trees->GetInstanceCount() : 0);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_REGIONAL_TREE_INTAKE_WIRED deciduous=HillTree_02 pine=ScotsPine_01 tall_pine=ScotsPineTall_01 families=3 instances=%d primary_authoring=1 late_mutation=0 imported_materials=1 runtime_acceptance=0"),
+        TreeInstances);
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] old_ground_2400m=0 far_legacy_base_geometry=0 peripheral_hydrography=0"));
@@ -796,5 +806,5 @@ void AOCWorldSectorOster::BuildVegetation()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SOURCE_AUTHORED_VEGETATION_READY deciduous_asset=SM_Tree_Var01 pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 primitive_tree_components=0 cylinder_sphere_trees=0 oak_asset_verified=0"));
+        TEXT("PASS45_SOURCE_AUTHORED_VEGETATION_READY deciduous_asset=HillTree_02 pine_assets=ScotsPine_01,ScotsPineTall_01 primitive_tree_components=0 cylinder_sphere_trees=0 oak_asset_verified=0"));
 }

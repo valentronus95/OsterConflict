@@ -20,7 +20,7 @@ text = header + world
 markers = [
     "WoodFences", "MetalFences", "LightSheetFences",
     "AuthoredDeciduousTrees", "AuthoredPine01Trees", "AuthoredPine03Trees",
-    "SM_Tree_Var01", "SM_Pine_Tree_01", "SM_Pine_Tree_03",
+    "HillTree_02", "ScotsPine_01", "ScotsPineTall_01",
     "GrassMown", "GrassRough", "GrassWetland",
     "ETreeFamily::Deciduous", "ETreeFamily::Pine", "AddGroundedTree",
     "Pass 44 removes the old Desna/Oster wetland proxies outside the compact map",

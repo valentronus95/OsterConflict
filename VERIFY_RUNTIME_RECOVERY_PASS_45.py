@@ -298,7 +298,7 @@ req("/Engine/BasicShapes/Cylinder" not in world and "/Engine/BasicShapes/Sphere"
     "Cylinder/Sphere tree source authoring returned")
 for needle in (
     "AuthoredDeciduousTrees", "AuthoredPine01Trees", "AuthoredPine03Trees",
-    "SM_Tree_Var01", "SM_Pine_Tree_01", "SM_Pine_Tree_03", "AddGroundedTree",
+    "HillTree_02", "ScotsPine_01", "ScotsPineTall_01", "AddGroundedTree",
 ):
     req(needle in world + world_h, f"authored vegetation source contract missing: {needle}")
 for needle in (

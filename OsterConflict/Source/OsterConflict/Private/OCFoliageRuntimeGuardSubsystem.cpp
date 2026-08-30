@@ -61,9 +61,8 @@ namespace
         const TCHAR* Label;
     };
 
-    // PASS45 item 27: this is the final player-facing mapping after UOCTreeContentUpgradeSubsystem runs.
-    // Merely being non-primitive is not enough. If the one-shot upgrade fails and the older authoring mesh stays
-    // installed, the runtime guard must fail instead of emitting a misleading vegetation READY marker.
+    // PASS45 item 27: these are the exact primary-authoring player-facing meshes. Merely being non-primitive is
+    // not enough; runtime must fail rather than accept an unverified replacement from another owner.
     const FRuntimeTreeFamilyExpectation RuntimeTreeFamilies[]
     {
         {
@@ -354,13 +353,13 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
             RuntimeIdentityMismatches,
             PrimitiveTreeMeshes);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_AUTHORED_VEGETATION_READY authored_components=%d authored_instances=%d rejected_proxy_components=%d primitive_tree_meshes=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 final_runtime_pine_assets=ScotsPine_01,ScotsPineTall_01 exact_runtime_identity=1 oak_asset_verified=0"),
+            TEXT("PASS45_AUTHORED_VEGETATION_READY authored_components=%d authored_instances=%d rejected_proxy_components=%d primitive_tree_meshes=%d pine_assets=ScotsPine_01,ScotsPineTall_01 exact_runtime_identity=1 oak_asset_verified=0"),
             AuthoredComponents,
             AuthoredInstances,
             RejectedProxyComponents,
             PrimitiveTreeMeshes);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_AUTHORED_TREE_FAMILY_READY primitive_tree_components=0 authored_tree_components=3 basicshape_tree_meshes=0 authored_instances=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 final_runtime_pine_assets=ScotsPine_01,ScotsPineTall_01 exact_runtime_identity=1 oak_asset_verified=0"),
+            TEXT("PASS45_AUTHORED_TREE_FAMILY_READY primitive_tree_components=0 authored_tree_components=3 basicshape_tree_meshes=0 authored_instances=%d pine_assets=ScotsPine_01,ScotsPineTall_01 exact_runtime_identity=1 oak_asset_verified=0"),
             AuthoredInstances);
     }
 

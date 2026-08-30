@@ -4,57 +4,25 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 WORLD = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWorldSectorOster.cpp"
 GUARD = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCFoliageRuntimeGuardSubsystem.cpp"
-UPGRADE = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTreeContentUpgradeSubsystem.cpp"
-UPGRADE_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCTreeContentUpgradeSubsystem.h"
+RETIRED_UPGRADE = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTreeContentUpgradeSubsystem.cpp"
+RETIRED_UPGRADE_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCTreeContentUpgradeSubsystem.h"
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"PASS45 AUTHORED TREE ASSET MAPPING FAIL: {message}")
 
 
-for path in (WORLD, GUARD, UPGRADE, UPGRADE_H):
+for path in (WORLD, GUARD):
     if not path.is_file():
         fail(f"missing {path.relative_to(ROOT)}")
 
 world = WORLD.read_text(encoding="utf-8", errors="replace")
 guard = GUARD.read_text(encoding="utf-8", errors="replace")
-upgrade = UPGRADE.read_text(encoding="utf-8", errors="replace")
-upgrade_h = UPGRADE_H.read_text(encoding="utf-8", errors="replace")
+if RETIRED_UPGRADE.exists() or RETIRED_UPGRADE_H.exists():
+    fail("late tree content-upgrade owner survived primary-authoring migration")
 
-# Authoring-stage tree identity. These are the exact tracked meshes owned by AOCWorldSectorOster before the
-# one-shot Pass45 content-intake subsystem runs. Guard them separately from the final runtime intake below so CI
-# cannot prove one tree family while gameplay silently replaces it with another unverified family.
-authoring_expected = (
-    (
-        "AuthoredDeciduousTrees",
-        "/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01",
-        ROOT / "OsterConflict" / "Content" / "AdvancedVillagePack" / "Meshes" / "SM_Tree_Var01.uasset",
-    ),
-    (
-        "AuthoredPine01Trees",
-        "/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01",
-        ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Foliage" / "SM_Pine_Tree_01.uasset",
-    ),
-    (
-        "AuthoredPine03Trees",
-        "/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03",
-        ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Foliage" / "SM_Pine_Tree_03.uasset",
-    ),
-)
-
-for component, asset_path, disk_path in authoring_expected:
-    if component not in world:
-        fail(f"source owner missing component {component}")
-    if asset_path not in world:
-        fail(f"{component} authoring mesh changed from exact authored asset {asset_path}")
-    if not disk_path.is_file():
-        fail(f"tracked authoring tree asset missing: {disk_path.relative_to(ROOT)}")
-    if component not in guard:
-        fail(f"runtime foliage guard no longer observes component {component}")
-
-# Final gameplay mapping. UOCTreeContentUpgradeSubsystem deliberately replaces the authoring meshes at
-# OnWorldBeginPlay with the imported KiteDemo family while preserving the three existing ISM owners/transforms.
-# This is the mapping that a player actually sees, so it must be guarded together with the authoring-stage mapping.
+# Exact player-facing tree identity is selected by AOCWorldSectorOster during primary authoring. Keeping a second
+# late remap owner would violate PASS45 one-owner rules and can cause startup visual replacement/flicker.
 runtime_expected = (
     (
         "AuthoredDeciduousTrees",
@@ -74,42 +42,23 @@ runtime_expected = (
 )
 
 for component, asset_path, disk_path in runtime_expected:
-    if component not in upgrade:
-        fail(f"runtime tree intake no longer targets component {component}")
-    if asset_path not in upgrade:
-        fail(f"final runtime mapping missing exact imported tree asset {asset_path}")
+    if component not in world:
+        fail(f"source owner missing component {component}")
+    if asset_path not in world:
+        fail(f"{component} primary mesh changed from exact runtime asset {asset_path}")
     if not disk_path.is_file():
-        fail(f"tracked runtime tree asset missing: {disk_path.relative_to(ROOT)}")
+        fail(f"tracked authoring tree asset missing: {disk_path.relative_to(ROOT)}")
     if component not in guard:
-        fail(f"runtime guard no longer observes final tree component {component}")
-    if asset_path not in guard:
-        fail(f"runtime guard no longer requires exact final tree mesh {asset_path}")
+        fail(f"runtime foliage guard no longer observes component {component}")
 
 for needle in (
-    "One-shot Pass45 content-intake upgrade",
-    "preserves their placement",
-):
-    if needle not in upgrade_h:
-        fail(f"runtime tree intake ownership contract missing {needle!r}")
-
-for needle in (
-    "UpgradeTreeFamily",
-    "GetInstanceTransform",
-    "UpdateInstanceTransform",
-    "OldBottomZ",
-    "DesiredHeight",
-    "DesiredWidth",
-    "Component->SetStaticMesh(NewMesh);",
-    "Component->EmptyOverrideMaterials();",
-    "PASS45_REGIONAL_TREE_INTAKE_FAIL",
     "PASS45_REGIONAL_TREE_INTAKE_WIRED",
-    "placement_preserved=1",
-    "ground_base_preserved=1",
-    "height_preserved=1",
+    "primary_authoring=1",
+    "late_mutation=0",
     "runtime_acceptance=0",
 ):
-    if needle not in upgrade:
-        fail(f"final runtime tree intake lost fail-honest/preservation contract {needle!r}")
+    if needle not in world:
+        fail(f"primary tree-authoring runtime evidence missing {needle!r}")
 
 # The gameplay guard must prove the final mapping, not merely accept any non-primitive asset. Otherwise a failed
 # one-shot upgrade can leave the older authoring mesh installed while PASS10 still emits READY.
@@ -127,10 +76,7 @@ for needle in (
     if needle not in guard:
         fail(f"runtime foliage guard lost exact final-tree identity contract {needle!r}")
 
-# A failed imported load, transform remap, or exact final identity check must never be mislabeled as accepted
-# runtime vegetation. These source markers are structural evidence only.
-if "runtime_acceptance=1" in upgrade:
-    fail("source tree intake falsely claims UE runtime acceptance")
+# Exact tree identity must not be mislabeled as accepted runtime vegetation. Source markers stay structural only.
 if "PASS45_RUNTIME_TREE_IDENTITY_READY" in guard and "runtime_acceptance=0" not in guard:
     fail("runtime tree identity source marker lost explicit non-acceptance truth")
 
@@ -149,15 +95,13 @@ for primitive in (
     "/Engine/BasicShapes/Cylinder",
     "/Engine/BasicShapes/Sphere",
 ):
-    for component, _, _ in authoring_expected:
+    for component, _, _ in runtime_expected:
         start = world.find(f'TEXT("{component}")')
         if start < 0:
             continue
         snippet = world[start:start + 320]
         if primitive in snippet:
             fail(f"{component} regressed to primitive tree mesh {primitive}")
-    if primitive in upgrade:
-        fail(f"runtime tree intake regressed to primitive mesh {primitive}")
 
 for needle in (
     'TEXT("AuthoredDeciduousTrees")',
@@ -171,11 +115,10 @@ for needle in (
         fail(f"runtime foliage guard lost source-authored vegetation evidence {needle!r}")
 
 print("PASS45 AUTHORED TREE ASSET MAPPING PASS")
-print("- authoring stage: SM_Tree_Var01 + Modular_Rural_Cabin Pine 01/03 are tracked and explicit")
-print("- final gameplay intake: HillTree_02 + ScotsPine_01 + ScotsPineTall_01 are tracked and explicit")
+print("- primary gameplay authoring: HillTree_02 + ScotsPine_01 + ScotsPineTall_01 are tracked and explicit")
 print("- gameplay guard now requires those exact three final-runtime meshes before foliage READY can be emitted")
-print("- one-shot runtime replacement preserves owner, placement, ground base and intended height/width")
-print("- runtime path and committed .uasset are guarded for both stages of every production tree family")
+print("- late tree remap owner is physically retired; no startup transform rewrite remains")
+print("- runtime path and committed .uasset are guarded for every production tree family")
 print("- runtime guard still rejects Cylinder/Sphere tree proxies")
 print("- oak remains explicit CONTENT GAP; no exact-species claim was manufactured")
 print("STATUS: SOURCE/CONTENT CONTRACT ONLY; UE 5.8 visual acceptance remains required")

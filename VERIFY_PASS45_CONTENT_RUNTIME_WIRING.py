@@ -9,8 +9,9 @@ SMOKE_H = SRC / "Public" / "OCSmokeCloud.h"
 GRENADE_CPP = SRC / "Private" / "OCGrenadeProjectile.cpp"
 GRENADE_H = SRC / "Public" / "OCGrenadeProjectile.h"
 DENSE = SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp"
-TREE_CPP = SRC / "Private" / "OCTreeContentUpgradeSubsystem.cpp"
-TREE_H = SRC / "Public" / "OCTreeContentUpgradeSubsystem.h"
+WORLD = SRC / "Private" / "OCWorldSectorOster.cpp"
+RETIRED_TREE_CPP = SRC / "Private" / "OCTreeContentUpgradeSubsystem.cpp"
+RETIRED_TREE_H = SRC / "Public" / "OCTreeContentUpgradeSubsystem.h"
 BUILD = SRC / "OsterConflict.Build.cs"
 
 ASSETS = {
@@ -44,8 +45,7 @@ smoke_h = read(SMOKE_H)
 grenade = read(GRENADE_CPP)
 grenade_h = read(GRENADE_H)
 dense = read(DENSE)
-tree = read(TREE_CPP)
-tree_h = read(TREE_H)
+world = read(WORLD)
 build = read(BUILD)
 
 for label, path in ASSETS.items():
@@ -100,7 +100,8 @@ for needle in (
 ):
     req(needle in dense, f"content intake regressed Block0 foliage contract: {needle}")
 
-# Regional tree intake: mutate only the three existing world-sector tree ISMs and preserve authored placement scale intent.
+# Regional tree intake: exact player-facing assets are selected by the primary world owner before BeginPlay.
+# A late remap subsystem would create a second mutating owner and visible replacement/flicker risk.
 for needle in (
     "/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02",
     "/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01",
@@ -108,17 +109,14 @@ for needle in (
     'TEXT("AuthoredDeciduousTrees")',
     'TEXT("AuthoredPine01Trees")',
     'TEXT("AuthoredPine03Trees")',
-    "UpdateInstanceTransform",
-    "Component->EmptyOverrideMaterials();",
     "PASS45_REGIONAL_TREE_INTAKE_WIRED",
-    "placement_preserved=1",
-    "ground_base_preserved=1",
-    "height_preserved=1",
+    "primary_authoring=1",
+    "late_mutation=0",
     "runtime_acceptance=0",
 ):
-    req(needle in tree, f"regional tree runtime upgrade contract missing: {needle}")
-req("UWorldSubsystem" in tree_h, "regional tree upgrade is not a one-shot world subsystem")
-req("UTickableWorldSubsystem" not in tree_h, "regional tree upgrade introduced a permanent tick owner")
+    req(needle in world, f"primary tree authoring contract missing: {needle}")
+req(not RETIRED_TREE_CPP.exists() and not RETIRED_TREE_H.exists(),
+    "retired late tree content-upgrade owner still exists")
 
 if errors:
     print("PASS45 CONTENT RUNTIME WIRING: FAIL")
@@ -130,6 +128,6 @@ print("PASS45 CONTENT RUNTIME WIRING: PASS")
 print("- imported PotaVFX smoke Niagara is source-wired without primitive fallback")
 print("- imported Fire_EXP frag Niagara is replicated from factual server detonation")
 print("- imported KiteDemo grass, fern and field flower are selected by the existing Block0 foliage owner")
-print("- imported HillTree and ScotsPine families replace only the existing authored tree ISMs with placement preservation")
+print("- imported HillTree and ScotsPine families are selected directly by the sole primary world owner")
 print("- full-map bounds, candidate surface guards and LowCPU budgets remain intact")
 print("STATUS: SOURCE-INTEGRATED; UE 5.8 visual/runtime acceptance remains pending")
