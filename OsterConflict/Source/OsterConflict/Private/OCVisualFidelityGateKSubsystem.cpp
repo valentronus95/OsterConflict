@@ -16,6 +16,7 @@ namespace
     const FName MuseumPhotoModelTag(TEXT("R137_MuseumPhotoModel"));
     const FName CultureHousePhotoModelTag(TEXT("R146_CultureHouseModel"));
     const FName SilpoPhotoModelTag(TEXT("R140_SilpoModel"));
+    constexpr float ContinuousObservationIntervalSeconds = 2.0f;
 
     bool IsEngineBasicShape(const UStaticMesh* Mesh)
     {
@@ -89,8 +90,15 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
     }
 
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    // Let foliage/debug retirement and landmark ownership finish before observing final presentation.
-    if (ElapsedSeconds < 3.0f) return;
+
+    // Let foliage/debug retirement and landmark ownership finish before the first observation. A clean first scan
+    // is not terminal: gameplay can spawn weapons, ordnance, characters or vehicles later in the same session.
+    if (!bReadyLogged && ElapsedSeconds < 3.0f) return;
+
+    // After initial READY keep a low-frequency watch alive for the gameplay-world lifetime. This avoids an all-actor
+    // walk every frame while still catching late-spawned visible BasicShape content that the old one-shot gate missed.
+    if (bReadyLogged && ElapsedSeconds < NextObservationSeconds) return;
+    NextObservationSeconds = ElapsedSeconds + ContinuousObservationIntervalSeconds;
 
     int32 SectorCount = 0;
     int32 StadiumCount = 0;
@@ -141,7 +149,8 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=oster_sector_count_%d gate_k_complete=0"), SectorCount);
+            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=oster_sector_count_%d initial_ready_seen=%d continuous_watch=1 gate_k_complete=0"),
+            SectorCount, bReadyLogged ? 1 : 0);
         return;
     }
 
@@ -149,31 +158,39 @@ void UOCVisualFidelityGateKSubsystem::Tick(float DeltaTime)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=landmark_owner_count stadium=%d museum=%d culture=%d silpo=%d gate_k_complete=0"),
-            StadiumCount, MuseumCount, CultureHouseCount, SilpoCount);
+            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=landmark_owner_count stadium=%d museum=%d culture=%d silpo=%d initial_ready_seen=%d continuous_watch=1 gate_k_complete=0"),
+            StadiumCount, MuseumCount, CultureHouseCount, SilpoCount, bReadyLogged ? 1 : 0);
         return;
     }
 
-    bFinished = true;
     if (BasicShapeComponents > 0)
     {
+        bFinished = true;
         const FString Names = FString::Join(BasicShapeNames, TEXT(","));
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_VISUAL_FIDELITY_CONTENT_GAP visible_basicshape_components=%d visible_basicshape_instances=%d landmark_basicshape_components=%d landmark_basicshape_instances=%d scope=all_gameplay_actors runtime_visible_only=1 hidden_in_game_ignored=1 sample=%s gate_k_complete=0"),
+            TEXT("PASS45_VISUAL_FIDELITY_CONTENT_GAP visible_basicshape_components=%d visible_basicshape_instances=%d landmark_basicshape_components=%d landmark_basicshape_instances=%d scope=all_gameplay_actors runtime_visible_only=1 hidden_in_game_ignored=1 initial_ready_seen=%d continuous_watch=1 sample=%s gate_k_complete=0"),
             BasicShapeComponents,
             BasicShapeInstances,
             LandmarkBasicShapeComponents,
             LandmarkBasicShapeInstances,
+            bReadyLogged ? 1 : 0,
             *Names);
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=visible_basicshape_core_content components=%d instances=%d landmark_components=%d landmark_instances=%d scope=all_gameplay_actors gate_k_complete=0"),
+            TEXT("PASS45_GATE_K_RUNTIME_FAIL reason=visible_basicshape_core_content components=%d instances=%d landmark_components=%d landmark_instances=%d scope=all_gameplay_actors initial_ready_seen=%d continuous_watch=1 gate_k_complete=0"),
             BasicShapeComponents,
             BasicShapeInstances,
             LandmarkBasicShapeComponents,
-            LandmarkBasicShapeInstances);
+            LandmarkBasicShapeInstances,
+            bReadyLogged ? 1 : 0);
         return;
     }
 
-    UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GATE_K_RUNTIME_READY visible_basicshape_components=0 visible_basicshape_instances=0 landmark_basicshape_components=0 landmark_basicshape_instances=0 sector_owners=1 stadium_owners=1 museum_owners=1 culture_owners=1 silpo_owners=1 developer_markers=0 ground_cover_proxies=0 scope=all_gameplay_actors runtime_visible_only=1 hidden_in_game_ignored=1 gate_k_complete=1"));
+    if (!bReadyLogged)
+    {
+        bReadyLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_GATE_K_RUNTIME_READY visible_basicshape_components=0 visible_basicshape_instances=0 landmark_basicshape_components=0 landmark_basicshape_instances=0 sector_owners=1 stadium_owners=1 museum_owners=1 culture_owners=1 silpo_owners=1 developer_markers=0 ground_cover_proxies=0 scope=all_gameplay_actors runtime_visible_only=1 hidden_in_game_ignored=1 continuous_watch=1 late_spawn_detection=1 scan_interval_seconds=2.0 gate_k_complete=1"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_GATE_K_RUNTIME_WATCH_ACTIVE scope=all_gameplay_actors late_spawn_detection=1 scan_interval_seconds=2.0 mutation=0 runtime_visual_acceptance=pending"));
+    }
 }
