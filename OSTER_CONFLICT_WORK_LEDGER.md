@@ -12,7 +12,7 @@
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Earlier source milestone `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` had all returned workflows **SUCCESS** for the weapon/ordnance state that existed at that point.
 - Newer primitive-retirement, grenade throw-semantics and Museum/Culture/Silpo landmark-identity source work is later than that milestone; current-head CI is re-read separately and is not inferred from the historical green head.
-- Current indexed source head: `5c8037feda054e435ad734e1194bc69b6fd1fc5a` (`PASS45: wire authored grenade throw audio`).
+- Current indexed source head: `9d04baab648fe75ccb0e6903365f438c55230609` (`PASS45: author stadium trees from final families`), exact source CI 68/68 SUCCESS.
 - Latest factual gameplay evidence: `RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`.
 - Historical rejected evidence remains separate: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x / Windows.
@@ -285,7 +285,7 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 | WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | CODED_UNTESTED | Source fail-closed retirement complete; rendered zero-primitive proof pending. |
 | GRENADE-VISUAL-001 | No primitive grenade/smoke and no inventory loss on failed throw | CODED_UNTESTED / CONTENT GAP | Primitive retirement + transactional throw + authored throw audio coded; authored hand animation, flash VFX and runtime visual proof pending. |
 | UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | CODED_UNTESTED | Runtime screenshot required. |
-| VIS-TREES-001 | No primitive/fantasy visible tree family | CODED_UNTESTED / CONTENT GAP | `AOCWorldSectorOster` directly authors `HillTree_02` / `ScotsPine_01` / `ScotsPineTall_01`; the late `OCTreeContentUpgradeSubsystem` owner is physically retired. Oak and UE 5.8 visual/material/LOD acceptance remain open. |
+| VIS-TREES-001 | No primitive/fantasy visible tree family | CODED_UNTESTED / CONTENT GAP | `AOCWorldSectorOster` directly authors `HillTree_02` / `ScotsPine_01` / `ScotsPineTall_01`; authoritative Stadion Oster directly authors `HillTree_02` / `ScotsPineTall_01`; the late `OCTreeContentUpgradeSubsystem` owner is physically retired. Oak and UE 5.8 visual/material/LOD acceptance remain open. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | CONTENT GAP | No verified exact payload; do not claim connected. |
 
 ## 6. Behavior that must not return
@@ -336,7 +336,7 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 16. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks and make runtime acceptance fail closed. **Rendered proof pending.**
 17. [x] Source-retire primitive grenade/smoke visuals and make grenade throw transactional/safe. **Authored smoke and throw audio are source-wired; authored hand animation, flash VFX and runtime proof remain pending.**
 18. [x] Source-close Museum/Culture House/Silpo identity/separation and require the R14.3 Silpo facade/sign stage. **Visual runtime proof pending.**
-19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity. **Primary tree authoring now uses the final HillTree/ScotsPine families and no late mutator remains; runtime visual/material/LOD acceptance is still required.**
+19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity. **Primary world and Stadion Oster tree authoring now use final HillTree/ScotsPine families and no late remapper remains; runtime visual/material/LOD acceptance is still required.**
 20. [ ] Complete HMMWV M2 hierarchy/360°/camera and >=80 km/h road tuning.
 21. [ ] Close BTR white material/forward-axis/remote-operator gaps.
 22. [ ] Validate fullscreen, ~60 FPS, native render scale and 10-minute mixed thermal soak.

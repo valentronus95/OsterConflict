@@ -175,6 +175,21 @@ These PRs were found during the 2026-08-30 audit. Current disposition is recorde
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED. The source head is 527 commits ahead and 0 behind `main@bca00f4046700f383af9f1742cc24b6a62401b1a` before this ledger-only update.
 - Official checklist accounting remains **22/36 = 61.1%**. Item 27 stays unchecked until direct UE 5.8 screenshots prove natural regional vegetation, no visible primitive/fantasy family, acceptable material/LOD quality and broader environment acceptance.
 
+## Work cycle — 2026-08-30 item 27 Stadion Oster primary-tree continuation
+
+- Canonical checklist relevance: item 27 vegetation replacement and item 32/Gate K source fidelity. This slice removes the remaining legacy tree family from the authoritative stadium owner; it does not replace the still-visible stadium BasicShape sport/entrance families or accept runtime visual fidelity.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `626dc45e14c1db7a5d1ab7582d3997a57304d4ca`.
+- Substantive source head: `9d04baab648fe75ccb0e6903365f438c55230609` — `PASS45: author stadium trees from final families`.
+- Production change: `UOCR13StadiumSurfaceSubsystem`, the sole Stadion Oster site author, now directly selects tracked `HillTree_02` and `ScotsPineTall_01` perimeter meshes. It no longer selects legacy `SM_Tree_Var01/04`; `PASS45_STADIUM_TREE_INTAKE_WIRED` records `primary_authoring=1`, `late_mutation=0` and `runtime_acceptance=0`.
+- Scope boundary: field turf/lines, goals, sports metal and the exact `СТАДІОН ОСТЕР` entrance construction remain explicit content/Gate K work. They were not hidden, recolored, substituted with a generic sign, or otherwise falsely accepted.
+- Verifier changes: `VERIFY_R13_STADION_OSTER.py` and Gate K verification require final direct stadium tree authoring and reject the retired legacy tree paths.
+- Local verification: `git diff --check`, `VERIFY_R13_STADION_OSTER.py`, `VERIFY_PASS45_AUTHORED_TREE_ASSET_MAPPING.py`, `VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py`, `VERIFY_RUNTIME_RECOVERY_PASS_45.py` and cumulative `RUN_ALL_VERIFY.py` passed.
+- Exact GitHub CI for `9d04baab648fe75ccb0e6903365f438c55230609`: all **68/68** returned workflows completed **SUCCESS**, including `Source verification`, `Stadion Oster runtime evidence pass 9`, `Pass 45 visual fidelity Gate K`, `Foliage runtime acceptance pass 10` and `Runtime recovery Pass 45`.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. No current-head local UE 5.8 stadium/perimeter-tree visual acceptance exists.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED. The source head is 529 commits ahead and 0 behind `main@bca00f4046700f383af9f1742cc24b6a62401b1a` before this ledger-only update.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 27 and item 32 remain unchecked until direct UE 5.8 screenshots prove the complete environment and Gate K's remaining stadium/core-world content.
+
 ## Main-merge history relevant to PASS45
 
 Known historical merged milestones include:
