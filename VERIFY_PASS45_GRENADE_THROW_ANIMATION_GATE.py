@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 CHARACTER_VISUAL = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCCharacterVisualComponent.cpp"
 RUNTIME_GATE = ROOT / "VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py"
+GENERAL_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 LAUNCHER = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
 
 
@@ -15,6 +16,7 @@ def read(path: Path) -> str:
 
 visual = read(CHARACTER_VISUAL)
 runtime_gate = read(RUNTIME_GATE)
+general_evidence = read(GENERAL_EVIDENCE)
 launcher = read(LAUNCHER)
 errors: list[str] = []
 
@@ -37,7 +39,7 @@ for needle in (
 req("PASS45_GRENADE_THROW_AUTHORED_ANIMATION_RUNTIME_READY" not in visual,
     "native source falsely emits runtime READY without an authored grenade throw sequence")
 
-# Final automated acceptance must demand factual authored animation evidence, not merely the cosmetic event bridge.
+# The dedicated runtime gate must demand factual authored animation evidence, not merely the cosmetic bridge.
 for needle in (
     "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY",
     "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP",
@@ -45,6 +47,15 @@ for needle in (
     "authored first-person grenade hand/throw/recover animation is still a content gap",
 ):
     req(needle in runtime_gate, f"runtime grenade animation gate missing: {needle}")
+
+# The generic final evidence path must enforce the same truth. Otherwise the dedicated animation gate can fail while
+# the general PASS45 evidence file still prints PASS, creating two contradictory acceptance authorities.
+req('require(gameplay, "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_RUNTIME_READY"' in general_evidence,
+    "general runtime evidence can pass without factual authored grenade throw animation readiness")
+req('forbid(gameplay, "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP"' in general_evidence,
+    "general runtime evidence can pass while the authored grenade throw animation content gap is logged")
+req('"GRENADE_AUTHORED_THROW_ANIMATION=PASS\\n"' in general_evidence,
+    "general evidence output has no explicit authored grenade throw animation contract")
 
 for needle in (
     "GRENADE_ANIM_VERIFY",
@@ -64,5 +75,6 @@ if errors:
 print("PASS45 GRENADE THROW ANIMATION GATE: PASS")
 print("- current native grenade throw presentation is explicitly CONTENT GAP, not READY")
 print("- no second gameplay timer was introduced")
-print("- main runtime acceptance now requires factual authored hand/throw/recover READY evidence")
+print("- dedicated and general runtime evidence both require factual authored hand/throw/recover READY evidence")
+print("- contradictory generic PASS while the grenade animation gate fails is no longer allowed")
 print("STATUS: FAIL-HONEST SOURCE GATE; authored animation content and direct UE 5.8 visual acceptance remain pending")
