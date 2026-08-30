@@ -17,6 +17,8 @@ for path in (WORLD, GUARD):
 world = WORLD.read_text(encoding="utf-8", errors="replace")
 guard = GUARD.read_text(encoding="utf-8", errors="replace")
 
+# Exact current production mapping. Runtime path and tracked disk payload are paired deliberately so a source-only
+# rename cannot manufacture a green authored-tree contract when the corresponding .uasset is not committed.
 expected = (
     (
         "AuthoredDeciduousTrees",
@@ -25,13 +27,13 @@ expected = (
     ),
     (
         "AuthoredPine01Trees",
-        "/Game/KiteDemo/Environments/Trees/ScotsPine_01/SM_Pine_Tree_01.SM_Pine_Tree_01",
-        ROOT / "OsterConflict" / "Content" / "KiteDemo" / "Environments" / "Trees" / "ScotsPine_01" / "SM_Pine_Tree_01.uasset",
+        "/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01",
+        ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Foliage" / "SM_Pine_Tree_01.uasset",
     ),
     (
         "AuthoredPine03Trees",
-        "/Game/KiteDemo/Environments/Trees/ScotsPine_03/SM_Pine_Tree_03.SM_Pine_Tree_03",
-        ROOT / "OsterConflict" / "Content" / "KiteDemo" / "Environments" / "Trees" / "ScotsPine_03" / "SM_Pine_Tree_03.uasset",
+        "/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03",
+        ROOT / "OsterConflict" / "Content" / "Modular_Rural_Cabin" / "Meshes" / "Foliage" / "SM_Pine_Tree_03.uasset",
     ),
 )
 
@@ -83,8 +85,9 @@ for needle in (
 
 print("PASS45 AUTHORED TREE ASSET MAPPING PASS")
 print("- AuthoredDeciduousTrees -> tracked SM_Tree_Var01")
-print("- AuthoredPine01Trees -> tracked ScotsPine_01 / SM_Pine_Tree_01")
-print("- AuthoredPine03Trees -> tracked ScotsPine_03 / SM_Pine_Tree_03")
+print("- AuthoredPine01Trees -> tracked Modular_Rural_Cabin / SM_Pine_Tree_01")
+print("- AuthoredPine03Trees -> tracked Modular_Rural_Cabin / SM_Pine_Tree_03")
+print("- runtime path and committed .uasset are both guarded for every production tree family")
 print("- runtime guard still rejects Cylinder/Sphere tree proxies")
 print("- oak remains explicit CONTENT GAP; no exact-species claim was manufactured")
 print("STATUS: SOURCE/CONTENT CONTRACT ONLY; UE 5.8 visual acceptance remains required")
