@@ -311,3 +311,21 @@ Never collapse these states into one generic `PASS`.
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED.
 - Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
 - Remaining Gate K park work: replace `ParkMemorialSurface`, `ParkMemorialMonument`, `ParkSkateSurface` and `ParkSkateRamps` only with verified semantic authored content; split/retire the temporary bridge into direct primary authoring when the coordinated world-source change is made; treat `ParkGeometry` separately because that component is also used by `BuildCollegeSector()`; then obtain current-head UE 5.8 visual acceptance.
+
+## Work cycle — 2026-08-30 item 32 ParkGeometry semantic split + authored ground
+
+- Canonical checklist relevance: item 32 / Gate K core-world visual fidelity. This cycle removes the shared `ParkGeometry` ownership ambiguity and retires its three visible BasicShape ground instances through exact semantic owners and an authored ground material path; it does not close remaining memorial/skate content gaps or runtime acceptance.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `3b9c0fee33cf33ead6372909871dd3cea25967db`.
+- Semantic-normalization source commit: `d241c2be5969f813974121db2087ef98b2427d14` — `PASS45: normalize ParkGeometry semantic owners`.
+- Final substantive source head: `65b442210746ee1ce7ef22fecb42270d5f47c731` — `PASS45: author exact park ground surfaces`.
+- Ownership change: the exact legacy 3-instance `ParkGeometry` contract (Central Park footprint, north civic grove, college recreation strip) is transactionally re-homed as `ParkCentralGround=1`, `ParkNorthCivicGround=1`, `CollegeRecreationGround=1`; source transforms/mesh/material/collision are preserved until all destinations are populated, then the legacy bucket is cleared. The bridge is explicitly temporary `primary_authoring=0`.
+- Tactical-map safety: `OCTacticalMapSubsystem` derives projection from all relevant `UPrimitiveComponent` bounds and has no `ParkGeometry` name dependency, so the exact re-home preserves map geography.
+- Authored ground change: after normalization, exactly those three green-ground semantic owners replace Engine Cube presentation with tracked `SM_Plane_1x1` + `M_Grass_Inst`. Bounds-aware fitting preserves XY footprint, source yaw and source top-surface elevation; flat-plane Z is not distorted to mimic cube thickness.
+- Transaction safety: all three authored replacements preflight before mutation; old mesh/material/transform state is retained and applied owners are rolled back if a later replacement write/postcondition fails.
+- Verifier/workflow changes: added `VERIFY_PASS45_PARK_GEOMETRY_OWNER_NORMALIZATION.py` + `.github/workflows/pass45-park-geometry-owner-normalization.yml`, and `VERIFY_PASS45_AUTHORED_PARK_GROUND.py` + `.github/workflows/pass45-authored-park-ground.yml`.
+- Exact-head CI for `65b442210746ee1ce7ef22fecb42270d5f47c731`: `Pass 45 Authored Park Ground`, `Pass 45 Park Geometry Owner Normalization`, `Source verification` (full structural/regression suite), `Pass 45 visual fidelity Gate K`, `Pass 45 Gate K global BasicShape scope`, `Runtime recovery Pass 45`, `Pass 45 strict runtime acceptance harness`, `World geometry stability pass 12` and `Tactical Map 2.0 source contracts` completed **SUCCESS**. Other unrelated workflows may still have been queued/in progress when this ledger entry was written and are not used to promote runtime status.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. No current-head local UE 5.8 visual acceptance exists for the new ground plane/material fit.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
+- Remaining Gate K park content gaps: `ParkMemorialMonument` and `ParkSkateRamps` still lack verified authored mesh candidates; `ParkMemorialSurface` and `ParkSkateSurface` now have exact ownership and may next receive a separately verified hardscape surface treatment. The temporary runtime ownership bridges must ultimately be retired into direct primary `AOCWorldSectorOster` authoring, followed by current-head UE 5.8 evidence.
