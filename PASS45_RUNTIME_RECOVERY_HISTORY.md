@@ -259,3 +259,36 @@ Never collapse these states into one generic `PASS`.
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED. No protected merge is authorized.
 - Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked because ParkGeometry, the four semantic park-detail proxy families, remaining non-stadium core BasicShape presentation and direct UE 5.8 Gate K evidence remain open.
 - Next source-landable Gate K target: retire/replace the remaining `ParkGeometry` and semantic Central Park BasicShape detail families with exact semantic authored ownership, without blanket-remapping unrelated geometry or hiding rejected components.
+
+## Work cycle — 2026-08-30 item 32 Central Park authored benches continuation
+
+- Canonical checklist relevance: item 32 / Gate K semantic Central Park fidelity. This slice retires only the homogeneous `ParkBenches` BasicShape presentation family; it does not close Gate K globally or accept the rendered park.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `c987ad74d1d246c4f509970630f8d6d13f836bb4`.
+- Substantive source commit: `aaa4633bbb81fa6247fd103342cba4d09eafedf8` — `PASS45: author Central Park benches`.
+- Verifier-fix head: `4c73561c784479b37c4af6b32cf64f31e2275fde` — `PASS45: fix park semantic source assertions`.
+- Production change: new `UOCParkSemanticAuthoredUpgradeSubsystem` replaces exactly the 14 canonical `ParkBenches` Cube proxies with tracked `/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Bench_1.SM_Bench_1`. It preserves the authored bench's native proportions through uniform scaling and preserves source ground-bottom contact instead of deforming the bench into the placeholder box.
+- Scope safety: the upgrader owns only `ParkBenches`. It does not mutate `ParkDetails`, `ParkMemorialPlaza`, `ParkMemorialApproach` or `ParkSkateFitness`; missing/unexpected content fails closed rather than silently broadening the family scope.
+- Verifier/workflow: added `VERIFY_PASS45_PARK_SEMANTIC_AUTHORED.py` and `.github/workflows/pass45-park-semantic-authored.yml`. The first verifier run exposed an over-literal test assumption about `ExpectedSemanticDetails = 23`; production source correctly computed the value and guarded it with `static_assert`, so commit `4c73561c...` corrected the verifier rather than weakening production truth.
+- Exact GitHub CI for `4c73561c784479b37c4af6b32cf64f31e2275fde`: every workflow returned by the exact-head audit completed **SUCCESS**, including `Pass 45 Park Semantic Authored`, `Source verification`, `Pass 45 visual fidelity Gate K`, `Pass 45 Gate K global BasicShape scope`, `World geometry stability pass 12`, `Pass 45 strict runtime acceptance harness` and `Runtime recovery Pass 45`.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. No current-head local UE 5.8 bench scale/material/site visual acceptance exists.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
+- Remaining park source families after this slice were `ParkGeometry`, mixed `ParkMemorialPlaza`, homogeneous `ParkMemorialApproach` and mixed `ParkSkateFitness`; blanket remapping of mixed semantic groups remains forbidden.
+
+## Work cycle — 2026-08-30 item 32 Central Park memorial-approach authored continuation
+
+- Canonical checklist relevance: item 32 / Gate K semantic Central Park fidelity. This slice retires the homogeneous four-step `ParkMemorialApproach` BasicShape family only; it does not close the mixed plaza/skate families, global Gate K or runtime visual acceptance.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `4c73561c784479b37c4af6b32cf64f31e2275fde`.
+- Substantive source commit: `e9b4f526be2de9794862b8b5c891b358cfaf7ff4` — `PASS45: author Central Park memorial approach`.
+- Workflow-only follow-up head before this ledger write: `1fdfab029e6618eff4127a676baeb5560aca6203` — `PASS45: keep park memorial verifier lightweight`.
+- Production change: added `UOCParkMemorialApproachAuthoredUpgradeSubsystem`, which targets only `ParkMemorialApproach`, requires exactly four source instances and replaces their Engine Cube mesh with tracked `/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Curb_1.SM_Curb_1`.
+- Geometry safety: the replacement uses authored bounds plus the factual source Cube world dimensions for bounds-aware 3D fitting, compensates a Y-long authored mesh axis when needed, preserves source centerline and bottom/ground contact, clears BasicShape material overrides and validates a non-BasicShape runtime material postcondition.
+- Fail-closed/scope safety: unexpected source mesh/count/content emits explicit CONTENT_GAP/FAIL markers. The subsystem does not touch `ParkDetails`, `ParkMemorialPlaza`, `ParkSkateFitness` or `ParkBenches`.
+- Verifier/workflow: added `VERIFY_PASS45_PARK_MEMORIAL_APPROACH_AUTHORED.py` and `.github/workflows/pass45-park-memorial-approach-authored.yml`. The workflow was immediately trimmed to default checkout because the verifier needs tracked LFS pointer existence, not a wasteful full repository LFS download.
+- Exact-head focused CI on `1fdfab029e6618eff4127a676baeb5560aca6203`: `Pass 45 Park Memorial Approach Authored` completed **SUCCESS**; `Pass 45 Park Semantic Authored`, `Pass 45 visual fidelity Gate K`, `Pass 45 Gate K global BasicShape scope`, `Runtime recovery Pass 45`, `World geometry stability pass 12`, `Source verification` and `Tactical Map 2.0 source contracts` also completed **SUCCESS** in the same exact-head run set.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. This source result is not local UE 5.8 visual acceptance.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
+- Audit finding for the next Gate K work: `ParkMemorialPlaza` is mixed surface+monument geometry, `ParkSkateFitness` is mixed pad+ramp geometry, and `ParkGeometry` is reused by `BuildCollegeSector()`. Therefore none of those families may be blanket-upgraded. The next safe source step is semantic ownership separation before assigning exact authored replacements.
