@@ -329,3 +329,20 @@ Never collapse these states into one generic `PASS`.
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED.
 - Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
 - Remaining Gate K park content gaps: `ParkMemorialMonument` and `ParkSkateRamps` still lack verified authored mesh candidates; `ParkMemorialSurface` and `ParkSkateSurface` now have exact ownership and may next receive a separately verified hardscape surface treatment. The temporary runtime ownership bridges must ultimately be retired into direct primary `AOCWorldSectorOster` authoring, followed by current-head UE 5.8 evidence.
+
+## Work cycle — 2026-08-31 item 32 Central Park authored hardscape surfaces
+
+- Canonical checklist relevance: item 32 / Gate K core-world visual fidelity. This source slice retires only the two exact flat hardscape BasicShape families created by the existing semantic normalization bridge; it does not fabricate monument/ramp content and does not close Gate K or runtime acceptance.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `5f09519f7a69bac6744f4e8e74c8b5d7a2d5d00b`.
+- Substantive source head: `eb289282d5696628bcf82e0c14bd07712a728d6a` — `PASS45: author Central Park hardscape surfaces`.
+- Production change: added `UOCParkHardscapeAuthoredUpgradeSubsystem`, targeting exactly `ParkMemorialSurface=1` and `ParkSkateSurface=1` after the 0.35 s semantic-owner bridge. It replaces their Engine Cube presentation with tracked `/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1` plus `/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_1_Inst.M_Concrete_1_Inst`.
+- Geometry safety: bounds-aware fitting preserves source XY footprint, yaw and source top-surface elevation; the authored plane is not vertically distorted to imitate the legacy slab thickness.
+- Transaction/scope safety: both surface owners preflight before mutation; old mesh/material/transform state is retained and both owners roll back on a failed write/postcondition. `ParkMemorialMonument=1` and `ParkSkateRamps=2` are snapshotted and required to remain unchanged, leaving exactly three explicit authored-content-gap instances rather than substituting arbitrary props.
+- Runtime truth markers: `PASS45_AUTHORED_PARK_HARDSCAPE_CONTENT_GAP`, `PASS45_AUTHORED_PARK_HARDSCAPE_FAIL`, and `PASS45_AUTHORED_PARK_HARDSCAPE_READY ... remaining_content_gap_instances=3 gate_k_complete=0 runtime_acceptance=0`. The subsystem contains no `gate_k_complete=1` or `runtime_acceptance=1` path.
+- Verifier/workflow: added `VERIFY_PASS45_AUTHORED_PARK_HARDSCAPE.py`, `.github/workflows/pass45-authored-park-hardscape.yml`, and integrated the verifier into cumulative `RUN_ALL_VERIFY.py`.
+- Exact-head relevant CI for `eb289282d5696628bcf82e0c14bd07712a728d6a`: `Pass 45 Authored Park Hardscape`, `Source verification` (full structural/regression suite), `Pass 45 visual fidelity Gate K`, `Pass 45 Gate K global BasicShape scope`, `World geometry stability pass 12`, `Tactical Map 2.0 source contracts`, `Runtime recovery Pass 45`, `Pass 45 strict runtime acceptance harness`, `Pass 45 Authored Park Ground`, `Pass 45 Park Geometry Owner Normalization` and `Pass 45 Park Semantic Owner Normalization` completed **SUCCESS**.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. No current-head local UE 5.8 screenshot accepts the new concrete hardscape look, scale or relationship to monument/ramps.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
+- Remaining Gate K park content gaps: `ParkMemorialMonument` and `ParkSkateRamps` still lack verified authored mesh candidates. The next source-landable architectural task is to retire both temporary `primary_authoring=0` park normalization bridges by moving all exact ground/memorial/skate owners directly into `AOCWorldSectorOster`, updating the authored ground/hardscape contracts to `primary_authoring=1`, and preserving the three explicit monument/ramp content gaps until factual authored assets exist.
