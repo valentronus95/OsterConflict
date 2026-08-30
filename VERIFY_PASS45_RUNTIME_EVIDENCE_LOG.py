@@ -107,12 +107,17 @@ def main() -> int:
     # valid open-space case so source-only spawn semantics cannot masquerade as gameplay acceptance. The shared
     # real grenade body may remain an explicit exact-body content gap, but its authored type-identity material must
     # load successfully so frag/smoke/flash cannot silently collapse back to one indistinguishable presentation.
+    # Crucially, a cosmetic event bridge is not the authored hand/pull/throw/recover sequence required by item 9.
+    # Final strict automated evidence therefore cannot turn green while the native component reports the explicit
+    # authored-animation CONTENT GAP. A future accepted implementation must emit the factual runtime-ready marker.
     require(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_READY", errors, "grenade production visual")
     forbid(gameplay, "PASS45_GRENADE_PRODUCTION_VISUAL_FAIL", errors, "grenade production visual failure")
     require(gameplay, "PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_READY", errors, "authored grenade type identity material")
     forbid(gameplay, "PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL", errors, "grenade type identity material failure")
     require(gameplay, "PASS45_GRENADE_THROW_COMMIT_READY", errors, "transactional grenade throw")
     require(gameplay, "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY", errors, "grenade throw presentation event bridge")
+    require(gameplay, "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_RUNTIME_READY", errors, "authored grenade throw animation runtime readiness")
+    forbid(gameplay, "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP", errors, "missing authored grenade throw animation")
     forbid(gameplay, "PASS45_GRENADE_SAFE_SPAWN_REJECTED", errors, "grenade spawn clearance rejection during acceptance throw")
     forbid(gameplay, "PASS45_GRENADE_SPAWN_FAIL", errors, "grenade projectile spawn failure")
     require(gameplay, "PASS45_SMOKE_VFX_RUNTIME_READY", errors, "authored smoke visual runtime readiness")
@@ -204,6 +209,7 @@ def main() -> int:
         "GRENADE_TYPE_IDENTITY_MATERIAL=PASS\n"
         "GRENADE_TRANSACTIONAL_THROW=PASS\n"
         "GRENADE_PRESENTATION_EVENT_BRIDGE=PASS\n"
+        "GRENADE_AUTHORED_THROW_ANIMATION=PASS\n"
         "SMOKE_AUTHORED_VFX=PASS\n"
         "SMOKE_GAMEPLAY_EXPANSION_CONTRACT=PASS\n"
         "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
@@ -223,7 +229,7 @@ def main() -> int:
     print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
     print("- grenade production visual and authored type-identity material loaded; exact per-type body content remains explicit")
-    print("- a factual grenade throw committed inventory only after spawn and emitted presentation bridge evidence")
+    print("- a factual grenade throw committed inventory only after spawn, emitted the presentation bridge and proved authored throw animation runtime readiness")
     print("- smoke authored Niagara loaded/activated and current READY proves bounded gameplay expansion without claiming exact visual sync")
     print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
     print("Evidence:", EVIDENCE_OUT)
