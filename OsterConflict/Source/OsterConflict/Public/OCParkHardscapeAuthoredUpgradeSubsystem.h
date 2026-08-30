@@ -5,15 +5,14 @@
 #include "OCParkHardscapeAuthoredUpgradeSubsystem.generated.h"
 
 /**
- * PASS45 Gate K authored hardscape presentation for the exact flat semantic owners produced by the temporary
- * Central Park semantic-normalization bridge.
+ * PASS45 Gate K authored hardscape presentation for exact flat semantic owners created directly by AOCWorldSectorOster.
  *
  * Only ParkMemorialSurface and ParkSkateSurface are upgraded to a tracked authored plane + concrete material.
  * ParkMemorialMonument and ParkSkateRamps remain separate content gaps and are deliberately not mutated here.
  * XY footprint, yaw and source top-surface elevation are preserved, with transaction rollback if either write fails.
  *
- * This remains primary_authoring=0 while the normalization bridge exists. Direct AOCWorldSectorOster semantic
- * authoring must eventually replace the bridge; source verification is not UE 5.8 visual acceptance.
+ * Semantic ownership is primary_authoring=1 / normalization_bridge=0. This presentation upgrade remains source-only
+ * evidence until direct UE 5.8 visual acceptance.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCParkHardscapeAuthoredUpgradeSubsystem : public UTickableWorldSubsystem

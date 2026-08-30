@@ -244,7 +244,7 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         if (ElapsedSeconds < OwnerResolutionTimeoutSeconds) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=semantic_owner_contract legacy=%d central=%d north=%d college=%d owner_normalization_required=1 gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=semantic_owner_contract legacy=%d central=%d north=%d college=%d primary_source_required=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"),
             LegacyGeometry ? LegacyGeometry->GetInstanceCount() : -1,
             ParkCentralGround ? ParkCentralGround->GetInstanceCount() : -1,
             ParkNorthCivicGround ? ParkNorthCivicGround->GetInstanceCount() : -1,
@@ -306,5 +306,5 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
 
     bFinished = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_PARK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Grass_Inst park_central_ground=1 park_north_civic_ground=1 college_recreation_ground=1 exact_semantic_owners=3 basicshape_meshes=0 basicshape_material_overrides=0 source_surface_top_preserved=1 xy_footprint_preserved=1 yaw_preserved=1 bounds_aware_surface_fit=1 park_green_semantics_preserved=1 transactional_preflight=1 rollback_on_write_failure=1 tactical_map_xy_bounds_preserved=1 primary_authoring=0 gate_k_complete=0 runtime_acceptance=0"));
+        TEXT("PASS45_AUTHORED_PARK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Grass_Inst park_central_ground=1 park_north_civic_ground=1 college_recreation_ground=1 exact_semantic_owners=3 basicshape_meshes=0 basicshape_material_overrides=0 source_surface_top_preserved=1 xy_footprint_preserved=1 yaw_preserved=1 bounds_aware_surface_fit=1 park_green_semantics_preserved=1 transactional_preflight=1 rollback_on_write_failure=1 tactical_map_xy_bounds_preserved=1 primary_authoring=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"));
 }

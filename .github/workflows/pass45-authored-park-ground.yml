@@ -5,7 +5,7 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCParkGroundAuthoredUpgradeSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCParkGroundAuthoredUpgradeSubsystem.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCParkGeometryOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
@@ -17,7 +17,7 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCParkGroundAuthoredUpgradeSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCParkGroundAuthoredUpgradeSubsystem.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCParkGeometryOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'

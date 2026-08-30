@@ -25,7 +25,7 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 header = read(SRC / "Public" / "OCParkGroundAuthoredUpgradeSubsystem.h")
 impl = read(SRC / "Private" / "OCParkGroundAuthoredUpgradeSubsystem.cpp")
-normalizer = read(SRC / "Private" / "OCParkGeometryOwnerNormalizationSubsystem.cpp")
+world_header = read(SRC / "Public" / "OCWorldSectorOster.h")
 world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
 gate = read(SRC / "Private" / "OCVisualFidelityGateKSubsystem.cpp")
 tactical = read(SRC / "Private" / "OCTacticalMapSubsystem.cpp")
@@ -33,14 +33,27 @@ read(PLANE)
 read(GRASS)
 
 for needle in (
-    "UOCParkGroundAuthoredUpgradeSubsystem",
+    "created directly by AOCWorldSectorOster",
     "ParkCentralGround, ParkNorthCivicGround and CollegeRecreationGround",
     "source surface-top elevation",
-    "rolls back the whole",
-    "primary_authoring=0",
-    "not UE 5.8 visual acceptance",
+    "primary_authoring=1 / normalization_bridge=0",
+    "does not constitute UE 5.8 visual acceptance",
 ):
     require(header, needle, "authored-ground ownership")
+
+for owner in ("ParkCentralGround", "ParkNorthCivicGround", "CollegeRecreationGround"):
+    require(world_header, f"TObjectPtr<UInstancedStaticMeshComponent> {owner};", f"{owner} primary member")
+    require(world, f'{owner} = MakeISM(TEXT("{owner}"), TEXT("BlockAll"));', f"{owner} primary component")
+
+for needle in (
+    'AddBox(ParkCentralGround, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));',
+    'AddBox(ParkNorthCivicGround, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));',
+    'AddBox(CollegeRecreationGround, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);',
+    "PASS45_PARK_GROUND_PRIMARY_OWNERS_READY",
+    "primary_authoring=1 normalization_bridge=0 authored_surface_upgrade_pending=1",
+):
+    require(world, needle, "direct green-ground source contract")
+forbid(world, "AddBox(ParkGeometry,", "legacy ParkGeometry source resurrection")
 
 for needle in (
     "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
@@ -51,35 +64,17 @@ for needle in (
     'FindISM(Sector, TEXT("ParkNorthCivicGround"))',
     'FindISM(Sector, TEXT("CollegeRecreationGround"))',
     "LegacyGeometry->GetInstanceCount() != 0",
+    "primary_source_required=1 normalization_bridge=0",
     "BuildPlan",
     "RestorePlan",
     "ApplyPlan",
-    "SourceBounds.BoxExtent.X * 2.0f * SourceScale.X",
-    "SourceBounds.BoxExtent.Y * 2.0f * SourceScale.Y",
-    "NewNativeSize.Z > 1.0f",
     "SourceTopZ",
-    "NewTopOffsetZ",
     "NewLocation.Z = SourceTopZ - NewTopOffsetZ",
     "SetStaticMesh(AuthoredMesh)",
-    "EmptyOverrideMaterials()",
     "SetMaterial(Slot, GrassMaterial)",
-    "UpdateInstanceTransform(0, Plan.NewTransform",
-    "RestorePlan(Plans[RollbackIndex])",
-    "PASS45_AUTHORED_PARK_GROUND_CONTENT_GAP",
-    "PASS45_AUTHORED_PARK_GROUND_FAIL",
     "PASS45_AUTHORED_PARK_GROUND_READY",
     "exact_semantic_owners=3",
-    "basicshape_meshes=0",
-    "basicshape_material_overrides=0",
-    "source_surface_top_preserved=1",
-    "xy_footprint_preserved=1",
-    "yaw_preserved=1",
-    "bounds_aware_surface_fit=1",
-    "park_green_semantics_preserved=1",
-    "transactional_preflight=1",
-    "rollback_on_write_failure=1",
-    "tactical_map_xy_bounds_preserved=1",
-    "primary_authoring=0",
+    "primary_authoring=1 normalization_bridge=0",
     "gate_k_complete=0",
     "runtime_acceptance=0",
 ):
@@ -96,30 +91,12 @@ for forbidden in (
     'FindISM(Sector, TEXT("ParkBenches"))',
     "SetVisibility(false",
     "SetHiddenInGame(true",
+    "primary_authoring=0",
 ):
-    forbid(impl, forbidden, "authored-ground scope/visibility")
+    forbid(impl, forbidden, "authored-ground scope/ownership")
 
-# Ground semantics are not invented here: the primary source deliberately tints the shared legacy ParkGeometry green.
-require(world, "Tint(ParkGeometry,        FLinearColor(0.12f, 0.31f, 0.075f));", "legacy green park-ground semantics")
-for needle in (
-    'AddBox(ParkGeometry, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));',
-    'AddBox(ParkGeometry, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));',
-    'AddBox(ParkGeometry, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);',
-):
-    require(world, needle, "indexed green-ground source contract")
-
-# Ordering contract: semantic split runs first, authored replacement second, observation-only Gate K third.
-for needle in (
-    "NormalizationDelaySeconds = 0.45f",
-    'TEXT("ParkCentralGround")',
-    'TEXT("ParkNorthCivicGround")',
-    'TEXT("CollegeRecreationGround")',
-    "geometry_preserved=1",
-):
-    require(normalizer, needle, "ParkGeometry normalization predecessor")
 require(gate, "ElapsedSeconds < 3.0f", "Gate K observation delay")
 forbid(gate, "SetVisibility(false", "Gate K mutation")
-
 for needle in (
     "ResolveSectorContentBounds",
     "Sector.GetComponents<UPrimitiveComponent>(Components)",
@@ -129,8 +106,7 @@ for needle in (
 forbid(tactical, 'TEXT("ParkGeometry")', "legacy ParkGeometry tactical-map name dependency")
 
 print("PASS45 AUTHORED PARK GROUND SOURCE PASS")
-print("- tracked SM_Plane_1x1 + M_Grass_Inst are bound only to the three exact green-ground semantic owners")
-print("- ownership normalization runs at 0.45 s; authored surface upgrade at 0.70 s; Gate K observes at 3.0 s")
-print("- XY footprint, yaw and source surface-top elevation are preserved with flat-plane-aware bounds fitting")
-print("- all three plans preflight before mutation and prior writes roll back on a later write failure")
+print("- three green-ground owners are direct AOCWorldSectorOster primary components; no normalization bridge remains")
+print("- tracked SM_Plane_1x1 + M_Grass_Inst upgrade only those three exact owners")
+print("- XY footprint, yaw and source surface-top elevation remain bounds-preserved with transactional rollback")
 print("- tactical-map projection remains component-bounds based; UE 5.8 visual acceptance remains open")

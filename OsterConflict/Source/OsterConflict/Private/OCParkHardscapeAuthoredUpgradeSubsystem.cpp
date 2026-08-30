@@ -253,7 +253,7 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         if (ElapsedSeconds < OwnerResolutionTimeoutSeconds) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=semantic_owner_contract legacy_memorial=%d legacy_skate=%d memorial_surface=%d memorial_monument=%d skate_surface=%d skate_ramps=%d normalization_required=1 gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=semantic_owner_contract legacy_memorial=%d legacy_skate=%d memorial_surface=%d memorial_monument=%d skate_surface=%d skate_ramps=%d primary_source_required=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"),
             LegacyMemorial ? LegacyMemorial->GetInstanceCount() : -1,
             LegacySkate ? LegacySkate->GetInstanceCount() : -1,
             ParkMemorialSurface ? ParkMemorialSurface->GetInstanceCount() : -1,
@@ -334,5 +334,5 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
 
     bFinished = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_READY memorial_surface=1 skate_surface=1 memorial_monument_untouched=1 skate_ramps_untouched=2 mesh=SM_Plane_1x1 material=M_Concrete_1_Inst xy_footprint_preserved=1 source_top_preserved=1 family_scope_exact=1 primary_authoring=0 migration_bridge_required=1 remaining_content_gap_instances=3 gate_k_complete=0 runtime_acceptance=0"));
+        TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_READY memorial_surface=1 skate_surface=1 memorial_monument_untouched=1 skate_ramps_untouched=2 mesh=SM_Plane_1x1 material=M_Concrete_1_Inst xy_footprint_preserved=1 source_top_preserved=1 family_scope_exact=1 primary_authoring=1 normalization_bridge=0 remaining_content_gap_instances=3 gate_k_complete=0 runtime_acceptance=0"));
 }

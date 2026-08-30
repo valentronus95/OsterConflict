@@ -5,7 +5,8 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCParkHardscapeAuthoredUpgradeSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCParkHardscapeAuthoredUpgradeSubsystem.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCParkSemanticOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Plane_1x1.uasset'
       - 'OsterConflict/Content/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_1_Inst.uasset'
       - 'VERIFY_PASS45_AUTHORED_PARK_HARDSCAPE.py'
@@ -15,7 +16,8 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Public/OCParkHardscapeAuthoredUpgradeSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCParkHardscapeAuthoredUpgradeSubsystem.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCParkSemanticOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Plane_1x1.uasset'
       - 'OsterConflict/Content/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_1_Inst.uasset'
       - 'VERIFY_PASS45_AUTHORED_PARK_HARDSCAPE.py'

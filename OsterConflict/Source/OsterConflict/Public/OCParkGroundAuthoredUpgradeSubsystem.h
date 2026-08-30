@@ -5,16 +5,15 @@
 #include "OCParkGroundAuthoredUpgradeSubsystem.generated.h"
 
 /**
- * PASS45 Gate K authored ground presentation for the exact semantic owners produced by the temporary
- * ParkGeometry normalization bridge.
+ * PASS45 Gate K authored ground presentation for exact semantic owners created directly by AOCWorldSectorOster.
  *
- * The legacy source tint is explicitly green park ground. This subsystem therefore upgrades exactly
- * ParkCentralGround, ParkNorthCivicGround and CollegeRecreationGround to the tracked authored plane + grass
- * material pair. It preserves XY footprint, yaw and source surface-top elevation, and rolls back the whole
- * three-owner mutation if any post-preflight write fails.
+ * ParkCentralGround, ParkNorthCivicGround and CollegeRecreationGround are primary actor-owned source families.
+ * This subsystem upgrades only their presentation to the tracked authored plane + grass material pair. It preserves
+ * XY footprint, yaw and source surface-top elevation, and rolls back the whole three-owner mutation if any
+ * post-preflight write fails.
  *
- * This remains primary_authoring=0 while the normalization bridge exists. Direct AOCWorldSectorOster semantic
- * authoring must eventually replace both bridges; source verification is not UE 5.8 visual acceptance.
+ * Semantic ownership is primary_authoring=1 / normalization_bridge=0. The presentation upgrade remains a bounded
+ * pre-Gate-K source step and does not constitute UE 5.8 visual acceptance.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCParkGroundAuthoredUpgradeSubsystem : public UTickableWorldSubsystem

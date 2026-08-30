@@ -113,12 +113,23 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     GrassWetland = MakeISM(TEXT("GrassWetland"), TEXT("NoCollision"));
     StadiumGeometry = MakeISM(TEXT("StadiumGeometry"), TEXT("BlockAll"));
     StadiumDetails = MakeISM(TEXT("StadiumDetails"), TEXT("BlockAll"));
+
+    // PASS45 Gate K: legacy mixed/shared names remain zero-instance quarantine. Exact semantic owners are primary
+    // actor subobjects and receive all park/college instances directly during construction.
     ParkGeometry = MakeISM(TEXT("ParkGeometry"), TEXT("BlockAll"));
+    ParkCentralGround = MakeISM(TEXT("ParkCentralGround"), TEXT("BlockAll"));
+    ParkNorthCivicGround = MakeISM(TEXT("ParkNorthCivicGround"), TEXT("BlockAll"));
+    CollegeRecreationGround = MakeISM(TEXT("CollegeRecreationGround"), TEXT("BlockAll"));
     ParkDetails = MakeISM(TEXT("ParkDetails"), TEXT("BlockAll"));
     ParkMemorialPlaza = MakeISM(TEXT("ParkMemorialPlaza"), TEXT("BlockAll"));
+    ParkMemorialSurface = MakeISM(TEXT("ParkMemorialSurface"), TEXT("BlockAll"));
+    ParkMemorialMonument = MakeISM(TEXT("ParkMemorialMonument"), TEXT("BlockAll"));
     ParkMemorialApproach = MakeISM(TEXT("ParkMemorialApproach"), TEXT("BlockAll"));
     ParkSkateFitness = MakeISM(TEXT("ParkSkateFitness"), TEXT("BlockAll"));
+    ParkSkateSurface = MakeISM(TEXT("ParkSkateSurface"), TEXT("BlockAll"));
+    ParkSkateRamps = MakeISM(TEXT("ParkSkateRamps"), TEXT("BlockAll"));
     ParkBenches = MakeISM(TEXT("ParkBenches"), TEXT("BlockAll"));
+
     Waterways = MakeISM(TEXT("Waterways"), TEXT("NoCollision"));
     Bridges = MakeISM(TEXT("Bridges"), TEXT("BlockAll"));
     ReferenceMarkers = MakeISM(TEXT("ReferenceMarkers"), TEXT("NoCollision"));
@@ -150,7 +161,9 @@ AOCWorldSectorOster::AOCWorldSectorOster()
             Roads, Sidewalks, ParkPaths, Buildings, ResidentialRoofs, ResidentialDetails,
             LandmarkBlocks, LandmarkRoofs, LandmarkWindows, LandmarkDetails,
             Fences, WoodFences, MetalFences, LightSheetFences, StadiumGeometry, StadiumDetails,
-            ParkGeometry, ParkDetails, ParkMemorialPlaza, ParkMemorialApproach, ParkSkateFitness, ParkBenches,
+            ParkGeometry, ParkCentralGround, ParkNorthCivicGround, CollegeRecreationGround,
+            ParkDetails, ParkMemorialPlaza, ParkMemorialSurface, ParkMemorialMonument,
+            ParkMemorialApproach, ParkSkateFitness, ParkSkateSurface, ParkSkateRamps, ParkBenches,
             GrassMown, GrassRough, GrassWetland,
             Waterways, Bridges, ReferenceMarkers
         };
@@ -254,11 +267,21 @@ void AOCWorldSectorOster::BeginPlay()
     Tint(GrassWetland,        FLinearColor(0.13f, 0.28f, 0.12f));
     Tint(StadiumGeometry,     FLinearColor(0.055f, 0.31f, 0.12f));
     Tint(StadiumDetails,      FLinearColor(0.82f, 0.82f, 0.76f));
+
+    // Zero-instance quarantine keeps legacy names stable without creating visible mixed/shared geometry.
     Tint(ParkGeometry,        FLinearColor(0.12f, 0.31f, 0.075f));
     Tint(ParkDetails,         FLinearColor(0.40f, 0.34f, 0.25f));
     Tint(ParkMemorialPlaza,   FLinearColor(0.40f, 0.34f, 0.25f));
-    Tint(ParkMemorialApproach,FLinearColor(0.40f, 0.34f, 0.25f));
     Tint(ParkSkateFitness,    FLinearColor(0.40f, 0.34f, 0.25f));
+
+    Tint(ParkCentralGround,   FLinearColor(0.12f, 0.31f, 0.075f));
+    Tint(ParkNorthCivicGround,FLinearColor(0.12f, 0.31f, 0.075f));
+    Tint(CollegeRecreationGround, FLinearColor(0.12f, 0.31f, 0.075f));
+    Tint(ParkMemorialSurface, FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialMonument,FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialApproach,FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkSkateSurface,    FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkSkateRamps,      FLinearColor(0.40f, 0.34f, 0.25f));
     Tint(ParkBenches,         FLinearColor(0.40f, 0.34f, 0.25f));
     Tint(Waterways,           FLinearColor(0.055f, 0.22f, 0.36f));
     Tint(Bridges,             FLinearColor(0.32f, 0.31f, 0.29f));
@@ -572,19 +595,22 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
 void AOCWorldSectorOster::BuildCentralPark()
 {
     constexpr int32 ExpectedParkPaths = 5;
-    constexpr int32 ExpectedMemorialPlaza = 2;
+    constexpr int32 ExpectedMemorialSurface = 1;
+    constexpr int32 ExpectedMemorialMonument = 1;
     constexpr int32 ExpectedMemorialApproach = 4;
-    constexpr int32 ExpectedSkateFitness = 3;
+    constexpr int32 ExpectedSkateSurface = 1;
+    constexpr int32 ExpectedSkateRamps = 2;
     constexpr int32 ExpectedBenches = 14;
     constexpr int32 ExpectedSemanticDetails =
-        ExpectedMemorialPlaza + ExpectedMemorialApproach + ExpectedSkateFitness + ExpectedBenches;
+        ExpectedMemorialSurface + ExpectedMemorialMonument + ExpectedMemorialApproach +
+        ExpectedSkateSurface + ExpectedSkateRamps + ExpectedBenches;
     static_assert(ExpectedParkPaths == 5, "Central Park must retain exactly five canonical ParkPaths proxies");
     static_assert(ExpectedSemanticDetails == 23, "Central Park semantic detail contract must remain exactly 23 proxies");
 
     const FVector Park = ParkAnchor();
 
-    // City-park footprint centered on a documented park monument/reference coordinate.
-    AddBox(ParkGeometry, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));
+    // Gate K primary semantic ground ownership: the old shared ParkGeometry bucket stays empty.
+    AddBox(ParkCentralGround, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));
 
     // Gate K: these five pedestrian paths are source-owned by ParkPaths, never mixed into Sidewalks.
     AddBox(ParkPaths, Park + FVector(0, 0, 14), FVector(17800, 360, 18));
@@ -592,10 +618,9 @@ void AOCWorldSectorOster::BuildCentralPark()
     AddBox(ParkPaths, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);
     AddBox(ParkPaths, Park + FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f);
 
-    // Gate K semantic split: the legacy ParkDetails bucket must remain empty. Do not blanket-upgrade these groups.
-    // Civic center / memorial plaza block and stepped approach are separate authored-replacement domains.
-    AddBox(ParkMemorialPlaza, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
-    AddBox(ParkMemorialPlaza, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
+    // Gate K primary semantic owners. Legacy ParkDetails/ParkMemorialPlaza/ParkSkateFitness remain empty quarantine.
+    AddBox(ParkMemorialSurface, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
+    AddBox(ParkMemorialMonument, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
     for (int32 Step = 0; Step < ExpectedMemorialApproach; ++Step)
     {
         AddBox(ParkMemorialApproach, Park + FVector(-6100 + Step * 150.0f, -4900, 18 + Step * 14.0f),
@@ -603,9 +628,9 @@ void AOCWorldSectorOster::BuildCentralPark()
     }
 
     // Small skate/active-recreation pad is present in recent public park coverage; placement is approximate.
-    AddBox(ParkSkateFitness, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
-    AddBoxRotated(ParkSkateFitness, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
-    AddBoxRotated(ParkSkateFitness, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
+    AddBox(ParkSkateSurface, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
+    AddBoxRotated(ParkSkateRamps, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
+    AddBoxRotated(ParkSkateRamps, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
 
     // The separate published "city park near culture house" point lies farther north. Keep it as a secondary
     // civic grove/reference instead of incorrectly using it as the whole central-park centroid (S09 behavior).
@@ -613,10 +638,10 @@ void AOCWorldSectorOster::BuildCentralPark()
     const FVector Mid = (Park + NorthCivic) * 0.5f;
     const FVector Delta = NorthCivic - Park;
     const float LinkYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
-    AddBox(ParkGeometry, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));
+    AddBox(ParkNorthCivicGround, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));
     AddBox(ParkPaths, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);
 
-    // Benches along main alleys. Simple source-only proxies now; final assets arrive only from a verified exact candidate.
+    // Benches along main alleys. Their dedicated authored replacement remains separately guarded.
     for (int32 I = -3; I <= 3; ++I)
     {
         AddBox(ParkBenches, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120));
@@ -624,38 +649,62 @@ void AOCWorldSectorOster::BuildCentralPark()
     }
 
     const int32 ParkPathCount = ParkPaths ? ParkPaths->GetInstanceCount() : -1;
-    const int32 LegacyCount = ParkDetails ? ParkDetails->GetInstanceCount() : -1;
-    const int32 MemorialPlazaCount = ParkMemorialPlaza ? ParkMemorialPlaza->GetInstanceCount() : -1;
+    const int32 LegacyDetailsCount = ParkDetails ? ParkDetails->GetInstanceCount() : -1;
+    const int32 LegacyGeometryCount = ParkGeometry ? ParkGeometry->GetInstanceCount() : -1;
+    const int32 LegacyMemorialCount = ParkMemorialPlaza ? ParkMemorialPlaza->GetInstanceCount() : -1;
+    const int32 LegacySkateCount = ParkSkateFitness ? ParkSkateFitness->GetInstanceCount() : -1;
+    const int32 CentralGroundCount = ParkCentralGround ? ParkCentralGround->GetInstanceCount() : -1;
+    const int32 NorthGroundCount = ParkNorthCivicGround ? ParkNorthCivicGround->GetInstanceCount() : -1;
+    const int32 MemorialSurfaceCount = ParkMemorialSurface ? ParkMemorialSurface->GetInstanceCount() : -1;
+    const int32 MemorialMonumentCount = ParkMemorialMonument ? ParkMemorialMonument->GetInstanceCount() : -1;
     const int32 MemorialApproachCount = ParkMemorialApproach ? ParkMemorialApproach->GetInstanceCount() : -1;
-    const int32 SkateFitnessCount = ParkSkateFitness ? ParkSkateFitness->GetInstanceCount() : -1;
+    const int32 SkateSurfaceCount = ParkSkateSurface ? ParkSkateSurface->GetInstanceCount() : -1;
+    const int32 SkateRampsCount = ParkSkateRamps ? ParkSkateRamps->GetInstanceCount() : -1;
     const int32 BenchCount = ParkBenches ? ParkBenches->GetInstanceCount() : -1;
-    const int32 SemanticDetailCount = MemorialPlazaCount + MemorialApproachCount + SkateFitnessCount + BenchCount;
+    const int32 SemanticDetailCount = MemorialSurfaceCount + MemorialMonumentCount + MemorialApproachCount +
+        SkateSurfaceCount + SkateRampsCount + BenchCount;
 
-    const bool bSemanticSplitValid = ParkPathCount == ExpectedParkPaths && LegacyCount == 0 &&
-        MemorialPlazaCount == ExpectedMemorialPlaza &&
+    const bool bSemanticSplitValid =
+        ParkPathCount == ExpectedParkPaths &&
+        LegacyDetailsCount == 0 && LegacyGeometryCount == 0 && LegacyMemorialCount == 0 && LegacySkateCount == 0 &&
+        CentralGroundCount == 1 && NorthGroundCount == 1 &&
+        MemorialSurfaceCount == ExpectedMemorialSurface &&
+        MemorialMonumentCount == ExpectedMemorialMonument &&
         MemorialApproachCount == ExpectedMemorialApproach &&
-        SkateFitnessCount == ExpectedSkateFitness &&
+        SkateSurfaceCount == ExpectedSkateSurface &&
+        SkateRampsCount == ExpectedSkateRamps &&
         BenchCount == ExpectedBenches &&
         SemanticDetailCount == ExpectedSemanticDetails;
 
     if (!bSemanticSplitValid)
     {
         if (ParkPaths) ParkPaths->ClearInstances();
+        if (ParkGeometry) ParkGeometry->ClearInstances();
+        if (ParkCentralGround) ParkCentralGround->ClearInstances();
+        if (ParkNorthCivicGround) ParkNorthCivicGround->ClearInstances();
         if (ParkDetails) ParkDetails->ClearInstances();
         if (ParkMemorialPlaza) ParkMemorialPlaza->ClearInstances();
+        if (ParkMemorialSurface) ParkMemorialSurface->ClearInstances();
+        if (ParkMemorialMonument) ParkMemorialMonument->ClearInstances();
         if (ParkMemorialApproach) ParkMemorialApproach->ClearInstances();
         if (ParkSkateFitness) ParkSkateFitness->ClearInstances();
+        if (ParkSkateSurface) ParkSkateSurface->ClearInstances();
+        if (ParkSkateRamps) ParkSkateRamps->ClearInstances();
         if (ParkBenches) ParkBenches->ClearInstances();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED park_paths=%d legacy=%d memorial_plaza=%d memorial_approach=%d skate_fitness=%d benches=%d total=%d expected=5/0/2/4/3/14/23"),
-            ParkPathCount, LegacyCount, MemorialPlazaCount, MemorialApproachCount, SkateFitnessCount, BenchCount, SemanticDetailCount);
+            TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED park_paths=%d legacy_details=%d legacy_geometry=%d legacy_memorial=%d legacy_skate=%d central_ground=%d north_ground=%d memorial_surface=%d memorial_monument=%d memorial_approach=%d skate_surface=%d skate_ramps=%d benches=%d total=%d expected=5/0/0/0/0/1/1/1/1/4/1/2/14/23 primary_authoring=1 normalization_bridge=0"),
+            ParkPathCount, LegacyDetailsCount, LegacyGeometryCount, LegacyMemorialCount, LegacySkateCount,
+            CentralGroundCount, NorthGroundCount, MemorialSurfaceCount, MemorialMonumentCount, MemorialApproachCount,
+            SkateSurfaceCount, SkateRampsCount, BenchCount, SemanticDetailCount);
         return;
     }
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_SOURCE_PARK_PATH_OWNERSHIP_READY component=ParkPaths park_path_instances=5 authored_in_sidewalks=0 canonical_source_owner=1 runtime_migration_required=0"));
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY park_paths=5 legacy=0 memorial_plaza=2 memorial_approach=4 skate_fitness=3 benches=14 total=23 authored_detail_replacements=0"));
+        TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY park_paths=5 legacy_details=0 legacy_geometry=0 legacy_memorial_plaza=0 legacy_skate_fitness=0 memorial_surface=1 memorial_monument=1 memorial_approach=4 skate_surface=1 skate_ramps=2 benches=14 total=23 primary_authoring=1 normalization_bridge=0 authored_detail_replacements=0 gate_k_complete=0 runtime_acceptance=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_PARK_PRIMARY_SEMANTIC_OWNERS_READY park_central_ground=1 park_north_civic_ground=1 memorial_surface=1 memorial_monument=1 memorial_approach=4 skate_surface=1 skate_ramps=2 benches=14 legacy_geometry=0 legacy_memorial_plaza=0 legacy_skate_fitness=0 primary_authoring=1 normalization_bridge=0 remaining_content_gap_instances=3 gate_k_complete=0 runtime_acceptance=0"));
 }
 
 void AOCWorldSectorOster::BuildCollegeSector()
@@ -707,12 +756,32 @@ void AOCWorldSectorOster::BuildCollegeSector()
     AddBox(LandmarkRoofs, College + FVector(4800, 6000, 1045), FVector(2220, 4420, 55), Yaw - 1.0f);
     AddBox(LandmarkBlocks, College + FVector(9000, 2600, 340), FVector(2600, 1500, 680), Yaw);
 
-    // Courtyard, sport/recreation strip and perimeter.
+    // Courtyard, sport/recreation strip and perimeter. The recreation ground has a dedicated primary owner.
     AddBox(Sidewalks, College + FVector(900, 5200, 12), FVector(8000, 5900, 18), Yaw);
-    AddBox(ParkGeometry, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);
+    AddBox(CollegeRecreationGround, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);
     AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);
     AddBox(Fences, College + FVector(0, 9300, 110), FVector(11200, 45, 220), Yaw);
     AddBox(Fences, College + FVector(-5600, 3400, 110), FVector(45, 11700, 220), Yaw);
+
+    const int32 LegacyGeometryCount = ParkGeometry ? ParkGeometry->GetInstanceCount() : -1;
+    const int32 CentralGroundCount = ParkCentralGround ? ParkCentralGround->GetInstanceCount() : -1;
+    const int32 NorthGroundCount = ParkNorthCivicGround ? ParkNorthCivicGround->GetInstanceCount() : -1;
+    const int32 CollegeGroundCount = CollegeRecreationGround ? CollegeRecreationGround->GetInstanceCount() : -1;
+    const bool bGroundOwnersValid = LegacyGeometryCount == 0 && CentralGroundCount == 1 &&
+        NorthGroundCount == 1 && CollegeGroundCount == 1;
+    if (!bGroundOwnersValid)
+    {
+        if (ParkCentralGround) ParkCentralGround->ClearInstances();
+        if (ParkNorthCivicGround) ParkNorthCivicGround->ClearInstances();
+        if (CollegeRecreationGround) CollegeRecreationGround->ClearInstances();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PARK_GROUND_PRIMARY_OWNERS_REJECTED legacy_geometry=%d park_central_ground=%d park_north_civic_ground=%d college_recreation_ground=%d expected=0/1/1/1 primary_authoring=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"),
+            LegacyGeometryCount, CentralGroundCount, NorthGroundCount, CollegeGroundCount);
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_PARK_GROUND_PRIMARY_OWNERS_READY legacy_geometry=0 park_central_ground=1 park_north_civic_ground=1 college_recreation_ground=1 primary_authoring=1 normalization_bridge=0 authored_surface_upgrade_pending=1 gate_k_complete=0 runtime_acceptance=0"));
 }
 
 void AOCWorldSectorOster::BuildVegetation()

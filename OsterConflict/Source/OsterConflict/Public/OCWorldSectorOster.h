@@ -88,13 +88,23 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassWetland;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StadiumGeometry;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StadiumDetails;
+
+    // PASS45 Gate K primary semantic ownership. The legacy mixed/shared buckets remain zero-instance quarantine
+    // for compatibility only; all player-facing park/college surface instances are authored directly into exact owners.
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkGeometry;
-    // PASS45 Gate K: legacy mixed park-detail bucket is retained as a zero-instance quarantine only.
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkCentralGround;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkNorthCivicGround;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> CollegeRecreationGround;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkDetails;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialPlaza;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialSurface;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialMonument;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialApproach;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateFitness;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateSurface;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateRamps;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkBenches;
+
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Waterways;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Bridges;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ReferenceMarkers;
