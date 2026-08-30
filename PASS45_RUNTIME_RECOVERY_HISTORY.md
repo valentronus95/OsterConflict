@@ -44,7 +44,8 @@ A source improvement may be recorded as `SOURCE-CODED` or `SOURCE-VERIFIED`; it 
 - State: OPEN / UNMERGED
 - Snapshot compare to `main@bca00f4046700f383af9f1742cc24b6a62401b1a`: ahead 509 / behind 0.
 - This means the active PASS45 integration line contains all 509 commits in its own history relative to that main snapshot, but does **not** mean every older divergent PR is safely disposable; those require content-equivalence audit first.
-- Latest substantive source head after the legacy-branch/content-truth cycle below: `e90a6b57925da5e7cc8c09a198a65e7de989025b`; this ledger update follows as bookkeeping and therefore moves the branch head again without changing production/runtime behavior.
+- Latest substantive source head after the legacy-branch/content-truth cycle below: `e90a6b57925da5e7cc8c09a198a65e7de989025b`.
+- Pre-ledger head for the completed PR #85 equivalence audit: `80805539c97c2bb8bff1028b98843dd373f0bf7f`; that audit introduced no gameplay/runtime source change.
 
 ### Known recovered milestones in the active integration line
 
@@ -79,12 +80,15 @@ These PRs were found during the 2026-08-30 audit. Current disposition is recorde
 ### PR #85 — `fix/pass45-postmerge-content-closure-20260825`
 
 - Head: `24b8f5a8b869ede9bd64be1faddec8e9e52dd414`
-- **OPEN / UNMERGED**; GitHub reported non-mergeable at the audit snapshot.
-- Scope included rejected generic residential retirement, yard/shed owner retirement, BTR material dependency guard, verifier/workflow changes and historical runtime evidence preservation.
-- Commit ancestry comparison against active PR #94 snapshot is **diverged**; the old branch has 22 unique commits relative to the active line.
-- Partial content-equivalence audit completed 2026-08-30: current #94 already has the newer `VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py` + runtime validation path, which semantically retires generic enterable-house/procedural residential/private-fence presentation and rejects resurrection of `AdvancedVillagePack`, steep-roof/shack/tower families without using a late mutating repair owner.
-- The old #85 BTR texture-dependency portion is **not yet classified as safely superseded**. Current #94 has a newer R3 authored BTR material/+X-forward/Y-up contract, but the canonical Pass45 acceptance still requires real material/texture dependency truth. The effective strict-runtime behavior must be compared before #85 is closed.
-- Required disposition: finish BTR material/dependency equivalence audit; port any still-valid stricter guard deliberately, otherwise mark the old slice superseded. Do not close blindly.
+- **CLOSED / UNMERGED on 2026-08-30.**
+- Scope: 22 commits / 13 changed files covering generic residential decorator retirement, an `OCEnterableHouse` yard/fence/shed slice, BTR material dependency logic, runner/verifier/workflow updates and historical evidence bookkeeping.
+- Commit ancestry against current PR #94 is diverged, so the branch was audited semantically before closure rather than discarded by commit count.
+- The old generic residential decorator edits are superseded more completely: current #94 physically no longer carries the old `OCAssetModelDecorator` owner, while `VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py` forbids normal-game `AOCEnterableHouse` spawning, removes procedural residential owners and observation-only Gate E rejects any resurrection of `AdvancedVillagePack`, `OCEnterableHouse`, steep-roof/shack/tower families and generic private-fence instance families.
+- The old `OCEnterableHouse` `RealYardFence` / `RealSideShed` removal was a valid intermediate fix but is not ported into a normal-game owner that the current architecture has retired entirely. Porting it would maintain a dead presentation path rather than restore required runtime behavior.
+- The old BTR `Material -> Texture2D` dependency gate is intentionally not ported. Current canonical R3 BTR is a repository-safe authored glTF with explicit PBR material `M_BTR4_OC_Authored` and authored `COLOR_0` vertex palette. PASS45 item 14 / Gate G requires no white/default material, stable ownership, +X-forward/Y-up orientation, proportional presentation and remote optic; the strict `real texture dependencies / zero texture dependencies = FAIL` chain is the weapon-content rule in item 18, not a BTR requirement.
+- The BTR white/default failure mode remains guarded on #94: `ValidateProductionBTR4MaterialState()` revalidates around possession lifecycle, rejects null/DefaultMaterial/BasicShape material slots, requires BTR-authored production material paths and fails closed by hiding an invalid production chassis. The separate R3 authored-material and axis/remote-optic gates remain source-verified architecture, not runtime acceptance.
+- Older runner/world/stale-runtime verifier wiring on #85 is superseded by the current strict runtime harness plus reference-driven residential retirement and current evidence/TZ contracts.
+- Disposition: **FULLY SUPERSEDED / CLOSED UNMERGED / NO PORT REQUIRED**.
 
 ### PR #90 — `fix/pass45-content-gap-truth-20260825`
 
@@ -117,9 +121,28 @@ These PRs were found during the 2026-08-30 audit. Current disposition is recorde
 - Exact CI for `e90a6b57925da5e7cc8c09a198a65e7de989025b`: every workflow run returned by the commit audit completed **SUCCESS**, including `Source verification`, `Pass 45 strict runtime acceptance harness`, `Pass 45 weapon material dependency audit`, `Pass 45 BTR4 authored material`, `Pass 45 BTR4 material state`, `Pass 45 BTR4 axis remote optic`, `Pass 45 visual fidelity Gate K` and `Pass 45 reference-driven residential retirement`.
 - Runtime state: **RUNTIME REJECTED 2026-08-27** remains the latest factual local UE verdict. The new source head has no current-head UE 5.8 runtime acceptance.
 - `main` merge state: **none**; PR #94 remains OPEN / UNMERGED.
-- Legacy disposition completed: PR #84 closed superseded with no port; PR #90 closed after porting the still-valid registry truth.
-- Remaining branch debt: PR #85 remains open pending BTR material/texture-dependency equivalence audit; PR #95 remains isolated Draft content intake pending provenance/license/local import validation.
+- Legacy disposition completed at this stage: PR #84 closed superseded with no port; PR #90 closed after porting the still-valid registry truth.
+- Branch debt at the end of this specific stage was PR #85 pending BTR/material equivalence audit plus isolated Draft #95; the following cycle resolves #85.
 - Remaining technical blockers are unchanged by this bookkeeping/content-truth slice: authored/manual weapon-action and exact audio/ADS closure, item 24 grenade presentation closure, vegetation/world fidelity, HMMWV/M2 runtime acceptance and road speed, BTR material/orientation/remote optic runtime acceptance, fullscreen/native-scale/thermal soak, tactical-map screenshot, full current-head UE 5.8 acceptance and final protected merge.
+
+## Work cycle — 2026-08-30 PR #85 content-equivalence closure
+
+- Canonical checklist relevance: item 14 BTR material/orientation/remote-operator truth, Gate E reference-driven residential retirement and final branch-hygiene debt.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `80805539c97c2bb8bff1028b98843dd373f0bf7f`.
+- End/source head before this ledger-only write: `80805539c97c2bb8bff1028b98843dd373f0bf7f`; **no gameplay/runtime source commit was needed in this audit cycle**.
+- External PR mutation: PR #85 was closed unmerged after semantic equivalence audit; its historical head remains `24b8f5a8b869ede9bd64be1faddec8e9e52dd414`.
+- Old files audited from #85 included `OCAssetModelDecorator.*`, `OCEnterableHouse.*`, `verify_production_vehicle_fresh_load.py`, `VERIFY_PASS45_CONTENT_DEPENDENCIES.py`, stale/world verifiers, runtime runner and workflow wiring.
+- Current contracts audited included `PASS45_RUNTIME_RECOVERY_TZ.md`, `VERIFY_PASS45_BTR4_AUTHORED_MATERIAL.py`, `VERIFY_PASS45_BTR4_MATERIAL_STATE.py`, `OCBTR.cpp`, `VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py` and `OCGameMode.cpp`; the old `OCAssetModelDecorator` header is absent from the active integration tree.
+- Equivalence result: generic residential content is retired more completely by the current architecture; dormant old `OCEnterableHouse` yard presentation does not need a port because normal-game spawning is forbidden; old BTR Texture2D dependency semantics conflict with the current R3 vertex-color PBR material contract and are not part of item 14/Gate G.
+- BTR safety retained: current material-state validation rejects null/default/BasicShape/non-BTR material ownership and fails closed across possession lifecycle. This is source architecture only; 2026-08-27 rendered BTR rejection remains authoritative until a new current-head local test.
+- Verifier/workflow changes: none committed in this cycle; the audit demonstrated that the current newer contracts supersede #85 rather than requiring another verifier copy.
+- CI state: no new substantive source head was created. The latest substantive source commit `e90a6b57925da5e7cc8c09a198a65e7de989025b` remains the exact-head source-verified state recorded in the previous cycle. This ledger-only commit does not authorize any runtime promotion.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains unchanged; no current-head local UE 5.8 acceptance exists.
+- `main` merge state: **none**; PR #94 remains OPEN / UNMERGED.
+- Legacy branch debt after this cycle: #84 CLOSED superseded, #85 CLOSED fully superseded, #90 CLOSED after partial truth port; only #95 remains intentionally DRAFT/OPEN as isolated content-intake/provenance work.
+- Official checklist accounting remains **22/36 = 61.1%** because no runtime-dependent canonical item was factually accepted by this source/branch audit.
+- Remaining technical blockers: authored/manual weapon-action and exact audio/ADS closure, grenade presentation closure, vegetation/world fidelity, HMMWV/M2 runtime acceptance and road speed, BTR material/orientation/remote optic runtime acceptance, fullscreen/native-scale/thermal soak, tactical-map screenshot, full current-head UE 5.8 acceptance and final protected merge.
 
 ## Main-merge history relevant to PASS45
 
