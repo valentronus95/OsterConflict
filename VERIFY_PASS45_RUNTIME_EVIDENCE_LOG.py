@@ -116,6 +116,8 @@ def main() -> int:
     forbid(gameplay, "PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL", errors, "grenade type identity material failure")
     require(gameplay, "PASS45_GRENADE_THROW_COMMIT_READY", errors, "transactional grenade throw")
     require(gameplay, "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY", errors, "grenade throw presentation event bridge")
+    require(gameplay, "PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY", errors, "authored grenade throw audio runtime readiness")
+    forbid(gameplay, "PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP", errors, "missing authored grenade throw audio")
     require(gameplay, "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_RUNTIME_READY", errors, "authored grenade throw animation runtime readiness")
     forbid(gameplay, "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP", errors, "missing authored grenade throw animation")
     forbid(gameplay, "PASS45_GRENADE_SAFE_SPAWN_REJECTED", errors, "grenade spawn clearance rejection during acceptance throw")

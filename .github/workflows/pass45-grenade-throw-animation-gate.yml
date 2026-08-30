@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h'
+      - 'OsterConflict/Content/R13/Audio/snd_throw1.uasset'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
       - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py'
       - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py'
       - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
@@ -12,6 +15,9 @@ on:
     branches: [ main ]
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h'
+      - 'OsterConflict/Content/R13/Audio/snd_throw1.uasset'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
       - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py'
       - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py'
       - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'

@@ -11,8 +11,15 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Sound/SoundBase.h"
+
+namespace
+{
+    const TCHAR* Pass45GrenadeThrowSoundPath = TEXT("/Game/R13/Audio/snd_throw1.snd_throw1");
+}
 
 UOCCharacterVisualComponent::UOCCharacterVisualComponent()
 {
@@ -25,6 +32,10 @@ void UOCCharacterVisualComponent::BeginPlay()
 {
     Super::BeginPlay();
     CharacterOwner = Cast<AOCCharacter>(GetOwner());
+    if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+    {
+        GrenadeThrowSound = LoadObject<USoundBase>(nullptr, Pass45GrenadeThrowSoundPath);
+    }
     if (bEnableSourceOnlyProxy) BuildSourceOnlyProxy();
     RefreshPresentation(true);
 }
@@ -265,6 +276,29 @@ void UOCCharacterVisualComponent::MulticastCharacterAction_Implementation(EOCCha
 {
     if (Event == EOCCharacterActionEvent::GrenadeThrow)
     {
+        AActor* Owner = GetOwner();
+        if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer && GrenadeThrowSound && Owner)
+        {
+            const bool bLocalFirstPerson = CharacterOwner.IsValid() && CharacterOwner->IsLocallyControlled();
+            if (bLocalFirstPerson)
+            {
+                UGameplayStatics::PlaySound2D(this, GrenadeThrowSound);
+            }
+            else
+            {
+                UGameplayStatics::PlaySoundAtLocation(this, GrenadeThrowSound, Owner->GetActorLocation());
+            }
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY asset=%s authored_sound=1 local_first_person=%d replicated_event=1 gameplay_authority=0 runtime_visual_acceptance=0"),
+                Pass45GrenadeThrowSoundPath, bLocalFirstPerson ? 1 : 0);
+        }
+        else if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP asset=%s authored_sound=0 replicated_event=1 gameplay_authority=0 runtime_acceptance=0"),
+                Pass45GrenadeThrowSoundPath);
+        }
+
         // Pass45 item 24: the replicated cosmetic bridge exists, but the repository has no accepted authored
         // first-person hand/throw/recover sequence wired here yet. Keep gameplay flowing while making the visual
         // content gap fatal to final runtime acceptance instead of allowing a Blueprint hook to impersonate proof.

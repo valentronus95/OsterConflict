@@ -8,6 +8,7 @@
 class AOCCharacter;
 class UOCCharacterVisualProfile;
 class USkeletalMeshComponent;
+class USoundBase;
 class UStaticMeshComponent;
 
 /**
@@ -73,6 +74,7 @@ protected:
 private:
     TWeakObjectPtr<AOCCharacter> CharacterOwner;
     TWeakObjectPtr<USkeletalMeshComponent> FirstPersonArms;
+    UPROPERTY(Transient) TObjectPtr<USoundBase> GrenadeThrowSound;
     FOCCharacterAppearance CurrentAppearance;
     EOCFactionArchetype LastAppliedFaction = EOCFactionArchetype::UASpecialUnit;
     int32 LastAppliedSeed = 0;

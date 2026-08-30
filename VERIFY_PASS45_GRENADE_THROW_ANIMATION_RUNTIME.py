@@ -19,6 +19,10 @@ def main() -> int:
 
     if "PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY" not in gameplay:
         errors.append("factual grenade throw presentation bridge was not exercised")
+    if "PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY" not in gameplay:
+        errors.append("missing authored grenade throw audio runtime evidence")
+    if "PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP" in gameplay:
+        errors.append("authored grenade throw audio failed to load")
     if "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP" in gameplay:
         errors.append("authored first-person grenade hand/throw/recover animation is still a content gap")
     if "PASS45_GRENADE_THROW_AUTHORED_ANIMATION_RUNTIME_READY" not in gameplay:
@@ -33,6 +37,7 @@ def main() -> int:
 
     print("PASS45 GRENADE THROW ANIMATION RUNTIME: PASS")
     print("- factual grenade throw exercised the presentation bridge")
+    print("- authored throw audio loaded and played from the replicated presentation event")
     print("- authored hand/throw/recover animation emitted runtime READY evidence")
     print("- no grenade throw animation content-gap marker was observed")
     print("STATUS: AUTOMATED ANIMATION EVIDENCE PASS; direct UE 5.8 visual acceptance is still required")
