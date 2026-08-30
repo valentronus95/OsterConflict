@@ -307,9 +307,9 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
     UStaticMesh* Fence03 = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Fence_Var03.SM_Fence_Var03"));
     UStaticMesh* Tree01 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
+        TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02"));
     UStaticMesh* Tree04 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04"));
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"));
     UStaticMesh* TrackSurfaceMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Ground_01/SM_Urb_Roa_Ground_01.SM_Urb_Roa_Ground_01"));
     UStaticMesh* FootpathSurfaceMesh = LoadObject<UStaticMesh>(nullptr,
@@ -514,7 +514,9 @@ void UOCR13StadiumSurfaceSubsystem::ApplyStadiumSurface(UWorld& World)
 
     bApplied = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_STADIUM_SURFACE_PARTIAL_AUTHORED_READY running_mesh=SM_Urb_Roa_Ground_01 footpath_mesh=SM_Urb_Roa_Sidewalk_01 authored_surface_families=2 remaining_basicshape_families=5 gate_k_complete=0"));
+        TEXT("PASS45_STADIUM_TREE_INTAKE_WIRED deciduous=HillTree_02 pine=ScotsPineTall_01 primary_authoring=1 late_mutation=0 runtime_acceptance=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_STADIUM_SURFACE_PARTIAL_AUTHORED_READY running_mesh=SM_Urb_Roa_Ground_01 footpath_mesh=SM_Urb_Roa_Sidewalk_01 tree_families=HillTree_02,ScotsPineTall_01 authored_surface_families=2 remaining_basicshape_families=5 gate_k_complete=0"));
     UE_LOG(LogTemp, Display,
         TEXT("Stadion Oster authoritative site created: geo=(%.6f, %.6f), local=(%.1f, %.1f, %.1f), yaw=%.1f, field=%.0fx%.0f cm, radius=%.0f cm. Runtime ground Z sampled; giant grass apron removed; legacy stadium visuals/fences retired; references=REFERENCE_PHOTOS/stadion_oster."),
         StadiumGeo.Latitude, StadiumGeo.Longitude, Stadium.X, Stadium.Y, Stadium.Z, FieldYawDegrees,

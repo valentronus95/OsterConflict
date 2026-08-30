@@ -47,6 +47,23 @@ require(world, '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial', "cur
 require(stadium, '/Engine/BasicShapes/Cube.Cube', "current authoritative stadium BasicShape gap")
 require(stadium, '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial', "current authoritative stadium material gap")
 
+# Stadium has one primary site owner. Its tree perimeter must use the same final KiteDemo families as the
+# primary Oster world authoring; no post-BeginPlay remap or older village tree family may survive there.
+for needle in (
+    "/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02",
+    "/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01",
+    "PASS45_STADIUM_TREE_INTAKE_WIRED",
+    "primary_authoring=1",
+    "late_mutation=0",
+    "runtime_acceptance=0",
+):
+    require(stadium, needle, "stadium primary tree authoring")
+for retired_tree_path in (
+    "/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01",
+    "/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04",
+):
+    forbid(stadium, retired_tree_path, "retired stadium tree authoring")
+
 # The ground contract must point only at assets that are actually tracked in this repository.
 require_file(
     ROOT / "OsterConflict" / "Content" / "AdvancedVillagePack" / "Meshes" / "SM_Plane_1x1.uasset",
