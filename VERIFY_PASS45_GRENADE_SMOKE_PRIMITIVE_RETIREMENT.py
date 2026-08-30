@@ -181,14 +181,30 @@ req('finite_volume=1' in smoke and 'half_height_cm=' in smoke,
 req('"Niagara"' in build,
     'OsterConflict module does not declare the Niagara dependency required by authored smoke VFX')
 
-# Canonical runtime authority must still preserve the latest rejection until local UE evidence supersedes it.
+# Canonical runtime authority must preserve both the later source truth and the latest factual runtime rejection.
 for needle in (
     'PASS45_GRENADE_PRODUCTION_VISUAL_READY',
     'PASS45_GRENADE_THROW_COMMIT_READY',
-    'primitive grenade/smoke',
+    '/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop',
+    'PASS45_SMOKE_VFX_RUNTIME_READY',
+    'exact_visual_sync=0',
+    'manual_visual_acceptance=0',
     'RUNTIME REJECTED 2026-08-27',
 ):
     req(needle in tz, f'canonical Pass45 TZ lost grenade/smoke/runtime truth: {needle}')
+
+# Old 2026-08-26 source-state wording may remain only as historical context, never as the current checklist truth.
+for stale_current_claim in (
+    'authored growing smoke VFX with useful visual sight blocking remains **CONTENT GAP**',
+    'Repository authored smoke/Niagara content is currently not proven present',
+    'because no accepted authored smoke particle/Niagara payload is currently present',
+):
+    req(stale_current_claim not in tz,
+        f'canonical Pass45 TZ still presents superseded smoke source state as current: {stale_current_claim}')
+req('Smoke Niagara source content is now committed/wired' in tz,
+    'item 24 no longer distinguishes committed smoke source integration from pending UE visual acceptance')
+req('distinct authored flash-grenade world VFX remains **CONTENT GAP**' in tz,
+    'canonical item 24 lost the remaining flash-world-VFX content gap')
 
 if errors:
     print('PASS45 GRENADE/SMOKE PRIMITIVE RETIREMENT + THROW SEMANTICS: FAIL')
@@ -207,5 +223,6 @@ print('- successful throw emits a presentation event without a second gameplay t
 print('- primitive smoke-ball presentation remains physically retired')
 print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
 print('- smoke gameplay occlusion is finite and expands by query-time game age without an actor Tick')
+print('- canonical TZ now matches committed smoke source truth without upgrading UE visual acceptance')
 print('- exact Niagara/gameplay expansion synchronization and manual visual acceptance remain pending')
 print('STATUS: SOURCE-INTEGRATED; exact grenade bodies + flash world VFX + local UE 5.8 visual acceptance remain pending')
