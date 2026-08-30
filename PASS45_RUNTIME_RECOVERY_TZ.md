@@ -338,25 +338,29 @@ Requirements:
 
 ## 9. P0 — grenade model, throw physics and smoke VFX
 
-The 2026-08-26 runtime rejected both the grenade body and the smoke presentation. Source inspection confirmed why: the grenade rendered an Engine BasicShape sphere, while `AOCSmokeCloud` rendered a cluster of Engine BasicShape spheres. A repository tree check found the tracked R13 grenade mesh but no authored smoke/Niagara payload, so the source must fail closed rather than invent fake smoke out of more geometry.
+The 2026-08-26 runtime rejected both the grenade body and the smoke presentation. At that historical checkpoint the grenade rendered an Engine BasicShape sphere, `AOCSmokeCloud` rendered a cluster of Engine BasicShape spheres, and the repository audit had not yet established an accepted authored smoke/Niagara payload. That historical rejection remains valid evidence for the old state, but it is no longer the current source-content description.
 
-### Current corrective source state — 2026-08-26 — PARTIAL SOURCE-CODED / RUNTIME UNTESTED
+### Current corrective source state — 2026-08-30 — SOURCE-INTEGRATED / RUNTIME REJECTED
 
-Visual/smoke primitive retirement:
+Visual/smoke primitive retirement and authored-source continuation:
 
 - visible `/Engine/BasicShapes/Sphere.Sphere` ownership is removed from `AOCGrenadeProjectile`;
 - grenade collision remains a small invisible `USphereComponent`, separate from visual truth;
-- the tracked `/Game/R13/Weapons/grenade.grenade` mesh is now loaded as the current recognizable shared grenade body with uniform bounds-based scaling;
+- the tracked `/Game/R13/Weapons/grenade.grenade` mesh is loaded as the current shared recognizable grenade body with uniform bounds-based scaling;
 - successful visual resolution emits `PASS45_GRENADE_PRODUCTION_VISUAL_READY ... primitive_visible=0 production_visual=1`;
 - missing/invalid production grenade content emits `PASS45_GRENADE_PRODUCTION_VISUAL_FAIL ... primitive_visible=0 runtime_acceptance=0`; the old sphere is never shown as fallback;
+- the shared body is not falsely promoted to three exact grenade bodies: frag/smoke/flash type identity currently uses distinct tracked authored materials, while `shared_generic_body=1 exact_type_body=0 type_specific_content_gap=1` remains explicit;
 - the old `AOCSmokeCloud` `SmokePuff_*` BasicShape cluster is physically retired;
-- smoke gameplay radius/lifetime remains available for gameplay/AI queries, but no primitive visual is rendered;
-- because no accepted authored smoke particle/Niagara payload is currently present, smoke emits explicit `PASS45_SMOKE_VFX_CONTENT_GAP ... authored_vfx=0 primitive_visible=0 runtime_acceptance=0`;
+- committed `/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop` Niagara content is now the sole visible smoke presentation owner;
+- `AOCSmokeCloud` loads and activates that authored Niagara on gameplay clients; load failure emits `PASS45_SMOKE_VFX_LOAD_FAIL ... primitive_visible=0 runtime_acceptance=0` rather than resurrecting primitive smoke geometry;
+- a successful factual client load/activation emits `PASS45_SMOKE_VFX_RUNTIME_READY ... runtime_loaded=1 activated=1 ... exact_visual_sync=0 manual_visual_acceptance=0`;
+- smoke gameplay containment is a finite 3D volume whose radius and half-height expand from game-time age without a per-frame actor Tick;
+- source intentionally reports `exact_visual_sync=0`: exact Niagara expansion timing, scale, look and performance still require direct UE 5.8 calibration/acceptance;
 - a failed smoke gameplay-volume spawn emits `PASS45_SMOKE_GAMEPLAY_VOLUME_FAIL`.
 
 Transactional/safe throw source correction:
 
-- `ServerThrowSelectedGrenade_Implementation()` now validates authority/world/alive/not-in-vehicle before any mutation;
+- `ServerThrowSelectedGrenade_Implementation()` validates authority/world/alive/not-in-vehicle before any mutation;
 - desired grenade origin is checked with a bounded sphere `SweepSingleByChannel` from the view origin toward the intended forward spawn point;
 - final candidate location is independently checked with `OverlapBlockingTestByChannel`;
 - character and owned/equipped weapons are ignored by clearance queries, so player collision itself does not falsely block a legal throw;
@@ -365,30 +369,35 @@ Transactional/safe throw source correction:
 - grenade inventory decrements **only after** factual authoritative projectile spawn succeeds;
 - successful throw inherits current player velocity in addition to forward/up throw impulse;
 - successful commit emits `PASS45_GRENADE_THROW_COMMIT_READY safe_sweep=1 spawn_success=1 inventory_committed_after_spawn=1 inherited_velocity=1 presentation_event=1`;
-- `EOCCharacterActionEvent::GrenadeThrow` is now an explicit cosmetic action bridge for first-/third-person authored animation;
+- `EOCCharacterActionEvent::GrenadeThrow` is an explicit cosmetic action bridge for first-/third-person authored animation;
 - successful throw broadcasts that event and emits `PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY ... authored_animation_pending=1 second_gameplay_timer=0`;
+- the native presentation component currently emits `PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP`; a Blueprint/event bridge is not accepted as proof of an authored hand/throw/recover sequence;
 - the presentation bridge owns no second fuse, inventory clock or projectile authority.
 
 Guard/acceptance harness:
 
-- `VERIFY_PASS45_GRENADE_SMOKE_PRIMITIVE_RETIREMENT.py` now guards visual primitive retirement **and** swept/transactional throw semantics;
-- workflow `.github/workflows/pass45-grenade-smoke-primitive-retirement.yml` covers the guard;
-- cumulative `RUN_ALL_VERIFY.py` includes it;
-- strict runtime evidence now requires a factual successful `PASS45_GRENADE_THROW_COMMIT_READY` during the acceptance run and forbids safe-spawn/spawn failures in that valid open-space test;
-- strict runtime acceptance still requires eventual `PASS45_SMOKE_VFX_RUNTIME_READY`; current `PASS45_SMOKE_VFX_CONTENT_GAP` correctly keeps runtime rejected.
+- `VERIFY_PASS45_GRENADE_SMOKE_PRIMITIVE_RETIREMENT.py` guards primitive retirement, committed grenade/smoke assets, authored type-identity materials, replicated frag Niagara presentation, finite expanding smoke gameplay volume and swept/transactional throw semantics;
+- workflow `.github/workflows/pass45-grenade-smoke-primitive-retirement.yml` covers that source guard;
+- `VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py` and `VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py` keep authored first-person throw animation fail-closed;
+- `VERIFY_PASS45_GRENADE_FLASH_GATE.py` / `VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py` keep a distinct authored flash world-VFX requirement fail-closed;
+- cumulative `RUN_ALL_VERIFY.py` includes the grenade/smoke source guard;
+- strict runtime evidence requires a factual successful `PASS45_GRENADE_THROW_COMMIT_READY`, successful authored type-identity material, factual authored throw-animation runtime readiness and `PASS45_SMOKE_VFX_RUNTIME_READY`;
+- strict runtime evidence forbids safe-spawn/spawn failures in the valid open-space acceptance throw, grenade visual/material failures, authored throw-animation content gap, smoke load/content/spawn failures;
+- a source READY marker with `manual_visual_acceptance=0` remains automated evidence only and cannot close direct visual acceptance.
 
-This closes the source-level bug where inventory could disappear before a projectile existed and where the spawn point blindly assumed `camera + forward * 70 cm` was safe. It does **not** claim final grenade animation, visual scale or smoke quality in UE runtime.
+This closes the source-level inventory-loss, primitive-smoke and missing-smoke-donor architecture defects. It does **not** claim final grenade hand animation, exact per-type grenade bodies, flash world VFX, grenade scale/throw feel or smoke scale/look/performance in UE runtime.
 
 Still pending:
 
-- authored first-person hand/pull/throw/recover animation must consume the new `GrenadeThrow` presentation event; the event bridge itself is not visual acceptance;
-- distinct accepted frag/smoke/flash grenade models or type-specific visual treatment remain content work; the current tracked R13 mesh is only a shared recognizable body;
-- authored growing smoke VFX with useful visual sight blocking remains **CONTENT GAP**;
+- accepted authored first-person hand/pull/throw/recover animation must consume the `GrenadeThrow` presentation event; the event bridge itself is not visual acceptance;
+- exact distinct frag/smoke/flash grenade bodies remain **CONTENT GAP**; current shared real body + authored type-identity materials provide source-level distinguishability without pretending exact-body closure;
+- distinct authored flash-grenade world VFX remains **CONTENT GAP**;
+- smoke Niagara is source-integrated, but direct UE 5.8 smoke growth/scale/look/sight-blocking/performance acceptance remains pending and exact visual/gameplay expansion synchronization is not claimed;
 - local UE 5.8 near-wall behavior, bounce/roll/fuse, visual scale and throw feel remain unverified.
 
 Requirements:
 
-- recognizable fragmentation/smoke/flash models;
+- recognizable fragmentation/smoke/flash models or accepted type-specific presentation without false exact-body claims;
 - visible first-person throw presentation;
 - gravity/collision/bounce/roll;
 - defined fuse start;
@@ -569,18 +578,11 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-28 weapon/ordnance + landmark/reference continuation
+## 22. Current source implementation milestone — 2026-08-30 weapon/ordnance + landmark/reference continuation
 
-State: **SOURCE-CODED / REFERENCE-BOUND / PREVIOUS SOURCE MILESTONE VERIFIED / CURRENT-HEAD CI REVALIDATION REQUIRED / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / REFERENCE-BOUND / CURRENT-HEAD CI REVALIDATION REQUIRED / NOT RUNTIME ACCEPTED**.
 
-Previous verified source milestone:
-
-- source head `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` completed `Source verification` **SUCCESS**;
-- dedicated `Pass 45 grenade smoke primitive retirement` completed **SUCCESS** on that same historical source milestone;
-- all workflow runs returned for that milestone completed **SUCCESS**;
-- newer landmark/reference/ADS corrections are later than that source milestone, therefore earlier green checks must not be mislabelled as current-head proof;
-- current-head CI must be re-read after the current reference continuation settles;
-- no source CI result overrides the factual `RUNTIME REJECTED 2026-08-27` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
+Historical verified source milestones remain structural evidence only. Current-head source CI must be read for the exact head after each substantive cycle; no source CI result overrides the factual `RUNTIME REJECTED 2026-08-27` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
 Implemented/source-prepared:
 
@@ -596,13 +598,12 @@ Implemented/source-prepared:
 - finite authoritative Burst3 architecture with no current false opt-in;
 - M700/Remington870/LeverAction explicit post-shot cycle timings;
 - replicated `bActionCycling` authoritative action gate;
-- procedural first-person bolt/pump/lever cues driven only by that replicated gate and authoritative duration;
-- `PASS45_MANUAL_ACTION_PRESENTATION_READY` proves the presentation path adds no second gameplay timer;
+- fail-visible procedural bolt/pump/lever fallback presentation driven only by that replicated gate and authoritative duration; authored moving-part presentation remains open;
 - exact manual-action mechanical audio routing through `BoltCycle` / `PumpCycle` / `LeverCycle` with explicit empty-set content-gap behavior;
 - local/remote manual-action audio ownership split to avoid intentional double playback;
 - explicit per-weapon ADS socket-reference fields and separate factual `bADSCalibrated` state;
 - fail-visible ADS entry diagnostics through `PASS45_ADS_PROFILE_UNCALIBRATED` / `PASS45_ADS_ALIGNMENT_FAIL` / `PASS45_ADS_ALIGNMENT_SAMPLE`;
-- uncalibrated requested ADS now preserves baseline hip presentation instead of applying guessed offsets, with `PASS45_ADS_PRESENTATION_FAIL_CLOSED`;
+- uncalibrated requested ADS preserves baseline hip presentation instead of applying guessed offsets, with `PASS45_ADS_PRESENTATION_FAIL_CLOSED`;
 - `oc.Weapon.ADS.Debug` calibration rays for camera vs authored sight axis;
 - repository fallback prevents an unassigned/empty near-shot profile from silently swallowing a factual shot;
 - exact tracked AK cues are preferred for AK; tracked R13 gunfire/reload/impact assets are temporary source fallbacks for current gaps;
@@ -612,23 +613,27 @@ Implemented/source-prepared:
 - real weapon fallbacks attach to unscaled `WeaponRoot` while the invisible physics root retains collision authority;
 - strict runtime evidence requires `PASS45_PRIMITIVE_WEAPON_RUNTIME_READY` and forbids `PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL`;
 - tracked R13 grenade mesh replaces the visible Engine sphere fail-closed;
-- primitive smoke-ball components are physically removed; missing authored smoke VFX is now an explicit content gap instead of fake geometry;
+- frag/smoke/flash share that real body for now but use distinct tracked authored identity materials; exact type-specific bodies remain content gap;
+- primitive smoke-ball components are physically removed and committed PotaVFX Niagara smoke is wired as the sole visible smoke owner;
+- smoke gameplay occlusion is finite and expands by query-time age; exact Niagara synchronization remains explicitly unclaimed;
 - grenade throw uses swept clearance + overlap validation and `DontSpawnIfColliding`;
 - grenade inventory commit occurs only after factual projectile creation; blocked/failed spawn consumes zero inventory;
 - successful grenade throw inherits character velocity and emits `GrenadeThrow` presentation event without a second gameplay timer;
-- strict runtime evidence requires a factual successful grenade throw marker and forbids safe-spawn/spawn failures in the valid acceptance throw;
+- strict runtime evidence requires factual grenade visual/type-material/throw/smoke markers and now also requires authored throw-animation readiness rather than allowing the event bridge to false-pass;
+- authored first-person grenade hand/throw/recover animation remains explicit content gap;
+- distinct authored flash-grenade world VFX remains explicit content gap;
 - Museum source identity is guarded against six-column Culture-House contamination;
 - Culture House is guarded as the sole current six-column civic source owner at its separate canonical geo anchor, while the exact six-column visual hypothesis remains provisional until direct photo evidence accepts it;
 - R14.0 Silpo shell and R14.3 visible `Сільпо` facade identity are guarded to the same canonical Silpo site;
 - strict runtime evidence and the focused landmark launcher require the factual R14.3 Silpo facade/sign stage;
-- Museum, Silpo and Culture House now have separate repository-controlled bound reference specs through `PASS45_REFERENCE_PACK_BINDINGS.md`;
+- Museum, Silpo and Culture House have separate repository-controlled bound reference specs through `PASS45_REFERENCE_PACK_BINDINGS.md`;
 - Silpo user evidence contract includes its selected-period facade, checkout, street/opposite context and water-tower sightline requirements;
-- Culture House public/source reconciliation explicitly prevents current source constants from impersonating photo-verified truth;
+- Culture House public/source reconciliation prevents current source constants from impersonating photo-verified truth;
 - `VERIFY_PASS45_LANDMARK_IDENTITY.py` plus `.github/workflows/pass45-landmark-identity.yml` guard the landmark source/acceptance contract;
 - cumulative `RUN_ALL_VERIFY.py` includes weapon, ordnance and landmark identity guards;
 - source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration, silent-profile acceptance, visible primitive weapon/grenade/smoke fallbacks and landmark identity false-pass paths.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, authored smoke VFX, Museum/Culture/Silpo direct visual identity, Silpo sign readability, water-tower final transform, Culture House exact facade fidelity and broader landmark/photo/world fidelity.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural/manual-action cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, exact grenade-type bodies, distinct flash world VFX, smoke visual scale/look/performance/exact sync, Museum/Culture/Silpo direct visual identity, Silpo sign readability, water-tower final transform, Culture House exact facade fidelity and broader landmark/photo/world fidelity.
 
 ## 23. Corrective execution order
 
@@ -648,16 +653,16 @@ Completed/source-coded items are marked only for source/reference work, not runt
 12. [x] Add source verifier/workflow for firing/muzzle/drop contracts.
 13. [x] Physically retire legacy Character `LocalFireFeedbackTimerHandle` and duplicate local recoil/recovery owner.
 14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
-15. [x] Code replicated-gate first-person bolt/pump/lever procedural presentation and exact action-type mechanical audio routing without a second gameplay timer.
-16. [ ] Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
+15. [x] Code replicated-gate first-person bolt/pump/lever procedural fallback presentation and exact action-type mechanical audio routing without a second gameplay timer; keep authored moving-part presentation as explicit content gap.
+16. [ ] Replace procedural manual-action fallback cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
 17. [x] Build fail-visible per-weapon ADS/sight profile architecture, socket-based alignment diagnostics and source validation without inventing calibration data; uncalibrated ADS presentation now fails closed after the 2026-08-27 AK rejection.
 18. [ ] Calibrate exact rear/front/optic references and ADS transforms for every accepted production weapon in local UE 5.8; only then set factual `bADSCalibrated=true` per weapon.
 19. [x] Close the source-level silent-shot path with an event-local repository audio fallback and dedicated verifier/workflow; keep runtime audibility and exact sound identity unaccepted.
 20. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever manual-action audio gaps.
 21. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks: hide before production load, preserve invisible collision authority, add hard runtime ready/fail markers and strict evidence gate. **Rendered UE acceptance remains pending.**
-22. [x] Source-retire primitive grenade/smoke visuals: use tracked R13 grenade mesh fail-closed; physically remove fake smoke spheres; add dedicated guard/workflow. **Rendered grenade acceptance and real smoke VFX remain pending.**
+22. [x] Source-retire primitive grenade/smoke visuals: use tracked R13 grenade mesh fail-closed; physically remove fake smoke spheres; wire committed PotaVFX authored Niagara as sole visible smoke owner; preserve fail-visible load/runtime markers. **Rendered grenade/smoke visual acceptance remains pending.**
 23. [x] Correct grenade source throw semantics: safe swept/overlap-checked origin, `DontSpawnIfColliding`, inventory commit only after successful spawn, inherited movement velocity, explicit `GrenadeThrow` presentation event and strict runtime marker requirement. **Local UE behavior/animation acceptance remains pending.**
-24. [ ] Author/accept first-person grenade hand/throw/recover animation, distinct frag/smoke/flash presentation and real smoke VFX. **Repository authored smoke/Niagara content is currently not proven present, so no fake source READY is allowed.**
+24. [ ] Accept first-person grenade hand/throw/recover animation, exact/distinct frag/smoke/flash presentation, distinct flash world VFX and direct UE 5.8 smoke scale/look/performance. **Smoke Niagara source content is now committed/wired; that source integration does not close runtime visual acceptance.**
 25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence. **Rendered identity/fidelity acceptance remains pending.**
 26. [x] Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts. Silpo uses reviewed user evidence; Culture House keeps unverified exact geometry explicitly `PROVISIONAL`. **Reference binding is not runtime acceptance.**
 27. [ ] Replace rejected vegetation family and complete broader environment acceptance.
