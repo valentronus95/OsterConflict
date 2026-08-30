@@ -44,6 +44,7 @@ A source improvement may be recorded as `SOURCE-CODED` or `SOURCE-VERIFIED`; it 
 - State: OPEN / UNMERGED
 - Snapshot compare to `main@bca00f4046700f383af9f1742cc24b6a62401b1a`: ahead 509 / behind 0.
 - This means the active PASS45 integration line contains all 509 commits in its own history relative to that main snapshot, but does **not** mean every older divergent PR is safely disposable; those require content-equivalence audit first.
+- Latest substantive source head after the legacy-branch/content-truth cycle below: `e90a6b57925da5e7cc8c09a198a65e7de989025b`; this ledger update follows as bookkeeping and therefore moves the branch head again without changing production/runtime behavior.
 
 ### Known recovered milestones in the active integration line
 
@@ -58,36 +59,42 @@ A source improvement may be recorded as `SOURCE-CODED` or `SOURCE-VERIFIED`; it 
 | Character BasicShape proxy retirement | `241cecc8...`, `09b207e5...`, `cc10a3c96e42f7ee228f35b80419780a5f578237` | production-default source-only BasicShape character proxy disabled fail-closed; dedicated verifier/workflow added | production character visual acceptance still separate |
 | Vegetation continuation | `492917e005c81f836b2a6fbcd02b696ab3b629b5`, `520bb207c5802942273eb376dc75854ebc5cc157`, `e276df6588761579e02909f187cec193642d1a45` | authored pine-family verifier/runtime-tree intake mapping and foliage workflow trigger aligned | item remains runtime/visual dependent |
 | Manual-action/content-gap guard continuation | `cfb452a0a7d24ad8daebb737864b4358ef624b9d` | guards manual-action and weapon catalog content gaps so missing authored content cannot false-pass | content/runtime gaps remain factual |
+| Weapon exact-content truth / legacy PR #90 triage | `e90a6b57925da5e7cc8c09a198a65e7de989025b` | current R14 registry now explicitly marks Remington 870 and M249 exact-production payloads `CONTENT GAP / NOT READY` while preserving the newer `exact production OR explicit real fallback` acceptance architecture | exact payload gaps remain; runtime acceptance unchanged |
 
 Abbreviated SHAs above are indexing aids where the full SHA was not recovered in this ledger pass; Git remains the authoritative raw commit record.
 
-## Open legacy / auxiliary PR audit
+## Legacy / auxiliary PR audit
 
-These PRs were found still OPEN during the 2026-08-30 audit. They must not be forgotten or blindly merged.
+These PRs were found during the 2026-08-30 audit. Current disposition is recorded below; no divergent branch is to be merged or discarded merely because its commits are old.
 
 ### PR #84 — `chore/pass45-postmerge-state-sync-2-20260825`
 
 - Head: `c35c868c2014aacd52fe1cd555c5ed31e5636181`
-- OPEN / UNMERGED; GitHub currently reports non-mergeable.
-- Docs-only by its own scope.
-- Commit ancestry comparison against active PR #94 snapshot is **diverged**; the old branch has 2 unique commits relative to the active line.
-- Required disposition: content-equivalence/doc-history audit, then explicitly mark superseded/close or port any still-valid history. Do not merge blindly.
+- **CLOSED / UNMERGED on 2026-08-30.**
+- Docs-only scope: `OSTER_CONFLICT_WORK_LEDGER.md` and `PASS45_RUNTIME_RECOVERY_TZ.md`.
+- Its two unique commits only synchronized the 2026-08-25 post-PR-#83 source state. They contain no production/runtime implementation change.
+- Current PR #94 carries later canonical status, later factual runtime evidence (`RUNTIME REJECTED 2026-08-27`), later source work and this persistent ledger.
+- Disposition: **SUPERSEDED / CLOSED UNMERGED / NO PORT REQUIRED**. Merging #84 would restore stale 2026-08-25 wording rather than recover unique required work.
 
 ### PR #85 — `fix/pass45-postmerge-content-closure-20260825`
 
 - Head: `24b8f5a8b869ede9bd64be1faddec8e9e52dd414`
-- OPEN / UNMERGED; GitHub currently reports non-mergeable.
+- **OPEN / UNMERGED**; GitHub reported non-mergeable at the audit snapshot.
 - Scope included rejected generic residential retirement, yard/shed owner retirement, BTR material dependency guard, verifier/workflow changes and historical runtime evidence preservation.
 - Commit ancestry comparison against active PR #94 snapshot is **diverged**; the old branch has 22 unique commits relative to the active line.
-- Required disposition: compare effective file/content state against current #94 before closure. Do not assume commit divergence means the fixes are missing, and do not assume later independently implemented fixes make all 22 commits obsolete without checking.
+- Partial content-equivalence audit completed 2026-08-30: current #94 already has the newer `VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py` + runtime validation path, which semantically retires generic enterable-house/procedural residential/private-fence presentation and rejects resurrection of `AdvancedVillagePack`, steep-roof/shack/tower families without using a late mutating repair owner.
+- The old #85 BTR texture-dependency portion is **not yet classified as safely superseded**. Current #94 has a newer R3 authored BTR material/+X-forward/Y-up contract, but the canonical Pass45 acceptance still requires real material/texture dependency truth. The effective strict-runtime behavior must be compared before #85 is closed.
+- Required disposition: finish BTR material/dependency equivalence audit; port any still-valid stricter guard deliberately, otherwise mark the old slice superseded. Do not close blindly.
 
 ### PR #90 — `fix/pass45-content-gap-truth-20260825`
 
 - Head: `4d6817b4f929c345701c6230a23816d10ad6f554`
-- OPEN / UNMERGED.
-- Scope included Remington870/M249 explicit content-gap truth, required-local-content preflight, strict harness wiring and blocker report.
-- Commit ancestry comparison against active PR #94 snapshot is **diverged**; the old branch has 7 unique commits relative to the active line.
-- Required disposition: content-equivalence audit against current content-gap guards and current model registry before explicitly superseding/closing or porting anything.
+- **CLOSED / UNMERGED on 2026-08-30.**
+- Its still-valid semantic requirement was partially missing from the current human-readable asset registry: Remington 870 and M249 exact-production payloads must remain explicit `CONTENT GAP / NOT READY` items.
+- That truth was ported to current `R14_MODEL_REGISTRY.md` on PR #94 in commit `e90a6b57925da5e7cc8c09a198a65e7de989025b`.
+- The old #90 exact-path preflight and verifier were intentionally **not** ported: they hard-failed final acceptance solely on absence of the canonical Remington/M249 `.uasset` and required an all-exact `11/11 production weapon classes PASS` sentinel.
+- Current Pass45 architecture is newer: `exact production OR explicit real fallback`; exact payload absence remains an explicit content gap, while a real fallback must satisfy the same authored material/texture/fresh-load/runtime visual gates. The current strict harness explicitly rejects resurrection of the obsolete all-exact sentinel.
+- Disposition: **PARTIALLY PORTED (registry truth) / REMAINDER SUPERSEDED / CLOSED UNMERGED**.
 
 ### PR #95 — `content/free-gameplay-assets-intake-20260828`
 
@@ -97,6 +104,22 @@ These PRs were found still OPEN during the 2026-08-30 audit. They must not be fo
 - Scope is intentionally separate content acquisition/provenance tooling: arms/audio/ambience/vehicle sound candidates; it does not itself change active runtime implementation.
 - Commit ancestry comparison against active #94 snapshot is **diverged**; #95 has 4 unique commits relative to the active line because the integration branch continued moving after the content branch split.
 - Required disposition: keep isolated until provenance/license/local acquisition/import validation is accepted; then deliberately rebase/port/merge the desired intake work. Never lose it merely because #94 advances.
+
+## Work cycle — 2026-08-30 legacy-branch triage + weapon content truth
+
+- Canonical checklist relevance: item 18 weapon material/texture/content-gap truth plus final branch-hygiene debt.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `9aae675efa13eecc062f3171c7edfaad142c1d1c`.
+- Substantive end/source head before this ledger-only bookkeeping write: `e90a6b57925da5e7cc8c09a198a65e7de989025b`.
+- Substantive commit: `e90a6b57925da5e7cc8c09a198a65e7de989025b` — reconcile `R14_MODEL_REGISTRY.md` with current exact-production `CONTENT GAP` truth for Remington 870/M249 without resurrecting obsolete exact-path-only acceptance semantics.
+- Material source/document file changed: `R14_MODEL_REGISTRY.md`; no gameplay/runtime implementation file was changed in this slice.
+- Verifier/workflow changes: none committed in this cycle. Existing current strict harness, material/dependency gates, residential retirement guard and BTR authored-material/axis guards were audited against legacy PR intent.
+- Exact CI for `e90a6b57925da5e7cc8c09a198a65e7de989025b`: every workflow run returned by the commit audit completed **SUCCESS**, including `Source verification`, `Pass 45 strict runtime acceptance harness`, `Pass 45 weapon material dependency audit`, `Pass 45 BTR4 authored material`, `Pass 45 BTR4 material state`, `Pass 45 BTR4 axis remote optic`, `Pass 45 visual fidelity Gate K` and `Pass 45 reference-driven residential retirement`.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains the latest factual local UE verdict. The new source head has no current-head UE 5.8 runtime acceptance.
+- `main` merge state: **none**; PR #94 remains OPEN / UNMERGED.
+- Legacy disposition completed: PR #84 closed superseded with no port; PR #90 closed after porting the still-valid registry truth.
+- Remaining branch debt: PR #85 remains open pending BTR material/texture-dependency equivalence audit; PR #95 remains isolated Draft content intake pending provenance/license/local import validation.
+- Remaining technical blockers are unchanged by this bookkeeping/content-truth slice: authored/manual weapon-action and exact audio/ADS closure, item 24 grenade presentation closure, vegetation/world fidelity, HMMWV/M2 runtime acceptance and road speed, BTR material/orientation/remote optic runtime acceptance, fullscreen/native-scale/thermal soak, tactical-map screenshot, full current-head UE 5.8 acceptance and final protected merge.
 
 ## Main-merge history relevant to PASS45
 
