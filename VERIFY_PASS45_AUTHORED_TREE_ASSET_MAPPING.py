@@ -80,6 +80,10 @@ for component, asset_path, disk_path in runtime_expected:
         fail(f"final runtime mapping missing exact imported tree asset {asset_path}")
     if not disk_path.is_file():
         fail(f"tracked runtime tree asset missing: {disk_path.relative_to(ROOT)}")
+    if component not in guard:
+        fail(f"runtime guard no longer observes final tree component {component}")
+    if asset_path not in guard:
+        fail(f"runtime guard no longer requires exact final tree mesh {asset_path}")
 
 for needle in (
     "One-shot Pass45 content-intake upgrade",
@@ -107,9 +111,28 @@ for needle in (
     if needle not in upgrade:
         fail(f"final runtime tree intake lost fail-honest/preservation contract {needle!r}")
 
-# A failed imported load or transform remap must never be mislabeled as accepted runtime vegetation.
+# The gameplay guard must prove the final mapping, not merely accept any non-primitive asset. Otherwise a failed
+# one-shot upgrade can leave the older authoring mesh installed while PASS10 still emits READY.
+for needle in (
+    "FRuntimeTreeFamilyExpectation",
+    "RuntimeTreeFamilies",
+    "Mesh->GetPathName()",
+    "ActualPath.Equals(Family.MeshPath, ESearchCase::CaseSensitive)",
+    "RuntimeIdentityMismatches == 0",
+    "PASS45_RUNTIME_TREE_IDENTITY_FAIL",
+    "PASS45_RUNTIME_TREE_IDENTITY_READY",
+    "exact_runtime_identity=1",
+    "final_runtime_tree_identity_not_ready",
+):
+    if needle not in guard:
+        fail(f"runtime foliage guard lost exact final-tree identity contract {needle!r}")
+
+# A failed imported load, transform remap, or exact final identity check must never be mislabeled as accepted
+# runtime vegetation. These source markers are structural evidence only.
 if "runtime_acceptance=1" in upgrade:
     fail("source tree intake falsely claims UE runtime acceptance")
+if "PASS45_RUNTIME_TREE_IDENTITY_READY" in guard and "runtime_acceptance=0" not in guard:
+    fail("runtime tree identity source marker lost explicit non-acceptance truth")
 
 # Source identity is exact, not merely 'anything except Cylinder/Sphere'. This guard deliberately does not claim
 # that the deciduous asset is an exact oak species: the canonical Pass45 contract keeps oak as a content gap until
@@ -150,6 +173,7 @@ for needle in (
 print("PASS45 AUTHORED TREE ASSET MAPPING PASS")
 print("- authoring stage: SM_Tree_Var01 + Modular_Rural_Cabin Pine 01/03 are tracked and explicit")
 print("- final gameplay intake: HillTree_02 + ScotsPine_01 + ScotsPineTall_01 are tracked and explicit")
+print("- gameplay guard now requires those exact three final-runtime meshes before foliage READY can be emitted")
 print("- one-shot runtime replacement preserves owner, placement, ground base and intended height/width")
 print("- runtime path and committed .uasset are guarded for both stages of every production tree family")
 print("- runtime guard still rejects Cylinder/Sphere tree proxies")
