@@ -77,9 +77,9 @@ for needle in (
     require(impl, needle, "ParkBenches authored replacement")
 
 forbid(impl, 'FindISM(Sector, TEXT("ParkDetails"))', "legacy mixed ParkDetails mutation")
-forbid(impl, 'FindISM(Sector, TEXT("ParkMemorialPlaza"))', "unverified memorial blanket mutation")
-forbid(impl, 'FindISM(Sector, TEXT("ParkMemorialApproach"))', "unverified memorial-step blanket mutation")
-forbid(impl, 'FindISM(Sector, TEXT("ParkSkateFitness"))', "unverified skate blanket mutation")
+forbid(impl, 'FindISM(Sector, TEXT("ParkMemorialPlaza"))', "memorial quarantine mutation")
+forbid(impl, 'FindISM(Sector, TEXT("ParkMemorialApproach"))', "memorial-step cross-family mutation")
+forbid(impl, 'FindISM(Sector, TEXT("ParkSkateFitness"))', "skate quarantine mutation")
 
 park_begin = world.find("void AOCWorldSectorOster::BuildCentralPark()")
 park_end = world.find("\nvoid AOCWorldSectorOster::BuildCollegeSector()", park_begin)
@@ -92,12 +92,21 @@ for needle in (
     'ParkBenches = MakeISM(TEXT("ParkBenches")',
     "AddBox(ParkBenches, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120))",
     "AddBox(ParkBenches, Park + FVector(I * 1900.0f, 850.0f, 60.0f), FVector(180, 55, 120))",
-    "LegacyCount == 0",
+    "LegacyDetailsCount == 0",
+    "LegacyMemorialCount == 0",
+    "LegacySkateCount == 0",
     "BenchCount == ExpectedBenches",
     "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY",
+    "primary_authoring=1 normalization_bridge=0",
 ):
     require(world, needle, "canonical ParkBenches source contract")
-forbid(park_source, "AddBox(ParkDetails,", "legacy ParkDetails resurrection")
+for forbidden in (
+    "AddBox(ParkDetails,",
+    "AddBox(ParkMemorialPlaza,",
+    "AddBox(ParkSkateFitness,",
+    "AddBoxRotated(ParkSkateFitness,",
+):
+    forbid(park_source, forbidden, "legacy mixed park-family resurrection")
 
 # Runtime Gate K remains observation-only. This slice removes one semantic BasicShape family but must not
 # promote Gate K until every remaining visible BasicShape family and direct UE 5.8 visual evidence are clean.
@@ -115,5 +124,5 @@ print("PASS45 PARK SEMANTIC AUTHORED SOURCE PASS")
 print("- ParkBenches remains a distinct semantic owner with exactly 14 canonical source proxies")
 print("- tracked SM_Bench_1 replaces only ParkBenches before Gate K / Pass12")
 print("- authored bench native proportions and source ground contact are preserved")
-print("- ParkDetails, memorial and skate/fitness groups are not blanket-remapped")
+print("- legacy mixed park buckets remain zero-instance quarantine; bench upgrade has no cross-family mutation")
 print("- Gate K remains incomplete and runtime visual acceptance remains pending")
