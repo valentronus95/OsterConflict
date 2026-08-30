@@ -194,12 +194,16 @@ for needle in (
 ):
     req(needle in presentation_cpp, f"ADS alignment diagnostic implementation missing: {needle}")
 
+# Guard the meaning of open item 16 rather than one punctuation-sensitive sentence. The TZ may refine wording,
+# but it must still say that procedural manual-action presentation is to be replaced by accepted authored
+# moving-part/skeletal presentation and that real bolt/pump/lever sound content remains required.
 for needle in (
-    "Replace procedural manual-action cues with accepted authored moving-part/skeletal presentation",
+    "Replace procedural manual-action",
+    "accepted authored moving-part/skeletal presentation",
     "populate real bolt/pump/lever sound content",
     "RUNTIME REJECTED 2026-08-27",
 ):
-    req(needle in tz, f"canonical Pass45 TZ lost open item16 truth: {needle}")
+    req(needle in tz, f"canonical Pass45 TZ lost open item16 semantic truth: {needle}")
 
 if errors:
     print("PASS45 WEAPON ACTION MATRIX: FAIL")
