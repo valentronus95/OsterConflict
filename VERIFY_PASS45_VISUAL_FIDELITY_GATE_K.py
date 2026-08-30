@@ -40,12 +40,27 @@ visual_perf = read(ROOT / "VERIFY_VISUAL_QUALITY_TICK_BUDGET_PASS_39.py")
 workflow = read(ROOT / ".github" / "workflows" / "pass45-visual-fidelity-gate-k.yml")
 latest_runtime_evidence = read(ROOT / "RUNTIME_EVIDENCE" / "2026-08-27_PASS45_REJECTED" / "README.md")
 
-# Source topology still carries Engine Cube transforms, and the authoritative stadium still contains BasicShape
-# blockout. Verified families are upgraded before runtime acceptance rather than being allowed to remain visible.
+# Canonical world source still carries Engine Cube topology for families that are deterministically upgraded before
+# Gate K. The authoritative stadium is stricter: its visible presentation owner may no longer source Engine BasicShapes.
 require(world, '/Engine/BasicShapes/Cube.Cube', "current world source topology")
 require(world, '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial', "current world source material gap")
-require(stadium, '/Engine/BasicShapes/Cube.Cube', "current authoritative stadium BasicShape gap")
-require(stadium, '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial', "current authoritative stadium material gap")
+forbid(stadium, '/Engine/BasicShapes/', "authoritative stadium BasicShape regression")
+for needle in (
+    "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
+    "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Curb_1.SM_Curb_1",
+    "/Game/Mega_Street_Props_Pack/Street_Props_Pack_V1/Mesh/SM_Sign_1.SM_Sign_1",
+    "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Grass_Inst.M_Grass_Inst",
+    "/Game/Mega_Street_Props_Pack/Street_Props_Pack_V1/Materials/Instances/M_Color_1_Inst.M_Color_1_Inst",
+    "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Metal_3_Inst.M_Metal_3_Inst",
+    "Target->GetStaticMesh()",
+    "PASS45_STADIUM_SURFACE_PARTIAL_AUTHORED_READY",
+    "authored_surface_families=7",
+    "remaining_basicshape_families=0",
+    "bounds_aware_box_fit=1",
+    "gate_k_complete=0",
+    "runtime_acceptance=0",
+):
+    require(stadium, needle, "authored stadium presentation")
 
 # Stadium has one primary site owner. Its tree perimeter must use the same final KiteDemo families as the
 # primary Oster world authoring; no post-BeginPlay remap or older village tree family may survive there.
@@ -64,15 +79,38 @@ for retired_tree_path in (
 ):
     forbid(stadium, retired_tree_path, "retired stadium tree authoring")
 
-# The ground contract must point only at assets that are actually tracked in this repository.
+# Ground and stadium authored contracts must point only at assets that are actually tracked in this repository.
 require_file(
     ROOT / "OsterConflict" / "Content" / "AdvancedVillagePack" / "Meshes" / "SM_Plane_1x1.uasset",
-    "tracked authored ground mesh",
+    "tracked authored ground/pitch mesh",
 )
 require_file(
     ROOT / "OsterConflict" / "Content" / "KiteDemo" / "Environments" / "GroundTiles" / "Grass" / "M_Ground_Grass2.uasset",
     "tracked authored ground material",
 )
+for path, label in (
+    (
+        ROOT / "OsterConflict" / "Content" / "Mega_Street_Props_Pack" / "Street_Props_pack_V2" / "Meshes" / "SM_Curb_1.uasset",
+        "tracked stadium bar/line mesh",
+    ),
+    (
+        ROOT / "OsterConflict" / "Content" / "Mega_Street_Props_Pack" / "Street_Props_Pack_V1" / "Mesh" / "SM_Sign_1.uasset",
+        "tracked stadium entrance mesh",
+    ),
+    (
+        ROOT / "OsterConflict" / "Content" / "Mega_Street_Props_Pack" / "Street_Props_pack_V2" / "Materials" / "Instances" / "M_Grass_Inst.uasset",
+        "tracked stadium turf material",
+    ),
+    (
+        ROOT / "OsterConflict" / "Content" / "Mega_Street_Props_Pack" / "Street_Props_Pack_V1" / "Materials" / "Instances" / "M_Color_1_Inst.uasset",
+        "tracked stadium color base material",
+    ),
+    (
+        ROOT / "OsterConflict" / "Content" / "Mega_Street_Props_Pack" / "Street_Props_pack_V2" / "Materials" / "Instances" / "M_Metal_3_Inst.uasset",
+        "tracked stadium sports metal material",
+    ),
+):
+    require_file(path, label)
 
 # Obsolete foliage/debug presentation is no longer accepted merely because it is hidden.
 for needle in (
@@ -336,6 +374,8 @@ print("- Gate K workflow is triggered by authored-world subsystem source/header 
 print("- final-world Gate K is observation-only and fails closed on visible Engine BasicShape static meshes")
 print("- main PASS45 runtime acceptance requires Gate K, not a side workflow")
 print("- native 100% render scale / high texture contract remains intact")
+print("- authoritative Stadion Oster presentation now owns zero Engine BasicShape families at source level")
+print("- stadium pitch/lines/sports metal/entrance use tracked authored meshes with bounds-aware fitting; runtime visual acceptance remains pending")
 print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
-print("- CURRENT CONTENT GAP: ParkGeometry + four semantic park-detail proxy families and authoritative stadium/remaining core BasicShape families still block Gate K")
-print("STATUS: ITEM 31 PARTIAL; semantic ownership is guarded, but Gate K cannot be complete until exact authored replacements and runtime READY evidence exist")
+print("- CURRENT CONTENT GAP: ParkGeometry + four semantic park-detail proxy families and remaining non-stadium core BasicShape families still block Gate K")
+print("STATUS: ITEM 31 PARTIAL; stadium BasicShape source gap is closed, but Gate K cannot be complete until remaining exact authored replacements and runtime READY evidence exist")
