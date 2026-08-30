@@ -242,3 +242,20 @@ Use only these meanings:
 - `MERGED`: exact accepted head was merged to `main` and merge SHA is recorded.
 
 Never collapse these states into one generic `PASS`.
+
+## Work cycle — 2026-08-30 item 32 Stadion Oster BasicShape presentation retirement
+
+- Canonical checklist relevance: item 32 / Gate K world visual-fidelity closure, with item 27 environment presentation as a subordinate visual concern. This slice closes the authoritative Stadion Oster **source-level** BasicShape presentation family; it does not close Gate K globally or accept the runtime image.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `55ae707b3247852e7cd1abeaa6c69ee1d078f658`.
+- Substantive source head: `ba34e7dffda7d36696e4562ebffac97ec8b27e08` — `PASS45: retire stadium BasicShape presentation`.
+- Production change: `UOCR13StadiumSurfaceSubsystem` no longer loads or owns `/Engine/BasicShapes/` for visible stadium presentation. The pitch uses tracked `SM_Plane_1x1`; pitch markings, goals and sports-metal placement use tracked `SM_Curb_1`; entrance presentation uses tracked `SM_Sign_1`; grass/color/metal presentation uses tracked repository material instances. Existing track, footpath, fence, building and final KiteDemo tree families remain intact.
+- Geometry safety: the former cube-only `AddBoxLocal` scale assumption is now bounds-aware against the component's actual static-mesh bounds, including long-axis handling and bounds-origin compensation. This preserves placement intent while allowing non-cube authored meshes.
+- Fail-closed content rule: required stadium pitch/bar/sign/material assets are explicitly load-checked. Missing content emits `PASS45_STADIUM_AUTHORED_SURFACE_CONTENT_GAP ... gate_k_complete=0` and aborts site construction rather than restoring a BasicShape fallback.
+- Source truth marker: `PASS45_STADIUM_SURFACE_PARTIAL_AUTHORED_READY ... authored_surface_families=7 remaining_basicshape_families=0 bounds_aware_box_fit=1 gate_k_complete=0 runtime_acceptance=0`.
+- Verifier change: `VERIFY_PASS45_VISUAL_FIDELITY_GATE_K.py` now forbids `/Engine/BasicShapes/` in the authoritative stadium owner, requires the tracked pitch/bar/sign/material assets and verifies their repository files exist. It deliberately keeps world/Gate K completion open.
+- Exact GitHub CI for `ba34e7dffda7d36696e4562ebffac97ec8b27e08`: all **68/68** returned workflows completed **SUCCESS**, including `Source verification`, `Pass 45 visual fidelity Gate K`, `Pass 45 Gate K global BasicShape scope`, `Stadion Oster runtime evidence pass 9`, `World geometry stability pass 12` and `Runtime recovery Pass 45`.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. No current-head local UE 5.8 screenshot proves the selected meshes/materials visually fit the stadium; source CI cannot validate donor appearance, proportions or material parameter behavior in-engine.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED. No protected merge is authorized.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked because ParkGeometry, the four semantic park-detail proxy families, remaining non-stadium core BasicShape presentation and direct UE 5.8 Gate K evidence remain open.
+- Next source-landable Gate K target: retire/replace the remaining `ParkGeometry` and semantic Central Park BasicShape detail families with exact semantic authored ownership, without blanket-remapping unrelated geometry or hiding rejected components.
