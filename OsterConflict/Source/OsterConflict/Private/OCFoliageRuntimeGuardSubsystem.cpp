@@ -53,11 +53,34 @@ namespace
         TEXT("PineTrunks"),
         TEXT("PineCrowns")
     };
-    const FName AuthoredTreeComponentNames[]
+
+    struct FRuntimeTreeFamilyExpectation
     {
-        TEXT("AuthoredDeciduousTrees"),
-        TEXT("AuthoredPine01Trees"),
-        TEXT("AuthoredPine03Trees")
+        FName ComponentName;
+        const TCHAR* MeshPath;
+        const TCHAR* Label;
+    };
+
+    // PASS45 item 27: this is the final player-facing mapping after UOCTreeContentUpgradeSubsystem runs.
+    // Merely being non-primitive is not enough. If the one-shot upgrade fails and the older authoring mesh stays
+    // installed, the runtime guard must fail instead of emitting a misleading vegetation READY marker.
+    const FRuntimeTreeFamilyExpectation RuntimeTreeFamilies[]
+    {
+        {
+            TEXT("AuthoredDeciduousTrees"),
+            TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02"),
+            TEXT("mixed_deciduous")
+        },
+        {
+            TEXT("AuthoredPine01Trees"),
+            TEXT("/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01"),
+            TEXT("scots_pine")
+        },
+        {
+            TEXT("AuthoredPine03Trees"),
+            TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"),
+            TEXT("scots_pine_tall")
+        }
     };
 
     bool IsLowCPUProfile(const UWorld& World)
@@ -255,6 +278,7 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
     int32 AuthoredInstances = 0;
     int32 RejectedProxyComponents = 0;
     int32 PrimitiveTreeMeshes = 0;
+    int32 RuntimeIdentityMismatches = 0;
 
     for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
@@ -271,19 +295,44 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
             }
         }
 
-        for (const FName AuthoredName : AuthoredTreeComponentNames)
+        for (const FRuntimeTreeFamilyExpectation& Family : RuntimeTreeFamilies)
         {
-            UInstancedStaticMeshComponent* Component = FindISM(Sector, AuthoredName);
+            UInstancedStaticMeshComponent* Component = FindISM(Sector, Family.ComponentName);
             if (!Component || !Component->GetStaticMesh() || Component->GetInstanceCount() <= 0)
             {
+                ++RuntimeIdentityMismatches;
                 bAllValid = false;
+                UE_LOG(LogTemp, Error,
+                    TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=component_mesh_or_instances_missing expected=%s runtime_acceptance=0"),
+                    Family.Label,
+                    Family.MeshPath);
                 continue;
             }
 
-            if (IsRejectedPrimitiveTreeMesh(Component->GetStaticMesh()))
+            UStaticMesh* Mesh = Component->GetStaticMesh();
+            if (IsRejectedPrimitiveTreeMesh(Mesh))
             {
                 ++PrimitiveTreeMeshes;
+                ++RuntimeIdentityMismatches;
                 bAllValid = false;
+                UE_LOG(LogTemp, Error,
+                    TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=primitive_tree_mesh expected=%s actual=%s runtime_acceptance=0"),
+                    Family.Label,
+                    Family.MeshPath,
+                    *Mesh->GetPathName());
+                continue;
+            }
+
+            const FString ActualPath = Mesh->GetPathName();
+            if (!ActualPath.Equals(Family.MeshPath, ESearchCase::CaseSensitive))
+            {
+                ++RuntimeIdentityMismatches;
+                bAllValid = false;
+                UE_LOG(LogTemp, Error,
+                    TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=unexpected_runtime_tree_mesh expected=%s actual=%s runtime_acceptance=0"),
+                    Family.Label,
+                    Family.MeshPath,
+                    *ActualPath);
                 continue;
             }
 
@@ -293,19 +342,25 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
     }
 
     const bool bReady = bFoundSector && bAllValid && RejectedProxyComponents == 0 && PrimitiveTreeMeshes == 0 &&
-        AuthoredComponents >= static_cast<int32>(UE_ARRAY_COUNT(AuthoredTreeComponentNames));
+        RuntimeIdentityMismatches == 0 &&
+        AuthoredComponents == static_cast<int32>(UE_ARRAY_COUNT(RuntimeTreeFamilies));
 
     if (bReady && !bAuthoredTreeValidationObserved)
     {
         bAuthoredTreeValidationObserved = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_AUTHORED_VEGETATION_READY authored_components=%d authored_instances=%d rejected_proxy_components=%d primitive_tree_meshes=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 oak_asset_verified=0"),
+            TEXT("PASS45_RUNTIME_TREE_IDENTITY_READY exact_runtime_tree_components=%d runtime_identity_mismatches=%d final_mapping=HillTree_02,ScotsPine_01,ScotsPineTall_01 primitive_tree_meshes=%d oak_asset_verified=0 runtime_acceptance=0"),
+            AuthoredComponents,
+            RuntimeIdentityMismatches,
+            PrimitiveTreeMeshes);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_AUTHORED_VEGETATION_READY authored_components=%d authored_instances=%d rejected_proxy_components=%d primitive_tree_meshes=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 final_runtime_pine_assets=ScotsPine_01,ScotsPineTall_01 exact_runtime_identity=1 oak_asset_verified=0"),
             AuthoredComponents,
             AuthoredInstances,
             RejectedProxyComponents,
             PrimitiveTreeMeshes);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_AUTHORED_TREE_FAMILY_READY primitive_tree_components=0 authored_tree_components=3 basicshape_tree_meshes=0 authored_instances=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 oak_asset_verified=0"),
+            TEXT("PASS45_AUTHORED_TREE_FAMILY_READY primitive_tree_components=0 authored_tree_components=3 basicshape_tree_meshes=0 authored_instances=%d pine_assets=SM_Pine_Tree_01,SM_Pine_Tree_03 final_runtime_pine_assets=ScotsPine_01,ScotsPineTall_01 exact_runtime_identity=1 oak_asset_verified=0"),
             AuthoredInstances);
     }
 
@@ -480,7 +535,7 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
             QuadrantOccupied[2],
             QuadrantOccupied[3]);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0 population_complete=1 full_playable_bounds=1 spatial_coverage=1 occupied_bins=%d/%d edge_reach=1"),
+            TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0 population_complete=1 full_playable_bounds=1 spatial_coverage=1 occupied_bins=%d/%d edge_reach=1 exact_runtime_tree_identity=1"),
             DenseGrassComponents,
             GrassInstances,
             MinGrassInstances,
@@ -517,7 +572,7 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
     }
     if (!bAuthoredTreesReady)
     {
-        FailValidation(TEXT("source_authored_tree_family_not_ready"));
+        FailValidation(TEXT("final_runtime_tree_identity_not_ready"));
         return;
     }
     if (!bPopulationComplete)
