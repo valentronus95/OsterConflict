@@ -110,7 +110,8 @@ for needle in (
 # Gate K waits until after this 0.35 s bridge and ignores zero-instance quarantine ISMs, but remains observation-only.
 for needle in (
     "ElapsedSeconds < 3.0f",
-    "if (ISM->GetInstanceCount() <= 0) continue;",
+    "Instances = ISM->GetInstanceCount();",
+    "if (Instances <= 0) continue;",
     "CountVisibleBasicShapes",
     "PASS45_GATE_K_RUNTIME_FAIL",
     "visible_basicshape_components=0",
