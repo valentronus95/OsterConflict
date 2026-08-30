@@ -48,7 +48,8 @@ namespace
         const FVector Scale(Uniform * WidthScale, Uniform * WidthScale, Uniform);
         const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
         FVector Location = Ground;
-        Location.Z = -LocalBottom * Uniform;
+        // Preserve the canonical MuseumAnchor/site elevation; the mesh bottom supplies only the local grounding offset.
+        Location.Z += -LocalBottom * Uniform;
         Component->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), Location, Scale), true);
     }
 
