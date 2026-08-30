@@ -88,10 +88,10 @@ if park_begin < 0 or park_end < 0:
 park_source = world[park_begin:park_end]
 for needle in (
     "ExpectedBenches = 14",
-    "ExpectedSemanticDetails = 23",
+    "static_assert(ExpectedSemanticDetails == 23",
     'ParkBenches = MakeISM(TEXT("ParkBenches")',
-    "AddBox(ParkBenches, Park + FVector(I * 1900, -850, 60), FVector(180, 55, 120))",
-    "AddBox(ParkBenches, Park + FVector(I * 1900,  850, 60), FVector(180, 55, 120))",
+    "AddBox(ParkBenches, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120))",
+    "AddBox(ParkBenches, Park + FVector(I * 1900.0f, 850.0f, 60.0f), FVector(180, 55, 120))",
     "LegacyCount == 0",
     "BenchCount == ExpectedBenches",
     "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY",
