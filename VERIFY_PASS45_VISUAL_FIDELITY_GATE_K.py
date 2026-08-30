@@ -242,35 +242,59 @@ for needle in (
 ):
     require(surface, needle, "exact ParkPaths compatibility signature")
 
-# Gate K semantic split regression: the old ParkDetails mixed bucket is quarantine-only. Memorial plaza, stepped
-# approach, skate/fitness and benches have distinct ownership so future authored replacement can be exact rather
-# than blanket-replacing 23 unrelated cubes with one mesh.
+# Gate K semantic split regression: mixed ParkGeometry/ParkMemorialPlaza/ParkSkateFitness buckets are now
+# quarantine-only. Exact ground/memorial/skate families are direct AOCWorldSectorOster primary owners, preserving
+# the 23-detail contract without a late normalization bridge. Monument + two ramps remain explicit content gaps.
 for needle in (
+    'ParkGeometry = MakeISM(TEXT("ParkGeometry")',
+    'ParkCentralGround = MakeISM(TEXT("ParkCentralGround")',
+    'ParkNorthCivicGround = MakeISM(TEXT("ParkNorthCivicGround")',
+    'CollegeRecreationGround = MakeISM(TEXT("CollegeRecreationGround")',
     'ParkMemorialPlaza = MakeISM(TEXT("ParkMemorialPlaza")',
+    'ParkMemorialSurface = MakeISM(TEXT("ParkMemorialSurface")',
+    'ParkMemorialMonument = MakeISM(TEXT("ParkMemorialMonument")',
     'ParkMemorialApproach = MakeISM(TEXT("ParkMemorialApproach")',
     'ParkSkateFitness = MakeISM(TEXT("ParkSkateFitness")',
+    'ParkSkateSurface = MakeISM(TEXT("ParkSkateSurface")',
+    'ParkSkateRamps = MakeISM(TEXT("ParkSkateRamps")',
     'ParkBenches = MakeISM(TEXT("ParkBenches")',
-    "ExpectedMemorialPlaza = 2",
+    "ExpectedMemorialSurface = 1",
+    "ExpectedMemorialMonument = 1",
     "ExpectedMemorialApproach = 4",
-    "ExpectedSkateFitness = 3",
+    "ExpectedSkateSurface = 1",
+    "ExpectedSkateRamps = 2",
     "ExpectedBenches = 14",
     "ExpectedSemanticDetails == 23",
-    "LegacyCount == 0",
+    "LegacyDetailsCount == 0",
+    "LegacyGeometryCount == 0",
+    "LegacyMemorialCount == 0",
+    "LegacySkateCount == 0",
     "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED",
     "PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY",
-    "legacy=0 memorial_plaza=2 memorial_approach=4 skate_fitness=3 benches=14 total=23",
+    "PASS45_PARK_PRIMARY_SEMANTIC_OWNERS_READY",
+    "primary_authoring=1 normalization_bridge=0",
+    "remaining_content_gap_instances=3",
 ):
-    require(world, needle, "Central Park semantic detail split")
-forbid(park_source, "AddBox(ParkDetails,", "legacy ParkDetails detail authoring")
-forbid(park_source, "AddBoxRotated(ParkDetails,", "legacy ParkDetails rotated detail authoring")
-for needle in (
+    require(world, needle, "Central Park primary semantic detail split")
+for forbidden in (
+    "AddBox(ParkDetails,",
+    "AddBoxRotated(ParkDetails,",
+    "AddBox(ParkGeometry,",
     "AddBox(ParkMemorialPlaza,",
-    "AddBox(ParkMemorialApproach,",
     "AddBox(ParkSkateFitness,",
     "AddBoxRotated(ParkSkateFitness,",
+):
+    forbid(park_source, forbidden, "legacy mixed Central Park authoring")
+for needle in (
+    "AddBox(ParkCentralGround,",
+    "AddBox(ParkMemorialSurface,",
+    "AddBox(ParkMemorialMonument,",
+    "AddBox(ParkMemorialApproach,",
+    "AddBox(ParkSkateSurface,",
+    "AddBoxRotated(ParkSkateRamps,",
     "AddBox(ParkBenches,",
 ):
-    require(park_source, needle, "semantic Central Park detail authoring")
+    require(park_source, needle, "primary semantic Central Park detail authoring")
 
 # Pass12 rejects the old Ground Color MID contract as well. It validates Ground + the four upgraded ISM surface
 # families and tracks ParkPaths/Fences counts so late mutation cannot escape the stability gate.
@@ -361,7 +385,8 @@ for needle in ("RUNTIME REJECTED", "2026-08-27"):
 
 print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
-print("- Central Park detail ownership is fail-closed: legacy ParkDetails=0 and semantic groups=2/4/3/14 (23 total)")
+print("- Central Park semantic ownership is primary/fail-closed: legacy mixed buckets=0; exact groups=1/1/4/1/2/14 (23 total)")
+print("- park central/north/college ground owners are direct source families; old ParkGeometry remains quarantine-only")
 print("- playable Ground upgrades from Cube + BasicShape MID to tracked SM_Plane_1x1 + KiteDemo M_Ground_Grass2 before Pass12 baseline")
 print("- Ground playable footprint and top-Z are preserved by bounds-aware replacement")
 print("- Roads/Sidewalks upgrade from Cube topology to tracked RoadsideConstruction authored surfaces before Pass12 baseline")
@@ -377,5 +402,5 @@ print("- native 100% render scale / high texture contract remains intact")
 print("- authoritative Stadion Oster presentation now owns zero Engine BasicShape families at source level")
 print("- stadium pitch/lines/sports metal/entrance use tracked authored meshes with bounds-aware fitting; runtime visual acceptance remains pending")
 print("- latest factual runtime verdict remains RUNTIME REJECTED 2026-08-27")
-print("- CURRENT CONTENT GAP: ParkGeometry + four semantic park-detail proxy families and remaining non-stadium core BasicShape families still block Gate K")
-print("STATUS: ITEM 31 PARTIAL; stadium BasicShape source gap is closed, but Gate K cannot be complete until remaining exact authored replacements and runtime READY evidence exist")
+print("- CURRENT CONTENT GAP: ParkMemorialMonument + two ParkSkateRamps instances and other non-stadium core BasicShape families still block Gate K")
+print("STATUS: ITEM 32 PARTIAL; primary park ownership is source-closed, but Gate K cannot be complete until remaining exact authored replacements and runtime READY evidence exist")
