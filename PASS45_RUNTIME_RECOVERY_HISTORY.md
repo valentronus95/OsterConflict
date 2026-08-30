@@ -160,6 +160,21 @@ These PRs were found during the 2026-08-30 audit. Current disposition is recorde
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED. The source head is 525 commits ahead and 0 behind `main@bca00f4046700f383af9f1742cc24b6a62401b1a` before this ledger-only update.
 - Official checklist accounting remains **22/36 = 61.1%**. Item 24 stays unchecked because audio source integration cannot substitute for accepted authored first-person animation, distinct flash world VFX, exact/distinct grenade presentation and UE 5.8 smoke/visual acceptance.
 
+## Work cycle — 2026-08-30 item 27 primary tree-authoring ownership continuation
+
+- Canonical checklist relevance: item 27 vegetation replacement and broader environment acceptance. This source slice eliminates an owner conflict; it does not accept the remaining UE 5.8 visual/material/LOD result.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `acf44946ea6dfd0bc5b12f4c4ebb3be8b7ac07f3`.
+- Substantive source head: `05037124dce69542f5352850d38e7c102a99b6f3` — `PASS45: make world trees sole primary owner`.
+- Production change: `AOCWorldSectorOster` now directly selects final `HillTree_02`, `ScotsPine_01` and `ScotsPineTall_01` assets before gameplay. The obsolete `OCTreeContentUpgradeSubsystem.*` was physically deleted, removing the post-`BeginPlay` instance-transform/material rewrite and leaving one mutating tree author.
+- Runtime truth: `PASS45_REGIONAL_TREE_INTAKE_WIRED` records `primary_authoring=1`, `late_mutation=0` and `runtime_acceptance=0`; `UOCFoliageRuntimeGuardSubsystem` continues to fail closed when the three exact runtime family identities do not match. Oak remains an explicit unverified content gap.
+- Verifier changes: content-runtime wiring, authored-tree mapping, ledger wiring, runtime-recovery and S16B checks now require the primary world owner and reject reappearance of the deleted late-upgrade subsystem.
+- Local verification: `git diff --check`, `VERIFY_PASS45_CONTENT_LEDGER_RUNTIME_WIRING.py`, `VERIFY_RUNTIME_RECOVERY_PASS_45.py`, `VERIFY_S16B.py` and cumulative `RUN_ALL_VERIFY.py` passed.
+- Exact GitHub CI for `05037124dce69542f5352850d38e7c102a99b6f3`: all **68/68** returned workflows completed **SUCCESS**, including `Source verification`, `Foliage runtime acceptance pass 10`, `Pass45 content ledger runtime wiring`, `Runtime recovery Pass 45` and `Pass 45 visual fidelity Gate K`.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. No current-head local UE 5.8 rendered tree/material/LOD acceptance exists.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED. The source head is 527 commits ahead and 0 behind `main@bca00f4046700f383af9f1742cc24b6a62401b1a` before this ledger-only update.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 27 stays unchecked until direct UE 5.8 screenshots prove natural regional vegetation, no visible primitive/fantasy family, acceptable material/LOD quality and broader environment acceptance.
+
 ## Main-merge history relevant to PASS45
 
 Known historical merged milestones include:

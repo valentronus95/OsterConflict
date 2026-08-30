@@ -495,6 +495,12 @@ Acceptance:
 
 ## 11. P0 — vegetation replacement
 
+### Current corrective source state — 2026-08-30 — PRIMARY-AUTHORED / RUNTIME REJECTED
+
+`AOCWorldSectorOster` now selects the final player-facing tree families during its primary construction: `HillTree_02`, `ScotsPine_01` and `ScotsPineTall_01`. The obsolete `OCTreeContentUpgradeSubsystem` has been physically deleted: no second tree owner rewrites instances after `BeginPlay`, so the source cannot create a late remap/pop/flicker path. The explicit `PASS45_REGIONAL_TREE_INTAKE_WIRED` marker records `primary_authoring=1`, `late_mutation=0` and `runtime_acceptance=0`; the foliage runtime guard still fails closed on any identity mismatch. Oak remains an explicit unverified content gap.
+
+Exact source head: `05037124dce69542f5352850d38e7c102a99b6f3`, GitHub source CI **68/68 SUCCESS**. This confirms source integration only; it does not replace current-head local UE 5.8 visual/LOD/material acceptance.
+
 Requirements:
 
 - replace, do not merely recolor, rejected tree family;
@@ -578,9 +584,9 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
 - obsolete conflicting owners are physically deleted together with stale verifier expectations.
 
-## 22. Current source implementation milestone — 2026-08-30 weapon/ordnance + landmark/reference continuation
+## 22. Current source implementation milestone — 2026-08-30 weapon/ordnance + landmark/reference + vegetation-owner continuation
 
-State: **SOURCE-CODED / REFERENCE-BOUND / EXACT SOURCE HEAD `5c8037feda054e435ad734e1194bc69b6fd1fc5a` CI 68/68 SUCCESS / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / REFERENCE-BOUND / EXACT SOURCE HEAD `05037124dce69542f5352850d38e7c102a99b6f3` CI 68/68 SUCCESS / NOT RUNTIME ACCEPTED**.
 
 Historical verified source milestones remain structural evidence only. Current-head source CI must be read for the exact head after each substantive cycle; no source CI result overrides the factual `RUNTIME REJECTED 2026-08-27` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
@@ -667,7 +673,7 @@ Completed/source-coded items are marked only for source/reference work, not runt
 24. [ ] Accept first-person grenade hand/throw/recover animation, exact/distinct frag/smoke/flash presentation, distinct flash world VFX and direct UE 5.8 smoke scale/look/performance. **Smoke Niagara source content is now committed/wired; that source integration does not close runtime visual acceptance. Authored throw audio is also committed/wired, but it does not close the hand-animation or visual gaps.**
 25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence. **Rendered identity/fidelity acceptance remains pending.**
 26. [x] Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts. Silpo uses reviewed user evidence; Culture House keeps unverified exact geometry explicitly `PROVISIONAL`. **Reference binding is not runtime acceptance.**
-27. [ ] Replace rejected vegetation family and complete broader environment acceptance.
+27. [ ] Replace rejected vegetation family and complete broader environment acceptance. **Final HillTree/ScotsPine assets are now direct primary world authoring and the late remap owner is physically retired; UE 5.8 visual/material/LOD acceptance remains open.**
 28. [ ] Complete/accept HMMWV M2 ring/shield/gunner hierarchy with authored pivot, 360° yaw and correct camera in UE runtime.
 29. [ ] Calibrate/accept HMMWV gameplay top speed to >=80 km/h without breaking handling.
 30. [ ] Close BTR white material state across pre/post possession in runtime.
