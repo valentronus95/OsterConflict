@@ -12,12 +12,13 @@
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Earlier source milestone `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` had all returned workflows **SUCCESS** for the weapon/ordnance state that existed at that point.
 - Newer primitive-retirement, grenade throw-semantics and Museum/Culture/Silpo landmark-identity source work is later than that milestone; current-head CI is re-read separately and is not inferred from the historical green head.
-- Latest factual gameplay evidence: `RUNTIME_EVIDENCE/2026-08-26_PASS45_REJECTED/`.
+- Current indexed source head: `5c8037feda054e435ad734e1194bc69b6fd1fc5a` (`PASS45: wire authored grenade throw audio`).
+- Latest factual gameplay evidence: `RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`.
 - Historical rejected evidence remains separate: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x / Windows.
 - Canonical user launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-26 / WEAPON + ORDNANCE + LANDMARK IDENTITY SOURCE-CODED / CURRENT-HEAD SOURCE REVALIDATION PENDING / LOCAL UE RUNTIME PENDING**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-27 / WEAPON + ORDNANCE + LANDMARK IDENTITY SOURCE-CODED / EXACT SOURCE HEAD CI SUCCESS / LOCAL UE RUNTIME PENDING**.
 
 ## 2. Status rules
 
@@ -242,6 +243,7 @@ Source now fails closed instead of rendering known-bad primitive content:
 - smoke BasicShape puff cluster is physically retired; missing authored smoke VFX remains explicit `CONTENT GAP`;
 - grenade throw uses swept/overlap clearance, `DontSpawnIfColliding`, commits inventory only after factual projectile spawn and inherits carrier velocity;
 - valid acceptance requires `PASS45_GRENADE_THROW_COMMIT_READY` and the presentation bridge marker;
+- tracked authored `snd_throw1` now plays from that factual replicated successful-throw event, never from input-before-spawn; READY/CONTENT GAP markers keep runtime audibility fail-visible without moving gameplay authority into presentation;
 - `VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py` and `VERIFY_PASS45_GRENADE_SMOKE_PRIMITIVE_RETIREMENT.py` protect these paths.
 
 Rendered weapon/launcher/grenade appearance, authored smoke and first-person grenade animation remain local-runtime/content work.
@@ -281,7 +283,7 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 | WEAPON-AUDIO-001 | No accepted silent weapon; exact per-weapon/mechanical audio | IN_PROGRESS / CODED_UNTESTED / CONTENT GAP | Source-level silence fallback coded; final authored identity/mix and bolt/lever content pending. |
 | WEAPON-ADS-001 | Per-weapon sight alignment is factual, not generic | IN_PROGRESS / CODED_UNTESTED | Fail-visible socket architecture + diagnostics coded; all exact profiles remain uncalibrated. |
 | WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | CODED_UNTESTED | Source fail-closed retirement complete; rendered zero-primitive proof pending. |
-| GRENADE-VISUAL-001 | No primitive grenade/smoke and no inventory loss on failed throw | CODED_UNTESTED / CONTENT GAP | Primitive retirement + transactional throw coded; authored smoke/animation pending. |
+| GRENADE-VISUAL-001 | No primitive grenade/smoke and no inventory loss on failed throw | CODED_UNTESTED / CONTENT GAP | Primitive retirement + transactional throw + authored throw audio coded; authored hand animation, flash VFX and runtime visual proof pending. |
 | UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | CODED_UNTESTED | Runtime screenshot required. |
 | VIS-TREES-001 | No primitive/fantasy visible tree family | IN_PROGRESS / CONTENT GAP | Next active source/content block: inventory real vegetation and replace rejected Cylinder/Sphere family fail-closed. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | CONTENT GAP | No verified exact payload; do not claim connected. |
@@ -332,7 +334,7 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 14. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever audio gaps.
 15. [ ] Inspect each exact production weapon in local UE 5.8, confirm rear/front/optic references and calibrate ADS transforms; only factual profiles may set `bADSCalibrated=true`.
 16. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks and make runtime acceptance fail closed. **Rendered proof pending.**
-17. [x] Source-retire primitive grenade/smoke visuals and make grenade throw transactional/safe. **Authored smoke/animation + runtime proof pending.**
+17. [x] Source-retire primitive grenade/smoke visuals and make grenade throw transactional/safe. **Authored smoke and throw audio are source-wired; authored hand animation, flash VFX and runtime proof remain pending.**
 18. [x] Source-close Museum/Culture House/Silpo identity/separation and require the R14.3 Silpo facade/sign stage. **Visual runtime proof pending.**
 19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity.
 20. [ ] Complete HMMWV M2 hierarchy/360°/camera and >=80 km/h road tuning.

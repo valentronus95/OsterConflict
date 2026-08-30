@@ -580,7 +580,7 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 
 ## 22. Current source implementation milestone — 2026-08-30 weapon/ordnance + landmark/reference continuation
 
-State: **SOURCE-CODED / REFERENCE-BOUND / CURRENT-HEAD CI REVALIDATION REQUIRED / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / REFERENCE-BOUND / EXACT SOURCE HEAD `5c8037feda054e435ad734e1194bc69b6fd1fc5a` CI 68/68 SUCCESS / NOT RUNTIME ACCEPTED**.
 
 Historical verified source milestones remain structural evidence only. Current-head source CI must be read for the exact head after each substantive cycle; no source CI result overrides the factual `RUNTIME REJECTED 2026-08-27` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
@@ -619,8 +619,10 @@ Implemented/source-prepared:
 - grenade throw uses swept clearance + overlap validation and `DontSpawnIfColliding`;
 - grenade inventory commit occurs only after factual projectile creation; blocked/failed spawn consumes zero inventory;
 - successful grenade throw inherits character velocity and emits `GrenadeThrow` presentation event without a second gameplay timer;
+- the committed authored `/Game/R13/Audio/snd_throw1` payload is now loaded by the native character presentation owner and played only from the replicated successful-throw event: locally controlled first person uses 2D playback, remote presentation uses world-location playback, and dedicated servers do not load/play it;
+- factual audio success emits `PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY ... replicated_event=1 gameplay_authority=0`; missing/unloadable content emits `PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP` and is fatal to strict runtime evidence;
 - strict runtime evidence requires factual grenade visual/type-material/throw/smoke markers and now also requires authored throw-animation readiness rather than allowing the event bridge to false-pass;
-- authored first-person grenade hand/throw/recover animation remains explicit content gap;
+- authored first-person grenade hand/throw/recover animation remains explicit content gap; authored throw audio is source-integrated but cannot substitute for that animation;
 - distinct authored flash-grenade world VFX remains explicit content gap;
 - Museum source identity is guarded against six-column Culture-House contamination;
 - Culture House is guarded as the sole current six-column civic source owner at its separate canonical geo anchor, while the exact six-column visual hypothesis remains provisional until direct photo evidence accepts it;
@@ -662,7 +664,7 @@ Completed/source-coded items are marked only for source/reference work, not runt
 21. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks: hide before production load, preserve invisible collision authority, add hard runtime ready/fail markers and strict evidence gate. **Rendered UE acceptance remains pending.**
 22. [x] Source-retire primitive grenade/smoke visuals: use tracked R13 grenade mesh fail-closed; physically remove fake smoke spheres; wire committed PotaVFX authored Niagara as sole visible smoke owner; preserve fail-visible load/runtime markers. **Rendered grenade/smoke visual acceptance remains pending.**
 23. [x] Correct grenade source throw semantics: safe swept/overlap-checked origin, `DontSpawnIfColliding`, inventory commit only after successful spawn, inherited movement velocity, explicit `GrenadeThrow` presentation event and strict runtime marker requirement. **Local UE behavior/animation acceptance remains pending.**
-24. [ ] Accept first-person grenade hand/throw/recover animation, exact/distinct frag/smoke/flash presentation, distinct flash world VFX and direct UE 5.8 smoke scale/look/performance. **Smoke Niagara source content is now committed/wired; that source integration does not close runtime visual acceptance.**
+24. [ ] Accept first-person grenade hand/throw/recover animation, exact/distinct frag/smoke/flash presentation, distinct flash world VFX and direct UE 5.8 smoke scale/look/performance. **Smoke Niagara source content is now committed/wired; that source integration does not close runtime visual acceptance. Authored throw audio is also committed/wired, but it does not close the hand-animation or visual gaps.**
 25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence. **Rendered identity/fidelity acceptance remains pending.**
 26. [x] Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts. Silpo uses reviewed user evidence; Culture House keeps unverified exact geometry explicitly `PROVISIONAL`. **Reference binding is not runtime acceptance.**
 27. [ ] Replace rejected vegetation family and complete broader environment acceptance.
@@ -717,4 +719,4 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/fail-closed-ADS/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw corrections plus Museum/Culture House/Silpo source identity ownership and bound reference contracts are **SOURCE-CODED / REFERENCE-BOUND / UNTESTED OR REJECTED IN CURRENT LOCAL UE RUNTIME**. Historical green source milestones remain structural evidence only. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build, playtest and direct screenshot acceptance proves them.
+The weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/fail-closed-ADS/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw/authored-throw-audio corrections plus Museum/Culture House/Silpo source identity ownership and bound reference contracts are **SOURCE-CODED / REFERENCE-BOUND / UNTESTED OR REJECTED IN CURRENT LOCAL UE RUNTIME**. Exact source head `5c8037feda054e435ad734e1194bc69b6fd1fc5a` passed 68/68 GitHub workflows, but that remains structural evidence only. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build, playtest and direct screenshot acceptance proves them.

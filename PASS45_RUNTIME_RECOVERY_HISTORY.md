@@ -144,6 +144,22 @@ These PRs were found during the 2026-08-30 audit. Current disposition is recorde
 - Official checklist accounting remains **22/36 = 61.1%** because no runtime-dependent canonical item was factually accepted by this source/branch audit.
 - Remaining technical blockers: authored/manual weapon-action and exact audio/ADS closure, grenade presentation closure, vegetation/world fidelity, HMMWV/M2 runtime acceptance and road speed, BTR material/orientation/remote optic runtime acceptance, fullscreen/native-scale/thermal soak, tactical-map screenshot, full current-head UE 5.8 acceptance and final protected merge.
 
+## Work cycle — 2026-08-30 item 24 authored grenade throw audio continuation
+
+- Canonical checklist relevance: item 24 grenade first-person presentation/audio continuation; this slice does not close the still-missing authored hand/pull/throw/recover animation, exact per-type bodies, flash world VFX or direct smoke visual acceptance.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `164736c8f693deb739817e577786abba1d0560ac`.
+- Substantive source head: `5c8037feda054e435ad734e1194bc69b6fd1fc5a` — `PASS45: wire authored grenade throw audio`.
+- Production change: `UOCCharacterVisualComponent` now loads committed `/Game/R13/Audio/snd_throw1`, plays it only from the replicated factual successful-throw presentation event, uses local 2D playback for the owning first-person player and world-location playback for remote presentation, and performs no dedicated-server audio work.
+- Authority boundary: input-before-spawn does not play the sound; failed/blocked projectile spawn still consumes zero inventory and emits no throw presentation. Audio remains cosmetic (`gameplay_authority=0`) and owns no fuse, inventory or projectile timing.
+- Runtime truth markers: success emits `PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY`; missing/unloadable authored content emits `PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP`, which the dedicated and general strict runtime evidence paths reject.
+- Verifier/workflow changes: the existing grenade throw animation gate now also guards the tracked sound asset, native local/remote playback routes, runtime READY/CONTENT GAP contract and general strict evidence wiring. No duplicate workflow was added.
+- Local verification: `VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py`, `VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py` and cumulative `RUN_ALL_VERIFY.py` all passed; `git diff --check` passed.
+- Exact GitHub CI for `5c8037feda054e435ad734e1194bc69b6fd1fc5a`: all **68/68** returned workflows completed **SUCCESS**, including `Source verification`, `Pass 45 grenade throw animation gate`, `Pass 45 strict runtime acceptance harness`, `Pass 45 grenade smoke primitive retirement`, `Pass 45 flash grenade acceptance gate` and `Pass 45 visual fidelity Gate K`.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. This source slice has no local UE 5.8 audibility or direct visual acceptance.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED. The source head is 525 commits ahead and 0 behind `main@bca00f4046700f383af9f1742cc24b6a62401b1a` before this ledger-only update.
+- Official checklist accounting remains **22/36 = 61.1%**. Item 24 stays unchecked because audio source integration cannot substitute for accepted authored first-person animation, distinct flash world VFX, exact/distinct grenade presentation and UE 5.8 smoke/visual acceptance.
+
 ## Main-merge history relevant to PASS45
 
 Known historical merged milestones include:
