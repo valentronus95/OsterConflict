@@ -63,8 +63,10 @@ echo [2/2] Launching lightweight Oster frontend shell...
 echo Runtime map is NOT loaded before the menu. Pressing START loads OsterConflict_Runtime inside Unreal.
 echo Renderer: DX11 + SM5 + HDR off, max 60 FPS.
 echo Log: %PREVIEW_LOG%
-echo [PREVIEW] Loading presentation is rendered INSIDE Unreal. No external progress window and no fake percentage.
-start /wait "Oster Conflict Fast Preview" "%EDITOR%" "%PROJECT%" "/Engine/Maps/Entry?game=/Script/OsterConflict.OCGameModeRuntimeSafe" -game -Frontend -d3d11 -sm5 -nohdr -NoScreenMessages -abslog="%PREVIEW_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+echo [PREVIEW] Loading presentation is rendered INSIDE Unreal with real lifecycle milestones.
+echo [PREVIEW] Percentage means UE startup milestones, not guessed byte/shader completion.
+echo [PREVIEW] Standalone frontend fallback remains visible until the R13 menu takes ownership.
+start /wait "Oster Conflict Fast Preview" "%EDITOR%" "%PROJECT%" "/Engine/Maps/Entry?game=/Script/OsterConflict.OCGameModeRuntimeSafe" -game -OCFastPreview -d3d11 -sm5 -nohdr -NoScreenMessages -abslog="%PREVIEW_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 echo.
