@@ -3,8 +3,6 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Parse.h"
 #include "MoviePlayer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/Connection/NetEnums.h"
@@ -20,8 +18,7 @@
 
 namespace
 {
-    // MoviePlayer's Slate surface can remain active while the game thread is inside synchronous LoadMap/BeginPlay.
-    // Only expose lifecycle milestones we actually own. This is intentionally not a fabricated byte percentage.
+    // These are factual lifecycle milestones owned by PASS45, not guessed byte/shader completion.
     std::atomic<int32> GPass45LoadingMilestonePercent{0};
     std::atomic<int32> GPass45LoadingPhase{0};
 
@@ -35,12 +32,18 @@ namespace
     {
         switch (GPass45LoadingPhase.load(std::memory_order_relaxed))
         {
-            case 1: return FText::FromString(TEXT("ПІДГОТОВКА ВІКНА ГРИ"));
             case 2: return FText::FromString(TEXT("ЗАВАНТАЖЕННЯ КАРТИ"));
             case 3: return FText::FromString(TEXT("ІНІЦІАЛІЗАЦІЯ СВІТУ"));
             case 4: return FText::FromString(TEXT("ГОТОВО"));
             default: return FText::FromString(TEXT("ПІДГОТОВКА"));
         }
+    }
+
+    bool IsFrontendEntryMap(const FString& MapName)
+    {
+        return MapName.Equals(TEXT("Entry"), ESearchCase::IgnoreCase)
+            || MapName.EndsWith(TEXT("/Entry"), ESearchCase::IgnoreCase)
+            || MapName.Contains(TEXT("/Engine/Maps/Entry"), ESearchCase::IgnoreCase);
     }
 }
 
@@ -49,8 +52,6 @@ void UOCGameInstance::Init()
     Super::Init();
     ConnectionStatusText = LOCTEXT("FrontendReady", "Готово до підключення.");
 
-    // PASS45: map loading belongs to Unreal itself. Pre/PostLoadMap brackets the actual LoadMap call,
-    // while MoviePlayer keeps a Slate loading surface alive even when the game thread is blocked.
     FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UOCGameInstance::HandlePreLoadMap);
     FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UOCGameInstance::HandlePostLoadMap);
 
@@ -58,13 +59,6 @@ void UOCGameInstance::Init()
     {
         GEngine->OnNetworkFailure().AddUObject(this, &UOCGameInstance::HandleNetworkFailure);
         GEngine->OnTravelFailure().AddUObject(this, &UOCGameInstance::HandleTravelFailure);
-    }
-
-    // Fast Preview explicitly asks for an engine-native boot surface before the lightweight frontend is ready.
-    // If MoviePlayer has not been initialized yet, the ordinary PreLoadMap delegate remains the fallback owner.
-    if (FParse::Param(FCommandLine::Get(), TEXT("OCFastPreview")))
-    {
-        PrepareRuntimeLoadingScreen(TEXT("FrontendBootstrap"), 5, 1);
     }
 }
 
@@ -112,8 +106,10 @@ void UOCGameInstance::PrepareRuntimeLoadingScreen(const FString& Context, int32 
     }
 
     FLoadingScreenAttributes LoadingScreen;
-    LoadingScreen.bAutoCompleteWhenLoadingCompletes = false;
-    LoadingScreen.bWaitForManualStop = true;
+    // Critical deadlock guard: MoviePlayer must never wait for a later GameMode/PlayerController callback
+    // while the initial/game map is still being brought up. UE owns completion of the map load.
+    LoadingScreen.bAutoCompleteWhenLoadingCompletes = true;
+    LoadingScreen.bWaitForManualStop = false;
     LoadingScreen.bMoviesAreSkippable = false;
     LoadingScreen.bAllowEngineTick = false;
     LoadingScreen.MinimumLoadingScreenDisplayTime = 0.20f;
@@ -177,7 +173,7 @@ void UOCGameInstance::PrepareRuntimeLoadingScreen(const FString& Context, int32 
     MoviePlayer->SetupLoadingScreen(LoadingScreen);
     const bool bStarted = MoviePlayer->PlayMovie();
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_INGAME_LOADING_SURFACE_START context=%s percent=%d phase=%d started=%d manual_stop=1"),
+        TEXT("PASS45_INGAME_LOADING_SURFACE_START context=%s percent=%d phase=%d started=%d auto_complete=1 manual_stop=0"),
         *Context, MilestonePercent, Phase, bStarted ? 1 : 0);
 }
 
@@ -185,6 +181,19 @@ void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
 {
     ActiveMapLoadStartedAtSeconds = FPlatformTime::Seconds();
     UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_BEGIN map=%s"), *MapName);
+
+    // The Engine Entry map is the lightweight frontend bootstrap. Starting MoviePlayer here used to
+    // block the very BeginPlay/PlayerController path that was supposed to stop it, producing the
+    // observed black, non-responsive fullscreen window and hidden cursor. The viewport overlay owns
+    // frontend startup; MoviePlayer is reserved for the actual Oster runtime travel after START.
+    if (IsFrontendEntryMap(MapName))
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_FRONTEND_STARTUP_MOVIEPLAYER_SKIPPED map=%s viewport_bootstrap_owner=1 deadlock_guard=1"),
+            *MapName);
+        return;
+    }
+
     PrepareRuntimeLoadingScreen(MapName, 20, 2);
 }
 
@@ -207,7 +216,7 @@ void UOCGameInstance::HandlePostLoadMap(UWorld* LoadedWorld)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_INGAME_LOADING_MAP_COMPLETE map=%s duration_s=%.3f milestone_percent=70 awaiting_runtime_beginplay=1"),
+        TEXT("PASS45_INGAME_LOADING_MAP_COMPLETE map=%s duration_s=%.3f milestone_percent=70 auto_complete=1"),
         *LoadedMap,
         Duration);
     ActiveMapLoadStartedAtSeconds = 0.0;
@@ -226,14 +235,10 @@ void UOCGameInstance::CompleteRuntimeLoading(const TCHAR* Reason)
     }
 
     IGameMoviePlayer* MoviePlayer = GetMoviePlayer();
-    const bool bWasPlaying = MoviePlayer && MoviePlayer->IsMovieCurrentlyPlaying();
+    const bool bPlaying = MoviePlayer && MoviePlayer->IsMovieCurrentlyPlaying();
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_INGAME_LOADING_READY reason=%s percent=100 movieplayer_playing=%d"),
-        Reason ? Reason : TEXT("unknown"), bWasPlaying ? 1 : 0);
-    if (bWasPlaying)
-    {
-        MoviePlayer->StopMovie();
-    }
+        TEXT("PASS45_INGAME_LOADING_READY reason=%s percent=100 movieplayer_playing=%d auto_complete=1 manual_stop=0"),
+        Reason ? Reason : TEXT("unknown"), bPlaying ? 1 : 0);
 }
 
 void UOCGameInstance::BeginDirectConnect(const FString& Address)
