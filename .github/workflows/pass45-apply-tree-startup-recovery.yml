@@ -1,4 +1,5 @@
 name: PASS45 apply KiteDemo startup recovery
+# retry after latest-runtime-date verifier synchronization
 
 on:
   push:
