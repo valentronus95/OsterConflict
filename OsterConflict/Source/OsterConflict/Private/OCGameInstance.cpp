@@ -3,6 +3,8 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "MoviePlayer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/Connection/NetEnums.h"
@@ -14,6 +16,32 @@
 
 #define LOCTEXT_NAMESPACE "OCConnection"
 
+namespace
+{
+    // MoviePlayer's Slate surface can remain active while the game thread is inside synchronous LoadMap/BeginPlay.
+    // Only expose lifecycle milestones we actually own. This is intentionally not a fabricated byte percentage.
+    TAtomic<int32> GPass45LoadingMilestonePercent{0};
+    TAtomic<int32> GPass45LoadingPhase{0};
+
+    FText Pass45LoadingPercentText()
+    {
+        const int32 Percent = FMath::Clamp(GPass45LoadingMilestonePercent.Load(), 0, 100);
+        return FText::FromString(FString::Printf(TEXT("%d%%"), Percent));
+    }
+
+    FText Pass45LoadingPhaseText()
+    {
+        switch (GPass45LoadingPhase.Load())
+        {
+            case 1: return FText::FromString(TEXT("ПІДГОТОВКА ВІКНА ГРИ"));
+            case 2: return FText::FromString(TEXT("ЗАВАНТАЖЕННЯ КАРТИ"));
+            case 3: return FText::FromString(TEXT("ІНІЦІАЛІЗАЦІЯ СВІТУ"));
+            case 4: return FText::FromString(TEXT("ГОТОВО"));
+            default: return FText::FromString(TEXT("ПІДГОТОВКА"));
+        }
+    }
+}
+
 void UOCGameInstance::Init()
 {
     Super::Init();
@@ -21,7 +49,6 @@ void UOCGameInstance::Init()
 
     // PASS45: map loading belongs to Unreal itself. Pre/PostLoadMap brackets the actual LoadMap call,
     // while MoviePlayer keeps a Slate loading surface alive even when the game thread is blocked.
-    // No synthetic percentage is shown because UE does not expose a trustworthy universal map-load percent here.
     FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UOCGameInstance::HandlePreLoadMap);
     FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UOCGameInstance::HandlePostLoadMap);
 
@@ -29,6 +56,13 @@ void UOCGameInstance::Init()
     {
         GEngine->OnNetworkFailure().AddUObject(this, &UOCGameInstance::HandleNetworkFailure);
         GEngine->OnTravelFailure().AddUObject(this, &UOCGameInstance::HandleTravelFailure);
+    }
+
+    // Fast Preview explicitly asks for an engine-native boot surface before the lightweight frontend is ready.
+    // If MoviePlayer has not been initialized yet, the ordinary PreLoadMap delegate remains the fallback owner.
+    if (FParse::Param(FCommandLine::Get(), TEXT("OCFastPreview")))
+    {
+        PrepareRuntimeLoadingScreen(TEXT("FrontendBootstrap"), 5, 1);
     }
 }
 
@@ -45,23 +79,42 @@ void UOCGameInstance::Shutdown()
     Super::Shutdown();
 }
 
-void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
+void UOCGameInstance::PrepareRuntimeLoadingScreen(const FString& Context, int32 MilestonePercent, int32 Phase)
 {
-    ActiveMapLoadStartedAtSeconds = FPlatformTime::Seconds();
-    UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_BEGIN map=%s"), *MapName);
+    GPass45LoadingMilestonePercent.Store(FMath::Clamp(MilestonePercent, 0, 100));
+    GPass45LoadingPhase.Store(Phase);
 
     if (!IsMoviePlayerEnabled())
     {
-        UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_MOVIEPLAYER_DISABLED map=%s"), *MapName);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_INGAME_LOADING_MOVIEPLAYER_DISABLED context=%s percent=%d phase=%d"),
+            *Context, MilestonePercent, Phase);
+        return;
+    }
+
+    IGameMoviePlayer* MoviePlayer = GetMoviePlayer();
+    if (!MoviePlayer || !MoviePlayer->IsInitialized())
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_INGAME_LOADING_MOVIEPLAYER_NOT_READY context=%s percent=%d phase=%d"),
+            *Context, MilestonePercent, Phase);
+        return;
+    }
+
+    if (MoviePlayer->IsMovieCurrentlyPlaying())
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_INGAME_LOADING_MILESTONE context=%s percent=%d phase=%d reused_surface=1"),
+            *Context, MilestonePercent, Phase);
         return;
     }
 
     FLoadingScreenAttributes LoadingScreen;
-    LoadingScreen.bAutoCompleteWhenLoadingCompletes = true;
-    LoadingScreen.bWaitForManualStop = false;
+    LoadingScreen.bAutoCompleteWhenLoadingCompletes = false;
+    LoadingScreen.bWaitForManualStop = true;
     LoadingScreen.bMoviesAreSkippable = false;
     LoadingScreen.bAllowEngineTick = false;
-    LoadingScreen.MinimumLoadingScreenDisplayTime = 0.10f;
+    LoadingScreen.MinimumLoadingScreenDisplayTime = 0.20f;
     LoadingScreen.WidgetLoadingScreen =
         SNew(SBorder)
         .Padding(FMargin(64.0f))
@@ -86,7 +139,16 @@ void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
                 + SVerticalBox::Slot()
                 .AutoHeight()
                 .HAlign(HAlign_Center)
-                .Padding(FMargin(0.0f, 0.0f, 0.0f, 20.0f))
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 16.0f))
+                [
+                    SNew(STextBlock)
+                    .Text_Lambda([]() { return Pass45LoadingPercentText(); })
+                    .ColorAndOpacity(FLinearColor(0.96f, 0.97f, 0.98f, 1.0f))
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 18.0f))
                 [
                     SNew(SThrobber)
                 ]
@@ -95,7 +157,7 @@ void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
                 .HAlign(HAlign_Center)
                 [
                     SNew(STextBlock)
-                    .Text(LOCTEXT("LoadingWorld", "ЗАВАНТАЖЕННЯ СВІТУ"))
+                    .Text_Lambda([]() { return Pass45LoadingPhaseText(); })
                     .ColorAndOpacity(FLinearColor(0.78f, 0.81f, 0.84f, 1.0f))
                 ]
                 + SVerticalBox::Slot()
@@ -104,13 +166,24 @@ void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
                 .Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
                 [
                     SNew(STextBlock)
-                    .Text(LOCTEXT("LoadingDetail", "Підготовка карти, моделей і текстур"))
+                    .Text(LOCTEXT("LoadingDetail", "Етапний прогрес UE: карта → світ → готовність. Не оцінка байтів/шейдерів."))
                     .ColorAndOpacity(FLinearColor(0.56f, 0.60f, 0.64f, 1.0f))
                 ]
             ]
         ];
 
-    GetMoviePlayer()->SetupLoadingScreen(LoadingScreen);
+    MoviePlayer->SetupLoadingScreen(LoadingScreen);
+    const bool bStarted = MoviePlayer->PlayMovie();
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_INGAME_LOADING_SURFACE_START context=%s percent=%d phase=%d started=%d manual_stop=1"),
+        *Context, MilestonePercent, Phase, bStarted ? 1 : 0);
+}
+
+void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
+{
+    ActiveMapLoadStartedAtSeconds = FPlatformTime::Seconds();
+    UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_BEGIN map=%s"), *MapName);
+    PrepareRuntimeLoadingScreen(MapName, 20, 2);
 }
 
 void UOCGameInstance::HandlePostLoadMap(UWorld* LoadedWorld)
@@ -121,11 +194,44 @@ void UOCGameInstance::HandlePostLoadMap(UWorld* LoadedWorld)
         : 0.0;
     const FString LoadedMap = LoadedWorld ? LoadedWorld->GetMapName() : FString(TEXT("<null>"));
 
+    if (IsMoviePlayerEnabled())
+    {
+        IGameMoviePlayer* MoviePlayer = GetMoviePlayer();
+        if (MoviePlayer && MoviePlayer->IsMovieCurrentlyPlaying())
+        {
+            GPass45LoadingMilestonePercent.Store(70);
+            GPass45LoadingPhase.Store(3);
+        }
+    }
+
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_INGAME_LOADING_MAP_COMPLETE map=%s duration_s=%.3f movieplayer_auto_complete=1"),
+        TEXT("PASS45_INGAME_LOADING_MAP_COMPLETE map=%s duration_s=%.3f milestone_percent=70 awaiting_runtime_beginplay=1"),
         *LoadedMap,
         Duration);
     ActiveMapLoadStartedAtSeconds = 0.0;
+}
+
+void UOCGameInstance::CompleteRuntimeLoading(const TCHAR* Reason)
+{
+    GPass45LoadingMilestonePercent.Store(100);
+    GPass45LoadingPhase.Store(4);
+
+    if (!IsMoviePlayerEnabled())
+    {
+        UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_READY reason=%s percent=100 movieplayer=disabled"),
+            Reason ? Reason : TEXT("unknown"));
+        return;
+    }
+
+    IGameMoviePlayer* MoviePlayer = GetMoviePlayer();
+    const bool bWasPlaying = MoviePlayer && MoviePlayer->IsMovieCurrentlyPlaying();
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_INGAME_LOADING_READY reason=%s percent=100 movieplayer_playing=%d"),
+        Reason ? Reason : TEXT("unknown"), bWasPlaying ? 1 : 0);
+    if (bWasPlaying)
+    {
+        MoviePlayer->StopMovie();
+    }
 }
 
 void UOCGameInstance::BeginDirectConnect(const FString& Address)
