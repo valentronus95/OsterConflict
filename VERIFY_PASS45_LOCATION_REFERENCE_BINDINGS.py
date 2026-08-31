@@ -39,9 +39,10 @@ for path in (
     req(path in tz, f"canonical Pass45 TZ missing bound location spec: {path}")
     req(path in bindings, f"binding index missing location spec: {path}")
 
-req("Latest factual gameplay evidence: 2026-08-27" in tz,
-    "canonical TZ latest runtime evidence date drifted from 2026-08-27")
-req("RUNTIME REJECTED 2026-08-27" in tz,
+# The latest factual runtime attempt is newer than the earlier 2026-08-27 visual pack and is still a rejection.
+req("Latest factual gameplay evidence: 2026-08-31" in tz,
+    "canonical TZ latest runtime evidence date drifted from 2026-08-31")
+req("RUNTIME REJECTED 2026-08-31" in tz,
     "canonical TZ no longer preserves latest factual runtime rejection")
 
 # Silpo: temporal state, hero identity, interior/context and water-tower uncertainty must remain explicit.
