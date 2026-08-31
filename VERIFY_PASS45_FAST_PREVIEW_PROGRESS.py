@@ -37,11 +37,13 @@ for forbidden in [
 ]:
     assert forbidden not in game_instance_h, f'rejected GameInstance declaration returned: {forbidden}'
 
+# A normal GameMode BeginPlay override is not itself the rejected Fast Preview bootstrap. PASS45 now uses a
+# narrowly scoped BeginPlay only to retire the legacy duplicate Oster sector before first tick; the rejected
+# viewport/progress-overlay symbols below remain the actual forbidden ownership contract.
 for forbidden in [
     'ShowFrontendBootstrapOverlay',
     'PollFrontendBootstrapReady',
     'FrontendBootstrapOverlay',
-    'virtual void BeginPlay() override;',
     'virtual void EndPlay(',
 ]:
     assert forbidden not in runtime_safe_h, f'rejected bootstrap declaration returned: {forbidden}'
@@ -55,6 +57,10 @@ for forbidden in [
 ]:
     assert forbidden not in runtime_safe_cpp, f'rejected bootstrap implementation returned: {forbidden}'
 
+assert 'virtual void BeginPlay() override;' in runtime_safe_h
+assert 'PASS45_OSTER_SECTOR_SINGLE_OWNER_READY' in runtime_safe_cpp
+assert 'GEngine->GameViewport->AddViewportWidgetContent' not in runtime_safe_cpp
+
 # The diagnostic file can remain isolated until it is either repaired or removed in a
 # separate root-hygiene pass. Its existence must never imply runtime acceptance.
 assert 'PREVIEW ONLY' in launcher
@@ -62,6 +68,7 @@ assert 'PREVIEW ONLY' in launcher
 print('PASS45 rejected Fast Preview startup is quarantined: PASS')
 print('- START_HERE option 1 is restored to RUN_R14_CURRENT_GAMEPLAY.cmd')
 print('- custom MoviePlayer startup ownership is retired from OCGameInstance')
-print('- viewport bootstrap overlay ownership is retired from OCGameModeRuntimeSafe')
+print('- viewport bootstrap overlay ownership remains retired from OCGameModeRuntimeSafe')
+print('- PASS45 pre-tick sector cleanup is explicitly distinguished from the rejected viewport bootstrap')
 print('- RUN_PASS45_FAST_PREVIEW.cmd remains isolated diagnostic material only')
 print('- local UE 5.8 runtime acceptance remains required')
