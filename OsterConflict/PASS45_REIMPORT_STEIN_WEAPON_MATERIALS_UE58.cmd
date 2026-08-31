@@ -4,6 +4,7 @@ chcp 65001 >nul
 
 set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
+set "COMMANDLET_UPROJECT=%PROJECT_DIR%OsterConflictPass45Commandlet.uproject"
 set "SCRIPT=%PROJECT_DIR%Scripts\pass45_reimport_stein_weapon_materials.py"
 set "FRESH_SCRIPT=%PROJECT_DIR%Scripts\verify_stein_weapon_materials_fresh_load.py"
 set "SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\SteinWeapons\pass45_stein_material_reimport_success.txt"
@@ -43,6 +44,10 @@ if not exist "%UPROJECT%" (
     echo ERROR: project not found: %UPROJECT%
     exit /b 3
 )
+if not exist "%COMMANDLET_UPROJECT%" (
+    echo ERROR: isolated Pass45 commandlet project not found: %COMMANDLET_UPROJECT%
+    exit /b 6
+)
 if not exist "%SCRIPT%" (
     echo ERROR: Pass45 Stein R3 authoring script not found: %SCRIPT%
     exit /b 4
@@ -60,10 +65,19 @@ echo OSTER CONFLICT - PASS45 STEIN AUTHORED MATERIAL R3 - UE 5.8
 echo ============================================================
 echo UE:      %UE_ROOT%
 echo Project: %UPROJECT%
+echo Commandlet host: %COMMANDLET_UPROJECT%
 echo Revision: %REQUIRED_REVISION%
 echo.
+echo [PASS45] COMMANDLET ISOLATION: Stein material work runs without loading the OsterConflict runtime module.
+echo [PASS45] Runtime tree contract remains unchanged for the actual game launch.
+echo.
 
-"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout
+rem PASS45 runtime recovery: the Stein authoring/fresh-load scripts use only generic Unreal Editor/Python APIs.
+rem Running them against the normal game descriptor loads the OsterConflict Runtime module and synchronously
+rem constructs its world-sector CDO, which in turn pulls the large KiteDemo tree meshes into this NullRHI prepass.
+rem The content-only descriptor lives in the same project directory, so /Game and Saved resolve identically,
+rem while the runtime module (and therefore HillTree_02/ScotsPine constructor loads) is not loaded here.
+"%UE_CMD%" "%COMMANDLET_UPROJECT%" -run=pythonscript -script="%SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout
 set "IMPORT_RC=!ERRORLEVEL!"
 
 rem UnrealEditor-Cmd can return a negative value such as -1. Never propagate that raw value to a parent
@@ -86,8 +100,8 @@ findstr /L /C:"PASS45_STEIN_UE58_EXPLICIT_BINDING=READY" "%SENTINEL%" >nul || go
 findstr /L /C:"STATUS=EDITOR_GRAPH_AUTHORED_FRESH_LOAD_PENDING" "%SENTINEL%" >nul || goto :authoring_failed
 
 echo.
-echo [VERIFY] Reopening every R3 Stein mesh/material in a fresh UE 5.8 process...
-"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%FRESH_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%FRESH_LOG%"
+echo [VERIFY] Reopening every R3 Stein mesh/material in a fresh isolated UE 5.8 process...
+"%UE_CMD%" "%COMMANDLET_UPROJECT%" -run=pythonscript -script="%FRESH_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%FRESH_LOG%"
 set "FRESH_RC=!ERRORLEVEL!"
 if not "!FRESH_RC!"=="0" (
     echo ERROR: Stein R3 fresh-load verifier failed with code !FRESH_RC!.
