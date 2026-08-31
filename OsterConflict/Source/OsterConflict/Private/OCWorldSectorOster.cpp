@@ -5,8 +5,13 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "UObject/SoftObjectPath.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -146,12 +151,6 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     KrushelnytskaStreetLabel->SetupAttachment(SceneRoot);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> DeciduousTreeMesh(
-        TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> Pine01Mesh(
-        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> Pine03Mesh(
-        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"));
 
     if (CubeMesh.Succeeded())
     {
@@ -173,10 +172,10 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         }
     }
 
-    if (DeciduousTreeMesh.Succeeded()) AuthoredDeciduousTrees->SetStaticMesh(DeciduousTreeMesh.Object);
-    if (Pine01Mesh.Succeeded()) AuthoredPine01Trees->SetStaticMesh(Pine01Mesh.Object);
-    if (Pine03Mesh.Succeeded()) AuthoredPine03Trees->SetStaticMesh(Pine03Mesh.Object);
-
+    // PASS45 P0 startup recovery: do not synchronously resolve the large KiteDemo tree packages from the
+    // native actor constructor/CDO. UE 5.8 was compiling HillTree_02/ScotsPine dependencies before the first
+    // rendered frame and could sit indefinitely in "Waiting for static meshes to be ready" after material errors.
+    // Exact tree identities remain owned by this actor, but their risky asset load is deferred/quarantined below.
     UInstancedStaticMeshComponent* AuthoredTrees[] =
     {
         AuthoredDeciduousTrees, AuthoredPine01Trees, AuthoredPine03Trees
@@ -303,15 +302,73 @@ void AOCWorldSectorOster::BeginPlay()
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED procedural_residential_grids=0 generic_private_fences=0 reference_specific_private_structures_required=1"));
 
-    // PASS45 item 27: the final player-facing tree family is selected during primary sector construction.
-    // There is no late world-subsystem remap, transform rewrite or second mutating tree owner after BeginPlay.
-    const int32 TreeInstances =
-        (AuthoredDeciduousTrees ? AuthoredDeciduousTrees->GetInstanceCount() : 0) +
-        (AuthoredPine01Trees ? AuthoredPine01Trees->GetInstanceCount() : 0) +
-        (AuthoredPine03Trees ? AuthoredPine03Trees->GetInstanceCount() : 0);
+    // PASS45 item 27 / 2026-08-31 P0 startup recovery. The exact tree family remains single-owner under this actor,
+    // but UE 5.8 must never synchronously load these large KiteDemo packages from the constructor/CDO. The latest
+    // factual Quick Normal run reached HillTree_02 static-mesh compilation after incompatible material diagnostics
+    // and never produced a usable first frame. Default runtime therefore quarantines this family until its UE 5.8
+    // material/static-mesh compatibility is repaired. Developers may opt in with -Pass45LoadKiteDemoTrees; that path
+    // uses FStreamableManager and still carries runtime_acceptance=0 until direct visual evidence exists.
+    const FSoftObjectPath DeciduousTreePath(
+        TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02"));
+    const FSoftObjectPath Pine01TreePath(
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01"));
+    const FSoftObjectPath Pine03TreePath(
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"));
+    const bool bAllowDeferredKiteDemoTreeLoad =
+        FParse::Param(FCommandLine::Get(), TEXT("Pass45LoadKiteDemoTrees"));
+
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_REGIONAL_TREE_INTAKE_WIRED deciduous=HillTree_02 pine=ScotsPine_01 tall_pine=ScotsPineTall_01 families=3 instances=%d primary_authoring=1 late_mutation=0 imported_materials=1 runtime_acceptance=0"),
-        TreeInstances);
+        TEXT("PASS45_REGIONAL_TREE_INTAKE_WIRED deciduous=HillTree_02 pine=ScotsPine_01 tall_pine=ScotsPineTall_01 families=3 instances=0 primary_authoring=1 late_mutation=0 async_initialization=1 startup_sync_tree_loads=0 opt_in=%d imported_materials=1 material_compatibility=pending runtime_acceptance=0"),
+        bAllowDeferredKiteDemoTreeLoad ? 1 : 0);
+
+    if (!bAllowDeferredKiteDemoTreeLoad)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_KITEDEMO_TREE_STARTUP_QUARANTINED assets=HillTree_02,ScotsPine_01,ScotsPineTall_01 constructor_sync_loads=0 reason=ue58_material_static_mesh_compile_blocker normal_game_can_render_first=1 runtime_acceptance=0"));
+    }
+    else
+    {
+        const TArray<FSoftObjectPath> TreePaths = { DeciduousTreePath, Pine01TreePath, Pine03TreePath };
+        const TWeakObjectPtr<AOCWorldSectorOster> WeakThis(this);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_KITEDEMO_TREE_ASYNC_LOAD_REQUESTED assets=3 constructor_sync_loads=0 main_thread_wait_requested=0 runtime_acceptance=0"));
+
+        UAssetManager::GetStreamableManager().RequestAsyncLoad(
+            TreePaths,
+            FStreamableDelegate::CreateLambda(
+                [WeakThis, DeciduousTreePath, Pine01TreePath, Pine03TreePath]()
+                {
+                    AOCWorldSectorOster* Sector = WeakThis.Get();
+                    if (!Sector) return;
+
+                    UStaticMesh* DeciduousMesh = Cast<UStaticMesh>(DeciduousTreePath.ResolveObject());
+                    UStaticMesh* Pine01Mesh = Cast<UStaticMesh>(Pine01TreePath.ResolveObject());
+                    UStaticMesh* Pine03Mesh = Cast<UStaticMesh>(Pine03TreePath.ResolveObject());
+                    if (!DeciduousMesh || !Pine01Mesh || !Pine03Mesh ||
+                        !Sector->AuthoredDeciduousTrees || !Sector->AuthoredPine01Trees || !Sector->AuthoredPine03Trees)
+                    {
+                        UE_LOG(LogTemp, Error,
+                            TEXT("PASS45_KITEDEMO_TREE_ASYNC_LOAD_CONTENT_GAP deciduous=%d pine01=%d pine03=%d runtime_acceptance=0"),
+                            DeciduousMesh ? 1 : 0,
+                            Pine01Mesh ? 1 : 0,
+                            Pine03Mesh ? 1 : 0);
+                        return;
+                    }
+
+                    Sector->AuthoredDeciduousTrees->SetStaticMesh(DeciduousMesh);
+                    Sector->AuthoredPine01Trees->SetStaticMesh(Pine01Mesh);
+                    Sector->AuthoredPine03Trees->SetStaticMesh(Pine03Mesh);
+                    Sector->BuildVegetation();
+
+                    const int32 TreeInstances =
+                        Sector->AuthoredDeciduousTrees->GetInstanceCount() +
+                        Sector->AuthoredPine01Trees->GetInstanceCount() +
+                        Sector->AuthoredPine03Trees->GetInstanceCount();
+                    UE_LOG(LogTemp, Display,
+                        TEXT("PASS45_KITEDEMO_TREE_ASYNC_LOAD_READY assets=3 instances=%d primary_authoring=1 secondary_owner=0 constructor_sync_loads=0 material_compatibility=pending runtime_acceptance=0"),
+                        TreeInstances);
+                }));
+    }
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] old_ground_2400m=0 far_legacy_base_geometry=0 peripheral_hydrography=0"));
@@ -756,6 +813,53 @@ void AOCWorldSectorOster::BuildVegetation()
 {
     enum class ETreeFamily : uint8 { Deciduous, Pine };
 
+    const bool bTreeMeshesReady =
+        AuthoredDeciduousTrees && AuthoredDeciduousTrees->GetStaticMesh() &&
+        AuthoredPine01Trees && AuthoredPine01Trees->GetStaticMesh() &&
+        AuthoredPine03Trees && AuthoredPine03Trees->GetStaticMesh();
+
+    // Constructor/CDO call: build only the lightweight source ground-cover zoning. Never dereference KiteDemo tree
+    // bounds here. The exact tree meshes are either quarantined for normal runtime or initialized later by the same
+    // actor through the explicit opt-in async path after a first frame can be produced.
+    if (!bTreeMeshesReady)
+    {
+        auto AddGrassPatch = [this](UInstancedStaticMeshComponent* Family, const FVector& Center, const FVector& Size, float Yaw)
+        {
+            // Source-only placeholder: very thin instanced boxes mark vegetation zones. Final S16C uses foliage/PCG meshes.
+            AddBox(Family, Center + FVector(0,0,2.0f), FVector(Size.X, Size.Y, 4.0f), Yaw);
+        };
+
+        const FVector Park = ParkAnchor();
+        const FVector College = CollegeAnchor();
+        const FVector Stadium = StadiumAnchor();
+        AddGrassPatch(GrassMown, Park + FVector(0, 0, 0), FVector(19000, 14500, 4), 6.0f);
+        AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
+        AddGrassPatch(GrassMown, College + FVector(0, 5200, 0), FVector(12500, 7600, 4), 2.0f);
+
+        const FVector RoughPatches[] = {
+            FVector(-52000, 30000, 0), FVector(-52000,-25000,0), FVector(45000,30000,0),
+            FVector(42000,-35000,0), FVector(-15000,70000,0), FVector(16000,-65000,0)
+        };
+        for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
+            AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_TREE_STARTUP_DEFERRED_READY constructor_tree_meshes=0 ground_cover_only=1 tree_bounds_access=0 startup_sync_tree_loads=0 quarantine_default=1 runtime_acceptance=0"));
+        return;
+    }
+
+    const int32 ExistingTreeInstances =
+        AuthoredDeciduousTrees->GetInstanceCount() +
+        AuthoredPine01Trees->GetInstanceCount() +
+        AuthoredPine03Trees->GetInstanceCount();
+    if (ExistingTreeInstances > 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_TREE_ASYNC_INSTANCE_BUILD_SKIPPED existing_instances=%d duplicate_tree_authoring=0 runtime_acceptance=0"),
+            ExistingTreeInstances);
+        return;
+    }
+
     auto AddAuthoredTree = [this](const FVector& Base, const float Scale, const ETreeFamily Family, const int32 Salt)
     {
         if (!IsPointInsidePlayableAuthoringBounds(Base, 600.0f)) return;
@@ -774,27 +878,9 @@ void AOCWorldSectorOster::BuildVegetation()
         AddGroundedTree(Component, Base, BaseHeightCm * Scale, Yaw, WidthScale);
     };
 
-    auto AddGrassPatch = [this](UInstancedStaticMeshComponent* Family, const FVector& Center, const FVector& Size, float Yaw)
-    {
-        // Source-only placeholder: very thin instanced boxes mark vegetation zones. Final S16C uses foliage/PCG meshes.
-        AddBox(Family, Center + FVector(0,0,2.0f), FVector(Size.X, Size.Y, 4.0f), Yaw);
-    };
-
-    // S16B ground-cover zoning. Clean mown lawns are limited to maintained civic/sports spaces.
     const FVector Park = ParkAnchor();
     const FVector College = CollegeAnchor();
     const FVector Stadium = StadiumAnchor();
-    AddGrassPatch(GrassMown, Park + FVector(0, 0, 0), FVector(19000, 14500, 4), 6.0f);
-    AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
-    AddGrassPatch(GrassMown, College + FVector(0, 5200, 0), FVector(12500, 7600, 4), 2.0f);
-
-    // Road verges/private lots: irregular, partly mown grass rather than uniform golf-course lawn.
-    const FVector RoughPatches[] = {
-        FVector(-52000, 30000, 0), FVector(-52000,-25000,0), FVector(45000,30000,0),
-        FVector(42000,-35000,0), FVector(-15000,70000,0), FVector(16000,-65000,0)
-    };
-    for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
-        AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
 
     // Pass 44 removes the old Desna/Oster wetland proxies outside the compact map. Water-edge vegetation
     // comes back only when a newer reference places that shoreline inside the battlefield.

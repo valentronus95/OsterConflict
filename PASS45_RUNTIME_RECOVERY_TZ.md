@@ -1,8 +1,8 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date opened: 2026-08-24  
-Latest factual gameplay evidence: 2026-08-27  
-Latest runtime verdict: **RUNTIME REJECTED 2026-08-27**  
+Latest factual gameplay evidence: 2026-08-31
+Latest runtime verdict: **RUNTIME REJECTED 2026-08-31**
 Target: Unreal Engine 5.8.x / Windows  
 Canonical user launcher: `START_HERE.cmd`  
 Active branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
@@ -52,6 +52,27 @@ Location-specific visual evidence is bound through the repository-controlled sub
 `PASS45_REFERENCE_PACK_BINDINGS.md`
 
 That binding index and its active location specs are normative for Gate E/K, but do not replace this TZ as execution/status owner and do not themselves constitute UE 5.8 runtime acceptance.
+
+## 0A. Latest P0 startup blocker — 2026-08-31 Quick Normal black screen
+
+The latest factual local UE 5.8 evidence is now a startup rejection, newer than the 2026-08-27 rendered visual pack:
+
+- `START_HERE.cmd` -> `1. ЗВИЧАЙНА ГРА` completed the incremental C++ build with `Result: Succeeded`;
+- the direct `OsterConflict_Runtime` game process then opened a black window and never produced usable gameplay/UI;
+- the log reached `PASS45_RENDER_BUDGET_READY` and `PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY`, then entered KiteDemo tree material/static-mesh work;
+- observed material diagnostics include `Failed to compile Material for platform PCD3D_SM5`, `Node TransformPosition input must be a 3-component vector` and `SpeedTree node not currently supported for Skeletal Meshes`;
+- the final blocking path visibly includes `Building static mesh HillTree_02` / `Waiting for static meshes to be ready`;
+- source audit proves `AOCWorldSectorOster` synchronously resolved `HillTree_02`, `ScotsPine_01` and `ScotsPineTall_01` via `ConstructorHelpers::FObjectFinder` in the native actor constructor/CDO and immediately consumed tree bounds during `BuildVegetation()`.
+
+P0 recovery rule from this evidence:
+
+- no KiteDemo production-tree package may be synchronously resolved from the native constructor/CDO;
+- normal runtime must be able to render its first frame without touching those rejected UE 5.8 material/static-mesh compile dependencies;
+- the exact tree family remains a factual runtime/content gap while quarantined; source identity alone is not acceptance;
+- an opt-in deferred async load may be used only for targeted repair evidence and remains `runtime_acceptance=0` until the material/static-mesh path and direct UE 5.8 visual result pass;
+- PR #94 remains OPEN / UNMERGED.
+
+The source recovery for this blocker is tracked by `VERIFY_PASS45_TREE_STARTUP_DEFERRED.py`. A new local Quick Normal launch is required before any startup/runtime status can improve.
 
 ## 1. Latest factual runtime state — 2026-08-27
 
