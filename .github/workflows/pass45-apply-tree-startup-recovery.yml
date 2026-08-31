@@ -22,7 +22,9 @@ jobs:
         with:
           python-version: "3.x"
       - name: Apply exact source transformation
-        run: python APPLY_PASS45_TREE_STARTUP_RECOVERY.py apply
+        run: |
+          python APPLY_PASS45_TREE_STARTUP_RECOVERY.py apply
+          sed -i '4s/[[:space:]]*$//;5s/[[:space:]]*$//' PASS45_RUNTIME_RECOVERY_TZ.md
       - name: Verify targeted startup contracts
         run: |
           python VERIFY_PASS45_TREE_STARTUP_DEFERRED.py
