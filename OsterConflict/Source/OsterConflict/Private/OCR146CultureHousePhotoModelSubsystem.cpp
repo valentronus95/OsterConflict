@@ -125,12 +125,22 @@ void UOCR146CultureHousePhotoModelSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) const
 {
+    bool bLegacyOwnerPresent = false;
     for (TActorIterator<AActor> It(&World); It; ++It)
     {
         AActor* Existing = *It;
         if (!Existing) continue;
         if (Existing->ActorHasTag(TEXT("R146_CultureHouseAuthoritative"))) return;
-        if (Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))) Existing->Destroy();
+        if (Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))) bLegacyOwnerPresent = true;
+    }
+
+    // PASS45 Gate K: do not erase a legacy owner after startup and then claim a clean parcel.
+    // Startup ownership is authoritative; an unexpected R13 actor is a source/startup regression.
+    if (bLegacyOwnerPresent)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_CULTURE_HOUSE_AUTHORED_SHELL_FAIL reason=legacy_owner_present legacy_owner_mutation=0 primary_authoring_fix_required=1 runtime_acceptance=0"));
+        return;
     }
 
     const TCHAR* ModularRoot = TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/");
@@ -300,7 +310,7 @@ void UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse(UWorld& World) co
 
     const FVector Site = CultureHouseAnchor();
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY site=Hranovskoho3 x=%.1f y=%.1f authored_wall=1 authored_pillar=1 authored_door=1 authored_roof=1 authored_forecourt=1 basicshape_visible=0 basicshape_material=0 six_column_facade=1 runtime_visual_acceptance=pending"),
+        TEXT("PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY site=Hranovskoho3 x=%.1f y=%.1f authored_wall=1 authored_pillar=1 authored_door=1 authored_roof=1 authored_forecourt=1 basicshape_visible=0 basicshape_material=0 six_column_facade=1 legacy_owner_mutation=0 runtime_visual_acceptance=pending"),
         Site.X, Site.Y);
     UE_LOG(LogTemp, Display,
         TEXT("R14.6 Culture House authoritative owner built at Hranovskoho 3 [%.1f %.1f]; separate site root, authored modular shell, six-column facade and conservative side/rear detail active."),
