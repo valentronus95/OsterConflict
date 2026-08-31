@@ -9,6 +9,9 @@ legacy_progress = ROOT / 'OsterConflict/Scripts/PASS45_FAST_PREVIEW_PROGRESS.ps1
 
 required_launcher = [
     '-abslog="%PREVIEW_LOG%"',
+    '"/Engine/Maps/Entry?game=/Script/OsterConflict.OCGameModeRuntimeSafe"',
+    '-game -Frontend',
+    'Runtime map is NOT loaded before the menu.',
     'Loading presentation is rendered INSIDE Unreal.',
     'No external progress window and no fake percentage.',
     'PREVIEW ONLY',
@@ -23,9 +26,10 @@ for forbidden in [
     'powershell.exe',
     'System.Windows.Forms',
     'A separate progress window',
+    '"/Game/Maps/OsterConflict_Runtime"',
     ' -log ',
 ]:
-    assert forbidden not in launcher, f'external loading/log window regressed into Fast Preview: {forbidden}'
+    assert forbidden not in launcher, f'heavy/external startup regressed into Fast Preview: {forbidden}'
 
 required_game_instance = [
     '#include "MoviePlayer.h"',
@@ -58,9 +62,10 @@ for needle in [
 assert '"MoviePlayer"' in build_rules, 'MoviePlayer module dependency must remain available'
 assert not legacy_progress.exists(), 'legacy external WinForms loading script must stay deleted'
 assert 'System.Windows.Forms.ProgressBar' not in game_instance, 'fake WinForms progress must never move into runtime code'
-assert '%' not in 'ЗАВАНТАЖЕННЯ СВІТУ', 'loading presentation must not imply a fake universal percentage'
 
 print('PASS45 Fast Preview engine-native in-game loading presentation: PASS')
+print('- initial Fast Preview opens a lightweight Engine Entry frontend under OCGameModeRuntimeSafe')
+print('- OsterConflict_Runtime is deferred until the user actually starts/joins gameplay')
 print('- external PowerShell/WinForms progress window retired')
 print('- map load is bracketed by PreLoadMap/PostLoadMapWithWorld diagnostics')
 print('- MoviePlayer Slate loading surface auto-completes when UE LoadMap completes')
