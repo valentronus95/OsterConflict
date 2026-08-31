@@ -1,8 +1,16 @@
 #include "OCGameInstance.h"
 
 #include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "HAL/PlatformTime.h"
+#include "MoviePlayer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/Connection/NetEnums.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/Images/SThrobber.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "OCConnection"
 
@@ -10,6 +18,13 @@ void UOCGameInstance::Init()
 {
     Super::Init();
     ConnectionStatusText = LOCTEXT("FrontendReady", "Готово до підключення.");
+
+    // PASS45: map loading belongs to Unreal itself. Pre/PostLoadMap brackets the actual LoadMap call,
+    // while MoviePlayer keeps a Slate loading surface alive even when the game thread is blocked.
+    // No synthetic percentage is shown because UE does not expose a trustworthy universal map-load percent here.
+    FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UOCGameInstance::HandlePreLoadMap);
+    FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UOCGameInstance::HandlePostLoadMap);
+
     if (GEngine)
     {
         GEngine->OnNetworkFailure().AddUObject(this, &UOCGameInstance::HandleNetworkFailure);
@@ -19,12 +34,98 @@ void UOCGameInstance::Init()
 
 void UOCGameInstance::Shutdown()
 {
+    FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
+    FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
+
     if (GEngine)
     {
         GEngine->OnNetworkFailure().RemoveAll(this);
         GEngine->OnTravelFailure().RemoveAll(this);
     }
     Super::Shutdown();
+}
+
+void UOCGameInstance::HandlePreLoadMap(const FString& MapName)
+{
+    ActiveMapLoadStartedAtSeconds = FPlatformTime::Seconds();
+    UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_BEGIN map=%s"), *MapName);
+
+    if (!IsMoviePlayerEnabled())
+    {
+        UE_LOG(LogTemp, Display, TEXT("PASS45_INGAME_LOADING_MOVIEPLAYER_DISABLED map=%s"), *MapName);
+        return;
+    }
+
+    FLoadingScreenAttributes LoadingScreen;
+    LoadingScreen.bAutoCompleteWhenLoadingCompletes = true;
+    LoadingScreen.bWaitForManualStop = false;
+    LoadingScreen.bMoviesAreSkippable = false;
+    LoadingScreen.bAllowEngineTick = false;
+    LoadingScreen.MinimumLoadingScreenDisplayTime = 0.10f;
+    LoadingScreen.WidgetLoadingScreen =
+        SNew(SBorder)
+        .Padding(FMargin(64.0f))
+        .BorderBackgroundColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f))
+        [
+            SNew(SVerticalBox)
+            + SVerticalBox::Slot()
+            .FillHeight(1.0f)
+            .HAlign(HAlign_Center)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SVerticalBox)
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 26.0f))
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("LoadingBrand", "OSTER CONFLICT"))
+                    .ColorAndOpacity(FLinearColor(0.96f, 0.97f, 0.98f, 1.0f))
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 20.0f))
+                [
+                    SNew(SThrobber)
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("LoadingWorld", "ЗАВАНТАЖЕННЯ СВІТУ"))
+                    .ColorAndOpacity(FLinearColor(0.78f, 0.81f, 0.84f, 1.0f))
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("LoadingDetail", "Підготовка карти, моделей і текстур"))
+                    .ColorAndOpacity(FLinearColor(0.56f, 0.60f, 0.64f, 1.0f))
+                ]
+            ]
+        ];
+
+    GetMoviePlayer()->SetupLoadingScreen(LoadingScreen);
+}
+
+void UOCGameInstance::HandlePostLoadMap(UWorld* LoadedWorld)
+{
+    const double CompletedAt = FPlatformTime::Seconds();
+    const double Duration = ActiveMapLoadStartedAtSeconds > 0.0
+        ? FMath::Max(0.0, CompletedAt - ActiveMapLoadStartedAtSeconds)
+        : 0.0;
+    const FString LoadedMap = LoadedWorld ? LoadedWorld->GetMapName() : FString(TEXT("<null>"));
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_INGAME_LOADING_MAP_COMPLETE map=%s duration_s=%.3f movieplayer_auto_complete=1"),
+        *LoadedMap,
+        Duration);
+    ActiveMapLoadStartedAtSeconds = 0.0;
 }
 
 void UOCGameInstance::BeginDirectConnect(const FString& Address)
