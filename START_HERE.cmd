@@ -9,13 +9,15 @@ echo ============================================================
 echo OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК
 echo ============================================================
 echo.
-echo 1. ЗВИЧАЙНА ГРА
+echo 1. ШВИДКИЙ ПЕРЕГЛЯД / ЗВИЧАЙНА ГРА
 echo 2. ПОВНИЙ RUNTIME-ТЕСТ
 echo 3. SAFE СУМІСНІСТЬ ^(RHI THREAD OFF^)
 echo 4. ВІДКРИТИ UNREAL EDITOR
 echo 0. ВИХІД
 echo.
-echo Для запуску проєкту завжди використовуйте тільки START_HERE.cmd.
+echo Для швидкого огляду змін використовуйте пункт 1.
+echo Пункт 1 робить тільки incremental C++ build + launch і НЕ є runtime acceptance.
+echo Пункт 2 залишається єдиним повним PASS45 runtime acceptance route.
 echo Інші RUN_*.cmd - внутрішні технічні скрипти, вручну їх запускати не потрібно.
 echo.
 echo Pass 45 normal renderer: DirectX 11 + Shader Model 5 + HDR off, normal RHI threading.
@@ -46,10 +48,7 @@ if errorlevel 2 (
   goto menu
 )
 if errorlevel 1 (
-  call :prepare_materials_optional
-  set "OC_RHI_COMPAT=0"
-  call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
-  set "OC_RHI_COMPAT="
+  call "%~dp0RUN_PASS45_FAST_PREVIEW.cmd"
   goto menu
 )
 
