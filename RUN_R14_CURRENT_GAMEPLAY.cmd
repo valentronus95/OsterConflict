@@ -32,8 +32,6 @@ if /I "%OC_RHI_COMPAT%"=="1" (
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
-if exist "%WEAPON_PREFLIGHT_LOG%" del /q "%WEAPON_PREFLIGHT_LOG%" >nul 2>nul
-if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
 
 if not exist "%BUILD_BAT%" (
   echo [ERROR] UE 5.8 Build.bat not found: %BUILD_BAT%
@@ -45,15 +43,22 @@ if not exist "%EDITOR%" (
   pause
   exit /b 3
 )
-if not exist "%EDITOR_CMD%" (
-  echo [ERROR] UnrealEditor-Cmd.exe not found: %EDITOR_CMD%
-  pause
-  exit /b 4
-)
 if not exist "%PROJECT%" (
   echo [ERROR] Project not found: %PROJECT%
   pause
   exit /b 5
+)
+
+rem START_HERE option 1/3 deliberately uses this canonical launcher in lightweight mode.
+rem It must not hydrate LFS, run commandlet weapon preflight, import vehicles/materials, or promote runtime acceptance.
+if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game
+
+if exist "%WEAPON_PREFLIGHT_LOG%" del /q "%WEAPON_PREFLIGHT_LOG%" >nul 2>nul
+if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
+if not exist "%EDITOR_CMD%" (
+  echo [ERROR] UnrealEditor-Cmd.exe not found: %EDITOR_CMD%
+  pause
+  exit /b 4
 )
 if not exist "%WEAPON_VERIFY%" (
   echo [ERROR] Required weapon preflight script is missing: %WEAPON_VERIFY%
@@ -364,4 +369,44 @@ echo RHI mode: %RHI_MODE%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================
 pause
+exit /b %GAME_RC%
+
+:quick_normal_game
+set "CURRENT_BRANCH=unknown"
+set "LOCAL_HEAD=unknown"
+where git >nul 2>nul
+if not errorlevel 1 (
+  for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
+  for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "LOCAL_HEAD=%%H"
+  for /f "delims=" %%D in ('git status --porcelain --untracked-files=all 2^>nul') do echo [LOCAL CHANGE] %%D
+)
+
+echo.
+echo [QUICK NORMAL] Incremental C++ build only. Asset reimport is skipped.
+echo [QUICK NORMAL] LFS hydration, weapon commandlet preflight, production vehicle import and acceptance gates are skipped.
+echo [QUICK NORMAL] Branch: %CURRENT_BRANCH%
+echo [QUICK NORMAL] Source: %LOCAL_HEAD%
+echo [QUICK NORMAL] Renderer: %RHI_MODE% ^(%RHI_FLAGS%^)
+echo [QUICK NORMAL] Windowed 1280x720 recovery mode, max 60 FPS.
+call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
+set "BUILD_RC=%ERRORLEVEL%"
+if not "%BUILD_RC%"=="0" (
+  echo [ERROR] UE build failed with exit code %BUILD_RC%.
+  echo UBT log: %LOCALAPPDATA%\UnrealBuildTool\Log.txt
+  exit /b %BUILD_RC%
+)
+
+echo.
+echo [QUICK NORMAL] Launching current Oster runtime directly. No asset importer runs before this process.
+start /wait "Oster Conflict Quick Normal" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1280 -ResY=720 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+set "GAME_RC=%ERRORLEVEL%"
+echo.
+echo ============================================================
+echo QUICK NORMAL FINISHED - exit code %GAME_RC%
+echo Branch: %CURRENT_BRANCH%
+echo Source: %LOCAL_HEAD%
+echo RHI mode: %RHI_MODE%
+echo Log: %PLAYTEST_LOG%
+echo Runtime acceptance: NOT RUN
+ echo ============================================================
 exit /b %GAME_RC%
