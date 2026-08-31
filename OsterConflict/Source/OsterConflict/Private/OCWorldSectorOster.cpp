@@ -505,48 +505,16 @@ void AOCWorldSectorOster::BuildVerifiedReferenceMarkers()
 void AOCWorldSectorOster::BuildMuseumAndStadium()
 {
     const FVector Museum = MuseumAnchor();
-    const float MuseumYaw = 0.0f;
 
-    // Reference cues: red-brick single-storey wings, central wooden upper storey/gable,
-    // front glazed/porch projection, decorative roofline and mature garden trees.
-    AddBox(LandmarkBlocks, Museum + FVector(0, 0, 270), FVector(3400, 1750, 540), MuseumYaw);
-    AddBox(LandmarkBlocks, Museum + FVector(-2050, 120, 245), FVector(1100, 1500, 490), MuseumYaw);
-    AddBox(LandmarkBlocks, Museum + FVector(2050, 80, 245), FVector(1100, 1500, 490), MuseumYaw);
-    AddBox(LandmarkBlocks, Museum + FVector(50, 80, 720), FVector(1550, 1280, 420), MuseumYaw);
-
-    // Front porch / glazed bay and entrance platform.
-    AddBox(LandmarkDetails, Museum + FVector(1180, -1120, 250), FVector(1050, 620, 500), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(1180, -1510, 55), FVector(1450, 760, 110), MuseumYaw);
-    for (int32 Step = 0; Step < 4; ++Step)
-    {
-        AddBox(LandmarkDetails, Museum + FVector(1180, -1880 - Step * 120.0f, 22.0f + Step * 20.0f),
-            FVector(1550 - Step * 90.0f, 220, 35), MuseumYaw);
-    }
-
-    AddGableRoof(LandmarkRoofs, Museum + FVector(0, 0, 0), 3550, 1900, 1160, MuseumYaw, 30.0f);
-    AddGableRoof(LandmarkRoofs, Museum + FVector(-2050, 120, 0), 1250, 1650, 720, MuseumYaw, 24.0f);
-    AddGableRoof(LandmarkRoofs, Museum + FVector(2050, 80, 0), 1250, 1650, 720, MuseumYaw, 24.0f);
-    AddGableRoof(LandmarkRoofs, Museum + FVector(1180, -1120, 0), 1200, 760, 650, MuseumYaw, 28.0f);
-
-    // S16A silhouette details visible in multiple facade references: central front gable, chimney masses and trim bands.
-    AddBox(LandmarkDetails, Museum + FVector(0, -40, 1080), FVector(1500, 90, 95), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(-1520, 250, 970), FVector(190, 190, 520), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(1580, 180, 940), FVector(180, 180, 460), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(0, -910, 525), FVector(3350, 55, 90), MuseumYaw);
-
-    // Front facade window rhythm from published photographs.
-    const float MuseumWindowX[] = { -2650.0f, -1850.0f, -650.0f, 100.0f, 750.0f, 2250.0f };
-    for (float X : MuseumWindowX)
-    {
-        AddFacadeWindow(LandmarkWindows, Museum, FVector(X, -885, 300), FVector(420, 24, 250), MuseumYaw, true);
-    }
-    AddFacadeWindow(LandmarkWindows, Museum, FVector(-420, -655, 770), FVector(330, 24, 260), MuseumYaw, true);
-    AddFacadeWindow(LandmarkWindows, Museum, FVector(70, -655, 770), FVector(330, 24, 260), MuseumYaw, true);
-    AddFacadeWindow(LandmarkWindows, Museum, FVector(560, -655, 770), FVector(330, 24, 260), MuseumYaw, true);
-
+    // PASS45 item 32: the old world-sector Museum Landmark* blockout is physically retired from canonical
+    // primary world construction. R13.7 is the authoritative visible authored exterior and fails closed when its
+    // committed modular content is unavailable. Keep only the three perimeter fence proxies until a verified
+    // authored site/fence replacement exists; the shared Landmark* families remain live for College/other sites.
     AddBox(Fences, Museum + FVector(0, -2500, 90), FVector(6000, 40, 180));
     AddBox(Fences, Museum + FVector(0, 2450, 90), FVector(6000, 40, 180));
     AddBox(Fences, Museum + FVector(-3000, 0, 90), FVector(40, 4900, 180));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_MUSEUM_LEGACY_BLOCKOUT_SOURCE_RETIRED legacy_landmark_blocks=0 legacy_landmark_roofs=0 legacy_landmark_windows=0 legacy_landmark_details=0 perimeter_fence_proxies=3 authoritative_presentation_owner=R137_MuseumPhotoModel runtime_compatibility_suppression=1 runtime_visual_acceptance=pending"));
 
     // Stadium: public 2021 sources show a rectangular artificial-turf pitch, perimeter fencing,
     // renewed track/apron, small stands and service/change facilities.
