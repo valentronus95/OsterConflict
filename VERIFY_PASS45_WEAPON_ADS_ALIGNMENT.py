@@ -77,6 +77,15 @@ for needle in (
 req("const bool bADS = Character.IsAiming();" not in presentation_cpp,
     "raw aiming state can still drive uncalibrated ADS presentation transforms")
 
+# The member implementation is intentionally isolated in OCWeaponADSValidation.cpp. A second body in the
+# presentation translation unit compiles independently but fails only at the final linker step (LNK2005/LNK1169),
+# wasting an otherwise complete UE build. Guard the exact ownership so that failure cannot return silently.
+ads_definition = "UOCFirstPersonWeaponPresentationSubsystem::ValidateADSAlignment"
+req(presentation_cpp.count(ads_definition) == 0,
+    "duplicate ValidateADSAlignment definition returned to OCFirstPersonWeaponPresentationSubsystem.cpp")
+req(ads_cpp.count(ads_definition) == 1,
+    "ValidateADSAlignment must have exactly one implementation in OCWeaponADSValidation.cpp")
+
 for needle in (
     'TEXT("oc.Weapon.ADS.Debug")',
     "PASS45_ADS_PROFILE_UNCALIBRATED",
@@ -127,6 +136,7 @@ if errors:
 print("PASS45 WEAPON ADS ALIGNMENT: PASS")
 print("- all current weapon ids resolve through the explicit first-person profile registry")
 print("- ADS profiles carry optional rear/front/optic sight references and a separate factual calibration flag")
+print("- ValidateADSAlignment has one implementation owner; duplicate-linker regression is guarded")
 print("- entering ADS runs fail-visible calibration diagnostics; uncalibrated profiles cannot impersonate READY")
 print("- uncalibrated requested ADS preserves the baseline weapon/arms presentation instead of applying guessed offsets")
 print("- calibrated profiles can sample camera-vs-sight angular and line-offset error with optional debug rays")
