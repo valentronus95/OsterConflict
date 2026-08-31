@@ -1,110 +1,67 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+start_here = (ROOT / 'START_HERE.cmd').read_text(encoding='utf-8')
 launcher = (ROOT / 'RUN_PASS45_FAST_PREVIEW.cmd').read_text(encoding='utf-8')
 game_instance = (ROOT / 'OsterConflict/Source/OsterConflict/Private/OCGameInstance.cpp').read_text(encoding='utf-8')
 game_instance_h = (ROOT / 'OsterConflict/Source/OsterConflict/Public/OCGameInstance.h').read_text(encoding='utf-8')
 runtime_safe_h = (ROOT / 'OsterConflict/Source/OsterConflict/Public/OCGameModeRuntimeSafe.h').read_text(encoding='utf-8')
 runtime_safe_cpp = (ROOT / 'OsterConflict/Source/OsterConflict/Private/OCGameModeRuntimeSafe.cpp').read_text(encoding='utf-8')
-build_rules = (ROOT / 'OsterConflict/Source/OsterConflict/OsterConflict.Build.cs').read_text(encoding='utf-8')
-legacy_progress = ROOT / 'OsterConflict/Scripts/PASS45_FAST_PREVIEW_PROGRESS.ps1'
 
-for needle in [
-    '-abslog="%PREVIEW_LOG%"',
-    '"/Engine/Maps/Entry"',
-    '-game -Frontend',
-    '-windowed',
-    'Runtime map is NOT loaded before the menu.',
-    'Engine Entry startup is owned by the responsive in-game viewport bootstrap.',
-    'Frontend bootstrap stays visible until the actual R13 menu widget is visible.',
-    'Windowed mode is intentional so a broken frontend cannot trap desktop focus or hide the cursor.',
-    'PREVIEW ONLY',
-]:
-    assert needle in launcher, f'missing Fast Preview recovery contract: {needle}'
+# 2026-08-31 local UE 5.8 evidence rejected the experimental Entry/Fast Preview
+# startup route: it produced an unresponsive black window and trapped desktop focus.
+# Keep the diagnostic launcher in the tree for forensic comparison, but never wire it
+# to the user-facing normal-game option again.
+assert 'echo 1. ЗВИЧАЙНА ГРА\n' in start_here
+assert 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' in start_here
+assert 'call "%~dp0RUN_PASS45_FAST_PREVIEW.cmd"' not in start_here
+assert 'ЗВИЧАЙНА ГРА / ШВИДКИЙ ПЕРЕГЛЯД' not in start_here
 
+# The rejected startup experiment must not own normal GameInstance/GameMode lifecycle.
 for forbidden in [
-    'PASS45_FAST_PREVIEW_PROGRESS.ps1',
-    'PASS45_FAST_PREVIEW_PROGRESS.state',
-    'powershell.exe',
-    'System.Windows.Forms',
-    '"/Game/Maps/OsterConflict_Runtime"',
-    ' -OCFastPreview',
-    ' -NoFrontend',
-    ' -fullscreen',
-    ' -NoScreenMessages',
-    ' -log ',
-]:
-    assert forbidden not in launcher, f'unsafe/old Fast Preview path returned: {forbidden}'
-
-for needle in [
     '#include "MoviePlayer.h"',
     'FCoreUObjectDelegates::PreLoadMap.AddUObject',
     'FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject',
-    'IsFrontendEntryMap(MapName)',
-    'PASS45_FRONTEND_STARTUP_MOVIEPLAYER_SKIPPED',
-    'deadlock_guard=1',
     'FLoadingScreenAttributes LoadingScreen',
-    'LoadingScreen.bAutoCompleteWhenLoadingCompletes = true',
-    'LoadingScreen.bWaitForManualStop = false',
-    'MoviePlayer->SetupLoadingScreen(LoadingScreen)',
-    'MoviePlayer->PlayMovie()',
-    'auto_complete=1 manual_stop=0',
-    'PASS45_INGAME_LOADING_BEGIN',
-    'PASS45_INGAME_LOADING_MAP_COMPLETE',
-    'PASS45_INGAME_LOADING_READY',
+    'PASS45_INGAME_LOADING_',
+    'PrepareRuntimeLoadingScreen',
+    'CompleteRuntimeLoading',
 ]:
-    assert needle in game_instance, f'missing deadlock-free map loading contract: {needle}'
+    assert forbidden not in game_instance, f'rejected startup loading owner returned: {forbidden}'
 
 for forbidden in [
-    'PrepareRuntimeLoadingScreen(TEXT("FrontendBootstrap")',
-    'LoadingScreen.bWaitForManualStop = true',
-    'MoviePlayer->StopMovie()',
+    'CompleteRuntimeLoading',
+    'HandlePreLoadMap',
+    'HandlePostLoadMap',
+    'PrepareRuntimeLoadingScreen',
 ]:
-    assert forbidden not in game_instance, f'frontend MoviePlayer deadlock contract returned: {forbidden}'
+    assert forbidden not in game_instance_h, f'rejected GameInstance declaration returned: {forbidden}'
 
-for needle in [
-    'void CompleteRuntimeLoading(const TCHAR* Reason);',
-    'void HandlePreLoadMap(const FString& MapName);',
-    'void HandlePostLoadMap(UWorld* LoadedWorld);',
-]:
-    assert needle in game_instance_h, f'missing loading declaration: {needle}'
-
-for needle in [
+for forbidden in [
+    'ShowFrontendBootstrapOverlay',
+    'PollFrontendBootstrapReady',
+    'FrontendBootstrapOverlay',
     'virtual void BeginPlay() override;',
-    'virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;',
-    'void ShowFrontendBootstrapOverlay();',
-    'void PollFrontendBootstrapReady();',
-    'TSharedPtr<SWidget> FrontendBootstrapOverlay;',
+    'virtual void EndPlay(',
 ]:
-    assert needle in runtime_safe_h, f'missing frontend bootstrap declaration: {needle}'
+    assert forbidden not in runtime_safe_h, f'rejected bootstrap declaration returned: {forbidden}'
 
-for needle in [
+for forbidden in [
+    'PASS45_FRONTEND_BOOTSTRAP_',
     'GEngine->GameViewport->AddViewportWidgetContent',
     'SNew(SProgressBar)',
-    '.Percent(0.90f)',
-    'ПІДГОТОВКА ГОЛОВНОГО МЕНЮ',
-    'PASS45_FRONTEND_BOOTSTRAP_OVERLAY_READY',
-    'R13_MenuPanel',
-    'FrontendPanel',
-    'PASS45_FRONTEND_BOOTSTRAP_HANDOFF_READY',
-    'PASS45_FRONTEND_BOOTSTRAP_STALLED',
     'KeepFrontendInputRecoverable',
-    'bShowMouseCursor = true',
-    'InputMode.SetHideCursorDuringCapture(false)',
-    'PASS45_FRONTEND_INPUT_RECOVERY_READY',
-    'GI->CompleteRuntimeLoading(',
+    'CompleteRuntimeLoading',
 ]:
-    assert needle in runtime_safe_cpp, f'missing responsive frontend handoff contract: {needle}'
+    assert forbidden not in runtime_safe_cpp, f'rejected bootstrap implementation returned: {forbidden}'
 
-assert '"MoviePlayer"' in build_rules
-assert not legacy_progress.exists()
-assert 'System.Windows.Forms.ProgressBar' not in game_instance
-assert 'GetAsyncLoadPercentage' not in game_instance
+# The diagnostic file can remain isolated until it is either repaired or removed in a
+# separate root-hygiene pass. Its existence must never imply runtime acceptance.
+assert 'PREVIEW ONLY' in launcher
 
-print('PASS45 Fast Preview deadlock-free in-game bootstrap: PASS')
-print('- Engine Entry explicitly skips MoviePlayer and reaches GameMode/PlayerController startup')
-print('- responsive viewport bootstrap owns the initial frontend wait and keeps the cursor visible')
-print('- recovery preview is windowed so desktop focus is not trapped on a failed frontend')
-print('- MoviePlayer is reserved for actual runtime-map travel and auto-completes without manual-stop deadlock')
-print('- external progress helper remains retired')
-print('- runtime acceptance remains pending until local UE 5.8 acceptance')
+print('PASS45 rejected Fast Preview startup is quarantined: PASS')
+print('- START_HERE option 1 is restored to RUN_R14_CURRENT_GAMEPLAY.cmd')
+print('- custom MoviePlayer startup ownership is retired from OCGameInstance')
+print('- viewport bootstrap overlay ownership is retired from OCGameModeRuntimeSafe')
+print('- RUN_PASS45_FAST_PREVIEW.cmd remains isolated diagnostic material only')
+print('- local UE 5.8 runtime acceptance remains required')
