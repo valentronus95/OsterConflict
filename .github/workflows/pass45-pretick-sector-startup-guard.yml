@@ -1,0 +1,40 @@
+name: Pass 45 pre-tick sector startup guard
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - 'OsterConflict/Config/DefaultEngine.ini'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGameModeRuntimeSafe.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameModeRuntimeSafe.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13StadiumSurfaceSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumSurfaceSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_PASS45_PRETICK_SECTOR_STARTUP_GUARD.py'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-pretick-sector-startup-guard.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Config/DefaultEngine.ini'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGameModeRuntimeSafe.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameModeRuntimeSafe.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCR13StadiumSurfaceSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR13StadiumSurfaceSubsystem.cpp'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_PASS45_PRETICK_SECTOR_STARTUP_GUARD.py'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-pretick-sector-startup-guard.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify pre-tick sector and startup quarantine
+        run: python VERIFY_PASS45_PRETICK_SECTOR_STARTUP_GUARD.py
