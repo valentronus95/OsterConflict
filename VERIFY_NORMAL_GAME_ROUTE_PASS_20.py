@@ -28,18 +28,54 @@ importer = read(IMPORTER)
 import_py = read(IMPORT_PY)
 source_recovery = read(SOURCE_RECOVERY)
 
-require(start, 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"', "START_HERE normal-game route")
+# User-facing option 1 must keep one canonical gameplay owner, but explicitly select its
+# lightweight path. Heavy asset/import/evidence work belongs to option 2 only.
+require(start, 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"', "START_HERE canonical normal-game route")
 require(start, 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"', "START_HERE full runtime route")
+require(start, 'set "OC_QUICK_NORMAL=1"', "START_HERE lightweight normal-game selector")
+require(start, 'set "OC_RHI_COMPAT=1"', "START_HERE compatibility selector")
+require(start, 'set "OC_RHI_COMPAT=0"', "START_HERE normal renderer selector")
 if 'call "%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"' in start:
     raise SystemExit("PASS20 VERIFY FAIL: START_HERE option 1 is incorrectly routed through recovery acceptance")
-
-for needle in (
+for forbidden in (
     ":prepare_materials_optional",
     "TRY_PRODUCTION_VEHICLES_UE58.cmd",
     "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd",
+    "RUN_PASS45_FAST_PREVIEW.cmd",
 ):
-    require(start, needle, "START_HERE Pass45 material preflight")
+    if forbidden in start:
+        raise SystemExit(f"PASS20 VERIFY FAIL: heavy/experimental preflight leaked back into START_HERE normal route: {forbidden}")
 
+for needle in (
+    'if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game',
+    ':quick_normal_game',
+    '[QUICK NORMAL] Incremental C++ build only. Asset reimport is skipped.',
+    'LFS hydration, weapon commandlet preflight, production vehicle import and acceptance gates are skipped.',
+    'Runtime acceptance: NOT RUN',
+    '-windowed -ResX=1280 -ResY=720',
+    '-ExecCmds="t.MaxFPS 60"',
+):
+    require(normal, needle, "canonical lightweight normal-game route")
+
+quick_guard = normal.find('if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game')
+heavy_lfs = normal.find('git lfs pull origin')
+heavy_weapon = normal.find('Opening every required REAL/playable weapon visual')
+heavy_import = normal.find('call "%PRODUCTION_IMPORT%"')
+if min(quick_guard, heavy_lfs, heavy_weapon, heavy_import) < 0 or not (quick_guard < heavy_lfs and quick_guard < heavy_weapon and quick_guard < heavy_import):
+    raise SystemExit("PASS20 VERIFY FAIL: quick-normal guard does not bypass all heavy preflight/import stages")
+
+quick = normal.split(':quick_normal_game', 1)[1]
+for forbidden in (
+    'git lfs pull',
+    'verify_required_weapon_assets.py',
+    '"%EDITOR_CMD%"',
+    'call "%PRODUCTION_IMPORT%"',
+    'PASS7_PRODUCTION_VEHICLES_READY',
+):
+    if forbidden in quick:
+        raise SystemExit(f"PASS20 VERIFY FAIL: quick-normal section regained heavy/acceptance work: {forbidden}")
+
+# Strict/canonical acceptance behavior remains intact for option 2.
 for needle in (
     "verify_required_weapon_assets.py",
     "required_weapon_asset_preflight_success.txt",
@@ -48,7 +84,7 @@ for needle in (
     "-Frontend",
     '/C:"fix/runtime-map-spawn-fps-assets-"',
 ):
-    require(normal, needle, "normal playable route")
+    require(normal, needle, "strict canonical gameplay route")
 
 strict_stage = normal.find("[3/4] STRICT ACCEPTANCE")
 if strict_stage < 0:
@@ -123,7 +159,7 @@ for needle in (
     "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
     "Missing exact production models remain visible content gaps; no proxy is called production-ready.",
 ):
-    require(normal, needle, "normal-game content truth")
+    require(normal, needle, "legacy non-acceptance fallback remains source-compatible")
 
 for needle in (
     "PASS19_PLAYABLE_WEAPON_SET_READY",
@@ -133,9 +169,9 @@ for needle in (
 ):
     require(playable, needle, "focused recovery route remains intact")
 
-print("NORMAL GAME ROUTE PASS 20 + PASS45 BTR R3 MATERIAL/AXIS INTAKE SOURCE CONTRACT PASS")
-print("- START_HERE option 1 stays on the canonical normal-game launcher; option 2 uses the strict main wrapper")
-print("- HMMWV/M2 remain independent external-source imports")
-print("- BTR R3 canonical intake forces repository-authored +X-forward / glTF +Y-up provenance")
-print("- Gate F uses exact production OR explicit real fallback without false production READY")
+print("NORMAL GAME ROUTE PASS 20 + PASS45 QUICK/CANONICAL SPLIT SOURCE CONTRACT PASS")
+print("- START_HERE option 1/3 selects lightweight mode on the one canonical gameplay launcher")
+print("- quick normal bypasses LFS hydration, commandlet weapon preflight, vehicle/material import and acceptance gates")
+print("- option 2 retains strict HMMWV/M2/BTR + weapon/material/evidence acceptance")
+print("- BTR R3 canonical intake remains +X-forward / glTF +Y-up with explicit provenance")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime still required")
