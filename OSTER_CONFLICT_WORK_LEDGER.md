@@ -2,23 +2,24 @@
 
 > Current authoritative work state. Latest explicit user requirement + latest factual local UE runtime/build evidence always override older source/verifier claims.
 
-## 1. Current context — 2026-08-26
+## 1. Current context — 2026-08-31
 
 - Repository: `valentronus95/OsterConflict`.
-- Integrated `main` baseline: `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f`.
+- Integrated `main` baseline: `bca00f4046700f383af9f1742cc24b6a62401b1a`.
 - Active corrective branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
-- Active PR: **#94 — `Pass45: close Stein R3 fresh-load and strict runtime acceptance gaps`**.
+- Active PR: **#94 — `Pass45: runtime recovery, reference-backed world fidelity and strict acceptance`**.
 - PR state: **OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Earlier source milestone `3dd85466a46357061cd52a9fc4f7c2e90f21ad8b` had all returned workflows **SUCCESS** for the weapon/ordnance state that existed at that point.
-- Newer primitive-retirement, grenade throw-semantics and Museum/Culture/Silpo landmark-identity source work is later than that milestone; current-head CI is re-read separately and is not inferred from the historical green head.
-- Current indexed source head: `9d04baab648fe75ccb0e6903365f438c55230609` (`PASS45: author stadium trees from final families`), exact source CI 68/68 SUCCESS.
-- Latest factual gameplay evidence: `RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`.
+- Latest substantive source head: `6cc2158d31f10ee50a1c5d3ca096b86b4b49022b` (`fix(pass45): distinguish pretick lifecycle from preview bootstrap`).
+- Exact source CI for that substantive head completed **SUCCESS**, including full `Source verification`, pre-tick startup guard, Block0 ground guard, tree-startup deferral, runtime recovery and strict runtime-acceptance source contracts.
+- Latest branch bookkeeping head before this ledger sync: `37c4775b1cc590bce79c647ed2037270ff32cc56` (`docs(pass45): record pretick startup recovery`).
+- Latest factual local UE evidence is the 2026-08-31 Quick Normal startup rejection: incremental C++ build succeeded, then the direct game stayed black and entered rejected KiteDemo tree/material/static-mesh work.
+- Latest rendered gameplay evidence pack remains `RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`.
 - Historical rejected evidence remains separate: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x / Windows.
 - Canonical user launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-27 / WEAPON + ORDNANCE + LANDMARK IDENTITY SOURCE-CODED / EXACT SOURCE HEAD CI SUCCESS / LOCAL UE RUNTIME PENDING**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-31 / PRE-TICK + SECOND START TREE-LOAD SOURCE RECOVERED / EXACT SUBSTANTIVE SOURCE HEAD CI SUCCESS / LOCAL UE RE-RUN PENDING**.
 
 ## 2. Status rules
 
@@ -34,33 +35,23 @@
 - A historical verifier may never force a rejected owner/behavior back into current source.
 - No profile/material/audio slot becomes READY merely because a source field exists.
 
-## 3. Latest authoritative runtime — 2026-08-26
+## 3. Latest authoritative runtime — 2026-08-31
 
-The latest factual local playtest reaches gameplay but **Pass 45 remains rejected**.
+The latest factual local attempt is a **startup rejection** newer than the 2026-08-27 rendered gameplay pack.
 
-Confirmed improvements that must not regress:
+What factually happened:
 
-- gameplay launches;
-- the previous near-black world corruption is no longer the dominant rendered state;
-- multiple firearm production meshes/materials render recognizably;
-- HMMWV visual forward direction is improved enough to drive forward normally;
-- recovery cap is approximately 60 FPS in the captured run;
-- production HMMWV/BTR/M2 intake reaches gameplay.
+- `START_HERE.cmd -> 1. ЗВИЧАЙНА ГРА` completed the incremental C++ build successfully;
+- the direct game process opened a black window and did not reach usable gameplay/UI;
+- the log reached the render/daylight readiness markers, then entered KiteDemo material/static-mesh work;
+- the blocking path included `HillTree_02` build/wait work and UE 5.8 material diagnostics;
+- therefore the latest factual verdict is still rejection even though earlier runs had reached gameplay.
 
-Remaining factual runtime failures/gaps include:
+The current source branch now contains a source-level recovery for both known startup causes: native world-sector tree loads are deferred/quarantined, the second Stadion Oster START-time tree load path is quarantined, and Block0 gets a canonical Oster sector before world-subsystem BeginPlay. None of this is runtime acceptance until a new local UE 5.8 launch proves it.
 
-- weapon firing/recoil/audio/muzzle presentation still requires current-head proof;
-- some weapon audio/content remains absent or prototype-grade;
-- dropped-weapon physics requires current-head proof;
-- launcher visible production presentation remains unaccepted;
-- Museum/Culture House/Silpo identity/separation remains visually rejected/unaccepted despite newer source ownership guards;
-- rejected vegetation/visual-fidelity families remain open;
-- M2 station hierarchy/camera remains open;
-- HMMWV >=80 km/h road target remains open;
-- BTR white/default material persistence, forward axis and remote-operator view remain open;
-- final fullscreen/thermal/tactical-map/direct screenshot gates remain open.
+The earlier 2026-08-27 rendered improvements/failures remain authoritative for visual acceptance once startup is recovered. They include recognizable authored weapon meshes, improved HMMWV forward behavior and a ~60 FPS cap, but still reject/unaccept AK/hand ADS, M2, BTR, landmark/world visual fidelity, vegetation/material quality and final runtime gates.
 
-**Current factual verdict: RUNTIME REJECTED 2026-08-26.**
+**Current factual verdict: RUNTIME REJECTED 2026-08-31.**
 
 ### Pass 44 historical runtime rejection (retained fact)
 
@@ -261,13 +252,32 @@ Source and acceptance automation now distinguish a correct parcel/shell from vis
 
 This is **CODED_UNTESTED**, not runtime visual acceptance.
 
+### 4.15 Pre-tick sector and second START tree-load recovery — 2026-08-31
+
+The 2026-08-31 black-window investigation exposed two additional startup source defects after the original constructor/CDO tree-load fix:
+
+- Block0 observes world state in `UWorldSubsystem::OnWorldBeginPlay`, but the legacy Oster sector was created only later from GameMode `BeginPlay`, producing factual `oster_sector_count_0`;
+- `UOCR13StadiumSurfaceSubsystem::OnWorldBeginPlay()` independently synchronously loaded `HillTree_02` and `ScotsPineTall_01`, recreating the heavy KiteDemo START dependency.
+
+Current source recovery:
+
+- `AOCGameModeRuntimeSafe::InitGame()` creates and tags the lightweight canonical `AOCWorldSectorOster` before world-subsystem BeginPlay;
+- the legacy duplicate created during base GameMode BeginPlay is retired before first gameplay tick, leaving exactly one live sector;
+- no KiteDemo tree load was moved into pre-tick startup;
+- automatic Stadion Oster world-subsystem instantiation is quarantined with `UCLASS(Abstract)` until a safe delayed/content-repaired path is available;
+- this intentionally leaves automatic stadium presentation as a visible `CONTENT GAP / RUNTIME PENDING`, not a false acceptance;
+- `VERIFY_PASS45_PRETICK_SECTOR_STARTUP_GUARD.py` plus `.github/workflows/pass45-pretick-sector-startup-guard.yml` guards the lifecycle, Block0 fail-closed contract, stadium quarantine and normal-launcher opt-in absence;
+- exact substantive source head `6cc2158d31f10ee50a1c5d3ca096b86b4b49022b` passed full `Source verification` and all relevant exact-head source gates.
+
+A new local UE 5.8 Quick Normal run is the next factual gate. Until it succeeds, status remains **RUNTIME REJECTED 2026-08-31**.
+
 ## 5. Active requirements
 
 | ID | Requirement | Status | Current action |
 |---|---|---|---|
 | STALE-OWNER-001 | Old code/verifiers must not overwrite or resurrect newer runtime behavior | CODED_UNTESTED | Physical retirement + validation guards retained. |
 | PERF-COLLAPSE-001 | No severe FPS/thermal collapse | CODED_UNTESTED | ~60 FPS recovery cap; final mixed soak pending. |
-| VIS-BLACK-WORLD-001 | No black ground/world corruption | CODED_UNTESTED | Latest run improved; current-head screenshot proof still required. |
+| VIS-BLACK-WORLD-001 | No black ground/world corruption or unusable black startup | CODED_UNTESTED / RUNTIME REJECTED | Latest 2026-08-31 Quick Normal stayed black; startup source recovery is now source-verified and local re-run is required. |
 | LOC-MUSEUM-001 | Correct visible Oster Local History Museum | CODED_UNTESTED | Museum identity source guarded; direct visual proof pending. |
 | LOC-CULTURE-001 | Culture House separate from Museum | CODED_UNTESTED | Separate geo owner + six-column identity guard; direct visual proof pending. |
 | LOC-SILPO-001 | Silpo one correct site owner and visible facade identity | CODED_UNTESTED | R14.0 shell + mandatory R14.3 `Сільпо` facade stage; direct screenshot proof pending. |
@@ -285,7 +295,7 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 | WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | CODED_UNTESTED | Source fail-closed retirement complete; rendered zero-primitive proof pending. |
 | GRENADE-VISUAL-001 | No primitive grenade/smoke and no inventory loss on failed throw | CODED_UNTESTED / CONTENT GAP | Primitive retirement + transactional throw + authored throw audio coded; authored hand animation, flash VFX and runtime visual proof pending. |
 | UI-TACTICAL-MAP-001 | `M` matches compact central-Oster topology | CODED_UNTESTED | Runtime screenshot required. |
-| VIS-TREES-001 | No primitive/fantasy visible tree family | CODED_UNTESTED / CONTENT GAP | `AOCWorldSectorOster` directly authors `HillTree_02` / `ScotsPine_01` / `ScotsPineTall_01`; authoritative Stadion Oster directly authors `HillTree_02` / `ScotsPineTall_01`; the late `OCTreeContentUpgradeSubsystem` owner is physically retired. Oak and UE 5.8 visual/material/LOD acceptance remain open. |
+| VIS-TREES-001 | No primitive/fantasy visible tree family | CODED_UNTESTED / CONTENT GAP / RUNTIME PENDING | Final KiteDemo tree identities remain quarantined from normal startup after UE 5.8 material/static-mesh rejection; no constructor/CDO or stadium START sync-load may restore them. Runtime material/LOD repair and direct visual acceptance remain open. |
 | ASSET-M16-M4-001 | M16/M4 production visuals | CONTENT GAP | No verified exact payload; do not claim connected. |
 
 ## 6. Behavior that must not return
@@ -318,7 +328,7 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 
 ## 7. Current execution order
 
-1. [x] Preserve latest runtime evidence and mark **RUNTIME REJECTED 2026-08-26**.
+1. [x] Preserve latest runtime evidence and mark **RUNTIME REJECTED 2026-08-31**.
 2. [x] Retain stale-owner retirement and one-owner architecture.
 3. [x] Retain daylight/material stability and initial-character-only BASE recovery.
 4. [x] Retain proportional HMMWV/BTR and material-owner protections.
@@ -336,12 +346,12 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 16. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks and make runtime acceptance fail closed. **Rendered proof pending.**
 17. [x] Source-retire primitive grenade/smoke visuals and make grenade throw transactional/safe. **Authored smoke and throw audio are source-wired; authored hand animation, flash VFX and runtime proof remain pending.**
 18. [x] Source-close Museum/Culture House/Silpo identity/separation and require the R14.3 Silpo facade/sign stage. **Visual runtime proof pending.**
-19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity. **Primary world and Stadion Oster tree authoring now use final HillTree/ScotsPine families and no late remapper remains; runtime visual/material/LOD acceptance is still required.**
+19. [ ] Replace rejected vegetation family and raise world/material/LOD fidelity. **Normal startup now quarantines the rejected KiteDemo tree/material chain; the pre-tick sector and second stadium START-load source blockers are source-verified fixed. Tree material/LOD repair and direct UE 5.8 visual acceptance remain required.**
 20. [ ] Complete HMMWV M2 hierarchy/360°/camera and >=80 km/h road tuning.
 21. [ ] Close BTR white material/forward-axis/remote-operator gaps.
 22. [ ] Validate fullscreen, ~60 FPS, native render scale and 10-minute mixed thermal soak.
 23. [ ] Validate tactical map screenshot.
-24. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots.
+24. [ ] Current-head `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` import + build + gameplay + automated gates + direct screenshots. **Before this full gate, the immediate local blocker is a new Quick Normal launch proving a usable first frame.**
 25. [ ] Merge PR #94 only after factual current-head runtime acceptance.
 
 ## 8. Next factual runtime gates
@@ -353,6 +363,14 @@ This is **CODED_UNTESTED**, not runtime visual acceptance.
 - production HMMWV/M2/BTR import/fresh load succeeds;
 - UBT/UE 5.8 build exits 0;
 - no required available weapon reports placeholder material or zero authored texture dependency.
+
+### Startup
+
+- Quick Normal reaches a usable first frame instead of a permanent black window;
+- no `PASS45_BLOCK0_PRETICK_GROUND_FAIL` / `oster_sector_count_0`;
+- normal launcher does not opt into `Pass45LoadKiteDemoTrees`;
+- no synchronous `HillTree_02` / `ScotsPineTall_01` stadium START-time load path returns;
+- one canonical Oster sector exists before first gameplay tick.
 
 ### Weapons
 
@@ -409,13 +427,12 @@ Current build/import correction state remains **CODED_UNTESTED** until a current
 
 - Pass44 2026-08-24 remains historically **RUNTIME REJECTED**.
 - Pass45 2026-08-25 local build/import rejection remains factual chronology even though later corrective builds reached gameplay.
-- Earlier 2026-08-25 runtime rejection remains preserved separately.
+- Earlier 2026-08-25 and 2026-08-27 runtime rejections remain preserved separately.
+- The 2026-08-31 Quick Normal black-window rejection is the latest factual local verdict until superseded by a new current-head UE 5.8 run.
 - None of those historical failures may be erased by later source fixes, and none of their stale workaround owners gain authority merely because they once existed.
 
 ## 11. Current verdict
 
-**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-26.**
+**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-31 / STARTUP SOURCE RECOVERY SOURCE-VERIFIED / LOCAL UE RE-RUN PENDING.**
 
 PR #94 remains **OPEN / UNMERGED**.
-
-Weapon/ordnance source corrections and Museum/Culture House/Silpo identity ownership are **CODED_UNTESTED**. The earlier source milestone was green, while current-head CI is revalidated after the newer landmark commits. Exact authored action/audio content, per-weapon ADS calibration, authored grenade smoke/animation, rendered zero-primitive proof, landmark visual fidelity, vegetation replacement and all factual local UE 5.8 acceptance remain open.
