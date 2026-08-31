@@ -13,12 +13,14 @@ for needle in [
     '-abslog="%PREVIEW_LOG%"',
     '"/Engine/Maps/Entry"',
     '-game -Frontend',
+    '-windowed',
     'Runtime map is NOT loaded before the menu.',
-    'Startup bootstrap and map loading are rendered INSIDE Unreal.',
+    'Engine Entry startup is owned by the responsive in-game viewport bootstrap.',
     'Frontend bootstrap stays visible until the actual R13 menu widget is visible.',
+    'Windowed mode is intentional so a broken frontend cannot trap desktop focus or hide the cursor.',
     'PREVIEW ONLY',
 ]:
-    assert needle in launcher, f'missing Fast Preview contract: {needle}'
+    assert needle in launcher, f'missing Fast Preview recovery contract: {needle}'
 
 for forbidden in [
     'PASS45_FAST_PREVIEW_PROGRESS.ps1',
@@ -28,24 +30,37 @@ for forbidden in [
     '"/Game/Maps/OsterConflict_Runtime"',
     ' -OCFastPreview',
     ' -NoFrontend',
+    ' -fullscreen',
+    ' -NoScreenMessages',
     ' -log ',
 ]:
-    assert forbidden not in launcher, f'old Fast Preview path returned: {forbidden}'
+    assert forbidden not in launcher, f'unsafe/old Fast Preview path returned: {forbidden}'
 
 for needle in [
     '#include "MoviePlayer.h"',
     'FCoreUObjectDelegates::PreLoadMap.AddUObject',
     'FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject',
+    'IsFrontendEntryMap(MapName)',
+    'PASS45_FRONTEND_STARTUP_MOVIEPLAYER_SKIPPED',
+    'deadlock_guard=1',
     'FLoadingScreenAttributes LoadingScreen',
-    'LoadingScreen.bWaitForManualStop = true',
+    'LoadingScreen.bAutoCompleteWhenLoadingCompletes = true',
+    'LoadingScreen.bWaitForManualStop = false',
     'MoviePlayer->SetupLoadingScreen(LoadingScreen)',
     'MoviePlayer->PlayMovie()',
-    'MoviePlayer->StopMovie()',
+    'auto_complete=1 manual_stop=0',
     'PASS45_INGAME_LOADING_BEGIN',
     'PASS45_INGAME_LOADING_MAP_COMPLETE',
     'PASS45_INGAME_LOADING_READY',
 ]:
-    assert needle in game_instance, f'missing map loading contract: {needle}'
+    assert needle in game_instance, f'missing deadlock-free map loading contract: {needle}'
+
+for forbidden in [
+    'PrepareRuntimeLoadingScreen(TEXT("FrontendBootstrap")',
+    'LoadingScreen.bWaitForManualStop = true',
+    'MoviePlayer->StopMovie()',
+]:
+    assert forbidden not in game_instance, f'frontend MoviePlayer deadlock contract returned: {forbidden}'
 
 for needle in [
     'void CompleteRuntimeLoading(const TCHAR* Reason);',
@@ -73,18 +88,23 @@ for needle in [
     'FrontendPanel',
     'PASS45_FRONTEND_BOOTSTRAP_HANDOFF_READY',
     'PASS45_FRONTEND_BOOTSTRAP_STALLED',
+    'KeepFrontendInputRecoverable',
+    'bShowMouseCursor = true',
+    'InputMode.SetHideCursorDuringCapture(false)',
+    'PASS45_FRONTEND_INPUT_RECOVERY_READY',
     'GI->CompleteRuntimeLoading(',
 ]:
-    assert needle in runtime_safe_cpp, f'missing frontend handoff contract: {needle}'
+    assert needle in runtime_safe_cpp, f'missing responsive frontend handoff contract: {needle}'
 
 assert '"MoviePlayer"' in build_rules
 assert not legacy_progress.exists()
 assert 'System.Windows.Forms.ProgressBar' not in game_instance
 assert 'GetAsyncLoadPercentage' not in game_instance
 
-print('PASS45 Fast Preview in-game bootstrap and map loading: PASS')
-print('- Engine Entry starts with a viewport-owned frontend bootstrap')
-print('- frontend bootstrap hands off only to a visible menu widget')
-print('- runtime map loading remains engine-native and milestone based')
+print('PASS45 Fast Preview deadlock-free in-game bootstrap: PASS')
+print('- Engine Entry explicitly skips MoviePlayer and reaches GameMode/PlayerController startup')
+print('- responsive viewport bootstrap owns the initial frontend wait and keeps the cursor visible')
+print('- recovery preview is windowed so desktop focus is not trapped on a failed frontend')
+print('- MoviePlayer is reserved for actual runtime-map travel and auto-completes without manual-stop deadlock')
 print('- external progress helper remains retired')
 print('- runtime acceptance remains pending until local UE 5.8 acceptance')
