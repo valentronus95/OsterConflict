@@ -197,7 +197,6 @@ Known historical merged milestones include:
 - PR #83 merged to `main` at `f5e883fb69ae8bdd35c754dc895d8b06e4843e08` as a Pass45 runtime-recovery source milestone.
 - PR #89 merged to `main` at `a375f52635fbe9fa07c1000aa706e28c53eb42f4` for the strict runtime acceptance harness.
 - The current PR #94 is intentionally **not merged** because the latest factual local runtime remains rejected and current-head UE 5.8 acceptance has not yet been produced.
-
 The active `main` snapshot at the 2026-08-30 audit is newer than those historical merge points: `bca00f4046700f383af9f1742cc24b6a62401b1a`.
 
 ## Current checklist accounting
@@ -388,3 +387,20 @@ Never collapse these states into one generic `PASS`.
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED. No protected merge is authorized.
 - Official checklist accounting remains **22/36 = 61.1%**. Item 32 remains unchecked.
 - Remaining item-32 blockers: the three explicit Central Park authored-content-gap instances (`ParkMemorialMonument=1`, `ParkSkateRamps=2`), broader ground/material/LOD/reference fidelity including Culture House/plaza composition, and current-head UE 5.8 direct screenshot/runtime acceptance. Arbitrary substitute meshes remain forbidden.
+
+## Work cycle — 2026-08-31 item 32 Culture House legacy owner fail-closed cleanup
+
+- Canonical checklist relevance: item 32 / Gate K landmark ownership and Culture House/plaza fidelity. This slice removes a residual late runtime repair path; it does not invent missing Culture House reference detail or claim current-head UE 5.8 visual acceptance.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `fc42945273c3eeea3fbe443e5874582e82f742ce`.
+- Production commit: `00f770345f991fb34a49c9c645f37206a639e855` — `PASS45: fail closed on legacy Culture House owner`.
+- Verifier/source head before ledger write: `d4e92ecef55799df67dc9246843025510e5ef9d7` — `PASS45: guard Culture House legacy owner fail-closed contract`.
+- Production change: `UOCR146CultureHousePhotoModelSubsystem::BuildCultureHouse()` no longer calls `Destroy()` when an unexpected `R13_CultureHousePhotoModel` actor is present. Startup ownership is already coordinated authoritatively; legacy presence is now treated as a source/startup regression and fails closed with `PASS45_CULTURE_HOUSE_AUTHORED_SHELL_FAIL reason=legacy_owner_present legacy_owner_mutation=0 primary_authoring_fix_required=1 runtime_acceptance=0`.
+- Success truth marker now records `legacy_owner_mutation=0 runtime_visual_acceptance=pending`; the authoritative authored R146 shell, separate canonical Culture House geo anchor and six-column facade remain unchanged.
+- Regression guard: `VERIFY_PASS45_LANDMARK_IDENTITY.py` now requires the fail-closed legacy-owner detection/markers and explicitly forbids the old `if (Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))) Existing->Destroy();` repair path. Existing `.github/workflows/pass45-landmark-identity.yml` covers the verifier and production file.
+- Exact-head CI for `d4e92ecef55799df67dc9246843025510e5ef9d7`: `Pass 45 landmark identity` run `33376673153` / #376 **SUCCESS**; `Source verification` `33376673155` / #2531 **SUCCESS**; `Pass 45 visual fidelity Gate K` `33376673135` / #303 **SUCCESS**; `Pass 45 Gate K global BasicShape scope` `33376672982` / #99 **SUCCESS**; `Runtime recovery Pass 45` `33376673070` / #653 **SUCCESS**; `Pass 45 strict runtime acceptance harness` `33376673184` / #546 **SUCCESS**; `World geometry stability pass 12` `33376673362` / #563 **SUCCESS**; `Landmark shell ownership Pass 21` `33376673072` / #564 **SUCCESS**. All workflow runs returned for the exact source head completed SUCCESS.
+- Reference/content boundary: the Culture House source-gap audit still leaves exact facade bearing, dimensions/material zones, detailed facade/site relationship, old-park/plaza composition and direct screenshot acceptance unresolved. These remain **CONTENT GAP / RUNTIME PENDING**, not targets for guessed geometry.
+- Runtime state: **RUNTIME REJECTED 2026-08-27** remains authoritative. Green source CI does not supersede the rejected local UE 5.8 rendered state.
+- `main` merge state: none; PR #94 remains OPEN / UNMERGED / mergeable. No protected merge is authorized.
+- Official checklist accounting remains **22/36 = 61.1%**, **38.9% remaining**. Item 32 remains unchecked.
+- Remaining item-32 blockers include exact Culture House/plaza/reference composition, Central Park `ParkMemorialMonument=1` plus `ParkSkateRamps=2` authored content gaps, broader ground/material/LOD fidelity and a current-head full local UE 5.8 Gate K/direct screenshot acceptance set.
