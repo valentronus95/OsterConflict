@@ -226,22 +226,37 @@ for needle in (
 req("PASS45_BTR_AXIS_OPTIC_20260827_R2" not in production_import_cmd,
     "strict production command regressed to BTR R2")
 
-# One user launcher, one strict vehicle-import owner. START_HERE prepares Stein; CURRENT_GAMEPLAY owns strict vehicle intake.
+# One user launcher, one strict material/import owner chain. Quick option 1 must not run heavy import work.
 for needle in (
-    ":prepare_materials_optional",
     ":prepare_materials_strict",
-    "TRY_PRODUCTION_VEHICLES_UE58.cmd",
-    "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
     "STEIN_STRICT_RC=!ERRORLEVEL!",
     'if not "!STEIN_STRICT_RC!"=="0"',
+    'set "OC_QUICK_NORMAL=1"',
 ):
-    req(needle in start_here, f"START_HERE Pass45 material/full-test route missing: {needle}")
-req("IMPORT_PRODUCTION_VEHICLES_UE58.cmd" not in start_here,
-    "START_HERE reintroduced duplicate strict production vehicle import")
+    req(needle in start_here, f"START_HERE strict/quick material route missing: {needle}")
+for forbidden in (
+    ":prepare_materials_optional",
+    "TRY_PRODUCTION_VEHICLES_UE58.cmd",
+    "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd",
+    "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
+):
+    req(forbidden not in start_here, f"START_HERE quick path reintroduced heavy material/import work: {forbidden}")
 req("IMPORT_PRODUCTION_VEHICLES_UE58.cmd" in normal and 'call "%PRODUCTION_IMPORT%"' in normal,
     "CURRENT_GAMEPLAY must remain the single strict production vehicle intake owner")
+req('if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game' in normal,
+    "CURRENT_GAMEPLAY quick preflight bypass is missing")
+normal_parts = normal.split(':quick_normal_game', 1)
+req(len(normal_parts) == 2, "CURRENT_GAMEPLAY is missing explicit quick-normal section")
+if len(normal_parts) == 2:
+    strict_normal, quick_normal = normal_parts
+    req('call "%PRODUCTION_IMPORT%"' in strict_normal,
+        "strict CURRENT_GAMEPLAY lost production vehicle intake")
+    req('call "%PRODUCTION_IMPORT%"' not in quick_normal,
+        "quick CURRENT_GAMEPLAY must not invoke production vehicle intake")
+    req("verify_required_weapon_assets.py" not in quick_normal,
+        "quick CURRENT_GAMEPLAY must not invoke weapon commandlet preflight")
 req("RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd" in full_acceptance,
     "full acceptance wrapper no longer delegates to playflow/performance")
 req("RUN_R14_CURRENT_GAMEPLAY.cmd" in playflow,
@@ -292,10 +307,10 @@ print("PASS45 WEAPON MATERIAL DEPENDENCY AUDIT: PASS")
 print("- exact production and explicit real fallback are distinguished; fallback never impersonates production")
 print("- every accepted visual requires non-placeholder material and used-texture dependencies")
 print("- Stein R3 always owns its runtime mesh slots and requires independent fresh-load dependency proof")
-print("- negative UnrealEditor-Cmd failures cannot slip through START_HERE as PASS")
+print("- negative UnrealEditor-Cmd failures cannot slip through strict acceptance as PASS")
 print("- production Interchange non-zero diagnostics may continue only through current sentinel + independent fresh-load verification")
 print("- BTR R3 intake is revisioned, authored-material guarded, canonical +X-forward and explicit glTF +Y-up")
-print("- START_HERE/full-test chain has one gameplay launch and one strict vehicle-import owner")
+print("- quick normal skips heavy imports; option 2 retains one strict gameplay/material/import owner chain")
 if production_gaps:
     print("- explicit exact-production CONTENT GAP (not READY):", ", ".join(production_gaps))
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 import, build and rendered runtime remain authoritative")
