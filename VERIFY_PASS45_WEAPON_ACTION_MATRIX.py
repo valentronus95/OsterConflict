@@ -26,6 +26,7 @@ variants = read("OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp
 launcher = read("OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp")
 presentation_h = read("OsterConflict/Source/OsterConflict/Public/OCFirstPersonWeaponPresentationSubsystem.h")
 presentation_cpp = read("OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp")
+ads_cpp = read("OsterConflict/Source/OsterConflict/Private/OCWeaponADSValidation.cpp")
 profiles_h = read("OsterConflict/Source/OsterConflict/Public/OCWeaponPresentationProfiles.h")
 profiles_cpp = read("OsterConflict/Source/OsterConflict/Private/OCWeaponPresentationProfiles.cpp")
 animation_profiles_h = read("OsterConflict/Source/OsterConflict/Public/OCWeaponAnimationProfiles.h")
@@ -180,19 +181,28 @@ for needle in ("void AOCWeaponBase::OnRep_ActionCycling()", "OwnerCharacter->IsL
     req(needle in manual_action_cpp, f"remote manual-action replication/audio path missing: {needle}")
 
 # ADS diagnostics used to be declared/called without a definition, which source-only CI could miss until UE link.
-# Keep a real, mutation-free implementation and require authored socket references for any calibrated profile.
-req(presentation_cpp.count("ValidateADSAlignment(") >= 2,
-    "ValidateADSAlignment must have both a concrete definition and its ADS entry call")
+# The implementation has one dedicated owner in OCWeaponADSValidation.cpp. The presentation translation unit must
+# contain only the ADS-entry call; putting the body back there reintroduces the historical LNK2005 duplicate symbol.
+ads_definition = "UOCFirstPersonWeaponPresentationSubsystem::ValidateADSAlignment"
+req("ValidateADSAlignment(Character, *Weapon, FindProductionWeaponVisual(*Weapon), Profile);" in presentation_cpp,
+    "ValidateADSAlignment ADS entry call is missing from first-person presentation")
+req(presentation_cpp.count(ads_definition) == 0,
+    "duplicate ValidateADSAlignment definition returned to OCFirstPersonWeaponPresentationSubsystem.cpp")
+req(ads_cpp.count(ads_definition) == 1,
+    "ValidateADSAlignment must have exactly one concrete implementation in OCWeaponADSValidation.cpp")
 for needle in (
-    "void UOCFirstPersonWeaponPresentationSubsystem::ValidateADSAlignment",
+    'TEXT("oc.Weapon.ADS.Debug")',
     "PASS45_ADS_PROFILE_UNCALIBRATED",
     "PASS45_ADS_ALIGNMENT_FAIL",
     "PASS45_ADS_ALIGNMENT_SAMPLE",
     "ADSOpticSocket", "ADSRearSightSocket", "ADSFrontSightSocket",
-    "DoesSocketExist", "GetSocketTransform", "GetSocketLocation", "GetPlayerViewPoint",
-    "AngularErrorDeg", "mutation=0", "runtime_visual_acceptance=pending",
+    "DoesSocketExist", "GetSocketTransform", "GetSocketLocation",
+    "AngularErrorDegrees", "CameraToSightLineCm",
+    "runtime_visual_acceptance=pending",
 ):
-    req(needle in presentation_cpp, f"ADS alignment diagnostic implementation missing: {needle}")
+    req(needle in ads_cpp, f"ADS alignment diagnostic implementation missing: {needle}")
+req("FTimerHandle" not in ads_cpp,
+    "ADS alignment diagnostics introduced a second gameplay timer")
 
 # Guard the meaning of open item 16 rather than one punctuation-sensitive sentence. The TZ may refine wording,
 # but it must still say that procedural manual-action presentation is to be replaced by accepted authored
@@ -216,6 +226,6 @@ print("- bolt/pump/lever remain authoritative replicated post-shot gates with ex
 print("- M700/870/LeverAction are explicitly marked as requiring articulated manual-action animation")
 print("- authored manual-action animation has a dedicated fail-closed profile slot and a production skeletal consumer")
 print("- procedural whole-transform cue remains active only when the authored sequence is absent or cannot start")
-print("- ADS socket diagnostics now have a concrete mutation-free implementation instead of a declaration-only linker gap")
+print("- ADS socket diagnostics have one dedicated mutation-free implementation owner in OCWeaponADSValidation.cpp")
 print("- PumpCycle uses tracked R13/Audio/shotguncock; bolt/lever audio remain visible content gaps")
 print("STATUS: SOURCE CONTRACT FAIL-HONEST; exact authored moving-part sequences, bolt/lever audio and local UE 5.8 acceptance remain pending")
