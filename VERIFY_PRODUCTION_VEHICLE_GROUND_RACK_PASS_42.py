@@ -27,6 +27,7 @@ def absent(path: Path, label: str) -> None:
 
 
 start = read(ROOT / "START_HERE.cmd")
+normal_launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 try_import = read(ROOT / "OsterConflict" / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
 importer = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
 pickup = read(SRC / "Private" / "OCPickupGunTruck.cpp")
@@ -48,8 +49,20 @@ startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 absent(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Museum visibility/rebuild header")
 absent(SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Museum visibility/rebuild source")
 
-# Normal game no longer ignores a locally available exact production package.
-require(start, 'TRY_PRODUCTION_VEHICLES_UE58.cmd', "normal launcher production intake")
+# User option 1 is deliberately lightweight: it must not run the heavy vehicle importer before every game.
+# Exact production intake remains mandatory and wired in the strict option-2 acceptance path.
+require(start, 'set "OC_QUICK_NORMAL=1"', "quick normal selector")
+forbid(start, 'TRY_PRODUCTION_VEHICLES_UE58.cmd', "quick user launcher must not run optional production intake")
+require(normal_launcher, 'set "PRODUCTION_IMPORT=%~dp0OsterConflict\\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"',
+        "strict canonical production importer owner")
+require(normal_launcher, 'call "%PRODUCTION_IMPORT%"', "strict production intake call")
+require(normal_launcher, 'if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game', "quick preflight bypass")
+launcher_parts = normal_launcher.split(':quick_normal_game', 1)
+if len(launcher_parts) != 2:
+    raise SystemExit("PASS42 VERIFY FAIL: canonical launcher is missing explicit quick-normal section")
+strict_launcher, quick_launcher = launcher_parts
+require(strict_launcher, 'call "%PRODUCTION_IMPORT%"', "strict production intake remains wired")
+forbid(quick_launcher, 'call "%PRODUCTION_IMPORT%"', "quick normal must not import production vehicles")
 for needle in (
     'SM_HMMWV_UA.uasset', 'SM_M2_Browning.uasset', 'SM_BTR4_Bucephalus.uasset',
     'IMPORT_PRODUCTION_VEHICLES_UE58.cmd',
@@ -225,6 +238,7 @@ for needle in (
     require(startup, needle, "Pass45 coordinated landmark startup")
 
 print("PRODUCTION VEHICLE + GROUNDED RACK + VISUAL/FPS RECOVERY PASS 42/45 SOURCE CONTRACT PASS")
+print("- quick normal deliberately skips heavy production intake; strict option 2 keeps canonical HMMWV/M2/BTR import")
 print("- exact local HMMWV/M2/BTR intake remains wired and production meshes preserve native proportions")
 print("- exact M2 uses its authored receiver/mount pivot; rejected bounds/longest-axis recenter is forbidden")
 print("- VehicleBase skips legacy tint for /Game/Production meshes at the primary source")
