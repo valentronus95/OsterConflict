@@ -9,9 +9,12 @@ set "EDITOR=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0OsterConflict\OsterConflict.uproject"
 set "LOG_DIR=%~dp0Logs"
 set "PREVIEW_LOG=%LOG_DIR%\PASS45_FAST_PREVIEW.log"
+set "PROGRESS_SCRIPT=%~dp0OsterConflict\Scripts\PASS45_FAST_PREVIEW_PROGRESS.ps1"
+set "PROGRESS_STATE=%LOG_DIR%\PASS45_FAST_PREVIEW_PROGRESS.state"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PREVIEW_LOG%" del /q "%PREVIEW_LOG%" >nul 2>nul
+if exist "%PROGRESS_STATE%" del /q "%PROGRESS_STATE%" >nul 2>nul
 
 if not exist "%BUILD_BAT%" (
   echo [ERROR] UE 5.8 Build.bat not found: %BUILD_BAT%
@@ -62,8 +65,16 @@ echo.
 echo [2/2] Launching current Oster runtime without strict import/preflight passes...
 echo Renderer: DX11 + SM5 + HDR off, max 60 FPS.
 echo Log: %PREVIEW_LOG%
+echo [PREVIEW] A separate progress window will show startup stage percent and UE activity.
+>"%PROGRESS_STATE%" echo running=1
+if exist "%PROGRESS_SCRIPT%" (
+  start "Oster Conflict Loading Progress" powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PROGRESS_SCRIPT%" -LogPath "%PREVIEW_LOG%" -StatePath "%PROGRESS_STATE%"
+) else (
+  echo [PREVIEW] WARNING: startup progress UI script is missing. Runtime will still launch.
+)
 start /wait "Oster Conflict Fast Preview" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend -d3d11 -sm5 -nohdr -NoScreenMessages -log -abslog="%PREVIEW_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
+>"%PROGRESS_STATE%" echo exit_code=%GAME_RC%
 
 echo.
 echo ============================================================
