@@ -304,12 +304,17 @@ for needle in (
 req("LocalVehicleGunnerPitch - Value.Get<float>() * 1.15f" not in character,
     "old inverted gunner pitch expression returned")
 
-# Normal recovery route must not silently restore the rejected windowed/uncapped test behavior.
-req(' -windowed ' not in launcher.lower(), "normal gameplay launcher restored forced -windowed mode")
-req("-fullscreen" in launcher, "normal gameplay launcher no longer requests fullscreen recovery mode")
-req('t.MaxFPS 60' in launcher, "thermal recovery 60 FPS cap missing")
-req("PASS45_NORMAL_DISPLAY_THERMAL_GUARD" in launcher,
-    "launcher lacks visible display/thermal recovery marker")
+# Strict recovery remains fullscreen; quick normal is intentionally windowed so a failed startup cannot trap Windows focus.
+launcher_parts = launcher.split(":quick_normal_game", 1)
+req(len(launcher_parts) == 2, "canonical gameplay launcher is missing quick-normal split")
+strict_launcher = launcher_parts[0] if launcher_parts else launcher
+quick_launcher = launcher_parts[1] if len(launcher_parts) == 2 else ""
+req(' -windowed ' not in strict_launcher.lower(), "strict gameplay launcher restored forced -windowed mode")
+req("-fullscreen" in strict_launcher, "strict gameplay launcher no longer requests fullscreen recovery mode")
+req("-windowed" in quick_launcher.lower(), "quick normal launcher is not desktop-recoverable windowed mode")
+req('t.MaxFPS 60' in strict_launcher and 't.MaxFPS 60' in quick_launcher, "thermal recovery 60 FPS cap missing from a launch mode")
+req("PASS45_NORMAL_DISPLAY_THERMAL_GUARD" in strict_launcher,
+    "strict launcher lacks visible display/thermal recovery marker")
 
 # Root rules/TZ must explicitly require deletion or retirement of obsolete mutating owners and stale verifiers.
 for needle in (
@@ -337,5 +342,5 @@ print("- VehicleBase skips legacy tint for production assets at the primary sour
 print("- production vehicle material validator is read-only, one-shot and fail-visible")
 print("- driver/gunner enter-exit transforms emit fail-visible local vehicle evidence")
 print("- M2 gunner pitch defaults to mouse-up raises aim")
-print("- normal recovery route is fullscreen with 60 FPS thermal cap")
+print("- strict recovery is fullscreen; quick normal is windowed; both retain 60 FPS thermal cap")
 print("STATUS: SOURCE CONTRACT ONLY; local UE runtime remains authoritative")
