@@ -90,7 +90,7 @@ for path, label in (
 ):
     absent(path, label)
 
-# RHI A/B: normal DX11/SM5/no-HDR with normal threading, explicit compatibility-only -norhithread.
+# RHI A/B: strict acceptance remains fullscreen; only START_HERE quick normal is windowed so a bad startup cannot trap desktop focus.
 req('set "RHI_FLAGS=-d3d11 -sm5 -nohdr"' in launcher, "normal RHI-thread baseline is missing")
 req('if /I "%OC_RHI_COMPAT%"=="1"' in launcher, "explicit RHI compatibility selector is missing")
 req('set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"' in launcher, "no-RHI-thread compatibility route is missing")
@@ -100,8 +100,14 @@ req("-d3d12" not in launcher.lower() and "-sm6" not in launcher.lower(),
     "Pass45 normal gameplay must not re-enable D3D12/SM6 during recovery")
 req("-nullrhi" in launcher and "-run=pythonscript" in launcher,
     "isolated weapon preflight must remain NullRHI")
-req("-fullscreen" in launcher and "-windowed" not in launcher.lower(),
-    "normal recovery launcher must not force windowed mode")
+launcher_parts = launcher.split(":quick_normal_game", 1)
+req(len(launcher_parts) == 2, "canonical launcher is missing explicit quick-normal section")
+strict_launcher = launcher_parts[0] if launcher_parts else launcher
+quick_launcher = launcher_parts[1] if len(launcher_parts) == 2 else ""
+req("-fullscreen" in strict_launcher and "-windowed" not in strict_launcher.lower(),
+    "strict recovery/acceptance launcher must remain fullscreen")
+req("-windowed" in quick_launcher.lower() and "-ResX=1280" in quick_launcher and "-ResY=720" in quick_launcher,
+    "quick normal recovery route must stay windowed and desktop-recoverable")
 req("t.MaxFPS 60" in launcher and "PASS45_NORMAL_DISPLAY_THERMAL_GUARD" in launcher,
     "normal recovery launcher must keep the explicit 60 FPS thermal guard")
 
@@ -343,4 +349,5 @@ print("- exact M2 uses its authored receiver/mount pivot; bounds/longest-axis re
 print("- M2 default gunner pitch is direct/non-inverted")
 print("- compact reference tactical topology / render budget / authored vegetation contracts remain")
 print("- all required weapons emit mesh/material/texture dependency truth")
+print("- strict acceptance remains fullscreen; quick normal is windowed only for desktop recovery")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")
