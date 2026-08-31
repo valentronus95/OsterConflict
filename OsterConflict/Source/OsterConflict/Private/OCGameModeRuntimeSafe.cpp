@@ -1,5 +1,6 @@
 #include "OCGameModeRuntimeSafe.h"
 
+#include "OCGameInstance.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
@@ -48,6 +49,20 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
             bBotFillExplicit ? 1 : 0,
             TargetPopulation,
             bAutoFillBots ? 1 : 0);
+    }
+}
+
+void AOCGameModeRuntimeSafe::BeginPlay()
+{
+    // Keep the MoviePlayer surface over all synchronous work owned by AOCGameMode::BeginPlay.
+    // Frontend-only Entry returns quickly; gameplay Runtime performs its world/model bootstrap first.
+    Super::BeginPlay();
+
+    if (UOCGameInstance* GI = Cast<UOCGameInstance>(GetGameInstance()))
+    {
+        GI->CompleteRuntimeLoading(IsFrontendOnlySession()
+            ? TEXT("frontend_beginplay_ready")
+            : TEXT("runtime_beginplay_ready"));
     }
 }
 
