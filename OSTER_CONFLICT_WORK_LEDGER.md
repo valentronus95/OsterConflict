@@ -7,6 +7,7 @@
 - Repository: `valentronus95/OsterConflict`.
 - Integrated `main` baseline: `bca00f4046700f383af9f1742cc24b6a62401b1a`.
 - Active corrective branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
+- **Pass 45 is the ACTIVE corrective pass.**
 - Active PR: **#94 — `Pass45: runtime recovery, reference-backed world fidelity and strict acceptance`**.
 - PR state: **OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
