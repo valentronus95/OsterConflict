@@ -61,8 +61,6 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
 
     if (!bBotsExplicit && !bPopulationExplicit && !bBotFillExplicit)
     {
-        // Pass 44: a normal local visual/playtest launch must measure the actual map/content,
-        // not a hidden 16-player AI workload that starts roughly one second after deployment.
         TargetPopulation = 0;
         bAutoFillBots = false;
         UE_LOG(LogTemp, Display,
@@ -82,9 +80,18 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
 
 void AOCGameModeRuntimeSafe::ShowFrontendBootstrapOverlay()
 {
-    if (FrontendBootstrapOverlay.IsValid() || !GEngine || !GEngine->GameViewport) return;
+    if (FrontendBootstrapOverlay.IsValid()) return;
+    if (!GEngine || !GEngine->GameViewport)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_FRONTEND_BOOTSTRAP_VIEWPORT_NOT_READY retry_pending=1 black_screen_guard=armed"));
+        return;
+    }
 
-    FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
+    if (FrontendBootstrapStartedAtSeconds <= 0.0)
+    {
+        FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
+    }
     bFrontendBootstrapDelayLogged = false;
 
     FrontendBootstrapOverlay =
@@ -164,10 +171,7 @@ void AOCGameModeRuntimeSafe::RemoveFrontendBootstrapOverlay(const TCHAR* Reason)
 void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
 {
     UWorld* World = GetWorld();
-    if (!World)
-    {
-        return;
-    }
+    if (!World) return;
 
     bool bFrontendReady = false;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
@@ -188,6 +192,13 @@ void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
         return;
     }
 
+    // GameViewport can become available a little later than GameMode BeginPlay in editor -game startup.
+    // Retry creation instead of silently giving up after one early null check.
+    if (!FrontendBootstrapOverlay.IsValid())
+    {
+        ShowFrontendBootstrapOverlay();
+    }
+
     const double Elapsed = FrontendBootstrapStartedAtSeconds > 0.0
         ? FPlatformTime::Seconds() - FrontendBootstrapStartedAtSeconds
         : 0.0;
@@ -196,23 +207,20 @@ void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
         bFrontendBootstrapDelayLogged = true;
         const APlayerController* PC = World->GetFirstPlayerController();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_FRONTEND_BOOTSTRAP_STALLED elapsed_s=%.1f player_controller=%d overlay_kept_visible=1 black_screen_prevented=1"),
-            Elapsed, PC ? 1 : 0);
+            TEXT("PASS45_FRONTEND_BOOTSTRAP_STALLED elapsed_s=%.1f player_controller=%d overlay_visible=%d black_screen_guard=armed"),
+            Elapsed, PC ? 1 : 0, FrontendBootstrapOverlay.IsValid() ? 1 : 0);
     }
 }
 
 void AOCGameModeRuntimeSafe::BeginPlay()
 {
-    // The initial Engine Entry map has no world art behind it. Put a game-owned Slate surface on the
-    // actual viewport before the frontend subsystem gets a chance to build its UMG tree. This removes
-    // the previous failure mode where a late or broken menu left the user staring at an unlabelled black frame.
-    if (GetNetMode() == NM_Standalone && IsFrontendOnlySession())
+    const bool bFrontendBootstrapRequired = GetNetMode() == NM_Standalone && IsFrontendOnlySession();
+    if (bFrontendBootstrapRequired)
     {
+        FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
         ShowFrontendBootstrapOverlay();
     }
 
-    // Keep the MoviePlayer surface over all synchronous work owned by AOCGameMode::BeginPlay.
-    // Frontend-only Entry returns quickly; gameplay Runtime performs its world/model bootstrap first.
     Super::BeginPlay();
 
     if (UOCGameInstance* GI = Cast<UOCGameInstance>(GetGameInstance()))
@@ -222,7 +230,7 @@ void AOCGameModeRuntimeSafe::BeginPlay()
             : TEXT("runtime_beginplay_ready"));
     }
 
-    if (FrontendBootstrapOverlay.IsValid())
+    if (bFrontendBootstrapRequired)
     {
         GetWorldTimerManager().SetTimer(
             FrontendBootstrapPollHandle,
@@ -287,8 +295,6 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     }
     else
     {
-        // Fail-safe only. Normal runtime should always have the canonical team BASE actor.
-        // Keep this near the Museum rather than falling back to the old map center/edge logic.
         const float Side = Team == EOCTeam::TeamTwo ? 1.0f : -1.0f;
         const FVector FallbackLocation = Museum + FVector(1400.0f * Side, -2400.0f, 200.0f);
         const FRotator FallbackRotation = (Museum - FallbackLocation).Rotation();
@@ -313,8 +319,6 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     float ActualDistanceCm = FVector::Dist2D(SpawnedPawn->GetActorLocation(), Museum);
     if (ActualDistanceCm > MaxMuseumBaseDistanceCm)
     {
-        // Collision adjustment or a stale spawn owner must never silently move the real player back
-        // to the giant legacy map. Correct the live pawn and leave explicit runtime evidence.
         SpawnedPawn->SetActorLocation(
             SpawnTransform.GetLocation(),
             false,
