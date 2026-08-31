@@ -13,7 +13,7 @@ It complements Git history; it does not replace it. The purpose is to make it po
 - Recovery audit snapshot before this ledger was created: `cfb452a0a7d24ad8daebb737864b4358ef624b9d`
 - `main` at that snapshot: `bca00f4046700f383af9f1742cc24b6a62401b1a`
 - Integration branch relation to that `main`: **ahead 509 / behind 0** at the snapshot.
-- Latest factual local runtime verdict carried by PR #94: **RUNTIME REJECTED 2026-08-27**.
+- Latest factual local runtime verdict carried by PR #94: **RUNTIME REJECTED 2026-08-31**.
 - Merge rule: **PR #94 must remain OPEN / UNMERGED until a current-head local UE 5.8 full runtime test passes import, build, gameplay, automated evidence gates and direct screenshot/visual acceptance.** Green GitHub source CI is not runtime acceptance.
 
 ## Recording rule from 2026-08-30 onward
@@ -404,3 +404,19 @@ Never collapse these states into one generic `PASS`.
 - `main` merge state: none; PR #94 remains OPEN / UNMERGED / mergeable. No protected merge is authorized.
 - Official checklist accounting remains **22/36 = 61.1%**, **38.9% remaining**. Item 32 remains unchecked.
 - Remaining item-32 blockers include exact Culture House/plaza/reference composition, Central Park `ParkMemorialMonument=1` plus `ParkSkateRamps=2` authored content gaps, broader ground/material/LOD fidelity and a current-head full local UE 5.8 Gate K/direct screenshot acceptance set.
+
+## Work cycle — 2026-08-31 P0 Quick Normal black-screen / KiteDemo tree startup recovery
+
+- Canonical checklist relevance: P0 UE 5.8 startup/runtime recovery plus item 27 vegetation truth. This cycle fixes the startup ownership/loading defect only; it does not accept the quarantined tree materials or item 27 visuals.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start GitHub head: `eee743320bb9474d59621e8a7580eaecab700bba`. PR remained OPEN / UNMERGED.
+- Substantive source head: `57590e061c9a902da69768f554e1fd01d70f829c` — `PASS45: defer KiteDemo tree startup load`.
+- Latest factual local runtime evidence: `START_HERE.cmd` -> `1. ЗВИЧАЙНА ГРА` completed the incremental C++ build with `Result: Succeeded`, then the direct game process stayed on a black window and had to be terminated. The log reached `PASS45_RENDER_BUDGET_READY` and `PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY`, emitted KiteDemo PCD3D_SM5 material compile failures including `Node TransformPosition input must be a 3-component vector` and `SpeedTree node not currently supported for Skeletal Meshes`, then entered `Building static mesh HillTree_02` / `Waiting for static meshes to be ready`.
+- Root cause confirmed in source: `AOCWorldSectorOster` synchronously loaded `HillTree_02`, `ScotsPine_01` and `ScotsPineTall_01` with native-constructor `ConstructorHelpers::FObjectFinder`. `BuildVegetation()` immediately depended on those meshes/bounds. This made the world-sector CDO pull the rejected KiteDemo material/static-mesh compile chain before a usable first frame. The preceding Stein-prepass isolation commit had independently recorded the same runtime-module/CDO tree-load coupling under NullRHI.
+- Production correction: the three KiteDemo paths are removed from the native constructor/CDO. Constructor-time `BuildVegetation()` now creates only lightweight ground-cover zoning and explicitly returns before any tree-bounds access. Normal runtime quarantines the exact KiteDemo tree family by default so first-frame startup does not touch the rejected compile chain.
+- Controlled diagnostic route: `-Pass45LoadKiteDemoTrees` is an explicit opt-in only. It resolves the same exact three paths through `FStreamableManager::RequestAsyncLoad` after `BeginPlay`, keeps the same `AOCWorldSectorOster` owner, creates no second mutation subsystem and still records `material_compatibility=pending runtime_acceptance=0`.
+- Regression guard/workflow: `VERIFY_PASS45_TREE_STARTUP_DEFERRED.py` + `.github/workflows/pass45-tree-startup-deferred.yml`; cumulative `RUN_ALL_VERIFY.py` includes the guard. The guard rejects any return of the three KiteDemo paths or named tree `FObjectFinder`s inside the constructor/CDO and requires the quarantine/async evidence contract.
+- Canonical TZ updated to `RUNTIME REJECTED 2026-08-31` with a dedicated latest-startup-blocker section.
+- Runtime state after source correction: **RUNTIME PENDING / latest factual verdict remains RUNTIME REJECTED 2026-08-31**. No new local UE 5.8 Quick Normal launch has yet proven that the black-screen startup is gone.
+- Runtime acceptance: **not credited**. PR #94 remains OPEN / UNMERGED and must not merge before a new current-head UE 5.8 runtime acceptance.
+- Official checklist accounting remains **22/36 = 61.1%**, **38.9% remaining**. Item 27 remains unchecked because the exact tree family is intentionally quarantined pending UE 5.8 material/static-mesh repair and direct visual acceptance.
