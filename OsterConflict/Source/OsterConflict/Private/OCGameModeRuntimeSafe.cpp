@@ -1,14 +1,25 @@
 #include "OCGameModeRuntimeSafe.h"
 
 #include "OCGameInstance.h"
+#include "OCGameUIRootWidget.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
 #include "OCWorldSectorOster.h"
 
+#include "Components/Widget.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
+#include "UObject/UObjectIterator.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 namespace
 {
@@ -20,6 +31,23 @@ namespace
         FString Value = UGameplayStatics::ParseOption(Options, Key);
         Value.TrimStartAndEndInline();
         return !Value.IsEmpty();
+    }
+
+    bool IsFrontendWidgetActuallyVisible(const UOCGameUIRootWidget* Root)
+    {
+        if (!Root) return false;
+        for (const FName Name : { FName(TEXT("R13_MenuPanel")), FName(TEXT("FrontendPanel")) })
+        {
+            if (const UWidget* Widget = Root->GetWidgetFromName(Name))
+            {
+                const ESlateVisibility Visibility = Widget->GetVisibility();
+                if (Widget->GetIsEnabled() && Visibility != ESlateVisibility::Collapsed && Visibility != ESlateVisibility::Hidden)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 
@@ -52,8 +80,137 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
     }
 }
 
+void AOCGameModeRuntimeSafe::ShowFrontendBootstrapOverlay()
+{
+    if (FrontendBootstrapOverlay.IsValid() || !GEngine || !GEngine->GameViewport) return;
+
+    FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
+    bFrontendBootstrapDelayLogged = false;
+
+    FrontendBootstrapOverlay =
+        SNew(SBorder)
+        .Padding(FMargin(64.0f))
+        .BorderBackgroundColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f))
+        [
+            SNew(SVerticalBox)
+            + SVerticalBox::Slot()
+            .FillHeight(1.0f)
+            .HAlign(HAlign_Center)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SVerticalBox)
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 24.0f))
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("OSTER CONFLICT")))
+                    .ColorAndOpacity(FLinearColor(0.96f, 0.97f, 0.98f, 1.0f))
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 12.0f))
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("90%")))
+                    .ColorAndOpacity(FLinearColor(0.96f, 0.97f, 0.98f, 1.0f))
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 0.0f, 0.0f, 18.0f))
+                [
+                    SNew(SProgressBar)
+                    .Percent(0.90f)
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("ПІДГОТОВКА ГОЛОВНОГО МЕНЮ")))
+                    .ColorAndOpacity(FLinearColor(0.78f, 0.81f, 0.84f, 1.0f))
+                ]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("Екран залишається видимим, доки frontend UI фактично не готовий.")))
+                    .ColorAndOpacity(FLinearColor(0.56f, 0.60f, 0.64f, 1.0f))
+                ]
+            ]
+        ];
+
+    GEngine->GameViewport->AddViewportWidgetContent(FrontendBootstrapOverlay.ToSharedRef(), 100000);
+    UE_LOG(LogTemp, Display, TEXT("PASS45_FRONTEND_BOOTSTRAP_OVERLAY_READY percent=90 viewport_owner=1"));
+}
+
+void AOCGameModeRuntimeSafe::RemoveFrontendBootstrapOverlay(const TCHAR* Reason)
+{
+    if (!FrontendBootstrapOverlay.IsValid()) return;
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->RemoveViewportWidgetContent(FrontendBootstrapOverlay.ToSharedRef());
+    }
+    FrontendBootstrapOverlay.Reset();
+    UE_LOG(LogTemp, Display, TEXT("PASS45_FRONTEND_BOOTSTRAP_HANDOFF_READY reason=%s percent=100"),
+        Reason ? Reason : TEXT("unknown"));
+}
+
+void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    bool bFrontendReady = false;
+    for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
+    {
+        UOCGameUIRootWidget* Root = *It;
+        if (!IsValid(Root) || Root->GetWorld() != World) continue;
+        if (IsFrontendWidgetActuallyVisible(Root))
+        {
+            bFrontendReady = true;
+            break;
+        }
+    }
+
+    if (bFrontendReady)
+    {
+        GetWorldTimerManager().ClearTimer(FrontendBootstrapPollHandle);
+        RemoveFrontendBootstrapOverlay(TEXT("frontend_widget_visible"));
+        return;
+    }
+
+    const double Elapsed = FrontendBootstrapStartedAtSeconds > 0.0
+        ? FPlatformTime::Seconds() - FrontendBootstrapStartedAtSeconds
+        : 0.0;
+    if (!bFrontendBootstrapDelayLogged && Elapsed >= 5.0)
+    {
+        bFrontendBootstrapDelayLogged = true;
+        const APlayerController* PC = World->GetFirstPlayerController();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_FRONTEND_BOOTSTRAP_STALLED elapsed_s=%.1f player_controller=%d overlay_kept_visible=1 black_screen_prevented=1"),
+            Elapsed, PC ? 1 : 0);
+    }
+}
+
 void AOCGameModeRuntimeSafe::BeginPlay()
 {
+    // The initial Engine Entry map has no world art behind it. Put a game-owned Slate surface on the
+    // actual viewport before the frontend subsystem gets a chance to build its UMG tree. This removes
+    // the previous failure mode where a late or broken menu left the user staring at an unlabelled black frame.
+    if (GetNetMode() == NM_Standalone && IsFrontendOnlySession())
+    {
+        ShowFrontendBootstrapOverlay();
+    }
+
     // Keep the MoviePlayer surface over all synchronous work owned by AOCGameMode::BeginPlay.
     // Frontend-only Entry returns quickly; gameplay Runtime performs its world/model bootstrap first.
     Super::BeginPlay();
@@ -64,6 +221,27 @@ void AOCGameModeRuntimeSafe::BeginPlay()
             ? TEXT("frontend_beginplay_ready")
             : TEXT("runtime_beginplay_ready"));
     }
+
+    if (FrontendBootstrapOverlay.IsValid())
+    {
+        GetWorldTimerManager().SetTimer(
+            FrontendBootstrapPollHandle,
+            this,
+            &AOCGameModeRuntimeSafe::PollFrontendBootstrapReady,
+            0.10f,
+            true,
+            0.0f);
+    }
+}
+
+void AOCGameModeRuntimeSafe::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (GetWorld())
+    {
+        GetWorldTimerManager().ClearTimer(FrontendBootstrapPollHandle);
+    }
+    RemoveFrontendBootstrapOverlay(TEXT("world_endplay"));
+    Super::EndPlay(EndPlayReason);
 }
 
 void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
