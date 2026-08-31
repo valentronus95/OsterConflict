@@ -5,7 +5,7 @@
 #include "OCR13StadiumSurfaceSubsystem.generated.h"
 
 /**
- * Authoritative presentation implementation for the hard-georeferenced Stadion Oster site.
+ * Authoritative presentation owner for the hard-georeferenced Stadion Oster site.
  *
  * PASS45_STADIUM_GAMEPLAY_START_QUARANTINE: the current OnWorldBeginPlay implementation synchronously resolves
  * the runtime-rejected KiteDemo HillTree_02 / ScotsPineTall_01 material-static-mesh dependency chain. Keep the
