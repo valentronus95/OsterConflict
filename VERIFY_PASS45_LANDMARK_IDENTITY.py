@@ -89,6 +89,10 @@ for needle in (
     'PASS45_CULTURE_HOUSE_AUTHORED_SHELL_READY',
     'basicshape_visible=0',
     'basicshape_material=0',
+    'bool bLegacyOwnerPresent = false;',
+    'Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))',
+    'reason=legacy_owner_present legacy_owner_mutation=0 primary_authoring_fix_required=1 runtime_acceptance=0',
+    'legacy_owner_mutation=0 runtime_visual_acceptance=pending',
 ):
     require(culture, needle, "Culture House authoritative authored facade")
 for forbidden in (
@@ -97,8 +101,9 @@ for forbidden in (
     '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial',
     'R137_MuseumPhotoModel',
     'TEXT("Сільпо")',
+    'if (Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))) Existing->Destroy();',
 ):
-    forbid(culture, forbidden, "Culture House must not use primitive structure or impersonate Museum/Silpo")
+    forbid(culture, forbidden, "Culture House must not use primitive structure, impersonate Museum/Silpo or repair legacy ownership late")
 
 # Silpo shell and facade identity are both tied to the one canonical Silpo site.
 for needle in (
@@ -188,6 +193,7 @@ print("PASS45 LANDMARK IDENTITY SOURCE CONTRACT PASS")
 print("- Museum uses committed authored wall/window/roof/foundation modules; Engine BasicShape structure is forbidden")
 print("- Museum retains the Solonyna-house identity and cannot encode the six-column Culture House facade")
 print("- Culture House owns the six-column authored facade on its separate canonical geo anchor")
+print("- Culture House refuses unexpected R13 ownership fail-closed; no late actor destruction may hide a startup/source regression")
 print("- Silpo shell and visible Сільпо facade identity are both tied to the canonical Silpo site")
 print("- startup is coordinated; separation/identity validation is observation-only and cannot repair late")
 print("- strict runtime acceptance requires authored Museum/Culture shells plus landmark separation and Silpo facade identity")
