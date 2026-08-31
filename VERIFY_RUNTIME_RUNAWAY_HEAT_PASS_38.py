@@ -102,9 +102,15 @@ for needle in (
     'quality_mutation=0 render_scale_mutation=0',
 ):
     require(perf, needle, "actual runtime thermal cap evidence")
+launcher_parts = launcher.split(":quick_normal_game", 1)
+if len(launcher_parts) != 2:
+    raise SystemExit("PASS38 VERIFY FAIL: canonical launcher is missing explicit quick-normal section")
+strict_launcher, quick_launcher = launcher_parts
 for needle in ('-fullscreen', 't.MaxFPS 60'):
-    require(launcher, needle, "normal recovery launcher request")
-forbid(launcher, '-windowed', "normal recovery route must not force windowed mode")
+    require(strict_launcher, needle, "strict recovery launcher request")
+forbid(strict_launcher, '-windowed', "strict recovery route must not force windowed mode")
+require(quick_launcher, '-windowed', "quick normal route must remain desktop-recoverable")
+require(quick_launcher, 't.MaxFPS 60', "quick normal route must retain 60 FPS thermal cap")
 
 # Strict evidence must reject a run where the CVar request was overridden or never applied.
 for needle in (
@@ -137,6 +143,7 @@ print("- obsolete palette owner is physically deleted")
 print("- landmark startup is coordinated once and historical delayed stage timers are cancelled")
 print("- weapon fallback/material audit remains finite and fail-visible")
 print("- normal local game defaults to zero filler bots unless explicitly requested")
-print("- normal recovery launcher requests 60 FPS, and UE runtime must confirm actual t.MaxFPS=60 with fail-visible evidence")
+print("- strict recovery remains fullscreen; quick normal is windowed only so a broken startup cannot trap the desktop")
+print("- both launch modes retain the 60 FPS cap, and UE runtime must confirm actual t.MaxFPS=60 with fail-visible evidence")
 print("- low-FPS/thermal recovery never lowers render scale to disguise the problem")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
