@@ -141,7 +141,7 @@ for needle in (
 ):
     require(perf, needle, "performance sampler compatibility")
 
-# Gate C/H: the launcher request is insufficient. Once a real gameplay pawn is possessed, UE itself must read
+# Gate C/H: the strict launcher request is insufficient. Once a real gameplay pawn is possessed, UE itself must read
 # the live t.MaxFPS CVar and live GameViewportClient fullscreen state and emit fail-visible evidence.
 for needle in (
     '#include "HAL/IConsoleManager.h"', '#include "Engine/GameViewportClient.h"',
@@ -159,9 +159,15 @@ for needle in ('set "RECOVERY_PROJECT_DIR=%~dp0."', '-ProjectDir "%RECOVERY_PROJ
 
 for needle in ('call "%PRODUCTION_IMPORT%"', 'if errorlevel 1 (', 'exit /b 20'):
     require(main_launcher, needle, "production importer fail-closed launcher")
+launcher_parts = main_launcher.split(':quick_normal_game', 1)
+if len(launcher_parts) != 2:
+    raise SystemExit("PASS14 VERIFY FAIL: canonical gameplay launcher missing quick-normal split")
+strict_launcher, quick_launcher = launcher_parts
 for needle in ('-fullscreen', 't.MaxFPS 60'):
-    require(main_launcher, needle, "Pass45 recovery display/thermal request")
-forbid(main_launcher, '-windowed', "normal route must not force windowed mode")
+    require(strict_launcher, needle, "Pass45 strict recovery display/thermal request")
+forbid(strict_launcher, '-windowed', "strict recovery route must not force windowed mode")
+require(quick_launcher, '-windowed', "quick normal route must remain windowed for desktop recovery")
+require(quick_launcher, 't.MaxFPS 60', "quick normal route must retain 60 FPS cap")
 
 runtime_markers = [
     'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS14_HOST_TRAVEL_BEGIN',
@@ -183,5 +189,6 @@ else:
 print("- Block0 Full/LowCPU foliage share the compact Oster bounds; LowCPU uses a coarser grid and shorter culls instead of a spatial crop")
 print("- Full batch stays <=32 cells and LowCPU <=48 cells while generation remains incremental at 50 ms cadence")
 print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
-print("- Pass45 Gate C/H distinguishes launcher request from live UE t.MaxFPS/fullscreen viewport evidence")
+print("- strict Pass45 acceptance remains fullscreen; quick normal is windowed only for recoverable startup testing")
+print("- Pass45 Gate C/H distinguishes strict launcher request from live UE t.MaxFPS/fullscreen viewport evidence")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime acceptance still required")
