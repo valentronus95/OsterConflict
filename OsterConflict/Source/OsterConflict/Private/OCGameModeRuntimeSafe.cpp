@@ -12,6 +12,7 @@
 #include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -48,6 +49,15 @@ namespace
             }
         }
         return false;
+    }
+
+    void KeepFrontendInputRecoverable(APlayerController* PC)
+    {
+        if (!PC) return;
+        PC->bShowMouseCursor = true;
+        FInputModeGameAndUI InputMode;
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
     }
 }
 
@@ -173,6 +183,10 @@ void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
     UWorld* World = GetWorld();
     if (!World) return;
 
+    // Recovery preview must never capture/hide the desktop cursor while waiting for frontend UMG.
+    APlayerController* PC = World->GetFirstPlayerController();
+    KeepFrontendInputRecoverable(PC);
+
     bool bFrontendReady = false;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
     {
@@ -189,11 +203,11 @@ void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
     {
         GetWorldTimerManager().ClearTimer(FrontendBootstrapPollHandle);
         RemoveFrontendBootstrapOverlay(TEXT("frontend_widget_visible"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_FRONTEND_INPUT_RECOVERY_READY cursor_visible=1 game_and_ui=1"));
         return;
     }
 
-    // GameViewport can become available a little later than GameMode BeginPlay in editor -game startup.
-    // Retry creation instead of silently giving up after one early null check.
     if (!FrontendBootstrapOverlay.IsValid())
     {
         ShowFrontendBootstrapOverlay();
@@ -205,9 +219,8 @@ void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
     if (!bFrontendBootstrapDelayLogged && Elapsed >= 5.0)
     {
         bFrontendBootstrapDelayLogged = true;
-        const APlayerController* PC = World->GetFirstPlayerController();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_FRONTEND_BOOTSTRAP_STALLED elapsed_s=%.1f player_controller=%d overlay_visible=%d black_screen_guard=armed"),
+            TEXT("PASS45_FRONTEND_BOOTSTRAP_STALLED elapsed_s=%.1f player_controller=%d overlay_visible=%d cursor_recovery=1 black_screen_guard=armed"),
             Elapsed, PC ? 1 : 0, FrontendBootstrapOverlay.IsValid() ? 1 : 0);
     }
 }
@@ -219,6 +232,7 @@ void AOCGameModeRuntimeSafe::BeginPlay()
     {
         FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
         ShowFrontendBootstrapOverlay();
+        KeepFrontendInputRecoverable(GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr);
     }
 
     Super::BeginPlay();
