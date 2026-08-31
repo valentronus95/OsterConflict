@@ -1,0 +1,58 @@
+name: PASS45 apply KiteDemo startup recovery
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - "APPLY_PASS45_TREE_STARTUP_RECOVERY.py"
+      - ".github/workflows/pass45-apply-tree-startup-recovery.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Apply exact source transformation
+        run: python APPLY_PASS45_TREE_STARTUP_RECOVERY.py apply
+      - name: Verify targeted startup contracts
+        run: |
+          python VERIFY_PASS45_TREE_STARTUP_DEFERRED.py
+          python VERIFY_PASS45_AUTHORED_TREE_ASSET_MAPPING.py
+          python VERIFY_RUNTIME_RECOVERY_PASS_45.py
+          python VERIFY_S16B.py
+          git diff --check
+      - name: Verify cumulative source suite
+        run: python RUN_ALL_VERIFY.py
+      - name: Commit source recovery
+        id: source_commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp \
+            PASS45_RUNTIME_RECOVERY_TZ.md \
+            VERIFY_PASS45_TREE_STARTUP_DEFERRED.py \
+            .github/workflows/pass45-tree-startup-deferred.yml \
+            RUN_ALL_VERIFY.py
+          git commit -m "PASS45: defer KiteDemo tree startup load"
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Record persistent history and retire temporary applier
+        shell: bash
+        run: |
+          python APPLY_PASS45_TREE_STARTUP_RECOVERY.py history "${{ steps.source_commit.outputs.source_sha }}"
+          git rm APPLY_PASS45_TREE_STARTUP_RECOVERY.py .github/workflows/pass45-apply-tree-startup-recovery.yml
+          git add PASS45_RUNTIME_RECOVERY_HISTORY.md
+          git diff --cached --check
+          git commit -m "docs(pass45): record KiteDemo startup recovery"
+      - name: Push recovery commits
+        run: git push origin "HEAD:${GITHUB_REF_NAME}"
