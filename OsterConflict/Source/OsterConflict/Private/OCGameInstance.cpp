@@ -14,24 +14,26 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
+#include <atomic>
+
 #define LOCTEXT_NAMESPACE "OCConnection"
 
 namespace
 {
     // MoviePlayer's Slate surface can remain active while the game thread is inside synchronous LoadMap/BeginPlay.
     // Only expose lifecycle milestones we actually own. This is intentionally not a fabricated byte percentage.
-    TAtomic<int32> GPass45LoadingMilestonePercent{0};
-    TAtomic<int32> GPass45LoadingPhase{0};
+    std::atomic<int32> GPass45LoadingMilestonePercent{0};
+    std::atomic<int32> GPass45LoadingPhase{0};
 
     FText Pass45LoadingPercentText()
     {
-        const int32 Percent = FMath::Clamp(GPass45LoadingMilestonePercent.Load(), 0, 100);
+        const int32 Percent = FMath::Clamp(GPass45LoadingMilestonePercent.load(std::memory_order_relaxed), 0, 100);
         return FText::FromString(FString::Printf(TEXT("%d%%"), Percent));
     }
 
     FText Pass45LoadingPhaseText()
     {
-        switch (GPass45LoadingPhase.Load())
+        switch (GPass45LoadingPhase.load(std::memory_order_relaxed))
         {
             case 1: return FText::FromString(TEXT("ПІДГОТОВКА ВІКНА ГРИ"));
             case 2: return FText::FromString(TEXT("ЗАВАНТАЖЕННЯ КАРТИ"));
@@ -81,8 +83,8 @@ void UOCGameInstance::Shutdown()
 
 void UOCGameInstance::PrepareRuntimeLoadingScreen(const FString& Context, int32 MilestonePercent, int32 Phase)
 {
-    GPass45LoadingMilestonePercent.Store(FMath::Clamp(MilestonePercent, 0, 100));
-    GPass45LoadingPhase.Store(Phase);
+    GPass45LoadingMilestonePercent.store(FMath::Clamp(MilestonePercent, 0, 100), std::memory_order_relaxed);
+    GPass45LoadingPhase.store(Phase, std::memory_order_relaxed);
 
     if (!IsMoviePlayerEnabled())
     {
@@ -199,8 +201,8 @@ void UOCGameInstance::HandlePostLoadMap(UWorld* LoadedWorld)
         IGameMoviePlayer* MoviePlayer = GetMoviePlayer();
         if (MoviePlayer && MoviePlayer->IsMovieCurrentlyPlaying())
         {
-            GPass45LoadingMilestonePercent.Store(70);
-            GPass45LoadingPhase.Store(3);
+            GPass45LoadingMilestonePercent.store(70, std::memory_order_relaxed);
+            GPass45LoadingPhase.store(3, std::memory_order_relaxed);
         }
     }
 
@@ -213,8 +215,8 @@ void UOCGameInstance::HandlePostLoadMap(UWorld* LoadedWorld)
 
 void UOCGameInstance::CompleteRuntimeLoading(const TCHAR* Reason)
 {
-    GPass45LoadingMilestonePercent.Store(100);
-    GPass45LoadingPhase.Store(4);
+    GPass45LoadingMilestonePercent.store(100, std::memory_order_relaxed);
+    GPass45LoadingPhase.store(4, std::memory_order_relaxed);
 
     if (!IsMoviePlayerEnabled())
     {
