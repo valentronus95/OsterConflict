@@ -1,26 +1,13 @@
 #include "OCGameModeRuntimeSafe.h"
 
-#include "OCGameInstance.h"
-#include "OCGameUIRootWidget.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
 #include "OCWorldSectorOster.h"
 
-#include "Components/Widget.h"
-#include "Engine/Engine.h"
-#include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerController.h"
-#include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
-#include "TimerManager.h"
-#include "UObject/UObjectIterator.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Notifications/SProgressBar.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 
 namespace
 {
@@ -32,32 +19,6 @@ namespace
         FString Value = UGameplayStatics::ParseOption(Options, Key);
         Value.TrimStartAndEndInline();
         return !Value.IsEmpty();
-    }
-
-    bool IsFrontendWidgetActuallyVisible(const UOCGameUIRootWidget* Root)
-    {
-        if (!Root) return false;
-        for (const FName Name : { FName(TEXT("R13_MenuPanel")), FName(TEXT("FrontendPanel")) })
-        {
-            if (const UWidget* Widget = Root->GetWidgetFromName(Name))
-            {
-                const ESlateVisibility Visibility = Widget->GetVisibility();
-                if (Widget->GetIsEnabled() && Visibility != ESlateVisibility::Collapsed && Visibility != ESlateVisibility::Hidden)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    void KeepFrontendInputRecoverable(APlayerController* PC)
-    {
-        if (!PC) return;
-        PC->bShowMouseCursor = true;
-        FInputModeGameAndUI InputMode;
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
     }
 }
 
@@ -71,6 +32,8 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
 
     if (!bBotsExplicit && !bPopulationExplicit && !bBotFillExplicit)
     {
+        // Pass 44: a normal local visual/playtest launch must measure the actual map/content,
+        // not a hidden 16-player AI workload that starts roughly one second after deployment.
         TargetPopulation = 0;
         bAutoFillBots = false;
         UE_LOG(LogTemp, Display,
@@ -86,184 +49,6 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
             TargetPopulation,
             bAutoFillBots ? 1 : 0);
     }
-}
-
-void AOCGameModeRuntimeSafe::ShowFrontendBootstrapOverlay()
-{
-    if (FrontendBootstrapOverlay.IsValid()) return;
-    if (!GEngine || !GEngine->GameViewport)
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("PASS45_FRONTEND_BOOTSTRAP_VIEWPORT_NOT_READY retry_pending=1 black_screen_guard=armed"));
-        return;
-    }
-
-    if (FrontendBootstrapStartedAtSeconds <= 0.0)
-    {
-        FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
-    }
-    bFrontendBootstrapDelayLogged = false;
-
-    FrontendBootstrapOverlay =
-        SNew(SBorder)
-        .Padding(FMargin(64.0f))
-        .BorderBackgroundColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f))
-        [
-            SNew(SVerticalBox)
-            + SVerticalBox::Slot()
-            .FillHeight(1.0f)
-            .HAlign(HAlign_Center)
-            .VAlign(VAlign_Center)
-            [
-                SNew(SVerticalBox)
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(FMargin(0.0f, 0.0f, 0.0f, 24.0f))
-                [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("OSTER CONFLICT")))
-                    .ColorAndOpacity(FLinearColor(0.96f, 0.97f, 0.98f, 1.0f))
-                ]
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(FMargin(0.0f, 0.0f, 0.0f, 12.0f))
-                [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("90%")))
-                    .ColorAndOpacity(FLinearColor(0.96f, 0.97f, 0.98f, 1.0f))
-                ]
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(FMargin(0.0f, 0.0f, 0.0f, 18.0f))
-                [
-                    SNew(SProgressBar)
-                    .Percent(0.90f)
-                ]
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("ПІДГОТОВКА ГОЛОВНОГО МЕНЮ")))
-                    .ColorAndOpacity(FLinearColor(0.78f, 0.81f, 0.84f, 1.0f))
-                ]
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
-                [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("Екран залишається видимим, доки frontend UI фактично не готовий.")))
-                    .ColorAndOpacity(FLinearColor(0.56f, 0.60f, 0.64f, 1.0f))
-                ]
-            ]
-        ];
-
-    GEngine->GameViewport->AddViewportWidgetContent(FrontendBootstrapOverlay.ToSharedRef(), 100000);
-    UE_LOG(LogTemp, Display, TEXT("PASS45_FRONTEND_BOOTSTRAP_OVERLAY_READY percent=90 viewport_owner=1"));
-}
-
-void AOCGameModeRuntimeSafe::RemoveFrontendBootstrapOverlay(const TCHAR* Reason)
-{
-    if (!FrontendBootstrapOverlay.IsValid()) return;
-    if (GEngine && GEngine->GameViewport)
-    {
-        GEngine->GameViewport->RemoveViewportWidgetContent(FrontendBootstrapOverlay.ToSharedRef());
-    }
-    FrontendBootstrapOverlay.Reset();
-    UE_LOG(LogTemp, Display, TEXT("PASS45_FRONTEND_BOOTSTRAP_HANDOFF_READY reason=%s percent=100"),
-        Reason ? Reason : TEXT("unknown"));
-}
-
-void AOCGameModeRuntimeSafe::PollFrontendBootstrapReady()
-{
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    // Recovery preview must never capture/hide the desktop cursor while waiting for frontend UMG.
-    APlayerController* PC = World->GetFirstPlayerController();
-    KeepFrontendInputRecoverable(PC);
-
-    bool bFrontendReady = false;
-    for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
-    {
-        UOCGameUIRootWidget* Root = *It;
-        if (!IsValid(Root) || Root->GetWorld() != World) continue;
-        if (IsFrontendWidgetActuallyVisible(Root))
-        {
-            bFrontendReady = true;
-            break;
-        }
-    }
-
-    if (bFrontendReady)
-    {
-        GetWorldTimerManager().ClearTimer(FrontendBootstrapPollHandle);
-        RemoveFrontendBootstrapOverlay(TEXT("frontend_widget_visible"));
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_FRONTEND_INPUT_RECOVERY_READY cursor_visible=1 game_and_ui=1"));
-        return;
-    }
-
-    if (!FrontendBootstrapOverlay.IsValid())
-    {
-        ShowFrontendBootstrapOverlay();
-    }
-
-    const double Elapsed = FrontendBootstrapStartedAtSeconds > 0.0
-        ? FPlatformTime::Seconds() - FrontendBootstrapStartedAtSeconds
-        : 0.0;
-    if (!bFrontendBootstrapDelayLogged && Elapsed >= 5.0)
-    {
-        bFrontendBootstrapDelayLogged = true;
-        UE_LOG(LogTemp, Error,
-            TEXT("PASS45_FRONTEND_BOOTSTRAP_STALLED elapsed_s=%.1f player_controller=%d overlay_visible=%d cursor_recovery=1 black_screen_guard=armed"),
-            Elapsed, PC ? 1 : 0, FrontendBootstrapOverlay.IsValid() ? 1 : 0);
-    }
-}
-
-void AOCGameModeRuntimeSafe::BeginPlay()
-{
-    const bool bFrontendBootstrapRequired = GetNetMode() == NM_Standalone && IsFrontendOnlySession();
-    if (bFrontendBootstrapRequired)
-    {
-        FrontendBootstrapStartedAtSeconds = FPlatformTime::Seconds();
-        ShowFrontendBootstrapOverlay();
-        KeepFrontendInputRecoverable(GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr);
-    }
-
-    Super::BeginPlay();
-
-    if (UOCGameInstance* GI = Cast<UOCGameInstance>(GetGameInstance()))
-    {
-        GI->CompleteRuntimeLoading(IsFrontendOnlySession()
-            ? TEXT("frontend_beginplay_ready")
-            : TEXT("runtime_beginplay_ready"));
-    }
-
-    if (bFrontendBootstrapRequired)
-    {
-        GetWorldTimerManager().SetTimer(
-            FrontendBootstrapPollHandle,
-            this,
-            &AOCGameModeRuntimeSafe::PollFrontendBootstrapReady,
-            0.10f,
-            true,
-            0.0f);
-    }
-}
-
-void AOCGameModeRuntimeSafe::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-    if (GetWorld())
-    {
-        GetWorldTimerManager().ClearTimer(FrontendBootstrapPollHandle);
-    }
-    RemoveFrontendBootstrapOverlay(TEXT("world_endplay"));
-    Super::EndPlay(EndPlayReason);
 }
 
 void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
@@ -309,6 +94,8 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     }
     else
     {
+        // Fail-safe only. Normal runtime should always have the canonical team BASE actor.
+        // Keep this near the Museum rather than falling back to the old map center/edge logic.
         const float Side = Team == EOCTeam::TeamTwo ? 1.0f : -1.0f;
         const FVector FallbackLocation = Museum + FVector(1400.0f * Side, -2400.0f, 200.0f);
         const FRotator FallbackRotation = (Museum - FallbackLocation).Rotation();
@@ -333,6 +120,8 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     float ActualDistanceCm = FVector::Dist2D(SpawnedPawn->GetActorLocation(), Museum);
     if (ActualDistanceCm > MaxMuseumBaseDistanceCm)
     {
+        // Collision adjustment or a stale spawn owner must never silently move the real player back
+        // to the giant legacy map. Correct the live pawn and leave explicit runtime evidence.
         SpawnedPawn->SetActorLocation(
             SpawnTransform.GetLocation(),
             false,
