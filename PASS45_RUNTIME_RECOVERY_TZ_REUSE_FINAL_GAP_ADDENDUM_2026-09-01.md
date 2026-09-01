@@ -77,13 +77,13 @@ Do not add it during PASS45 merely because Oster is multiplayer. Pilot only if n
 
 ### Iris
 
-UE 5.8 Iris is opt-in and still documented as Experimental/use caution when shipping.
+**UE 5.8 correction:** Epic's 5.8 release notes mark Iris as production-ready. The earlier Experimental wording is obsolete.
 
-**Decision: DEFER / RESEARCH ONLY DURING PASS45.**
+**Decision: DEFER MIGRATION DURING PASS45 UNLESS A MEASURED REPLICATION CORRECTNESS/SCALING NEED JUSTIFIES A BOUNDED PILOT.**
 
-Do not migrate the project to Iris while runtime recovery is active. Existing replication remains production owner. Iris may be evaluated after baseline multiplayer is stable and measured scaling requirements justify it.
+Do not migrate the project to Iris simply because it is now production-ready. Existing replication remains the production owner while runtime recovery is active. Iris may be evaluated after baseline multiplayer is stable, or earlier only if profiling/factual network defects demonstrate a concrete benefit large enough to justify the migration risk.
 
-Iris and Replication Graph are alternative replication architectures, not systems to stack together. A future pilot must choose one path for the tested NetDriver.
+Iris and Replication Graph are alternative replication architectures for a tested NetDriver path, not systems to stack together by default. A future pilot must have explicit rollback, protocol/build compatibility checks, bad-network tests and measured traffic/correction evidence.
 
 ## 3. AI high-level ownership — add StateTree to the decision
 
