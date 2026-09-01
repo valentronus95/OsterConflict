@@ -29,6 +29,28 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Audit currently advertised preview candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import PASS45_MANUAL_ACTION_AUDIO_INTAKE as intake
+
+          for key, donor in intake.DONORS.items():
+              source_html = intake.fetch_text(str(donor['source_page']))
+              intake.validate_source_contract(source_html, donor)
+              urls = intake.extract_audio_urls(source_html)
+              if not urls:
+                  raise SystemExit(f'no current public preview candidate advertised for {key}')
+              for url in urls:
+                  data = intake.fetch_bytes(url)
+                  print(
+                      f"PASS45_AUDIO_CURRENT_CANDIDATE donor={key} "
+                      f"url={intake.canonical_transport_url(url)} "
+                      f"sha256={intake.sha256(data)} bytes={len(data)}"
+                  )
+          PY
+
       - name: Ensure deterministic audio converter and Git LFS
         shell: bash
         run: |
