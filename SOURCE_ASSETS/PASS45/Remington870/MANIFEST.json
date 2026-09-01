@@ -383,6 +383,118 @@
   "donor_mesh_count": 6,
   "donor_node_count": 109,
   "donor_skin_count": 4,
+  "donor_weapon_motion": {
+    "easy_reload_index_3": {
+      "PBody_058": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 62,
+        "rotation_max_angle_degrees": 25.570902,
+        "translation_max_displacement": 0.067139
+      },
+      "Pmag_061": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 64,
+        "rotation_max_angle_degrees": 76.062898,
+        "translation_max_displacement": 0.606719
+      },
+      "Rif_059": {
+        "animated_paths": [
+          "rotation"
+        ],
+        "node_index": 54,
+        "rotation_max_angle_degrees": 0.0,
+        "translation_max_displacement": 0.0
+      },
+      "Trigger_060": {
+        "animated_paths": [
+          "rotation"
+        ],
+        "node_index": 56,
+        "rotation_max_angle_degrees": 0.0,
+        "translation_max_displacement": 0.0
+      }
+    },
+    "fire_index_2": {
+      "PBody_058": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 62,
+        "rotation_max_angle_degrees": 24.037146,
+        "translation_max_displacement": 0.050905
+      },
+      "Pmag_061": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 64,
+        "rotation_max_angle_degrees": 24.037145,
+        "translation_max_displacement": 0.050845
+      },
+      "Rif_059": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 54,
+        "rotation_max_angle_degrees": 0.0,
+        "translation_max_displacement": 0.056679
+      },
+      "Trigger_060": {
+        "animated_paths": [
+          "rotation"
+        ],
+        "node_index": 56,
+        "rotation_max_angle_degrees": 0.0,
+        "translation_max_displacement": 0.0
+      }
+    },
+    "full_reload_index_4": {
+      "PBody_058": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 62,
+        "rotation_max_angle_degrees": 25.570902,
+        "translation_max_displacement": 0.070092
+      },
+      "Pmag_061": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 64,
+        "rotation_max_angle_degrees": 76.062898,
+        "translation_max_displacement": 0.606719
+      },
+      "Rif_059": {
+        "animated_paths": [
+          "rotation",
+          "translation"
+        ],
+        "node_index": 54,
+        "rotation_max_angle_degrees": 0.0,
+        "translation_max_displacement": 0.05
+      },
+      "Trigger_060": {
+        "animated_paths": [
+          "rotation"
+        ],
+        "node_index": 56,
+        "rotation_max_angle_degrees": 0.0,
+        "translation_max_displacement": 0.0
+      }
+    }
+  },
   "intended_fp_clips": [
     "ironsight",
     "fire",
