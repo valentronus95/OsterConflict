@@ -22,6 +22,7 @@ def req(condition: bool, message: str) -> None:
 
 
 contract = read("_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md")
+third_party_register = read("_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md")
 remote_audit = read("PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py")
 variants = read("OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp")
 
@@ -32,7 +33,8 @@ for needle in (
     req(needle in variants, f"canonical Remington fail-closed production contract missing: {needle}")
 
 for needle in (
-    "REMOTE ANIMATED CANDIDATE PINNED / OSTER BINARY NOT ACQUIRED / UE 5.8 RUNTIME UNACCEPTED",
+    "OSTER SOURCE ACQUIRED / UE 5.8 IMPORT PENDING / RUNTIME UNACCEPTED",
+    "SOURCE_ACQUIRED_APPROVED_FOR_UE_IMPORT",
     "Parking-Master/FPS",
     "ed07ea542111c2149c5dab735e752824d0b0541c",
     "models/weapons/shotgun.glb",
@@ -44,20 +46,26 @@ for needle in (
     "animation index `2` for fire",
     "index `3` for ordinary/easy reload",
     "index `4` for full/empty reload",
-    "REMOTE_PINNED_ONLY",
-    "1b6c11ef58904fab992c6cdffaada309",
-    "6db0ad4764d14eee8f063eea3600071b",
-    "d33cef14f47b054845f9f447249dfd412a51163b",
-    "3a4fb99a3dfb19a8dfdbb73a0ecafb6089723797",
     "SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json",
+    "SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb",
+    "177285c68fd693ff1570f3025fae5890128eae17",
+    "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2",
+    "5 animations, 6 meshes, 109 nodes and 4 skins",
+    "fire index 2 -> 71 channels",
+    "easy reload index 3 -> 71 channels",
+    "full reload index 4 -> 72 channels",
     "static-only geometry presented as completed skeletal/manual-action content -> reject",
     "remote Git blob pin is useful acquisition evidence but is not an Oster-owned `source_sha256` record",
-    "runtime_ready",
-    "ue58_import_pending",
-    "item16_checked",
-    "remote_animated_candidate_pinned=1 oster_source_bytes_acquired=0 accepted_remington870_source=0 tracked_production_package=0 ue58_runtime_acceptance=0 item16_checked=0",
+    "_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md",
+    "runtime_ready=false",
+    "ue58_import_pending=true",
+    "item16_checked=false",
+    "oster_source_bytes_acquired=1",
+    "accepted_remington870_source_for_ue_import=1",
+    "tracked_production_package=0",
+    "ue58_runtime_acceptance=0",
 ):
-    req(needle in contract, f"Remington source-intake contract missing fail-closed evidence: {needle}")
+    req(needle in contract, f"Remington source-intake contract missing current fail-closed evidence: {needle}")
 
 for needle in (
     'REPO = "Parking-Master/FPS"',
@@ -75,8 +83,41 @@ for needle in (
 ):
     req(needle in remote_audit, f"remote Remington candidate audit is no longer pinned/fail-closed: {needle}")
 
+for needle in (
+    "PASS45-3P-WEAPON-001",
+    "Remington 870 animated source donor",
+    "8sianDude",
+    "https://sketchfab.com/3d-models/remington-870-eea11de7e9d24b6683962b8388c319eb",
+    "CC-BY-4.0",
+    "ed07ea542111c2149c5dab735e752824d0b0541c",
+    "f822d184d96ede43d79a6f691d69cbe7cf60e686",
+    "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2",
+    "SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb",
+    "SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json",
+    "ATTRIBUTION_REQUIRED: yes",
+    "RUNTIME_DEPENDENCY: not yet",
+    "UE_5_8_BUILD_EVIDENCE: pending",
+    "VISUAL_AUDIO_ACCEPTANCE: pending",
+    "CUTOVER_COMMIT: pending",
+):
+    req(needle in third_party_register,
+        f"mandatory Remington870 third-party actual-import record missing evidence: {needle}")
+
 production_asset = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SM_Remington870.uasset"
 manifest_path = ROOT / "SOURCE_ASSETS" / "PASS45" / "Remington870" / "MANIFEST.json"
+source_path = ROOT / "SOURCE_ASSETS" / "PASS45" / "Remington870" / "remington_870_8siandude_ccby4.glb"
+
+req(manifest_path.is_file(), "acquired Remington870 source is missing mandatory MANIFEST.json")
+req(source_path.is_file(), "acquired Remington870 source GLB/LFS pointer is missing")
+
+if source_path.is_file():
+    pointer = source_path.read_text(encoding="utf-8", errors="replace")
+    req("version https://git-lfs.github.com/spec/v1" in pointer,
+        "Remington870 source must remain Git LFS controlled in source-verification checkout")
+    req("oid sha256:147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2" in pointer,
+        "Remington870 Git LFS OID drifted from pinned acquired source SHA-256")
+    req("size 20621580" in pointer,
+        "Remington870 Git LFS pointer size drifted from pinned acquired source size")
 
 if production_asset.is_file():
     req(manifest_path.is_file(),
@@ -97,6 +138,25 @@ if manifest_path.is_file():
     for key in ("source_name", "source_url", "source_model_id", "license_id", "license_url", "attribution", "derivative_notes"):
         value = manifest.get(key)
         req(isinstance(value, str) and bool(value.strip()), f"Remington870 manifest missing non-empty {key}")
+
+    req(manifest.get("source_name") == "Remington 870", "Remington870 source_name drifted")
+    req(manifest.get("source_model_id") == "eea11de7e9d24b6683962b8388c319eb", "Remington870 model id drifted")
+    req(manifest.get("license_id") == "CC-BY-4.0", "Remington870 license id drifted")
+    req(manifest.get("source_git_blob_sha1") == "f822d184d96ede43d79a6f691d69cbe7cf60e686", "Remington870 source Git blob pin drifted")
+    req(manifest.get("source_transport_commit") == "ed07ea542111c2149c5dab735e752824d0b0541c", "Remington870 transport commit drifted")
+    req(manifest.get("source_transport_path") == "models/weapons/shotgun.glb", "Remington870 transport path drifted")
+    req(manifest.get("source_bytes") == 20621580, "Remington870 acquired byte size drifted")
+    req(manifest.get("source_sha256") == "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2",
+        "Remington870 acquired source SHA-256 drifted")
+    req(manifest.get("donor_animation_count") == 5, "Remington870 donor animation count drifted")
+    req(manifest.get("donor_mesh_count") == 6, "Remington870 donor mesh count drifted")
+    req(manifest.get("donor_node_count") == 109, "Remington870 donor node count drifted")
+    req(manifest.get("donor_skin_count") == 4, "Remington870 donor skin count drifted")
+    req(manifest.get("proven_donor_action_channels") == {
+        "easy_reload_index_3": 71,
+        "fire_index_2": 71,
+        "full_reload_index_4": 72,
+    }, "Remington870 donor action-channel probe drifted")
 
     req(manifest.get("public_repo_allowed") is True,
         "Remington870 source is not confirmed redistributable in this public repository")
@@ -130,6 +190,6 @@ if errors:
     raise SystemExit(1)
 
 if production_asset.is_file():
-    print("PASS45 REMINGTON870 SOURCE INTAKE: PASS manifest_guard=1 production_asset=1 runtime_acceptance=0")
+    print("PASS45 REMINGTON870 SOURCE INTAKE: PASS source_acquired=1 manifest_guard=1 third_party_register=1 production_asset=1 runtime_acceptance=0")
 else:
-    print("PASS45 REMINGTON870 SOURCE INTAKE: PASS manifest_guard=1 remote_candidate_pinned=1 production_asset=0 content_gap=1 runtime_acceptance=0")
+    print("PASS45 REMINGTON870 SOURCE INTAKE: PASS source_acquired=1 manifest_guard=1 third_party_register=1 production_asset=0 ue58_import_pending=1 runtime_acceptance=0")
