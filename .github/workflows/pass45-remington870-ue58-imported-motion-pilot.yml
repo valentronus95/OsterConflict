@@ -11,6 +11,7 @@ on:
       - '_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md'
       - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
       - 'RUN_ALL_VERIFY.py'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
       - '.github/workflows/pass45-remington870-ue58-imported-motion-pilot.yml'
   pull_request:
     paths:
@@ -22,6 +23,7 @@ on:
       - '_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md'
       - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
       - 'RUN_ALL_VERIFY.py'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
       - '.github/workflows/pass45-remington870-ue58-imported-motion-pilot.yml'
 
 permissions:
