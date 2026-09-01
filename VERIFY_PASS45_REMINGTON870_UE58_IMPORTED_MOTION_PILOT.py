@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 MOTION_PILOT = ROOT / "PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py"
 BASE_PILOT = ROOT / "PASS45_REMINGTON870_UE58_IMPORT_PILOT.py"
+LAUNCHER = ROOT / "OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd"
 DONOR_AUDIT = ROOT / "_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md"
 
 errors: list[str] = []
@@ -22,6 +23,7 @@ def read(path: Path) -> str:
 
 motion = read(MOTION_PILOT)
 base = read(BASE_PILOT)
+launcher = read(LAUNCHER)
 audit = read(DONOR_AUDIT)
 
 for needle in (
@@ -68,6 +70,31 @@ for needle in (
     req(needle in base, f"base isolated import pilot invariant missing: {needle}")
 
 for needle in (
+    'OsterConflictPass45Commandlet.uproject',
+    'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py',
+    'UnrealEditor-Cmd.exe',
+    '-run=pythonscript',
+    '-unattended -nop4 -nosplash -nullrhi',
+    'No automatic working-tree mutation is performed here.',
+    'PASS45_REMINGTON870_UE58_IMPORT_PILOT_PASS',
+    'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT_PASS',
+    'pbody_track_preserved=1 pbody_motion_preserved=1',
+    'pmag_track_preserved=1 pmag_motion_preserved=1',
+    'pump_node_identity=UNPROVEN standalone_pump_clip=UNPROVEN',
+    'runtime_acceptance=0 item16_checked=0',
+):
+    req(needle in launcher, f"local imported-motion launcher contract missing: {needle}")
+
+for forbidden in (
+    'git lfs pull',
+    'git checkout',
+    'git reset',
+    'git clean',
+    'OsterConflict.uproject" -run=pythonscript',
+):
+    req(forbidden not in launcher, f"imported-motion launcher regained forbidden working-tree/runtime-host behavior: {forbidden}")
+
+for needle in (
     'ARTICULATED_RELOAD_MOTION_PROVEN / PUMP_NODE_IDENTITY_UNPROVEN / STANDALONE_PUMP_CLIP_UNPROVEN',
     '`PBody_058`',
     '`Pmag_061`',
@@ -85,6 +112,6 @@ if errors:
 print(
     "PASS45 REMINGTON870 UE58 IMPORTED MOTION PILOT: PASS "
     "reuse_existing_import_pilot=1 named_track_gate=1 imported_pose_motion_gate=1 "
-    "pump_identity_unproven=1 visual_inspection_required=1 ue58_execution_pending=1 "
-    "production_cutover=0 runtime_acceptance=0 item16_checked=0"
+    "local_launcher_guarded=1 pump_identity_unproven=1 visual_inspection_required=1 "
+    "ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
 )
