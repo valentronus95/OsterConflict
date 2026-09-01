@@ -914,7 +914,7 @@ Required representative failure tests include:
 
 Use harsh network profiles during engineering tests, including packet loss and high latency, because localhost/LAN success is not proof. Networking Insights is preferred for traffic analysis.
 
-`Replication Graph` remains a profiling-triggered Beta pilot only. `Iris` remains deferred/Experimental. Do not stack alternative replication architectures.
+`Replication Graph` remains a profiling-triggered Beta pilot only. **Correction for UE 5.8:** Iris is production-ready, not Experimental. Iris migration is nevertheless deferred during PASS45 because the existing replication stack is already authoritative and a full replication migration without a measured scaling/correctness need would add unnecessary runtime-recovery risk. Do not stack alternative replication architectures.
 
 ### 27.10 Multiplayer/package automation — ADOPT WHERE IT REDUCES MANUAL REGRESSION
 
@@ -977,7 +977,7 @@ UE Virtual Assets are **not a current Oster migration target** because their sta
 Unless a new factual blocker proves otherwise, do not start broad migrations to:
 
 - Gameplay Ability System;
-- Iris;
+- Iris replication migration without a measured scaling/correctness need;
 - Replication Graph without measured scaling need;
 - Mass AI without measured actor/AI bottleneck;
 - full Lyra architecture;
@@ -1000,3 +1000,149 @@ If yes: pilot it, measure it, migrate only the bounded responsibility, switch au
 Every external code/content intake still requires `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md`. Unknown license/provenance remains **DO NOT IMPORT**.
 
 This final architecture baseline changes implementation strategy only. It does not alter the 36-item formal percentage by itself, does not mark runtime-rejected items complete, and does not authorize PR #94 merge.
+
+## 28. Final production-hardening completeness pass — integrated 2026-09-01
+
+This section closes the remaining architecture-policy gaps found after re-auditing current Oster source/configuration against UE 5.8 production guidance. It is normative for future touched code but **does not create new checklist points, reopen closed work, or authorize broad refactors while item 16 remains the first factual open item**.
+
+### 28.1 Server authority, RPC validation and anti-abuse — REQUIRED
+
+Oster remains server-authoritative. A client may request an action; it may never be trusted to provide the final factual result.
+
+Hard rules for all current and future client -> server RPC paths:
+
+- server owns damage, hit acceptance, ammunition, inventory, grenade/trap counts, health/life state, team/role permissions, vehicle seats/possession, turret authority, objective state and destruction gameplay state;
+- every server RPC that mutates gameplay must re-check current ownership/permission/state rather than trusting the client-side precondition;
+- pointer/object arguments must be valid, relevant and owned/usable by the requesting player where required;
+- position/direction/value inputs must reject non-finite (`NaN`/`Inf`) and impossible/out-of-contract ranges before mutation;
+- high-frequency aim/input RPCs must be rate-bounded/coalesced and may use unreliable delivery where latest-state semantics are sufficient; do not bind an unlimited reliable-RPC stream directly to repeatable input;
+- interaction/revive/pickup/vehicle/repair paths must re-check factual server distance, alive/downed/team/role/line-of-sight/state as applicable at commit time;
+- rejected RPC requests change no ammunition/inventory/score/ownership and do not emit accepted presentation markers;
+- normal clients may never invoke development/admin/test-only mutation paths in a shipping build;
+- audit/configure Unreal RPC DoS detection for packaged multiplayer/dedicated-server testing and record any overrides rather than silently disabling protection.
+
+Current server-authoritative code already performs many of these checks; this rule prevents new or migrated systems from weakening that boundary.
+
+### 28.2 Replication relevancy, dormancy and bandwidth — ADOPT BEFORE A NEW REPLICATION FRAMEWORK
+
+Before introducing Replication Graph or migrating to Iris, first use the normal Unreal replication stack correctly:
+
+- apply relevancy/cull-distance rules to actors that do not need global replication;
+- use dormancy for persistent actors that rarely change;
+- avoid multicast for cosmetic effects that clients can derive from an already replicated factual event/state;
+- replicate durable gameplay state, not every cosmetic intermediate transform/event;
+- avoid high-frequency replication of static world props, distant ambience, local VFX/debris and other non-authoritative presentation;
+- measure actor/RPC/property traffic with Networking Insights under representative player/bot/vehicle counts and bad-network profiles.
+
+Only measured scaling failure may promote a Replication Graph or Iris migration pilot.
+
+### 28.3 Lag compensation / server-side rewind boundary — DEFER UNTIL MEASURED NEED
+
+Do not import another shooter framework solely to obtain lag compensation.
+
+Current factual hit/damage authority stays on the server. Network Emulation testing must first establish whether high-latency hitscan fairness is unacceptable.
+
+If a later server-side-rewind pilot is justified:
+
+- retain a bounded server history only for the actors/hitboxes actually required;
+- accept a client shot timestamp/request, never a client-declared hit/damage result;
+- validate/clamp timestamp age and maximum rewind window;
+- rewind/query only for factual hit validation, then restore current authoritative state;
+- prevent duplicate/replayed shot requests from creating additional hits/ammo events;
+- projectile weapons, grenades, vehicles and world physics remain server-simulated unless separately designed and proven.
+
+PASS45 does not require rewind architecture merely because the game is multiplayer.
+
+### 28.4 Collision profiles, object types and trace channels — CENTRALIZE
+
+The project currently uses general collision channels such as `ECC_Visibility` for several different gameplay meanings. Do not keep expanding that ambiguity.
+
+Required direction:
+
+- define and document named project collision profiles/object types/trace channels when semantics differ materially, for example interaction, weapon/projectile query, grenade safe placement, vehicle interaction and AI/visibility where justified;
+- do not convert every existing trace in one blind refactor; migrate the paths where shared-channel behavior creates false blocking, missed interaction or unintended coupling;
+- one collision profile must clearly define collision vs query-only behavior for production pickups, dropped weapons, grenades, characters, vehicles, doors, destructibles and invisible debug/collision helpers;
+- visible mesh identity and collision proxy ownership remain separate concerns;
+- Physical Material/Surface Type is surface identity and may drive impact/footstep/tyre presentation, but it is not a substitute for collision-channel semantics;
+- newly imported assets must not silently ship with default collision that blocks players/nav/projectiles incorrectly.
+
+### 28.5 Navigation runtime-generation policy — PILOT A CHEAPER OWNER
+
+Current config uses `RecastNavMesh RuntimeGeneration=Dynamic`. Full Dynamic can rebuild geometry-affected tiles at runtime and is not automatically justified for a mostly authored city.
+
+Required pilot:
+
+`current Dynamic -> representative bot/door/vehicle/destruction test -> Dynamic Modifiers Only proof -> CPU/nav correctness comparison`
+
+Promotion rule:
+
+- prefer `Dynamic Modifiers Only` if Oster only needs blockers/cost changes/NavLinks/NavModifiers and it preserves required bot paths;
+- retain full `Dynamic` only where gameplay genuinely creates/removes walkable geometry or another measured requirement needs runtime geometry generation;
+- doors/gates/mounted positions/destruction should use Nav Modifier / Nav Link / Smart Link style mechanisms where they express the gameplay change without broad geometry rebuilding;
+- movable vehicles/props should not constantly dirty navigation unless their gameplay collision truly needs to affect bot routing;
+- Navigation Invokers remain a scale-triggered pilot for very large navigable areas, not an automatic migration;
+- authoritative AI/navigation decision remains server-side; clients do not become navigation truth owners.
+
+No nav-generation setting is accepted solely from source/config. Representative bot pathing plus performance evidence is required.
+
+### 28.6 UE Data Validation — ADOPT INSTEAD OF MORE PATH-ONLY CHECKERS
+
+Use Unreal Engine's Data Validation framework (`IsDataValid`, `UEditorValidatorBase`, `UEditorValidatorSubsystem`) for asset/content facts that require the Editor/asset graph rather than inventing endless text/path verifiers.
+
+Good production validators include:
+
+- required production mesh/material/texture dependencies exist and load;
+- no final required visual uses default/BasicShape/proxy content;
+- skeletal assets have expected skeleton/animation compatibility;
+- required material slots and real texture dependencies are present;
+- LOD/mip/collision requirements fit the relevant production asset class;
+- prohibited startup hard references/dependency cycles are absent where the rule can be proven through asset data;
+- external/imported content has an approved provenance/register entry where applicable;
+- evidence-bound landmark assets cannot silently resolve to unrelated generic content.
+
+CI/editor route:
+
+- add/retain C++ validators where rules are stable and load-aware;
+- use `UnrealEditor-Cmd.exe <project>.uproject -run=DataValidation` in the appropriate editor-capable validation route;
+- a new UE validator may replace a bespoke Python/source verifier **only after** it proves equivalent or stronger coverage; stale duplicate verifiers are then physically removed according to the reuse-first rule;
+- Data Validation is structural/content evidence, not direct visual/audio/runtime acceptance.
+
+### 28.7 Tick, timers and polling budget — EVENT-DRIVEN BY DEFAULT
+
+New Actors/Components/SubSystems must not receive per-frame Tick merely because it is convenient.
+
+Rules:
+
+- disable Tick by default unless a frame-rate-dependent responsibility genuinely requires it;
+- prefer input events, RepNotify/delegates, animation updates, physics callbacks or bounded timers for non-frame-critical work;
+- far/irrelevant AI, VFX, audio and presentation work should use significance/budgeting/intervals when profiling proves benefit;
+- client-only camera/FOV/presentation Tick must not execute equivalent cosmetic work on dedicated server;
+- polling that merely reimplements a stable engine subsystem is a migration target, not a pattern to copy;
+- item 33 profiling must identify high-frequency Tick/timer owners under representative gameplay, not just aggregate FPS.
+
+### 28.8 Dedicated-server asset and presentation stripping — REQUIRED
+
+The repository already has a dedicated-server target. Preserve that architecture and make reusable systems respect it.
+
+On dedicated server:
+
+- do not create/play cosmetic audio, camera shakes, UI, local first-person arms or purely visual Niagara effects;
+- avoid loading client-only heavy meshes/materials/textures/audio/animation when server gameplay does not require them;
+- server still loads/cooks the data needed for collision, authoritative physics, gameplay classes, damage, navigation and validated asset identity as required;
+- any new MetaSound/Soundscape/Motion Matching/Niagara/PCG/vehicle presentation integration must explicitly prove that dedicated server does not pay unnecessary client presentation cost;
+- packaged server + client versions/build identifiers must fail visibly on incompatible builds rather than silently running mismatched gameplay contracts.
+
+### 28.9 Final architecture-freeze rule
+
+After sections 26–28, the broad reuse/architecture baseline is considered **complete enough to execute**.
+
+Do not keep expanding PASS45 with another broad framework survey merely because another UE feature or GitHub project exists. A new architecture item may be added only when at least one of these is factual:
+
+1. a current runtime/content defect is not covered by sections 0–28;
+2. profiling proves a measurable CPU/GPU/network/memory/loading bottleneck;
+3. a user gameplay requirement introduces a genuinely new subsystem;
+4. an engine/version/license change invalidates an existing decision.
+
+Otherwise continue the existing 36-item execution order. This prevents the audit itself from becoming the project.
+
+This section changes engineering policy only. Formal progress remains tied to the existing 36-item checklist, runtime truth remains factual local UE 5.8 evidence, and PR #94 remains OPEN / UNMERGED until the existing acceptance rule passes.
