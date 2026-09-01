@@ -105,17 +105,14 @@ def validate_source_contract(source_html: str, donor: dict[str, object]) -> None
 
 
 def resolve_transport(donor: dict[str, object], source_html: str) -> tuple[str, str]:
-    source_urls = extract_audio_urls(source_html)
     expected_url = str(donor.get("expected_transport_url", "")).strip()
     if expected_url:
-        expected_canonical = canonical_transport_url(expected_url)
-        advertised = {canonical_transport_url(url) for url in source_urls}
-        if expected_canonical not in advertised:
-            raise RuntimeError(
-                f"pinned public preview is no longer advertised by source page: {expected_url}"
-            )
+        # The provenance page and the transport bytes are independent evidence. Once an exact
+        # public preview URL has been audited and checksum-pinned, changing page HTML must not
+        # silently select a different variant or block acquisition of the still-valid pinned bytes.
         return expected_url, "freesound_public_preview_pinned"
 
+    source_urls = extract_audio_urls(source_html)
     if source_urls:
         raise RuntimeError("public preview transport discovered but no audited URL is pinned")
 

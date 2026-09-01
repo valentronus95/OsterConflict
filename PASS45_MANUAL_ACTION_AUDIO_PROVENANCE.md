@@ -61,16 +61,17 @@ This file is the source-of-truth intake contract for canonical `PASS45_RUNTIME_R
 
 ## Controlled public-preview acquisition — 2026-09-01
 
-Because Freesound requires account login for the original WAV download, repository intake must not fake an original-file acquisition. `PASS45_MANUAL_ACTION_AUDIO_INTAKE.py` instead audits a public Freesound preview when exposed by the source page, or the exact Freesound-community Pixabay mirror as a transport fallback.
+Because Freesound requires account login for the original WAV download, repository intake must not fake an original-file acquisition. `PASS45_MANUAL_ACTION_AUDIO_INTAKE.py` instead uses the exact audited public Freesound preview URL as the transport for each donor.
 
 The transport is treated only as a CC0 preview derivative source:
 
 - source-page identity/license markers are revalidated before download;
-- transport bytes are SHA-256 hashed before conversion;
+- source-page provenance and transport-byte identity are verified independently: mutable HTML preview advertising is not authoritative after an exact public preview URL and checksum have been audited;
+- write mode downloads only the exact pinned public-preview URL, never a dynamically discovered HQ/LQ variant or mirror;
+- transport bytes are SHA-256 hashed and must equal the pinned audit value before conversion;
 - conversion is deterministic: metadata removed, mono, 48 kHz, PCM signed 16-bit WAV;
 - derivative WAV bytes are separately SHA-256 hashed and duration-checked against the source-page duration;
-- the first CI run is **audit-only** and has read-only repository permissions;
-- no audio may be committed until the observed transport checksum is explicitly pinned in the intake script;
+- no changed public byte stream may silently replace the audited donor;
 - even after repository acquisition, the donor remains `runtime_ready=0` / `ue_import_pending=1` until an actual UE SoundWave is imported and accepted;
 - preview transport is never described as the original Freesound WAV.
 
@@ -97,9 +98,9 @@ Bolt public preview:
 - derivative size: `624078` bytes
 - derivative duration: `6.500000 s`
 
-Write mode is now fail-closed on the exact audited LQ transport URLs and SHA-256 values above. A newly advertised HQ/LQ variant, mirror transport or changed byte stream must fail instead of silently replacing the audited donor.
+Write mode is fail-closed on the exact audited LQ transport URLs and SHA-256 values above. A newly advertised HQ/LQ variant, mirror transport or changed byte stream must not silently replace the audited donor.
 
-These exact audited LQ transport URLs and SHA-256 values are the only transport coordinates accepted by `--mode write`. A changed public preview must fail intake rather than silently replacing repository source content.
+These exact audited LQ transport URLs and SHA-256 values are the only transport coordinates accepted by `--mode write`. If the source page changes its HTML preview presentation while the exact pinned URL remains downloadable with the same hash, intake may continue; if the pinned URL disappears or its bytes change, intake fails.
 
 ## Next factual intake
 

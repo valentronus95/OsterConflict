@@ -47,21 +47,27 @@ for needle in (
 ):
     req(needle in provenance, f"manual-action audio provenance contract missing: {needle}")
 
-# Audit/write intake must pin both exact LQ preview URLs and exact transport hashes. A dynamically selected
-# HQ/LQ variant is not the same audited byte stream and must never silently replace the pinned donor.
+# Audit/write intake pins exact URLs and transport hashes. Source-page provenance and transport-byte identity
+# are deliberately independent: current HTML preview advertising cannot choose another variant or veto an
+# already audited, still-downloadable checksum-pinned URL.
 for needle in (
     '"expected_transport_url": "https://cdn.freesound.org/previews/523/523401_9-lq.mp3"',
     '"expected_transport_sha256": "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab"',
     '"expected_transport_url": "https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3"',
     '"expected_transport_sha256": "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e"',
     'return expected_url, "freesound_public_preview_pinned"',
-    'pinned public preview is no longer advertised by source page',
     'write mode forbidden without pinned transport URL',
     'transport URL drift',
+    'transport SHA256 changed',
 ):
     req(needle in intake, f"manual-action intake transport pin missing: {needle}")
-req('return source_urls[0], "freesound_public_preview"' not in intake,
-    "manual-action intake can still silently select a different Freesound preview variant")
+for forbidden in (
+    'pinned public preview is no longer advertised by source page',
+    'expected_canonical not in advertised',
+    'return source_urls[0], "freesound_public_preview"',
+):
+    req(forbidden not in intake,
+        f"manual-action intake still depends on mutable preview-page transport selection: {forbidden}")
 req('candidates.sort(key=lambda u: ("-hq." not in u.lower()' not in intake,
     "manual-action intake still prefers a dynamic HQ preview over the audited LQ transport")
 for needle in (
@@ -70,6 +76,7 @@ for needle in (
     "https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3",
     "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e",
     "exact audited LQ transport URLs and SHA-256 values",
+    "source-page provenance and transport-byte identity are verified independently",
 ):
     req(needle in provenance, f"manual-action provenance lost pinned transport truth: {needle}")
 
@@ -117,7 +124,7 @@ if errors:
 
 print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
 print("- real CC0 lever-action and bolt-action donor sources are pinned with identity limits")
-print("- audited LQ preview URLs and transport hashes are both fail-closed; HQ/LQ drift cannot silently replace bytes")
+print("- source provenance and exact pinned transport bytes are checked independently; HTML preview drift cannot block or replace the audited bytes")
 print("- WAV/LFS policy is protected; source URLs cannot impersonate committed runtime content")
 print("- PumpCycle remains tracked while BoltCycle/LeverCycle remain explicit content gaps")
 print("- item 16 stays open until payload import, authored moving-part animation and UE 5.8 acceptance")
