@@ -139,11 +139,9 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     }
 
     State.bWeaponAnimationActive = false;
-    State.bAuthoredManualActionActive = false;
     State.bRiflePoseApplied = false;
     State.bWasActionCycling = false;
     State.bWasAiming = false;
-    State.ActionCycleStartTime = 0.0;
     State.RecoilAlpha = 0.0f;
 }
 
@@ -335,8 +333,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     const bool bActionCycling = Weapon->IsActionCycling();
     if (bActionCycling && !State.bWasActionCycling)
     {
-        State.ActionCycleStartTime = Now;
-        State.bAuthoredManualActionActive = false;
         const EOCWeaponActionType ActionType = Weapon->GetWeaponActionType();
         if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())
         {
@@ -345,14 +341,15 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         }
 
         const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);
+        bool bAuthoredManualActionStarted = false;
         if (AnimationProfile.HasManualActionAnimation())
         {
             UAnimSequence* ManualActionSequence = LoadObject<UAnimSequence>(
                 nullptr, *AnimationProfile.ManualActionAnimationObjectPath);
             const double ResetDelay = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
-            if (PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay))
+            bAuthoredManualActionStarted = PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay);
+            if (bAuthoredManualActionStarted)
             {
-                State.bAuthoredManualActionActive = true;
                 UE_LOG(LogTemp, Display,
                     TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=%s action=%s path=%s replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0"),
                     *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
@@ -367,23 +364,12 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
             }
         }
 
-        if (!State.bAuthoredManualActionActive)
+        if (!bAuthoredManualActionStarted)
         {
-            // This path is deliberately not production READY. It moves the whole local weapon/arms transform
-            // and cannot prove authored bolt/pump/lever moving-part animation. Keep it as a visible fallback until
-            // an accepted skeletal/moving-part asset is wired and verified in local UE 5.8.
             UE_LOG(LogTemp, Warning,
-                TEXT("PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE weapon=%s action=%s cue_declared=%d replicated_gate=1 whole_transform_only=1 authored_moving_part=0 second_gameplay_timer=0 runtime_acceptance=0"),
-                *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), Profile.bManualActionCueDeclared ? 1 : 0);
-            UE_LOG(LogTemp, Warning,
-                TEXT("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=%s action=%s authored_moving_part=0 procedural_fallback=1 runtime_acceptance=0"),
+                TEXT("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=%s action=%s authored_moving_part=0 procedural_fallback=0 baseline_transform_preserved=1 second_gameplay_timer=0 runtime_acceptance=0"),
                 *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType));
         }
-    }
-    else if (!bActionCycling && State.bWasActionCycling)
-    {
-        State.ActionCycleStartTime = 0.0;
-        State.bAuthoredManualActionActive = false;
     }
     State.bWasActionCycling = bActionCycling;
 
@@ -416,17 +402,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         WeaponRotation += Profile.ReloadWeaponRotation * Arc;
         ArmsLocation += Profile.ReloadArmsLocation * Arc;
         ArmsRotation += Profile.ReloadArmsRotation * Arc;
-    }
-
-    if (bActionCycling && Profile.bManualActionCueDeclared && !State.bAuthoredManualActionActive)
-    {
-        const float Duration = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
-        const float Alpha = FMath::Clamp(static_cast<float>((Now - State.ActionCycleStartTime) / Duration), 0.0f, 1.0f);
-        const float Arc = FMath::Sin(Alpha * PI);
-        WeaponLocation += Profile.ManualActionWeaponLocation * Arc;
-        WeaponRotation += Profile.ManualActionWeaponRotation * Arc;
-        ArmsLocation += Profile.ManualActionArmsLocation * Arc;
-        ArmsRotation += Profile.ManualActionArmsRotation * Arc;
     }
 
     Weapon->SetActorRelativeLocation(WeaponLocation);
