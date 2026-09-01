@@ -790,3 +790,213 @@ The bound replacement spec explicitly covers and maps:
 - AirSim/Project AirSim lineage as future drone reference only, not a current mandatory runtime dependency.
 
 PASS45 execution rule: do not reopen already source-closed items merely to refactor them. Apply this mandate immediately when touching still-open items 16, 18, 20, 24 and 27-35 or a directly related runtime defect. PR #94 remains OPEN / UNMERGED until factual current-head UE 5.8 runtime acceptance.
+
+## 27. Final completeness architecture baseline — integrated 2026-09-01
+
+This section integrates the final architecture-gap audit directly into the canonical TZ. `PASS45_RUNTIME_RECOVERY_TZ_REUSE_FINAL_GAP_ADDENDUM_2026-09-01.md` remains supporting audit evidence; the rules below are the canonical execution summary. These rules do **not** reopen closed checklist items and do not inflate PASS45 into an endless engine migration. They apply when a still-open item or directly related defect touches the relevant system.
+
+### 27.1 Asset loading, startup and streaming — ADOPT
+
+The 2026-08-31 black-screen evidence proves that asset residency/startup ownership is a production concern, not an editor convenience.
+
+Required direction:
+
+- use Unreal `Asset Manager`, `Primary Assets`, soft references (`TSoftObjectPtr` / `TSoftClassPtr` or equivalent) and async/streamable loading for heavy or optional production content where appropriate;
+- distinguish first-frame mandatory content from content that may stream after menu/gameplay becomes usable;
+- do not add new heavy production mesh/material/audio/animation/VFX families to native constructors/CDOs through `ConstructorHelpers::FObjectFinder` merely for convenience;
+- synchronous `LoadObject` on startup-critical paths requires a documented reason and measured cost;
+- failed async content must fail visibly without resurrecting BasicShape/default proxy content;
+- item 27 vegetation and future vehicle/landmark/content migrations must prove startup/loading behavior in addition to visual quality.
+
+### 27.2 Data-driven gameplay/content definitions — SELECTIVE ADOPT
+
+Use `UPrimaryDataAsset` / Data Assets and Gameplay Tags when they reduce duplicated hard-coded profiles or branching without creating a second authority.
+
+Good candidates:
+
+- weapon presentation/audio/content profiles;
+- vehicle handling/content profiles;
+- grenade/VFX/audio profiles;
+- surface/impact families;
+- animation/action profile references;
+- content bundles managed by Asset Manager.
+
+Gameplay Tags are labels/state descriptors, not a reason to migrate the project to GAS. Existing clear typed C++ state remains valid where it is simpler. Do not replace functioning logic with tag soup merely for fashion.
+
+### 27.3 Cooking, packaging and asset audit — ADOPT
+
+A source/editor pass is not enough. Production acceptance must include packaged/cooked behavior.
+
+Use Unreal cooking/packaging and Asset Audit tooling to verify:
+
+- required assets are actually cooked;
+- editor-only/test content is not accidentally required at runtime;
+- package size and large dependency chains are visible;
+- optional content does not silently hard-reference itself into startup;
+- broken/missing cooked assets fail the runtime gate.
+
+Primary Asset Labels/chunks may be introduced only when patch/DLC/install organization produces a concrete benefit. Do not create chunk complexity without a delivery requirement.
+
+### 27.4 Shader/PSO hitch prevention — ADOPT AND MEASURE
+
+Final Windows packaged testing must explicitly cover first-use shader/PSO hitches.
+
+- keep UE PSO precaching enabled where supported and validate coverage on the actual DX11/SM5 production path;
+- test cold/cleared driver-cache startup and first encounter with representative weapons, vehicles, Niagara effects, materials and world sectors;
+- initial loading/menu flow may wait for genuinely required high-priority PSO work rather than exposing severe first-use hitches;
+- a temporary engine default material shown only because a production PSO is not ready cannot satisfy visual acceptance;
+- if automatic precaching leaves material runtime hitches, evaluate a bounded bundled PSO cache rather than inventing a custom shader-cache system.
+
+### 27.5 Texture memory and streaming — STANDARDIZE / PILOT ONLY WHEN NEEDED
+
+Conventional UE texture streaming + authored mipmaps is the default production path. Item 33 performance acceptance must inspect texture pool/memory pressure and visual mip behavior.
+
+Streaming Virtual Texturing or Runtime Virtual Texturing may be piloted for large high-resolution surfaces/landscape/material blending only when profiler/memory evidence shows benefit. Do not globally convert textures to virtual textures merely because the feature exists.
+
+### 27.6 Unified Physical Material -> surface response pipeline — ADOPT
+
+Use Unreal Physical Materials / Surface Types as the common physical surface identity for applicable gameplay and presentation.
+
+Target families include concrete, brick, metal, wood, glass, asphalt, soil, grass and water where relevant.
+
+One factual hit/contact may drive, from the same resolved surface identity:
+
+- projectile impact VFX;
+- impact/ricochet audio where appropriate;
+- decals/bullet marks/scorch presentation;
+- debris presentation;
+- footsteps;
+- tyre/contact audio and surface handling where applicable.
+
+Decals must have bounded lifetime/count or pooling policy. Niagara/audio/decals remain presentation and never become damage authority.
+
+### 27.7 Complete spatial audio budget — ADOPT
+
+The audio plan is incomplete without spatialization and voice budgeting.
+
+Use engine-native Sound Attenuation / Audio Volumes / reverb / occlusion / air absorption where appropriate. Use Sound Concurrency to prevent gunfire, footsteps, ambience and debris from creating an unlimited voice flood.
+
+Required acceptance includes:
+
+- near/far weapon readability;
+- indoor/outdoor transition;
+- building/room reverb where useful;
+- vehicle cabin vs exterior;
+- sensible occlusion through world geometry;
+- distant sounds yielding priority to nearby critical combat audio;
+- no cosmetic playback work on dedicated server.
+
+Audio Modulation remains the state/mix layer; MetaSounds is selective rendering; Soundscape remains Beta pilot-only.
+
+### 27.8 Animation events, physical animation and constraints — SELECTIVE ADOPT
+
+Use Animation Notifies for presentation synchronized to authored animation, especially footsteps, cloth/gear, shell/foley or other cosmetic timing. A Notify must not become a second authoritative weapon/grenade/inventory timer.
+
+Use Physics Assets / Physical Animation Profiles / Physics Constraints where they provide accepted character hit/death blending, ragdoll stabilization, doors/hinges or physical joints better than bespoke transform loops.
+
+Discrete gameplay actions still follow factual server state -> replicated presentation -> authored sequence/Montage/IK/Control Rig as appropriate.
+
+### 27.9 Multiplayer proof must include bad-network conditions — REQUIRED
+
+Normal server-authoritative Unreal replication remains production owner during PASS45.
+
+Any gameplay-affecting replacement must be checked with relevant dedicated/listen-server semantics, at least one real client path, late state synchronization where applicable, and Unreal Network Emulation for latency/jitter/loss.
+
+Required representative failure tests include:
+
+- weapon shot/action/reload state;
+- grenade spawn/detonation/inventory commit;
+- vehicle possession/driving/exit;
+- M2/BTR turret control;
+- destruction gameplay state;
+- AI/objective state where replicated;
+- reconnect/late join for persistent replicated state where supported.
+
+Use harsh network profiles during engineering tests, including packet loss and high latency, because localhost/LAN success is not proof. Networking Insights is preferred for traffic analysis.
+
+`Replication Graph` remains a profiling-triggered Beta pilot only. `Iris` remains deferred/Experimental. Do not stack alternative replication architectures.
+
+### 27.10 Multiplayer/package automation — ADOPT WHERE IT REDUCES MANUAL REGRESSION
+
+Use Unreal Automation/Functional tests for bounded single-instance checks and evaluate **Gauntlet** for packaged multi-process scenarios such as dedicated server + clients.
+
+Gauntlet is preferred over inventing a custom process-orchestration framework for recurring multiplayer smoke tests. Direct visual/audio UE acceptance remains human evidence and cannot be automated away.
+
+### 27.11 Performance diagnostics and significance — ADOPT ENGINE TOOLING
+
+Use Unreal Insights / Networking Insights / engine CPU-GPU-audio-memory statistics before approving major replacement decisions.
+
+Animation Budget Allocator and Significance Manager are profiling-driven tools, not mandatory everywhere. When adopted they may reduce distant cosmetic/AI/animation/VFX/audio work, but never authoritative damage, projectile, possession, objective, inventory or critical replicated state.
+
+Gate I / item 33 must measure representative gameplay, not an empty map.
+
+### 27.12 Rendering features — HOLD CURRENT SAFE BASELINE
+
+Current factual project configuration uses DX11/SM5 after D3D12/RHI instability and disables expensive modern rendering features for boot/performance safety.
+
+Therefore during active PASS45:
+
+- do not enable Nanite or Virtual Shadow Maps as a hidden dependency;
+- do not enable Lumen as a shortcut for bad materials/lighting;
+- use conventional LOD/HLOD/instancing/material optimization on the accepted runtime path;
+- any future D3D12/SM6 + Nanite/VSM/Lumen work is a separate post-stability visual/performance pilot with rollback and 60 FPS comparison.
+
+### 27.13 Atmosphere, weather and environmental presentation — ENGINE-NATIVE FIRST
+
+If richer sky/weather is introduced, prefer engine-native Directional Light, Sky Atmosphere, Sky Light, Exponential Height Fog and Volumetric Clouds rather than importing a broad weather framework by default.
+
+Weather/time-of-day presentation must be scalable and may not become a second daylight authority that conflicts with the existing exposure/daylight contract. Expensive volumetrics require item 33 performance proof.
+
+### 27.14 Save/settings/localization/accessibility — STANDARDIZE, NOT A PASS45 BLOCKER
+
+Keep runtime-recovery scope bounded, but new production-facing code should avoid obvious future dead ends:
+
+- use `UGameUserSettings` / existing Oster settings authority for persistent graphics/audio/display controls;
+- use asynchronous SaveGame APIs if later gameplay persistence is required; do not add synchronous save hitches to combat/runtime paths;
+- user-facing text should use `FText`/localization-safe paths rather than baking UI strings into non-localizable runtime logic;
+- key remapping, mouse sensitivity, FOV, audio levels and readable/subtitle-capable presentation belong to production UX planning.
+
+These do not block PR #94 unless they intersect an existing PASS45 defect.
+
+### 27.15 Crash/replay/reproducibility tooling — ADOPT FOR DIAGNOSTICS
+
+Use Unreal Crash Reporter/log evidence and Unreal Insights instead of inventing parallel crash/profiling frameworks.
+
+The built-in Replay/DemoNetDriver may be piloted later for reproducible multiplayer bug evidence once baseline replication is stable. It is a diagnostic tool, not a replacement for factual current-head runtime acceptance.
+
+### 27.16 Development data/cache policy
+
+Use UE Derived Data Cache normally; derived shader/asset cache products are generated data and must not be treated as source assets or committed as production truth.
+
+A Shared/Zen DDC may be introduced when multiple development/build machines can actually benefit. Do not add infrastructure for a one-machine workflow merely because Epic supports it.
+
+UE Virtual Assets are **not a current Oster migration target** because their standard production workflow expects Perforce-backed virtualization while Oster currently uses GitHub/Git LFS. Reassess only if the source-control architecture changes deliberately.
+
+### 27.17 Explicit no-migration list during PASS45
+
+Unless a new factual blocker proves otherwise, do not start broad migrations to:
+
+- Gameplay Ability System;
+- Iris;
+- Replication Graph without measured scaling need;
+- Mass AI without measured actor/AI bottleneck;
+- full Lyra architecture;
+- World Partition conversion;
+- Nanite/VSM/Lumen/DX12 renderer stack;
+- EOS/online accounts/voice as a dependency of runtime recovery;
+- Virtual Assets/Perforce workflow;
+- AirSim/Project AirSim as a current dependency.
+
+These systems may be valuable later. Their existence is not permission to derail runtime recovery.
+
+### 27.18 Final completeness rule
+
+For every future large feature the default question is:
+
+`does stable UE 5.8 or a legally reusable audited system already solve this generic problem better?`
+
+If yes: pilot it, measure it, migrate only the bounded responsibility, switch authority, then physically delete the obsolete duplicate. If no: keep/build the smallest Oster-owned implementation that matches the game requirement.
+
+Every external code/content intake still requires `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md`. Unknown license/provenance remains **DO NOT IMPORT**.
+
+This final architecture baseline changes implementation strategy only. It does not alter the 36-item formal percentage by itself, does not mark runtime-rejected items complete, and does not authorize PR #94 merge.
