@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import struct
 from pathlib import Path
 
 import PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT as audit
@@ -23,6 +25,7 @@ ACTION_CLIPS = (
     (3, "easy_reload"),
     (4, "full_reload"),
 )
+WEAPON_NODE_PREFIXES = ("Rif_", "Trigger_", "PBody_", "Pmag_")
 
 
 def donor_action_target_summary(doc: dict) -> dict[str, dict[str, object]]:
@@ -88,6 +91,199 @@ def donor_action_target_summary(doc: dict) -> dict[str, dict[str, object]]:
     return summary
 
 
+def glb_binary_chunk(data: bytes) -> bytes:
+    if len(data) < 20:
+        raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: GLB too short for binary probe")
+    magic, version, declared_length = struct.unpack_from("<4sII", data, 0)
+    if magic != b"glTF" or version != 2 or declared_length != len(data):
+        raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: GLB header drift during binary probe")
+
+    offset = 12
+    binary_payload: bytes | None = None
+    while offset + 8 <= len(data):
+        chunk_length, chunk_type = struct.unpack_from("<II", data, offset)
+        offset += 8
+        end = offset + chunk_length
+        if end > len(data):
+            raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: GLB chunk overruns file")
+        payload = data[offset:end]
+        offset = end
+        if chunk_type == 0x004E4942:
+            binary_payload = payload
+            break
+    if binary_payload is None:
+        raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: GLB has no BIN chunk")
+    return binary_payload
+
+
+def accessor_values(doc: dict, binary_payload: bytes, accessor_index: int) -> list[tuple[float, ...]]:
+    accessors = doc.get("accessors") or []
+    buffer_views = doc.get("bufferViews") or []
+    if accessor_index < 0 or accessor_index >= len(accessors):
+        raise SystemExit(f"PASS45 REMINGTON870 SOURCE ACQUIRE: invalid accessor {accessor_index}")
+    accessor = accessors[accessor_index]
+    if accessor.get("sparse"):
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: sparse accessor {accessor_index} unsupported in fail-closed probe"
+        )
+    view_index = accessor.get("bufferView")
+    if not isinstance(view_index, int) or view_index < 0 or view_index >= len(buffer_views):
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: accessor {accessor_index} missing valid bufferView"
+        )
+    view = buffer_views[view_index]
+    if view.get("buffer", 0) != 0:
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: accessor {accessor_index} references nonzero buffer"
+        )
+
+    component_type = accessor.get("componentType")
+    if component_type != 5126:
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: animation accessor {accessor_index} is not FLOAT"
+        )
+    type_components = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
+    accessor_type = accessor.get("type")
+    component_count = type_components.get(accessor_type)
+    if component_count is None:
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: unsupported accessor type {accessor_type!r}"
+        )
+    count = accessor.get("count")
+    if not isinstance(count, int) or count < 1:
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: accessor {accessor_index} has invalid count"
+        )
+
+    packed_size = component_count * 4
+    stride = view.get("byteStride", packed_size)
+    if not isinstance(stride, int) or stride < packed_size:
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: accessor {accessor_index} has invalid stride {stride}"
+        )
+    base_offset = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    fmt = "<" + ("f" * component_count)
+    values: list[tuple[float, ...]] = []
+    for item_index in range(count):
+        item_offset = base_offset + item_index * stride
+        if item_offset < 0 or item_offset + packed_size > len(binary_payload):
+            raise SystemExit(
+                f"PASS45 REMINGTON870 SOURCE ACQUIRE: accessor {accessor_index} exceeds BIN chunk"
+            )
+        values.append(tuple(float(v) for v in struct.unpack_from(fmt, binary_payload, item_offset)))
+    return values
+
+
+def sampled_animation_output(
+    doc: dict,
+    binary_payload: bytes,
+    sampler: dict,
+) -> list[tuple[float, ...]]:
+    input_index = sampler.get("input")
+    output_index = sampler.get("output")
+    if not isinstance(input_index, int) or not isinstance(output_index, int):
+        raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: animation sampler lacks accessors")
+    accessors = doc.get("accessors") or []
+    key_count = accessors[input_index].get("count") if input_index < len(accessors) else None
+    if not isinstance(key_count, int) or key_count < 1:
+        raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: invalid animation key count")
+    values = accessor_values(doc, binary_payload, output_index)
+    interpolation = str(sampler.get("interpolation") or "LINEAR").upper()
+    if interpolation == "CUBICSPLINE":
+        if len(values) != key_count * 3:
+            raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: malformed CUBICSPLINE output")
+        return values[1::3]
+    if interpolation not in {"LINEAR", "STEP"}:
+        raise SystemExit(
+            f"PASS45 REMINGTON870 SOURCE ACQUIRE: unsupported interpolation {interpolation}"
+        )
+    if len(values) != key_count:
+        raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: animation input/output count mismatch")
+    return values
+
+
+def max_translation_displacement(values: list[tuple[float, ...]]) -> float:
+    if not values or len(values[0]) != 3:
+        return 0.0
+    origin = values[0]
+    return max(
+        math.sqrt(sum((sample[axis] - origin[axis]) ** 2 for axis in range(3)))
+        for sample in values
+    )
+
+
+def max_quaternion_angle_degrees(values: list[tuple[float, ...]]) -> float:
+    if not values or len(values[0]) != 4:
+        return 0.0
+
+    def normalize(q: tuple[float, ...]) -> tuple[float, ...]:
+        norm = math.sqrt(sum(component * component for component in q))
+        if norm <= 1e-12:
+            raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: zero-length rotation quaternion")
+        return tuple(component / norm for component in q)
+
+    origin = normalize(values[0])
+    max_angle = 0.0
+    for value in values:
+        current = normalize(value)
+        dot = abs(sum(origin[i] * current[i] for i in range(4)))
+        dot = max(-1.0, min(1.0, dot))
+        angle = math.degrees(2.0 * math.acos(dot))
+        max_angle = max(max_angle, angle)
+    return max_angle
+
+
+def donor_weapon_motion_summary(data: bytes, doc: dict) -> dict[str, dict[str, object]]:
+    """Measure factual donor weapon-node motion; node semantics remain unclaimed."""
+    binary_payload = glb_binary_chunk(data)
+    animations = doc.get("animations") or []
+    nodes = doc.get("nodes") or []
+    summary: dict[str, dict[str, object]] = {}
+
+    for index, semantic in ACTION_CLIPS:
+        clip = animations[index]
+        samplers = clip.get("samplers") or []
+        clip_rows: dict[str, dict[str, object]] = {}
+        for channel in clip.get("channels") or []:
+            target = channel.get("target") or {}
+            node_index = target.get("node")
+            path = str(target.get("path") or "")
+            sampler_index = channel.get("sampler")
+            if not isinstance(node_index, int) or not isinstance(sampler_index, int):
+                continue
+            if node_index < 0 or node_index >= len(nodes) or sampler_index < 0 or sampler_index >= len(samplers):
+                raise SystemExit("PASS45 REMINGTON870 SOURCE ACQUIRE: invalid animation channel linkage")
+            node_name = str(nodes[node_index].get("name") or "").strip()
+            if not node_name.startswith(WEAPON_NODE_PREFIXES):
+                continue
+
+            values = sampled_animation_output(doc, binary_payload, samplers[sampler_index])
+            row = clip_rows.setdefault(
+                node_name,
+                {
+                    "node_index": node_index,
+                    "translation_max_displacement": 0.0,
+                    "rotation_max_angle_degrees": 0.0,
+                    "animated_paths": [],
+                },
+            )
+            paths = row["animated_paths"]
+            if isinstance(paths, list) and path not in paths:
+                paths.append(path)
+            if path == "translation":
+                row["translation_max_displacement"] = round(max_translation_displacement(values), 6)
+            elif path == "rotation":
+                row["rotation_max_angle_degrees"] = round(max_quaternion_angle_degrees(values), 6)
+
+        for row in clip_rows.values():
+            paths = row.get("animated_paths")
+            if isinstance(paths, list):
+                paths.sort()
+        summary[f"{semantic}_index_{index}"] = dict(sorted(clip_rows.items()))
+
+    return summary
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir", required=True)
@@ -103,6 +299,7 @@ def main() -> None:
     audit.require_skin(doc)
     structure = audit.structural_summary(doc)
     action_targets = donor_action_target_summary(doc)
+    weapon_motion = donor_weapon_motion_summary(data, doc)
 
     source_path = out_dir / SOURCE_FILE
     source_path.write_bytes(data)
@@ -136,6 +333,7 @@ def main() -> None:
             "full_reload_index_4": structure["full_reload_channels"],
         },
         "donor_action_targets": action_targets,
+        "donor_weapon_motion": weapon_motion,
         "intended_fp_clips": ["ironsight", "fire", "reload", "dryfire"],
         "source_asset_file": SOURCE_FILE,
         "derivative_notes": "Exact pinned donor GLB copied without geometry/animation modification; UE 5.8 import, clip mapping/retargeting, materials, first-person fit and runtime acceptance remain pending.",
@@ -156,7 +354,7 @@ def main() -> None:
         f"sha256={identity['sha256']} bytes={identity['size']} "
         f"animations={structure['animations']} skins={structure['skins']} "
         f"action_target_fingerprints={target_fingerprints} "
-        "runtime_ready=0 ue58_import_pending=1 item16_checked=0"
+        "weapon_motion_measured=1 runtime_ready=0 ue58_import_pending=1 item16_checked=0"
     )
 
 
