@@ -45,9 +45,10 @@ struct FOCFirstPersonWeaponProfile
     FRotator ReloadArmsRotation = FRotator(-8.0f, 3.0f, 11.0f);
 
     /**
-     * Procedural camera-space cue used while the replicated manual-action gate is active.
-     * These values make bolt/pump/lever state visibly legible without pretending an authored
-     * skeletal animation exists. They remain separate from bGripCalibrated and need UE visual approval.
+     * Legacy optional whole-transform cue for non-production experiments only.
+     * Production manual-action weapons that require authored bolt/pump/lever movement must leave this
+     * disabled while exact articulated animation content is missing; a camera-space sine cue is not an
+     * acceptable substitute for moving-part presentation.
      */
     FVector ManualActionWeaponLocation = FVector::ZeroVector;
     FRotator ManualActionWeaponRotation = FRotator::ZeroRotator;
