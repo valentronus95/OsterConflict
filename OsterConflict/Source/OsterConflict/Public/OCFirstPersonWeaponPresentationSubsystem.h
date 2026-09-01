@@ -21,9 +21,7 @@ struct FOCFirstPersonWeaponState
     bool bADSArmsPose = false;
     bool bRiflePoseApplied = false;
     bool bWeaponAnimationActive = false;
-    bool bAuthoredManualActionActive = false;
     double ReloadStartTime = 0.0;
-    double ActionCycleStartTime = 0.0;
     double WeaponAnimationResetTime = 0.0;
     float RecoilAlpha = 0.0f;
     FVector BaseWeaponLocation = FVector::ZeroVector;
