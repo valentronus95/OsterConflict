@@ -181,7 +181,9 @@ req('finite_volume=1' in smoke and 'half_height_cm=' in smoke,
 req('"Niagara"' in build,
     'OsterConflict module does not declare the Niagara dependency required by authored smoke VFX')
 
-# Canonical runtime authority must preserve both the later source truth and the latest factual runtime rejection.
+# Canonical current runtime authority and the current grenade/smoke source truth must both remain visible.
+# The 2026-08-27 pack is still the latest committed rendered screenshot evidence, but the newer factual local
+# startup rejection on 2026-08-31 is the canonical current verdict and must not be overwritten by this verifier.
 for needle in (
     'PASS45_GRENADE_PRODUCTION_VISUAL_READY',
     'PASS45_GRENADE_THROW_COMMIT_READY',
@@ -189,7 +191,7 @@ for needle in (
     'PASS45_SMOKE_VFX_RUNTIME_READY',
     'exact_visual_sync=0',
     'manual_visual_acceptance=0',
-    'RUNTIME REJECTED 2026-08-27',
+    'Latest runtime verdict: **RUNTIME REJECTED 2026-08-31**',
 ):
     req(needle in tz, f'canonical Pass45 TZ lost grenade/smoke/runtime truth: {needle}')
 
