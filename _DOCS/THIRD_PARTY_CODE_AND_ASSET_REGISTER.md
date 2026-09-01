@@ -7,7 +7,7 @@ Detailed audit: `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md`
 
 This register is mandatory before external code or content is imported into Oster Conflict.
 
-**Audit state:** no external source code or third-party content was imported by the 2026-09-01 reuse-first audit itself. The audit recorded decisions/provenance only.
+**Audit state:** no external source code or third-party content was imported by the 2026-09-01 reuse-first architecture audit itself. Two pre-existing PASS45 manual-action CC0 audio donor derivatives acquired on 2026-09-01 are now explicitly registered below; they remain source payloads with `runtime_ready=false` / `ue_import_pending=true`, not UE 5.8 runtime acceptance.
 
 ## Status values
 
@@ -57,6 +57,64 @@ This register is mandatory before external code or content is imported into Oste
 | Fab assets | Production models/materials/audio/VFX | Per-item Fab/creator license; often Fab Standard, verify each asset | `LICENSED-ASSET-SOURCE` | Per-asset entitlement/version required | none | Not open source. Standalone redistribution/source-pack exposure prohibited or restricted. |
 | Freesound | Individual weapon/mechanical/ambient/impact recordings | Per-file CC0 / CC-BY / other license | `ASSET-SOURCE-APPROVED` only per file | Exact sound page/license pin required | none | CC0 preferred; CC-BY attribution recorded; BY-NC/restrictive/unknown license rejected for unrestricted production. |
 | Unknown YouTube/game/movie/ripped audio or assets | Any | Unknown/unauthorized | `REJECTED` | n/a | none | Do not import. |
+
+## Actual-import records
+
+### PASS45-3P-AUDIO-001 — lever-action mechanical donor
+
+```text
+ID: PASS45-3P-AUDIO-001
+NAME: lever_action_cc0_preview_donor.wav / Lever action cocking.wav
+SOURCE/PUBLISHER: Freesound / uploader C-V
+SOURCE_URL: https://freesound.org/people/C-V/sounds/523401/
+VERSION_TAG_COMMIT_OR_ASSET_VERSION: Freesound sound 523401; pinned public-preview transport SHA256 ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965; deterministic derivative SHA256/LFS OID 417ba38e5e87b53ef3711784f821f1b3fc303ac8d4df19d9eda80fb776881542
+LICENSE_TERMS: Creative Commons Zero (CC0) 1.0; source-page CC0 markers are fail-closed validated by PASS45_MANUAL_ACTION_AUDIO_INTAKE.py; canonical license https://creativecommons.org/publicdomain/zero/1.0/
+DATE_ACQUIRED: 2026-09-01
+STATUS: PILOT
+OSTER_OWNER_REPLACED: none; this donor supplies LeverCycle presentation content only and owns no gameplay/action state
+FILES_ASSETS_IMPORTED: SOURCE_ASSETS/PASS45/ManualActionAudio/lever_action_cc0_preview_donor.wav (Git LFS); SOURCE_ASSETS/PASS45/ManualActionAudio/MANIFEST.json lever entry
+FILES_MODIFIED: PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md; PASS45_MANUAL_ACTION_AUDIO_INTAKE.py; .github/workflows/pass45-manual-action-audio-intake.yml
+ATTRIBUTION_REQUIRED: no copyright attribution requirement under CC0; project provenance is retained as an internal audit requirement
+REDISTRIBUTION_RESTRICTIONS: no CC0 copyright restriction on copying/modification/distribution; CC0 does not waive unrelated patent/trademark/privacy/publicity rights
+PUBLIC_REPO_ALLOWED: yes for this verified CC0 derivative and its provenance record
+RUNTIME_DEPENDENCY: not yet; manifest remains runtime_ready=false / ue_import_pending=true and no runtime acceptance is claimed
+UE_5_8_BUILD_EVIDENCE: pending local UE 5.8 import/fresh-load/runtime acceptance
+MULTIPLAYER_EVIDENCE: pending; cosmetic presentation must not create a second gameplay owner or dedicated-server playback burden
+PERFORMANCE_EVIDENCE: pending runtime/audio profiling if adopted
+VISUAL_AUDIO_ACCEPTANCE: pending direct UE 5.8 first-person audibility/timing acceptance
+CUTOVER_COMMIT: pending runtime acceptance
+OLD_OWNER_REMOVAL_COMMIT: n/a; rejected procedural whole-weapon manual-action fallback was retired separately, this donor does not replace gameplay authority
+NOTES: acquisition workflow run 33501795799 SUCCESS. Identity scope is lever-action-family donor only; it is not proof of exact Stein/Marlin/Model-1894 identity.
+```
+
+### PASS45-3P-AUDIO-002 — bolt-action mechanical donor
+
+```text
+ID: PASS45-3P-AUDIO-002
+NAME: bolt_action_cc0_preview_donor.wav / Mosin Nagant Bolt.wav
+SOURCE/PUBLISHER: Freesound / uploader rammbostein
+SOURCE_URL: https://freesound.org/people/rammbostein/sounds/263459/
+VERSION_TAG_COMMIT_OR_ASSET_VERSION: Freesound sound 263459; pinned public-preview transport SHA256 d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040; deterministic derivative SHA256/LFS OID 5e64820d532c11e91af3eedf96ab34a38df7b3dd066b0b1c9d67b3fe3f34c8a7
+LICENSE_TERMS: Creative Commons Zero (CC0) 1.0; source-page CC0 markers are fail-closed validated by PASS45_MANUAL_ACTION_AUDIO_INTAKE.py; canonical license https://creativecommons.org/publicdomain/zero/1.0/
+DATE_ACQUIRED: 2026-09-01
+STATUS: PILOT
+OSTER_OWNER_REPLACED: none; this donor supplies BoltCycle presentation content only and owns no gameplay/action state
+FILES_ASSETS_IMPORTED: SOURCE_ASSETS/PASS45/ManualActionAudio/bolt_action_cc0_preview_donor.wav (Git LFS); SOURCE_ASSETS/PASS45/ManualActionAudio/MANIFEST.json bolt entry
+FILES_MODIFIED: PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md; PASS45_MANUAL_ACTION_AUDIO_INTAKE.py; .github/workflows/pass45-manual-action-audio-intake.yml
+ATTRIBUTION_REQUIRED: no copyright attribution requirement under CC0; project provenance is retained as an internal audit requirement
+REDISTRIBUTION_RESTRICTIONS: no CC0 copyright restriction on copying/modification/distribution; CC0 does not waive unrelated patent/trademark/privacy/publicity rights
+PUBLIC_REPO_ALLOWED: yes for this verified CC0 derivative and its provenance record
+RUNTIME_DEPENDENCY: not yet; manifest remains runtime_ready=false / ue_import_pending=true and no runtime acceptance is claimed
+UE_5_8_BUILD_EVIDENCE: pending local UE 5.8 import/fresh-load/runtime acceptance
+MULTIPLAYER_EVIDENCE: pending; cosmetic presentation must not create a second gameplay owner or dedicated-server playback burden
+PERFORMANCE_EVIDENCE: pending runtime/audio profiling if adopted
+VISUAL_AUDIO_ACCEPTANCE: pending direct UE 5.8 first-person audibility/timing acceptance
+CUTOVER_COMMIT: pending runtime acceptance
+OLD_OWNER_REMOVAL_COMMIT: n/a; rejected procedural whole-weapon manual-action fallback was retired separately, this donor does not replace gameplay authority
+NOTES: acquisition workflow run 33501795799 SUCCESS. Identity scope is bolt-action-family donor from a Mosin-Nagant source; it is not proof of exact M700 identity.
+```
+
+The existing pump-cycle source fallback `/Game/R13/Audio/shotguncock.shotguncock` is project-owned repository content and is not an external import record.
 
 ## Mandatory actual-import record
 
