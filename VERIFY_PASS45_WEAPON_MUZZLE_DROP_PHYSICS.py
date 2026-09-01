@@ -9,7 +9,7 @@ CHARACTER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "
 LAUNCHER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
 LAUNCHER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCAntiArmorLauncher.h"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
-LATEST_RUNTIME_EVIDENCE = ROOT / "RUNTIME_EVIDENCE" / "2026-08-27_PASS45_REJECTED" / "README.md"
+LATEST_RENDERED_RUNTIME_EVIDENCE = ROOT / "RUNTIME_EVIDENCE" / "2026-08-27_PASS45_REJECTED" / "README.md"
 
 errors: list[str] = []
 
@@ -33,7 +33,7 @@ character_h = read(CHARACTER_H)
 launcher_cpp = read(LAUNCHER_CPP)
 launcher_h = read(LAUNCHER_H)
 tz = read(TZ)
-latest_runtime_evidence = read(LATEST_RUNTIME_EVIDENCE)
+latest_rendered_runtime_evidence = read(LATEST_RENDERED_RUNTIME_EVIDENCE)
 
 # Historical runtime evidence showed tracers/muzzle flash below the visible barrel because the old code
 # reused the player-camera trace origin for both hit authority and presentation. Keep camera/view-ray hit
@@ -151,12 +151,14 @@ req("LauncherAudioEventCounter" in launcher_h,
 req("TraceOrigin+Dir*90.0f" not in launcher_cpp and "MulticastFireTraceFX(TraceOrigin" not in launcher_cpp,
     "anti-armor launcher regressed to camera-origin projectile/FX")
 
-# Runtime authority must follow the newest evidence pack, never a hard-coded historical rejection date.
-req("RUNTIME REJECTED 2026-08-27" in tz,
-    "canonical Pass45 TZ lost the latest 2026-08-27 runtime rejection")
+# Runtime authority has two layers: the canonical TZ carries the newest factual local verdict, while the
+# 2026-08-27 pack remains the newest committed rendered screenshot evidence. Do not force the older rendered
+# pack date back into the canonical current verdict when a newer startup rejection exists.
+req("Latest runtime verdict: **RUNTIME REJECTED 2026-08-31**" in tz,
+    "canonical Pass45 TZ lost the latest 2026-08-31 factual runtime verdict")
 for needle in ("RUNTIME REJECTED", "2026-08-27"):
-    req(needle in latest_runtime_evidence,
-        f"latest Pass45 runtime evidence lost required authority marker: {needle}")
+    req(needle in latest_rendered_runtime_evidence,
+        f"latest committed rendered Pass45 evidence lost required marker: {needle}")
 
 if errors:
     print("PASS45 WEAPON FIRING + MUZZLE + DROP PHYSICS: FAIL")
@@ -170,5 +172,5 @@ print("- Character held-input recoil timer/state is physically retired; confirme
 print("- bounded server cadence tolerance prevents tiny timer jitter from killing automatic fire early")
 print("- deliberate player drops enable authority gravity/collision/rigid-body simulation")
 print("- anti-armor projectile/FX/audio originate from production muzzle and ammo commits only after spawn")
-print("- latest factual runtime authority remains RUNTIME REJECTED 2026-08-27")
+print("- canonical latest factual runtime verdict is RUNTIME REJECTED 2026-08-31; 2026-08-27 remains latest committed rendered evidence")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 build, recoil feel, drop settling, muzzle alignment and rendered firing remain authoritative")
