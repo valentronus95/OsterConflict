@@ -44,17 +44,9 @@ struct FOCFirstPersonWeaponProfile
     FVector ReloadArmsLocation = FVector(-5.0f, 2.0f, -7.0f);
     FRotator ReloadArmsRotation = FRotator(-8.0f, 3.0f, 11.0f);
 
-    /**
-     * Legacy optional whole-transform cue for non-production experiments only.
-     * Production manual-action weapons that require authored bolt/pump/lever movement must leave this
-     * disabled while exact articulated animation content is missing; a camera-space sine cue is not an
-     * acceptable substitute for moving-part presentation.
-     */
-    FVector ManualActionWeaponLocation = FVector::ZeroVector;
-    FRotator ManualActionWeaponRotation = FRotator::ZeroRotator;
-    FVector ManualActionArmsLocation = FVector::ZeroVector;
-    FRotator ManualActionArmsRotation = FRotator::ZeroRotator;
-    bool bManualActionCueDeclared = false;
+    // Manual bolt/pump/lever motion is intentionally not a camera-space profile concern.
+    // Required production actions must come from the authored animation contract in
+    // OCWeaponAnimationProfiles; missing content preserves the baseline transform fail-closed.
 
     bool bGripCalibrated = false;
 };
