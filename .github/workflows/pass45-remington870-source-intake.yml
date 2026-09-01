@@ -1,0 +1,35 @@
+name: Pass 45 Remington 870 source intake
+
+on:
+  push:
+    paths:
+      - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
+      - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
+      - 'SOURCE_ASSETS/PASS45/Remington870/**'
+      - 'OsterConflict/Content/Production/Weapons/Remington870/**'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-remington870-source-intake.yml'
+  pull_request:
+    paths:
+      - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
+      - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
+      - 'SOURCE_ASSETS/PASS45/Remington870/**'
+      - 'OsterConflict/Content/Production/Weapons/Remington870/**'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-remington870-source-intake.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  remington870-source-intake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Verify fail-closed Remington 870 source intake
+        run: python VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py
