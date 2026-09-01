@@ -2,7 +2,7 @@
 
 > Current authoritative work state. Latest explicit user requirement + latest factual local UE runtime/build evidence always override older source/verifier claims.
 
-## 1. Current context — 2026-08-31
+## 1. Current context — 2026-09-01
 
 - Repository: `valentronus95/OsterConflict`.
 - Integrated `main` baseline: `bca00f4046700f383af9f1742cc24b6a62401b1a`.
@@ -11,16 +11,17 @@
 - Active PR: **#94 — `Pass45: runtime recovery, reference-backed world fidelity and strict acceptance`**.
 - PR state: **OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Latest substantive source head: `6cc2158d31f10ee50a1c5d3ca096b86b4b49022b` (`fix(pass45): distinguish pretick lifecycle from preview bootstrap`).
-- Exact source CI for that substantive head completed **SUCCESS**, including full `Source verification`, pre-tick startup guard, Block0 ground guard, tree-startup deferral, runtime recovery and strict runtime-acceptance source contracts.
-- Latest branch bookkeeping head before this ledger sync: `37c4775b1cc590bce79c647ed2037270ff32cc56` (`docs(pass45): record pretick startup recovery`).
+- Latest substantive source head: `a40dbc1497d07ef78d488ae02fa0d839a7459faa` (`test(pass45): guard physical manual-action fallback retirement`).
+- Item 16 source continuation physically retires the old whole-weapon/arms procedural manual-action fallback. The authored skeletal bridge remains, missing M700/870/Lever action sequences preserve the baseline transform fail-closed, PumpCycle retains tracked `shotguncock`, and bolt/lever audio remain explicit content gaps.
+- Exact-head source CI for `a40dbc1497d07ef78d488ae02fa0d839a7459faa` is the current verification target; source CI never promotes runtime acceptance.
+- Previous branch bookkeeping head: `408ec28f11f85ef0d1b5df9deae1db43188c0613` (`docs(pass45): record item16 fail-closed checkpoint`).
 - Latest factual local UE evidence is the 2026-08-31 Quick Normal startup rejection: incremental C++ build succeeded, then the direct game stayed black and entered rejected KiteDemo tree/material/static-mesh work.
 - Latest rendered gameplay evidence pack remains `RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`.
 - Historical rejected evidence remains separate: `RUNTIME_EVIDENCE/2026-08-25_PASS45_REJECTED/` and `RUNTIME_EVIDENCE/2026-08-24_PASS44_REJECTED/`.
 - UE target: 5.8.x / Windows.
 - Canonical user launcher: `START_HERE.cmd` only.
 - Hard map reference: `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`.
-- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-31 / PRE-TICK + SECOND START TREE-LOAD SOURCE RECOVERED / EXACT SUBSTANTIVE SOURCE HEAD CI SUCCESS / LOCAL UE RE-RUN PENDING**.
+- Current status token: **PASS 45 ACTIVE / RUNTIME REJECTED 2026-08-31 / MANUAL-ACTION WHOLE-TRANSFORM FALLBACK PHYSICALLY RETIRED / AUTHORED M700-870-LEVER CONTENT STILL OPEN / LOCAL UE RE-RUN PENDING**.
 
 ## 2. Status rules
 
@@ -169,24 +170,26 @@ Source correction now includes:
 
 Guard: `VERIFY_PASS45_WEAPON_MUZZLE_DROP_PHYSICS.py`.
 
-### 4.10 Weapon action / Burst3 / manual-action continuation — 2026-08-26
+### 4.10 Weapon action / Burst3 / manual-action continuation — 2026-09-01
 
-Source model now separates selector position from mechanical action:
+Source model separates selector position from mechanical action and now fails closed on missing articulated presentation:
 
 - supported fire modes are data-driven per exact weapon;
 - finite authoritative `Burst3` sequencing exists as an opt-in architecture, while no current production weapon falsely enables it;
 - `FOCWeaponTuning::ManualActionCycleSeconds` is explicit;
 - M700 bolt = `1.10 s`, Remington 870 pump = `0.72 s`, Lever Action .45-70 = `0.85 s`;
 - replicated `bActionCycling` blocks another shot/reload/selector mutation until authoritative completion;
-- first-person procedural bolt/pump/lever cues consume the replicated gate and authoritative duration; they own **no second gameplay timer**;
-- marker: `PASS45_MANUAL_ACTION_PRESENTATION_READY ... replicated_gate=1 second_gameplay_timer=0`;
+- first-person presentation observes that replicated gate and may start only an exact compatible authored `ManualActionAnimationObjectPath` through the production skeletal animation bridge;
+- the rejected whole-weapon/arms sine fallback, its timerless interpolation state, and its manual-action transform fields are physically retired from `OCFirstPersonWeaponPresentationSubsystem` and `FOCFirstPersonWeaponProfile`;
+- missing/incompatible authored action content emits `PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP` / bridge failure and preserves the baseline weapon+arms transform; there is no production `PASS45_MANUAL_ACTION_PRESENTATION_READY` or procedural fallback path;
+- M700, Remington 870 and Lever Action still deliberately require authored manual-action coverage while their exact sequence slots remain empty;
 - manual mechanical audio routes by exact action through `BoltCycle`, `PumpCycle`, `LeverCycle`;
 - local and remote action-audio paths are separated to avoid intentional double playback;
-- empty sound sets remain explicit `AUDIO CONTENT GAP`.
+- PumpCycle may use tracked `/Game/R13/Audio/shotguncock`; BoltCycle and LeverCycle remain explicit `AUDIO CONTENT GAP`.
 
-Still pending: authored/exact moving-part presentation where assets support it, real accepted mechanical sound content and local UE timing/feel verification.
+Still pending: accepted authored M700/870/Lever moving-part sequences, factual bolt/lever mechanical sound content, and local UE 5.8 timing/feel/visual/audio verification.
 
-Guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`.
+Guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`, which now rejects resurrection of the retired whole-transform fallback API/state/markers.
 
 ### 4.11 Per-weapon ADS validation architecture — 2026-08-26
 
@@ -290,8 +293,8 @@ A new local UE 5.8 Quick Normal run is the next factual gate. Until it succeeds,
 | WEAPON-MATERIAL-001 | Required available weapons use authored material + texture deps | CODED_UNTESTED | R3/fresh-load path coded; rendered rack proof pending. |
 | WEAPON-FIRING-001 | Ammo/recoil/muzzle/audio count agree on factual shots | CODED_UNTESTED | Confirmed-shot ownership source-coded; local firing matrix pending. |
 | WEAPON-DROP-001 | Deliberate weapon drops fall/collide/settle and replicate | CODED_UNTESTED | Rigid-body source path coded; local physics proof pending. |
-| WEAPON-ACTION-001 | Exact selectors + deterministic Burst3/manual cycles | CODED_UNTESTED | Finite Burst3 + replicated manual gate + procedural cue source-coded. |
-| WEAPON-AUDIO-001 | No accepted silent weapon; exact per-weapon/mechanical audio | IN_PROGRESS / CODED_UNTESTED / CONTENT GAP | Source-level silence fallback coded; final authored identity/mix and bolt/lever content pending. |
+| WEAPON-ACTION-001 | Exact selectors + deterministic Burst3/manual cycles | IN_PROGRESS / CODED_UNTESTED / CONTENT GAP | Authoritative cycles and authored skeletal bridge exist; rejected whole-transform fallback is physically retired; exact M700/870/Lever action sequences and bolt/lever audio remain missing. |
+| WEAPON-AUDIO-001 | No accepted silent weapon; exact per-weapon/mechanical audio | IN_PROGRESS / CODED_UNTESTED / CONTENT GAP | Source-level silence fallback coded; PumpCycle has tracked mechanical cue; final authored identity/mix and bolt/lever content pending. |
 | WEAPON-ADS-001 | Per-weapon sight alignment is factual, not generic | IN_PROGRESS / CODED_UNTESTED | Fail-visible socket architecture + diagnostics coded; all exact profiles remain uncalibrated. |
 | WEAPON-PRIMITIVE-001 | No visible BasicShape weapon/pickup/launcher fallback in accepted runtime | CODED_UNTESTED | Source fail-closed retirement complete; rendered zero-primitive proof pending. |
 | GRENADE-VISUAL-001 | No primitive grenade/smoke and no inventory loss on failed throw | CODED_UNTESTED / CONTENT GAP | Primitive retirement + transactional throw + authored throw audio coded; authored hand animation, flash VFX and runtime visual proof pending. |
@@ -325,7 +328,8 @@ A new local UE 5.8 Quick Normal run is the next factual gate. Until it succeeds,
 22. an unassigned/empty shot profile silently swallowing an otherwise accepted factual shot;
 23. temporary generic weapon audio fallback being called final per-weapon authored sound acceptance;
 24. a shell-only Silpo being accepted without the visible R14.3 facade/sign identity stage;
-25. a six-column Culture House signature appearing at the Museum parcel.
+25. a six-column Culture House signature appearing at the Museum parcel;
+26. whole-weapon/arms sine motion or dormant manual-action transform profile fields resurrected as a bolt/pump/lever substitute.
 
 ## 7. Current execution order
 
@@ -337,11 +341,11 @@ A new local UE 5.8 Quick Normal run is the next factual gate. Until it succeeds,
 6. [x] Source-code factual-shot muzzle/recoil/drop corrections and retire duplicate local recoil owner.
 7. [x] Source-code data-driven selector/action model and finite Burst3 architecture.
 8. [x] Source-code authoritative M700/870/Lever post-shot cycle gate.
-9. [x] Source-code replicated-gate procedural manual-action presentation + exact Bolt/Pump/Lever audio routing.
+9. [x] Source-code replicated-gate authored-animation bridge + exact Bolt/Pump/Lever audio routing; physically retire the rejected whole-transform fallback so missing action content preserves the baseline transform.
 10. [x] Source-code fail-visible per-weapon ADS profile/sight-reference architecture + alignment diagnostics.
 11. [x] Add manual-action and ADS guards to cumulative source verification.
 12. [x] Close source-level silent-shot path with event-local repository audio fallback and dedicated guard/workflow.
-13. [ ] Replace procedural manual-action cue with accepted authored moving-part/skeletal presentation where assets support it.
+13. [ ] Add and accept exact authored M700/870/Lever moving-part/skeletal action sequences where production assets support them.
 14. [ ] Replace temporary generic audio fallback with accepted exact per-weapon shot/reload/distant/mechanical profiles and close bolt/lever audio gaps.
 15. [ ] Inspect each exact production weapon in local UE 5.8, confirm rear/front/optic references and calibrate ADS transforms; only factual profiles may set `bADSCalibrated=true`.
 16. [x] Source-retire visible primitive weapon/pickup/launcher fallbacks and make runtime acceptance fail closed. **Rendered proof pending.**
@@ -381,7 +385,8 @@ A new local UE 5.8 Quick Normal run is the next factual gate. Until it succeeds,
 - empty-mag hold creates no shot recoil/audio;
 - muzzle/tracer/projectile begins at visible production muzzle;
 - drop from standing/walking/running falls, collides and settles;
-- M700/870/Lever action cycle visually follows authoritative state;
+- M700/870/Lever authoritative action gates remain active, but missing authored sequences must preserve the baseline transform rather than manufacture whole-weapon motion;
+- once exact action sequences are committed, their visible cycle must follow the authoritative gate and pass skeleton/timing verification;
 - source fallback means a missing profile cannot silently erase the shot, but exact final sound identity remains required;
 - action audio is actually populated/audible or remains explicit content gap;
 - every accepted weapon receives dedicated hip/ADS screenshots;
@@ -434,6 +439,6 @@ Current build/import correction state remains **CODED_UNTESTED** until a current
 
 ## 11. Current verdict
 
-**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-31 / STARTUP SOURCE RECOVERY SOURCE-VERIFIED / LOCAL UE RE-RUN PENDING.**
+**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-31 / MANUAL-ACTION WHOLE-TRANSFORM FALLBACK PHYSICALLY RETIRED / AUTHORED ACTION CONTENT + LOCAL UE RE-RUN PENDING.**
 
 PR #94 remains **OPEN / UNMERGED**.
