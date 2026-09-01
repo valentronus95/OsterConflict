@@ -89,6 +89,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          ASSET='SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb'
+          POINTER_TMP="${RUNNER_TEMP}/remington870-lfs-pointer.txt"
+          git show ":${ASSET}" > "$POINTER_TMP"
+          cp "$POINTER_TMP" "$ASSET"
           python VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py
 
       - name: Commit only if canonical head is unchanged
