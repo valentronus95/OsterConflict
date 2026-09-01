@@ -20,6 +20,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
 			"Name": "ProceduralVegetationEditor",
 			"Enabled": true
 		}
