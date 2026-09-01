@@ -4,7 +4,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 UPROJECT = ROOT / "OsterConflict" / "OsterConflict.uproject"
+COMMANDLET_UPROJECT = ROOT / "OsterConflict" / "OsterConflictPass45Commandlet.uproject"
 IMPORTER = ROOT / "PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py"
+FRESH_LOADER = ROOT / "PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py"
+WRAPPER = ROOT / "OsterConflict" / "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd"
+START_HERE = ROOT / "START_HERE.cmd"
 CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAudioComponent.cpp"
 PROFILE = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCWeaponAudioProfile.h"
 MANIFEST = ROOT / "SOURCE_ASSETS" / "PASS45" / "ManualActionAudio" / "MANIFEST.json"
@@ -43,6 +47,17 @@ def req(condition: bool, message: str) -> None:
         errors.append(message)
 
 
+def parse_project(path: Path, label: str) -> dict:
+    text = read(path)
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        errors.append(f"invalid {label} JSON: {exc}")
+        return {}
+
+
 def parse_lfs_pointer(path: Path) -> tuple[str, int] | None:
     text = read(path)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -59,26 +74,26 @@ def parse_lfs_pointer(path: Path) -> tuple[str, int] | None:
         return None
 
 
-uproj_text = read(UPROJECT)
+uproject = parse_project(UPROJECT, "runtime uproject")
+commandlet_uproject = parse_project(COMMANDLET_UPROJECT, "commandlet uproject")
 importer = read(IMPORTER)
+fresh_loader = read(FRESH_LOADER)
+wrapper = read(WRAPPER)
+start_here = read(START_HERE)
 cpp = read(CPP)
 profile = read(PROFILE)
 manifest_text = read(MANIFEST)
-try:
-    uproject = json.loads(uproj_text) if uproj_text else {}
-except json.JSONDecodeError as exc:
-    errors.append(f"invalid uproject JSON: {exc}")
-    uproject = {}
 try:
     manifest = json.loads(manifest_text) if manifest_text else {}
 except json.JSONDecodeError as exc:
     errors.append(f"invalid manual-action manifest JSON: {exc}")
     manifest = {}
 
-req(uproject.get("EngineAssociation") == "5.8", "manual-action importer contract requires UE EngineAssociation 5.8")
-plugins = {item.get("Name"): item.get("Enabled") for item in uproject.get("Plugins", []) if isinstance(item, dict)}
-req(plugins.get("PythonScriptPlugin") is True, "PythonScriptPlugin must remain enabled")
-req(plugins.get("EditorScriptingUtilities") is True, "EditorScriptingUtilities must remain enabled")
+for label, project in (("runtime", uproject), ("commandlet", commandlet_uproject)):
+    req(project.get("EngineAssociation") == "5.8", f"{label} manual-action importer contract requires UE EngineAssociation 5.8")
+    plugins = {item.get("Name"): item.get("Enabled") for item in project.get("Plugins", []) if isinstance(item, dict)}
+    req(plugins.get("PythonScriptPlugin") is True, f"{label} PythonScriptPlugin must remain enabled")
+    req(plugins.get("EditorScriptingUtilities") is True, f"{label} EditorScriptingUtilities must remain enabled")
 
 req(manifest.get("runtime_ready") is False, "manifest must remain runtime_ready=false before local UE acceptance")
 req(manifest.get("ue_import_pending") is True, "manifest must remain ue_import_pending=true until imported .uasset evidence exists")
@@ -97,6 +112,7 @@ for donor_key, expected in EXPECTED.items():
     req(expected["asset"] in cpp, f"runtime fallback asset path missing for {donor_key}")
     req(expected["array"] in cpp, f"runtime fallback route missing for {donor_key}")
     req(expected["oid"] in importer, f"importer SHA pin missing for {donor_key}")
+    req(expected["asset"] in fresh_loader, f"fresh-load exact object path missing for {donor_key}")
 
 for needle in (
     'DESTINATION_PATH = "/Game/PASS45/Audio/ManualAction"',
@@ -113,14 +129,41 @@ for needle in (
 ):
     req(needle in importer, f"UE importer fail-closed contract missing: {needle}")
 
-for forbidden in (
-    "runtime_acceptance=1",
-    "item16_checked=1",
-    "RUNTIME ACCEPTED",
-    "exact M700 donor",
-    "exact Stein donor",
+for needle in (
+    "unreal.EditorAssetLibrary.does_asset_exist",
+    "unreal.EditorAssetLibrary.load_asset",
+    'asset.get_class().get_name() != "SoundWave"',
+    "asset.get_path_name() != object_path",
+    "runtime_acceptance=0 item16_checked=0",
 ):
-    req(forbidden not in importer, f"UE importer overclaims acceptance/identity: {forbidden}")
+    req(needle in fresh_loader, f"fresh-load verifier contract missing: {needle}")
+
+for needle in (
+    "OsterConflictPass45Commandlet.uproject",
+    "PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py",
+    "PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py",
+    "SW_PASS45_BoltAction_CC0_Donor.uasset",
+    "SW_PASS45_LeverAction_CC0_Donor.uasset",
+    "-run=pythonscript",
+    "-nullrhi",
+    "runtime_acceptance=0 item16_checked=0",
+):
+    req(needle in wrapper, f"manual-action UE 5.8 wrapper contract missing: {needle}")
+
+req('call "%~dp0OsterConflict\\PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd"' in start_here,
+    "START_HERE full runtime route no longer invokes manual-action audio import/fresh-load")
+req("Пункт 1: тільки incremental C++ build + запуск гри. Без reimport HMMWV/M2/BTR/Stein/manual-action audio." in start_here,
+    "START_HERE must keep manual-action import out of Quick Normal route")
+
+for text, label in ((importer, "importer"), (fresh_loader, "fresh loader"), (wrapper, "wrapper")):
+    for forbidden in (
+        "runtime_acceptance=1",
+        "item16_checked=1",
+        "RUNTIME ACCEPTED",
+        "exact M700 donor",
+        "exact Stein donor",
+    ):
+        req(forbidden not in text, f"{label} overclaims acceptance/identity: {forbidden}")
 
 for needle in ("BoltCycle", "PumpCycle", "LeverCycle"):
     req(needle in profile, f"weapon audio profile lost manual-action route: {needle}")
@@ -133,7 +176,8 @@ if errors:
 
 print("PASS45 MANUAL ACTION AUDIO UE IMPORT CONTRACT: PASS")
 print("- LFS donor OIDs/sizes match the canonical manifest")
-print("- UE 5.8 importer is pinned, deterministic and rejects unhydrated/mutated donor payloads")
+print("- runtime and isolated commandlet UE 5.8 projects expose the required Python/editor scripting plugins")
+print("- strict full-runtime route imports and independently fresh-loads both donor SoundWaves; Quick Normal remains import-free")
 print("- BoltCycle/LeverCycle resolve only to repository-owned action-family donor SoundWave paths")
 print("- no runtime acceptance or exact M700/Stein identity is claimed")
 print("STATUS: SOURCE VERIFIED CONTRACT; actual UE import/audibility/timing and authored animations remain pending")

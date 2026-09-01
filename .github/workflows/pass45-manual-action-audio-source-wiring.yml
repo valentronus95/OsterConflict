@@ -7,8 +7,12 @@ on:
     paths:
       - 'PASS45_MANUAL_ACTION_AUDIO_SOURCE_WIRING.py'
       - 'PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
+      - 'PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py'
       - 'VERIFY_PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
       - 'OsterConflict/OsterConflict.uproject'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
+      - 'OsterConflict/PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd'
+      - 'START_HERE.cmd'
       - '.github/workflows/pass45-manual-action-audio-source-wiring.yml'
   workflow_dispatch:
 
@@ -37,7 +41,7 @@ jobs:
       - name: Apply exact-anchor runtime source wiring
         run: python PASS45_MANUAL_ACTION_AUDIO_SOURCE_WIRING.py --mode write
 
-      - name: Verify manual-action UE import and runtime routing contract
+      - name: Verify manual-action UE import, fresh-load and runtime routing contract
         run: python VERIFY_PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py
 
       - name: Verify existing weapon-audio fallback contract
