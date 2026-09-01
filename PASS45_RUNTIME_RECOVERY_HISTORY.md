@@ -440,3 +440,19 @@ Never collapse these states into one generic `PASS`.
 - Official checklist accounting remains **22/36 = 61.1%**, **38.9% remaining**. No runtime-dependent item is newly credited.
 - Local uncommitted user work was not touched by these remote GitHub commits.
 - Next factual blocker: run the current PASS45 branch in UE 5.8 and verify Quick Normal reaches a usable first frame without `PASS45_BLOCK0_PRETICK_GROUND_FAIL`, `oster_sector_count_0`, or the quarantined KiteDemo tree START chain. Only that runtime evidence can advance acceptance.
+
+## Work cycle — 2026-09-01 item 16 required manual-action visual fail-closed continuation
+
+- Canonical checklist relevance: item 16 authored bolt/pump/lever moving-part presentation and real action sound content. This source cycle removes the fake whole-transform cue for required production manual-action weapons; it does not provide missing authored animation/audio and does not close item 16.
+- Branch / PR: `fix/pass45-runtime-rejection-material-closure-20260826` / #94.
+- Start head: `fd0ab856b27fa67a558892acde3ede8613faeb9e`.
+- Source commits: `b63a8312cc2e98af588661c45c61ffaa7a1bb6c2` — fail closed production manual-action transform cues; `0abb9e67fa5358e732535818012070fdd6f8822f` — guard fail-closed profiles; `a0e71ddb2e63981fd3161da7685373fb9076c56f` — clarify fallback policy.
+- Asset audit: current SampleAnimationPack has no bolt/pump/lever sequence; Stein M700/Lever imported and Raw sources expose mesh/textures but no separate action animations; exact Remington 870 source payload is absent; current R13 audio has tracked `shotguncock` for pump only and no factual bolt/lever mechanical asset.
+- Production correction: `MakeM700Profile`, `MakeRemington870Profile` and `MakeLeverActionProfile` no longer assign whole-weapon/arms manual-action offsets and force `bManualActionCueDeclared=false`. Authoritative server action gate/timing and the authored animation bridge remain unchanged. Missing exact animation stays fail-visible/content gap instead of fabricated moving-part acceptance.
+- Regression guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py` now requires the three production profiles to stay fail-closed, forbids procedural displacement assignments, preserves required authored empty-slot truth, rejects borrowed AK animation, and preserves the factual PumpCycle `shotguncock` route while keeping Bolt/Lever gaps explicit.
+- Exact source CI for `a0e71ddb2e63981fd3161da7685373fb9076c56f`: every workflow returned by the exact-head audit completed **SUCCESS**, including `Source verification`, `Runtime recovery Pass 45`, `Pass 45 stale runtime retirement`, `Pass 45 weapon audio fallback`, `R14 weapon profile contracts`, `Pass 45 local build import regression`, `Pass 45 strict runtime acceptance harness` and the related startup/Block0/Gate K guards.
+- Runtime state: **RUNTIME REJECTED 2026-08-31** remains factual. No current-head local UE 5.8 run was performed in this cycle.
+- `main` remains `bca00f4046700f383af9f1742cc24b6a62401b1a`; PR #94 remains OPEN / UNMERGED. No merge is authorized.
+- Official checklist accounting remains **22/36 = 61.1%**, **38.9% remaining**. Item 16 remains unchecked because real authored bolt/pump/lever moving-part content, factual bolt/lever sound and UE 5.8 acceptance are still missing.
+- Local uncommitted user changes were not touched.
+- Next factual blocker for item 16: obtain/commit accepted M700/870/Lever authored action sequences and factual bolt/lever mechanical audio, then validate skeleton compatibility, timing and audibility in UE 5.8. The broader P0 runtime recovery still also requires a current-head Quick Normal/full runtime acceptance run.
