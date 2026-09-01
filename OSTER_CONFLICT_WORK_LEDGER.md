@@ -12,8 +12,12 @@
 - PR state: **OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Latest substantive source head: `a40dbc1497d07ef78d488ae02fa0d839a7459faa` (`test(pass45): guard physical manual-action fallback retirement`).
+- Latest canonical policy/docs checkpoint: `209f4ea1cb0c7346e19be82830ad94a35a960bd1` (`docs(pass45): add final execution integrity rules`). Sections 26–29 now bind reuse-first, production-hardening and execution-integrity rules directly into the canonical TZ without changing runtime truth or checklist completion.
+- The latest completeness re-audit adds server-synchronized gameplay time, GC/object-lifetime/memory-hitch evidence, Asset Redirector/Core Redirect hygiene, Development/Test/Shipping reproducible-build separation, and async/task/world-teardown safety. These are execution rules for touched systems, not new checklist items.
+- Architecture freeze remains active: no further broad framework survey is added without a factual runtime/content defect, measured CPU/GPU/network/memory/loading bottleneck, genuinely new user subsystem requirement, or engine/license change.
+- Formal checklist accounting remains `22/36 = 61.1%` complete; first factual open item remains item 16.
 - Item 16 source continuation physically retires the old whole-weapon/arms procedural manual-action fallback. The authored skeletal bridge remains, missing M700/870/Lever action sequences preserve the baseline transform fail-closed, PumpCycle retains tracked `shotguncock`, and bolt/lever audio remain explicit content gaps.
-- Exact-head source CI for `a40dbc1497d07ef78d488ae02fa0d839a7459faa` is the current verification target; source CI never promotes runtime acceptance.
+- Exact-head source CI for implementation heads is structural evidence only; documentation/policy commits never promote runtime acceptance.
 - Previous branch bookkeeping head: `408ec28f11f85ef0d1b5df9deae1db43188c0613` (`docs(pass45): record item16 fail-closed checkpoint`).
 - Latest factual local UE evidence is the 2026-08-31 Quick Normal startup rejection: incremental C++ build succeeded, then the direct game stayed black and entered rejected KiteDemo tree/material/static-mesh work.
 - Latest rendered gameplay evidence pack remains `RUNTIME_EVIDENCE/2026-08-27_PASS45_REJECTED/`.
