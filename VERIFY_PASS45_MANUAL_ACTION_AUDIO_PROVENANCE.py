@@ -130,14 +130,22 @@ if manifest_text:
         req(donor.get("runtime_ready") is False, f"{key} manifest falsely promotes runtime readiness")
         req(donor.get("ue_import_pending") is True, f"{key} manifest lost UE import pending truth")
 
-req("RepositoryFallbackProfile->PumpCycle.Add(Pump);" in audio_cpp,
-    "tracked PumpCycle fallback disappeared while item 16 is still open")
-for forbidden in (
-    "RepositoryFallbackProfile->BoltCycle.Add",
-    "RepositoryFallbackProfile->LeverCycle.Add",
+# Source routing is allowed before UE import only when it remains fail-closed: LoadSound(null) must leave the
+# fallback arrays empty. The exact repository-owned donor object paths are therefore source-prewired, while the
+# missing .uasset files remain factual CONTENT GAP until the strict UE 5.8 import/fresh-load route succeeds.
+for needle in (
+    "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
+    "/Game/R13/Audio/shotguncock.shotguncock",
+    "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
+    "if (USoundBase* Bolt = LoadSound",
+    "RepositoryFallbackProfile->BoltCycle.Add(Bolt);",
+    "if (USoundBase* Pump = LoadSound",
+    "RepositoryFallbackProfile->PumpCycle.Add(Pump);",
+    "if (USoundBase* Lever = LoadSound",
+    "RepositoryFallbackProfile->LeverCycle.Add(Lever);",
+    "PASS45_WEAPON_AUDIO_CONTENT_GAP",
 ):
-    req(forbidden not in audio_cpp,
-        f"source donor was wired into runtime before UE import/acceptance: {forbidden}")
+    req(needle in audio_cpp, f"manual-action fail-closed source routing missing: {needle}")
 
 for needle in (
     "Current repository-owned BoltCycle runtime asset: **CONTENT GAP**",
@@ -167,6 +175,6 @@ print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
 print("- current CC0 lever/bolt transports and repository-owned LFS derivative identities are pinned")
 print("- current advertised preview bytes are audit-only and cannot auto-replace pinned bytes")
 print("- manifest remains runtime_ready=0 / ue_import_pending=1 / item16_checked=0")
-print("- PumpCycle remains tracked while BoltCycle/LeverCycle runtime assets stay fail-visible pending UE import")
-print("- item 16 stays open until UE SoundWave wiring, authored moving-part animation and UE 5.8 acceptance")
-print("STATUS: SOURCE PAYLOAD VERIFIED; UE IMPORT / RUNTIME ACCEPTANCE PENDING")
+print("- bolt/pump/lever source routes are guarded by LoadSound; absent donor .uasset files remain fail-visible content gaps")
+print("- item 16 stays open until UE SoundWave import/fresh-load, authored moving-part animation and UE 5.8 acceptance")
+print("STATUS: SOURCE PAYLOAD + FAIL-CLOSED ROUTING VERIFIED; UE IMPORT / RUNTIME ACCEPTANCE PENDING")

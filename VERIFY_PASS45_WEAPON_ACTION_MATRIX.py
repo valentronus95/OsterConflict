@@ -181,17 +181,23 @@ for needle in (
 ):
     req(needle in audio_component, f"manual-action audio routing/content-gap truth missing: {needle}")
 
-# Pump has one real repository-owned mechanical cue today; bolt and lever remain explicit gaps.
+# Source routes may point at repository-owned donor object paths before import only through LoadSound guards.
+# If the imported .uasset is absent, LoadSound returns null and the corresponding fallback array stays empty,
+# preserving the visible content-gap state instead of manufacturing runtime acceptance.
 pump_asset = ROOT / "OsterConflict" / "Content" / "R13" / "Audio" / "shotguncock.uasset"
 req(pump_asset.is_file(), "tracked Remington pump mechanical sound is missing: R13/Audio/shotguncock.uasset")
-req('/Game/R13/Audio/shotguncock.shotguncock' in audio_component,
-    "PumpAction fallback no longer points at the tracked shotguncock asset")
-req("RepositoryFallbackProfile->PumpCycle.Add(Pump)" in audio_component,
-    "tracked pump sound is not routed into PumpCycle")
-req("RepositoryFallbackProfile->BoltCycle.Add" not in audio_component,
-    "bolt cycle acquired an unverified generic repository fallback")
-req("RepositoryFallbackProfile->LeverCycle.Add" not in audio_component,
-    "lever cycle acquired an unverified generic repository fallback")
+for needle in (
+    "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
+    "/Game/R13/Audio/shotguncock.shotguncock",
+    "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
+    "if (USoundBase* Bolt = LoadSound",
+    "RepositoryFallbackProfile->BoltCycle.Add(Bolt)",
+    "if (USoundBase* Pump = LoadSound",
+    "RepositoryFallbackProfile->PumpCycle.Add(Pump)",
+    "if (USoundBase* Lever = LoadSound",
+    "RepositoryFallbackProfile->LeverCycle.Add(Lever)",
+):
+    req(needle in audio_component, f"manual-action repository fallback route missing: {needle}")
 
 for needle in ("void AOCWeaponBase::OnRep_ActionCycling()", "OwnerCharacter->IsLocallyControlled()", "ManualActionCycle"):
     req(needle in manual_action_cpp, f"remote manual-action replication/audio path missing: {needle}")
@@ -241,5 +247,5 @@ print("- M700/870/LeverAction explicitly require authored articulated manual-act
 print("- rejected whole-weapon/arms procedural manual-action fallback is physically retired")
 print("- missing authored action content preserves baseline transforms and remains a hard-visible content gap")
 print("- authored manual-action animation keeps a dedicated fail-closed profile slot and production skeletal consumer")
-print("- PumpCycle uses tracked R13/Audio/shotguncock; bolt/lever audio remain visible content gaps")
-print("STATUS: SOURCE CONTRACT FAIL-CLOSED; exact authored moving-part sequences, bolt/lever audio and local UE 5.8 acceptance remain pending")
+print("- pump uses tracked R13 audio; bolt/lever source routes target provenance-pinned repository donors and stay fail-closed until UE import")
+print("STATUS: SOURCE CONTRACT FAIL-CLOSED; UE donor SoundWave import/fresh-load, authored moving-part sequences and local UE 5.8 acceptance remain pending")
