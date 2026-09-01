@@ -29,6 +29,7 @@ DONORS = {
         ],
         "output_name": "lever_action_cc0_preview_donor.wav",
         "identity_scope": "lever-action-family donor; not exact Stein/Marlin/Model-1894 identity",
+        "expected_transport_url": "https://cdn.freesound.org/previews/523/523401_9-lq.mp3",
         "expected_transport_sha256": "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab",
     },
     "bolt": {
@@ -43,6 +44,7 @@ DONORS = {
         ],
         "output_name": "bolt_action_cc0_preview_donor.wav",
         "identity_scope": "bolt-action-family donor; Mosin-Nagant source, not M700 identity",
+        "expected_transport_url": "https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3",
         "expected_transport_sha256": "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e",
     },
 }
@@ -67,6 +69,10 @@ def normalize_embedded_url(value: str) -> str:
     return value
 
 
+def canonical_transport_url(value: str) -> str:
+    return normalize_embedded_url(value).split("?", 1)[0]
+
+
 def extract_audio_urls(page_text: str) -> list[str]:
     normalized = normalize_embedded_url(page_text)
     candidates: list[str] = []
@@ -79,7 +85,6 @@ def extract_audio_urls(page_text: str) -> list[str]:
             url = match.rstrip("\\")
             if url not in candidates:
                 candidates.append(url)
-    candidates.sort(key=lambda u: ("-hq." not in u.lower(), ".mp3" not in u.lower(), len(u)))
     return candidates
 
 
@@ -101,8 +106,18 @@ def validate_source_contract(source_html: str, donor: dict[str, object]) -> None
 
 def resolve_transport(donor: dict[str, object], source_html: str) -> tuple[str, str]:
     source_urls = extract_audio_urls(source_html)
+    expected_url = str(donor.get("expected_transport_url", "")).strip()
+    if expected_url:
+        expected_canonical = canonical_transport_url(expected_url)
+        advertised = {canonical_transport_url(url) for url in source_urls}
+        if expected_canonical not in advertised:
+            raise RuntimeError(
+                f"pinned public preview is no longer advertised by source page: {expected_url}"
+            )
+        return expected_url, "freesound_public_preview_pinned"
+
     if source_urls:
-        return source_urls[0], "freesound_public_preview"
+        raise RuntimeError("public preview transport discovered but no audited URL is pinned")
 
     errors = []
     for mirror in donor["mirror_pages"]:
@@ -113,11 +128,13 @@ def resolve_transport(donor: dict[str, object], source_html: str) -> tuple[str, 
                 continue
             urls = extract_audio_urls(mirror_html)
             if urls:
-                return urls[0], f"pixabay_freesound_community_mirror:{mirror}"
+                raise RuntimeError(
+                    "mirror preview discovered but write/audit intake requires an explicitly audited transport URL"
+                )
             errors.append(f"no public audio URL on {mirror}")
         except Exception as exc:  # noqa: BLE001 - audit should report all transport failures
             errors.append(f"{mirror}: {exc}")
-    raise RuntimeError("unable to resolve public CC0 preview transport; " + "; ".join(errors))
+    raise RuntimeError("unable to resolve pinned public CC0 preview transport; " + "; ".join(errors))
 
 
 def sha256(data: bytes) -> str:
@@ -180,9 +197,16 @@ def main() -> int:
         transport_url, transport_kind = resolve_transport(donor, source_html)
         transport_bytes = fetch_bytes(transport_url)
         transport_sha = sha256(transport_bytes)
+        expected_url = str(donor.get("expected_transport_url", "")).strip()
         expected = str(donor["expected_transport_sha256"])
 
         if args.mode == "write":
+            if not expected_url:
+                raise RuntimeError(f"write mode forbidden without pinned transport URL for {key}")
+            if canonical_transport_url(transport_url) != canonical_transport_url(expected_url):
+                raise RuntimeError(
+                    f"transport URL drift for {key}: expected={expected_url} actual={transport_url}"
+                )
             if not expected:
                 raise RuntimeError(f"write mode forbidden without pinned transport SHA256 for {key}")
             if transport_sha != expected:

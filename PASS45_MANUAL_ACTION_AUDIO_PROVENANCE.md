@@ -97,7 +97,9 @@ Bolt public preview:
 - derivative size: `624078` bytes
 - derivative duration: `6.500000 s`
 
-These two transport hashes are now the only values accepted by `--mode write`. A changed public preview must fail intake rather than silently replacing repository source content.
+Write mode is now fail-closed on the exact audited LQ transport URLs and SHA-256 values above. A newly advertised HQ/LQ variant, mirror transport or changed byte stream must fail instead of silently replacing the audited donor.
+
+These exact audited LQ transport URLs and SHA-256 values are the only transport coordinates accepted by `--mode write`. A changed public preview must fail intake rather than silently replacing repository source content.
 
 ## Next factual intake
 
