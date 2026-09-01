@@ -1146,3 +1146,93 @@ Do not keep expanding PASS45 with another broad framework survey merely because 
 Otherwise continue the existing 36-item execution order. This prevents the audit itself from becoming the project.
 
 This section changes engineering policy only. Formal progress remains tied to the existing 36-item checklist, runtime truth remains factual local UE 5.8 evidence, and PR #94 remains OPEN / UNMERGED until the existing acceptance rule passes.
+
+## 29. Final execution-integrity clarifications — integrated 2026-09-01
+
+This is a narrow clarification of already-active multiplayer, performance, content-migration and packaged-build responsibilities. It does **not** add a new framework, does not create new checklist points, and does not change the first factual open item: item 16. It is permitted under the section 28.9 freeze because the user explicitly requested a final completeness re-audit of the current production contract.
+
+### 29.1 Server-synchronized gameplay time — REQUIRED WHEN TIME CROSSES THE NETWORK
+
+One authoritative gameplay clock must exist for any timestamp/deadline that clients compare or display.
+
+Rules:
+
+- the server owns factual action start/end times, cooldowns, fuses, respawn/deployment windows, objective timers and other gameplay deadlines;
+- when clients need a synchronized notion of server game time, prefer `AGameStateBase::GetServerWorldTimeSeconds()` or an equivalent replicated absolute server timestamp rather than the client's local wall clock;
+- `FDateTime::Now`, OS clock, local platform time or a client-only timer may never be the authority for an accepted gameplay action;
+- server-side timers/state own the commit; replicated presentation may interpolate/count down from the authoritative end time but may not create a second gameplay deadline;
+- late join/reconnect must receive current state/current end-time semantics rather than restarting a timer from zero;
+- pause/time-dilation semantics must be explicit per gameplay timer; real-time clocks are for diagnostics only unless a feature deliberately requires real-time behavior;
+- bad-network acceptance must prove that displayed countdown/action state converges to the same server truth without granting extra shots, grenades, seat actions, cooldown resets or duplicate commits.
+
+This strengthens the existing server-authority rule; it is not a new timing subsystem.
+
+### 29.2 Garbage collection, object lifetime and memory-hitch budget — REQUIRED FOR ITEM 33
+
+Average FPS alone is insufficient. A game that reports 60 FPS between periodic GC/loading stalls is not accepted as smooth.
+
+Item 33 performance/thermal evidence must include, where relevant:
+
+- Unreal Memory Insights / LLM or equivalent engine memory evidence during representative mixed gameplay;
+- live-allocation/UObject/Actor trends across a sustained soak, not only one snapshot;
+- visible identification of major GC, asset-load, shader/PSO and object-churn hitches when they occur;
+- repeated weapon drop/pickup, grenade/VFX use, vehicle enter/exit, bot spawn/despawn and relevant world-content streaming without monotonically growing retained memory that has no gameplay reason;
+- frame-time evidence that records meaningful long hitches/maxima/percentile behavior, not only average FPS.
+
+Hard rules:
+
+- do not call forced full `CollectGarbage` from normal combat/frame-critical paths merely to mask lifetime mistakes; a deliberate loading/transition cleanup requires a measured reason;
+- UObject references that must survive GC use Unreal-supported reference ownership (`UPROPERTY`/`TObjectPtr`/appropriate GC-aware ownership); temporary observation uses weak references where lifetime is not guaranteed;
+- async callbacks/tasks must re-check object/world lifetime before mutation;
+- object pooling is profiling-driven, not a compulsory custom framework; do not create a universal pool unless allocation/churn evidence justifies it.
+
+### 29.3 Asset Redirector and Core Redirect hygiene — REQUIRED WHEN RENAMING/MOVING CONTENT OR SERIALIZED CODE
+
+Oster has undergone substantial asset and source restructuring. Redirects may preserve compatibility during migration, but stale chains may not become permanent hidden production architecture.
+
+Asset rules:
+
+- after accepted asset moves/renames, run Editor-supported Fix Up Redirectors or the controlled `ResavePackages -fixupredirects` route before calling the migration complete;
+- validate hard/soft references again after redirect fixup and in cooked/package evidence;
+- do not delete the old asset/path until referencers and the replacement cook/fresh-load path are proven;
+- a long redirector chain is not accepted as the final runtime loading strategy for required production content.
+
+Serialized C++/Blueprint migration rules:
+
+- when a class/property/function/struct/package rename must preserve existing serialized assets, use explicit Unreal Core Redirects where appropriate;
+- broad `MatchSubstring` redirects are temporary migration tools, not permanent startup policy; affected assets should be resaved/fixed and the broad redirect retired when safe;
+- a code rename that silently loses serialized values is a hard migration failure even if the project compiles;
+- Data Validation/cook/fresh-load evidence should catch stale path/redirect failures before runtime acceptance.
+
+### 29.4 Development / Test / Shipping and reproducible-build contract — REQUIRED BEFORE FINAL DISTRIBUTION
+
+The project must distinguish a debuggable engineering build from a ship-like runtime instead of relying on one local Development configuration forever.
+
+Rules:
+
+- record the exact UE 5.8.x engine build/patch, project Git SHA and relevant plugin/config baseline for final packaged evidence;
+- Development builds remain valid for Insights, traces and active debugging; Test may be used for ship-like profiling where useful; Shipping is the final ship-like sanity configuration;
+- development/admin/test-only gameplay mutation, cheats, test spawners and diagnostic commands must not be exposed to ordinary players in a Shipping build;
+- final acceptance includes at least one clean rebuild + cook/package route; an incremental local build alone is insufficient distribution proof;
+- packaged runtime must not depend on Editor-only modules/content, uncooked assets or hidden local machine state;
+- dedicated server and client must come from a compatible source/content/version contract and fail visibly when compatibility is not satisfied;
+- acceptance evidence must record local config/command-line overrides that materially affect graphics, FPS, networking, bots or content loading so a hidden `.ini`/console tweak cannot manufacture a false pass.
+
+### 29.5 Async/task/world-teardown safety — REQUIRED WHERE ASYNC WORK EXISTS
+
+The reuse-first loading policy increases use of asynchronous work, so lifetime rules must be explicit.
+
+- async load/task callbacks must not blindly capture mutable Actor/UObject state whose world may already be gone;
+- use weak/lifetime-aware references and validate the target/world before applying a completion result;
+- UObject/gameplay/world mutation occurs on the game thread unless the specific UE API explicitly documents thread-safe behavior;
+- outstanding optional work is cancelled, ignored or invalidated on `EndPlay`, world teardown, travel/shutdown or owner replacement as appropriate;
+- a late callback from an obsolete world/owner may never respawn, recolor, relocate, re-show or otherwise mutate a landmark, weapon, vehicle or material after the current owner has taken authority;
+- repeated start/stop/quick-relaunch and packaged server/client teardown must not produce stale callback crashes or duplicate state commits.
+
+### 29.6 Re-audit closure
+
+With sections 26–29, the reusable-system, production-hardening and execution-integrity baseline is now considered **sufficiently complete for current Oster requirements**.
+
+Future additions must still satisfy the factual trigger rule in section 28.9. Merely discovering another Unreal feature, plugin, sample project or GitHub repository is not a reason to expand PASS45 again.
+
+The correct next action remains execution of the existing 36-item checklist from the first factual open item, with these rules applied when touched. Formal progress is unchanged by this documentation pass, and PR #94 remains OPEN / UNMERGED until factual current-head UE 5.8 runtime acceptance.
