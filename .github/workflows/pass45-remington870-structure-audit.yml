@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Audit exact pinned donor hierarchy and geometry
+      - name: Audit exact pinned donor hierarchy, geometry and skin influence
         shell: bash
         run: |
           set -euo pipefail
@@ -42,10 +42,12 @@ jobs:
           from pathlib import Path
           path = Path('_DOCS/PASS45_REMINGTON870_STRUCTURE_AUDIT_2026-09-02.json')
           doc = json.loads(path.read_text(encoding='utf-8'))
+          if doc.get('schema') != 2:
+              raise SystemExit('structure audit schema is not v2 skin-influence evidence')
           if doc.get('source_sha256') != '147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2':
               raise SystemExit('structure audit source SHA-256 drifted')
-          if doc.get('status') != 'STRUCTURAL_GEOMETRY_EVIDENCE_ONLY':
-              raise SystemExit('structure audit falsely changed status')
+          if doc.get('status') != 'STRUCTURAL_GEOMETRY_SKIN_EVIDENCE_ONLY':
+              raise SystemExit('structure audit status drifted from fail-closed skin evidence')
           if doc.get('pump_node_identity') != 'UNPROVEN':
               raise SystemExit('structure audit falsely claims pump identity')
           if doc.get('standalone_pump_clip') != 'UNPROVEN':
@@ -55,9 +57,13 @@ jobs:
           if doc.get('runtime_acceptance') is not False or doc.get('item16_checked') is not False:
               raise SystemExit('structure audit falsely claims runtime/item16 acceptance')
           required = {'Rif_059', 'Trigger_060', 'PBody_058', 'Pmag_061'}
-          if set((doc.get('targets') or {}).keys()) != required:
+          targets = doc.get('targets') or {}
+          if set(targets.keys()) != required:
               raise SystemExit('structure audit target set drifted')
-          print('PASS45_REMINGTON870_STRUCTURE_AUDIT_JSON_OK runtime_acceptance=0 item16_checked=0')
+          pmag = targets.get('Pmag_061') or {}
+          if not isinstance(pmag.get('skin_influence'), list):
+              raise SystemExit('Pmag_061 skin-influence evidence missing')
+          print('PASS45_REMINGTON870_STRUCTURE_AUDIT_JSON_OK skin_influence=1 runtime_acceptance=0 item16_checked=0')
           PY
 
       - name: Commit audit only if canonical head is unchanged
