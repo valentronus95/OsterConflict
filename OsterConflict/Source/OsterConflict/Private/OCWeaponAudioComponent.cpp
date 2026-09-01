@@ -101,11 +101,27 @@ UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile(
         RepositoryFallbackProfile->DryFire.Add(DryFire);
     }
 
+    if (ActionType == EOCWeaponActionType::BoltAction)
+    {
+        // Repository-owned CC0 action-family donor. The source is Mosin-Nagant, not exact M700 identity.
+        if (USoundBase* Bolt = LoadSound(TEXT("/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor")))
+        {
+            RepositoryFallbackProfile->BoltCycle.Add(Bolt);
+        }
+    }
     if (ActionType == EOCWeaponActionType::PumpAction)
     {
         if (USoundBase* Pump = LoadSound(TEXT("/Game/R13/Audio/shotguncock.shotguncock")))
         {
             RepositoryFallbackProfile->PumpCycle.Add(Pump);
+        }
+    }
+    if (ActionType == EOCWeaponActionType::LeverAction)
+    {
+        // Repository-owned CC0 action-family donor. This is not an exact Stein/Marlin/Model-1894 identity claim.
+        if (USoundBase* Lever = LoadSound(TEXT("/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor")))
+        {
+            RepositoryFallbackProfile->LeverCycle.Add(Lever);
         }
     }
 
@@ -128,10 +144,12 @@ UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile(
     else
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_WEAPON_AUDIO_FALLBACK_READY weapon=%s shot=1 reload=%d pump_cycle=%d exact_profile_override=0 authoritative_mutation=0 runtime_acceptance=0"),
+            TEXT("PASS45_WEAPON_AUDIO_FALLBACK_READY weapon=%s shot=1 reload=%d bolt_cycle=%d pump_cycle=%d lever_cycle=%d exact_profile_override=0 authoritative_mutation=0 runtime_acceptance=0"),
             *WeaponId.ToString(),
             RepositoryFallbackProfile->ReloadStart.IsEmpty() ? 0 : 1,
-            RepositoryFallbackProfile->PumpCycle.IsEmpty() ? 0 : 1);
+            RepositoryFallbackProfile->BoltCycle.IsEmpty() ? 0 : 1,
+            RepositoryFallbackProfile->PumpCycle.IsEmpty() ? 0 : 1,
+            RepositoryFallbackProfile->LeverCycle.IsEmpty() ? 0 : 1);
     }
 
     return RepositoryFallbackProfile;
