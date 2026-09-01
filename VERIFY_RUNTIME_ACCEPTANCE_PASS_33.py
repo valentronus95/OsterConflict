@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parent
 MAIN = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
 LAUNCHER = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
 START = ROOT / "START_HERE.cmd"
+MANUAL_ACTION = ROOT / "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
 
 
 def read(path: Path) -> str:
@@ -26,6 +27,7 @@ def forbid(text: str, needle: str, label: str) -> None:
 main = read(MAIN)
 launcher = read(LAUNCHER)
 start = read(START)
+manual_action = read(MANUAL_ACTION)
 
 # Pass45 full test is intentionally no longer START_HERE -> playflow directly. The strict main wrapper owns
 # post-game material/dependency + interaction evidence and delegates exactly once to the playflow wrapper.
@@ -36,7 +38,23 @@ require(main, 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd', "strict main -> pla
 require(main, 'call "%PLAYFLOW%"', "strict main -> playflow call")
 require(main, 'RUN_PASS45_STRICT_MATERIAL_GATE.cmd', "strict post-game material gate")
 require(main, 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py', "strict post-game evidence verifier")
+require(main, 'VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py', "strict item16 manual-action verifier")
+require(main, 'call "%PLAYFLOW%"', "single gameplay route before post-run verifiers")
+require(main, '%PY_CMD% "%MANUAL_ACTION_VERIFY%" "%GAMEPLAY_LOG%"', "manual-action exact-run log gate")
 require(main, 'VISUAL ACCEPTANCE IS STILL PENDING', "manual visual acceptance remains pending")
+
+for needle in (
+    "OC_SNP1",
+    "OC_SG1",
+    "R13_LEVER4570",
+    "PASS45_MANUAL_ACTION_CYCLE_READY",
+    "PASS45_WEAPON_AUDIO_FALLBACK_READY",
+    "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY",
+    "PASS45_WEAPON_AUDIO_CONTENT_GAP",
+    "PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP",
+    "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL",
+):
+    require(manual_action, needle, f"manual-action runtime gate contract {needle}")
 
 # Pass33 is a compatibility verifier only. Follow current Pass45 acceptance semantics rather than forcing
 # historical banners or retired repair/rebuild markers back into runtime.
@@ -156,7 +174,7 @@ for forbidden in (
 
 print("RUNTIME ACCEPTANCE PASS 33 / PASS45 CURRENT CONTRACT PASS")
 print("- START_HERE full runtime test enters the strict main wrapper, then playflow, then one gameplay process")
-print("- strict material/dependency and interaction-evidence gates cannot be bypassed by the user full-test route")
+print("- strict material/dependency, interaction-evidence and item16 manual-action gates cannot be bypassed by the user full-test route")
 print("- actual Museum pawn, compact Oster bounds, zero implicit filler bots and >=30 FPS remain mandatory")
-print("- authored weapon/vehicle material gaps fail visibly; no runtime disguise is accepted")
+print("- authored weapon/vehicle material gaps and manual-action content gaps fail visibly; no runtime disguise is accepted")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 run remains the runtime authority")

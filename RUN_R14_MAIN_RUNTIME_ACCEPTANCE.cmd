@@ -9,6 +9,7 @@ set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
 set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "GATE_K_VERIFY=%~dp0VERIFY_PASS45_GATE_K_RUNTIME_LOG.py"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+set "MANUAL_ACTION_VERIFY=%~dp0VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
 set "GRENADE_ANIM_VERIFY=%~dp0VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py"
 set "FLASH_VFX_VERIFY=%~dp0VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
@@ -43,6 +44,10 @@ if not exist "%GATE_K_VERIFY%" (
 )
 if not exist "%EVIDENCE_VERIFY%" (
   echo [ACCEPTANCE] FAILED - Pass45 evidence verifier is missing: %EVIDENCE_VERIFY%
+  exit /b 4
+)
+if not exist "%MANUAL_ACTION_VERIFY%" (
+  echo [ACCEPTANCE] FAILED - Pass45 manual-action runtime verifier is missing: %MANUAL_ACTION_VERIFY%
   exit /b 4
 )
 if not exist "%GRENADE_ANIM_VERIFY%" (
@@ -112,6 +117,18 @@ if not "%EVIDENCE_RC%"=="0" (
 )
 
 echo.
+echo [ACCEPTANCE] Verifying M700 / Remington 870 / Lever Action manual-action runtime evidence...
+%PY_CMD% "%MANUAL_ACTION_VERIFY%" "%GAMEPLAY_LOG%"
+set "MANUAL_ACTION_RC=%ERRORLEVEL%"
+if not "%MANUAL_ACTION_RC%"=="0" (
+  echo.
+  echo [ACCEPTANCE] FAILED - Pass45 item 16 manual-action evidence is incomplete.
+  echo The strict run must exercise M700 bolt, Remington 870 pump and Lever Action, with loaded mechanical audio and authored moving-part animation.
+  echo Gameplay log: %GAMEPLAY_LOG%
+  exit /b %MANUAL_ACTION_RC%
+)
+
+echo.
 echo [ACCEPTANCE] Verifying authored first-person grenade hand/throw/recover animation evidence...
 %PY_CMD% "%GRENADE_ANIM_VERIFY%" "%GAMEPLAY_LOG%"
 set "GRENADE_ANIM_RC=%ERRORLEVEL%"
@@ -141,6 +158,7 @@ echo [ACCEPTANCE] PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED.
 echo [ACCEPTANCE] Source: %PASS45_SOURCE_SHA%
 echo [ACCEPTANCE] Evidence: %EVIDENCE_OUT%
 echo [ACCEPTANCE] Gate K: zero visible Engine BasicShape core content in final Oster/stadium presentation.
+echo [ACCEPTANCE] Manual action: M700/870/Lever authoritative cycle + mechanical audio + authored moving-part evidence present.
 echo [ACCEPTANCE] Grenade throw: authored hand/throw/recover runtime evidence present.
 echo [ACCEPTANCE] Flash grenade: distinct authored world VFX runtime evidence present.
 echo [ACCEPTANCE] Exact weapon payload gaps remain CONTENT GAP unless real production content is later supplied.
