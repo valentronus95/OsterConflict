@@ -47,14 +47,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git diff --check
+          git diff --check -- OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp
           mapfile -t changed < <(git diff --name-only)
-          if [[ ${#changed[@]} -eq 0 ]]; then
+          generated=()
+          unexpected=()
+          for path in "${changed[@]}"; do
+            case "$path" in
+              OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp)
+                generated+=("$path")
+                ;;
+              PC_TEST/TEST_RESULTS/OSTER_UE58_TEST_RESULTS_20260816_001551.zip|PC_TEST/TEST_RESULTS/OSTER_UE58_TEST_RESULTS_20260816_001930.zip)
+                echo "Ignoring known checkout-only legacy LFS anomaly: $path"
+                ;;
+              *)
+                unexpected+=("$path")
+                ;;
+            esac
+          done
+          if [[ ${#unexpected[@]} -ne 0 ]]; then
+            printf 'Unexpected generated diff:\n%s\n' "${unexpected[*]}"
+            exit 1
+          fi
+          if [[ ${#generated[@]} -eq 0 ]]; then
             echo "No source patch required; canonical head is already wired."
             exit 0
           fi
-          if [[ ${#changed[@]} -ne 1 || "${changed[0]}" != "OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp" ]]; then
-            printf 'Unexpected generated diff:\n%s\n' "${changed[*]}"
+          if [[ ${#generated[@]} -ne 1 ]]; then
+            printf 'Unexpected generated source diff:\n%s\n' "${generated[*]}"
             exit 1
           fi
 
@@ -62,9 +81,10 @@ jobs:
         shell: bash
         env:
           TARGET_BRANCH: fix/pass45-runtime-rejection-material-closure-20260826
+          SOURCE_PATH: OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp
         run: |
           set -euo pipefail
-          if git diff --quiet; then
+          if git diff --quiet -- "$SOURCE_PATH"; then
             echo "Canonical source already wired; no commit required."
             exit 0
           fi
@@ -76,6 +96,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp
+          git add -- "$SOURCE_PATH"
           git commit -m "feat(pass45): wire manual-action donor SoundWaves"
           git push origin "HEAD:$TARGET_BRANCH"
