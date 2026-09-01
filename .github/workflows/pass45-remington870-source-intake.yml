@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
+      - '_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md'
       - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
       - 'SOURCE_ASSETS/PASS45/Remington870/**'
       - 'OsterConflict/Content/Production/Weapons/Remington870/**'
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
+      - '_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md'
       - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
       - 'SOURCE_ASSETS/PASS45/Remington870/**'
       - 'OsterConflict/Content/Production/Weapons/Remington870/**'
