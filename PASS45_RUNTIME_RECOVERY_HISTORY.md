@@ -18,7 +18,7 @@ Git history remains the raw source of truth. This file records the current integ
 - Target branch: `main`
 - `main`: `bca00f4046700f383af9f1742cc24b6a62401b1a`
 - Latest factual local verdict: **RUNTIME REJECTED 2026-08-31**.
-- Latest exact substantive source-verified head: `7c59b7a653c25aea67e44bb57f13ba9b16faefb7`.
+- Latest exact substantive source-verified head: `8d397133b75d00c5bae9af5ce2e43ccb23b59d8d`.
 - Merge rule: PR #94 remains OPEN / UNMERGED until a current-head local UE 5.8 full runtime test passes import, build, gameplay, automated evidence gates and direct screenshot acceptance.
 - Official canonical checklist accounting: **22/36 = 61.1%**, **38.9% remaining**.
 - Source-only work on runtime-dependent items does not increase that percentage.
@@ -117,6 +117,20 @@ Current factual content state:
 - `BoltCycle` / `LeverCycle` runtime routing remains fail-visible until accepted UE import/wiring; exact authored M700/870/Lever moving-part sequences remain absent.
 - Runtime verdict remains **RUNTIME REJECTED 2026-08-31**. No local UE 5.8 runtime acceptance occurred.
 - PR #94 remains OPEN / UNMERGED; local uncommitted user changes were not touched.
+- Item 16 remains unchecked. Official progress remains **22/36 = 61.1%**.
+
+## Work cycle — 2026-09-01 item 16 mandatory third-party donor registration
+
+- Live audit initially observed canonical head `49ef6c75f1b09cd1033e931b2bfeee03bb8bab90`; while the audit was in progress the branch advanced independently to `6f1884869eb7223edb5584a4c2e2ac26a36e581f` with the mandatory reuse architecture gap addendum. No stale write was made; the implementation was rebased conceptually onto the new live head before committing.
+- `main` remained `bca00f4046700f383af9f1742cc24b6a62401b1a`; PR #94 remained OPEN / UNMERGED. No local user `Changes` were touched.
+- The first factual unchecked canonical item remained item 16. Existing source evidence already proved that exact authored M700/Remington 870/Lever moving-part or skeletal action sequences are absent and local UE 5.8 SoundWave/fresh-load/A-V acceptance is still pending, so no fake content/runtime claim was made.
+- Reuse-first governance audit found one concrete remaining source defect inside item 16: the two CC0 bolt/lever donor derivatives had already been acquired into Git LFS, but `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` did not yet contain the mandatory per-import records required by current policy.
+- `8d397133b75d00c5bae9af5ce2e43ccb23b59d8d` — register both actual imports with exact source URLs, pinned transport SHA-256, derivative SHA-256/Git LFS OID, CC0 1.0 terms, acquisition date, imported files, identity limits, runtime state and pending UE/network/performance/A-V evidence; explicitly record that the project-owned pump cue is not an external import.
+- The same commit adds `VERIFY_PASS45_THIRD_PARTY_MANUAL_ACTION_REGISTER.py`, which fails closed if register/provenance/manifest source identity, transport hash, derivative hash, CC0 state or `runtime_ready=false` / `ue_import_pending=true` truth diverges.
+- `.github/workflows/pass45-manual-action-audio-provenance.yml` now triggers on the third-party register and runs the new mandatory-import verifier after the existing manual-action provenance guard.
+- Exact-head `Pass 45 manual-action audio provenance` run `33527328003` / run #46 completed **SUCCESS**; both the existing provenance/fail-closed wiring step and the new mandatory third-party import-record step passed.
+- Exact-head returned PR workflows for `8d397133b75d00c5bae9af5ce2e43ccb23b59d8d`, including `Source verification` run `33527327966`, `Runtime recovery Pass 45` run `33527327943`, `Pass 45 strict runtime acceptance harness` run `33527328412`, `Content readiness Pass 19` run `33527328110` and the returned related source workflows, completed **SUCCESS**. These remain source/structural evidence only.
+- Runtime verdict remains **RUNTIME REJECTED 2026-08-31**. No local UE 5.8 run or direct first-person audio/visual acceptance occurred in this cycle.
 - Item 16 remains unchecked. Official progress remains **22/36 = 61.1%**.
 
 ## Next factual work
