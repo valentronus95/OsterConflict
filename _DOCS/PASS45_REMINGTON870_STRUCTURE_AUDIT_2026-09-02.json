@@ -4,7 +4,7 @@
   "production_cutover": false,
   "pump_node_identity": "UNPROVEN",
   "runtime_acceptance": false,
-  "schema": 1,
+  "schema": 2,
   "source_bytes": 20621580,
   "source_git_blob_sha1": "f822d184d96ede43d79a6f691d69cbe7cf60e686",
   "source_sha256": "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2",
@@ -12,7 +12,7 @@
   "source_transport_path": "models/weapons/shotgun.glb",
   "source_transport_repo": "Parking-Master/FPS",
   "standalone_pump_clip": "UNPROVEN",
-  "status": "STRUCTURAL_GEOMETRY_EVIDENCE_ONLY",
+  "status": "STRUCTURAL_GEOMETRY_SKIN_EVIDENCE_ONLY",
   "targets": {
     "PBody_058": {
       "action_translation": {
@@ -250,7 +250,126 @@
         "node_index": 85,
         "node_name": "Root_01"
       },
-      "structure_fingerprint_sha256": "374e44dced617858c71a8998aa3a63680c851b560d05fc068989977f6305bae7"
+      "skin_influence": [
+        {
+          "joint_count": 81,
+          "joint_slot": 74,
+          "skin_index": 0,
+          "skin_name": "<skin:0>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 74,
+          "skin_index": 1,
+          "skin_name": "<skin:1>",
+          "skinned_meshes": [
+            {
+              "mesh_index": 3,
+              "mesh_name": "<mesh:3>",
+              "node_index": 92,
+              "node_name": "Object_91",
+              "primitives": [
+                {
+                  "full_position_bounds": {
+                    "accessor_index": 19,
+                    "extent": [
+                      0.04232,
+                      0.140686,
+                      0.20099
+                    ],
+                    "max": [
+                      0.020832,
+                      0.048904,
+                      0.113097
+                    ],
+                    "min": [
+                      -0.021488,
+                      -0.091782,
+                      -0.087893
+                    ],
+                    "vertex_count": 7318
+                  },
+                  "influence_any_weight": {
+                    "extent": [
+                      0.04232,
+                      0.140686,
+                      0.20099
+                    ],
+                    "max": [
+                      0.020832,
+                      0.048904,
+                      0.113097
+                    ],
+                    "min": [
+                      -0.021488,
+                      -0.091782,
+                      -0.087893
+                    ],
+                    "vertex_count": 7318,
+                    "weight_sum": 7318.0,
+                    "weighted_centroid": [
+                      0.000509,
+                      -0.007253,
+                      0.01617
+                    ]
+                  },
+                  "influence_weight_ge_0_5": {
+                    "extent": [
+                      0.04232,
+                      0.140686,
+                      0.20099
+                    ],
+                    "max": [
+                      0.020832,
+                      0.048904,
+                      0.113097
+                    ],
+                    "min": [
+                      -0.021488,
+                      -0.091782,
+                      -0.087893
+                    ],
+                    "vertex_count": 7318,
+                    "weight_sum": 7318.0,
+                    "weighted_centroid": [
+                      0.000509,
+                      -0.007253,
+                      0.01617
+                    ]
+                  },
+                  "influenced_vertex_count": 7318,
+                  "material_index": 3,
+                  "material_name": "Material",
+                  "max_vertex_weight": 1.0,
+                  "mean_nonzero_vertex_weight": 1.0,
+                  "primitive_index": 0,
+                  "weighted_centroid_normalized_in_full_bounds": [
+                    0.519778,
+                    0.600834,
+                    0.517752
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 74,
+          "skin_index": 2,
+          "skin_name": "<skin:2>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 74,
+          "skin_index": 3,
+          "skin_name": "<skin:3>",
+          "skinned_meshes": []
+        }
+      ],
+      "structure_fingerprint_sha256": "05fcba535af13a44c3004ff84dbb1d29f386fa9acfee6e6407ec09caf57bf831"
     },
     "Pmag_061": {
       "action_translation": {
@@ -405,7 +524,126 @@
         "node_index": 85,
         "node_name": "Root_01"
       },
-      "structure_fingerprint_sha256": "2f61c989121a6e35295b4242c5d6a95ac7b3cc0a8849daf8233b61f84eb85695"
+      "skin_influence": [
+        {
+          "joint_count": 81,
+          "joint_slot": 79,
+          "skin_index": 0,
+          "skin_name": "<skin:0>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 79,
+          "skin_index": 1,
+          "skin_name": "<skin:1>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 79,
+          "skin_index": 2,
+          "skin_name": "<skin:2>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 79,
+          "skin_index": 3,
+          "skin_name": "<skin:3>",
+          "skinned_meshes": [
+            {
+              "mesh_index": 5,
+              "mesh_name": "<mesh:5>",
+              "node_index": 94,
+              "node_name": "Object_95",
+              "primitives": [
+                {
+                  "full_position_bounds": {
+                    "accessor_index": 33,
+                    "extent": [
+                      0.03682,
+                      0.150998,
+                      0.091527
+                    ],
+                    "max": [
+                      0.018025,
+                      0.026422,
+                      -0.001853
+                    ],
+                    "min": [
+                      -0.018795,
+                      -0.124576,
+                      -0.09338
+                    ],
+                    "vertex_count": 4411
+                  },
+                  "influence_any_weight": {
+                    "extent": [
+                      0.03682,
+                      0.150998,
+                      0.091527
+                    ],
+                    "max": [
+                      0.018025,
+                      0.026422,
+                      -0.001853
+                    ],
+                    "min": [
+                      -0.018795,
+                      -0.124576,
+                      -0.09338
+                    ],
+                    "vertex_count": 4411,
+                    "weight_sum": 4411.0,
+                    "weighted_centroid": [
+                      -0.000305,
+                      -0.024302,
+                      -0.032831
+                    ]
+                  },
+                  "influence_weight_ge_0_5": {
+                    "extent": [
+                      0.03682,
+                      0.150998,
+                      0.091527
+                    ],
+                    "max": [
+                      0.018025,
+                      0.026422,
+                      -0.001853
+                    ],
+                    "min": [
+                      -0.018795,
+                      -0.124576,
+                      -0.09338
+                    ],
+                    "vertex_count": 4411,
+                    "weight_sum": 4411.0,
+                    "weighted_centroid": [
+                      -0.000305,
+                      -0.024302,
+                      -0.032831
+                    ]
+                  },
+                  "influenced_vertex_count": 4411,
+                  "material_index": 3,
+                  "material_name": "Material",
+                  "max_vertex_weight": 1.0,
+                  "mean_nonzero_vertex_weight": 1.0,
+                  "primitive_index": 0,
+                  "weighted_centroid_normalized_in_full_bounds": [
+                    0.502173,
+                    0.664075,
+                    0.661542
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "structure_fingerprint_sha256": "e9c3cecb204a96f8f440c4afe02df71c85171f8cd16588df3d3fb0d509b2e742"
     },
     "Rif_059": {
       "action_translation": {
@@ -546,7 +784,126 @@
         "node_index": 62,
         "node_name": "PBody_058"
       },
-      "structure_fingerprint_sha256": "f47c0891b28c7ddd2c70552a2c9ec17692f2078eae22840f7323685d95954bf5"
+      "skin_influence": [
+        {
+          "joint_count": 81,
+          "joint_slot": 75,
+          "skin_index": 0,
+          "skin_name": "<skin:0>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 75,
+          "skin_index": 1,
+          "skin_name": "<skin:1>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 75,
+          "skin_index": 2,
+          "skin_name": "<skin:2>",
+          "skinned_meshes": [
+            {
+              "mesh_index": 4,
+              "mesh_name": "<mesh:4>",
+              "node_index": 93,
+              "node_name": "Object_93",
+              "primitives": [
+                {
+                  "full_position_bounds": {
+                    "accessor_index": 26,
+                    "extent": [
+                      0.038141,
+                      0.053178,
+                      0.191799
+                    ],
+                    "max": [
+                      0.018683,
+                      0.054973,
+                      0.111588
+                    ],
+                    "min": [
+                      -0.019458,
+                      0.001795,
+                      -0.080211
+                    ],
+                    "vertex_count": 4464
+                  },
+                  "influence_any_weight": {
+                    "extent": [
+                      0.038141,
+                      0.053178,
+                      0.191799
+                    ],
+                    "max": [
+                      0.018683,
+                      0.054973,
+                      0.111588
+                    ],
+                    "min": [
+                      -0.019458,
+                      0.001795,
+                      -0.080211
+                    ],
+                    "vertex_count": 4464,
+                    "weight_sum": 4464.0,
+                    "weighted_centroid": [
+                      -0.000362,
+                      0.039252,
+                      0.005898
+                    ]
+                  },
+                  "influence_weight_ge_0_5": {
+                    "extent": [
+                      0.038141,
+                      0.053178,
+                      0.191799
+                    ],
+                    "max": [
+                      0.018683,
+                      0.054973,
+                      0.111588
+                    ],
+                    "min": [
+                      -0.019458,
+                      0.001795,
+                      -0.080211
+                    ],
+                    "vertex_count": 4464,
+                    "weight_sum": 4464.0,
+                    "weighted_centroid": [
+                      -0.000362,
+                      0.039252,
+                      0.005898
+                    ]
+                  },
+                  "influenced_vertex_count": 4464,
+                  "material_index": 3,
+                  "material_name": "Material",
+                  "max_vertex_weight": 1.0,
+                  "mean_nonzero_vertex_weight": 1.0,
+                  "primitive_index": 0,
+                  "weighted_centroid_normalized_in_full_bounds": [
+                    0.500669,
+                    0.70437,
+                    0.448954
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 75,
+          "skin_index": 3,
+          "skin_name": "<skin:3>",
+          "skinned_meshes": []
+        }
+      ],
+      "structure_fingerprint_sha256": "acef2903753e5b686bc575ad5c66e647cce32cf5e1e5209c0e6595fd63719a7e"
     },
     "Trigger_060": {
       "action_translation": {
@@ -651,7 +1008,37 @@
         "node_index": 62,
         "node_name": "PBody_058"
       },
-      "structure_fingerprint_sha256": "53a2466391c5ec2089068f07fe27bd236eaff13b0aaa88bca070e7bcbcd3cfcb"
+      "skin_influence": [
+        {
+          "joint_count": 81,
+          "joint_slot": 77,
+          "skin_index": 0,
+          "skin_name": "<skin:0>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 77,
+          "skin_index": 1,
+          "skin_name": "<skin:1>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 77,
+          "skin_index": 2,
+          "skin_name": "<skin:2>",
+          "skinned_meshes": []
+        },
+        {
+          "joint_count": 81,
+          "joint_slot": 77,
+          "skin_index": 3,
+          "skin_name": "<skin:3>",
+          "skinned_meshes": []
+        }
+      ],
+      "structure_fingerprint_sha256": "fd921ece8157063a7eb08c73b855deb4ecda2c8e85634142d29a8d6ecd4f382e"
     }
   },
   "ue58_import_pending": true,
