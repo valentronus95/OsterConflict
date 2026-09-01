@@ -1,61 +1,90 @@
 # THIRD-PARTY CODE AND ASSET REGISTER
 
 Date created: 2026-09-01
+Last audited: 2026-09-01
 Parent policy: `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`
+Detailed audit: `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md`
 
-This register is required before external code or content is imported into Oster Conflict.
+This register is mandatory before external code or content is imported into Oster Conflict.
 
-Status values:
+**Audit state:** no external source code or third-party content was imported by the 2026-09-01 reuse-first audit itself. The audit recorded decisions/provenance only.
 
-- `ENGINE-NATIVE` — ships as part of Unreal Engine / plugin under Unreal Engine terms;
-- `EPIC-SAMPLE` — Epic sample/example content or code; usable only under the applicable Unreal/Epic terms;
-- `OPEN-SOURCE-CANDIDATE` — permissive source reviewed, not yet imported;
-- `ASSET-CANDIDATE` — external content candidate, not yet imported;
-- `REFERENCE-ONLY` — may inform design/implementation but is not a runtime dependency;
-- `REJECTED` — do not use.
+## Status values
 
-| Name | Intended Oster use | Source class | License / terms | Current decision | Version/pin | Imported files | Notes |
-|---|---|---|---|---|---|---|---|
-| Unreal Engine 5.8 Chaos Vehicles | Wheeled vehicle physics: chassis, wheels, suspension, engine, transmission, friction, braking | Engine-native | Unreal Engine EULA | ENGINE-NATIVE / preferred production baseline | UE 5.8.x | none added by this register | Replace duplicate custom vehicle-force owners only after isolated parity/runtime/network acceptance. |
-| Unreal Engine 5.8 Chaos Modular Vehicles | Research for modular/detachable vehicle structure and network physics | Engine-native Experimental plugin | Unreal Engine EULA | REFERENCE/PROOF ONLY | UE 5.8.x | none | UE 5.8 marks this Experimental. Never production-promote without packaged multiplayer/performance proof. |
-| Unreal Engine 5.8 Chaos Physics / Destruction | Rigid bodies, ragdoll, debris, Geometry Collections, destruction, Physics Fields | Engine-native | Unreal Engine EULA | ENGINE-NATIVE / preferred | UE 5.8.x | none | Gameplay state remains server-authoritative; cosmetic debris should not create replication flood. |
-| Unreal Engine 5.8 Niagara | Explosions, smoke, muzzle flash, impacts, fire and ambient VFX | Engine-native | Unreal Engine EULA | ENGINE-NATIVE / preferred VFX owner | UE 5.8.x | none | Niagara is presentation, never damage authority. |
-| Unreal Engine 5.8 MetaSounds | Data-driven weapon, vehicle, explosion and environmental audio | Engine-native | Unreal Engine EULA | ENGINE-NATIVE / preferred audio presentation | UE 5.8.x | none | Final migration needs exact sound assets and runtime mix acceptance. |
-| Unreal Engine 5.8 Audio Modulation | Audio buses, dynamic mix, indoor/outdoor, vehicle interior, flash/health effects | Engine-native plugin | Unreal Engine EULA | ENGINE-NATIVE / preferred mix layer | UE 5.8.x | none | Plugin disabled by default; enable only with documented project config. |
-| Unreal Engine 5.8 Soundscape | Procedural environmental ambience | Engine-native Beta plugin | Unreal Engine EULA | PROOF ONLY | UE 5.8.x | none | UE 5.8 marks Soundscape Beta; packaged streaming/performance proof required before production ownership. |
-| Epic Game Animation Sample / Motion Matching | Third-person locomotion architecture, Pose Search, animation selection, retargeting patterns | Epic sample / engine systems | Unreal Engine EULA / applicable Epic sample terms | EPIC-SAMPLE / migration candidate | UE 5.8-compatible sample | none | Do not allow animation sample to become a second gameplay movement owner. First-person weapon arms remain separate. |
-| Lyra Sample Game / Common User patterns | Multiplayer/session/team/spawn/UI architecture reference and selective plugin reuse | Epic sample | Unreal Engine EULA / Epic terms | EPIC-SAMPLE / selective reuse only | UE 5.8-compatible sample | none | Do not import the whole game architecture unless a bounded migration proves concrete benefit. |
-| ALS Community | Character locomotion/reference candidate | Open source | MIT | OPEN-SOURCE-CANDIDATE | pin required before import | none | Compare against Motion Matching/current movement; never run as a parallel second locomotion owner after cutover. |
-| Project Borealis PBCharacterMovement | FPS movement reference/candidate | Open source | MIT | OPEN-SOURCE-CANDIDATE / low priority | upstream binaries currently noted for UE 5.5; UE 5.8 pin/build proof required | none | HL2-style movement may be wrong for Oster. Do not import unless design and UE 5.8 compatibility both pass. |
-| CARLA ue5-dev | Vehicle simulation architecture/tuning reference and possible narrow donor after file-level review | Open source project | CARLA-specific code MIT; CARLA assets CC-BY; dependencies have separate terms | REFERENCE-ONLY by default | exact commit required before any donor import | none | Do not import CARLA wholesale. Review every donor file/dependency separately. |
-| Poly Haven | Generic non-identity-critical 3D models, textures and HDRIs | External asset library | CC0 | ASSET-CANDIDATE / preferred permissive content source | per-asset record required | none | May support generic props/materials; cannot replace photo-bound Oster landmark identity. |
-| Fab assets | Production models/materials/audio/VFX where appropriate | External marketplace | Per-asset Fab license; commonly Fab Standard or CC-BY, verify each item | ASSET-CANDIDATE | per-asset record required | none | Do not assume all Fab content has identical terms. Standalone redistribution is restricted under Fab Standard License. |
-| AirSim / Project AirSim lineage | Future drone flight/sensor architecture reference | Open source lineage | MIT for Microsoft AirSim; exact fork/project license must be rechecked before import | REFERENCE-ONLY / future | exact repo+commit required | none | Legacy Microsoft AirSim is archived/legacy. Do not make it a current PASS45 dependency. |
+- `ENGINE-NATIVE-KEEP` — already appropriate Unreal Engine capability; keep/standardize;
+- `ENGINE-NATIVE-PILOT` — Unreal Engine capability, but Beta/Experimental/current migration risk requires isolated proof before production cutover;
+- `ENGINE-NATIVE-ADOPT` — approved engine-native capability for bounded use;
+- `EPIC-SAMPLE-PILOT` — Epic sample/pattern usable under applicable Unreal/Epic terms, subject to bounded migration proof;
+- `OPEN-SOURCE-PILOT` — permissively licensed candidate, not yet imported;
+- `REFERENCE-ONLY` — may inform design/implementation, not a runtime dependency;
+- `ASSET-SOURCE-APPROVED` — acceptable source class after per-item quality/provenance record;
+- `LICENSED-ASSET-SOURCE` — usable under per-item marketplace/license terms, not open source;
+- `REJECTED` — do not import/use as production dependency.
 
-## Intake record template
+| Name | Intended Oster use | Source / license class | Audited decision | Version / compatibility note | Imported by this audit | Key restriction / rationale |
+|---|---|---|---|---|---|---|
+| Unreal Engine Enhanced Input | Gameplay input | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-KEEP` | UE 5.8 | none | Already used by Oster; do not create a second gameplay input owner. |
+| Unreal Engine Chaos rigid-body physics | Drops, grenades, props, ragdolls, debris, physical response | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-KEEP` | UE 5.8 | none | Standardize existing physics usage; remove only duplicate custom integrators. |
+| Unreal Engine Chaos Vehicles | Wheeled suspension/powertrain/brake/steering replacement | Engine-native plugin / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 API still carries Experimental caution | none | Required isolated packaged multiplayer/performance proof before replacing `AOCVehicleBase` custom solver. |
+| Unreal Engine Chaos Modular Vehicles | Modular/detachable vehicle research | Engine-native Experimental plugin / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 Experimental | none | Not production owner during PASS45 unless separately proven. |
+| Unreal Engine Chaos Destruction / Geometry Collections / Physics Fields | Selected breakable props/windows/fences/vehicle pieces | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` | UE 5.8 | none | Selective only; do not make all Oster destructible. Replace BasicShape cube fragments after proof. |
+| Unreal Engine Niagara | Explosions, smoke, fire, muzzle, impacts, environmental VFX | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-KEEP` / expand | UE 5.8, already a project dependency | none | Presentation only, never gameplay damage/inventory authority. |
+| Unreal Engine Audio Modulation | Global/stateful audio buses and mixes | Engine-native plugin / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` | UE 5.8 | none | Use for Master/SFX/Vehicle/Ambience/UI/Music/Voice and state mixes. |
+| Unreal Engine MetaSounds | Engine RPM/load, layered explosion, procedural ambience, selected weapon rendering | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 docs still include Beta caution | none | No blanket audio rewrite; pilot packaged audibility/voice/audio-thread cost first. |
+| Unreal Engine Soundscape | Procedural environmental ambience | Engine-native Beta plugin / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 Beta | none | Must beat current ambient-zone polling/timers in packaged performance/voice tests before cutover. |
+| Epic Game Animation Sample / Motion Matching / Pose Search | Third-person locomotion presentation | Epic sample + engine systems / applicable Unreal/Epic terms | `EPIC-SAMPLE-PILOT` | UE 5.8 path reviewed | none | Animation presentation only; no second gameplay movement owner. |
+| Unreal Engine IK Rig / IK Retargeter | Animation reuse/retargeting, skeleton compatibility | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` | UE 5.8 | none | Use for retargeting and weapon/action compatibility. |
+| Unreal Engine Control Rig | Hand/foot/weapon-part correction and authoring | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` | UE 5.8 | none | Authoring/correction, not gameplay authority. |
+| Unreal Engine Motion Warping | Vehicle/M2/interaction alignment | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` selective | UE 5.8 | none | May align animation to target; may not become teleport/gameplay movement authority. |
+| Unreal Engine Behavior Trees / Blackboard | High-level bot decision flow | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 | none | Keep current AI Perception/Navigation; migrate only after behavior parity tests. |
+| Unreal Engine EQS | Cover/firing/revive/resupply/spatial queries | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` selective | UE 5.8 | none | Spatial queries only where beneficial; not every deterministic decision. |
+| Unreal Engine Smart Objects | Seats, mounted weapons, doors, resupply, contextual positions | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 | none | Add only after bounded interaction proof. |
+| Unreal Engine PCG | Generic foliage/clutter/repeated prop distribution | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-ADOPT` selective | UE 5.8 | none | Must never author/move evidence-bound landmarks. |
+| Unreal Engine HLOD | Distant static world optimization | Engine-native / Unreal Engine terms | `ENGINE-NATIVE-PILOT` | UE 5.8 | none | Use only after profiler/map audit proves benefit. |
+| Unreal Engine World Partition | Large-world streaming architecture | Engine-native / Unreal Engine terms | `REFERENCE-ONLY` / deferred migration | UE 5.8 | none | Do not convert whole project during active PASS45 without measured necessity. |
+| Lyra Starter Game | Multiplayer/session/team/settings/UI architecture patterns | Epic sample / applicable Unreal/Epic terms | `REFERENCE-ONLY` / selective bounded migration | UE 5.8 sample family | none | Do not replace Oster wholesale during PASS45. |
+| Common User | Login/auth/session flow | Epic/engine plugin terms | `EPIC-SAMPLE-PILOT` post-PASS45 | UE 5.8 | none | Only if online/session requirements exceed current flow. |
+| CommonUI + Enhanced Input integration | UI input architecture | Epic/engine plugin terms | `REFERENCE-ONLY` / deferred | UE 5.8 integration still carries experimental caution | none | Keep current UMG + Enhanced Input during PASS45. |
+| CARLA `ue5-dev` | Vehicle setup/tuning/simulation architecture reference | Open source; reviewed CARLA code under MIT, assets/dependencies may differ | `REFERENCE-ONLY` | Reviewed UE5 development line uses UE 5.5 / Chaos; exact donor commit required | none | Do not import CARLA wholesale. File-level license/dependency review before any donor code. |
+| ALS Community | Character locomotion reference/backup | MIT | `REFERENCE-ONLY` | Public compatibility reviewed behind UE 5.8 | none | Prefer Epic current animation path first. |
+| ALS Refactored | Multiplayer-focused locomotion backup | MIT | `OPEN-SOURCE-PILOT` backup | Latest reviewed release supports UE 5.7; UE 5.8 requires source proof | none | Pilot only if Epic Motion Matching path fails Oster needs. |
+| Project Borealis PBCharacterMovement | FPS movement reference | MIT | `REFERENCE-ONLY` / default adoption rejected | Published binaries reviewed for UE 5.5; intentionally HL2-style movement | none | Bunnyhop/surf/Source-style goals conflict with grounded Battlefield-like Oster movement. |
+| Legacy Microsoft AirSim | Drone simulation reference | MIT | `REFERENCE-ONLY` | Archived/legacy | none | Not a current dependency. |
+| IAMAI Project AirSim | Future FPV/drone physics/controller reference | MIT | `OPEN-SOURCE-PILOT` future only | Reviewed support UE 5.2 / 5.7, not formal UE 5.8 | none | Isolate/recompile for UE 5.8; import only needed pieces, not full autonomy/ROS/GIS stack. |
+| OpenTournament | Shooter implementation reference | Public source with project-specific legal/content restrictions | `REJECTED` for import | Current public repository reviewed | none | Public GitHub source is not automatically reusable OSS. Reference ideas only. |
+| Poly Haven | Generic models/textures/HDRIs | CC0 | `ASSET-SOURCE-APPROVED` | Per-asset quality record required | none | Good generic source; may not replace photo-bound Oster landmark identity. |
+| Kenney assets | Utility/generic models/UI/assets where style fits | CC0/public domain | `ASSET-SOURCE-APPROVED` | Per-asset quality/style review required | none | Many assets are stylized; not automatically suitable for realistic final Oster art. |
+| Fab assets | Production models/materials/audio/VFX | Per-item Fab/creator license; often Fab Standard, verify each asset | `LICENSED-ASSET-SOURCE` | Per-asset entitlement/version required | none | Not open source. Standalone redistribution/source-pack exposure prohibited or restricted. |
+| Freesound | Individual weapon/mechanical/ambient/impact recordings | Per-file CC0 / CC-BY / other license | `ASSET-SOURCE-APPROVED` only per file | Exact sound page/license pin required | none | CC0 preferred; CC-BY attribution recorded; BY-NC/restrictive/unknown license rejected for unrestricted production. |
+| Unknown YouTube/game/movie/ripped audio or assets | Any | Unknown/unauthorized | `REJECTED` | n/a | none | Do not import. |
 
-Copy this block for every actual external import:
+## Mandatory actual-import record
+
+Create one record for every external code/content import before production use:
 
 ```text
 ID:
 NAME:
 SOURCE/PUBLISHER:
 SOURCE_URL:
-VERSION_TAG_COMMIT:
-LICENSE:
+VERSION_TAG_COMMIT_OR_ASSET_VERSION:
+LICENSE_TERMS:
 DATE_ACQUIRED:
-STATUS: CANDIDATE | APPROVED | REJECTED
+STATUS: CANDIDATE | PILOT | APPROVED | REJECTED
 OSTER_OWNER_REPLACED:
-FILES_IMPORTED:
+FILES_ASSETS_IMPORTED:
 FILES_MODIFIED:
 ATTRIBUTION_REQUIRED:
 REDISTRIBUTION_RESTRICTIONS:
 PUBLIC_REPO_ALLOWED:
 RUNTIME_DEPENDENCY:
-ACCEPTANCE_EVIDENCE:
+UE_5_8_BUILD_EVIDENCE:
+MULTIPLAYER_EVIDENCE:
+PERFORMANCE_EVIDENCE:
+VISUAL_AUDIO_ACCEPTANCE:
 CUTOVER_COMMIT:
 OLD_OWNER_REMOVAL_COMMIT:
 NOTES:
 ```
 
-Unknown license, unknown source, or unpinned code/content is not production-ready and must not be imported merely because it is free to download.
+Unknown license, unknown source, unpinned code/content, or “it is on GitHub so it must be free” is not an acceptable production provenance claim.
