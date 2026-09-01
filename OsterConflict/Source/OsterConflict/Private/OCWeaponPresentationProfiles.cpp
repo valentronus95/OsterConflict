@@ -42,36 +42,30 @@ namespace
     FOCFirstPersonWeaponProfile MakeM700Profile()
     {
         FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_SNP1")));
-        // Procedural whole-weapon/arms cue only. Exact bolt bone/animation calibration remains runtime work.
-        Profile.ManualActionWeaponLocation = FVector(-5.0f, 1.0f, -1.5f);
-        Profile.ManualActionWeaponRotation = FRotator(-1.5f, 2.0f, -3.5f);
-        Profile.ManualActionArmsLocation = FVector(-2.0f, 0.5f, -0.8f);
-        Profile.ManualActionArmsRotation = FRotator(-0.8f, 1.0f, -1.5f);
-        Profile.bManualActionCueDeclared = true;
+        // PASS45 item 16: M700 requires an authored bolt presentation. The repository contains the
+        // production skeletal weapon but no accepted bolt-cycle sequence, so the old whole-weapon/arms
+        // sine cue is disabled instead of impersonating moving-part animation.
+        Profile.bManualActionCueDeclared = false;
         return Profile;
     }
 
     FOCFirstPersonWeaponProfile MakeRemington870Profile()
     {
         FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_SG1")));
-        // Pump cue follows the replicated gate; it does not claim an authored fore-end skeletal animation.
-        Profile.ManualActionWeaponLocation = FVector(-10.0f, 0.0f, -1.0f);
-        Profile.ManualActionWeaponRotation = FRotator(-1.0f, 0.0f, 0.0f);
-        Profile.ManualActionArmsLocation = FVector(-5.0f, 0.0f, -0.5f);
-        Profile.ManualActionArmsRotation = FRotator(-0.5f, 0.0f, 0.0f);
-        Profile.bManualActionCueDeclared = true;
+        // PASS45 item 16: Remington 870 requires an authored pump presentation. A tracked pump sound
+        // exists, but no accepted fore-end animation is committed; do not move the whole weapon/arms
+        // as a fake pump cycle while the authored content gap remains open.
+        Profile.bManualActionCueDeclared = false;
         return Profile;
     }
 
     FOCFirstPersonWeaponProfile MakeLeverActionProfile()
     {
         FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("R13_LEVER4570")));
-        // Lever cue is intentionally modest until the exact mesh pivot/animation is visually calibrated in UE 5.8.
-        Profile.ManualActionWeaponLocation = FVector(-4.0f, 0.0f, -4.0f);
-        Profile.ManualActionWeaponRotation = FRotator(-5.0f, 0.0f, 7.0f);
-        Profile.ManualActionArmsLocation = FVector(-2.0f, 0.0f, -2.0f);
-        Profile.ManualActionArmsRotation = FRotator(-3.0f, 0.0f, 4.0f);
-        Profile.bManualActionCueDeclared = true;
+        // PASS45 item 16: the production skeletal LeverAction exists, but no verified lever-cycle
+        // sequence is committed. Keep the presentation fail-visible and do not substitute a whole-
+        // transform procedural cue for the missing articulated animation.
+        Profile.bManualActionCueDeclared = false;
         return Profile;
     }
 }
