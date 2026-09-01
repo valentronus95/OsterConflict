@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PROVENANCE = ROOT / "PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md"
 INTAKE = ROOT / "PASS45_MANUAL_ACTION_AUDIO_INTAKE.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "pass45-manual-action-audio-intake.yml"
 GITATTRIBUTES = ROOT / ".gitattributes"
 AUDIO_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAudioComponent.cpp"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
@@ -25,12 +26,11 @@ def req(condition: bool, message: str) -> None:
 
 provenance = read(PROVENANCE)
 intake = read(INTAKE)
+workflow = read(WORKFLOW)
 gitattributes = read(GITATTRIBUTES)
 audio_cpp = read(AUDIO_CPP)
 tz = read(TZ)
 
-# Pin exact public provenance and identity limits. These are candidate source contracts, not proof that bytes
-# have been acquired or that UE can load/audibly present them.
 for needle in (
     "https://freesound.org/people/C-V/sounds/523401/",
     "Lever action cocking.wav",
@@ -47,20 +47,25 @@ for needle in (
 ):
     req(needle in provenance, f"manual-action audio provenance contract missing: {needle}")
 
-# Audit/write intake pins exact URLs and transport hashes. Source-page provenance and transport-byte identity
-# are deliberately independent: current HTML preview advertising cannot choose another variant or veto an
-# already audited, still-downloadable checksum-pinned URL.
 for needle in (
-    '"expected_transport_url": "https://cdn.freesound.org/previews/523/523401_9-lq.mp3"',
-    '"expected_transport_sha256": "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab"',
-    '"expected_transport_url": "https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3"',
-    '"expected_transport_sha256": "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e"',
+    '"expected_transport_url": "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3"',
+    '"expected_transport_sha256": "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965"',
+    '"expected_transport_url": "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3"',
+    '"expected_transport_sha256": "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040"',
     'return expected_url, "freesound_public_preview_pinned"',
     'write mode forbidden without pinned transport URL',
     'transport URL drift',
     'transport SHA256 changed',
+    'current advertised candidates=',
 ):
-    req(needle in intake, f"manual-action intake transport pin missing: {needle}")
+    req(needle in intake, f"manual-action intake transport pin/guard missing: {needle}")
+for stale in (
+    "523401_9-lq.mp3",
+    "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab",
+    "263459_3988807-lq.mp3",
+    "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e",
+):
+    req(stale not in intake, f"stale 404 manual-action transport is still pinned in intake: {stale}")
 for forbidden in (
     'pinned public preview is no longer advertised by source page',
     'expected_canonical not in advertised',
@@ -70,25 +75,27 @@ for forbidden in (
         f"manual-action intake still depends on mutable preview-page transport selection: {forbidden}")
 req('candidates.sort(key=lambda u: ("-hq." not in u.lower()' not in intake,
     "manual-action intake still prefers a dynamic HQ preview over the audited LQ transport")
-for needle in (
-    "https://cdn.freesound.org/previews/523/523401_9-lq.mp3",
-    "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab",
-    "https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3",
-    "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e",
-    "exact audited LQ transport URLs and SHA-256 values",
-    "source-page provenance and transport-byte identity are verified independently",
-):
-    req(needle in provenance, f"manual-action provenance lost pinned transport truth: {needle}")
 
-# Repository policy already routes WAV through LFS. The intake contract must not encourage ordinary Git blobs
-# for source WAV data just because the files are small.
+for needle in (
+    "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3",
+    "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965",
+    "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3",
+    "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040",
+    "source-page provenance and transport-byte identity are verified independently",
+    "current transport re-audit",
+):
+    req(needle in provenance, f"manual-action provenance lost current pinned transport truth: {needle}")
+for needle in (
+    "Audit currently advertised preview candidates",
+    "PASS45_AUDIO_CURRENT_CANDIDATE",
+):
+    req(needle in workflow, f"manual-action current-preview audit workflow guard missing: {needle}")
+
 req("*.wav filter=lfs" in gitattributes,
     "repository no longer protects WAV payloads with Git LFS")
 req("Do not bypass LFS" in provenance,
     "manual-action provenance no longer forbids bypassing the repository WAV/LFS policy")
 
-# No candidate is allowed to become a silent source-only promotion. Until accepted bytes are actually present
-# and imported, the runtime fallback profile must keep bolt and lever unassigned/fail-visible.
 req("RepositoryFallbackProfile->PumpCycle.Add(Pump);" in audio_cpp,
     "tracked PumpCycle fallback disappeared while item 16 is still open")
 for forbidden in (
@@ -107,8 +114,6 @@ for needle in (
 ):
     req(needle in provenance, f"manual-action audio fail-closed rule missing: {needle}")
 
-# Canonical TZ must remain honest about current runtime and the still-open item. This verifier protects source
-# provenance only and cannot upgrade a runtime-dependent checklist item.
 req("RUNTIME REJECTED 2026-08-31" in tz,
     "canonical Pass45 TZ lost current factual runtime rejection")
 req("Replace procedural manual-action fallback cues" in tz,
@@ -124,8 +129,9 @@ if errors:
 
 print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
 print("- real CC0 lever-action and bolt-action donor sources are pinned with identity limits")
-print("- source provenance and exact pinned transport bytes are checked independently; HTML preview drift cannot block or replace the audited bytes")
-print("- WAV/LFS policy is protected; source URLs cannot impersonate committed runtime content")
+print("- current LQ preview URLs/hashes are pinned; stale 404 pins cannot return silently")
+print("- current advertised preview bytes are audit-only and cannot auto-replace pinned bytes")
+print("- WAV/LFS policy is protected; source URLs cannot impersonate runtime content")
 print("- PumpCycle remains tracked while BoltCycle/LeverCycle remain explicit content gaps")
 print("- item 16 stays open until payload import, authored moving-part animation and UE 5.8 acceptance")
 print("STATUS: SOURCE PROVENANCE VERIFIED; AUDIO BYTES / UE IMPORT / RUNTIME ACCEPTANCE PENDING")

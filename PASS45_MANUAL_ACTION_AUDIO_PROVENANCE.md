@@ -61,13 +61,14 @@ This file is the source-of-truth intake contract for canonical `PASS45_RUNTIME_R
 
 ## Controlled public-preview acquisition — 2026-09-01
 
-Because Freesound requires account login for the original WAV download, repository intake must not fake an original-file acquisition. `PASS45_MANUAL_ACTION_AUDIO_INTAKE.py` instead uses the exact audited public Freesound preview URL as the transport for each donor.
+Because Freesound requires account login for the original WAV download, repository intake must not fake an original-file acquisition. `PASS45_MANUAL_ACTION_AUDIO_INTAKE.py` uses an exact audited public Freesound LQ preview URL as the transport for each donor.
 
 The transport is treated only as a CC0 preview derivative source:
 
 - source-page identity/license markers are revalidated before download;
-- source-page provenance and transport-byte identity are verified independently: mutable HTML preview advertising is not authoritative after an exact public preview URL and checksum have been audited;
-- write mode downloads only the exact pinned public-preview URL, never a dynamically discovered HQ/LQ variant or mirror;
+- source-page provenance and transport-byte identity are verified independently;
+- the workflow separately audits currently advertised preview candidates, but those candidates never auto-replace a pin;
+- write mode downloads only the exact pinned public-preview URL, never a dynamically selected HQ/LQ variant or mirror;
 - transport bytes are SHA-256 hashed and must equal the pinned audit value before conversion;
 - conversion is deterministic: metadata removed, mono, 48 kHz, PCM signed 16-bit WAV;
 - derivative WAV bytes are separately SHA-256 hashed and duration-checked against the source-page duration;
@@ -77,34 +78,33 @@ The transport is treated only as a CC0 preview derivative source:
 
 Workflow: `.github/workflows/pass45-manual-action-audio-intake.yml`.
 
-## Audit-only checksum result
+## Retired initial transport audit
 
-Audit commit: `17a3f1076c116edc32f5846f9abdecf5c7c9229f`.
-Workflow run: `33482463387` — **SUCCESS**.
+The first audit at commit `17a3f1076c116edc32f5846f9abdecf5c7c9229f` / run `33482463387` used older Freesound preview coordinates. On 2026-09-01 both previously pinned preview identities were found stale after Freesound regenerated its preview filenames. The lever old pin returned HTTP 404 during run `33500960707`; it is no longer accepted by write mode.
+
+## Current transport re-audit — 2026-09-01
+
+Workflow run `33501389638` revalidated both source pages, identity/license markers, every currently advertised preview byte stream, and reported exact SHA-256 values. The canonical write pin remains deliberately LQ MP3 for deterministic continuity.
 
 Lever public preview:
 
-- transport: `https://cdn.freesound.org/previews/523/523401_9-lq.mp3`
-- transport SHA-256: `7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab`
-- deterministic derivative SHA-256: `1d59d0908bdc84d9bc648c79d5f2041d33f875ecaf4a1dbf2364ca7a5a3736fb`
-- derivative size: `92046` bytes
-- derivative duration: `0.958333 s`
+- transport: `https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3`
+- transport SHA-256: `ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965`
+- transport size: `7536` bytes
+- derivative SHA-256: **pending controlled write acquisition**
 
 Bolt public preview:
 
-- transport: `https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3`
-- transport SHA-256: `635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e`
-- deterministic derivative SHA-256: `fd328522972497fc98a8236a2efdc7d5b77515c54d6811e9e2873fb6ff15d09c`
-- derivative size: `624078` bytes
-- derivative duration: `6.500000 s`
+- transport: `https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3`
+- transport SHA-256: `d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040`
+- transport size: `59508` bytes
+- derivative SHA-256: **pending controlled write acquisition**
 
-Write mode is fail-closed on the exact audited LQ transport URLs and SHA-256 values above. A newly advertised HQ/LQ variant, mirror transport or changed byte stream must not silently replace the audited donor.
-
-These exact audited LQ transport URLs and SHA-256 values are the only transport coordinates accepted by `--mode write`. If the source page changes its HTML preview presentation while the exact pinned URL remains downloadable with the same hash, intake may continue; if the pinned URL disappears or its bytes change, intake fails.
+These current audited LQ transport URLs and SHA-256 values are the only transport coordinates accepted by `--mode write`. If a pin disappears or its bytes change, intake fails closed and reports current page candidates for a new explicit audit. It never silently follows a changed page.
 
 ## Next factual intake
 
-- Acquire the two pinned CC0 preview derivatives through Git LFS without bypassing repository content rules.
-- Verify the committed LFS pointer OIDs equal the deterministic derivative SHA-256 values above.
+- Acquire the two current pinned CC0 preview derivatives through Git LFS without bypassing repository content rules.
+- Verify the committed LFS pointer OIDs against the deterministic derivative SHA-256 values emitted by the manifest.
 - Import to repository-owned UE SoundWave assets, wire `BoltCycle` / `LeverCycle`, then run source guards and local UE 5.8 audibility/timing acceptance.
 - Keep M700/Remington870/Lever authored animation content gaps explicit until accepted skeletal sequences are present.

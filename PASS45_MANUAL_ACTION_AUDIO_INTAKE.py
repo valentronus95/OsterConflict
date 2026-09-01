@@ -29,8 +29,8 @@ DONORS = {
         ],
         "output_name": "lever_action_cc0_preview_donor.wav",
         "identity_scope": "lever-action-family donor; not exact Stein/Marlin/Model-1894 identity",
-        "expected_transport_url": "https://cdn.freesound.org/previews/523/523401_9-lq.mp3",
-        "expected_transport_sha256": "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab",
+        "expected_transport_url": "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3",
+        "expected_transport_sha256": "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965",
     },
     "bolt": {
         "source_page": "https://freesound.org/people/rammbostein/sounds/263459/",
@@ -44,8 +44,8 @@ DONORS = {
         ],
         "output_name": "bolt_action_cc0_preview_donor.wav",
         "identity_scope": "bolt-action-family donor; Mosin-Nagant source, not M700 identity",
-        "expected_transport_url": "https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3",
-        "expected_transport_sha256": "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e",
+        "expected_transport_url": "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3",
+        "expected_transport_sha256": "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040",
     },
 }
 
@@ -107,9 +107,8 @@ def validate_source_contract(source_html: str, donor: dict[str, object]) -> None
 def resolve_transport(donor: dict[str, object], source_html: str) -> tuple[str, str]:
     expected_url = str(donor.get("expected_transport_url", "")).strip()
     if expected_url:
-        # The provenance page and the transport bytes are independent evidence. Once an exact
-        # public preview URL has been audited and checksum-pinned, changing page HTML must not
-        # silently select a different variant or block acquisition of the still-valid pinned bytes.
+        # Provenance and transport bytes are independent evidence. A previously audited exact
+        # URL is used only when its checksum still matches; mutable HTML never auto-selects it.
         return expected_url, "freesound_public_preview_pinned"
 
     source_urls = extract_audio_urls(source_html)
@@ -129,7 +128,7 @@ def resolve_transport(donor: dict[str, object], source_html: str) -> tuple[str, 
                     "mirror preview discovered but write/audit intake requires an explicitly audited transport URL"
                 )
             errors.append(f"no public audio URL on {mirror}")
-        except Exception as exc:  # noqa: BLE001 - audit should report all transport failures
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"{mirror}: {exc}")
     raise RuntimeError("unable to resolve pinned public CC0 preview transport; " + "; ".join(errors))
 
@@ -194,7 +193,7 @@ def main() -> int:
         transport_url, transport_kind = resolve_transport(donor, source_html)
         try:
             transport_bytes = fetch_bytes(transport_url)
-        except Exception as exc:  # noqa: BLE001 - fail closed, but expose current page candidates for re-audit
+        except Exception as exc:  # noqa: BLE001 - fail closed and expose candidates for re-audit only
             advertised = [canonical_transport_url(url) for url in extract_audio_urls(source_html)]
             raise RuntimeError(
                 f"pinned transport fetch failed for {key}: {exc}; current advertised candidates={advertised}"
@@ -265,6 +264,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception as exc:  # noqa: BLE001 - fail visibly in CI
+    except Exception as exc:  # noqa: BLE001
         print(f"PASS45_AUDIO_INTAKE_FAIL {exc}", file=sys.stderr)
         raise
