@@ -41,32 +41,23 @@ namespace
 
     FOCFirstPersonWeaponProfile MakeM700Profile()
     {
-        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_SNP1")));
-        // PASS45 item 16: M700 requires an authored bolt presentation. The repository contains the
-        // production skeletal weapon but no accepted bolt-cycle sequence, so the old whole-weapon/arms
-        // sine cue is disabled instead of impersonating moving-part animation.
-        Profile.bManualActionCueDeclared = false;
-        return Profile;
+        // PASS45 item 16: M700 manual action is authored-animation-only. Until an accepted
+        // bolt sequence is committed, the presentation subsystem preserves the baseline transform.
+        return MakeLegacyBaselineProfile(FName(TEXT("OC_SNP1")));
     }
 
     FOCFirstPersonWeaponProfile MakeRemington870Profile()
     {
-        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("OC_SG1")));
-        // PASS45 item 16: Remington 870 requires an authored pump presentation. A tracked pump sound
-        // exists, but no accepted fore-end animation is committed; do not move the whole weapon/arms
-        // as a fake pump cycle while the authored content gap remains open.
-        Profile.bManualActionCueDeclared = false;
-        return Profile;
+        // PASS45 item 16: the tracked pump sound does not justify fake fore-end motion.
+        // Until an accepted pump sequence is committed, preserve the baseline transform.
+        return MakeLegacyBaselineProfile(FName(TEXT("OC_SG1")));
     }
 
     FOCFirstPersonWeaponProfile MakeLeverActionProfile()
     {
-        FOCFirstPersonWeaponProfile Profile = MakeLegacyBaselineProfile(FName(TEXT("R13_LEVER4570")));
-        // PASS45 item 16: the production skeletal LeverAction exists, but no verified lever-cycle
-        // sequence is committed. Keep the presentation fail-visible and do not substitute a whole-
-        // transform procedural cue for the missing articulated animation.
-        Profile.bManualActionCueDeclared = false;
-        return Profile;
+        // PASS45 item 16: the production skeletal LeverAction exists, but an accepted lever-cycle
+        // sequence does not. Missing articulated content therefore remains fail-visible and inert.
+        return MakeLegacyBaselineProfile(FName(TEXT("R13_LEVER4570")));
     }
 }
 
