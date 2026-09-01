@@ -81,71 +81,71 @@ for needle in (
     req(needle in character_h + character_cpp, f"finite authoritative Burst3 contract missing: {needle}")
 
 # First-person presentation may observe the replicated gate but must not own a second gameplay timer.
-# The generic legacy whole-transform fallback code may remain available for future non-required experiments,
-# but the exact production M700/870/Lever profiles must opt out while authored moving-part content is absent.
-for needle in ("bWasActionCycling", "ActionCycleStartTime", "bAuthoredManualActionActive"):
-    req(needle in presentation_h, f"manual-action presentation state missing: {needle}")
-req("FTimerHandle" not in presentation_h,
-    "first-person manual-action presentation introduced a second gameplay timer")
+# The rejected whole-weapon/arms manual-action fallback is now physically retired rather than left dormant.
+req("bWasActionCycling" in presentation_h,
+    "manual-action replicated-gate observation state is missing")
+for forbidden in ("ActionCycleStartTime", "bAuthoredManualActionActive", "FTimerHandle"):
+    req(forbidden not in presentation_h,
+        f"retired/manual-action-only presentation state returned: {forbidden}")
 req("bool PlayWeaponAnimation" in presentation_h,
     "animation bridge no longer reports whether a production sequence actually started")
 
 for needle in (
     "IsActionCycling()", "GetManualActionCycleDuration()", "GetWeaponActionType()",
-    "bManualActionCueDeclared", "ManualActionWeaponLocation", "ManualActionArmsLocation",
     "EOCWeaponAudioEvent::ManualActionCycle",
     "OCResolveWeaponAnimationProfile", "HasManualActionAnimation()", "ManualActionAnimationObjectPath",
     "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY",
     "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL",
-    "PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE",
     "PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP",
-    "!State.bAuthoredManualActionActive",
-    "whole_transform_only=1", "authored_moving_part=0", "second_gameplay_timer=0", "runtime_acceptance=0",
+    "bAuthoredManualActionStarted",
+    "procedural_fallback=0", "baseline_transform_preserved=1",
+    "authored_moving_part=0", "second_gameplay_timer=0", "runtime_acceptance=0",
 ):
-    req(needle in presentation_cpp, f"fail-honest manual-action presentation contract missing: {needle}")
+    req(needle in presentation_cpp, f"fail-closed manual-action presentation contract missing: {needle}")
 
-req("PASS45_MANUAL_ACTION_PRESENTATION_READY" not in presentation_cpp,
-    "procedural whole-transform fallback is falsely labelled production READY")
+for forbidden in (
+    "PASS45_MANUAL_ACTION_PRESENTATION_READY",
+    "PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE",
+    "bManualActionCueDeclared",
+    "ManualActionWeaponLocation", "ManualActionWeaponRotation",
+    "ManualActionArmsLocation", "ManualActionArmsRotation",
+    "whole_transform_only=1",
+):
+    req(forbidden not in presentation_cpp,
+        f"retired procedural manual-action fallback returned to presentation source: {forbidden}")
 
 # The authored bridge is conditional: current exact manual-action sequence slots remain empty, but when a verified
-# sequence is later committed the runtime consumer must load it, verify compatible skeletal playback and only then
-# suppress any non-required fallback. It still cannot claim runtime acceptance from source wiring alone.
+# sequence is later committed the runtime consumer must load it, verify compatible skeletal playback and play it.
+# Missing/incompatible authored content preserves baseline transforms and remains a visible content gap.
 for needle in (
     '#include "OCWeaponAnimationProfiles.h"',
     "LoadObject<UAnimSequence>",
     "PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay)",
-    "State.bAuthoredManualActionActive = true",
-    "State.bAuthoredManualActionActive = false",
+    "bAuthoredManualActionStarted = PlayWeaponAnimation",
     "replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0",
 ):
     req(needle in presentation_cpp, f"manual-action authored source bridge wiring missing: {needle}")
 
-for needle in (
+# Camera-space first-person profiles must no longer expose a dormant manual-action transform API.
+for forbidden in (
     "ManualActionWeaponLocation", "ManualActionWeaponRotation", "ManualActionArmsLocation",
     "ManualActionArmsRotation", "bManualActionCueDeclared",
 ):
-    req(needle in profiles_h, f"manual-action profile field missing: {needle}")
+    req(forbidden not in profiles_h,
+        f"retired manual-action transform profile field returned: {forbidden}")
+
 for needle in (
     "MakeM700Profile", "MakeRemington870Profile", "MakeLeverActionProfile",
     'FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT("R13_LEVER4570"))',
 ):
-    req(needle in profiles_cpp, f"manual-action profile declaration missing: {needle}")
+    req(needle in profiles_cpp, f"manual-action weapon profile declaration missing: {needle}")
 
-# Required production manual-action weapons must not use the old whole-weapon/arms sine cue as a visual substitute.
-# Keep each exact profile fail-closed until its authored sequence exists.
-for function_name in ("MakeM700Profile", "MakeRemington870Profile", "MakeLeverActionProfile"):
-    start = profiles_cpp.find(f"FOCFirstPersonWeaponProfile {function_name}()")
-    end = profiles_cpp.find("return Profile;", start)
-    block = profiles_cpp[start:end] if start >= 0 and end > start else ""
-    req(bool(block), f"manual-action presentation profile missing: {function_name}")
-    req("Profile.bManualActionCueDeclared = false;" in block,
-        f"{function_name} must fail closed instead of enabling the whole-transform manual-action cue")
-    for forbidden in (
-        "Profile.ManualActionWeaponLocation =", "Profile.ManualActionWeaponRotation =",
-        "Profile.ManualActionArmsLocation =", "Profile.ManualActionArmsRotation =",
-    ):
-        req(forbidden not in block,
-            f"{function_name} still assigns a procedural whole-transform manual-action displacement: {forbidden}")
+for forbidden in (
+    "bManualActionCueDeclared", "ManualActionWeaponLocation", "ManualActionWeaponRotation",
+    "ManualActionArmsLocation", "ManualActionArmsRotation",
+):
+    req(forbidden not in profiles_cpp,
+        f"retired manual-action transform profile assignment returned: {forbidden}")
 
 # Authored manual-action coverage must be a first-class animation contract. This does not claim content exists:
 # current M700/870/Lever slots are deliberately empty until exact compatible sequences are committed.
@@ -220,16 +220,14 @@ for needle in (
 req("FTimerHandle" not in ads_cpp,
     "ADS alignment diagnostics introduced a second gameplay timer")
 
-# Guard the meaning of open item 16 rather than one punctuation-sensitive sentence. The TZ may refine wording,
-# but it must still say that procedural manual-action presentation is to be replaced by accepted authored
-# moving-part/skeletal presentation and that real bolt/pump/lever sound content remains required.
+# Guard the meaning of open item 16 rather than one punctuation-sensitive sentence.
 for needle in (
     "Replace procedural manual-action",
     "accepted authored moving-part/skeletal presentation",
     "populate real bolt/pump/lever sound content",
-    "RUNTIME REJECTED",
+    "RUNTIME REJECTED 2026-08-31",
 ):
-    req(needle in tz, f"canonical Pass45 TZ lost open item16 semantic truth: {needle}")
+    req(needle in tz, f"canonical Pass45 TZ lost current open item16/runtime truth: {needle}")
 
 if errors:
     print("PASS45 WEAPON ACTION MATRIX: FAIL")
@@ -240,8 +238,8 @@ if errors:
 print("PASS45 WEAPON ACTION MATRIX: PASS")
 print("- bolt/pump/lever remain authoritative replicated post-shot gates with explicit timings")
 print("- M700/870/LeverAction explicitly require authored articulated manual-action animation")
-print("- required production profiles no longer enable the whole-weapon/arms procedural action cue")
+print("- rejected whole-weapon/arms procedural manual-action fallback is physically retired")
+print("- missing authored action content preserves baseline transforms and remains a hard-visible content gap")
 print("- authored manual-action animation keeps a dedicated fail-closed profile slot and production skeletal consumer")
-print("- ADS socket diagnostics have one dedicated mutation-free implementation owner in OCWeaponADSValidation.cpp")
 print("- PumpCycle uses tracked R13/Audio/shotguncock; bolt/lever audio remain visible content gaps")
 print("STATUS: SOURCE CONTRACT FAIL-CLOSED; exact authored moving-part sequences, bolt/lever audio and local UE 5.8 acceptance remain pending")
