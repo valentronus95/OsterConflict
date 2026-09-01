@@ -61,10 +61,14 @@ NEW_LOG_BLOCK = '''        UE_LOG(LogTemp, Display,
 def classify(text: str, old: str, new: str, label: str) -> str:
     old_count = text.count(old)
     new_count = text.count(new)
+    if new_count == 1:
+        # NEW_ACTION_BLOCK intentionally contains OLD_ACTION_BLOCK as its pump-action middle section.
+        # In that nested case, old_count=1 is the expected fully-wired state, not an ambiguity.
+        expected_old_count = 1 if old in new else 0
+        if old_count == expected_old_count:
+            return "wired"
     if old_count == 1 and new_count == 0:
         return "pending"
-    if old_count == 0 and new_count == 1:
-        return "wired"
     raise SystemExit(
         f"PASS45 MANUAL ACTION AUDIO SOURCE WIRING: ambiguous {label} anchor "
         f"old_count={old_count} new_count={new_count}"
