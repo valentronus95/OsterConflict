@@ -55,6 +55,8 @@ for needle in (
     "/Game/R13/Audio/assaultriflereload1.assaultriflereload1",
     "/Game/R13/Audio/shotguncock.shotguncock",
     "/Game/R13/Audio/snd_bullethit.snd_bullethit",
+    "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
+    "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
     "PASS45_WEAPON_AUDIO_FALLBACK_READY",
     "PASS45_WEAPON_AUDIO_CONTENT_GAP",
     "if (!HasRequestedNearShot(ShotProfile))",
@@ -62,8 +64,15 @@ for needle in (
     "if (!Tail) Tail = Pick(*NearSet, EventSeed + 17);",
     "StateProfile = EnsureRepositoryFallbackProfile();",
     "ImpactProfile = EnsureRepositoryFallbackProfile();",
+    "EOCWeaponActionType::BoltAction",
     "EOCWeaponActionType::PumpAction",
+    "EOCWeaponActionType::LeverAction",
+    "RepositoryFallbackProfile->BoltCycle.Add(Bolt)",
     "RepositoryFallbackProfile->PumpCycle.Add(Pump)",
+    "RepositoryFallbackProfile->LeverCycle.Add(Lever)",
+    "bolt_cycle=%d",
+    "pump_cycle=%d",
+    "lever_cycle=%d",
 ):
     req(needle in cpp, f"weapon audio fallback source contract missing: {needle}")
 
@@ -101,5 +110,6 @@ print("PASS45 WEAPON AUDIO FALLBACK: PASS")
 print("- exact AK project audio is preferred when no assigned profile supplies the event")
 print("- other silent weapons receive a repository-owned factual shot fallback instead of disappearing acoustically")
 print("- assigned authored event sets still win; fallback is event-local and presentation-only")
-print("- pump action can reuse the tracked shotgun cock asset; bolt/lever remain explicit content gaps until exact audio exists")
+print("- pump action reuses tracked shotgun-cock audio; bolt/lever source routes now target repository-owned CC0 action-family donor SoundWaves")
+print("- donor SoundWave UE import, audibility, timing, per-weapon mix and authored manual-action animations remain runtime/content acceptance work")
 print("STATUS: SOURCE-CODED; local UE 5.8 load/audibility/mix/content-quality acceptance remains pending")
