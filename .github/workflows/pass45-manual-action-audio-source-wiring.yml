@@ -8,6 +8,7 @@ on:
       - 'PASS45_MANUAL_ACTION_AUDIO_SOURCE_WIRING.py'
       - 'PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
       - 'VERIFY_PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
+      - 'OsterConflict/OsterConflict.uproject'
       - '.github/workflows/pass45-manual-action-audio-source-wiring.yml'
   workflow_dispatch:
 
