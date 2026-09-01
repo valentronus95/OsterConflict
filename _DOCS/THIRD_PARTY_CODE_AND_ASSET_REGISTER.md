@@ -5,9 +5,9 @@ Last audited: 2026-09-01
 Parent policy: `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`
 Detailed audit: `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md`
 
-This register is mandatory before external code or content is imported into Oster Conflict.
+This register is mandatory before external code or content is promoted into Oster Conflict production use.
 
-**Audit state:** no external source code or third-party content was imported by the 2026-09-01 reuse-first architecture audit itself. Two pre-existing PASS45 manual-action CC0 audio donor derivatives acquired on 2026-09-01 are now explicitly registered below; they remain source payloads with `runtime_ready=false` / `ue_import_pending=true`, not UE 5.8 runtime acceptance.
+**Audit state:** the reuse-first architecture audit itself imported no external source code or content. Three pre-production PASS45 external source payloads acquired on 2026-09-01 are explicitly registered below: two CC0 manual-action audio donor derivatives and one CC-BY-4.0 animated Remington 870 source donor. All three remain source/pilot payloads, not UE 5.8 runtime acceptance. The Remington donor is `APPROVED_FOR_UE_IMPORT` only and remains `runtime_ready=false`, `ue58_import_pending=true`, `item16_checked=false`.
 
 ## Status values
 
@@ -115,6 +115,33 @@ NOTES: acquisition workflow run 33501795799 SUCCESS. Identity scope is bolt-acti
 ```
 
 The existing pump-cycle source fallback `/Game/R13/Audio/shotguncock.shotguncock` is project-owned repository content and is not an external import record.
+
+### PASS45-3P-WEAPON-001 — Remington 870 animated source donor
+
+```text
+ID: PASS45-3P-WEAPON-001
+NAME: Remington 870 animated source donor / remington_870_8siandude_ccby4.glb
+SOURCE/PUBLISHER: original model by 8sianDude on Sketchfab; exact reviewed transport pinned through Parking-Master/FPS
+SOURCE_URL: https://sketchfab.com/3d-models/remington-870-eea11de7e9d24b6683962b8388c319eb
+VERSION_TAG_COMMIT_OR_ASSET_VERSION: upstream model id eea11de7e9d24b6683962b8388c319eb; transport Parking-Master/FPS commit ed07ea542111c2149c5dab735e752824d0b0541c path models/weapons/shotgun.glb Git blob f822d184d96ede43d79a6f691d69cbe7cf60e686; acquired SHA256/Git LFS OID 147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2; size 20621580 bytes
+LICENSE_TERMS: Creative Commons Attribution 4.0 / CC-BY-4.0; canonical license https://creativecommons.org/licenses/by/4.0/; preserve creator attribution, license reference and indication of modifications when adapted
+DATE_ACQUIRED: 2026-09-01
+STATUS: PILOT
+OSTER_OWNER_REPLACED: none; this source fills the Remington870 production/manual-action content gap only and does not replace authoritative weapon action timing or gameplay state
+FILES_ASSETS_IMPORTED: SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb (Git LFS); SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json
+FILES_MODIFIED: _DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md; PASS45_REMINGTON870_SOURCE_ACQUIRE.py; PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py; VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py; .github/workflows/pass45-remington870-source-acquire.yml; .github/workflows/pass45-remington870-source-intake.yml; _DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md
+ATTRIBUTION_REQUIRED: yes; `Remington 870 by 8sianDude, licensed under CC BY 4.0`; retain a link/reference to CC BY 4.0 and indicate Oster modifications when a derivative is produced
+REDISTRIBUTION_RESTRICTIONS: CC BY 4.0 permits sharing/adaptation, including commercially, provided attribution/license/changes requirements are met and no additional legal restrictions are imposed; unrelated trademark, privacy, publicity or other third-party rights are not granted by the copyright license
+PUBLIC_REPO_ALLOWED: yes for the exact reviewed CC-BY-4.0 source donor with required attribution/provenance retained; manifest also records public_repo_allowed=true
+RUNTIME_DEPENDENCY: not yet; current repository content is source GLB + manifest only, not a production `.uasset`; runtime_ready=false / ue58_import_pending=true / item16_checked=false
+UE_5_8_BUILD_EVIDENCE: pending; source is APPROVED_FOR_UE_IMPORT only, with UE 5.8 import, fresh-load, skeleton/moving-part compatibility and packaged build still unproven
+MULTIPLAYER_EVIDENCE: pending; any adopted first-person action presentation must observe the existing authoritative replicated action state and must not create a second gameplay/action timing owner
+PERFORMANCE_EVIDENCE: pending UE 5.8 import/runtime profiling if adopted
+VISUAL_AUDIO_ACCEPTANCE: pending direct first-person pump/action/material/fit acceptance in current-head UE 5.8 runtime
+CUTOVER_COMMIT: pending runtime acceptance
+OLD_OWNER_REMOVAL_COMMIT: n/a for this source donor; the rejected procedural whole-weapon manual-action fallback was already physically retired and must not be restored
+NOTES: acquisition commit 177285c68fd693ff1570f3025fae5890128eae17. Manifest records 5 animations, 6 meshes, 109 nodes, 4 skins and donor channels fire index 2=71, easy reload index 3=71, full reload index 4=72. Those donor facts justify isolated UE import testing only; they do not prove an Unreal-compatible final pump sequence, first-person fit or item-16 acceptance.
+```
 
 ## Mandatory actual-import record
 
