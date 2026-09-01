@@ -5,8 +5,10 @@ on:
     paths:
       - 'PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
       - 'VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
+      - 'OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.cmd'
       - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
       - 'OsterConflict/OsterConflict.uproject'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
       - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'RUN_ALL_VERIFY.py'
@@ -15,8 +17,10 @@ on:
     paths:
       - 'PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
       - 'VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
+      - 'OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.cmd'
       - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
       - 'OsterConflict/OsterConflict.uproject'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
       - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
       - 'RUN_ALL_VERIFY.py'
