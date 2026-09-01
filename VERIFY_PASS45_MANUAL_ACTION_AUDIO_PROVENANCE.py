@@ -34,14 +34,14 @@ for needle in (
     "Lever action cocking.wav",
     "Creative Commons 0 (CC0)",
     "0.958 s",
-    "not evidence of an exact Stein/Marlin/Model-1894 recording",
+    "**not** evidence of an exact Stein/Marlin/Model-1894 recording",
     "https://freesound.org/people/rammbostein/sounds/263459/",
     "Mosin Nagant Bolt.wav",
     "6.500 s",
-    "not an M700 recording",
+    "**not** an M700 recording",
     "https://opengameart.org/content/the-free-firearm-sound-library",
     "beb2f4041f3d6740fa0aeaf0e71159bd65a78c1b",
-    "folder names such as Model 1894 / Savage 10 / Mosin Nagant are **not sufficient evidence**",
+    "Folder names such as Model 1894 / Savage 10 / Mosin Nagant are **not sufficient evidence**",
 ):
     req(needle in provenance, f"manual-action audio provenance contract missing: {needle}")
 
