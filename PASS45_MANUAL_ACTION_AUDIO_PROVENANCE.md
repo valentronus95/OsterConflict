@@ -76,9 +76,32 @@ The transport is treated only as a CC0 preview derivative source:
 
 Workflow: `.github/workflows/pass45-manual-action-audio-intake.yml`.
 
+## Audit-only checksum result
+
+Audit commit: `17a3f1076c116edc32f5846f9abdecf5c7c9229f`.
+Workflow run: `33482463387` — **SUCCESS**.
+
+Lever public preview:
+
+- transport: `https://cdn.freesound.org/previews/523/523401_9-lq.mp3`
+- transport SHA-256: `7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab`
+- deterministic derivative SHA-256: `1d59d0908bdc84d9bc648c79d5f2041d33f875ecaf4a1dbf2364ca7a5a3736fb`
+- derivative size: `92046` bytes
+- derivative duration: `0.958333 s`
+
+Bolt public preview:
+
+- transport: `https://cdn.freesound.org/previews/263/263459_3988807-lq.mp3`
+- transport SHA-256: `635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e`
+- deterministic derivative SHA-256: `fd328522972497fc98a8236a2efdc7d5b77515c54d6811e9e2873fb6ff15d09c`
+- derivative size: `624078` bytes
+- derivative duration: `6.500000 s`
+
+These two transport hashes are now the only values accepted by `--mode write`. A changed public preview must fail intake rather than silently replacing repository source content.
+
 ## Next factual intake
 
-- Run the audit-only intake and pin the observed transport SHA-256 values if source/license/duration validation passes.
 - Acquire the two pinned CC0 preview derivatives through Git LFS without bypassing repository content rules.
+- Verify the committed LFS pointer OIDs equal the deterministic derivative SHA-256 values above.
 - Import to repository-owned UE SoundWave assets, wire `BoltCycle` / `LeverCycle`, then run source guards and local UE 5.8 audibility/timing acceptance.
 - Keep M700/Remington870/Lever authored animation content gaps explicit until accepted skeletal sequences are present.

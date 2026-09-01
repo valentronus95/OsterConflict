@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import html
 import json
-import os
 import re
 import subprocess
 import sys
@@ -30,7 +29,7 @@ DONORS = {
         ],
         "output_name": "lever_action_cc0_preview_donor.wav",
         "identity_scope": "lever-action-family donor; not exact Stein/Marlin/Model-1894 identity",
-        "expected_transport_sha256": "",
+        "expected_transport_sha256": "7785b4db5b512cec45da227097789dab4510aafec1f7e5d9f260669f54ed75ab",
     },
     "bolt": {
         "source_page": "https://freesound.org/people/rammbostein/sounds/263459/",
@@ -44,7 +43,7 @@ DONORS = {
         ],
         "output_name": "bolt_action_cc0_preview_donor.wav",
         "identity_scope": "bolt-action-family donor; Mosin-Nagant source, not M700 identity",
-        "expected_transport_sha256": "",
+        "expected_transport_sha256": "635a4fd88454a032a476445237befb536ab532c1bdf573249653011bff4dde9e",
     },
 }
 
