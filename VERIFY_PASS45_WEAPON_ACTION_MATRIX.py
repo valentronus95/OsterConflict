@@ -171,6 +171,21 @@ for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT
     req("AK-47_Fire_W" not in block and "AK-47_Reload_W" not in block,
         f"unrelated AK animation leaked into manual-action profile: {weapon_id}")
 
+# Item 16 tracked-content inventory. File presence is only repository evidence, never UE runtime acceptance.
+# M700 and LeverAction have real tracked production meshes. Remington 870 currently points at a production
+# package that is absent from the canonical branch, so that path must remain explicitly fail-closed.
+m700_mesh = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "Stein" / "M700" / "SKM_M700.uasset"
+lever_mesh = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "Stein" / "LeverAction" / "SKM_LeverAction.uasset"
+remington_mesh = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SM_Remington870.uasset"
+req(m700_mesh.is_file(), "tracked M700 production mesh disappeared: R13/Weapons/Stein/M700/SKM_M700.uasset")
+req(lever_mesh.is_file(), "tracked LeverAction production mesh disappeared: R13/Weapons/Stein/LeverAction/SKM_LeverAction.uasset")
+remington_object_path = "/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"
+req(remington_object_path in variants,
+    "Remington 870 source no longer declares the canonical production object path")
+if not remington_mesh.is_file():
+    req("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=Remington870 primitive_visible=0 real_fallback_pending=1" in variants,
+        "missing Remington 870 production package is not guarded by the explicit fail-closed runtime marker")
+
 req("ManualActionCycle" in audio_types, "manual-action audio event enum missing")
 for needle in ("BoltCycle", "PumpCycle", "LeverCycle"):
     req(needle in audio_profile, f"manual-action audio profile slot missing: {needle}")
@@ -247,5 +262,6 @@ print("- M700/870/LeverAction explicitly require authored articulated manual-act
 print("- rejected whole-weapon/arms procedural manual-action fallback is physically retired")
 print("- missing authored action content preserves baseline transforms and remains a hard-visible content gap")
 print("- authored manual-action animation keeps a dedicated fail-closed profile slot and production skeletal consumer")
+print("- tracked item16 inventory keeps M700/Lever base meshes factual and Remington production-path absence explicitly fail-closed")
 print("- pump uses tracked R13 audio; bolt/lever source routes target provenance-pinned repository donors and stay fail-closed until UE import")
-print("STATUS: SOURCE CONTRACT FAIL-CLOSED; UE donor SoundWave import/fresh-load, authored moving-part sequences and local UE 5.8 acceptance remain pending")
+print("STATUS: SOURCE CONTRACT FAIL-CLOSED; UE donor SoundWave import/fresh-load, authored moving-part sequences, Remington production content and local UE 5.8 acceptance remain pending")
