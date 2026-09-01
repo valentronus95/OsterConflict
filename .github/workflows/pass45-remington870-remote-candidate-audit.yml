@@ -1,0 +1,41 @@
+name: Pass 45 Remington 870 remote candidate audit
+
+on:
+  push:
+    paths:
+      - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
+      - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
+      - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
+      - '.github/workflows/pass45-remington870-remote-candidate-audit.yml'
+  pull_request:
+    paths:
+      - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
+      - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
+      - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
+      - '.github/workflows/pass45-remington870-remote-candidate-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  remote-candidate-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Oster head
+        uses: actions/checkout@v4
+
+      - name: Download and inspect exact pinned remote GLB
+        id: audit
+        run: python PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py audit --output "$RUNNER_TEMP/remington870_candidate.glb"
+
+      - name: "Pinned binary sha256=${{ steps.audit.outputs.sha256 }} size=${{ steps.audit.outputs.size }}"
+        run: test "${{ steps.audit.outputs.git_blob_sha1 }}" = "f822d184d96ede43d79a6f691d69cbe7cf60e686"
+
+      - name: "GLB structure animations=${{ steps.audit.outputs.animations }} skins=${{ steps.audit.outputs.skins }} nodes=${{ steps.audit.outputs.nodes }} meshes=${{ steps.audit.outputs.meshes }}"
+        run: test -n "${{ steps.audit.outputs.animations }}"
+
+      - name: "Action channels fire=${{ steps.audit.outputs.fire_channels }} easy_reload=${{ steps.audit.outputs.easy_reload_channels }} full_reload=${{ steps.audit.outputs.full_reload_channels }}"
+        run: python PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py require-animation-contract "$RUNNER_TEMP/remington870_candidate.glb"
+
+      - name: Require glTF skin for direct current skeletal bridge
+        run: python PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py require-skin "$RUNNER_TEMP/remington870_candidate.glb"

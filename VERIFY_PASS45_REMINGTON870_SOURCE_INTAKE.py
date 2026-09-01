@@ -22,6 +22,7 @@ def req(condition: bool, message: str) -> None:
 
 
 contract = read("_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md")
+remote_audit = read("PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py")
 variants = read("OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp")
 
 for needle in (
@@ -31,19 +32,48 @@ for needle in (
     req(needle in variants, f"canonical Remington fail-closed production contract missing: {needle}")
 
 for needle in (
-    "SOURCE CANDIDATE AUDITED / BINARY NOT ACQUIRED / UE 5.8 RUNTIME UNACCEPTED",
+    "REMOTE ANIMATED CANDIDATE PINNED / OSTER BINARY NOT ACQUIRED / UE 5.8 RUNTIME UNACCEPTED",
+    "Parking-Master/FPS",
+    "ed07ea542111c2149c5dab735e752824d0b0541c",
+    "models/weapons/shotgun.glb",
+    "f822d184d96ede43d79a6f691d69cbe7cf60e686",
+    "20621580",
+    "eea11de7e9d24b6683962b8388c319eb",
+    "8sianDude",
+    "CC-BY-4.0",
+    "animation index `2` for fire",
+    "index `3` for ordinary/easy reload",
+    "index `4` for full/empty reload",
+    "REMOTE_PINNED_ONLY",
     "1b6c11ef58904fab992c6cdffaada309",
     "6db0ad4764d14eee8f063eea3600071b",
     "d33cef14f47b054845f9f447249dfd412a51163b",
     "3a4fb99a3dfb19a8dfdbb73a0ecafb6089723797",
     "SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json",
     "static-only geometry presented as completed skeletal/manual-action content -> reject",
+    "remote Git blob pin is useful acquisition evidence but is not an Oster-owned `source_sha256` record",
     "runtime_ready",
     "ue58_import_pending",
     "item16_checked",
-    "accepted_remington870_source=0 tracked_production_package=0 ue58_runtime_acceptance=0 item16_checked=0",
+    "remote_animated_candidate_pinned=1 oster_source_bytes_acquired=0 accepted_remington870_source=0 tracked_production_package=0 ue58_runtime_acceptance=0 item16_checked=0",
 ):
     req(needle in contract, f"Remington source-intake contract missing fail-closed evidence: {needle}")
+
+for needle in (
+    'REPO = "Parking-Master/FPS"',
+    'COMMIT = "ed07ea542111c2149c5dab735e752824d0b0541c"',
+    'PATH = "models/weapons/shotgun.glb"',
+    'EXPECTED_GIT_BLOB_SHA1 = "f822d184d96ede43d79a6f691d69cbe7cf60e686"',
+    "EXPECTED_SIZE = 20621580",
+    'UPSTREAM_MODEL_ID = "eea11de7e9d24b6683962b8388c319eb"',
+    'UPSTREAM_CREATOR = "8sianDude"',
+    'LICENSE_ID = "CC-BY-4.0"',
+    "git_blob_sha1(data)",
+    "len(animations) < 5",
+    'for index, semantic in ((2, "fire"), (3, "easy_reload"), (4, "full_reload"))',
+    "if len(skins) < 1",
+):
+    req(needle in remote_audit, f"remote Remington candidate audit is no longer pinned/fail-closed: {needle}")
 
 production_asset = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SM_Remington870.uasset"
 manifest_path = ROOT / "SOURCE_ASSETS" / "PASS45" / "Remington870" / "MANIFEST.json"
@@ -102,4 +132,4 @@ if errors:
 if production_asset.is_file():
     print("PASS45 REMINGTON870 SOURCE INTAKE: PASS manifest_guard=1 production_asset=1 runtime_acceptance=0")
 else:
-    print("PASS45 REMINGTON870 SOURCE INTAKE: PASS manifest_guard=1 production_asset=0 content_gap=1 runtime_acceptance=0")
+    print("PASS45 REMINGTON870 SOURCE INTAKE: PASS manifest_guard=1 remote_candidate_pinned=1 production_asset=0 content_gap=1 runtime_acceptance=0")
