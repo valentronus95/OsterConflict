@@ -1,0 +1,659 @@
+{
+  "audit": "PASS45_REMINGTON870_STRUCTURE_AUDIT",
+  "item16_checked": false,
+  "production_cutover": false,
+  "pump_node_identity": "UNPROVEN",
+  "runtime_acceptance": false,
+  "schema": 1,
+  "source_bytes": 20621580,
+  "source_git_blob_sha1": "f822d184d96ede43d79a6f691d69cbe7cf60e686",
+  "source_sha256": "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2",
+  "source_transport_commit": "ed07ea542111c2149c5dab735e752824d0b0541c",
+  "source_transport_path": "models/weapons/shotgun.glb",
+  "source_transport_repo": "Parking-Master/FPS",
+  "standalone_pump_clip": "UNPROVEN",
+  "status": "STRUCTURAL_GEOMETRY_EVIDENCE_ONLY",
+  "targets": {
+    "PBody_058": {
+      "action_translation": {
+        "easy_reload_index_3": {
+          "axis_range": [
+            0.069945,
+            0.078637,
+            0.058334
+          ],
+          "delta_max": [
+            0.026612,
+            0.034484,
+            0.050157
+          ],
+          "delta_min": [
+            -0.043333,
+            -0.044153,
+            -0.008177
+          ],
+          "dominant_axis": "Y",
+          "peak_displacement": 0.067139,
+          "sample_count": 80,
+          "translation_channel": true
+        },
+        "fire_index_2": {
+          "axis_range": [
+            0.0,
+            0.018615,
+            0.049015
+          ],
+          "delta_max": [
+            0.0,
+            0.018081,
+            0.0
+          ],
+          "delta_min": [
+            0.0,
+            -0.000534,
+            -0.049015
+          ],
+          "dominant_axis": "Z",
+          "peak_displacement": 0.050905,
+          "sample_count": 15,
+          "translation_channel": true
+        },
+        "full_reload_index_4": {
+          "axis_range": [
+            0.079379,
+            0.07865,
+            0.058468
+          ],
+          "delta_max": [
+            0.031329,
+            0.034497,
+            0.050291
+          ],
+          "delta_min": [
+            -0.04805,
+            -0.044153,
+            -0.008177
+          ],
+          "dominant_axis": "X",
+          "peak_displacement": 0.070092,
+          "sample_count": 100,
+          "translation_channel": true
+        }
+      },
+      "ancestors_nearest_first": [
+        {
+          "node_index": 85,
+          "node_name": "Root_01"
+        },
+        {
+          "node_index": 86,
+          "node_name": "_rootJoint"
+        },
+        {
+          "node_index": 95,
+          "node_name": "Object_6"
+        },
+        {
+          "node_index": 96,
+          "node_name": "Armature"
+        },
+        {
+          "node_index": 100,
+          "node_name": "RootNode"
+        },
+        {
+          "node_index": 101,
+          "node_name": "Object_2"
+        },
+        {
+          "node_index": 102,
+          "node_name": "3ab9f780f2294ec8ba398c31f25c6b54fbx"
+        },
+        {
+          "node_index": 103,
+          "node_name": "Sketchfab_model"
+        },
+        {
+          "node_index": 104,
+          "node_name": "pistolglb_1"
+        },
+        {
+          "node_index": 105,
+          "node_name": "pistolglb"
+        },
+        {
+          "node_index": 106,
+          "node_name": "rifleglb_1"
+        },
+        {
+          "node_index": 107,
+          "node_name": "rifleglb"
+        },
+        {
+          "node_index": 108,
+          "node_name": "assault.glb"
+        }
+      ],
+      "children": [
+        {
+          "node_index": 54,
+          "node_name": "Rif_059"
+        },
+        {
+          "node_index": 56,
+          "node_name": "Trigger_060"
+        },
+        {
+          "node_index": 61,
+          "node_name": "shotgun.glb"
+        }
+      ],
+      "descendant_count": 9,
+      "descendant_names": [
+        "Rif_059",
+        "Rif_end_077",
+        "Trigger_060",
+        "Trigger_end_078",
+        "shotgun.glb",
+        "Sketchfab_model",
+        "R870objcleanermaterialmergergles",
+        "Object_2",
+        "Object_4"
+      ],
+      "local_rotation": [
+        0.138308,
+        0.028888,
+        -0.122074,
+        0.982413
+      ],
+      "local_scale": [
+        1e-05,
+        1e-05,
+        1e-05
+      ],
+      "local_translation": [
+        -0.073757,
+        -0.032562,
+        0.350073
+      ],
+      "mesh_bindings_in_subtree": [
+        {
+          "mesh_index": 0,
+          "mesh_name": "<mesh:0>",
+          "node_index": 57,
+          "node_name": "Object_2",
+          "primitives": [
+            {
+              "material_index": 0,
+              "material_name": "12gauge_federal",
+              "position": {
+                "accessor_index": 1,
+                "extent": [
+                  0.179601,
+                  0.477084,
+                  0.179602
+                ],
+                "max": [
+                  0.089826,
+                  0.297431,
+                  0.091194
+                ],
+                "min": [
+                  -0.089775,
+                  -0.179653,
+                  -0.088408
+                ],
+                "vertex_count": 685
+              },
+              "primitive_index": 0
+            }
+          ],
+          "skin_index": null
+        },
+        {
+          "mesh_index": 1,
+          "mesh_name": "<mesh:1>",
+          "node_index": 58,
+          "node_name": "Object_4",
+          "primitives": [
+            {
+              "material_index": 1,
+              "material_name": "R870",
+              "position": {
+                "accessor_index": 6,
+                "extent": [
+                  0.430524,
+                  9.743381,
+                  1.81227
+                ],
+                "max": [
+                  0.215262,
+                  4.958488,
+                  0.790656
+                ],
+                "min": [
+                  -0.215262,
+                  -4.784893,
+                  -1.021614
+                ],
+                "vertex_count": 12333
+              },
+              "primitive_index": 0
+            }
+          ],
+          "skin_index": null
+        }
+      ],
+      "node_index": 62,
+      "node_name": "PBody_058",
+      "parent": {
+        "node_index": 85,
+        "node_name": "Root_01"
+      },
+      "structure_fingerprint_sha256": "374e44dced617858c71a8998aa3a63680c851b560d05fc068989977f6305bae7"
+    },
+    "Pmag_061": {
+      "action_translation": {
+        "easy_reload_index_3": {
+          "axis_range": [
+            0.555702,
+            0.571331,
+            0.49869
+          ],
+          "delta_max": [
+            0.275451,
+            0.03354,
+            0.07709
+          ],
+          "delta_min": [
+            -0.280251,
+            -0.53779,
+            -0.4216
+          ],
+          "dominant_axis": "Y",
+          "peak_displacement": 0.606719,
+          "sample_count": 80,
+          "translation_channel": true
+        },
+        "fire_index_2": {
+          "axis_range": [
+            0.0,
+            0.018241,
+            0.048254
+          ],
+          "delta_max": [
+            0.0,
+            0.018241,
+            0.0
+          ],
+          "delta_min": [
+            0.0,
+            0.0,
+            -0.048254
+          ],
+          "dominant_axis": "Z",
+          "peak_displacement": 0.050845,
+          "sample_count": 15,
+          "translation_channel": true
+        },
+        "full_reload_index_4": {
+          "axis_range": [
+            0.555702,
+            0.573276,
+            0.49869
+          ],
+          "delta_max": [
+            0.275451,
+            0.035486,
+            0.07709
+          ],
+          "delta_min": [
+            -0.280251,
+            -0.53779,
+            -0.4216
+          ],
+          "dominant_axis": "Y",
+          "peak_displacement": 0.606719,
+          "sample_count": 100,
+          "translation_channel": true
+        }
+      },
+      "ancestors_nearest_first": [
+        {
+          "node_index": 85,
+          "node_name": "Root_01"
+        },
+        {
+          "node_index": 86,
+          "node_name": "_rootJoint"
+        },
+        {
+          "node_index": 95,
+          "node_name": "Object_6"
+        },
+        {
+          "node_index": 96,
+          "node_name": "Armature"
+        },
+        {
+          "node_index": 100,
+          "node_name": "RootNode"
+        },
+        {
+          "node_index": 101,
+          "node_name": "Object_2"
+        },
+        {
+          "node_index": 102,
+          "node_name": "3ab9f780f2294ec8ba398c31f25c6b54fbx"
+        },
+        {
+          "node_index": 103,
+          "node_name": "Sketchfab_model"
+        },
+        {
+          "node_index": 104,
+          "node_name": "pistolglb_1"
+        },
+        {
+          "node_index": 105,
+          "node_name": "pistolglb"
+        },
+        {
+          "node_index": 106,
+          "node_name": "rifleglb_1"
+        },
+        {
+          "node_index": 107,
+          "node_name": "rifleglb"
+        },
+        {
+          "node_index": 108,
+          "node_name": "assault.glb"
+        }
+      ],
+      "children": [
+        {
+          "node_index": 63,
+          "node_name": "Pmag_end_079"
+        }
+      ],
+      "descendant_count": 1,
+      "descendant_names": [
+        "Pmag_end_079"
+      ],
+      "local_rotation": [
+        0.007396,
+        0.024873,
+        -0.126248,
+        0.991659
+      ],
+      "local_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "local_translation": [
+        -0.07762,
+        -0.036215,
+        0.356695
+      ],
+      "mesh_bindings_in_subtree": [],
+      "node_index": 64,
+      "node_name": "Pmag_061",
+      "parent": {
+        "node_index": 85,
+        "node_name": "Root_01"
+      },
+      "structure_fingerprint_sha256": "2f61c989121a6e35295b4242c5d6a95ac7b3cc0a8849daf8233b61f84eb85695"
+    },
+    "Rif_059": {
+      "action_translation": {
+        "easy_reload_index_3": {
+          "translation_channel": false
+        },
+        "fire_index_2": {
+          "axis_range": [
+            0.00084,
+            0.015678,
+            0.054461
+          ],
+          "delta_max": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "delta_min": [
+            -0.00084,
+            -0.015678,
+            -0.054461
+          ],
+          "dominant_axis": "Z",
+          "peak_displacement": 0.056679,
+          "sample_count": 11,
+          "translation_channel": true
+        },
+        "full_reload_index_4": {
+          "axis_range": [
+            0.000741,
+            0.013831,
+            0.048043
+          ],
+          "delta_max": [
+            0.000741,
+            0.013831,
+            0.048043
+          ],
+          "delta_min": [
+            0.0,
+            -0.0,
+            0.0
+          ],
+          "dominant_axis": "Z",
+          "peak_displacement": 0.05,
+          "sample_count": 23,
+          "translation_channel": true
+        }
+      },
+      "ancestors_nearest_first": [
+        {
+          "node_index": 62,
+          "node_name": "PBody_058"
+        },
+        {
+          "node_index": 85,
+          "node_name": "Root_01"
+        },
+        {
+          "node_index": 86,
+          "node_name": "_rootJoint"
+        },
+        {
+          "node_index": 95,
+          "node_name": "Object_6"
+        },
+        {
+          "node_index": 96,
+          "node_name": "Armature"
+        },
+        {
+          "node_index": 100,
+          "node_name": "RootNode"
+        },
+        {
+          "node_index": 101,
+          "node_name": "Object_2"
+        },
+        {
+          "node_index": 102,
+          "node_name": "3ab9f780f2294ec8ba398c31f25c6b54fbx"
+        },
+        {
+          "node_index": 103,
+          "node_name": "Sketchfab_model"
+        },
+        {
+          "node_index": 104,
+          "node_name": "pistolglb_1"
+        },
+        {
+          "node_index": 105,
+          "node_name": "pistolglb"
+        },
+        {
+          "node_index": 106,
+          "node_name": "rifleglb_1"
+        },
+        {
+          "node_index": 107,
+          "node_name": "rifleglb"
+        },
+        {
+          "node_index": 108,
+          "node_name": "assault.glb"
+        }
+      ],
+      "children": [
+        {
+          "node_index": 53,
+          "node_name": "Rif_end_077"
+        }
+      ],
+      "descendant_count": 1,
+      "descendant_names": [
+        "Rif_end_077"
+      ],
+      "local_rotation": [
+        0.427949,
+        -0.422521,
+        0.560413,
+        0.569449
+      ],
+      "local_scale": [
+        1e-05,
+        1e-05,
+        1e-05
+      ],
+      "local_translation": [
+        0.0167,
+        0.153454,
+        -0.024579
+      ],
+      "mesh_bindings_in_subtree": [],
+      "node_index": 54,
+      "node_name": "Rif_059",
+      "parent": {
+        "node_index": 62,
+        "node_name": "PBody_058"
+      },
+      "structure_fingerprint_sha256": "f47c0891b28c7ddd2c70552a2c9ec17692f2078eae22840f7323685d95954bf5"
+    },
+    "Trigger_060": {
+      "action_translation": {
+        "easy_reload_index_3": {
+          "translation_channel": false
+        },
+        "fire_index_2": {
+          "translation_channel": false
+        },
+        "full_reload_index_4": {
+          "translation_channel": false
+        }
+      },
+      "ancestors_nearest_first": [
+        {
+          "node_index": 62,
+          "node_name": "PBody_058"
+        },
+        {
+          "node_index": 85,
+          "node_name": "Root_01"
+        },
+        {
+          "node_index": 86,
+          "node_name": "_rootJoint"
+        },
+        {
+          "node_index": 95,
+          "node_name": "Object_6"
+        },
+        {
+          "node_index": 96,
+          "node_name": "Armature"
+        },
+        {
+          "node_index": 100,
+          "node_name": "RootNode"
+        },
+        {
+          "node_index": 101,
+          "node_name": "Object_2"
+        },
+        {
+          "node_index": 102,
+          "node_name": "3ab9f780f2294ec8ba398c31f25c6b54fbx"
+        },
+        {
+          "node_index": 103,
+          "node_name": "Sketchfab_model"
+        },
+        {
+          "node_index": 104,
+          "node_name": "pistolglb_1"
+        },
+        {
+          "node_index": 105,
+          "node_name": "pistolglb"
+        },
+        {
+          "node_index": 106,
+          "node_name": "rifleglb_1"
+        },
+        {
+          "node_index": 107,
+          "node_name": "rifleglb"
+        },
+        {
+          "node_index": 108,
+          "node_name": "assault.glb"
+        }
+      ],
+      "children": [
+        {
+          "node_index": 55,
+          "node_name": "Trigger_end_078"
+        }
+      ],
+      "descendant_count": 1,
+      "descendant_names": [
+        "Trigger_end_078"
+      ],
+      "local_rotation": [
+        0.989742,
+        -0.0,
+        0.0,
+        0.14287
+      ],
+      "local_scale": [
+        1e-05,
+        1e-05,
+        1e-05
+      ],
+      "local_translation": [
+        -0.0,
+        0.137395,
+        0.043361
+      ],
+      "mesh_bindings_in_subtree": [],
+      "node_index": 56,
+      "node_name": "Trigger_060",
+      "parent": {
+        "node_index": 62,
+        "node_name": "PBody_058"
+      },
+      "structure_fingerprint_sha256": "53a2466391c5ec2089068f07fe27bd236eaff13b0aaa88bca070e7bcbcd3cfcb"
+    }
+  },
+  "ue58_import_pending": true,
+  "visual_inspection_required": true
+}
