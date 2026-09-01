@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PROVENANCE = ROOT / "PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md"
 INTAKE = ROOT / "PASS45_MANUAL_ACTION_AUDIO_INTAKE.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "pass45-manual-action-audio-intake.yml"
+MANIFEST = ROOT / "SOURCE_ASSETS" / "PASS45" / "ManualActionAudio" / "MANIFEST.json"
 GITATTRIBUTES = ROOT / ".gitattributes"
 AUDIO_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAudioComponent.cpp"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
@@ -30,6 +32,7 @@ workflow = read(WORKFLOW)
 gitattributes = read(GITATTRIBUTES)
 audio_cpp = read(AUDIO_CPP)
 tz = read(TZ)
+manifest_text = read(MANIFEST)
 
 for needle in (
     "https://freesound.org/people/C-V/sounds/523401/",
@@ -47,11 +50,31 @@ for needle in (
 ):
     req(needle in provenance, f"manual-action audio provenance contract missing: {needle}")
 
+pins = {
+    "lever": {
+        "transport_url": "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3",
+        "transport_sha": "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965",
+        "derivative_file": "lever_action_cc0_preview_donor.wav",
+        "derivative_sha": "417ba38e5e87b53ef3711784f821f1b3fc303ac8d4df19d9eda80fb776881542",
+        "derivative_bytes": 92078,
+    },
+    "bolt": {
+        "transport_url": "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3",
+        "transport_sha": "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040",
+        "derivative_file": "bolt_action_cc0_preview_donor.wav",
+        "derivative_sha": "5e64820d532c11e91af3eedf96ab34a38df7b3dd066b0b1c9d67b3fe3f34c8a7",
+        "derivative_bytes": 624078,
+    },
+}
+
+for key, pin in pins.items():
+    for needle in (pin["transport_url"], pin["transport_sha"]):
+        req(str(needle) in provenance, f"manual-action provenance lost {key} transport identity: {needle}")
+        req(str(needle) in intake, f"manual-action intake lost {key} transport identity: {needle}")
+    req(pin["derivative_sha"] in provenance,
+        f"manual-action provenance lost {key} derivative identity: {pin['derivative_sha']}")
+
 for needle in (
-    '"expected_transport_url": "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3"',
-    '"expected_transport_sha256": "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965"',
-    '"expected_transport_url": "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3"',
-    '"expected_transport_sha256": "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040"',
     'return expected_url, "freesound_public_preview_pinned"',
     'write mode forbidden without pinned transport URL',
     'transport URL drift',
@@ -73,28 +96,39 @@ for forbidden in (
 ):
     req(forbidden not in intake,
         f"manual-action intake still depends on mutable preview-page transport selection: {forbidden}")
-req('candidates.sort(key=lambda u: ("-hq." not in u.lower()' not in intake,
-    "manual-action intake still prefers a dynamic HQ preview over the audited LQ transport")
 
-for needle in (
-    "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3",
-    "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965",
-    "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3",
-    "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040",
-    "source-page provenance and transport-byte identity are verified independently",
-    "current transport re-audit",
-):
-    req(needle in provenance, f"manual-action provenance lost current pinned transport truth: {needle}")
 for needle in (
     "Audit currently advertised preview candidates",
     "PASS45_AUDIO_CURRENT_CANDIDATE",
+    "Stage and verify Git LFS pointers",
+    "PASS45_AUDIO_LFS_POINTER_OK",
 ):
-    req(needle in workflow, f"manual-action current-preview audit workflow guard missing: {needle}")
+    req(needle in workflow, f"manual-action intake workflow guard missing: {needle}")
 
 req("*.wav filter=lfs" in gitattributes,
     "repository no longer protects WAV payloads with Git LFS")
 req("Do not bypass LFS" in provenance,
     "manual-action provenance no longer forbids bypassing the repository WAV/LFS policy")
+
+if manifest_text:
+    try:
+        manifest = json.loads(manifest_text)
+    except json.JSONDecodeError as exc:
+        errors.append(f"manual-action manifest is invalid JSON: {exc}")
+        manifest = {}
+    req(manifest.get("runtime_ready") is False, "manual-action manifest falsely promotes runtime_ready")
+    req(manifest.get("ue_import_pending") is True, "manual-action manifest lost ue_import_pending=true")
+    req(manifest.get("item16_checked") is False, "manual-action manifest falsely checks item16")
+    donors = manifest.get("donors", {})
+    for key, pin in pins.items():
+        donor = donors.get(key, {})
+        req(donor.get("transport_url") == pin["transport_url"], f"{key} manifest transport URL drift")
+        req(donor.get("transport_sha256") == pin["transport_sha"], f"{key} manifest transport SHA drift")
+        req(donor.get("derivative_file") == pin["derivative_file"], f"{key} manifest derivative filename drift")
+        req(donor.get("derivative_sha256") == pin["derivative_sha"], f"{key} manifest derivative SHA drift")
+        req(donor.get("derivative_bytes") == pin["derivative_bytes"], f"{key} manifest derivative size drift")
+        req(donor.get("runtime_ready") is False, f"{key} manifest falsely promotes runtime readiness")
+        req(donor.get("ue_import_pending") is True, f"{key} manifest lost UE import pending truth")
 
 req("RepositoryFallbackProfile->PumpCycle.Add(Pump);" in audio_cpp,
     "tracked PumpCycle fallback disappeared while item 16 is still open")
@@ -103,14 +137,16 @@ for forbidden in (
     "RepositoryFallbackProfile->LeverCycle.Add",
 ):
     req(forbidden not in audio_cpp,
-        f"unaccepted manual-action donor was wired into runtime prematurely: {forbidden}")
+        f"source donor was wired into runtime before UE import/acceptance: {forbidden}")
 
 for needle in (
-    "Current repository-owned BoltCycle: **CONTENT GAP**",
-    "Current repository-owned LeverCycle: **CONTENT GAP**",
+    "Current repository-owned BoltCycle runtime asset: **CONTENT GAP**",
+    "Current repository-owned LeverCycle runtime asset: **CONTENT GAP**",
     "No URL, title, tag, filename or folder name by itself counts as runtime content.",
     "Item 16 remains unchecked",
     "PR #94 remains OPEN / UNMERGED",
+    "runtime_ready=false",
+    "ue_import_pending=true",
 ):
     req(needle in provenance, f"manual-action audio fail-closed rule missing: {needle}")
 
@@ -128,10 +164,9 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
-print("- real CC0 lever-action and bolt-action donor sources are pinned with identity limits")
-print("- current LQ preview URLs/hashes are pinned; stale 404 pins cannot return silently")
+print("- current CC0 lever/bolt transports and repository-owned LFS derivative identities are pinned")
 print("- current advertised preview bytes are audit-only and cannot auto-replace pinned bytes")
-print("- WAV/LFS policy is protected; source URLs cannot impersonate runtime content")
-print("- PumpCycle remains tracked while BoltCycle/LeverCycle remain explicit content gaps")
-print("- item 16 stays open until payload import, authored moving-part animation and UE 5.8 acceptance")
-print("STATUS: SOURCE PROVENANCE VERIFIED; AUDIO BYTES / UE IMPORT / RUNTIME ACCEPTANCE PENDING")
+print("- manifest remains runtime_ready=0 / ue_import_pending=1 / item16_checked=0")
+print("- PumpCycle remains tracked while BoltCycle/LeverCycle runtime assets stay fail-visible pending UE import")
+print("- item 16 stays open until UE SoundWave wiring, authored moving-part animation and UE 5.8 acceptance")
+print("STATUS: SOURCE PAYLOAD VERIFIED; UE IMPORT / RUNTIME ACCEPTANCE PENDING")
