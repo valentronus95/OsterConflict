@@ -20,6 +20,7 @@ def req(condition: bool, message: str) -> None:
 
 
 pilot = read("PASS45_REMINGTON870_UE58_IMPORT_PILOT.py")
+launcher = read("OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.cmd")
 manifest = read("SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json")
 uproject = read("OsterConflict/OsterConflict.uproject")
 animation_profiles = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp")
@@ -93,6 +94,31 @@ for forbidden in (
     req(forbidden not in pilot, f"isolated import pilot regained forbidden mutation/acceptance behavior: {forbidden}")
 
 for needle in (
+    'OsterConflictPass45Commandlet.uproject',
+    'PASS45_REMINGTON870_UE58_IMPORT_PILOT.py',
+    'remington_870_8siandude_ccby4.glb',
+    'UnrealEditor-Cmd.exe',
+    '-run=pythonscript',
+    '-unattended -nop4 -nosplash -nullrhi',
+    'No automatic working-tree mutation is performed here.',
+    'PASS45_REMINGTON870_UE58_IMPORT_PILOT_PASS',
+    'donor_action_channels=71/71/72',
+    'imported_animation_set_preserved=1',
+    'production_cutover=0 runtime_acceptance=0 item16_checked=0',
+    'IMPORT PILOT ONLY',
+):
+    req(needle in launcher, f"local UE58 Remington pilot launcher contract missing: {needle}")
+
+for forbidden in (
+    'git lfs pull',
+    'git checkout',
+    'git reset',
+    'git clean',
+    'OsterConflict.uproject" -run=pythonscript',
+):
+    req(forbidden not in launcher, f"Remington pilot launcher regained forbidden working-tree/runtime-host behavior: {forbidden}")
+
+for needle in (
     '"status": "APPROVED_FOR_UE_IMPORT"',
     '"source_bytes": 20621580',
     '"source_sha256": "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2"',
@@ -131,6 +157,6 @@ if errors:
 
 print(
     "PASS45 REMINGTON870 UE58 IMPORT PILOT: PASS "
-    "static_contract=1 donor_action_set_pinned=1 shared_skeleton_gate=1 "
+    "static_contract=1 donor_action_set_pinned=1 shared_skeleton_gate=1 local_launcher_guarded=1 "
     "ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
 )
