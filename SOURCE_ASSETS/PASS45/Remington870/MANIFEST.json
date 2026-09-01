@@ -1,0 +1,40 @@
+{
+  "animation_capable": true,
+  "attribution": "Remington 870 by 8sianDude, licensed under CC BY 4.0",
+  "derivative_notes": "Exact pinned donor GLB copied without geometry/animation modification; UE 5.8 import, clip mapping/retargeting, materials, first-person fit and runtime acceptance remain pending.",
+  "donor_animation_count": 5,
+  "donor_mesh_count": 6,
+  "donor_node_count": 109,
+  "donor_skin_count": 4,
+  "intended_fp_clips": [
+    "ironsight",
+    "fire",
+    "reload",
+    "dryfire"
+  ],
+  "item16_checked": false,
+  "license_id": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "proven_donor_action_channels": {
+    "easy_reload_index_3": 71,
+    "fire_index_2": 71,
+    "full_reload_index_4": 72
+  },
+  "public_repo_allowed": true,
+  "rigged_or_articulated": true,
+  "runtime_ready": false,
+  "schema": 1,
+  "source_asset_file": "remington_870_8siandude_ccby4.glb",
+  "source_bytes": 20621580,
+  "source_git_blob_sha1": "f822d184d96ede43d79a6f691d69cbe7cf60e686",
+  "source_model_id": "eea11de7e9d24b6683962b8388c319eb",
+  "source_name": "Remington 870",
+  "source_sha256": "147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2",
+  "source_transport_commit": "ed07ea542111c2149c5dab735e752824d0b0541c",
+  "source_transport_path": "models/weapons/shotgun.glb",
+  "source_transport_repo": "Parking-Master/FPS",
+  "source_url": "https://sketchfab.com/3d-models/remington-870-eea11de7e9d24b6683962b8388c319eb",
+  "status": "APPROVED_FOR_UE_IMPORT",
+  "ue58_import_pending": true,
+  "weapon": "Remington870"
+}
