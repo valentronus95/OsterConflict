@@ -2,39 +2,52 @@
 
 Date: 2026-09-01
 Parent: `PASS45_RUNTIME_RECOVERY_TZ.md` item 16
-State: `REMOTE ANIMATED CANDIDATE PINNED / OSTER BINARY NOT ACQUIRED / UE 5.8 RUNTIME UNACCEPTED`
+State: `OSTER SOURCE ACQUIRED / UE 5.8 IMPORT PENDING / RUNTIME UNACCEPTED`
 
 ## Why this contract exists
 
-The canonical branch declares `/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870`, but the corresponding tracked production package is absent. Item 16 also requires real authored first-person manual-action presentation, so a static shotgun mesh is not a valid closeout merely because its filename says Remington 870.
+The canonical branch declares `/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870`, but the corresponding tracked production package is still absent. Item 16 also requires real authored first-person manual-action presentation, so a static shotgun mesh is not a valid closeout merely because its filename says Remington 870.
 
 This contract makes the intake fail closed. A future Remington production package may not be treated as accepted unless its exact source, license, redistribution state, binary identity, rig/articulation evidence and intended animation coverage are recorded before runtime promotion.
 
 ## Reuse-first audit result
 
-### Preferred directly-auditable candidate — REMOTE BINARY PINNED, NOT IMPORTED INTO OSTER
+### Preferred directly-auditable candidate — OSTER SOURCE ACQUIRED / APPROVED FOR UE IMPORT / NOT RUNTIME ACCEPTED
 
 - Candidate repository: `Parking-Master/FPS`.
 - Exact source commit: `ed07ea542111c2149c5dab735e752824d0b0541c`.
 - Exact repository path: `models/weapons/shotgun.glb`.
 - Git blob SHA-1: `f822d184d96ede43d79a6f691d69cbe7cf60e686`.
-- Git tree-recorded size: `20621580` bytes.
+- Exact source size: `20621580` bytes.
 - Upstream model credited by that repository: `Remington 870` by `8sianDude`.
 - Upstream Sketchfab model id: `eea11de7e9d24b6683962b8388c319eb`.
-- License credited by the exact repository README: Creative Commons Attribution 4.0 / `CC-BY-4.0`.
+- Upstream source URL: `https://sketchfab.com/3d-models/remington-870-eea11de7e9d24b6683962b8388c319eb`.
+- License: Creative Commons Attribution 4.0 / `CC-BY-4.0`.
+- Required attribution: `Remington 870 by 8sianDude, licensed under CC BY 4.0`.
 - The exact repository source maps `shotgun` to `models/weapons/shotgun.glb`, creates a `THREE.AnimationMixer` for the loaded scene and stores `gun.animations`.
 - The same exact source consumes animation index `2` for fire, index `3` for ordinary/easy reload and index `4` for full/empty reload; shotgun is not excluded from those fire/reload paths.
-- This proves the pinned remote file is used as an animated weapon package by its donor application. It does **not** by itself prove an Unreal-compatible skeletal hierarchy.
-- Dedicated audit owner: `PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py`.
-- Dedicated workflow: `.github/workflows/pass45-remington870-remote-candidate-audit.yml`.
-- The remote audit must verify the exact Git blob identity, GLB 2.0 structure, at least five animation clips, non-empty fire/easy-reload/full-reload clips and at least one glTF skin before this candidate can be called direct skeletal/manual-action compatible.
-- Oster intake state: `REMOTE_PINNED_ONLY`.
-- Oster-owned source bytes: `NOT ACQUIRED`.
-- Binary SHA-256 for an Oster-owned copy: `PENDING`.
+- Dedicated remote audit owner: `PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py`.
+- Dedicated remote workflow: `.github/workflows/pass45-remington870-remote-candidate-audit.yml`.
+- The remote audit proved GLB 2.0 structure, at least five animation clips, non-empty fire/easy-reload/full-reload channels and at least one glTF skin before acquisition.
+- Acquisition owner: `PASS45_REMINGTON870_SOURCE_ACQUIRE.py`.
+- Acquisition workflow: `.github/workflows/pass45-remington870-source-acquire.yml`.
+- Repository-owned source file: `SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb` through Git LFS.
+- Repository manifest: `SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json`.
+- Acquisition commit: `177285c68fd693ff1570f3025fae5890128eae17`.
+- Acquired source SHA-256 / Git LFS OID: `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`.
+- Acquired source size: `20621580` bytes.
+- Donor probe recorded in the manifest: 5 animations, 6 meshes, 109 nodes and 4 skins.
+- Proven donor action channels recorded in the manifest: fire index 2 -> 71 channels, easy reload index 3 -> 71 channels, full reload index 4 -> 72 channels.
+- This proves a pinned, articulated/rigged, animation-capable Remington 870 source donor is now owned by Oster for UE import. It does **not** prove that the donor hierarchy imports into UE 5.8 as a compatible production skeletal/moving-part setup or that its donor clips are acceptable first-person pump presentation.
+- Oster intake state: `SOURCE_ACQUIRED_APPROVED_FOR_UE_IMPORT`.
+- Tracked production `.uasset`: `ABSENT`.
 - UE 5.8 import/fresh-load/skeleton compatibility: `PENDING`.
+- Clip mapping/retargeting and moving-pump integration: `PENDING`.
+- Materials and first-person fit: `PENDING`.
 - Direct first-person pump/action visual acceptance: `PENDING`.
+- Runtime state remains `runtime_ready=false`, `ue58_import_pending=true`, `item16_checked=false`.
 
-A green remote-candidate audit is structural/provenance evidence only. It does not create `SM_Remington870.uasset`, populate Oster animation slots, or close item 16.
+A green remote/source-intake audit is structural/provenance evidence only. It does not create `SM_Remington870.uasset`, populate Oster animation slots, or close item 16.
 
 ### Secondary animated candidate — NOT ACQUIRED
 
@@ -51,7 +64,7 @@ A green remote-candidate audit is structural/provenance evidence only. It does n
 - UE 5.8 skeleton/import/fresh-load evidence: `PENDING`.
 - First-person ironsight/fire/reload/dry-fire compatibility: `PENDING`.
 
-The candidate remains a fallback acquisition path, not a READY claim.
+The candidate remains a fallback acquisition path only. It must not be fetched or stacked beside the accepted primary donor unless a factual blocker invalidates the primary donor.
 
 ### Evaluated static/base candidates — NOT ACCEPTED FOR ITEM 16 CLOSEOUT
 
@@ -99,11 +112,13 @@ Rules:
 - static-only geometry presented as completed skeletal/manual-action content -> reject;
 - source page or URL without acquired bytes -> not imported;
 - remote Git blob pin is useful acquisition evidence but is not an Oster-owned `source_sha256` record;
+- an acquired third-party source must have a corresponding actual-import record in `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` before production use;
 - a production `.uasset` without the matching manifest -> CI fail;
 - manifest presence does not imply runtime acceptance;
 - `runtime_ready` and `item16_checked` remain false until current-head local UE 5.8 import/build/gameplay/direct first-person acceptance proves the final result;
-- final animation slots remain governed by the canonical animation-profile/runtime gates. This intake contract does not create a second gameplay/action authority.
+- final animation slots remain governed by the canonical animation-profile/runtime gates. This intake contract does not create a second gameplay/action authority;
+- do not fetch or integrate a second Remington donor merely to accumulate alternatives. The accepted primary donor must first be proved or factually rejected in isolation, per reuse-first replace-not-stack policy.
 
 ## Current factual verdict
 
-`remote_animated_candidate_pinned=1 oster_source_bytes_acquired=0 accepted_remington870_source=0 tracked_production_package=0 ue58_runtime_acceptance=0 item16_checked=0`
+`remote_animated_candidate_pinned=1 oster_source_bytes_acquired=1 accepted_remington870_source_for_ue_import=1 tracked_production_package=0 ue58_import_pending=1 ue58_runtime_acceptance=0 item16_checked=0`
