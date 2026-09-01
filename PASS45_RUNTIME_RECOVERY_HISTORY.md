@@ -33,8 +33,8 @@ Current factual content state:
 - Remington 870 exact manual-action animation: CONTENT GAP.
 - Lever Action exact manual-action animation: CONTENT GAP.
 - Pump mechanical cue: tracked `R13/Audio/shotguncock` is available as source fallback.
-- Bolt mechanical cue: CONTENT GAP; a real CC0 bolt-action donor is now provenance-pinned but its audio payload is not yet repository-owned/imported.
-- Lever mechanical cue: CONTENT GAP; a real CC0 lever-action donor is now provenance-pinned but its audio payload is not yet repository-owned/imported.
+- Bolt mechanical donor: repository-owned CC0 derivative is now tracked through Git LFS, but UE SoundWave import/runtime wiring is still pending.
+- Lever mechanical donor: repository-owned CC0 derivative is now tracked through Git LFS, but UE SoundWave import/runtime wiring is still pending.
 - Isolated Draft PR #95 was audited and does not currently contain accepted M700/Lever action sequences or bolt/lever mechanical content suitable for direct port.
 
 ## Work cycle — 2026-09-01 item 16 physical fallback retirement + stale-rule cleanup
@@ -95,9 +95,33 @@ Current factual content state:
 - Local uncommitted user changes were not touched.
 - Item 16 remains unchecked. Official progress remains **22/36 = 61.1%**.
 
+## Work cycle — 2026-09-01 item 16 CC0 bolt/lever payload acquisition
+
+- Start live head: `e278b053102c006d06354592096aac00895a887b`; `main` remained `bca00f4046700f383af9f1742cc24b6a62401b1a`, PR #94 remained OPEN / UNMERGED, and no active reservation was found.
+- The first open canonical item remained item 16; no later checklist item was used to bypass it.
+- The first acquisition attempt exposed a stale transport policy rather than a gameplay regression: run `33495430229` failed because current Freesound HTML no longer advertised the old pinned preview URL.
+- `fd83203a9030123521315c5cc467d6930a181bdc` decoupled source-page provenance validation from exact transport-byte identity while preserving fail-closed URL/SHA checks.
+- Run `33500960707` then proved the old lever LQ preview URL itself had become HTTP 404, so no silent fallback was accepted.
+- `e01a4e197d11b699da3e6179b81f1b39b81a5350` added fail-closed reporting of currently advertised candidates; run `33501268582` exposed the regenerated Freesound preview coordinates without auto-selecting them.
+- `73ad61b2f291e81d91f48ab39d2d4e664b22ff41` added an audit-only workflow step that hashes every currently advertised preview for both donors before any write.
+- Run `33501389638` revalidated both source identities/licenses and audited the new public preview bytes. Canonical LQ pins were selected explicitly, not dynamically:
+  - lever transport `523401_8956746-lq.mp3`, SHA-256 `ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965`;
+  - bolt transport `263459_4174990-lq.mp3`, SHA-256 `d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040`.
+- `60738db891c137097e02ff0ac387c5a56f882453` repinned both current LQ transports and strengthened the stale-pin/provenance guard.
+- Manual-action audio intake run `33501795799` completed **SUCCESS**: source-page audit, deterministic conversion, Git LFS staging, LFS pointer validation, guarded commit and manifest artifact all passed.
+- Bot content commit `b8b54ac019a559430fca8be7a1db4ef1f49d002f` added repository-owned donor derivatives plus `SOURCE_ASSETS/PASS45/ManualActionAudio/MANIFEST.json`.
+- Factual LFS payload identities:
+  - lever derivative SHA-256/OID `417ba38e5e87b53ef3711784f821f1b3fc303ac8d4df19d9eda80fb776881542`, size `92078`, duration `0.958333 s`;
+  - bolt derivative SHA-256/OID `5e64820d532c11e91af3eedf96ab34a38df7b3dd066b0b1c9d67b3fe3f34c8a7`, size `624078`, duration `6.500000 s`.
+- The manifest deliberately remains `runtime_ready=false`, `ue_import_pending=true`, `item16_checked=false`. These WAV donors are source payloads, not UE SoundWave runtime acceptance.
+- `BoltCycle` / `LeverCycle` runtime routing remains fail-visible until accepted UE import/wiring; exact authored M700/870/Lever moving-part sequences remain absent.
+- Runtime verdict remains **RUNTIME REJECTED 2026-08-31**. No local UE 5.8 runtime acceptance occurred.
+- PR #94 remains OPEN / UNMERGED; local uncommitted user changes were not touched.
+- Item 16 remains unchecked. Official progress remains **22/36 = 61.1%**.
+
 ## Next factual work
 
-1. Acquire the pinned CC0 bolt/lever payloads through repository-compliant content/LFS intake, then import and wire them without overstating exact weapon identity.
+1. Import the repository-owned bolt/lever donors as UE SoundWave assets and wire them to the exact manual-action routes without overstating weapon identity.
 2. Obtain/commit accepted M700/870/Lever moving-part or skeletal action sequences.
 3. Validate skeleton compatibility, action timing, sound audibility and direct first-person visuals in UE 5.8.
 4. Independently, the broader runtime recovery still requires a current-head Quick Normal/full runtime acceptance run before any runtime promotion.
