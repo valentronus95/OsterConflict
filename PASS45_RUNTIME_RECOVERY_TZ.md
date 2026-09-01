@@ -7,7 +7,7 @@ Target: Unreal Engine 5.8.x / Windows
 Canonical user launcher: `START_HERE.cmd`  
 Active branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
 Active PR: **#94 OPEN / UNMERGED**  
-Integrated baseline: `main` @ `69f0f8005ffc4518fcb413a6202eb3e51c21fd1f`
+Integrated baseline: `main` @ `bca00f4046700f383af9f1742cc24b6a62401b1a`
 
 ## 0. Authority and non-negotiable truth rules
 
@@ -176,9 +176,9 @@ Acceptance:
 
 ## 4. P0 — data-driven weapon actions and fire modes
 
-### Current corrective source state — 2026-08-26 — CODED_UNTESTED
+### Current corrective source state — 2026-09-01 — SOURCE-CODED / RUNTIME REJECTED
 
-The old Semi/Auto-only abstraction has been replaced at source level with separate selector capability, mechanical-action metadata and an authoritative manual-cycle gate.
+The Semi/Auto-only abstraction has been replaced at source level with separate selector capability, mechanical-action metadata and an authoritative manual-cycle gate.
 
 Implemented model distinguishes Semi, full Auto, opt-in Burst3, gas-operated, delayed blowback, blowback, short recoil, bolt, pump, lever, belt-fed and single-shot launcher behavior.
 
@@ -194,7 +194,7 @@ Selector rules now enforced in source:
 - hard stop paths clear pending burst state;
 - source marker: `PASS45_BURST3_SEQUENCE_READY authoritative=1 finite_shots=3 release_cancel=0`.
 
-Manual-action source gate now exists independently of low RPM:
+Manual-action source gate exists independently of low RPM:
 
 - `FOCWeaponTuning::ManualActionCycleSeconds` is explicit post-shot action timing;
 - M700 bolt cycle = `1.10 s` game tuning;
@@ -205,21 +205,24 @@ Manual-action source gate now exists independently of low RPM:
 - presentation/HUD may observe `bActionCycling` but may not own a second timing source;
 - source marker: `PASS45_MANUAL_ACTION_CYCLE_READY ... authoritative=1`.
 
-Manual-action presentation/audio routing is now also source-coded without creating a second gameplay clock:
+Manual-action presentation/audio routing is now fail-closed rather than procedural:
 
-- `UOCFirstPersonWeaponPresentationSubsystem` detects the replicated `bActionCycling` transition and shapes a local procedural action cue using the authoritative cycle duration;
-- M700, Remington 870 and Lever Action profiles declare separate bolt/pump/lever weapon+arms cue transforms while remaining explicitly **UNCALIBRATED** for final UE visual approval;
-- source marker: `PASS45_MANUAL_ACTION_PRESENTATION_READY ... replicated_gate=1 second_gameplay_timer=0`;
+- `UOCFirstPersonWeaponPresentationSubsystem` observes the replicated `bActionCycling` transition and routes local action audio from that factual state;
+- exact authored action animation is resolved only through `FOCWeaponAnimationProfile::ManualActionAnimationObjectPath` and played only if the sequence loads and matches the production skeletal mesh/skeleton;
+- M700, Remington 870 and Lever Action are explicitly marked as requiring authored manual-action coverage, while their exact action sequence slots remain empty until factual content is committed;
+- the old whole-weapon/arms sine fallback, `ManualAction*` profile displacement fields, `ActionCycleStartTime` presentation state and `PASS45_MANUAL_ACTION_PROCEDURAL_FALLBACK_ACTIVE` path are physically retired;
+- missing/incompatible authored action content emits `PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP` or `PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL`, preserves the baseline weapon+arms transform, and remains `runtime_acceptance=0`;
+- `PASS45_MANUAL_ACTION_PRESENTATION_READY` is not a valid production marker;
 - `EOCWeaponAudioEvent::ManualActionCycle` routes by exact `EOCWeaponActionType` into separate `BoltCycle`, `PumpCycle` and `LeverCycle` sound sets;
 - local first-person mechanical audio is emitted on the local replicated-gate transition; remote listeners use `OnRep_ActionCycling` and explicitly skip the local owner to prevent double playback;
-- empty/manual-action sound arrays remain an explicit **AUDIO CONTENT GAP** and are not promoted to READY.
+- PumpCycle can use tracked `/Game/R13/Audio/shotguncock`; BoltCycle and LeverCycle remain explicit **AUDIO CONTENT GAP**.
 
 Still pending:
 
 - HUD current mode/action state;
 - exact Burst3-capable asset approval if such a variant is introduced;
-- authored skeletal bolt/pump/lever animation or exact moving-part presentation for production meshes;
-- actual accepted bolt/pump/lever mechanical sound assets in the audio profiles;
+- accepted authored skeletal/moving-part M700 bolt, Remington 870 pump and Lever Action lever sequences;
+- accepted factual bolt/lever mechanical sound assets and final per-weapon mechanical mix;
 - local UE 5.8 timing/feel/visual/audio verification.
 
 Source guard: `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py`
@@ -321,16 +324,16 @@ Requirements:
 
 Current audio subsystem supports confirmed shot/state/impact events, but the 2026-08-26 runtime proved that some weapons can still be silent.
 
-### Current corrective source state — 2026-08-26 — SOURCE-CODED / RUNTIME UNTESTED
+### Current corrective source state — 2026-09-01 — SOURCE-CODED / RUNTIME UNTESTED
 
-A repository weapon-audio fallback now closes the **source-level silent-shot path** without pretending that generic sound identity is final authored content:
+A repository weapon-audio fallback closes the **source-level silent-shot path** without pretending that generic sound identity is final authored content:
 
 - an assigned authored `UOCWeaponAudioProfile` still wins whenever it contains the requested event;
 - if the requested near-shot event is unassigned/empty, `UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile()` lazily creates a transient presentation-only profile;
 - the represented AK first prefers the already tracked `/Game/AK-47/.../AK47_Fire_Cue`, `Reload_Cue` and `AK47_Empty_Cue` assets;
 - other current weapons may temporarily reuse the tracked `/Game/R13/Audio/gunfire_sfx` shot and tracked reload assets rather than disappear acoustically;
 - if no authored distant tail exists, the fallback uses the factual near report at reduced distance volume rather than becoming fully silent;
-- tracked `/Game/R13/Audio/shotguncock` is wired only to the pump-action fallback; bolt and lever mechanical sounds remain explicit **AUDIO CONTENT GAP** until exact content exists;
+- tracked `/Game/R13/Audio/shotguncock` is wired only to the pump-action fallback; bolt and lever mechanical sounds remain explicit **AUDIO CONTENT GAP** until accepted factual content exists;
 - tracked `snd_bullethit` is available as a temporary impact fallback;
 - fallback profile creation never mutates ammo, fire cadence, damage, projectile/trace authority, weapon transforms or action timing;
 - source marker: `PASS45_WEAPON_AUDIO_FALLBACK_READY ... authoritative_mutation=0 runtime_acceptance=0`;
@@ -516,11 +519,11 @@ Acceptance:
 
 ## 11. P0 — vegetation replacement
 
-### Current corrective source state — 2026-08-30 — PRIMARY-AUTHORED / RUNTIME REJECTED
+### Current corrective source state — 2026-08-31 — STARTUP-QUARANTINED / RUNTIME REJECTED
 
-`AOCWorldSectorOster` now selects the final player-facing tree families during its primary construction: `HillTree_02`, `ScotsPine_01` and `ScotsPineTall_01`. The obsolete `OCTreeContentUpgradeSubsystem` has been physically deleted: no second tree owner rewrites instances after `BeginPlay`, so the source cannot create a late remap/pop/flicker path. The explicit `PASS45_REGIONAL_TREE_INTAKE_WIRED` marker records `primary_authoring=1`, `late_mutation=0` and `runtime_acceptance=0`; the foliage runtime guard still fails closed on any identity mismatch. The separate authoritative Stadion Oster site owner now directly selects `HillTree_02` and `ScotsPineTall_01` with the same no-late-mutation contract. Oak remains an explicit unverified content gap.
+The intended player-facing tree identities remain `HillTree_02`, `ScotsPine_01` and `ScotsPineTall_01`, but the latest UE 5.8 Quick Normal run rejected their normal START-time material/static-mesh path. The source recovery therefore removes synchronous native-constructor/CDO loading and quarantines the second Stadion Oster START-time path. Normal runtime does not opt into `-Pass45LoadKiteDemoTrees`; an explicit deferred async route remains diagnostic-only and `runtime_acceptance=0` until the exact material/static-mesh path is repaired and visually accepted.
 
-Exact source head: `9d04baab648fe75ccb0e6903365f438c55230609`, GitHub source CI **68/68 SUCCESS**. This confirms source integration only; it does not replace current-head local UE 5.8 visual/LOD/material acceptance.
+The obsolete `OCTreeContentUpgradeSubsystem` remains physically deleted: there is still no second late remap owner. `VERIFY_PASS45_TREE_STARTUP_DEFERRED.py`, the pre-tick startup guard and foliage guards protect source identity/startup ownership separately from runtime material/LOD acceptance. Oak remains an explicit unverified content gap.
 
 Requirements:
 
@@ -529,7 +532,8 @@ Requirements:
 - verified real conifer/pine assets where suitable;
 - oak remains explicit CONTENT GAP until verified;
 - placement/species follow Oster references;
-- avoid obvious repeated rotations/scales and crude LOD collapse.
+- avoid obvious repeated rotations/scales and crude LOD collapse;
+- normal first-frame startup must not synchronously load the currently rejected KiteDemo material/static-mesh chain.
 
 ## 12. P0 — visual fidelity / no prototype acceptance
 
@@ -603,13 +607,14 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 - `OCWorldProductionVisualsSubsystem` stays physically deleted;
 - stale completion verifier/workflow cannot require it back;
 - Museum/world/material/spawn responsibilities each have one current mutating owner;
-- obsolete conflicting owners are physically deleted together with stale verifier expectations.
+- obsolete conflicting owners are physically deleted together with stale verifier expectations;
+- the rejected manual-action whole-transform fallback/state/profile API also stays physically retired; missing authored M700/870/Lever action content preserves baseline presentation rather than reviving a procedural substitute.
 
-## 22. Current source implementation milestone — 2026-08-30 weapon/ordnance + landmark/reference + vegetation-owner continuation
+## 22. Current source implementation milestone — 2026-09-01 item 16 fail-closed continuation
 
-State: **SOURCE-CODED / REFERENCE-BOUND / EXACT SOURCE HEAD `9d04baab648fe75ccb0e6903365f438c55230609` CI 68/68 SUCCESS / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / EXACT SOURCE HEAD `a40dbc1497d07ef78d488ae02fa0d839a7459faa` / FINAL EXACT-HEAD CI TO BE READ AFTER BOOKKEEPING / NOT RUNTIME ACCEPTED**.
 
-Historical verified source milestones remain structural evidence only. Current-head source CI must be read for the exact head after each substantive cycle; no source CI result overrides the factual `RUNTIME REJECTED 2026-08-27` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
+Historical verified source milestones remain structural evidence only. Current-head source CI must be read for the exact head after each substantive cycle; no source CI result overrides the factual `RUNTIME REJECTED 2026-08-31` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
 Implemented/source-prepared:
 
@@ -625,16 +630,18 @@ Implemented/source-prepared:
 - finite authoritative Burst3 architecture with no current false opt-in;
 - M700/Remington870/LeverAction explicit post-shot cycle timings;
 - replicated `bActionCycling` authoritative action gate;
-- fail-visible procedural bolt/pump/lever fallback presentation driven only by that replicated gate and authoritative duration; authored moving-part presentation remains open;
+- authored manual-action sequence bridge through `OCWeaponAnimationProfiles`, exact production skeletal compatibility checks and no second gameplay timer;
+- rejected whole-weapon/arms manual-action interpolation path, state and profile displacement fields physically retired;
+- missing M700/870/Lever authored sequences preserve baseline presentation and emit explicit authored-content-gap/failure markers instead of procedural motion;
 - exact manual-action mechanical audio routing through `BoltCycle` / `PumpCycle` / `LeverCycle` with explicit empty-set content-gap behavior;
 - local/remote manual-action audio ownership split to avoid intentional double playback;
+- tracked pump mechanical cue remains available; bolt/lever mechanical audio remains fail-visible content gap;
 - explicit per-weapon ADS socket-reference fields and separate factual `bADSCalibrated` state;
 - fail-visible ADS entry diagnostics through `PASS45_ADS_PROFILE_UNCALIBRATED` / `PASS45_ADS_ALIGNMENT_FAIL` / `PASS45_ADS_ALIGNMENT_SAMPLE`;
 - uncalibrated requested ADS preserves baseline hip presentation instead of applying guessed offsets, with `PASS45_ADS_PRESENTATION_FAIL_CLOSED`;
 - `oc.Weapon.ADS.Debug` calibration rays for camera vs authored sight axis;
 - repository fallback prevents an unassigned/empty near-shot profile from silently swallowing a factual shot;
 - exact tracked AK cues are preferred for AK; tracked R13 gunfire/reload/impact assets are temporary source fallbacks for current gaps;
-- pump fallback may use tracked `shotguncock`; bolt/lever mechanical audio remains fail-visible content gap;
 - `PASS45_WEAPON_AUDIO_FALLBACK_READY` / `PASS45_WEAPON_AUDIO_CONTENT_GAP` distinguish source fallback from missing content;
 - concrete weapon variants and launcher hide source BasicShape geometry before production load failure can render it;
 - real weapon fallbacks attach to unscaled `WeaponRoot` while the invisible physics root retains collision authority;
@@ -646,9 +653,8 @@ Implemented/source-prepared:
 - grenade throw uses swept clearance + overlap validation and `DontSpawnIfColliding`;
 - grenade inventory commit occurs only after factual projectile creation; blocked/failed spawn consumes zero inventory;
 - successful grenade throw inherits character velocity and emits `GrenadeThrow` presentation event without a second gameplay timer;
-- the committed authored `/Game/R13/Audio/snd_throw1` payload is now loaded by the native character presentation owner and played only from the replicated successful-throw event: locally controlled first person uses 2D playback, remote presentation uses world-location playback, and dedicated servers do not load/play it;
+- the committed authored `/Game/R13/Audio/snd_throw1` payload is loaded by the native character presentation owner and played only from the replicated successful-throw event;
 - factual audio success emits `PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY ... replicated_event=1 gameplay_authority=0`; missing/unloadable content emits `PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP` and is fatal to strict runtime evidence;
-- strict runtime evidence requires factual grenade visual/type-material/throw/smoke markers and now also requires authored throw-animation readiness rather than allowing the event bridge to false-pass;
 - authored first-person grenade hand/throw/recover animation remains explicit content gap; authored throw audio is source-integrated but cannot substitute for that animation;
 - distinct authored flash-grenade world VFX remains explicit content gap;
 - Museum source identity is guarded against six-column Culture-House contamination;
@@ -656,20 +662,16 @@ Implemented/source-prepared:
 - R14.0 Silpo shell and R14.3 visible `Сільпо` facade identity are guarded to the same canonical Silpo site;
 - strict runtime evidence and the focused landmark launcher require the factual R14.3 Silpo facade/sign stage;
 - Museum, Silpo and Culture House have separate repository-controlled bound reference specs through `PASS45_REFERENCE_PACK_BINDINGS.md`;
-- Silpo user evidence contract includes its selected-period facade, checkout, street/opposite context and water-tower sightline requirements;
-- Culture House public/source reconciliation prevents current source constants from impersonating photo-verified truth;
-- `VERIFY_PASS45_LANDMARK_IDENTITY.py` plus `.github/workflows/pass45-landmark-identity.yml` guard the landmark source/acceptance contract;
-- cumulative `RUN_ALL_VERIFY.py` includes weapon, ordnance and landmark identity guards;
-- source verifiers reject resurrection of old feedback/action shortcuts, fake ADS calibration, silent-profile acceptance, visible primitive weapon/grenade/smoke fallbacks and landmark identity false-pass paths.
+- source verifiers reject resurrection of old feedback/action shortcuts, manual-action whole-transform fallback, fake ADS calibration, silent-profile acceptance, visible primitive weapon/grenade/smoke fallbacks and landmark identity false-pass paths.
 
-Still not runtime accepted: compile on local UE 5.8, recoil feel/release, action timing, procedural/manual-action cue quality, authored bolt/pump/lever moving-part animation, exact mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, exact grenade-type bodies, distinct flash world VFX, smoke visual scale/look/performance/exact sync, Museum/Culture/Silpo direct visual identity, Silpo sign readability, water-tower final transform, Culture House exact facade fidelity and broader landmark/photo/world fidelity.
+Still not runtime accepted: compile on local UE 5.8, recoil feel/release, authoritative action timing/feel, authored M700/870/Lever sequence compatibility and visuals, bolt/lever mechanical sound content, exact per-weapon sound identity/mix, exact per-weapon sight socket/offset calibration, production hierarchy, drop settling, muzzle alignment, launcher visual, rendered zero-primitive rack proof, grenade visual scale/near-wall/throw behavior, authored grenade throw animation, exact grenade-type bodies, distinct flash world VFX, smoke visual scale/look/performance/exact sync, Museum/Culture/Silpo direct visual identity, Silpo sign readability, water-tower final transform, Culture House exact facade fidelity, broader landmark/photo/world fidelity and current-head startup recovery proof.
 
 ## 23. Corrective execution order
 
 Completed/source-coded items are marked only for source/reference work, not runtime acceptance.
 
 1. [x] Preserve 2026-08-27 screenshots/evidence and mark latest runtime **RUNTIME REJECTED**.
-2. [x] Promote 2026-08-27 factual evidence over older runtime verdict wording; preserve 2026-08-26 and older packs as history.
+2. [x] Promote latest factual evidence over older runtime verdict wording; preserve 2026-08-26 and older packs as history.
 3. [x] Retain black-world daylight/exposure source correction and semantic material stability gate.
 4. [x] Retain initial-character-only vehicle BASE recovery architecture.
 5. [x] Retain proportional vehicle visual fit and HMMWV forward-axis improvement.
@@ -682,8 +684,8 @@ Completed/source-coded items are marked only for source/reference work, not runt
 12. [x] Add source verifier/workflow for firing/muzzle/drop contracts.
 13. [x] Physically retire legacy Character `LocalFireFeedbackTimerHandle` and duplicate local recoil/recovery owner.
 14. [x] Expand fire-mode/action model beyond Semi/Auto, build exact per-weapon mechanical action matrix, and code opt-in finite Burst3 sequencing.
-15. [x] Code replicated-gate first-person bolt/pump/lever procedural fallback presentation and exact action-type mechanical audio routing without a second gameplay timer; keep authored moving-part presentation as explicit content gap.
-16. [ ] Replace procedural manual-action fallback cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content.
+15. [x] Code replicated-gate authored manual-action animation/audio bridge without a second gameplay timer; subsequently physically retire the rejected whole-weapon/arms procedural fallback so missing authored content preserves baseline presentation.
+16. [ ] Replace procedural manual-action fallback cues with accepted authored moving-part/skeletal presentation where production assets support it, and populate real bolt/pump/lever sound content. **The procedural fallback is now physically retired; this item remains open because exact M700/870/Lever action sequences plus bolt/lever audio and UE 5.8 acceptance are still missing.**
 17. [x] Build fail-visible per-weapon ADS/sight profile architecture, socket-based alignment diagnostics and source validation without inventing calibration data; uncalibrated ADS presentation now fails closed after the 2026-08-27 AK rejection.
 18. [ ] Calibrate exact rear/front/optic references and ADS transforms for every accepted production weapon in local UE 5.8; only then set factual `bADSCalibrated=true` per weapon.
 19. [x] Close the source-level silent-shot path with an event-local repository audio fallback and dedicated verifier/workflow; keep runtime audibility and exact sound identity unaccepted.
@@ -694,7 +696,7 @@ Completed/source-coded items are marked only for source/reference work, not runt
 24. [ ] Accept first-person grenade hand/throw/recover animation, exact/distinct frag/smoke/flash presentation, distinct flash world VFX and direct UE 5.8 smoke scale/look/performance. **Smoke Niagara source content is now committed/wired; that source integration does not close runtime visual acceptance. Authored throw audio is also committed/wired, but it does not close the hand-animation or visual gaps.**
 25. [x] Source-close Museum/Culture House/Silpo identity ownership and strict branded-site evidence. **Rendered identity/fidelity acceptance remains pending.**
 26. [x] Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts. Silpo uses reviewed user evidence; Culture House keeps unverified exact geometry explicitly `PROVISIONAL`. **Reference binding is not runtime acceptance.**
-27. [ ] Replace rejected vegetation family and complete broader environment acceptance. **Final HillTree/ScotsPine assets are direct primary world authoring and the Stadion Oster perimeter now uses final HillTree/ScotsPineTall assets without a late remap; UE 5.8 visual/material/LOD acceptance remains open.**
+27. [ ] Replace rejected vegetation family and complete broader environment acceptance. **The intended HillTree/ScotsPine identities are quarantined from normal START-time synchronous loading after the latest UE 5.8 material/static-mesh rejection; direct visual/material/LOD repair and acceptance remain open.**
 28. [ ] Complete/accept HMMWV M2 ring/shield/gunner hierarchy with authored pivot, 360° yaw and correct camera in UE runtime.
 29. [ ] Calibrate/accept HMMWV gameplay top speed to >=80 km/h without breaking handling.
 30. [ ] Close BTR white material state across pre/post possession in runtime.
@@ -742,8 +744,8 @@ no production BasicShape/proxy core content; no major white/default materials; a
 
 ## 25. Current verdict
 
-**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-27.**
+**PASS 45 = ACTIVE / RUNTIME REJECTED 2026-08-31.**
 
 PR #94 remains **OPEN / UNMERGED**.
 
-The weapon firing/muzzle/drop/action/presentation/audio-routing/ADS-diagnostic/fail-closed-ADS/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw/authored-throw-audio corrections plus Museum/Culture House/Silpo source identity ownership and bound reference contracts are **SOURCE-CODED / REFERENCE-BOUND / UNTESTED OR REJECTED IN CURRENT LOCAL UE RUNTIME**. Exact source head `5c8037feda054e435ad734e1194bc69b6fd1fc5a` passed 68/68 GitHub workflows, but that remains structural evidence only. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build, playtest and direct screenshot acceptance proves them.
+The weapon firing/muzzle/drop/action/authored-manual-action-bridge/audio-routing/ADS-diagnostic/fail-closed-ADS/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw/authored-throw-audio corrections plus Museum/Culture House/Silpo source identity ownership and bound reference contracts are **SOURCE-CODED / REFERENCE-BOUND / UNTESTED OR REJECTED IN CURRENT LOCAL UE RUNTIME**. The rejected whole-weapon/arms manual-action fallback is now physically retired; exact authored M700/870/Lever action sequences and bolt/lever mechanical audio remain explicit content gaps. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build, playtest and direct screenshot acceptance proves them.
