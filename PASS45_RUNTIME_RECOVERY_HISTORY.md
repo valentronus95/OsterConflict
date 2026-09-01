@@ -18,7 +18,7 @@ Git history remains the raw source of truth. This file records the current integ
 - Target branch: `main`
 - `main`: `bca00f4046700f383af9f1742cc24b6a62401b1a`
 - Latest factual local verdict: **RUNTIME REJECTED 2026-08-31**.
-- Latest exact substantive source-verified head: `8d397133b75d00c5bae9af5ce2e43ccb23b59d8d`.
+- Latest exact substantive source-verified head: `33a3c30425a7b0c227f4fcd59b5ecfc368f32f3c`.
 - Merge rule: PR #94 remains OPEN / UNMERGED until a current-head local UE 5.8 full runtime test passes import, build, gameplay, automated evidence gates and direct screenshot acceptance.
 - Official canonical checklist accounting: **22/36 = 61.1%**, **38.9% remaining**.
 - Source-only work on runtime-dependent items does not increase that percentage.
@@ -29,9 +29,9 @@ The first canonical unchecked item remains item 16: accepted authored M700/Remin
 
 Current factual content state:
 
-- M700 exact manual-action animation: CONTENT GAP.
-- Remington 870 exact manual-action animation: CONTENT GAP.
-- Lever Action exact manual-action animation: CONTENT GAP.
+- M700 exact manual-action animation: CONTENT GAP; tracked production skeletal mesh exists.
+- Remington 870 production package at `/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870`: CONTENT GAP in canonical tracked content; exact manual-action animation is therefore also unaccepted.
+- Lever Action exact manual-action animation: CONTENT GAP; tracked production skeletal mesh exists.
 - Pump mechanical cue: tracked `R13/Audio/shotguncock` is available as source fallback.
 - Bolt mechanical donor: repository-owned CC0 derivative is now tracked through Git LFS, but UE SoundWave import/runtime wiring is still pending.
 - Lever mechanical donor: repository-owned CC0 derivative is now tracked through Git LFS, but UE SoundWave import/runtime wiring is still pending.
@@ -133,12 +133,27 @@ Current factual content state:
 - Runtime verdict remains **RUNTIME REJECTED 2026-08-31**. No local UE 5.8 run or direct first-person audio/visual acceptance occurred in this cycle.
 - Item 16 remains unchecked. Official progress remains **22/36 = 61.1%**.
 
+## Work cycle — 2026-09-01 item 16 tracked-content inventory guard
+
+- Pre-work reconciliation covered the canonical branch, live HEAD, `main`, PR #94, exact-head CI, persistent history, the reuse-first architecture/spec addenda, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md`, and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md`; already-completed provenance/import/governance work was not repeated.
+- Intervening governance commits through `820269151dab83d4feda8c3b80bd7b452497b578` were treated as existing canonical truth, not replayed. They add/synchronize execution-integrity and reuse-first rules but do not change runtime acceptance or checklist credit.
+- Repository inventory proved that tracked M700 and Lever Action production skeletal meshes exist, while their exact bolt/lever `AnimationSequence`/Montage content does not.
+- Repository inventory also proved a stronger Remington 870 blocker: source declares `/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870`, but canonical tracked `OsterConflict/Content/Production/Weapons` contains no `Remington870` package. The existing runtime path already reports `PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=Remington870 primitive_visible=0 real_fallback_pending=1` when that production asset is absent.
+- Generic `SampleAnimationPack` locomotion clips were not accepted as a fake bolt/pump/lever substitute, consistent with the reuse-first deep audit's requirement that discrete manual actions remain dedicated authored animation concerns.
+- `33a3c30425a7b0c227f4fcd59b5ecfc368f32f3c` — extend the existing canonical `VERIFY_PASS45_WEAPON_ACTION_MATRIX.py` instead of creating another duplicate verifier. The guard now asserts factual tracked M700/Lever base-mesh presence, preserves the exact Remington production object-path contract, and requires the explicit fail-closed Remington content-gap marker whenever the package is absent.
+- Exact substantive-head CI: `Source verification` run `33541383548` — **SUCCESS**; `Runtime recovery Pass 45` run `33541384125` — **SUCCESS**; `Pass 45 strict runtime acceptance harness` run `33541383767` — **SUCCESS**; manual-action audio provenance and the returned related source/structural workflows also completed **SUCCESS**. A separate flash-grenade workflow was still queued when this checkpoint was written and is unrelated to item 16 source acceptance.
+- No new external asset/code intake occurred in this cycle; the third-party register therefore required no new provenance record.
+- No local user `Changes` were touched. No PR merge was performed.
+- Runtime verdict remains **RUNTIME REJECTED 2026-08-31**. Item 16 remains unchecked and official progress remains **22/36 = 61.1%**.
+
 ## Next factual work
 
-1. Import the repository-owned bolt/lever donors as UE SoundWave assets and wire them to the exact manual-action routes without overstating weapon identity.
-2. Obtain/commit accepted M700/870/Lever moving-part or skeletal action sequences.
-3. Validate skeleton compatibility, action timing, sound audibility and direct first-person visuals in UE 5.8.
-4. Independently, the broader runtime recovery still requires a current-head Quick Normal/full runtime acceptance run before any runtime promotion.
+1. Restore/import an accepted tracked Remington 870 production package at the declared production path, or update the source contract to an actually accepted tracked production asset; do not treat pump animation acceptance as meaningful while the base production package is absent.
+2. Import the repository-owned bolt/lever donors as UE SoundWave assets and wire them to the exact manual-action routes without overstating weapon identity.
+3. Obtain/commit accepted M700/Remington 870/Lever Action moving-part or skeletal action sequences and populate the exact manual-action animation slots.
+4. Validate skeleton compatibility, action timing, sound audibility and direct first-person visuals in UE 5.8.
+5. Independently, the broader runtime recovery still requires a current-head Quick Normal/full runtime acceptance run before any runtime promotion.
+6. Keep PR #94 OPEN / UNMERGED until that current-head UE 5.8 acceptance is explicitly proven.
 
 ## Status vocabulary
 
