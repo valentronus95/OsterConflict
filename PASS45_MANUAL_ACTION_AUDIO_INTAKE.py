@@ -192,7 +192,13 @@ def main() -> int:
         source_html = fetch_text(str(donor["source_page"]))
         validate_source_contract(source_html, donor)
         transport_url, transport_kind = resolve_transport(donor, source_html)
-        transport_bytes = fetch_bytes(transport_url)
+        try:
+            transport_bytes = fetch_bytes(transport_url)
+        except Exception as exc:  # noqa: BLE001 - fail closed, but expose current page candidates for re-audit
+            advertised = [canonical_transport_url(url) for url in extract_audio_urls(source_html)]
+            raise RuntimeError(
+                f"pinned transport fetch failed for {key}: {exc}; current advertised candidates={advertised}"
+            ) from exc
         transport_sha = sha256(transport_bytes)
         expected_url = str(donor.get("expected_transport_url", "")).strip()
         expected = str(donor["expected_transport_sha256"])
