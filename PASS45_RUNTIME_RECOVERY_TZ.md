@@ -612,7 +612,7 @@ North-up, compact central Oster topology, one geo-reference authority, player ma
 
 ## 22. Current source implementation milestone — 2026-09-01 item 16 fail-closed continuation
 
-State: **SOURCE-CODED / EXACT SOURCE HEAD `a40dbc1497d07ef78d488ae02fa0d839a7459faa` / FINAL EXACT-HEAD CI TO BE READ AFTER BOOKKEEPING / NOT RUNTIME ACCEPTED**.
+State: **SOURCE-CODED / PRE-REUSE-DOCUMENTATION IMPLEMENTATION HEAD `482a84b06c3f0c3dd92919b04e9a846510987eab` / CURRENT BRANCH HEAD MUST BE READ FROM GITHUB / NOT RUNTIME ACCEPTED**.
 
 Historical verified source milestones remain structural evidence only. Current-head source CI must be read for the exact head after each substantive cycle; no source CI result overrides the factual `RUNTIME REJECTED 2026-08-31` verdict or replaces local UE 5.8 compile/gameplay/direct screenshot acceptance.
 
@@ -749,3 +749,44 @@ no production BasicShape/proxy core content; no major white/default materials; a
 PR #94 remains **OPEN / UNMERGED**.
 
 The weapon firing/muzzle/drop/action/authored-manual-action-bridge/audio-routing/ADS-diagnostic/fail-closed-ADS/repository-audio-fallback/primitive-retirement/grenade-smoke/transactional-throw/authored-throw-audio corrections plus Museum/Culture House/Silpo source identity ownership and bound reference contracts are **SOURCE-CODED / REFERENCE-BOUND / UNTESTED OR REJECTED IN CURRENT LOCAL UE RUNTIME**. The rejected whole-weapon/arms manual-action fallback is now physically retired; exact authored M700/870/Lever action sequences and bolt/lever mechanical audio remain explicit content gaps. None of these items may be described as fixed in runtime until a current-head local UE 5.8 build, playtest and direct screenshot acceptance proves them.
+
+## 26. Reuse-first replacement mandate — bound 2026-09-01
+
+The normative subordinate specification `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md` is now **bound into this canonical TZ**. `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` is the mandatory provenance/license register for every external code/content intake.
+
+This binding changes implementation strategy, not factual runtime truth and not the existing closed/open meaning of checklist items 1-36.
+
+Mandatory replacement doctrine:
+
+`audit current owner -> prove replacement in isolation -> integrate replacement -> runtime/network/performance acceptance -> switch authority -> physically delete obsolete owner -> delete stale tests/config/fallbacks -> regression acceptance`
+
+Non-negotiable rules:
+
+- do not rewrite a weak custom system from zero when a stable UE 5.8 owner or legally reusable candidate already covers the same responsibility better;
+- do not stack a new system permanently on top of the old system;
+- old duplicate code is **physically deleted after the replacement passes acceptance**;
+- rollback uses Git history, not a live hidden legacy runtime fallback;
+- one responsibility still has exactly one mutating production owner;
+- engine-native stable systems are preferred over third-party dependencies;
+- Beta/Experimental systems require isolated packaged proof before production promotion;
+- external code/content with unknown license/provenance is not imported;
+- Oster-specific gameplay rules remain Oster-owned adapters around the accepted reusable system.
+
+The bound replacement spec explicitly covers and maps:
+
+- Chaos Vehicles for wheeled vehicle physics, with CARLA as reference/donor only after file-level license review;
+- Chaos Modular Vehicles as Experimental proof-only until separately accepted;
+- Chaos Physics for rigid bodies, drops, grenades, ragdoll and physical response;
+- Chaos Destruction / Geometry Collections / Physics Fields for controlled destruction;
+- Niagara for explosions, smoke, fire, muzzle/impact and environmental VFX;
+- MetaSounds + Audio Modulation for weapons, mechanical actions, vehicles, explosions, footsteps, impacts, environment and mix state;
+- Soundscape only as Beta proof candidate for ambience;
+- Game Animation Sample / Motion Matching / IK / Control Rig / Motion Warping / Montages for reusable animation architecture where appropriate;
+- ALS Community and PBCharacterMovement only as audited candidates, never automatic parallel locomotion owners;
+- World Partition / HLOD / PCG for scalable non-identity-critical world content where migration is justified;
+- Behavior Trees / AI Perception / EQS / Smart Objects for AI/bot building blocks;
+- selective Lyra/Common User/Enhanced Input/CommonUI patterns where they replace weaker duplicate infrastructure;
+- licensed/CC0 production model/material sources such as Poly Haven or verified Fab assets instead of C++ BasicShape approximations;
+- AirSim/Project AirSim lineage as future drone reference only, not a current mandatory runtime dependency.
+
+PASS45 execution rule: do not reopen already source-closed items merely to refactor them. Apply this mandate immediately when touching still-open items 16, 18, 20, 24 and 27-35 or a directly related runtime defect. PR #94 remains OPEN / UNMERGED until factual current-head UE 5.8 runtime acceptance.
