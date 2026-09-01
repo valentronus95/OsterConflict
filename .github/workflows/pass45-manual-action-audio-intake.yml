@@ -1,0 +1,54 @@
+name: Pass 45 manual-action audio intake
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - PASS45_MANUAL_ACTION_AUDIO_INTAKE.py
+      - PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md
+      - .github/workflows/pass45-manual-action-audio-intake.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-public-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deterministic audio converter
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          ffmpeg -version | head -n 1
+
+      - name: Audit pinned CC0 donor transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          python PASS45_MANUAL_ACTION_AUDIO_INTAKE.py \
+            --mode audit \
+            --out-dir "$RUNNER_TEMP/pass45-manual-action-audio" \
+            --manifest "$RUNNER_TEMP/pass45-manual-action-audio/audit-manifest.json"
+          cat "$RUNNER_TEMP/pass45-manual-action-audio/audit-manifest.json"
+
+      - name: Preserve audit payload for checksum review
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-manual-action-audio-audit
+          path: ${{ runner.temp }}/pass45-manual-action-audio/
+          if-no-files-found: error
+          retention-days: 3
