@@ -1,0 +1,41 @@
+name: Pass 45 manual-action audio provenance
+
+on:
+  pull_request:
+    paths:
+      - 'PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md'
+      - '.gitattributes'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp'
+      - 'OsterConflict/Content/R13/Audio/**'
+      - 'VERIFY_PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.py'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-manual-action-audio-provenance.yml'
+  push:
+    branches:
+      - main
+      - 'fix/pass45-runtime-rejection-*'
+    paths:
+      - 'PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md'
+      - '.gitattributes'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp'
+      - 'OsterConflict/Content/R13/Audio/**'
+      - 'VERIFY_PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.py'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-manual-action-audio-provenance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify manual-action audio provenance and fail-closed wiring
+        run: python VERIFY_PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.py
