@@ -75,7 +75,7 @@ for needle in (
     'UnrealEditor-Cmd.exe',
     '-run=pythonscript',
     '-unattended -nop4 -nosplash -nullrhi',
-    'No automatic working-tree mutation is performed here.',
+    'No checkout, pull, reset, clean, stash or LFS mutation was attempted.',
     'CANONICAL_BRANCH=fix/pass45-runtime-rejection-material-closure-20260826',
     'EXPECTED_SOURCE_SIZE=20621580',
     'EXPECTED_SOURCE_SHA256=147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2',
