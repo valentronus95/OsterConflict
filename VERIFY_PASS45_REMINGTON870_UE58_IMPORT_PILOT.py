@@ -58,7 +58,7 @@ for needle in (
     'run_git_lfs_pull_before_ue_import=1',
     'unreal.AssetImportTask()',
     'task.set_editor_property("automated", True)',
-    'task.set_editor_property("async", False)',
+    'UE 5.8.1 no longer exposes AssetImportTask',
     'task.set_editor_property("save", False)',
     'task.set_editor_property("replace_existing", False)',
     'task.set_editor_property("replace_existing_settings", False)',
@@ -82,6 +82,7 @@ for needle in (
     req(needle in pilot, f"fail-closed UE58 Remington import-pilot contract missing: {needle}")
 
 for forbidden in (
+    'task.set_editor_property("async"',
     '/Game/Production/Weapons/Remington870',
     'save_directory(',
     'save_asset(',
@@ -91,7 +92,7 @@ for forbidden in (
     'runtime_acceptance=1',
     'item16_checked=1',
 ):
-    req(forbidden not in pilot, f"isolated import pilot regained forbidden mutation/acceptance behavior: {forbidden}")
+    req(forbidden not in pilot, f"isolated import pilot regained forbidden mutation/acceptance or removed UE58 property behavior: {forbidden}")
 
 for needle in (
     'OsterConflictPass45Commandlet.uproject',
@@ -158,5 +159,5 @@ if errors:
 print(
     "PASS45 REMINGTON870 UE58 IMPORT PILOT: PASS "
     "static_contract=1 donor_action_set_pinned=1 shared_skeleton_gate=1 local_launcher_guarded=1 "
-    "ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
+    "ue58_removed_async_property_guard=1 ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
 )
