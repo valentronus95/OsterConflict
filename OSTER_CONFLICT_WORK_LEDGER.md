@@ -85,6 +85,15 @@ The following Pass44 decisions remain protected as non-regression because later 
 
 Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired. These retained historical rules do not override the newer 2026-09-02 gameplay evidence above.
 
+### Historical 2026-08-25 local build/import rejection (retained fact)
+
+`LOCAL UE BUILD REJECTED` is preserved as historical evidence for two concrete UE 5.8 regressions discovered on 2026-08-25:
+
+- MSVC/UE 5.8 rejected the tactical-road `FVector2D` constexpr table with **C2131**; the table was corrected to normal `const` ownership while preserving its count contract;
+- UE 5.8 Interchange rejected the deprecated **`auto_detect_mesh_type`** property during HMMWV/M2 GLB intake; the importer now uses the current explicit static-mesh policy.
+
+Those fixes were correctly classified `CODED_UNTESTED` until later local UE evidence. The newer 2026-09-02 gameplay run supersedes the old build rejection as current startup truth, but these historical regression facts remain protected so neither defect can silently return.
+
 ## 5. Binding non-regression and reuse-first rules
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
@@ -203,7 +212,7 @@ Exact source-contract CI for the implementation head:
 - run `33652982669`;
 - result **SUCCESS**.
 
-The same audit contract also passed on the later documentation head before this historical-marker correction. The actual assembly classification still needs the local UE 5.8 run.
+The same audit contract also passed on later documentation heads. The actual assembly classification still needs the local UE 5.8 run.
 
 ## 11. Why production cutover is still blocked
 
