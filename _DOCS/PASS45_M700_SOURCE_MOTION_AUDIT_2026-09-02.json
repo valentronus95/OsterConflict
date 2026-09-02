@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "status": "SOURCE_STRUCTURE_MOTION_EVIDENCE_ONLY",
   "source": "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx",
   "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
@@ -75,6 +75,69 @@
     "BOLT",
     "BOLT_STOP"
   ],
+  "bolt_hierarchy": [
+    {
+      "node_index": 9,
+      "node_name": "BOLT",
+      "parent_index": 7,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "local_transform": {
+        "matrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          -8.273194544017315e-05,
+          -0.14141424000263214,
+          -0.03047895058989525,
+          1.0
+        ],
+        "uses_matrix": true
+      }
+    },
+    {
+      "node_index": 10,
+      "node_name": "BOLT_STOP",
+      "parent_index": 7,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "local_transform": {
+        "matrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          -0.013989332132041454,
+          -0.09963860362768173,
+          -0.029946349561214447,
+          1.0
+        ],
+        "uses_matrix": true
+      }
+    }
+  ],
+  "source_authored_stop_delta": {
+    "usable_as_sibling_local_translation_delta": false,
+    "reason": "MATRIX_TRANSFORM_REQUIRES_WORLD_DECOMPOSITION",
+    "shared_parent": "ANCHOR"
+  },
   "skinned_nodes": [
     {
       "node_index": 20,
