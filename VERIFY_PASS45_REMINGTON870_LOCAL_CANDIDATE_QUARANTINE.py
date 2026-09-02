@@ -10,6 +10,7 @@ CANDIDATE = "Remington_870_FREE.glb"
 AUDIT = Path("PASS45_REMINGTON870_LOCAL_CANDIDATE_IDENTITY_AUDIT.py")
 DOC = Path("_DOCS/PASS45_REMINGTON870_LOCAL_CANDIDATE_QUARANTINE_2026-09-02.md")
 WORKFLOW = Path(".github/workflows/pass45-remington870-local-candidate-quarantine.yml")
+HISTORY = Path("PASS45_RUNTIME_RECOVERY_HISTORY.md")
 SELF = Path(__file__).name
 MANIFEST = Path("SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json")
 REGISTER = Path("_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md")
@@ -18,6 +19,7 @@ ALLOWED_CANDIDATE_REFERENCES = {
     AUDIT.as_posix(),
     DOC.as_posix(),
     WORKFLOW.as_posix(),
+    HISTORY.as_posix(),
     SELF,
 }
 TEXT_SUFFIXES = {
