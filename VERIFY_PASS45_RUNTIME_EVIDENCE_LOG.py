@@ -103,6 +103,49 @@ def main() -> int:
     forbid(gameplay, "PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL", errors, "visible BasicShape weapon")
     forbid(gameplay, "PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL", errors, "launcher production visual gap")
 
+    # Recovery item 16: the Remington 870 must factually reach its authored production pump sequence during an
+    # actual gameplay action-cycle. This proves runtime activation of the imported production sequence, but it does
+    # not upgrade direct visual/audio acceptance: runtime_acceptance=0 remains intentional until manual observation.
+    remington_pump_ready_lines = [
+        line
+        for line in gameplay.splitlines()
+        if "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY" in line and "weapon=OC_SG1" in line
+    ]
+    if not remington_pump_ready_lines:
+        errors.append(
+            "missing Remington 870 authored pump runtime bridge: "
+            "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=OC_SG1"
+        )
+    else:
+        remington_pump_ready_line = remington_pump_ready_lines[-1]
+        for marker in (
+            "action=EOCWeaponActionType::PumpAction",
+            "path=/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle",
+            "replicated_gate=1",
+            "second_gameplay_timer=0",
+            "runtime_acceptance=0",
+        ):
+            if marker not in remington_pump_ready_line:
+                errors.append(f"Remington 870 pump READY line missing current field: {marker}")
+    forbid(
+        gameplay,
+        "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=OC_SG1",
+        errors,
+        "Remington 870 authored pump bridge failure",
+    )
+    forbid(
+        gameplay,
+        "PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=OC_SG1",
+        errors,
+        "Remington 870 authored pump content gap",
+    )
+    forbid(
+        gameplay,
+        "PASS45_WEAPON_AUDIO_CONTENT_GAP weapon=OC_SG1 event=manual_action",
+        errors,
+        "Remington 870 pump audio content gap",
+    )
+
     # Pass45 ordnance is fail-closed too. A strict acceptance run must factually throw at least one grenade in a
     # valid open-space case so source-only spawn semantics cannot masquerade as gameplay acceptance. The shared
     # real grenade body may remain an explicit exact-body content gap, but its authored type-identity material must
@@ -207,6 +250,7 @@ def main() -> int:
         "PRODUCTION_VEHICLE_MATERIALS=PASS\n"
         "REQUIRED_AVAILABLE_WEAPON_MATERIALS=PASS\n"
         "PRIMITIVE_WEAPON_VISUALS=PASS\n"
+        "REMINGTON870_AUTHORED_PUMP_RUNTIME_BRIDGE=PASS\n"
         "GRENADE_PRODUCTION_VISUAL=PASS\n"
         "GRENADE_TYPE_IDENTITY_MATERIAL=PASS\n"
         "GRENADE_TRANSACTIONAL_THROW=PASS\n"
@@ -230,6 +274,7 @@ def main() -> int:
     print("- authored HMMWV/M2/BTR materials passed")
     print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
+    print("- Remington 870 action-cycle gameplay reached the production pump animation bridge without authored-content/audio gap")
     print("- grenade production visual and authored type-identity material loaded; exact per-type body content remains explicit")
     print("- a factual grenade throw committed inventory only after spawn, emitted the presentation bridge and proved authored throw animation runtime readiness")
     print("- smoke authored Niagara loaded/activated and current READY proves bounded gameplay expansion without claiming exact visual sync")
