@@ -122,7 +122,7 @@ req(OLD_STATIC_OBJECT not in validator, "runtime validator still accepts obsolet
 for needle in (
     'FindProductionSkeletalWeaponVisual',
     'LoadObject<UAnimSequence>',
-    'ManualActionSequence->GetSkeleton() != Weapon->GetSkeletalMeshAsset()->GetSkeleton()',
+    'Sequence->GetSkeleton() != Mesh->GetSkeleton()',
     'PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay)',
     'IsActionCycling()',
     'PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY',
