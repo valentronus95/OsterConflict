@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Fail-closed UE 5.8 production importer for the derived Remington 870 pump assembly.
 
-This script runs only inside UnrealEditor-Cmd against OsterConflict.uproject. It
-rebuilds the deterministic CC-BY derivative from the exact registered donor,
-reduces the derived source to the standalone pump clip, imports a combined rigid
-base plus combined skeletal assembly, validates the pump bone/animation before
-saving, then assigns stable production paths.
+The exact registered 8sianDude donor is rebuilt through the deterministic PASS45
+derivative, reduced to one standalone PumpCycle animation, then imported with UE
+5.8 Interchange as ONE combined skeletal weapon. Static donor geometry is forced
+into the skeletal import so the complete shotgun stays in one production visual
+while only PASS45_PumpForeEnd receives the authored pump track.
 
-It does NOT claim gameplay/runtime acceptance and does NOT close PASS45 item 16.
+This script may save production source assets, but it never claims gameplay or
+runtime acceptance and never closes PASS45 item 16.
 """
 from __future__ import annotations
 
@@ -29,14 +30,13 @@ PUMP_ANIMATION_SOURCE_NAME = "PASS45_Remington870_PumpCycle"
 PUMP_DURATION = 0.55
 DURATION_TOLERANCE = 0.08
 MIN_TRANSLATION_DELTA = 0.01
-IMPORT_CONTRACT_REVISION = "PASS45_REMINGTON870_DERIVED_PUMP_PROD_R1"
+IMPORT_CONTRACT_REVISION = "PASS45_REMINGTON870_DERIVED_PUMP_PROD_R2"
 
 SOURCE_REL = Path("SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb")
 CACHE_REL = Path("OsterConflict/Saved/ProductionAssetImportCache/Remington870")
-DERIVED_SOURCE_NAME = "remington_870_pass45_production_pump.glb"
+PRODUCTION_SOURCE_NAME = "remington_870_pass45_production_pump.glb"
 DESTINATION = "/Game/Production/Weapons/Remington870"
 SKELETAL_ASSET = f"{DESTINATION}/SKM_Remington870"
-RIGID_ASSET = f"{DESTINATION}/SM_Remington870_Rigid"
 SKELETON_ASSET = f"{DESTINATION}/SK_Remington870"
 PUMP_ANIMATION_ASSET = f"{DESTINATION}/AN_Remington870_PumpCycle"
 SAMPLE_TIMES = (0.0, 0.18, 0.28, 0.549)
@@ -65,11 +65,11 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def source_bytes(root: Path) -> bytes:
-    path = root / SOURCE_REL
-    if not path.is_file():
-        fail(f"source_missing path={path}")
-    data = path.read_bytes()
+def load_registered_source(root: Path) -> bytes:
+    source = root / SOURCE_REL
+    if not source.is_file():
+        fail(f"source_missing path={source}")
+    data = source.read_bytes()
     if data.startswith(b"version https://git-lfs.github.com/spec/v1"):
         fail("source_is_git_lfs_pointer=1 hydrate_registered_donor_first=1")
     if len(data) != EXPECTED_SOURCE_BYTES:
@@ -81,7 +81,7 @@ def source_bytes(root: Path) -> bytes:
 
 
 def productionize_glb(data: bytes) -> bytes:
-    """Keep all geometry/materials/skins but retain only the authored PumpCycle animation."""
+    """Preserve all donor geometry/materials/skins and retain only PumpCycle."""
     if len(data) < 12:
         fail("derived_glb_header_truncated=1")
     magic, version, total_length = struct.unpack_from("<4sII", data, 0)
@@ -98,17 +98,23 @@ def productionize_glb(data: bytes) -> bytes:
         offset += length
         if len(payload) != length:
             fail("derived_glb_chunk_truncated=1")
+
         if chunk_type == GLB_JSON_CHUNK:
             doc = json.loads(payload.decode("utf-8").rstrip("\x00 \t\r\n"))
             animations = list(doc.get("animations") or [])
-            pump = [a for a in animations if str(a.get("name") or "") == PUMP_ANIMATION_SOURCE_NAME]
+            pump = [
+                animation for animation in animations
+                if str(animation.get("name") or "") == PUMP_ANIMATION_SOURCE_NAME
+            ]
             if len(pump) != 1:
                 fail(
-                    f"production_pump_animation_not_unique expected=1 actual={len(pump)} "
-                    f"animation_count={len(animations)}"
+                    "production_pump_animation_not_unique=1 "
+                    f"expected=1 actual={len(pump)} animation_count={len(animations)}"
                 )
             doc["animations"] = pump
-            payload = json.dumps(doc, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            payload = json.dumps(
+                doc, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
             payload += b" " * ((4 - len(payload) % 4) % 4)
             found_json = True
         elif len(payload) % 4:
@@ -117,7 +123,10 @@ def productionize_glb(data: bytes) -> bytes:
 
     if not found_json:
         fail("derived_glb_json_missing=1")
-    body = b"".join(struct.pack("<II", len(payload), chunk_type) + payload for chunk_type, payload in chunks)
+    body = b"".join(
+        struct.pack("<II", len(payload), chunk_type) + payload
+        for chunk_type, payload in chunks
+    )
     return struct.pack("<4sII", b"glTF", 2, 12 + len(body)) + body
 
 
@@ -140,9 +149,7 @@ def skeleton_path(obj: object) -> str:
                 skeleton = getter()
             except Exception:
                 skeleton = None
-    if skeleton is None:
-        return ""
-    return str(skeleton.get_path_name())
+    return str(skeleton.get_path_name()) if skeleton is not None else ""
 
 
 def mesh_has_bone(mesh: object, bone_name: str) -> bool:
@@ -163,7 +170,9 @@ def mesh_has_bone(mesh: object, bone_name: str) -> bool:
 
 def animation_has_bone(animation: object, bone_name: str) -> bool:
     return bool(
-        unreal.AnimationLibrary.does_bone_name_exist(animation, unreal.Name(bone_name))
+        unreal.AnimationLibrary.does_bone_name_exist(
+            animation, unreal.Name(bone_name)
+        )
     )
 
 
@@ -197,39 +206,42 @@ def animation_motion(animation: object) -> tuple[bool, float]:
     first = poses[0]
     max_delta = 0.0
     for pose in poses[1:]:
-        max_delta = max(max_delta, float((pose.translation - first.translation).length()))
+        max_delta = max(
+            max_delta,
+            float((pose.translation - first.translation).length()),
+        )
     return max_delta > MIN_TRANSLATION_DELTA, max_delta
 
 
-def validate_assets(skeletal: object, rigid: object, animation: object) -> tuple[float, float]:
+def validate_assets(skeletal: object, animation: object) -> tuple[float, float]:
     if class_name(skeletal) != "SkeletalMesh":
         fail(f"canonical_skeletal_wrong_class actual={class_name(skeletal)}")
-    if class_name(rigid) != "StaticMesh":
-        fail(f"canonical_rigid_wrong_class actual={class_name(rigid)}")
     if class_name(animation) != "AnimSequence":
         fail(f"canonical_animation_wrong_class actual={class_name(animation)}")
     if not mesh_has_bone(skeletal, PUMP_BONE):
         fail("canonical_skeletal_missing_pump_bone=1")
     if not animation_has_bone(animation, PUMP_BONE):
         fail("canonical_animation_missing_pump_bone=1")
+
     length = animation_length(animation)
     if abs(length - PUMP_DURATION) > DURATION_TOLERANCE:
         fail(f"canonical_pump_duration_invalid expected={PUMP_DURATION} actual={length}")
     moved, max_delta = animation_motion(animation)
     if not moved:
         fail(f"canonical_pump_motion_missing max_translation_delta={max_delta}")
-    skel_skeleton = skeleton_path(skeletal)
-    anim_skeleton = skeleton_path(animation)
-    if not skel_skeleton or skel_skeleton != anim_skeleton:
+
+    mesh_skeleton = skeleton_path(skeletal)
+    animation_skeleton = skeleton_path(animation)
+    if not mesh_skeleton or mesh_skeleton != animation_skeleton:
         fail(
             "canonical_shared_skeleton_missing=1 "
-            f"skeletal={skel_skeleton or 'NONE'} animation={anim_skeleton or 'NONE'}"
+            f"mesh={mesh_skeleton or 'NONE'} animation={animation_skeleton or 'NONE'}"
         )
     return length, max_delta
 
 
-def canonical_assets() -> tuple[object, object, object] | None:
-    paths = (SKELETAL_ASSET, RIGID_ASSET, PUMP_ANIMATION_ASSET)
+def canonical_assets() -> tuple[object, object] | None:
+    paths = (SKELETAL_ASSET, PUMP_ANIMATION_ASSET)
     exists = [unreal.EditorAssetLibrary.does_asset_exist(path) for path in paths]
     if not any(exists):
         return None
@@ -250,28 +262,36 @@ def configure_pipeline() -> object:
 
     mesh_pipeline = pipeline.get_editor_property("mesh_pipeline")
     common_meshes = pipeline.get_editor_property("common_meshes_properties")
-    common_skeletal = pipeline.get_editor_property("common_skeletal_meshes_and_animations_properties")
+    common_skeletal = pipeline.get_editor_property(
+        "common_skeletal_meshes_and_animations_properties"
+    )
     animation_pipeline = pipeline.get_editor_property("animation_pipeline")
-    if mesh_pipeline is None or common_meshes is None or common_skeletal is None or animation_pipeline is None:
+    if (
+        mesh_pipeline is None
+        or common_meshes is None
+        or common_skeletal is None
+        or animation_pipeline is None
+    ):
         fail("ue58_interchange_pipeline_components_missing=1")
 
     if not hasattr(unreal, "InterchangeCombineSkeletalMeshesBehavior"):
         fail("ue58_combine_skeletal_enum_missing=1")
-    if not hasattr(unreal, "InterchangeCombineStaticMeshesBehavior"):
-        fail("ue58_combine_static_enum_missing=1")
+    if not hasattr(unreal, "InterchangeForceMeshType"):
+        fail("ue58_force_mesh_type_enum_missing=1")
 
-    mesh_pipeline.set_editor_property("import_static_meshes", True)
+    mesh_pipeline.set_editor_property("import_static_meshes", False)
     mesh_pipeline.set_editor_property("import_skeletal_meshes", True)
     mesh_pipeline.set_editor_property(
-        "combine_static_meshes_behavior", unreal.InterchangeCombineStaticMeshesBehavior.ALL
-    )
-    mesh_pipeline.set_editor_property(
-        "combine_skeletal_meshes_behavior", unreal.InterchangeCombineSkeletalMeshesBehavior.ALL
+        "combine_skeletal_meshes_behavior",
+        unreal.InterchangeCombineSkeletalMeshesBehavior.ALL,
     )
     mesh_pipeline.set_editor_property("create_physics_asset", False)
     mesh_pipeline.set_editor_property("collision", False)
 
-    common_meshes.set_editor_property("force_all_mesh_as_type", unreal.InterchangeForceMeshType.IFMT_NONE)
+    common_meshes.set_editor_property(
+        "force_all_mesh_as_type",
+        unreal.InterchangeForceMeshType.IFMT_SKELETAL_MESH,
+    )
     common_meshes.set_editor_property("bake_meshes", True)
     common_skeletal.set_editor_property("import_meshes_in_bone_hierarchy", True)
     animation_pipeline.set_editor_property("import_animations", True)
@@ -287,7 +307,9 @@ def imported_objects(task: object) -> list[object]:
     if objects:
         return objects
     result: list[object] = []
-    for path in unreal.EditorAssetLibrary.list_assets(DESTINATION, recursive=True, include_folder=False):
+    for path in unreal.EditorAssetLibrary.list_assets(
+        DESTINATION, recursive=True, include_folder=False
+    ):
         obj = unreal.EditorAssetLibrary.load_asset(path)
         if obj is not None:
             result.append(obj)
@@ -307,8 +329,15 @@ def rename_asset(obj: object, destination: str) -> object:
     return loaded
 
 
-def write_sentinel(cache: Path, *, derived_sha: str, production_sha: str, reused: bool,
-                   animation_length_value: float, max_delta: float) -> None:
+def write_sentinel(
+    cache: Path,
+    *,
+    derived_sha: str,
+    production_sha: str,
+    reused: bool,
+    animation_length_value: float,
+    max_delta: float,
+) -> None:
     cache.mkdir(parents=True, exist_ok=True)
     sentinel = cache / "remington870_import_success.txt"
     lines = [
@@ -317,14 +346,13 @@ def write_sentinel(cache: Path, *, derived_sha: str, production_sha: str, reused
         f"DERIVED_SHA256={derived_sha}",
         f"PRODUCTION_SOURCE_SHA256={production_sha}",
         f"SKELETAL={SKELETAL_ASSET}",
-        f"RIGID={RIGID_ASSET}",
         f"PUMP_ANIMATION={PUMP_ANIMATION_ASSET}",
         f"PUMP_BONE={PUMP_BONE}",
         f"PUMP_PLAY_LENGTH={animation_length_value:.6f}",
         f"PUMP_MAX_TRANSLATION_DELTA={max_delta:.6f}",
+        "FULL_WEAPON_FORCED_TO_SINGLE_SKELETAL=1",
         "PUMP_MOTION_PRESERVED=1",
         "SHARED_SKELETON_PRESERVED=1",
-        "COMBINED_RIGID_AND_SKELETAL_ASSEMBLY=1",
         f"REUSED_VERIFIED_PRODUCTION={int(reused)}",
         "PRODUCTION_SOURCE_READY=1",
         "runtime_acceptance=0",
@@ -352,26 +380,35 @@ def main() -> None:
     except Exception as exc:
         fail(f"derived_builder_import_failed error={exc}")
 
-    registered = source_bytes(root)
+    registered = load_registered_source(root)
     try:
         derived_bytes, manifest = derived.build_derived(registered)
     except Exception as exc:
         fail(f"derived_build_failed error={exc}")
+
     if manifest.get("source_sha256") != EXPECTED_SOURCE_SHA256:
         fail("derived_manifest_source_identity_drift=1")
     if manifest.get("low_y_vertex_count") != EXPECTED_FORE_END_VERTICES:
-        fail(f"derived_fore_end_vertex_count_drift actual={manifest.get('low_y_vertex_count')}")
+        fail(
+            f"derived_fore_end_vertex_count_drift actual={manifest.get('low_y_vertex_count')}"
+        )
     if manifest.get("high_y_vertex_count") != EXPECTED_SIDE_SADDLE_VERTICES:
-        fail(f"derived_side_saddle_vertex_count_drift actual={manifest.get('high_y_vertex_count')}")
-    if manifest.get("derived_joint") != PUMP_BONE or manifest.get("derived_animation") != PUMP_ANIMATION_SOURCE_NAME:
+        fail(
+            f"derived_side_saddle_vertex_count_drift actual={manifest.get('high_y_vertex_count')}"
+        )
+    if (
+        manifest.get("derived_joint") != PUMP_BONE
+        or manifest.get("derived_animation") != PUMP_ANIMATION_SOURCE_NAME
+    ):
         fail("derived_manifest_pump_contract_drift=1")
 
     derived_sha = sha256_bytes(derived_bytes)
     if derived_sha != manifest.get("derived_sha256"):
         fail("derived_sha256_mismatch=1")
+
     production_bytes = productionize_glb(derived_bytes)
     production_sha = sha256_bytes(production_bytes)
-    production_source = cache / DERIVED_SOURCE_NAME
+    production_source = cache / PRODUCTION_SOURCE_NAME
     production_source.write_bytes(production_bytes)
 
     existing = canonical_assets()
@@ -387,16 +424,20 @@ def main() -> None:
         )
         unreal.log(
             "PASS45_REMINGTON870_PRODUCTION_IMPORT_PASS reused_verified=1 "
-            f"engine={engine} skeletal={SKELETAL_ASSET} rigid={RIGID_ASSET} "
-            f"pump_animation={PUMP_ANIMATION_ASSET} production_source_ready=1 "
+            f"engine={engine} skeletal={SKELETAL_ASSET} "
+            f"pump_animation={PUMP_ANIMATION_ASSET} "
+            "full_weapon_single_skeletal=1 production_source_ready=1 "
             "runtime_acceptance=0 item16_checked=0"
         )
         return
 
-    preexisting = unreal.EditorAssetLibrary.list_assets(DESTINATION, recursive=True, include_folder=False)
+    preexisting = unreal.EditorAssetLibrary.list_assets(
+        DESTINATION, recursive=True, include_folder=False
+    )
     if preexisting:
         fail(
-            "production_destination_not_clean_and_not_canonical=1 destructive_cleanup_refused=1 "
+            "production_destination_not_clean_and_not_canonical=1 "
+            "destructive_cleanup_refused=1 "
             f"asset_count={len(preexisting)}"
         )
 
@@ -418,12 +459,15 @@ def main() -> None:
     counts: dict[str, int] = {}
     for obj in objects:
         counts[class_name(obj)] = counts.get(class_name(obj), 0) + 1
-    unreal.log(f"PASS45_REMINGTON870_PRODUCTION_IMPORT_CLASSES {json.dumps(counts, sort_keys=True)}")
+    unreal.log(
+        f"PASS45_REMINGTON870_PRODUCTION_IMPORT_CLASSES {json.dumps(counts, sort_keys=True)}"
+    )
 
-    static_meshes = [obj for obj in objects if class_name(obj) == "StaticMesh"]
     skeletal_meshes = [obj for obj in objects if class_name(obj) == "SkeletalMesh"]
+    static_meshes = [obj for obj in objects if class_name(obj) == "StaticMesh"]
     animations = [obj for obj in objects if class_name(obj) == "AnimSequence"]
     pump_meshes = [obj for obj in skeletal_meshes if mesh_has_bone(obj, PUMP_BONE)]
+
     pump_animations = []
     for animation in animations:
         length = animation_length(animation)
@@ -435,40 +479,46 @@ def main() -> None:
         ):
             pump_animations.append(animation)
 
-    if len(static_meshes) != 1:
-        fail(f"combined_rigid_mesh_count_invalid expected=1 actual={len(static_meshes)}")
+    if static_meshes:
+        fail(
+            "forced_skeletal_import_emitted_static_meshes=1 "
+            f"count={len(static_meshes)}"
+        )
     if len(skeletal_meshes) != 1 or len(pump_meshes) != 1:
         fail(
-            "combined_skeletal_mesh_count_invalid "
+            "combined_full_weapon_skeletal_count_invalid "
             f"skeletal={len(skeletal_meshes)} pump_meshes={len(pump_meshes)}"
         )
     if len(pump_animations) != 1:
-        fail(f"standalone_pump_animation_count_invalid expected=1 actual={len(pump_animations)}")
+        fail(
+            "standalone_pump_animation_count_invalid "
+            f"expected=1 actual={len(pump_animations)}"
+        )
 
     skeletal = skeletal_meshes[0]
-    rigid = static_meshes[0]
     animation = pump_animations[0]
     imported_skeleton = skeleton_path(skeletal)
     if not imported_skeleton:
         fail("imported_skeleton_missing=1")
-    skeleton_obj = unreal.EditorAssetLibrary.load_asset(imported_skeleton.split(".", 1)[0])
+    skeleton_obj = unreal.EditorAssetLibrary.load_asset(
+        imported_skeleton.split(".", 1)[0]
+    )
     if skeleton_obj is None or class_name(skeleton_obj) != "Skeleton":
         fail(f"imported_skeleton_asset_missing path={imported_skeleton}")
 
     skeleton_obj = rename_asset(skeleton_obj, SKELETON_ASSET)
     skeletal = rename_asset(skeletal, SKELETAL_ASSET)
-    rigid = rename_asset(rigid, RIGID_ASSET)
     animation = rename_asset(animation, PUMP_ANIMATION_ASSET)
-
-    unreal.EditorAssetLibrary.save_directory(DESTINATION, only_if_is_dirty=False, recursive=True)
+    unreal.EditorAssetLibrary.save_directory(
+        DESTINATION, only_if_is_dirty=False, recursive=True
+    )
 
     skeletal = unreal.EditorAssetLibrary.load_asset(SKELETAL_ASSET)
-    rigid = unreal.EditorAssetLibrary.load_asset(RIGID_ASSET)
     animation = unreal.EditorAssetLibrary.load_asset(PUMP_ANIMATION_ASSET)
-    if skeletal is None or rigid is None or animation is None:
+    if skeletal is None or animation is None:
         fail("canonical_assets_missing_after_save=1")
-    length, delta = validate_assets(skeletal, rigid, animation)
 
+    length, delta = validate_assets(skeletal, animation)
     write_sentinel(
         cache,
         derived_sha=derived_sha,
@@ -479,10 +529,10 @@ def main() -> None:
     )
     unreal.log(
         "PASS45_REMINGTON870_PRODUCTION_IMPORT_PASS reused_verified=0 "
-        f"engine={engine} skeletal={SKELETAL_ASSET} rigid={RIGID_ASSET} "
+        f"engine={engine} skeletal={SKELETAL_ASSET} "
         f"pump_animation={PUMP_ANIMATION_ASSET} pump_bone={PUMP_BONE} "
         f"play_length={length:.6f} max_translation_delta={delta:.6f} "
-        "combined_rigid_and_skeletal_assembly=1 production_source_ready=1 "
+        "full_weapon_single_skeletal=1 production_source_ready=1 "
         "runtime_acceptance=0 item16_checked=0"
     )
 
