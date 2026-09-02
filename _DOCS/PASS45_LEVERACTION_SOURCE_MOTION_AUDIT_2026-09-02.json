@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "status": "SOURCE_STRUCTURE_MOTION_EVIDENCE_ONLY",
+  "source": "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx",
+  "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
+  "source_sha256": "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69",
+  "source_size": 570332,
+  "inspection_converter": "Assimp -> glTF2 (CI inspection only)",
+  "node_count": 24,
+  "mesh_count": 2,
+  "skin_count": 1,
+  "animation_count": 0,
+  "node_names": [
+    "RootNode",
+    "Skeleton",
+    "WPN_REPEATER_RIFLE_CLASSIC",
+    "FRAME",
+    "FX_CASING",
+    "ANCHOR",
+    "LEVER",
+    "ATTACH_BEADS",
+    "SAFETY",
+    "HAMMER",
+    "BOLT",
+    "LOADING_GATE",
+    "SADDLE_RING",
+    "BULLET",
+    "TRIGGER",
+    "ATTACH_SILENCER",
+    "ATTACH_SCOPE",
+    "REVEAL_RAIL",
+    "IRONSIGHT",
+    "FX_FIRE",
+    "ATTACH_STRAP",
+    "CLASSIC_AIM",
+    "FRAME_LOD0.001",
+    "FRAME_LOD0"
+  ],
+  "mesh_names": [
+    "FRAME_LOD0.586",
+    "FRAME_LOD0.585"
+  ],
+  "mechanical_named_candidates": [
+    {
+      "node_index": 6,
+      "node_name": "LEVER",
+      "matched_terms": [
+        "lever"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [
+        "ATTACH_BEADS"
+      ],
+      "translation": null,
+      "rotation": null,
+      "scale": null
+    },
+    {
+      "node_index": 9,
+      "node_name": "HAMMER",
+      "matched_terms": [
+        "hammer"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "translation": null,
+      "rotation": null,
+      "scale": null
+    },
+    {
+      "node_index": 10,
+      "node_name": "BOLT",
+      "matched_terms": [
+        "bolt"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "translation": null,
+      "rotation": null,
+      "scale": null
+    }
+  ],
+  "identity_named_candidates": [
+    {
+      "node_index": 2,
+      "node_name": "WPN_REPEATER_RIFLE_CLASSIC",
+      "matched_terms": [
+        "rifle"
+      ],
+      "parent_index": 1,
+      "parent_name": "Skeleton",
+      "children": [
+        "FRAME",
+        "FX_CASING",
+        "ANCHOR",
+        "ATTACH_SILENCER",
+        "ATTACH_SCOPE",
+        "REVEAL_RAIL",
+        "IRONSIGHT",
+        "FX_FIRE",
+        "ATTACH_STRAP",
+        "CLASSIC_AIM"
+      ],
+      "translation": null,
+      "rotation": null,
+      "scale": null
+    },
+    {
+      "node_index": 14,
+      "node_name": "TRIGGER",
+      "matched_terms": [
+        "trigger"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "translation": null,
+      "rotation": null,
+      "scale": null
+    }
+  ],
+  "skins": [
+    {
+      "skin_index": 0,
+      "joint_count": 20,
+      "joint_names": [
+        "WPN_REPEATER_RIFLE_CLASSIC",
+        "FRAME",
+        "FX_CASING",
+        "ANCHOR",
+        "LEVER",
+        "ATTACH_BEADS",
+        "SAFETY",
+        "HAMMER",
+        "BOLT",
+        "LOADING_GATE",
+        "SADDLE_RING",
+        "BULLET",
+        "TRIGGER",
+        "ATTACH_SILENCER",
+        "ATTACH_SCOPE",
+        "REVEAL_RAIL",
+        "IRONSIGHT",
+        "FX_FIRE",
+        "ATTACH_STRAP",
+        "CLASSIC_AIM"
+      ]
+    }
+  ],
+  "mechanical_joint_names": [
+    "LEVER",
+    "HAMMER",
+    "BOLT"
+  ],
+  "animated_node_names": [],
+  "mechanical_animation_targets": [],
+  "animations": [],
+  "classification": "MECHANICAL_JOINT_DERIVATIVE_CANDIDATE_NO_EMBEDDED_MOTION",
+  "derived_motion_parameters_authored": false,
+  "production_cutover": false,
+  "runtime_acceptance": false,
+  "item16_checked": false
+}
