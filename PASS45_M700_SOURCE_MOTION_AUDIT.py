@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Fail-closed structural/motion audit for the already-committed Stein CC0 M700 FBX.
+"""Fail-closed structural/motion audit for the committed Stein CC0 M700 FBX.
 
-This audit does not create a production asset and cannot close PASS45 item 16.
-GitHub Actions materializes only the exact M700 LFS payload, Assimp converts it to
-an inspection-only glTF, and this script records what the source actually contains.
+This audit cannot close PASS45 item 16. GitHub Actions materializes only the exact
+M700 LFS payload, Assimp converts it to an inspection-only glTF, and this script
+records what the source actually contains.
 
-Schema 2 additionally records the exact BOLT/BOLT_STOP hierarchy and local bind
-transforms. If both marker joints are siblings, their source-authored local delta
-is emitted as a derivative-candidate stroke vector rather than inventing motion.
+Schema 3 proves three facts needed before an authored bolt derivative is allowed:
+1. BOLT and BOLT_STOP share the same parent and expose a source-authored local
+   endpoint delta;
+2. BOLT is a real skin joint that influences weapon geometry;
+3. BOLT_STOP is classified from actual skin influence rather than its name alone.
 """
 from __future__ import annotations
 
@@ -15,7 +17,9 @@ import argparse
 import hashlib
 import json
 import math
+import struct
 from pathlib import Path
+from typing import Any
 
 EXPECTED_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
 EXPECTED_SIZE = 638732
@@ -23,6 +27,8 @@ EXPECTED_SOURCE = (
     "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/"
     "WeaponsPack/M700/SKM_M700.fbx"
 )
+COMPONENT_FORMATS = {5120: "b", 5121: "B", 5122: "h", 5123: "H", 5125: "I", 5126: "f"}
+TYPE_COMPONENTS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
 
 
 def fail(message: str) -> None:
@@ -58,7 +64,7 @@ def quat4(value: object) -> list[float]:
     return result
 
 
-def node_local_transform(node: dict[str, object]) -> dict[str, object]:
+def node_local_transform(node: dict[str, Any]) -> dict[str, object]:
     matrix = node.get("matrix")
     if isinstance(matrix, list):
         if len(matrix) != 16:
@@ -69,13 +75,95 @@ def node_local_transform(node: dict[str, object]) -> dict[str, object]:
             fail(f"invalid node matrix payload: {matrix!r}")
         if not all(math.isfinite(v) for v in values):
             fail("non-finite node matrix payload")
-        return {"matrix": values, "uses_matrix": True}
+        if any(abs(values[i]) > 1e-8 for i in (3, 7, 11)) or abs(values[15] - 1.0) > 1e-8:
+            fail("non-affine node matrix is unsupported")
+        return {
+            "matrix": values,
+            "translation": [values[12], values[13], values[14]],
+            "uses_matrix": True,
+        }
     return {
         "translation": vec3(node.get("translation"), (0.0, 0.0, 0.0)),
         "rotation": quat4(node.get("rotation")),
         "scale": vec3(node.get("scale"), (1.0, 1.0, 1.0)),
         "uses_matrix": False,
     }
+
+
+def load_buffers(doc: dict[str, Any], gltf_path: Path) -> list[bytes]:
+    result: list[bytes] = []
+    for index, buffer in enumerate(doc.get("buffers") or []):
+        uri = buffer.get("uri")
+        if not isinstance(uri, str) or not uri or uri.startswith("data:"):
+            fail(f"buffer {index} does not use a supported external URI")
+        path = (gltf_path.parent / uri).resolve()
+        if not path.is_file():
+            fail(f"buffer {index} payload missing: {path}")
+        payload = path.read_bytes()
+        expected = buffer.get("byteLength")
+        if isinstance(expected, int) and len(payload) < expected:
+            fail(f"buffer {index} shorter than declared byteLength")
+        result.append(payload)
+    if not result:
+        fail("inspection glTF contains no external buffers")
+    return result
+
+
+def normalized_value(value: int | float, component_type: int, normalized: bool) -> float | int:
+    if not normalized or component_type == 5126:
+        return value
+    if component_type == 5120:
+        return max(float(value) / 127.0, -1.0)
+    if component_type == 5121:
+        return float(value) / 255.0
+    if component_type == 5122:
+        return max(float(value) / 32767.0, -1.0)
+    if component_type == 5123:
+        return float(value) / 65535.0
+    if component_type == 5125:
+        return float(value) / 4294967295.0
+    return value
+
+
+def read_accessor(doc: dict[str, Any], buffers: list[bytes], accessor_index: int) -> list[tuple[float | int, ...]]:
+    accessors = doc.get("accessors") or []
+    views = doc.get("bufferViews") or []
+    if not (0 <= accessor_index < len(accessors)):
+        fail(f"invalid accessor index {accessor_index}")
+    accessor = accessors[accessor_index]
+    if accessor.get("sparse") is not None:
+        fail(f"sparse accessor {accessor_index} is unsupported")
+    view_index = accessor.get("bufferView")
+    if not isinstance(view_index, int) or not (0 <= view_index < len(views)):
+        fail(f"accessor {accessor_index} lacks a valid bufferView")
+    view = views[view_index]
+    buffer_index = view.get("buffer", 0)
+    if not isinstance(buffer_index, int) or not (0 <= buffer_index < len(buffers)):
+        fail(f"bufferView {view_index} has invalid buffer index")
+    component_type = accessor.get("componentType")
+    fmt = COMPONENT_FORMATS.get(component_type)
+    type_name = accessor.get("type")
+    components = TYPE_COMPONENTS.get(type_name)
+    count = accessor.get("count")
+    if fmt is None or components is None or not isinstance(count, int) or count < 0:
+        fail(f"accessor {accessor_index} has unsupported metadata")
+    component_size = struct.calcsize("<" + fmt)
+    packed_size = component_size * components
+    stride = view.get("byteStride", packed_size)
+    if not isinstance(stride, int) or stride < packed_size:
+        fail(f"accessor {accessor_index} has invalid byteStride {stride!r}")
+    base = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    payload = buffers[buffer_index]
+    normalized = bool(accessor.get("normalized", False))
+    rows: list[tuple[float | int, ...]] = []
+    unpack_fmt = "<" + fmt * components
+    for row_index in range(count):
+        offset = base + row_index * stride
+        if offset + packed_size > len(payload):
+            fail(f"accessor {accessor_index} overruns buffer")
+        raw = struct.unpack_from(unpack_fmt, payload, offset)
+        rows.append(tuple(normalized_value(v, component_type, normalized) for v in raw))
+    return rows
 
 
 def main() -> None:
@@ -88,12 +176,10 @@ def main() -> None:
     source = Path(args.source)
     gltf_path = Path(args.gltf)
     output = Path(args.output)
-
     if source.as_posix() != EXPECTED_SOURCE:
         fail(f"unexpected source path: {source.as_posix()}")
     if not source.is_file():
         fail(f"missing source FBX: {source}")
-
     payload = source.read_bytes()
     if payload.startswith(b"version https://git-lfs.github.com/spec/v1"):
         fail("M700 LFS payload was not materialized; refusing to audit pointer text")
@@ -102,7 +188,6 @@ def main() -> None:
     digest = hashlib.sha256(payload).hexdigest()
     if digest != EXPECTED_SHA256:
         fail(f"source SHA-256 drifted: expected {EXPECTED_SHA256}, got {digest}")
-
     if not gltf_path.is_file():
         fail(f"inspection glTF missing: {gltf_path}")
     try:
@@ -114,11 +199,9 @@ def main() -> None:
     meshes = doc.get("meshes") or []
     skins = doc.get("skins") or []
     animations = doc.get("animations") or []
-    if not isinstance(nodes, list) or not isinstance(meshes, list):
-        fail("inspection glTF lacks nodes/meshes arrays")
-    if not nodes or not meshes:
-        fail("inspection glTF contains no inspectable M700 nodes/meshes")
-
+    if not isinstance(nodes, list) or not isinstance(meshes, list) or not nodes or not meshes:
+        fail("inspection glTF lacks inspectable nodes/meshes")
+    buffers = load_buffers(doc, gltf_path)
     node_names = [clean_name(node.get("name"), f"<node:{i}>") for i, node in enumerate(nodes)]
     mesh_names = [clean_name(mesh.get("name"), f"<mesh:{i}>") for i, mesh in enumerate(meshes)]
 
@@ -176,32 +259,17 @@ def main() -> None:
             path = target.get("path")
             if isinstance(node_index, int) and 0 <= node_index < len(nodes):
                 animated_node_indices.add(node_index)
-                targeted.append({
-                    "node_index": node_index,
-                    "node_name": node_names[node_index],
-                    "path": path,
-                })
+                targeted.append({"node_index": node_index, "node_name": node_names[node_index], "path": path})
         animation_rows.append({
             "animation_index": animation_index,
             "animation_name": clean_name(animation.get("name"), f"<animation:{animation_index}>"),
             "channel_count": len(channels),
             "targets": targeted,
         })
-
     animated_node_names = [node_names[i] for i in sorted(animated_node_indices)]
     animated_bolt_nodes = [name for name in animated_node_names if "bolt" in name.lower()]
 
     skinned_node_rows: list[dict[str, object]] = []
-    for node_index, node in enumerate(nodes):
-        skin_index = node.get("skin")
-        if isinstance(skin_index, int):
-            skinned_node_rows.append({
-                "node_index": node_index,
-                "node_name": node_names[node_index],
-                "skin_index": skin_index,
-                "mesh_index": node.get("mesh"),
-            })
-
     joint_names: list[str] = []
     for skin_index, skin in enumerate(skins):
         for joint in skin.get("joints") or []:
@@ -232,19 +300,10 @@ def main() -> None:
                 "bolt_parent": node_names[bolt_parent] if bolt_parent is not None else None,
                 "bolt_stop_parent": node_names[stop_parent] if stop_parent is not None else None,
             }
-        elif bolt_transform.get("uses_matrix") or stop_transform.get("uses_matrix"):
-            source_authored_stop_delta = {
-                "usable_as_sibling_local_translation_delta": False,
-                "reason": "MATRIX_TRANSFORM_REQUIRES_WORLD_DECOMPOSITION",
-                "shared_parent": node_names[bolt_parent] if bolt_parent is not None else None,
-            }
         else:
-            bolt_translation = bolt_transform["translation"]
-            stop_translation = stop_transform["translation"]
-            delta = [
-                float(stop_translation[i]) - float(bolt_translation[i])
-                for i in range(3)
-            ]
+            bolt_translation = [float(v) for v in bolt_transform["translation"]]
+            stop_translation = [float(v) for v in stop_transform["translation"]]
+            delta = [stop_translation[i] - bolt_translation[i] for i in range(3)]
             magnitude = math.sqrt(sum(value * value for value in delta))
             source_authored_stop_delta = {
                 "usable_as_sibling_local_translation_delta": magnitude > 1e-8,
@@ -255,6 +314,91 @@ def main() -> None:
                 "delta": delta,
                 "magnitude": magnitude,
             }
+
+    influence_stats: dict[str, dict[str, object]] = {
+        "BOLT": {"weighted_vertex_count": 0, "total_weight": 0.0, "bounds_min": None, "bounds_max": None},
+        "BOLT_STOP": {"weighted_vertex_count": 0, "total_weight": 0.0, "bounds_min": None, "bounds_max": None},
+    }
+    target_nodes = {"BOLT": bolt_index, "BOLT_STOP": bolt_stop_index}
+    for node_index, node in enumerate(nodes):
+        skin_index = node.get("skin")
+        mesh_index = node.get("mesh")
+        if not isinstance(skin_index, int) or not isinstance(mesh_index, int):
+            continue
+        if not (0 <= skin_index < len(skins) and 0 <= mesh_index < len(meshes)):
+            fail(f"skinned node {node_index} references invalid skin/mesh")
+        skin_joints = skins[skin_index].get("joints") or []
+        slot_for_target = {
+            name: skin_joints.index(target) if target is not None and target in skin_joints else None
+            for name, target in target_nodes.items()
+        }
+        row = {
+            "node_index": node_index,
+            "node_name": node_names[node_index],
+            "skin_index": skin_index,
+            "mesh_index": mesh_index,
+            "mesh_name": mesh_names[mesh_index],
+            "target_joint_slots": slot_for_target,
+        }
+        skinned_node_rows.append(row)
+        for primitive_index, primitive in enumerate(meshes[mesh_index].get("primitives") or []):
+            attrs = primitive.get("attributes") or {}
+            pos_accessor = attrs.get("POSITION")
+            if not isinstance(pos_accessor, int):
+                fail(f"mesh {mesh_index} primitive {primitive_index} lacks POSITION")
+            positions = read_accessor(doc, buffers, pos_accessor)
+            influence_sets: list[tuple[list[tuple[float | int, ...]], list[tuple[float | int, ...]]]] = []
+            set_index = 0
+            while f"JOINTS_{set_index}" in attrs or f"WEIGHTS_{set_index}" in attrs:
+                joints_accessor = attrs.get(f"JOINTS_{set_index}")
+                weights_accessor = attrs.get(f"WEIGHTS_{set_index}")
+                if not isinstance(joints_accessor, int) or not isinstance(weights_accessor, int):
+                    fail(f"mesh {mesh_index} primitive {primitive_index} has incomplete skin influence set {set_index}")
+                joints_rows = read_accessor(doc, buffers, joints_accessor)
+                weights_rows = read_accessor(doc, buffers, weights_accessor)
+                if len(joints_rows) != len(positions) or len(weights_rows) != len(positions):
+                    fail(f"mesh {mesh_index} primitive {primitive_index} skin accessor count mismatch")
+                influence_sets.append((joints_rows, weights_rows))
+                set_index += 1
+            if not influence_sets:
+                fail(f"skinned mesh {mesh_index} primitive {primitive_index} lacks JOINTS/WEIGHTS")
+            for vertex_index, position in enumerate(positions):
+                if len(position) < 3:
+                    fail("POSITION accessor is not VEC3")
+                for target_name, target_slot in slot_for_target.items():
+                    if target_slot is None:
+                        continue
+                    weight = 0.0
+                    for joints_rows, weights_rows in influence_sets:
+                        joints = joints_rows[vertex_index]
+                        weights = weights_rows[vertex_index]
+                        if len(joints) != len(weights):
+                            fail("JOINTS/WEIGHTS tuple width mismatch")
+                        for joint_value, weight_value in zip(joints, weights):
+                            if int(joint_value) == target_slot:
+                                weight += float(weight_value)
+                    if weight <= 1e-5:
+                        continue
+                    stats = influence_stats[target_name]
+                    stats["weighted_vertex_count"] = int(stats["weighted_vertex_count"]) + 1
+                    stats["total_weight"] = float(stats["total_weight"]) + weight
+                    xyz = [float(position[0]), float(position[1]), float(position[2])]
+                    if stats["bounds_min"] is None:
+                        stats["bounds_min"] = xyz[:]
+                        stats["bounds_max"] = xyz[:]
+                    else:
+                        stats["bounds_min"] = [min(float(stats["bounds_min"][i]), xyz[i]) for i in range(3)]
+                        stats["bounds_max"] = [max(float(stats["bounds_max"][i]), xyz[i]) for i in range(3)]
+
+    bolt_weighted = int(influence_stats["BOLT"]["weighted_vertex_count"])
+    stop_weighted = int(influence_stats["BOLT_STOP"]["weighted_vertex_count"])
+    endpoint_classification = "UNPROVEN"
+    if bolt_weighted > 0 and stop_weighted == 0 and source_authored_stop_delta.get("usable_as_sibling_local_translation_delta"):
+        endpoint_classification = "BOLT_GEOMETRY_PLUS_UNWEIGHTED_BOLT_STOP_ENDPOINT_MARKER"
+    elif bolt_weighted > 0 and stop_weighted > 0:
+        endpoint_classification = "BOLT_AND_BOLT_STOP_BOTH_WEIGHT_GEOMETRY_REVIEW_REQUIRED"
+    elif bolt_weighted == 0:
+        endpoint_classification = "BOLT_JOINT_DOES_NOT_WEIGHT_GEOMETRY_REVIEW_REQUIRED"
 
     if animated_bolt_nodes:
         classification = "DIRECT_AUTHORED_BOLT_MOTION_EVIDENCE"
@@ -270,7 +414,7 @@ def main() -> None:
         classification = "NO_DIRECT_BOLT_MOTION_OR_PART_IDENTITY_EVIDENCE"
 
     report = {
-        "schema": 2,
+        "schema": 3,
         "status": "SOURCE_STRUCTURE_MOTION_EVIDENCE_ONLY",
         "source": EXPECTED_SOURCE,
         "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
@@ -290,6 +434,8 @@ def main() -> None:
         "bolt_joint_names": bolt_joint_names,
         "bolt_hierarchy": bolt_hierarchy,
         "source_authored_stop_delta": source_authored_stop_delta,
+        "bolt_skin_influence": influence_stats,
+        "bolt_endpoint_classification": endpoint_classification,
         "skinned_nodes": skinned_node_rows,
         "animated_node_names": animated_node_names,
         "animated_bolt_nodes": animated_bolt_nodes,
@@ -299,15 +445,13 @@ def main() -> None:
         "runtime_acceptance": False,
         "item16_checked": False,
     }
-
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
     print(
         "PASS45 M700 SOURCE MOTION AUDIT: COMPLETE "
         f"nodes={len(nodes)} meshes={len(meshes)} skins={len(skins)} animations={len(animations)} "
-        f"bolt_named={len(bolt_named)} bolt_joints={len(bolt_joint_names)} "
-        f"animated_bolt_nodes={len(animated_bolt_nodes)} classification={classification} "
+        f"bolt_weighted_vertices={bolt_weighted} bolt_stop_weighted_vertices={stop_weighted} "
+        f"endpoint={endpoint_classification} classification={classification} "
         f"source_stop_delta_usable={int(bool(source_authored_stop_delta.get('usable_as_sibling_local_translation_delta')))} "
         "production_cutover=0 runtime_acceptance=0 item16_checked=0"
     )
