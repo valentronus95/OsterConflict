@@ -30,7 +30,15 @@ def main() -> None:
         'EXPECTED_SHARED_PARENT = "Root_01"',
         'identity = remote.verify_pinned_bytes(data)',
         'binary_payload = acquire.glb_binary_chunk(data)',
+        '"translation", 3',
+        '"rotation", 4',
+        'quaternion_multiply(quaternion_inverse(pbody), pmag)',
+        'quaternion_multiply(quaternion_inverse(origin), current)',
         '"sibling_relative_translation_measured": 1',
+        '"sibling_relative_rotation_measured": 1',
+        '"fire_relative_rotation_degrees"',
+        '"easy_reload_relative_rotation_degrees"',
+        '"full_reload_relative_rotation_degrees"',
         '"pump_node_identity": "UNPROVEN"',
         '"standalone_pump_clip": "UNPROVEN"',
         '"fire_clip_internal_pump_phase": "UNPROVEN"',
@@ -48,6 +56,7 @@ def main() -> None:
         "/Game/Production/Weapons/Remington870",
         '"pump_node_identity": "PROVEN"',
         '"standalone_pump_clip": "PROVEN"',
+        '"fire_clip_internal_pump_phase": "PROVEN"',
         '"runtime_acceptance": 1',
         '"item16_checked": 1',
     ):
@@ -60,6 +69,10 @@ def main() -> None:
         "steps.relative_motion.outputs.fire_relative_peak",
         "steps.relative_motion.outputs.easy_reload_relative_peak",
         "steps.relative_motion.outputs.full_reload_relative_peak",
+        "steps.relative_motion.outputs.fire_relative_rotation_degrees",
+        "steps.relative_motion.outputs.easy_reload_relative_rotation_degrees",
+        "steps.relative_motion.outputs.full_reload_relative_rotation_degrees",
+        "steps.relative_motion.outputs.sibling_relative_rotation_measured",
         "steps.relative_motion.outputs.shared_parent",
         "steps.relative_motion.outputs.pump_node_identity",
         "steps.relative_motion.outputs.fire_clip_internal_pump_phase",
@@ -70,7 +83,7 @@ def main() -> None:
 
     print(
         "PASS45 REMINGTON870 RELATIVE MOTION PROBE GUARD: PASS "
-        "local_exact_bytes_only=1 sibling_translation=1 "
+        "local_exact_bytes_only=1 sibling_translation=1 sibling_rotation=1 "
         "pump_identity_unproven=1 fire_internal_pump_phase_unproven=1 "
         "runtime_acceptance=0 item16_checked=0"
     )
