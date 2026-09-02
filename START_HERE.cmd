@@ -18,7 +18,7 @@ echo.
 echo Для запуску проєкту завжди використовуйте тільки START_HERE.cmd.
 echo Інші RUN_*.cmd - внутрішні технічні скрипти, вручну їх запускати не потрібно.
 echo.
-echo Пункт 1: тільки incremental C++ build + запуск гри. Без reimport HMMWV/M2/BTR/Stein/manual-action audio.
+echo Пункт 1: тільки incremental C++ build + запуск гри. Без strict reimport/fresh-load підготовки.
 echo Пункт 2: повний PASS45 runtime acceptance з усіма strict import/verification gates.
 echo.
 echo Pass 45 normal renderer: DirectX 11 + Shader Model 5 + HDR off, normal RHI threading.
@@ -62,7 +62,7 @@ goto menu
 
 :prepare_materials_strict
 echo.
-echo [PASS45] STRICT: підготовка Stein authored materials + manual-action donor audio перед єдиним runtime acceptance route...
+echo [PASS45] STRICT: Stein materials + manual-action audio + Remington 870 skeletal pump production intake...
 rem Production HMMWV/M2/BTR import is intentionally NOT duplicated here. RUN_R14_CURRENT_GAMEPLAY.cmd,
 rem called once through the full acceptance wrapper, owns the strict production vehicle intake.
 if not exist "%~dp0OsterConflict\PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd" (
@@ -87,7 +87,18 @@ if not "!MANUAL_AUDIO_RC!"=="0" (
   exit /b 25
 )
 
-echo [PASS45] STRICT content preparation PASS. Stein materials and manual-action donor SoundWaves are fresh-load validated; vehicle intake, playflow, audibility/timing and rendered runtime are validated downstream.
+if not exist "%~dp0OsterConflict\PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd" (
+  echo [STOP] Remington 870 production pump importer/fresh-load wrapper відсутній.
+  exit /b 26
+)
+call "%~dp0OsterConflict\PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd"
+set "REMINGTON_STRICT_RC=!ERRORLEVEL!"
+if not "!REMINGTON_STRICT_RC!"=="0" (
+  echo [STOP] Remington 870 skeletal pump production intake не пройшов. code=!REMINGTON_STRICT_RC!
+  exit /b 27
+)
+
+echo [PASS45] STRICT content preparation PASS. Stein materials, manual-action audio and Remington 870 skeletal PumpCycle are fresh-load validated; vehicle intake, gameplay presentation, audibility/timing and rendered runtime are validated downstream.
 exit /b 0
 
 :end
