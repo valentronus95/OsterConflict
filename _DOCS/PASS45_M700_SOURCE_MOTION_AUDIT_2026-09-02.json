@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "status": "SOURCE_STRUCTURE_MOTION_EVIDENCE_ONLY",
+  "source": "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx",
+  "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
+  "source_sha256": "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840",
+  "source_size": 638732,
+  "inspection_converter": "Assimp -> glTF2 (CI inspection only)",
+  "node_count": 22,
+  "mesh_count": 2,
+  "skin_count": 1,
+  "animation_count": 0,
+  "node_names": [
+    "RootNode",
+    "Skeleton",
+    "WPN_308SNIPER",
+    "FRAME",
+    "FX_FIRE",
+    "FX_CASING",
+    "IRONSIGHT",
+    "ANCHOR",
+    "TRIGGER",
+    "BOLT",
+    "BOLT_STOP",
+    "SAFETY",
+    "MAGAZINE",
+    "BULLET_01",
+    "BULLET_02",
+    "REVEAL_RAIL",
+    "ATTACH_SILENCER",
+    "ATTACH_SCOPE",
+    "ATTACH_STRAP",
+    "ATTACH_BEAD",
+    "FRAME_LOD0.001",
+    "FRAME_LOD0"
+  ],
+  "mesh_names": [
+    "FRAME_LOD0.465",
+    "FRAME_LOD0.464"
+  ],
+  "bolt_named_candidates": [
+    "BOLT",
+    "BOLT_STOP"
+  ],
+  "mechanical_named_candidates": [
+    "BOLT",
+    "BOLT_STOP"
+  ],
+  "identity_named_candidates": [
+    "TRIGGER",
+    "MAGAZINE",
+    "ATTACH_SCOPE"
+  ],
+  "joint_names": [
+    "WPN_308SNIPER",
+    "FRAME",
+    "FX_FIRE",
+    "FX_CASING",
+    "IRONSIGHT",
+    "ANCHOR",
+    "TRIGGER",
+    "BOLT",
+    "BOLT_STOP",
+    "SAFETY",
+    "MAGAZINE",
+    "BULLET_01",
+    "BULLET_02",
+    "REVEAL_RAIL",
+    "ATTACH_SILENCER",
+    "ATTACH_SCOPE",
+    "ATTACH_STRAP",
+    "ATTACH_BEAD"
+  ],
+  "bolt_joint_names": [
+    "BOLT",
+    "BOLT_STOP"
+  ],
+  "skinned_nodes": [
+    {
+      "node_index": 20,
+      "node_name": "FRAME_LOD0.001",
+      "skin_index": 0,
+      "mesh_index": 0
+    },
+    {
+      "node_index": 21,
+      "node_name": "FRAME_LOD0",
+      "skin_index": 0,
+      "mesh_index": 1
+    }
+  ],
+  "animated_node_names": [],
+  "animated_bolt_nodes": [],
+  "animations": [],
+  "classification": "BOLT_JOINT_DERIVATIVE_CANDIDATE_NO_EMBEDDED_BOLT_MOTION",
+  "production_cutover": false,
+  "runtime_acceptance": false,
+  "item16_checked": false
+}
