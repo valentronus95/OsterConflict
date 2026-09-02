@@ -257,11 +257,12 @@ AOCWeapon_Shotgun::AOCWeapon_Shotgun()
 void AOCWeapon_Shotgun::BeginPlay()
 {
     Super::BeginPlay();
-    if (ApplyStaticProductionWeapon(this, WeaponRoot,
-        TEXT("/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"),
+    if (ApplySkeletalProductionWeapon(this, WeaponRoot,
+        TEXT("/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870"),
         FName(TEXT("ProductionRemington870")), 100.0f))
     {
-        UE_LOG(LogTemp, Display, TEXT("Shotgun uses Remington 870 production mesh."));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_REMINGTON870_PRODUCTION_SKELETAL_READY full_weapon_single_skeletal=1 pump_bridge_candidate=1 runtime_acceptance=0"));
     }
     else
     {
