@@ -34,6 +34,8 @@ animation_profiles_cpp = read("OsterConflict/Source/OsterConflict/Private/OCWeap
 audio_types = read("OsterConflict/Source/OsterConflict/Public/OCAudioTypes.h")
 audio_profile = read("OsterConflict/Source/OsterConflict/Public/OCWeaponAudioProfile.h")
 audio_component = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp")
+remington_wrapper = read("OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd")
+remington_importer = read("PASS45_REMINGTON870_PRODUCTION_UE58_IMPORT.py")
 tz = read("PASS45_RUNTIME_RECOVERY_TZ.md")
 
 for needle in (
@@ -114,9 +116,9 @@ for forbidden in (
     req(forbidden not in presentation_cpp,
         f"retired procedural manual-action fallback returned to presentation source: {forbidden}")
 
-# The authored bridge is conditional: current exact manual-action sequence slots remain empty, but when a verified
-# sequence is later committed the runtime consumer must load it, verify compatible skeletal playback and play it.
-# Missing/incompatible authored content preserves baseline transforms and remains a visible content gap.
+# The authored bridge is conditional: M700/Lever remain fail-visible content gaps. Remington now has a
+# canonical PumpCycle source path, but its normal route is still gated by isolated UE 5.8 proof,
+# production import and fresh-load validation before gameplay can consume it.
 for needle in (
     '#include "OCWeaponAnimationProfiles.h"',
     "LoadObject<UAnimSequence>",
@@ -147,21 +149,33 @@ for forbidden in (
     req(forbidden not in profiles_cpp,
         f"retired manual-action transform profile assignment returned: {forbidden}")
 
-# Authored manual-action coverage must be a first-class animation contract. This does not claim content exists:
-# current M700/870/Lever slots are deliberately empty until exact compatible sequences are committed.
+# Authored manual-action coverage is first-class. M700/Lever must remain required-empty until exact compatible
+# cycles exist; Remington must point only at the canonical production PumpCycle and still needs local runtime acceptance.
 for needle in (
     "ManualActionAnimationObjectPath", "bRequiresManualActionAnimation",
     "HasManualActionAnimation()", "HasRequiredManualActionCoverage()",
 ):
     req(needle in animation_profiles_h, f"manual-action authored animation slot missing: {needle}")
 
-for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT("R13_LEVER4570"))'):
+for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("R13_LEVER4570"))'):
     start = animation_profiles_cpp.find(weapon_id)
     end = animation_profiles_cpp.find("},", start)
     block = animation_profiles_cpp[start:end + 2] if start >= 0 and end > start else ""
     req(bool(block), f"animation profile missing manual-action weapon: {weapon_id}")
     req('true, TEXT(""), true' in block,
         f"{weapon_id} must require articulated/manual-action coverage while exact authored sequence remains empty")
+
+remington_profile_start = animation_profiles_cpp.find('FName(TEXT("OC_SG1"))')
+remington_profile_end = animation_profiles_cpp.find("},", remington_profile_start)
+remington_profile = animation_profiles_cpp[remington_profile_start:remington_profile_end + 2] if remington_profile_start >= 0 and remington_profile_end > remington_profile_start else ""
+remington_pump_path = "/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle"
+req(bool(remington_profile), "animation profile missing Remington 870")
+req(remington_pump_path in remington_profile,
+    "Remington 870 must use the canonical gated production PumpCycle path")
+req('call "%PILOT%"' in remington_wrapper and 'Production import заборонено' in remington_wrapper,
+    "Remington production route no longer fails closed behind the isolated UE 5.8 pilot")
+req('runtime_acceptance=0 item16_checked=0' in remington_importer,
+    "Remington production import falsely claims runtime/item16 acceptance")
 
 # Do not borrow the AK fire/reload sequences for bolt/pump/lever just to manufacture a green source status.
 for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT("R13_LEVER4570"))'):
@@ -171,17 +185,17 @@ for weapon_id in ('FName(TEXT("OC_SNP1"))', 'FName(TEXT("OC_SG1"))', 'FName(TEXT
     req("AK-47_Fire_W" not in block and "AK-47_Reload_W" not in block,
         f"unrelated AK animation leaked into manual-action profile: {weapon_id}")
 
-# Item 16 tracked-content inventory. File presence is only repository evidence, never UE runtime acceptance.
-# M700 and LeverAction have real tracked production meshes. Remington 870 currently points at a production
-# package that is absent from the canonical branch, so that path must remain explicitly fail-closed.
+# Item 16 tracked-content inventory. File presence is repository evidence, never UE runtime acceptance.
+# M700 and LeverAction have real tracked production meshes. Remington declares its canonical skeletal package,
+# which is created/fresh-load-validated by the strict local UE 5.8 production route before gameplay.
 m700_mesh = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "Stein" / "M700" / "SKM_M700.uasset"
 lever_mesh = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "Stein" / "LeverAction" / "SKM_LeverAction.uasset"
-remington_mesh = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SM_Remington870.uasset"
+remington_mesh = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SKM_Remington870.uasset"
 req(m700_mesh.is_file(), "tracked M700 production mesh disappeared: R13/Weapons/Stein/M700/SKM_M700.uasset")
 req(lever_mesh.is_file(), "tracked LeverAction production mesh disappeared: R13/Weapons/Stein/LeverAction/SKM_LeverAction.uasset")
-remington_object_path = "/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"
+remington_object_path = "/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870"
 req(remington_object_path in variants,
-    "Remington 870 source no longer declares the canonical production object path")
+    "Remington 870 source no longer declares the canonical skeletal production object path")
 if not remington_mesh.is_file():
     req("PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=Remington870 primitive_visible=0 real_fallback_pending=1" in variants,
         "missing Remington 870 production package is not guarded by the explicit fail-closed runtime marker")
@@ -258,10 +272,10 @@ if errors:
 
 print("PASS45 WEAPON ACTION MATRIX: PASS")
 print("- bolt/pump/lever remain authoritative replicated post-shot gates with explicit timings")
-print("- M700/870/LeverAction explicitly require authored articulated manual-action animation")
+print("- M700/LeverAction remain required-empty authored animation gaps; Remington uses gated canonical PumpCycle")
 print("- rejected whole-weapon/arms procedural manual-action fallback is physically retired")
 print("- missing authored action content preserves baseline transforms and remains a hard-visible content gap")
 print("- authored manual-action animation keeps a dedicated fail-closed profile slot and production skeletal consumer")
-print("- tracked item16 inventory keeps M700/Lever base meshes factual and Remington production-path absence explicitly fail-closed")
+print("- tracked item16 inventory keeps M700/Lever base meshes factual and Remington skeletal production route fail-closed")
 print("- pump uses tracked R13 audio; bolt/lever source routes target provenance-pinned repository donors and stay fail-closed until UE import")
-print("STATUS: SOURCE CONTRACT FAIL-CLOSED; UE donor SoundWave import/fresh-load, authored moving-part sequences, Remington production content and local UE 5.8 acceptance remain pending")
+print("STATUS: SOURCE CONTRACT FAIL-CLOSED; M700/Lever authored moving-part sequences and current-head local UE 5.8 runtime acceptance remain pending")
