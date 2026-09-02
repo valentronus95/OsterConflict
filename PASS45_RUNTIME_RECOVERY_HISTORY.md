@@ -8,143 +8,138 @@ The immediately preceding complete history is preserved at:
 
 Preserved Git blob: `798b6b3b35e09cc4a4fce600dcaaf6afce7f9bf6`.
 
-Earlier archives remain preserved in Git. Git history is the raw source of truth; this file intentionally stays compact so a new session can resume without replaying hundreds of commits.
+Earlier history remains preserved in Git. Git history is the raw source of truth; this live file intentionally records only the newest factual state needed to continue without replaying completed work.
 
 ## Canonical ownership
 
 - Canonical TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
 - Active integration branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
-- Target: `main@bca00f4046700f383af9f1742cc24b6a62401b1a` at this checkpoint.
+- Target baseline: `main@bca00f4046700f383af9f1742cc24b6a62401b1a` at this checkpoint.
 - Active integration PR: **#94 OPEN / UNMERGED**.
-- Latest source-contract head before this checkpoint update: `b3467b5e82377670cc06b186c2687114df3e89a8`.
-- PR #94 must remain unmerged until a current-head local UE 5.8 runtime acceptance passes the still-open item-16 content/runtime gates.
-- Official checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**. Source/docs/CI preparation does not increase it.
+- Latest substantive source-gate head before this ledger update: `43588a0adce133608901fc17778d35928c87ea86`.
+- PR #94 must remain unmerged until a current-head local UE 5.8 full runtime run passes the still-open content/runtime gates and direct visual/audio acceptance.
+- Official canonical checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**. Source/docs/CI preparation does not increase it.
 - Local user `Changes` remain outside assistant mutation scope.
 
 ## First factual open item
 
 The first canonical unchecked checklist item remains **item 16**: accepted authored M700 / Remington 870 / Lever Action moving-part or skeletal manual-action presentation, factual bolt/pump/lever mechanical audio, and local UE 5.8 acceptance.
 
-Do not skip to later checklist items while item 16 still contains content/runtime blockers.
+Do not skip to later checklist items while item 16 still contains factual content/runtime blockers.
 
 ## Binding reuse-first state
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
 
 - Primary Remington donor remains the registered CC-BY-4.0 8sianDude payload; do not silently promote the quarantined `Remington_870_FREE.glb` candidate.
-- Authored manual actions belong in skeletal animation timing; MetaSounds/audio cannot become a second gameplay timer.
+- Authored manual actions stay synchronized to the existing replicated mechanical action cycle. Animation/audio must not become a second gameplay timer.
 - The retired procedural whole-weapon/arms manual-action fallback must not return.
 - Compile/source green is not runtime acceptance.
 
-## Latest user runtime evidence — 2026-09-02
+## Latest direct user runtime evidence — 2026-09-02
 
-The user completed the full runtime launcher and reached gameplay successfully. The latest screenshots/runtime observation supersede the older startup-black-window state as the immediate runtime truth.
-
-Observed in gameplay:
+The latest direct user playtest reached gameplay successfully. Observed in that run:
 
 - gameplay world loaded;
-- Lever Action and M700 were present/usable in the tested session;
-- normal HUD/downed presentation was reached;
+- M700 and Lever Action were present/usable;
 - Remington 870 fired and showed recoil;
 - **Remington 870 did not show a visible pump/fore-end cycle after firing**.
 
-Therefore the current item-16 runtime verdict is not a full PASS. The immediate Remington defect is now narrowly classified as:
+That run therefore remains a factual **runtime rejection for the pre-cutover Remington presentation**:
 
 `GAMEPLAY_REACHED / REMINGTON_RECOIL_PRESENT / REMINGTON_PUMP_PRESENTATION_MISSING`.
 
-The runtime source explains that observation: `OC_SG1` has pump action semantics/timing/audio but still has an empty authored manual-action animation path, while the current Remington runtime visual falls back to the generic static shotgun. The authored animation bridge only plays compatible `UAnimSequence` content on a `USkeletalMeshComponent`.
+Important chronology: that observation predates the later production Remington skeletal/animation cutover now present in source. It proves the old presentation failed. It does **not** prove that the current head visually succeeds or fails. A new current-head local UE 5.8 run is still mandatory.
 
-## Registered Remington donor
+## Registered Remington donor and derived pump source
 
-Primary source:
+Primary source remains:
 
 - `SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb`;
 - exact SHA-256 / LFS OID `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`;
 - exact payload size `20,621,580` bytes;
 - creator: 8sianDude;
 - license: CC-BY-4.0;
-- register entry: `PASS45-3P-WEAPON-001`, still not runtime-ready.
+- register entry: `PASS45-3P-WEAPON-001`.
 
-Existing exact-donor UE 5.8 evidence already proves imported articulated motion and addressable moving weapon-side tracks. That proof remains valid but does not itself authorize gameplay cutover.
+Existing exact-donor UE 5.8 evidence proves imported articulated motion and addressable weapon-side moving tracks. Direct `Pmag_061 = pump` mapping remains rejected because that source node is composite geometry.
 
-Pump audio fallback remains project-owned `/Game/R13/Audio/shotguncock`.
-
-## Remington physical fore-end isolation
-
-The old direct assumption `Pmag_061 = pump` is rejected. Source topology proved `Pmag_061 / Object_95` is composite geometry: **4411 vertices, 4982 triangles, 106 disconnected components**.
-
-A deterministic source partition now isolates the probable physical fore-end from the side-saddle/other geometry:
+The deterministic derivative isolates the probable physical fore-end:
 
 - fore-end partition: **48 components / 1170 vertices**;
-- remaining side-saddle/other partition: **58 components / 3241 vertices**.
+- side-saddle/other remainder: **58 components / 3241 vertices**;
+- derived joint: `PASS45_PumpForeEnd`;
+- standalone action: `PASS45_Remington870_PumpCycle`;
+- duration: **0.55 s**.
 
-`PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py` creates a CC-BY derivative of the exact registered primary donor, not a second donor:
+The derivative is still a derivative of the registered primary donor, not a second donor.
 
-- new bind-equivalent joint: `PASS45_PumpForeEnd`;
-- only the 1170 fore-end vertices are reassigned to it;
-- the remaining 3241 vertices stay on the original `Pmag_061` ownership;
-- new standalone animation: `PASS45_Remington870_PumpCycle`;
-- duration: **0.55 s**;
-- derived stroke uses the donor-measured dominant-Y travel and omits unrelated X/Z/rotation;
-- `production_cutover=false`, `runtime_acceptance=false`, `item16_checked=false`.
+## Remington production source state — current head
 
-The derived source verifier is PASS. This replaces the older `PUMP_NODE_IDENTITY_UNPROVEN / STANDALONE_PUMP_CLIP_UNPROVEN` checkpoint with a narrower state: a deterministic derived fore-end and standalone pump source now exist, but UE 5.8 production assembly/runtime acceptance remain pending.
+The old checkpoint saying `production Remington package ABSENT` and `ManualActionAnimationObjectPath NOT AUTHORIZED` is superseded by later guarded source work.
 
-## Derived pump UE 5.8 pilot
+Current source now contains the production path:
 
-`PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py` is the isolated engine proof path. It rebuilds the exact derivative, imports with `save=False`, and requires UE 5.8 to prove:
+- fail-closed UE 5.8 importer: `PASS45_REMINGTON870_PRODUCTION_UE58_IMPORT.py`;
+- canonical wrapper: `OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd`;
+- fresh-load verifier: `OsterConflict/Scripts/verify_remington870_production_fresh_load.py`;
+- expected production skeletal asset: `/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870`;
+- expected production pump sequence: `/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle`.
 
-- `PASS45_PumpForeEnd` exists on an imported SkeletalMesh;
-- the standalone pump AnimSequence exists;
-- the pump bone has non-trivial sampled motion;
-- the animation and pump mesh share a compatible skeleton;
-- the accepted sequence is uniquely near 0.55 s and retains the expected pump identity.
+Runtime source wiring is also current:
 
-It deliberately writes only Saved evidence and does not save `/Game` packages or authorize production/runtime acceptance.
+- `AOCWeapon_Shotgun::BeginPlay()` requests the production Remington **SkeletalMesh** rather than the old static/generic shotgun presentation;
+- `OC_SG1` / `PumpAction` now points its authored manual-action profile to `AN_Remington870_PumpCycle`;
+- the existing `UOCFirstPersonWeaponPresentationSubsystem` consumes the real replicated `bActionCycling` transition and plays the authored sequence on the compatible skeletal production visual;
+- the bridge deliberately logs `runtime_acceptance=0`; source activation is not direct visual/audio acceptance.
 
-Its static/source contract is CI-green, but **the new derived-pump pilot has not yet been executed locally in UE 5.8 on this current source state**. Do not convert source-contract CI into engine acceptance.
+The full runtime route includes the guarded production intake. Static/source validators were aligned to the skeletal Remington path and PumpCycle contract. Do not resurrect the old static Remington expectations.
 
-## UE 5.8 imported assembly audit
+## Strict runtime evidence gate — current checkpoint
 
-A further fail-closed audit was added because the donor contains multiple mesh/skin parts and blindly selecting the first SkeletalMesh could create an animated fore-end without a complete shotgun visual.
+The existing strict acceptance path now includes Remington instead of leaving this slice outside the main gate.
 
-Current files:
+`VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py` now requires an actual gameplay log line for:
 
-- `PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py`;
-- `VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py`;
-- `OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd`;
-- `.github/workflows/pass45-remington870-derived-pump-ue58-assembly-audit.yml`.
+`PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=OC_SG1`
 
-The audit reuses and executes the existing derived UE 5.8 pilot in the same isolated commandlet process, then inventories all unsaved imported assets and records:
+The accepted line must also prove:
 
-- SkeletalMesh count;
-- StaticMesh count;
-- animation count;
-- pump-bearing mesh count;
-- skeleton identities/shared skeletons;
-- the unique compatible pump sequence;
-- one of `SINGLE_SKELETAL_IMPORT_CANDIDATE`, `MULTI_SKELETAL_IMPORT_REQUIRES_ASSEMBLY_PLAN`, or `MIXED_STATIC_SKELETAL_IMPORT_REQUIRES_ASSEMBLY_PLAN`.
+- `action=EOCWeaponActionType::PumpAction`;
+- exact production `AN_Remington870_PumpCycle` path;
+- `replicated_gate=1`;
+- `second_gameplay_timer=0`;
+- `runtime_acceptance=0`.
 
-It always remains fail-closed with `production_visual_completeness=UNPROVEN`, `saved_packages=0`, `production_cutover=0`, `runtime_acceptance=0`, `item16_checked=0`.
+The evidence gate fails closed on:
 
-Exact-head source-contract CI on `b3467b5e82377670cc06b186c2687114df3e89a8`:
+- `PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=OC_SG1`;
+- `PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=OC_SG1`;
+- `PASS45_WEAPON_AUDIO_CONTENT_GAP weapon=OC_SG1 event=manual_action`.
 
-- `Pass 45 Remington 870 derived pump UE58 assembly audit` run `33652982669`: **SUCCESS**.
+On automated success it emits `REMINGTON870_AUTHORED_PUMP_RUNTIME_BRIDGE=PASS` while preserving `VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION`.
 
-That is static/source validation only. The actual UE 5.8 assembly classification remains pending until the local launcher is run.
+`VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py` now contract-checks that all of those Remington requirements remain part of the canonical strict evidence path.
+
+Implementation commits for this gate:
+
+- `768c4a379438e976c7d0f9365b6ec7a0f89dcd81` — `test(pass45): gate Remington pump runtime evidence`;
+- `43588a0adce133608901fc17778d35928c87ea86` — `test(pass45): bind Remington pump to strict runtime harness`.
+
+Exact-head GitHub Actions for `43588a0...` started successfully; at the time of this ledger update the large check set was still partially in progress. No CI-in-progress state may be promoted to PASS until its final conclusions exist.
 
 ## Current acceptance state
 
-- Registered donor provenance/source intake: **PASS FOR ISOLATED UE IMPORT**.
-- Exact registered donor UE 5.8 imported-motion evidence: **LOCAL PASS / IMPORTED-MOTION PROOF ONLY**.
+- Registered donor provenance/source intake: **PASS FOR GUARDED USE**.
+- Exact registered donor imported-motion evidence: **LOCAL UE 5.8 PASS / IMPORTED-MOTION PROOF ONLY**.
 - Direct `Pmag_061 = pump` mapping: **REJECTED**.
-- Derived physical fore-end partition 1170/3241: **SOURCE PASS**.
-- Derived `PASS45_PumpForeEnd`: **SOURCE PASS / UE 5.8 CURRENT-DERIVATIVE EXECUTION PENDING**.
-- Derived standalone `PASS45_Remington870_PumpCycle` 0.55 s: **SOURCE PASS / UE 5.8 CURRENT-DERIVATIVE EXECUTION PENDING**.
-- Imported production visual assembly shape: **UNPROVEN / LOCAL UE 5.8 AUDIT PENDING**.
-- Production Remington skeletal package: **ABSENT / NOT AUTHORIZED**.
-- Gameplay `ManualActionAnimationObjectPath` cutover: **NOT AUTHORIZED**.
-- Latest gameplay: **REACHED; REMINGTON RECOIL PRESENT; REMINGTON PUMP MISSING**.
+- Derived physical fore-end + standalone PumpCycle source: **SOURCE PASS**.
+- Production Remington skeletal importer/wrapper/fresh-load proof path: **SOURCE-WIRED / GUARDED**.
+- Runtime Remington skeletal visual path: **SOURCE-WIRED**.
+- Runtime authored PumpCycle path: **SOURCE-WIRED**.
+- Strict automated gameplay evidence requirement for actual PumpCycle activation: **SOURCE-WIRED**.
+- Current-head direct Remington visual pump acceptance: **PENDING LOCAL UE 5.8 RUNTIME**.
+- Current-head direct Remington mechanical-audio acceptance: **PENDING LOCAL UE 5.8 RUNTIME**.
 - Separate `Remington_870_FREE.glb`: **QUARANTINED / NOT PROMOTED**.
 - M700 exact authored bolt animation: **CONTENT GAP**.
 - Lever Action exact authored lever animation: **CONTENT GAP**.
@@ -154,10 +149,16 @@ That is static/source validation only. The actual UE 5.8 assembly classification
 
 ## Next factual operation
 
-Run the single isolated local launcher:
+Run the canonical **current-head** full acceptance route:
 
-`OsterConflict\TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd`
+`START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ`
 
-It performs the current derived-pump UE 5.8 engine proof and the imported-assembly inventory in one process without saving Content packages. The resulting log/JSON must determine whether Unreal exposes one complete skeletal visual or a multi-part/mixed assembly.
+During the gameplay portion, fire/cycle `OC_SG1` Remington 870. Acceptance requires all of the following on the same current head:
 
-Only after that factual engine result may the production Remington package and runtime `ManualActionAnimationObjectPath` be wired. No production package save, item-16 closure, or PR #94 merge is authorized before that evidence.
+1. strict importer/build/gameplay/evidence gates complete without Remington production/content/audio gap;
+2. `PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=OC_SG1` reaches the exact production PumpCycle path;
+3. the fore-end visibly travels through the post-shot pump cycle in first-person gameplay;
+4. pump mechanical audio is factually audible and synchronized to that cycle;
+5. direct screenshot/observation evidence is retained.
+
+Even a Remington PASS does not close item 16 by itself: M700 and Lever Action authored moving-part animation gaps must still be closed and accepted. PR #94 remains unmerged.
