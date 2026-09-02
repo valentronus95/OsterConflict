@@ -63,6 +63,13 @@ jobs:
           test -n "${{ steps.relative_motion.outputs.fire_relative_peak }}"
           test -n "${{ steps.relative_motion.outputs.easy_reload_relative_peak }}"
           test -n "${{ steps.relative_motion.outputs.full_reload_relative_peak }}"
+
+      - name: "Sibling relative rotation fire=${{ steps.relative_motion.outputs.fire_relative_rotation_degrees }}deg easy_reload=${{ steps.relative_motion.outputs.easy_reload_relative_rotation_degrees }}deg full_reload=${{ steps.relative_motion.outputs.full_reload_relative_rotation_degrees }}deg"
+        run: |
+          test "${{ steps.relative_motion.outputs.sibling_relative_rotation_measured }}" = "1"
+          test -n "${{ steps.relative_motion.outputs.fire_relative_rotation_degrees }}"
+          test -n "${{ steps.relative_motion.outputs.easy_reload_relative_rotation_degrees }}"
+          test -n "${{ steps.relative_motion.outputs.full_reload_relative_rotation_degrees }}"
           test "${{ steps.relative_motion.outputs.pump_node_identity }}" = "UNPROVEN"
           test "${{ steps.relative_motion.outputs.standalone_pump_clip }}" = "UNPROVEN"
           test "${{ steps.relative_motion.outputs.fire_clip_internal_pump_phase }}" = "UNPROVEN"
