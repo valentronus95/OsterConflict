@@ -22,8 +22,7 @@ Git history remains the raw source of truth. This file stays compact so future s
 - Active integration PR: **#94 OPEN / UNMERGED**.
 - Target: `main@bca00f4046700f383af9f1742cc24b6a62401b1a` at this checkpoint.
 - Latest factual full gameplay runtime verdict: **RUNTIME REJECTED 2026-08-31**.
-- Latest factual isolated UE 5.8 Remington import-pilot verdict: **REJECTED 2026-09-02 on `fbc2d0d48f10bb8e93937d41cc7f700ab150a8f1` due to removed `AssetImportTask.async` editor property**.
-- Latest substantive item-16 source-hardening head before this ledger update: `c4d995653c50e4153727c54eae279fde6ae98bfb`.
+- Latest substantive item-16 source-hardening head before this ledger update: `114f74acbd2db47a19eea4447ddb7a66b0b7917c`.
 - PR #94 must remain unmerged until a **current-head** local UE 5.8 full runtime test passes import, build, gameplay, automated evidence gates and direct screenshot/audio acceptance.
 - Official checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**. Source/docs work does not increase it.
 
@@ -55,64 +54,56 @@ Do not skip to later checklist items because item 16 still contains content/runt
 
 ## 2026-09-02 Remington source truth
 
-Pinned donor evidence proves articulated reload motion and distinct skinned parts, including `PBody_058` and `Pmag_061`. The later source transport/relative-motion audits also prove that the donor carries non-trivial sibling-relative motion rather than only rigid whole-weapon movement.
+Pinned donor evidence proves articulated reload motion and distinct skinned parts, including `PBody_058` and `Pmag_061`. Source transport/relative-motion audits prove non-trivial sibling-relative motion rather than only rigid whole-weapon movement.
 
 Enforced semantic boundary remains:
 
 `ARTICULATED_RELOAD_MOTION_PROVEN / PUMP_NODE_IDENTITY_UNPROVEN / STANDALONE_PUMP_CLIP_UNPROVEN`.
 
-In particular, source evidence still does **not** prove that `Pmag_061` is physically the fore-end/pump and does not prove any clip is a valid standalone post-shot pump cycle.
+Source evidence still does **not** prove that `Pmag_061` is physically the fore-end/pump and does not prove any imported clip is a valid standalone post-shot pump cycle.
 
-## Current-head / exact-donor launcher hardening
+## Current-head / exact-donor launcher contract
 
-The isolated launcher `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` remains fail-closed before UE starts:
+`OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` remains fail-closed before UE starts:
 
-- requires the exact canonical branch and current remote canonical HEAD;
-- checks only tracked pilot-defining files and does not modify other local `Changes`;
-- requires donor size exactly `20,621,580` bytes;
-- requires exact SHA-256 `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`;
-- performs no checkout, pull, fetch, reset, clean, stash, restore, switch or LFS mutation;
-- preserves `pump_node_identity=UNPROVEN`, `standalone_pump_clip=UNPROVEN`, `runtime_acceptance=0`, `item16_checked=0`.
+- exact canonical branch and current remote canonical HEAD required;
+- only tracked pilot-defining files are checked; unrelated local `Changes` are not modified;
+- donor size must be exactly `20,621,580` bytes;
+- donor SHA-256 must be exactly `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`;
+- no checkout, pull, fetch, reset, clean, stash, restore, switch or LFS mutation is performed by the launcher;
+- `pump_node_identity=UNPROVEN`, `standalone_pump_clip=UNPROVEN`, `runtime_acceptance=0`, `item16_checked=0` remain mandatory.
 
-## 2026-09-02 imported sibling-relative motion gate
+## 2026-09-02 factual local UE 5.8 evidence and corrective slices
 
-A remaining source-proof hole was closed without creating a second import owner.
+### A. Legacy `AssetImportTask.async` rejection
 
-Before this slice the isolated UE imported-motion pilot required `PBody_058` and `Pmag_061` to have named tracks and non-trivial imported motion, but it did not prove that the two parts move **relative to one another** after UE import. A rigid whole-weapon movement could therefore satisfy the old per-bone motion condition.
-
-Implemented commits:
-
-- `11828182d964c75365dffe56951913d07df4518b` — `PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py` now fail-closes unless imported skeletal hierarchy preserves a common parent for `PBody_058` / `Pmag_061` and at least one imported AnimSequence shows non-trivial sibling-relative motion using same-time sampled poses;
-- `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b` — `VERIFY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py` guards the shared-parent and imported relative-motion contract against regression.
-
-The pilot still reuses `PASS45_REMINGTON870_UE58_IMPORT_PILOT.py`; it does not create another `AssetImportTask`, save packages, create production Remington content, switch authority, or claim runtime acceptance.
-
-Exact-head GitHub CI for `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b` completed successfully. In particular:
-
-- `Pass 45 Remington 870 UE58 imported motion pilot contract` run `33609750258`: **SUCCESS**;
-- `Source verification` run `33609749476`: **SUCCESS**;
-- `Runtime recovery Pass 45` run `33609750251`: **SUCCESS**;
-- `Runtime diagnostics Pass 18` run `33609750178`: **SUCCESS**;
-- Remington source intake, donor-motion audit, UE58 import-pilot contract, remote-candidate audit and manual-action audio provenance: **SUCCESS**.
-
-These are source/static checks only. They do not execute the user's local UE 5.8 editor and do not change runtime truth.
-
-## 2026-09-02 factual local UE 5.8 import-pilot rejection and corrective slice
-
-The current-head/exact-donor launcher was run locally against UE `5.8.1-56057345` on canonical head `fbc2d0d48f10bb8e93937d41cc7f700ab150a8f1`. Preflight passed on the exact canonical branch, exact head and exact donor SHA-256, so the failure is valid isolated UE evidence rather than a stale-checkout artifact.
-
-UE then rejected the base import pilot before donor import because `unreal.AssetImportTask` in this UE 5.8.1 build does not expose the legacy editor property named `async`:
+The current-head/exact-donor launcher was first run locally against UE `5.8.1-56057345` on canonical head `fbc2d0d48f10bb8e93937d41cc7f700ab150a8f1`. Preflight passed, then UE rejected the base import harness because this engine build no longer exposes the legacy `AssetImportTask.async` editor property:
 
 `AssetImportTask: Failed to find property 'async' for attribute 'async' on 'AssetImportTask'`
 
-This is an engine/Python API compatibility blocker in the pilot harness, not evidence that the donor itself is incompatible.
+That was a pilot-harness compatibility failure, not donor incompatibility.
 
-Corrective source slice:
+Corrective commits:
 
-- `b71e734fbb49f161b25d31eab160b132a6c75a16` removes the unsupported `task.set_editor_property("async", False)` write from `PASS45_REMINGTON870_UE58_IMPORT_PILOT.py`; the pilot still waits for `import_asset_tasks([task])` to return and then fail-closes on imported-object, skeletal-mesh, animation-count, positive-length and shared-skeleton evidence before any PASS marker;
-- `c4d995653c50e4153727c54eae279fde6ae98bfb` updates `VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py` so the removed UE 5.8 property cannot silently return while all no-save/no-production/no-runtime-acceptance constraints remain guarded.
+- `b71e734fbb49f161b25d31eab160b132a6c75a16` removes the unsupported `async` property write while preserving no-save/no-production behavior and fail-closed imported-object/skeleton/animation gates;
+- `c4d995653c50e4153727c54eae279fde6ae98bfb` guards that UE 5.8 property drift against regression.
 
-No local user `Changes` were modified by this failure investigation or by the remote corrective commits. No production Remington cutover occurred. PR #94 remains unmerged.
+### B. UE 5.8.1 animation-track enumeration false negative
+
+The follow-up local UE 5.8 run progressed through actual donor import and animation sampling. The log proves that imported `PBody_058` and `Pmag_061` are addressable by `AnimationLibrary.does_bone_name_exist()` and return changing sampled poses in imported reload/walk sequences. For example, both bones reported `moved=1` in imported `FPS_Pistol_Reload_easy` and `FPS_Pistol_Reload_full`.
+
+However, UE 5.8.1 `AnimationLibrary.get_animation_track_names()` did not expose those exact bone names, so the old pilot recorded `track_present=0` and then rejected with:
+
+`required_weapon_side_tracks_not_preserved=1 bones=PBody_058,Pmag_061`
+
+The same run therefore demonstrated a contradictory harness assumption: the bones were addressable and pose-sampleable, but the diagnostic track-name enumeration omitted them. Relative-motion sampling was skipped only because the old pilot incorrectly used that diagnostic enumeration as an authority gate.
+
+Corrective commits:
+
+- `c662c2bcad9b7eea0b2dc330ffa9335dbc846a2f` makes UE 5.8 bone addressability (`does_bone_name_exist`) authoritative for imported bone presence, keeps `get_animation_track_names()` diagnostic-only, and still requires non-trivial sampled per-bone motion plus sibling-relative motion before PASS;
+- `114f74acbd2db47a19eea4447ddb7a66b0b7917c` guards against reintroducing track-enumeration authority while preserving the shared-parent, sampled-motion, relative-motion, no-save and no-runtime-acceptance invariants.
+
+This is still an isolated import/motion pilot. It does not identify the real pump, does not authorize a production asset, and does not close item 16.
 
 ## Acceptance state
 
@@ -120,9 +111,11 @@ No local user `Changes` were modified by this failure investigation or by the re
 - Articulated donor motion: **SOURCE EVIDENCE PASS**.
 - Structure/skin separation: **SOURCE EVIDENCE PASS**.
 - Source sibling-relative motion: **SOURCE EVIDENCE PASS**.
-- Imported sibling-parent/relative-motion proof implementation: **PREPARED / SOURCE-GUARDED**.
-- Current-head/exact-donor launcher preflight: **LOCAL PASS on `fbc2d0d4...`**.
-- Local UE 5.8 imported-motion execution: **REJECTED on `fbc2d0d4...` by removed `AssetImportTask.async` harness property; corrective source prepared through `c4d99565...`; rerun pending**.
+- Exact donor UE 5.8 import itself: **FACTUALLY REACHED in local UE 5.8.1**.
+- Imported `PBody_058` / `Pmag_061` bone addressability: **LOCAL EVIDENCE PASS**.
+- Imported per-bone non-trivial motion: **LOCAL EVIDENCE PASS**.
+- Imported sibling-parent gate: **PREPARED / previous run progressed beyond it without that failure**.
+- Imported sibling-relative motion after the UE 5.8 enumeration correction: **RERUN PENDING**.
 - Exact pump/fore-end identity: **UNPROVEN**.
 - Standalone pump/manual-action sequence: **UNPROVEN**.
 - Production Remington cutover: **NOT AUTHORIZED**.
@@ -134,8 +127,12 @@ No local user `Changes` were modified by this failure investigation or by the re
 
 ## Next factual operation
 
-Fast-forward the local canonical checkout to the new current canonical head and rerun `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` with the full pinned Git LFS donor present.
+Fast-forward the local canonical checkout to the current canonical head and rerun:
 
-A PASS must prove in UE 5.8 that the imported named weapon-side tracks survive, that `PBody_058` / `Pmag_061` preserve the required sibling hierarchy, and that their relative transform changes non-trivially in at least one imported animation. It still cannot close item 16 by itself. Direct visual inspection must identify the actual fore-end/pump and determine whether an imported clip is a valid standalone manual-action sequence.
+`OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd`
+
+The next run must now prove in UE 5.8 that `PBody_058` / `Pmag_061` remain addressable, preserve the required sibling hierarchy, carry non-trivial per-bone motion, and change relative to one another in at least one imported animation. The diagnostic result of `get_animation_track_names()` is no longer allowed to override direct UE bone addressability plus sampled-motion evidence.
+
+Even a PASS still cannot close item 16 by itself. Direct visual inspection must identify the actual fore-end/pump and determine whether an imported clip is a valid standalone manual-action sequence.
 
 Until that evidence exists: do not populate production `ManualActionAnimationObjectPath`, do not create `/Game/Production/Weapons/Remington870` as accepted content, do not stack a second Remington donor, do not mark item 16 complete, and do not merge PR #94.
