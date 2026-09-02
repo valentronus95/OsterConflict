@@ -27,7 +27,7 @@ remote_audit = read("PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py")
 variants = read("OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp")
 
 for needle in (
-    "/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870",
+    "/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870",
     "PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=Remington870 primitive_visible=0 real_fallback_pending=1",
 ):
     req(needle in variants, f"canonical Remington fail-closed production contract missing: {needle}")
@@ -103,7 +103,7 @@ for needle in (
     req(needle in third_party_register,
         f"mandatory Remington870 third-party actual-import record missing evidence: {needle}")
 
-production_asset = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SM_Remington870.uasset"
+production_asset = ROOT / "OsterConflict" / "Content" / "Production" / "Weapons" / "Remington870" / "SKM_Remington870.uasset"
 manifest_path = ROOT / "SOURCE_ASSETS" / "PASS45" / "Remington870" / "MANIFEST.json"
 source_path = ROOT / "SOURCE_ASSETS" / "PASS45" / "Remington870" / "remington_870_8siandude_ccby4.glb"
 
