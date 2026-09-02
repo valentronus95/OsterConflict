@@ -1,0 +1,46 @@
+name: Pass 45 Remington 870 derived pump source
+
+on:
+  pull_request:
+    paths:
+      - 'PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py'
+      - 'VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py'
+      - 'PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py'
+      - 'PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py'
+      - 'PASS45_REMINGTON870_STRUCTURE_AUDIT.py'
+      - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
+      - 'PASS45_REMINGTON870_SOURCE_ACQUIRE.py'
+      - '.github/workflows/pass45-remington870-derived-pump-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile derived-source tools
+        run: python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py
+      - name: Generate deterministic exact-donor derivative
+        run: |
+          mkdir -p _pass45_remington_derived
+          python PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py --out-dir _pass45_remington_derived
+      - name: Verify isolated fore-end ownership and pump channel
+        run: |
+          python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py \
+            --glb _pass45_remington_derived/remington_870_pass45_derived_pump.glb \
+            --manifest _pass45_remington_derived/PASS45_REMINGTON870_DERIVED_PUMP_MANIFEST.json
+      - name: Upload derived-source evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-remington870-derived-pump-source-evidence
+          path: |
+            _pass45_remington_derived/PASS45_REMINGTON870_DERIVED_PUMP_MANIFEST.json
+          if-no-files-found: error
+          retention-days: 14
