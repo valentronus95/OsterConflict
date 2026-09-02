@@ -1,0 +1,109 @@
+name: Pass 45 Lever Action derived lever source
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py'
+      - 'VERIFY_PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py'
+      - 'PASS45_LEVERACTION_SOURCE_MOTION_AUDIT.py'
+      - '_DOCS/PASS45_LEVERACTION_SOURCE_MOTION_AUDIT_2026-09-02.json'
+      - 'OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx'
+      - '.github/workflows/pass45-leveraction-derived-lever-source.yml'
+  pull_request:
+    paths:
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py'
+      - 'VERIFY_PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py'
+      - 'PASS45_LEVERACTION_SOURCE_MOTION_AUDIT.py'
+      - '_DOCS/PASS45_LEVERACTION_SOURCE_MOTION_AUDIT_2026-09-02.json'
+      - 'OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx'
+      - '.github/workflows/pass45-leveraction-derived-lever-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  derive-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact canonical source without bulk LFS
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Materialize only the pinned Stein Lever Action FBX
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx'
+          git lfs install --local
+          git lfs pull --include="$SOURCE" --exclude=''
+          test -f "$SOURCE"
+          if head -c 64 "$SOURCE" | grep -q 'git-lfs.github.com/spec'; then
+            echo 'PASS45_LEVERACTION_DERIVED_SOURCE_LFS_POINTER_UNRESOLVED'
+            exit 1
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          source = Path('OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx')
+          payload = source.read_bytes()
+          digest = hashlib.sha256(payload).hexdigest()
+          assert len(payload) == 570332, len(payload)
+          assert digest == 'b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69', digest
+          print(f'PASS45_LEVERACTION_DERIVED_PINNED_SOURCE_OK size={len(payload)} sha256={digest}')
+          PY
+
+      - name: Compile derived-source tools
+        run: python -m py_compile PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py VERIFY_PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py
+
+      - name: Install deterministic FBX inspection converter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends assimp-utils
+          assimp version
+
+      - name: Convert exact FBX to glTF2 inspection source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx'
+          GLTF='/tmp/pass45_leveraction_derived_source.gltf'
+          assimp export "$SOURCE" "$GLTF" -f gltf2
+          test -s "$GLTF"
+
+      - name: Build deterministic calibration-only lever cycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _pass45_leveraction_derived
+          python PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py \
+            --gltf /tmp/pass45_leveraction_derived_source.gltf \
+            --out-dir _pass45_leveraction_derived
+
+      - name: Verify isolated LEVER ownership and standalone cycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python VERIFY_PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py \
+            --gltf _pass45_leveraction_derived/leveraction_pass45_derived_cycle.gltf \
+            --manifest _pass45_leveraction_derived/PASS45_LEVERACTION_DERIVED_LEVER_MANIFEST.json \
+            --audit _DOCS/PASS45_LEVERACTION_SOURCE_MOTION_AUDIT_2026-09-02.json
+
+      - name: Preserve derived-source evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-leveraction-derived-lever-source-evidence
+          path: _pass45_leveraction_derived/PASS45_LEVERACTION_DERIVED_LEVER_MANIFEST.json
+          if-no-files-found: error
+          retention-days: 14
