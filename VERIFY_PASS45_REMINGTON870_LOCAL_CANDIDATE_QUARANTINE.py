@@ -18,7 +18,7 @@ ALLOWED_CANDIDATE_REFERENCES = {
     AUDIT.as_posix(),
     DOC.as_posix(),
     WORKFLOW.as_posix(),
-    SELF.as_posix(),
+    SELF,
 }
 TEXT_SUFFIXES = {
     ".py", ".md", ".json", ".yml", ".yaml", ".cmd", ".bat", ".ini",
