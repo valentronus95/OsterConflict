@@ -74,6 +74,15 @@ The following Pass44 decisions remain protected as non-regression because later 
 
 Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired.
 
+### Historical local UE build/import rejection — 2026-08-25
+
+**LOCAL UE BUILD REJECTED.** The factual local UE 5.8.1 / MSVC 14.51 run exposed two independent regressions:
+
+- tactical-map `FVector2D` reference-road data declared `constexpr` failed with compiler error `C2131`;
+- HMMWV/M2 GLB Interchange intake attempted the deprecated `auto_detect_mesh_type` editor property and was rejected by current UE 5.8.
+
+The source fixes now use a normal `const` road table and the current explicit static-mesh Interchange policy. Their status remains **CODED_UNTESTED** until a later factual local UE build/import run proves them; source CI alone is not that acceptance.
+
 ## 4. Binding reuse-first / non-regression rules
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
