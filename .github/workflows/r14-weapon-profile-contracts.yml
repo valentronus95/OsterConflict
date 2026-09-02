@@ -75,12 +75,17 @@ jobs:
           require('/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W' in animation_cpp,
                   'AK-47 canonical reload animation path changed')
 
-          # Manual-action weapons must stay fail-honest: articulation is required, the exact cycle sequence
-          # slot is required, and the slot remains empty until compatible authored content is actually committed.
-          for weapon_id in ('OC_SNP1', 'OC_SG1', 'R13_LEVER4570'):
+          # M700 and Lever Action remain fail-honest content gaps until compatible authored cycles exist.
+          for weapon_id in ('OC_SNP1', 'R13_LEVER4570'):
               expected = f'{{ FName(TEXT("{weapon_id}")), TEXT(""), TEXT(""), true, TEXT(""), true }}'
               require(expected in animation_cpp,
                       f'{weapon_id} manual-action articulated/required-empty sequence contract changed')
+
+          # Remington now has a canonical PumpCycle source path, but runtime acceptance is still a separate UE 5.8 gate.
+          require('FName(TEXT("OC_SG1"))' in animation_cpp,
+                  'Remington manual-action profile disappeared')
+          require('/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle' in animation_cpp,
+                  'Remington canonical PumpCycle path changed or disappeared')
 
           require('{ FName(TEXT("OC_LMG1")), TEXT(""), TEXT(""), true }' in animation_cpp,
                   'M249 articulated reload requirement was lost')
