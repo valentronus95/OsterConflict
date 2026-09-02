@@ -3,11 +3,11 @@
 
 Run inside UnrealEditor-Cmd. This script deliberately reuses the existing
 PASS45_REMINGTON870_UE58_IMPORT_PILOT module instead of duplicating donor
-validation/import ownership. It proves whether named weapon-side tracks and
-their sibling-relative motion survive the UE 5.8 import with non-trivial
-animation. It cannot prove that Pmag_061 is physically the pump, cannot relabel
-a reload clip as a standalone post-shot pump cycle, does not save packages, and
-does not authorize production cutover or PASS45 item-16 acceptance.
+validation/import ownership. It proves whether named weapon-side bones remain
+addressable after UE 5.8 import and whether they carry non-trivial, sibling-
+relative animation. It cannot prove that Pmag_061 is physically the pump,
+cannot relabel a reload clip as a standalone post-shot pump cycle, does not save
+packages, and does not authorize production cutover or PASS45 item-16 acceptance.
 """
 from __future__ import annotations
 
@@ -41,18 +41,32 @@ def load_base_pilot():
     return module
 
 
-def sample_bone_motion(animation, bone_name: str, play_length: float) -> tuple[bool, list[str]]:
+def bone_exists_in_animation(animation, bone_name: str) -> bool:
+    """Use UE 5.8's bone-addressability API as the authoritative imported-bone gate.
+
+    UE 5.8.1 can report imported skeletal bones as addressable and sampleable while
+    get_animation_track_names() does not expose those same bone names. The latter
+    remains diagnostic only; acceptance requires addressability plus sampled motion.
+    """
     if not hasattr(unreal, "AnimationLibrary"):
         fail("animation_library_unavailable=1")
+    return bool(
+        unreal.AnimationLibrary.does_bone_name_exist(
+            animation,
+            unreal.Name(bone_name),
+        )
+    )
 
-    animation_library = unreal.AnimationLibrary
-    unreal_name = unreal.Name(bone_name)
-    if not animation_library.does_bone_name_exist(animation, unreal_name):
+
+def sample_bone_motion(animation, bone_name: str, play_length: float) -> tuple[bool, list[str]]:
+    if not bone_exists_in_animation(animation, bone_name):
         return False, []
 
     if play_length <= 0.0:
         return False, []
 
+    animation_library = unreal.AnimationLibrary
+    unreal_name = unreal.Name(bone_name)
     poses = []
     rows: list[str] = []
     for fraction in SAMPLE_FRACTIONS:
@@ -87,17 +101,17 @@ def sample_sibling_relative_motion(
     sibling_bone: str,
     play_length: float,
 ) -> tuple[bool, list[str]]:
-    """Compare two imported sibling tracks in the same sampled pose space."""
-    animation_library = unreal.AnimationLibrary
-    body_name = unreal.Name(body_bone)
-    sibling_name = unreal.Name(sibling_bone)
-    if not animation_library.does_bone_name_exist(animation, body_name):
+    """Compare two imported sibling bones in the same sampled pose space."""
+    if not bone_exists_in_animation(animation, body_bone):
         return False, []
-    if not animation_library.does_bone_name_exist(animation, sibling_name):
+    if not bone_exists_in_animation(animation, sibling_bone):
         return False, []
     if play_length <= 0.0:
         return False, []
 
+    animation_library = unreal.AnimationLibrary
+    body_name = unreal.Name(body_bone)
+    sibling_name = unreal.Name(sibling_bone)
     relative_poses = []
     rows: list[str] = []
     for fraction in SAMPLE_FRACTIONS:
@@ -189,27 +203,29 @@ def main() -> None:
     all_bones = REQUIRED_IMPORTED_MOTION_BONES + AUDIT_ONLY_BONES
     for animation in animations:
         play_length = base.animation_play_length(animation)
-        track_names = {
+        reported_track_names = {
             str(name)
             for name in unreal.AnimationLibrary.get_animation_track_names(animation)
         }
         unreal.log(
             "PASS45_REMINGTON870_UE58_IMPORTED_MOTION_SEQUENCE "
             f"path={animation.get_path_name()} play_length={play_length:.6f} "
-            f"track_count={len(track_names)}"
+            f"reported_track_count={len(reported_track_names)}"
         )
 
         for bone_name in all_bones:
-            track_present = bone_name in track_names
+            reported_track_present = bone_name in reported_track_names
+            bone_addressable = bone_exists_in_animation(animation, bone_name)
             moved, pose_rows = sample_bone_motion(animation, bone_name, play_length)
             if bone_name in required_present:
-                required_present[bone_name] = required_present[bone_name] or track_present
+                required_present[bone_name] = required_present[bone_name] or bone_addressable
                 required_moved[bone_name] = required_moved[bone_name] or moved
 
             unreal.log(
                 "PASS45_REMINGTON870_UE58_IMPORTED_MOTION_BONE "
                 f"sequence={animation.get_path_name()} bone={bone_name} "
-                f"track_present={int(track_present)} moved={int(moved)} "
+                f"reported_track_present={int(reported_track_present)} "
+                f"bone_addressable={int(bone_addressable)} moved={int(moved)} "
                 f"samples={len(pose_rows)}"
             )
             for row in pose_rows:
@@ -218,12 +234,13 @@ def main() -> None:
                     f"sequence={animation.get_path_name()} bone={bone_name} {row}"
                 )
 
-        required_tracks_in_sequence = all(
-            bone_name in track_names for bone_name in REQUIRED_SIBLING_BONES
+        required_bones_in_sequence = all(
+            bone_exists_in_animation(animation, bone_name)
+            for bone_name in REQUIRED_SIBLING_BONES
         )
         relative_moved = False
         relative_rows: list[str] = []
-        if required_tracks_in_sequence:
+        if required_bones_in_sequence:
             relative_moved, relative_rows = sample_sibling_relative_motion(
                 animation,
                 REQUIRED_SIBLING_BONES[0],
@@ -236,7 +253,7 @@ def main() -> None:
         unreal.log(
             "PASS45_REMINGTON870_UE58_IMPORTED_MOTION_RELATIVE "
             f"sequence={animation.get_path_name()} "
-            f"tracks_present={int(required_tracks_in_sequence)} "
+            f"bones_addressable={int(required_bones_in_sequence)} "
             f"moved={int(relative_moved)} samples={len(relative_rows)}"
         )
         for row in relative_rows:
@@ -246,11 +263,11 @@ def main() -> None:
                 f"body={REQUIRED_SIBLING_BONES[0]} sibling={REQUIRED_SIBLING_BONES[1]} {row}"
             )
 
-    missing_tracks = [name for name, present in required_present.items() if not present]
-    if missing_tracks:
+    missing_bones = [name for name, present in required_present.items() if not present]
+    if missing_bones:
         fail(
-            "required_weapon_side_tracks_not_preserved=1 "
-            f"bones={','.join(sorted(missing_tracks))}"
+            "required_weapon_side_bones_not_addressable=1 "
+            f"bones={','.join(sorted(missing_bones))}"
         )
 
     static_tracks = [name for name, moved in required_moved.items() if not moved]
@@ -271,6 +288,7 @@ def main() -> None:
         "pbody_track_preserved=1 pbody_motion_preserved=1 "
         "pmag_track_preserved=1 pmag_motion_preserved=1 "
         "sibling_parent_preserved=1 relative_sibling_motion_preserved=1 "
+        "track_evidence=bone_addressability_plus_pose_motion "
         f"relative_motion_sequences={len(relative_motion_sequences)} "
         "pump_node_identity=UNPROVEN standalone_pump_clip=UNPROVEN "
         "visual_inspection_required=1 saved_packages=0 production_cutover=0 "
