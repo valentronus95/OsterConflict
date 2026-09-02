@@ -38,13 +38,13 @@ DERIVED_ANIMATION_NAME = "PASS45_Remington870_PumpCycle"
 DERIVED_SOURCE_NAME = "remington_870_pass45_derived_pump.glb"
 DERIVED_MANIFEST_NAME = "PASS45_REMINGTON870_DERIVED_PUMP_MANIFEST.json"
 
-# Exact component partition produced by PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py
-# for the pinned donor. It is topology-index based, so it remains deterministic as
-# long as the pinned source SHA and component ordering contract remain unchanged.
+# Exact component partition emitted by the successful spatial-partition evidence
+# artifact on 2026-09-02. These are connected-component IDs from the deterministic
+# (-vertex_count, first_vertex) topology ordering used by the component audit.
 LOW_Y_COMPONENTS = frozenset({
-    8, 9, 17, 21, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35,
-    43, 47, 51, 52, 53, 59, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
-    78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93,
+    8, 9, 38, 39, 40, 41, 42, 43, 44, 46, 52, 54, 55, 56, 57, 59,
+    62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 73, 74, 75, 76, 77, 78,
+    79, 80, 81, 82, 83, 84, 86, 87, 88, 89, 95, 96, 97, 98, 104, 105,
 })
 EXPECTED_COMPONENT_COUNT = 106
 EXPECTED_LOW_COMPONENT_COUNT = 48
@@ -295,6 +295,21 @@ def build_derived(data: bytes) -> tuple[bytes, dict[str, object]]:
         fail(f"Pmag joint slot not unique in target skin: {old_slots}")
     old_slot = old_slots[0]
 
+    # Cache the original skin rows once. The old implementation re-read all 4411 rows
+    # for every vertex, which was unnecessary and made the derivative audit needlessly expensive.
+    joint_sets = sorted(int(key.split("_", 1)[1]) for key in attrs if key.startswith("JOINTS_"))
+    joint_accessor_by_set: dict[int, int] = {}
+    joint_rows_by_set: dict[int, list[tuple[float, ...]]] = {}
+    weight_rows_by_set: dict[int, list[tuple[float, ...]]] = {}
+    for set_index in joint_sets:
+        joint_accessor = attrs.get(f"JOINTS_{set_index}")
+        weight_accessor = attrs.get(f"WEIGHTS_{set_index}")
+        if not isinstance(joint_accessor, int) or not isinstance(weight_accessor, int):
+            fail(f"unpaired JOINTS/WEIGHTS set {set_index}")
+        joint_accessor_by_set[set_index] = joint_accessor
+        joint_rows_by_set[set_index] = structure.raw_accessor_values(doc, bytes(binary_payload), joint_accessor)
+        weight_rows_by_set[set_index] = structure.raw_accessor_values(doc, bytes(binary_payload), weight_accessor)
+
     # Duplicate the Pmag bind transform into a sibling joint. This preserves the bind pose
     # exactly while giving the fore-end-only vertex partition an independent animation target.
     old_node = nodes[old_joint_node]
@@ -326,56 +341,37 @@ def build_derived(data: bytes) -> tuple[bytes, dict[str, object]]:
     joints.append(new_joint_node)
     skin["joints"] = joints
 
-    # Find the JOINTS/WEIGHTS set carrying the 100%-weighted Pmag geometry and rewrite
-    # only low-Y partition vertices to the new joint slot.
-    joint_sets = sorted(
-        int(key.split("_", 1)[1]) for key in attrs if key.startswith("JOINTS_")
-    )
     remapped = 0
     for vertex in low_vertices:
-        matches: list[tuple[int, int, int]] = []
+        matches: list[tuple[int, int]] = []
         for set_index in joint_sets:
-            joint_accessor = attrs.get(f"JOINTS_{set_index}")
-            weight_accessor = attrs.get(f"WEIGHTS_{set_index}")
-            if not isinstance(joint_accessor, int) or not isinstance(weight_accessor, int):
-                fail(f"unpaired JOINTS/WEIGHTS set {set_index}")
-            joint_row = structure.raw_accessor_values(doc, bytes(binary_payload), joint_accessor)[vertex]
-            weight_row = structure.raw_accessor_values(doc, bytes(binary_payload), weight_accessor)[vertex]
+            joint_row = joint_rows_by_set[set_index][vertex]
+            weight_row = weight_rows_by_set[set_index][vertex]
             for component, (joint_value, weight) in enumerate(zip(joint_row, weight_row)):
                 if int(round(joint_value)) == old_slot and float(weight) >= 0.5:
-                    matches.append((joint_accessor, component, set_index))
+                    matches.append((joint_accessor_by_set[set_index], component))
         if len(matches) != 1:
             fail(f"low-Y vertex {vertex} expected one Pmag influence, found {matches}")
-        joint_accessor, component, _set_index = matches[0]
+        joint_accessor, component = matches[0]
         write_joint_component(doc, binary_payload, joint_accessor, vertex, component, new_slot)
         remapped += 1
     if remapped != EXPECTED_LOW_VERTEX_COUNT:
         fail(f"remapped vertex count drifted: {remapped}")
 
-    # Ensure high-Y side-saddle partition remains on the original Pmag slot and was not
-    # silently pulled into the new fore-end joint.
+    # The high-Y partition must still be owned by original Pmag in the unmodified source.
+    # The derived verifier later re-reads the completed GLB and independently proves that
+    # none of these vertices leaked to PASS45_PumpForeEnd.
     high_original = 0
-    high_new = 0
     for vertex in high_vertices:
+        owners: list[int] = []
         for set_index in joint_sets:
-            joint_accessor = attrs.get(f"JOINTS_{set_index}")
-            weight_accessor = attrs.get(f"WEIGHTS_{set_index}")
-            if not isinstance(joint_accessor, int) or not isinstance(weight_accessor, int):
-                continue
-            joint_row = structure.raw_accessor_values(doc, bytes(binary_payload), joint_accessor)[vertex]
-            weight_row = structure.raw_accessor_values(doc, bytes(binary_payload), weight_accessor)[vertex]
-            for joint_value, weight in zip(joint_row, weight_row):
-                if float(weight) < 0.5:
-                    continue
-                slot = int(round(joint_value))
-                if slot == old_slot:
-                    high_original += 1
-                elif slot == new_slot:
-                    high_new += 1
-    if high_new != 0 or high_original != EXPECTED_HIGH_VERTEX_COUNT:
-        fail(
-            f"high-Y side-saddle ownership drifted original={high_original} new={high_new}"
-        )
+            for joint_value, weight in zip(joint_rows_by_set[set_index][vertex], weight_rows_by_set[set_index][vertex]):
+                if float(weight) >= 0.5:
+                    owners.append(int(round(joint_value)))
+        if owners == [old_slot]:
+            high_original += 1
+    if high_original != EXPECTED_HIGH_VERTEX_COUNT:
+        fail(f"high-Y side-saddle original ownership drifted: {high_original}")
 
     base_translation = old_node.get("translation")
     if not isinstance(base_translation, list) or len(base_translation) != 3:
