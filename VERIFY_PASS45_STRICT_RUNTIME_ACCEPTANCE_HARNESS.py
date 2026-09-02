@@ -122,6 +122,20 @@ for marker in (
 ):
     req(marker in evidence, f"Pass45 thermal/fullscreen evidence verifier missing marker/contract: {marker}")
 
+# Recovery item 16 must be part of the existing strict runtime evidence path. Source/import success alone is not
+# enough: the actual Remington gameplay action-cycle has to reach the production pump sequence. The verifier must
+# reject bridge/content/audio gaps while preserving direct visual/audio acceptance as a separate manual gate.
+for marker in (
+    "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY",
+    "weapon=OC_SG1",
+    "/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle",
+    "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=OC_SG1",
+    "PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=OC_SG1",
+    "PASS45_WEAPON_AUDIO_CONTENT_GAP weapon=OC_SG1 event=manual_action",
+    "REMINGTON870_AUTHORED_PUMP_RUNTIME_BRIDGE=PASS",
+):
+    req(marker in evidence, f"Pass45 Remington 870 pump evidence verifier missing marker/contract: {marker}")
+
 # Gate D ordnance acceptance must be factual too: authored smoke must load/activate in gameplay and every donor
 # load/content/volume failure remains fatal. Automated readiness never upgrades manual visual acceptance.
 for marker in (
@@ -198,6 +212,7 @@ print("- P0 black-world automated evidence requires physical daylight plus stabl
 print("- Gate D automated evidence requires distinct Museum/R14.0 Silpo/Culture House authoritative identities and rejects cross-parcel placement")
 print("- Gate E automated evidence requires zero generic residential/private-fence instances and zero rejected village/tower/shack presentation")
 print("- Gate C/H automated evidence requires actual UE t.MaxFPS=60 and a live fullscreen viewport after possession")
+print("- recovery item 16 automated evidence requires actual Remington 870 gameplay pump-sequence activation without authored-content/audio gap")
 print("- ordnance evidence requires factual grenade throw plus authored smoke runtime readiness and rejects smoke load/content/volume failures")
 print("- strict post-run gate validates required available weapon materials/dependencies while preserving exact CONTENT GAP truth")
 print("- driver enter/exit and M2 gunner aim/exit evidence are mandatory")
