@@ -293,7 +293,7 @@ void UOCProductionWeaponRuntimeValidationSubsystem::ValidateProductionWeapons(UW
         { TEXT("M700"), FName(TEXT("OC_SNP1")), AOCWeapon_Sniper::StaticClass(),
             TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), EExpectedWeaponMeshKind::Static },
         { TEXT("Remington 870"), FName(TEXT("OC_SG1")), AOCWeapon_Shotgun::StaticClass(),
-            TEXT("/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870"), EExpectedWeaponMeshKind::Static },
+            TEXT("/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870"), EExpectedWeaponMeshKind::Skeletal },
         { TEXT("M249"), FName(TEXT("OC_LMG1")), AOCWeapon_LMG::StaticClass(),
             TEXT("/Game/Production/Weapons/M249/SM_M249.SM_M249"), EExpectedWeaponMeshKind::Static },
         { TEXT("M14"), FName(TEXT("R13_M14")), AOCWeapon_M14::StaticClass(),
