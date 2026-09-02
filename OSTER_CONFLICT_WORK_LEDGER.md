@@ -57,6 +57,23 @@ That remains a valid rejection of the **pre-production-cutover Remington present
 
 Later source work has replaced the old static/generic Remington route with a guarded skeletal production path and authored PumpCycle. Therefore the older runtime result no longer proves the current head's visual outcome. Current-head UE 5.8 runtime evidence is still mandatory.
 
+### Pass 44 historical runtime rejection (retained fact)
+
+**Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass44 as a complete solution: spawn/result framing was wrong, the map was still perceived as excessively large/empty, weapon visuals/materials were not production-ready, production-model claims were unreliable, and FPS could collapse severely. Pass45 supersedes Pass44 as the active corrective pass; this historical rejection may not be erased by later source fixes.
+
+### Pass 44 behavior retained unless disproved
+
+The following Pass44 decisions remain protected as non-regression because later evidence did not invalidate them:
+
+- compact central-Oster hard extent: approximately 960×940 m, never restore the historical 2.4 km battlefield;
+- normal local gameplay defaults to zero implicit filler bots unless explicitly requested;
+- Museum BASE acceptance must be based on the actual live pawn, not source-only spawnpoint existence;
+- tactical-map bounds follow the compact central-Oster reference rather than legacy peripheral component auto-fit;
+- grey/BasicShape weapon material repair is forbidden; authored material gaps remain fail-visible;
+- the retired Pass37 weapon palette compatibility owner stays physically deleted, not preserved as an inert shell.
+
+Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired.
+
 ## 4. Binding reuse-first / non-regression rules
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
