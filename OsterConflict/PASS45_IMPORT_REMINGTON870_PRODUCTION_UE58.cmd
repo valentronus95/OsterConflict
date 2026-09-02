@@ -13,7 +13,7 @@ set "IMPORT_SENTINEL=%CACHE%\remington870_import_success.txt"
 set "FRESH_SENTINEL=%CACHE%\remington870_fresh_load_success.txt"
 set "IMPORT_LOG=%PROJECT_DIR%Saved\Logs\Pass45Remington870ProductionImport.log"
 set "FRESH_LOG=%PROJECT_DIR%Saved\Logs\Pass45Remington870ProductionFreshLoad.log"
-set "REVISION=PASS45_REMINGTON870_DERIVED_PUMP_PROD_R1"
+set "REVISION=PASS45_REMINGTON870_DERIVED_PUMP_PROD_R2"
 set "UE_CMD="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" set "UE_CMD=%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -68,7 +68,7 @@ if not "!PILOT_RC!"=="0" (
 )
 
 echo.
-echo [2/3] Production import: rigid base + skeletal pump assembly...
+echo [2/3] Production import: повний Remington як один skeletal weapon...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%IMPORT_LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
@@ -83,6 +83,7 @@ if not exist "%IMPORT_SENTINEL%" (
 )
 findstr /L /C:"IMPORT_CONTRACT_REVISION=%REVISION%" "%IMPORT_SENTINEL%" >nul || goto :bad_import
 findstr /L /C:"PRODUCTION_SOURCE_READY=1" "%IMPORT_SENTINEL%" >nul || goto :bad_import
+findstr /L /C:"FULL_WEAPON_FORCED_TO_SINGLE_SKELETAL=1" "%IMPORT_SENTINEL%" >nul || goto :bad_import
 findstr /L /C:"PUMP_MOTION_PRESERVED=1" "%IMPORT_SENTINEL%" >nul || goto :bad_import
 findstr /L /C:"SHARED_SKELETON_PRESERVED=1" "%IMPORT_SENTINEL%" >nul || goto :bad_import
 findstr /L /C:"runtime_acceptance=0" "%IMPORT_SENTINEL%" >nul || goto :bad_import
@@ -104,6 +105,7 @@ if not exist "%FRESH_SENTINEL%" (
 )
 findstr /L /C:"IMPORT_CONTRACT_REVISION=%REVISION%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 findstr /L /C:"PRODUCTION_FRESH_LOAD_READY=1" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+findstr /L /C:"FULL_WEAPON_SINGLE_SKELETAL=1" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 findstr /L /C:"PUMP_BONE_ADDRESSABLE=1" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 findstr /L /C:"PUMP_MOTION_PRESERVED=1" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 findstr /L /C:"SHARED_SKELETON_PRESERVED=1" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
@@ -111,7 +113,7 @@ findstr /L /C:"runtime_acceptance=0" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 findstr /L /C:"item16_checked=0" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 
 echo.
-echo PASS: Remington 870 production pump assets imported and fresh-load verified in UE 5.8.
+echo PASS: Remington 870 production skeletal weapon and PumpCycle fresh-load verified in UE 5.8.
 echo STATUS: PRODUCTION SOURCE READY. Gameplay pump visibility/audio acceptance still pending.
 echo Import log: %IMPORT_LOG%
 echo Fresh log:  %FRESH_LOG%
