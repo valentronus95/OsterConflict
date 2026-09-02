@@ -68,7 +68,24 @@ Source inspection matches the runtime symptom:
 
 The previous black-window history remains retained evidence, but it is no longer the immediate startup blocker on the latest user run.
 
-## 4. Binding non-regression and reuse-first rules
+## 4. Pass 44 historical runtime rejection (retained fact)
+
+**Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass44 as a complete solution: spawn/result framing was wrong, the map was still perceived as excessively large/empty, weapon visuals/materials were not production-ready, production-model claims were unreliable, and FPS could collapse severely. Pass45 supersedes Pass44 as the active corrective pass; this historical rejection may not be erased by later source fixes.
+
+### Pass 44 behavior retained unless disproved
+
+The following Pass44 decisions remain protected as non-regression because later evidence did not invalidate them:
+
+- compact central-Oster hard extent: approximately 960×940 m, never restore the historical 2.4 km battlefield;
+- normal local gameplay defaults to zero implicit filler bots unless explicitly requested;
+- Museum BASE acceptance must be based on the actual live pawn, not source-only spawnpoint existence;
+- tactical-map bounds follow the compact central-Oster reference rather than legacy peripheral component auto-fit;
+- grey/BasicShape weapon material repair is forbidden; authored material gaps remain fail-visible;
+- the retired Pass37 weapon palette compatibility owner stays physically deleted, not preserved as an inert shell.
+
+Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired. These retained historical rules do not override the newer 2026-09-02 gameplay evidence above.
+
+## 5. Binding non-regression and reuse-first rules
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
 
@@ -84,9 +101,7 @@ Protected rules include:
 - user runtime/screenshots outrank source-only READY claims;
 - direct gameplay acceptance requires factual UE evidence.
 
-Historical Pass44 non-regressions still retained unless newer factual runtime disproves them, including compact central-Oster extent, no implicit filler bots, production-material fail-visible behavior and retired stale-owner non-resurrection.
-
-## 5. Item 16 current state
+## 6. Item 16 current state
 
 Item 16 requires authored moving-part/manual-action presentation and factual mechanical audio for M700, Remington 870 and Lever Action plus local UE 5.8 acceptance.
 
@@ -99,7 +114,7 @@ Current state:
 - Repository-owned bolt/lever mechanical source audio remains separate from visual acceptance and does not close missing animation.
 - Item 16 stays **UNCHECKED**.
 
-## 6. Registered Remington donor
+## 7. Registered Remington donor
 
 Primary donor remains:
 
@@ -115,7 +130,7 @@ Exact registered-donor UE 5.8 imported-motion evidence previously passed. It pro
 
 The separate local `Remington_870_FREE.glb` remains quarantined as an unregistered candidate and is not the production route while the primary donor remains viable.
 
-## 7. Remington Pmag topology and derived fore-end
+## 8. Remington Pmag topology and derived fore-end
 
 Direct `Pmag_061 = pump` mapping is rejected because source topology proved `Pmag_061 / Object_95` is composite:
 
@@ -141,7 +156,7 @@ Deterministic spatial/topology partition of the registered primary donor now iso
 
 The derived source verifier is PASS.
 
-## 8. Derived pump UE 5.8 engine gate
+## 9. Derived pump UE 5.8 engine gate
 
 `PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py` is the current isolated engine gate. It rebuilds the exact derivative, imports it without saving packages and requires UE 5.8 to prove:
 
@@ -155,7 +170,7 @@ Static/source contract CI is green. **Actual local UE 5.8 execution of the curre
 
 Do not claim engine acceptance from its Linux/static CI.
 
-## 9. Imported assembly audit
+## 10. Imported assembly audit
 
 The donor contains multiple mesh/skin parts, so selecting the first pump-bearing SkeletalMesh without inventory could yield an animated part instead of a complete shotgun visual.
 
@@ -181,16 +196,16 @@ It does **not** save Content packages and always leaves:
 
 `production_visual_completeness=UNPROVEN / production_cutover=0 / runtime_acceptance=0 / item16_checked=0`.
 
-Exact source-contract CI:
+Exact source-contract CI for the implementation head:
 
 - head `b3467b5e82377670cc06b186c2687114df3e89a8`;
 - workflow `Pass 45 Remington 870 derived pump UE58 assembly audit`;
 - run `33652982669`;
 - result **SUCCESS**.
 
-The actual assembly classification still needs the local UE 5.8 run.
+The same audit contract also passed on the later documentation head before this historical-marker correction. The actual assembly classification still needs the local UE 5.8 run.
 
-## 10. Why production cutover is still blocked
+## 11. Why production cutover is still blocked
 
 Current gameplay production wiring is intentionally unchanged:
 
@@ -201,7 +216,7 @@ Current gameplay production wiring is intentionally unchanged:
 
 This is deliberate fail-closed behavior. Production wiring is only legal after the current derived engine proof identifies the imported assembly shape and proves the pump sequence on the compatible skeleton.
 
-## 11. Next factual operation
+## 12. Next factual operation
 
 Run exactly one isolated local engine audit:
 
@@ -216,7 +231,7 @@ The result determines the next implementation branch:
 
 After production wiring, a fresh local gameplay test must visibly prove post-shot pump travel and mechanical audio timing. Only then may the Remington slice be accepted. M700/Lever gaps still remain within item 16.
 
-## 12. Protected merge/accounting state
+## 13. Protected merge/accounting state
 
 - PR #94: **OPEN / UNMERGED**.
 - Do not merge without current-head UE 5.8 runtime acceptance.
