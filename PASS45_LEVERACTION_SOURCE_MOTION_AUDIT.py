@@ -4,7 +4,8 @@
 The audit proves only what the pinned source actually contains. It does not close
 PASS45 item 16, does not invent a lever pivot/range, and does not claim UE runtime
 acceptance. GitHub Actions materializes only the exact LFS payload and converts it
-to inspection-only glTF2 with Assimp.
+to inspection-only glTF2 with Assimp. Mechanical name matches are discovery hints,
+not acceptance evidence unless source hierarchy/skin/animation facts support them.
 """
 from __future__ import annotations
 
