@@ -138,9 +138,9 @@ for needle in (
 ):
     req(needle in manifest, f"Remington manifest no longer matches isolated import-pilot assumptions: {needle}")
 
-# Reuse-first: the pilot must feed the existing authored UAnimSequence bridge, not create a second gameplay/action owner.
+# Reuse-first: the original donor pilot remains isolated, while gameplay now points only at the audited derived PumpCycle.
 for needle in (
-    'FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true, TEXT(""), true',
+    '/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle',
     'LoadObject<UAnimSequence>',
     'PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay)',
     'IsActionCycling()',
@@ -159,5 +159,6 @@ if errors:
 print(
     "PASS45 REMINGTON870 UE58 IMPORT PILOT: PASS "
     "static_contract=1 donor_action_set_pinned=1 shared_skeleton_gate=1 local_launcher_guarded=1 "
-    "ue58_removed_async_property_guard=1 ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
+    "ue58_removed_async_property_guard=1 original_donor_pilot_isolated=1 derived_production_bridge_declared=1 "
+    "runtime_acceptance=0 item16_checked=0"
 )
