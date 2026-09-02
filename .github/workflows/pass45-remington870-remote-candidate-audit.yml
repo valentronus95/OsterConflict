@@ -6,12 +6,14 @@ on:
       - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
       - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
       - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
+      - 'VERIFY_PASS45_REMINGTON870_TRANSPORT_CONSUMER_CONTRACT.py'
       - '.github/workflows/pass45-remington870-remote-candidate-audit.yml'
   pull_request:
     paths:
       - '_DOCS/PASS45_REMINGTON870_SOURCE_INTAKE.md'
       - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
       - 'VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py'
+      - 'VERIFY_PASS45_REMINGTON870_TRANSPORT_CONSUMER_CONTRACT.py'
       - '.github/workflows/pass45-remington870-remote-candidate-audit.yml'
 
 permissions:
@@ -23,6 +25,9 @@ jobs:
     steps:
       - name: Checkout exact Oster head
         uses: actions/checkout@v4
+
+      - name: Verify pinned transport-consumer source contract
+        run: python VERIFY_PASS45_REMINGTON870_TRANSPORT_CONSUMER_CONTRACT.py
 
       - name: Download and inspect exact pinned remote GLB
         id: audit
