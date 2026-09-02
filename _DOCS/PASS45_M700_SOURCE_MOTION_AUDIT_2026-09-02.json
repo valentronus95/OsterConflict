@@ -1,5 +1,5 @@
 {
-  "schema": 2,
+  "schema": 3,
   "status": "SOURCE_STRUCTURE_MOTION_EVIDENCE_ONLY",
   "source": "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx",
   "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
@@ -101,6 +101,11 @@
           -0.03047895058989525,
           1.0
         ],
+        "translation": [
+          -8.273194544017315e-05,
+          -0.14141424000263214,
+          -0.03047895058989525
+        ],
         "uses_matrix": true
       }
     },
@@ -129,27 +134,89 @@
           -0.029946349561214447,
           1.0
         ],
+        "translation": [
+          -0.013989332132041454,
+          -0.09963860362768173,
+          -0.029946349561214447
+        ],
         "uses_matrix": true
       }
     }
   ],
   "source_authored_stop_delta": {
-    "usable_as_sibling_local_translation_delta": false,
-    "reason": "MATRIX_TRANSFORM_REQUIRES_WORLD_DECOMPOSITION",
-    "shared_parent": "ANCHOR"
+    "usable_as_sibling_local_translation_delta": true,
+    "reason": "SOURCE_SIBLING_MARKER_DELTA",
+    "shared_parent": "ANCHOR",
+    "bolt_translation": [
+      -8.273194544017315e-05,
+      -0.14141424000263214,
+      -0.03047895058989525
+    ],
+    "bolt_stop_translation": [
+      -0.013989332132041454,
+      -0.09963860362768173,
+      -0.029946349561214447
+    ],
+    "delta": [
+      -0.013906600186601281,
+      0.04177563637495041,
+      0.0005326010286808014
+    ],
+    "magnitude": 0.04403272631961153
   },
+  "bolt_skin_influence": {
+    "BOLT": {
+      "weighted_vertex_count": 1317,
+      "total_weight": 1317.0,
+      "bounds_min": [
+        -0.04177349805831909,
+        -0.2061440795660019,
+        -0.015349957160651684
+      ],
+      "bounds_max": [
+        0.009835673496127129,
+        -0.010375850833952427,
+        0.03859996795654297
+      ]
+    },
+    "BOLT_STOP": {
+      "weighted_vertex_count": 60,
+      "total_weight": 60.0,
+      "bounds_min": [
+        0.013639390468597412,
+        -0.10017985105514526,
+        0.02646854892373085
+      ],
+      "bounds_max": [
+        0.01634027063846588,
+        -0.044474367052316666,
+        0.03340078890323639
+      ]
+    }
+  },
+  "bolt_endpoint_classification": "BOLT_AND_BOLT_STOP_BOTH_WEIGHT_GEOMETRY_REVIEW_REQUIRED",
   "skinned_nodes": [
     {
       "node_index": 20,
       "node_name": "FRAME_LOD0.001",
       "skin_index": 0,
-      "mesh_index": 0
+      "mesh_index": 0,
+      "mesh_name": "FRAME_LOD0.465",
+      "target_joint_slots": {
+        "BOLT": 7,
+        "BOLT_STOP": 8
+      }
     },
     {
       "node_index": 21,
       "node_name": "FRAME_LOD0",
       "skin_index": 0,
-      "mesh_index": 1
+      "mesh_index": 1,
+      "mesh_name": "FRAME_LOD0.464",
+      "target_joint_slots": {
+        "BOLT": 7,
+        "BOLT_STOP": 8
+      }
     }
   ],
   "animated_node_names": [],
