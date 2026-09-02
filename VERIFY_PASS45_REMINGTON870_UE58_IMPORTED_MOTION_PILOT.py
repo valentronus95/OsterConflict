@@ -33,26 +33,42 @@ for needle in (
     'AUDIT_ONLY_BONES = ("Rif_059", "Trigger_060")',
     'base.main()',
     'base.imported_objects_from_destination()',
+    'def bone_exists_in_animation(animation, bone_name: str) -> bool:',
     'unreal.AnimationLibrary.get_animation_track_names(animation)',
-    'animation_library.does_bone_name_exist(animation, unreal_name)',
+    'unreal.AnimationLibrary.does_bone_name_exist(',
+    'bone_addressable = bone_exists_in_animation(animation, bone_name)',
+    'reported_track_present = bone_name in reported_track_names',
     'animation_library.get_bone_pose_for_time(',
     'first.is_near_equal(',
     'getattr(mesh, "get_bone_parent", None)',
     'body_parent == sibling_parent',
     'relative_pose = sibling_pose.make_relative(body_pose)',
+    'required_bones_in_sequence = all(',
+    'bone_exists_in_animation(animation, bone_name)',
     'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_HIERARCHY',
     'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_RELATIVE',
     'required_sibling_parent_not_preserved=1',
     'required_sibling_relative_motion_not_preserved=1',
-    'required_weapon_side_tracks_not_preserved=1',
+    'required_weapon_side_bones_not_addressable=1',
     'required_weapon_side_motion_not_preserved=1',
     'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT_PASS',
     'sibling_parent_preserved=1 relative_sibling_motion_preserved=1',
+    'track_evidence=bone_addressability_plus_pose_motion',
     'pump_node_identity=UNPROVEN standalone_pump_clip=UNPROVEN',
     'visual_inspection_required=1 saved_packages=0 production_cutover=0',
     'runtime_acceptance=0 item16_checked=0',
 ):
     req(needle in motion, f"imported-motion fail-closed contract missing: {needle}")
+
+# UE 5.8.1 demonstrated that get_animation_track_names() can omit exact imported
+# bone names even while does_bone_name_exist() and pose sampling can address them.
+# Keep track enumeration diagnostic-only and reject a regression to it as authority.
+for forbidden in (
+    'required_tracks_in_sequence = all(',
+    'required_present[bone_name] = required_present[bone_name] or track_present',
+    'required_weapon_side_tracks_not_preserved=1',
+):
+    req(forbidden not in motion, f"UE58 track-enumeration false-negative path returned: {forbidden}")
 
 # Reuse-first: the motion proof must consume the existing import pilot rather than
 # creating a parallel donor-validation/import owner.
@@ -137,7 +153,8 @@ if errors:
 
 print(
     "PASS45 REMINGTON870 UE58 IMPORTED MOTION PILOT: PASS "
-    "reuse_existing_import_pilot=1 named_track_gate=1 imported_pose_motion_gate=1 "
+    "reuse_existing_import_pilot=1 named_track_gate=1 ue58_bone_addressability_gate=1 "
+    "ue58_track_enumeration_not_authoritative=1 imported_pose_motion_gate=1 "
     "imported_sibling_parent_gate=1 imported_relative_motion_gate=1 "
     "local_launcher_guarded=1 current_head_preflight=1 exact_donor_sha256=1 local_changes_untouched=1 "
     "pump_identity_unproven=1 visual_inspection_required=1 ue58_execution_pending=1 "
