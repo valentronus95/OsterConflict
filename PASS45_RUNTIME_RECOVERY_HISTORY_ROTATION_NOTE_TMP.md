@@ -1,1 +1,0 @@
-temporary rotation guard
