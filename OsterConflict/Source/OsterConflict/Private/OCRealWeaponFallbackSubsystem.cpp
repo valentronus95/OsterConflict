@@ -71,8 +71,10 @@ namespace
             if (!IsRejectedPrimitiveMesh(Component)) continue;
 
             const bool bWasRendered = Component->IsVisible();
-            Component->SetVisibility(false, true);
-            Component->SetHiddenInGame(true, true);
+            // Retire only the rejected BasicShape component. Propagating this state to children can hide a
+            // valid authored weapon presentation that is attached below the source-only physics/visual root.
+            Component->SetVisibility(false, false);
+            Component->SetHiddenInGame(true, false);
             Component->SetCastShadow(false);
             Component->SetCanEverAffectNavigation(false);
             if (bWasRendered) ++HiddenCount;
@@ -384,8 +386,10 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     for (UStaticMeshComponent* Existing : StaticComponents)
     {
         if (!IsValid(Existing) || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
-        Existing->SetVisibility(false, true);
-        Existing->SetHiddenInGame(true, true);
+        // Suppress only the legacy/source component itself. A production/recovered presentation may be attached
+        // beneath it and must retain independent inventory/first-person visibility authority.
+        Existing->SetVisibility(false, false);
+        Existing->SetHiddenInGame(true, false);
         Existing->SetCastShadow(false);
         Existing->SetCanEverAffectNavigation(false);
         // The BasicShape root remains invisible collision/physics authority for pickup/drop. Do not disable it.
