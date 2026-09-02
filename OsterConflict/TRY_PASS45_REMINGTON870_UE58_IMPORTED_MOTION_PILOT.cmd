@@ -3,10 +3,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
 set "PROJECT_DIR=%~dp0"
-set "REPO_ROOT=%PROJECT_DIR%..\"
+for %%R in ("%PROJECT_DIR%..") do set "REPO_ROOT=%%~fR"
 set "COMMANDLET_UPROJECT=%PROJECT_DIR%OsterConflictPass45Commandlet.uproject"
-set "SCRIPT=%REPO_ROOT%PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py"
-set "SOURCE=%REPO_ROOT%SOURCE_ASSETS\PASS45\Remington870\remington_870_8siandude_ccby4.glb"
+set "SCRIPT=%REPO_ROOT%\PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py"
+set "SOURCE=%REPO_ROOT%\SOURCE_ASSETS\PASS45\Remington870\remington_870_8siandude_ccby4.glb"
 set "LOG=%PROJECT_DIR%Saved\Logs\Pass45Remington870UE58ImportedMotionPilot.log"
 set "CANONICAL_BRANCH=fix/pass45-runtime-rejection-material-closure-20260826"
 set "EXPECTED_SOURCE_SIZE=20621580"
