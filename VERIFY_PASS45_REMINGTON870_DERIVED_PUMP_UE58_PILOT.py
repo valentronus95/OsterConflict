@@ -26,6 +26,7 @@ pilot = read("PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py")
 derived = read("PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py")
 derived_verify = read("VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py")
 launcher = read("OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.cmd")
+production_wrapper = read("OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd")
 uproject = read("OsterConflict/OsterConflict.uproject")
 profiles = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp")
 presentation = read("OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp")
@@ -131,11 +132,20 @@ for forbidden in (
 ):
     req(forbidden not in launcher, f"derived UE58 launcher regained forbidden mutation/runtime host: {forbidden}")
 
-# Until this isolated engine proof passes locally, the gameplay bridge must stay fail-closed.
+# Production source wiring is allowed only behind the wrapper that executes this isolated pilot first.
 req(
-    'FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true, TEXT(""), true' in profiles,
-    "Remington gameplay profile was cut over before derived UE58 isolated acceptance",
+    '/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle' in profiles,
+    "Remington gameplay profile is not wired to the audited derived PumpCycle",
 )
+for needle in (
+    'call "%PILOT%"',
+    'if not "!PILOT_RC!"=="0"',
+    'Production import заборонено',
+    'runtime acceptance',
+):
+    req(needle.lower() in production_wrapper.lower(),
+        f"production wrapper no longer gates cutover behind isolated pilot: {needle}")
+
 for needle in (
     'LoadObject<UAnimSequence>',
     'PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay)',
@@ -155,5 +165,5 @@ print(
     "PASS45 REMINGTON870 DERIVED PUMP UE58 PILOT: PASS "
     "static_contract=1 exact_donor_derivative=1 fore_end_partition=1170 side_saddle_partition=3241 "
     "bone_addressability_gate=1 sampled_motion_gate=1 shared_skeleton_gate=1 standalone_sequence_gate=1 "
-    "ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
+    "production_wrapper_pilot_first=1 runtime_acceptance=0 item16_checked=0"
 )
