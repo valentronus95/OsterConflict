@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import struct
 import urllib.request
 from pathlib import Path
@@ -20,6 +21,12 @@ PATH = "models/weapons/shotgun.glb"
 RAW_URL = f"https://raw.githubusercontent.com/{REPO}/{COMMIT}/{PATH}"
 EXPECTED_GIT_BLOB_SHA1 = "f822d184d96ede43d79a6f691d69cbe7cf60e686"
 EXPECTED_SIZE = 20621580
+
+CONSUMER_PATH = "src.html"
+CONSUMER_RAW_URL = f"https://raw.githubusercontent.com/{REPO}/{COMMIT}/{CONSUMER_PATH}"
+EXPECTED_CONSUMER_GIT_BLOB_SHA1 = "18400e77c5b54b44e38dfd5cfd37a70efd19d43b"
+EXPECTED_CONSUMER_SIZE = 125420
+
 UPSTREAM_MODEL_ID = "eea11de7e9d24b6683962b8388c319eb"
 UPSTREAM_CREATOR = "8sianDude"
 LICENSE_ID = "CC-BY-4.0"
@@ -34,15 +41,19 @@ def git_blob_sha1(data: bytes) -> str:
     return hashlib.sha1(header + data).hexdigest()
 
 
-def fetch_bytes() -> bytes:
+def fetch_url(url: str) -> bytes:
     request = urllib.request.Request(
-        RAW_URL,
+        url,
         headers={"User-Agent": "OsterConflict-PASS45-Remington870-Audit/1"},
     )
     with urllib.request.urlopen(request, timeout=90) as response:
         if getattr(response, "status", 200) != 200:
-            fail(f"remote HTTP status is {getattr(response, 'status', 'unknown')}")
+            fail(f"remote HTTP status is {getattr(response, 'status', 'unknown')} for {url}")
         return response.read()
+
+
+def fetch_bytes() -> bytes:
+    return fetch_url(RAW_URL)
 
 
 def verify_pinned_bytes(data: bytes) -> dict[str, str | int]:
@@ -55,6 +66,22 @@ def verify_pinned_bytes(data: bytes) -> dict[str, str | int]:
         "size": len(data),
         "git_blob_sha1": actual_git_sha,
         "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def verify_pinned_consumer_bytes(data: bytes) -> dict[str, str | int]:
+    if len(data) != EXPECTED_CONSUMER_SIZE:
+        fail(f"consumer size drift: expected {EXPECTED_CONSUMER_SIZE}, got {len(data)}")
+    actual_git_sha = git_blob_sha1(data)
+    if actual_git_sha != EXPECTED_CONSUMER_GIT_BLOB_SHA1:
+        fail(
+            "consumer Git blob identity drift: "
+            f"expected {EXPECTED_CONSUMER_GIT_BLOB_SHA1}, got {actual_git_sha}"
+        )
+    return {
+        "consumer_size": len(data),
+        "consumer_git_blob_sha1": actual_git_sha,
+        "consumer_sha256": hashlib.sha256(data).hexdigest(),
     }
 
 
@@ -130,6 +157,87 @@ def require_skin(doc: dict) -> None:
         fail("candidate has no glTF skin; direct current skeletal/manual-action bridge compatibility is unproven")
 
 
+def between(text: str, start_marker: str, end_marker: str) -> str:
+    start = text.find(start_marker)
+    if start < 0:
+        fail(f"consumer source lost required marker: {start_marker}")
+    end = text.find(end_marker, start + len(start_marker))
+    if end < 0:
+        fail(f"consumer source lost required end marker: {end_marker}")
+    return text[start:end]
+
+
+def require_consumer_contract(data: bytes) -> dict[str, object]:
+    identity = verify_pinned_consumer_bytes(data)
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        fail(f"consumer source is not UTF-8: {exc}")
+
+    for needle in (
+        'weaponDefs = ["rifle", "pistol", "sniper", "assault", "uzi", "shotgun", "rocket", "railgun"];',
+        'gunsAnimations[i] = gun.animations;',
+        'mixers[i] = new THREE.AnimationMixer(gun.scene);',
+        '"shotgun": "Remington 870"',
+    ):
+        if needle not in text:
+            fail(f"consumer contract drifted; missing: {needle}")
+
+    reload_section = between(text, "function reload() {", "function blowUpWarthog")
+    fire_section = between(text, "function fire(", "let hasSwitchedFirst")
+
+    fire_expr = "gunsAnimations[weaponDefs.indexOf(currentWeapon)][2]"
+    easy_reload_expr = "gunsAnimations[weaponDefs.indexOf(currentWeapon)][3]"
+    full_reload_expr = "gunsAnimations[weaponDefs.indexOf(currentWeapon)][4]"
+
+    if fire_expr not in fire_section:
+        fail("consumer fire() no longer invokes donor animation index 2")
+    if easy_reload_expr not in reload_section:
+        fail("consumer reload() no longer invokes donor animation index 3 for ordinary/easy reload")
+    if full_reload_expr not in reload_section:
+        fail("consumer reload() no longer invokes donor animation index 4 for full/empty reload")
+    if easy_reload_expr in fire_section or full_reload_expr in fire_section:
+        fail("consumer fire() unexpectedly invokes a reload clip")
+    if fire_expr in reload_section:
+        fail("consumer reload() unexpectedly invokes the fire clip")
+
+    shotgun_trigger = re.search(
+        r'else if \(currentWeapon == "shotgun"\) \{\s*fire\(1,\s*36\);\s*\}',
+        text,
+    )
+    if shotgun_trigger is None:
+        fail("shotgun trigger no longer routes through the shared fire() consumer path")
+
+    if re.search(r"\bpump\b", text, flags=re.IGNORECASE):
+        fail("pinned consumer unexpectedly gained an explicit pump-named invocation/path; re-audit semantics")
+
+    dynamic_indices = {
+        int(match)
+        for match in re.findall(
+            r"gunsAnimations\[weaponDefs\.indexOf\(currentWeapon\)\]\[(\d+)\]",
+            text,
+        )
+    }
+    if not {0, 1, 2, 3, 4}.issubset(dynamic_indices):
+        fail(f"consumer dynamic animation index set drifted: {sorted(dynamic_indices)}")
+    if any(index > 4 for index in dynamic_indices):
+        fail(f"consumer invokes an animation index outside the five-clip donor contract: {sorted(dynamic_indices)}")
+
+    return {
+        **identity,
+        "consumer_fire_clip_index": 2,
+        "consumer_easy_reload_clip_index": 3,
+        "consumer_full_reload_clip_index": 4,
+        "shotgun_fire_routes_shared_fire": 1,
+        "separate_consumer_pump_invocation": 0,
+        "fire_clip_internal_pump_phase": "UNPROVEN",
+        "pump_node_identity": "UNPROVEN",
+        "ue58_import_pending": 1,
+        "runtime_acceptance": 0,
+        "item16_checked": 0,
+    }
+
+
 def write_github_outputs(values: dict[str, object]) -> None:
     output_path = os.environ.get("GITHUB_OUTPUT")
     if not output_path:
@@ -151,6 +259,8 @@ def main() -> None:
 
     audit = sub.add_parser("audit")
     audit.add_argument("--output", default="remington870_remote_candidate.glb")
+
+    sub.add_parser("audit-consumer-contract")
 
     animation = sub.add_parser("require-animation-contract")
     animation.add_argument("input")
@@ -178,6 +288,14 @@ def main() -> None:
         }
         write_github_outputs(summary)
         print("PASS45 REMINGTON870 REMOTE CANDIDATE AUDIT: INSPECTED")
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return
+
+    if args.command == "audit-consumer-contract":
+        consumer = fetch_url(CONSUMER_RAW_URL)
+        summary = require_consumer_contract(consumer)
+        write_github_outputs(summary)
+        print("PASS45 REMINGTON870 TRANSPORT CONSUMER CONTRACT: PASS")
         print(json.dumps(summary, indent=2, sort_keys=True))
         return
 
