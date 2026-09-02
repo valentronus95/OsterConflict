@@ -29,6 +29,8 @@ audit = read("PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py")
 pilot = read("PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py")
 launcher = read("OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd")
 profiles = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp")
+start_here = read("START_HERE.cmd")
+production_wrapper = read("OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd")
 
 for needle in (
     'BASE_PILOT = "PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py"',
@@ -96,11 +98,18 @@ for forbidden in (
 ):
     req(forbidden not in launcher, f"assembly-audit launcher regained forbidden mutation/runtime host: {forbidden}")
 
-# No gameplay cutover until the engine tells us whether this is one visual or an assembly.
-req(
-    'FName(TEXT("OC_SG1")), TEXT(""), TEXT(""), true, TEXT(""), true' in profiles,
-    "Remington gameplay profile was cut over before imported assembly classification",
-)
+# The source profile may now point at the canonical PumpCycle because the normal strict route is fail-closed:
+# START_HERE runs the isolated pilot first, then production import/fresh-load, and only then allows gameplay.
+# This static wiring is not runtime acceptance and item 16 remains open until the local UE 5.8 route proves it.
+pump_object = "/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle"
+req(pump_object in profiles,
+    "Remington gameplay profile is not wired to the canonical gated PumpCycle")
+req('PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd' in start_here,
+    "START_HERE strict route no longer owns Remington production intake")
+req('call "%PILOT%"' in production_wrapper,
+    "Remington production wrapper no longer requires isolated UE 5.8 pilot before import")
+req('Production import заборонено' in production_wrapper,
+    "Remington production wrapper no longer fails closed when isolated pilot fails")
 
 if errors:
     print("PASS45 REMINGTON870 DERIVED PUMP UE58 ASSEMBLY AUDIT: FAIL")
@@ -111,6 +120,6 @@ if errors:
 print(
     "PASS45 REMINGTON870 DERIVED PUMP UE58 ASSEMBLY AUDIT: PASS "
     "static_contract=1 base_pilot_reused=1 assembly_inventory=1 shared_skeleton_inventory=1 "
-    "ue58_execution_pending=1 production_visual_completeness=UNPROVEN production_cutover=0 "
+    "gated_profile_wiring=1 ue58_execution_pending=1 production_visual_completeness=UNPROVEN "
     "runtime_acceptance=0 item16_checked=0"
 )
