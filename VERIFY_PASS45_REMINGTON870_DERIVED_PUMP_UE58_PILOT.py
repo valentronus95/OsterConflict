@@ -27,6 +27,7 @@ derived = read("PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py")
 derived_verify = read("VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py")
 launcher = read("OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.cmd")
 production_wrapper = read("OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd")
+production_import = read("PASS45_REMINGTON870_PRODUCTION_UE58_IMPORT.py")
 uproject = read("OsterConflict/OsterConflict.uproject")
 profiles = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp")
 presentation = read("OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp")
@@ -141,10 +142,13 @@ for needle in (
     'call "%PILOT%"',
     'if not "!PILOT_RC!"=="0"',
     'Production import заборонено',
-    'runtime acceptance',
 ):
     req(needle.lower() in production_wrapper.lower(),
         f"production wrapper no longer gates cutover behind isolated pilot: {needle}")
+req(
+    'runtime_acceptance=0 item16_checked=0' in production_import,
+    "production import no longer keeps runtime/item16 acceptance explicitly pending",
+)
 
 for needle in (
     'LoadObject<UAnimSequence>',
