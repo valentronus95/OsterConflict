@@ -4,12 +4,17 @@
 This audit does not create a production asset and cannot close PASS45 item 16.
 GitHub Actions materializes only the exact M700 LFS payload, Assimp converts it to
 an inspection-only glTF, and this script records what the source actually contains.
+
+Schema 2 additionally records the exact BOLT/BOLT_STOP hierarchy and local bind
+transforms. If both marker joints are siblings, their source-authored local delta
+is emitted as a derivative-candidate stroke vector rather than inventing motion.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 
 EXPECTED_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
@@ -27,6 +32,50 @@ def fail(message: str) -> None:
 def clean_name(value: object, fallback: str) -> str:
     text = str(value or "").strip()
     return text or fallback
+
+
+def vec3(value: object, default: tuple[float, float, float]) -> list[float]:
+    if not isinstance(value, list) or len(value) != 3:
+        return [float(v) for v in default]
+    try:
+        result = [float(v) for v in value]
+    except (TypeError, ValueError):
+        fail(f"invalid VEC3 transform payload: {value!r}")
+    if not all(math.isfinite(v) for v in result):
+        fail(f"non-finite VEC3 transform payload: {value!r}")
+    return result
+
+
+def quat4(value: object) -> list[float]:
+    if not isinstance(value, list) or len(value) != 4:
+        return [0.0, 0.0, 0.0, 1.0]
+    try:
+        result = [float(v) for v in value]
+    except (TypeError, ValueError):
+        fail(f"invalid quaternion transform payload: {value!r}")
+    if not all(math.isfinite(v) for v in result):
+        fail(f"non-finite quaternion transform payload: {value!r}")
+    return result
+
+
+def node_local_transform(node: dict[str, object]) -> dict[str, object]:
+    matrix = node.get("matrix")
+    if isinstance(matrix, list):
+        if len(matrix) != 16:
+            fail(f"invalid node matrix length: {len(matrix)}")
+        try:
+            values = [float(v) for v in matrix]
+        except (TypeError, ValueError):
+            fail(f"invalid node matrix payload: {matrix!r}")
+        if not all(math.isfinite(v) for v in values):
+            fail("non-finite node matrix payload")
+        return {"matrix": values, "uses_matrix": True}
+    return {
+        "translation": vec3(node.get("translation"), (0.0, 0.0, 0.0)),
+        "rotation": quat4(node.get("rotation")),
+        "scale": vec3(node.get("scale"), (1.0, 1.0, 1.0)),
+        "uses_matrix": False,
+    }
 
 
 def main() -> None:
@@ -73,6 +122,15 @@ def main() -> None:
     node_names = [clean_name(node.get("name"), f"<node:{i}>") for i, node in enumerate(nodes)]
     mesh_names = [clean_name(mesh.get("name"), f"<mesh:{i}>") for i, mesh in enumerate(meshes)]
 
+    parent_by_child: dict[int, int] = {}
+    for parent_index, node in enumerate(nodes):
+        for child in node.get("children") or []:
+            if not isinstance(child, int) or child < 0 or child >= len(nodes):
+                fail(f"node {parent_index} contains invalid child {child!r}")
+            if child in parent_by_child:
+                fail(f"node {child} has multiple parents")
+            parent_by_child[child] = parent_index
+
     def names_matching(needles: tuple[str, ...]) -> list[str]:
         out: list[str] = []
         seen: set[str] = set()
@@ -82,6 +140,26 @@ def main() -> None:
                 seen.add(name)
                 out.append(name)
         return out
+
+    def exact_node(name: str) -> int | None:
+        matches = [i for i, value in enumerate(node_names) if value == name]
+        if len(matches) > 1:
+            fail(f"node identity {name} is not unique: {matches}")
+        return matches[0] if matches else None
+
+    def joint_row(index: int) -> dict[str, object]:
+        parent = parent_by_child.get(index)
+        return {
+            "node_index": index,
+            "node_name": node_names[index],
+            "parent_index": parent,
+            "parent_name": node_names[parent] if parent is not None else None,
+            "children": [
+                {"node_index": child, "node_name": node_names[child]}
+                for child in (nodes[index].get("children") or [])
+            ],
+            "local_transform": node_local_transform(nodes[index]),
+        }
 
     bolt_named = names_matching(("bolt",))
     mechanical_named = names_matching(("bolt", "breech", "action", "handle", "receiver"))
@@ -134,6 +212,50 @@ def main() -> None:
     joint_names = list(dict.fromkeys(joint_names))
     bolt_joint_names = [name for name in joint_names if "bolt" in name.lower()]
 
+    bolt_index = exact_node("BOLT")
+    bolt_stop_index = exact_node("BOLT_STOP")
+    bolt_hierarchy = [joint_row(i) for i in (bolt_index, bolt_stop_index) if i is not None]
+
+    source_authored_stop_delta: dict[str, object] = {
+        "usable_as_sibling_local_translation_delta": False,
+        "reason": "BOLT_OR_BOLT_STOP_MISSING",
+    }
+    if bolt_index is not None and bolt_stop_index is not None:
+        bolt_parent = parent_by_child.get(bolt_index)
+        stop_parent = parent_by_child.get(bolt_stop_index)
+        bolt_transform = node_local_transform(nodes[bolt_index])
+        stop_transform = node_local_transform(nodes[bolt_stop_index])
+        if bolt_parent != stop_parent:
+            source_authored_stop_delta = {
+                "usable_as_sibling_local_translation_delta": False,
+                "reason": "DIFFERENT_PARENTS",
+                "bolt_parent": node_names[bolt_parent] if bolt_parent is not None else None,
+                "bolt_stop_parent": node_names[stop_parent] if stop_parent is not None else None,
+            }
+        elif bolt_transform.get("uses_matrix") or stop_transform.get("uses_matrix"):
+            source_authored_stop_delta = {
+                "usable_as_sibling_local_translation_delta": False,
+                "reason": "MATRIX_TRANSFORM_REQUIRES_WORLD_DECOMPOSITION",
+                "shared_parent": node_names[bolt_parent] if bolt_parent is not None else None,
+            }
+        else:
+            bolt_translation = bolt_transform["translation"]
+            stop_translation = stop_transform["translation"]
+            delta = [
+                float(stop_translation[i]) - float(bolt_translation[i])
+                for i in range(3)
+            ]
+            magnitude = math.sqrt(sum(value * value for value in delta))
+            source_authored_stop_delta = {
+                "usable_as_sibling_local_translation_delta": magnitude > 1e-8,
+                "reason": "SOURCE_SIBLING_MARKER_DELTA" if magnitude > 1e-8 else "ZERO_DELTA",
+                "shared_parent": node_names[bolt_parent] if bolt_parent is not None else None,
+                "bolt_translation": bolt_translation,
+                "bolt_stop_translation": stop_translation,
+                "delta": delta,
+                "magnitude": magnitude,
+            }
+
     if animated_bolt_nodes:
         classification = "DIRECT_AUTHORED_BOLT_MOTION_EVIDENCE"
     elif bolt_joint_names:
@@ -148,7 +270,7 @@ def main() -> None:
         classification = "NO_DIRECT_BOLT_MOTION_OR_PART_IDENTITY_EVIDENCE"
 
     report = {
-        "schema": 1,
+        "schema": 2,
         "status": "SOURCE_STRUCTURE_MOTION_EVIDENCE_ONLY",
         "source": EXPECTED_SOURCE,
         "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
@@ -166,6 +288,8 @@ def main() -> None:
         "identity_named_candidates": identity_named,
         "joint_names": joint_names,
         "bolt_joint_names": bolt_joint_names,
+        "bolt_hierarchy": bolt_hierarchy,
+        "source_authored_stop_delta": source_authored_stop_delta,
         "skinned_nodes": skinned_node_rows,
         "animated_node_names": animated_node_names,
         "animated_bolt_nodes": animated_bolt_nodes,
@@ -184,6 +308,7 @@ def main() -> None:
         f"nodes={len(nodes)} meshes={len(meshes)} skins={len(skins)} animations={len(animations)} "
         f"bolt_named={len(bolt_named)} bolt_joints={len(bolt_joint_names)} "
         f"animated_bolt_nodes={len(animated_bolt_nodes)} classification={classification} "
+        f"source_stop_delta_usable={int(bool(source_authored_stop_delta.get('usable_as_sibling_local_translation_delta')))} "
         "production_cutover=0 runtime_acceptance=0 item16_checked=0"
     )
 
