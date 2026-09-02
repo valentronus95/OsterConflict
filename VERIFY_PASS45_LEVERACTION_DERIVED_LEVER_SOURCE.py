@@ -113,12 +113,19 @@ def main() -> None:
         fail("source audit unexpectedly claims authored lever endpoint")
     if audit.get("lever_joint_has_weighted_geometry") is not True:
         fail("source audit no longer proves weighted LEVER geometry")
-    geometry_rows = audit.get("mechanical_joint_geometry") or []
-    lever_rows = [row for row in geometry_rows if row.get("node_name") == "LEVER"]
-    if len(lever_rows) != 1:
-        fail(f"source audit LEVER geometry row count={len(lever_rows)}")
-    if int(lever_rows[0].get("weighted_vertex_count", -1)) != EXPECTED_WEIGHTED_VERTICES:
-        fail(f"LEVER weighted vertex count drifted: {lever_rows[0].get('weighted_vertex_count')}")
+    geometry = audit.get("joint_geometry") or {}
+    if not isinstance(geometry, dict):
+        fail("source audit joint_geometry is not an object")
+    lever_geometry = geometry.get("LEVER")
+    if not isinstance(lever_geometry, dict):
+        fail("source audit lacks LEVER joint_geometry")
+    if int(lever_geometry.get("weighted_vertex_count", -1)) != EXPECTED_WEIGHTED_VERTICES:
+        fail(f"LEVER weighted vertex count drifted: {lever_geometry.get('weighted_vertex_count')}")
+    shared = audit.get("shared_weighted_vertices") or {}
+    if not isinstance(shared, dict):
+        fail("source audit shared_weighted_vertices is not an object")
+    if int(shared.get("LEVER+HAMMER", -1)) != 0 or int(shared.get("LEVER+BOLT", -1)) != 0:
+        fail(f"LEVER geometry is no longer isolated: {shared}")
 
     buffers = doc.get("buffers") or []
     if len(buffers) != 1:
@@ -170,8 +177,9 @@ def main() -> None:
     rot_accessor = sampler.get("output")
     if not isinstance(time_accessor, int) or not isinstance(rot_accessor, int):
         fail("derived sampler accessors missing")
-    times = [row[0] for row in read_accessor(doc, bin_path.read_bytes(), time_accessor)]
-    quats = read_accessor(doc, bin_path.read_bytes(), rot_accessor)
+    payload = bin_path.read_bytes()
+    times = [row[0] for row in read_accessor(doc, payload, time_accessor)]
+    quats = read_accessor(doc, payload, rot_accessor)
     if len(times) != len(quats) or len(times) < 3:
         fail("derived key counts are invalid")
     if abs(times[0]) > 1e-6 or abs(times[-1] - EXPECTED_DURATION) > 1e-5:
