@@ -22,7 +22,7 @@ Git history remains the raw source of truth. This file stays compact so future s
 - Active integration PR: **#94 OPEN / UNMERGED**.
 - Target: `main@bca00f4046700f383af9f1742cc24b6a62401b1a` at this checkpoint.
 - Latest factual local verdict: **RUNTIME REJECTED 2026-08-31**.
-- Latest substantive item-16 source-hardening head before this ledger rotation: `4909dcc3145a75340ba33688457beeb1f3bff43c`.
+- Latest substantive item-16 source-hardening head before this ledger update: `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b`.
 - PR #94 must remain unmerged until a **current-head** local UE 5.8 full runtime test passes import, build, gameplay, automated evidence gates and direct screenshot/audio acceptance.
 - Official checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**. Source/docs work does not increase it.
 
@@ -30,7 +30,7 @@ Git history remains the raw source of truth. This file stays compact so future s
 
 The first canonical unchecked checklist item remains **item 16**: accepted authored M700 / Remington 870 / Lever Action moving-part or skeletal manual-action presentation, factual bolt/pump/lever mechanical audio, and local UE 5.8 acceptance.
 
-Do not skip to later checklist items because item 16 contains content/runtime blockers.
+Do not skip to later checklist items because item 16 still contains content/runtime blockers.
 
 ## Binding reuse-first state
 
@@ -48,63 +48,61 @@ Do not skip to later checklist items because item 16 contains content/runtime bl
 - Lever Action exact authored manual-action animation: **CONTENT GAP**.
 - Remington exact production `.uasset`: absent/unaccepted.
 - Primary Remington donor: registered CC-BY-4.0 `8sianDude` GLB, exact SHA-256 / LFS OID `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`, exact payload size `20,621,580` bytes.
-- Donor state remains `APPROVED_FOR_UE_IMPORT`; `runtime_ready=false`, `ue58_import_pending=true`, `item16_checked=false`.
+- Third-party register state remains `PILOT / APPROVED_FOR_UE_IMPORT`; `runtime_ready=false`, `ue58_import_pending=true`, `item16_checked=false`.
 - Pump audio source fallback remains project-owned `/Game/R13/Audio/shotguncock`.
 - Repository-owned CC0 bolt and lever mechanical WAV derivatives remain source payloads pending UE import/runtime wiring.
 
-## 2026-09-02 Remington structure/skin truth
+## 2026-09-02 Remington source truth
 
-Pinned donor structure/skin evidence is persisted at `_DOCS/PASS45_REMINGTON870_STRUCTURE_AUDIT_2026-09-02.json`.
+Pinned donor evidence proves articulated reload motion and distinct skinned parts, including `PBody_058` and `Pmag_061`. The later source transport/relative-motion audits also prove that the donor carries non-trivial sibling-relative motion rather than only rigid whole-weapon movement.
 
-Key factual result:
-
-- `Pmag_061` is a real separate animated/skinned part, not an empty name: joint slot 79 controls distinct skinned mesh `Object_95`, 4,411 vertices at full weight;
-- reload motion reaches `0.606719` donor units with dominant Y translation;
-- `PBody_058` separately controls `Object_91`, 7,318 vertices at full weight;
-- this still does **not** prove that `Pmag_061` is the physical fore-end/pump and does not prove any imported clip is a standalone post-shot pump cycle.
-
-Enforced status remains:
+Enforced semantic boundary remains:
 
 `ARTICULATED_RELOAD_MOTION_PROVEN / PUMP_NODE_IDENTITY_UNPROVEN / STANDALONE_PUMP_CLIP_UNPROVEN`.
 
-Source guard: `VERIFY_PASS45_REMINGTON870_STRUCTURE_AUDIT.py`, bound into `RUN_ALL_VERIFY.py`.
+In particular, source evidence still does **not** prove that `Pmag_061` is physically the fore-end/pump and does not prove any clip is a valid standalone post-shot pump cycle.
 
-## 2026-09-02 current-head / exact-donor pilot hardening
+## Current-head / exact-donor launcher hardening
 
-A source audit found that `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` previously checked only that the donor file existed and was larger than a threshold. It did not prove that the local checkout matched the current remote canonical HEAD or that the donor bytes matched the registered payload. That could create stale-head or payload-drift evidence.
+The isolated launcher `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` remains fail-closed before UE starts:
+
+- requires the exact canonical branch and current remote canonical HEAD;
+- checks only tracked pilot-defining files and does not modify other local `Changes`;
+- requires donor size exactly `20,621,580` bytes;
+- requires exact SHA-256 `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`;
+- performs no checkout, pull, fetch, reset, clean, stash, restore, switch or LFS mutation;
+- preserves `pump_node_identity=UNPROVEN`, `standalone_pump_clip=UNPROVEN`, `runtime_acceptance=0`, `item16_checked=0`.
+
+## 2026-09-02 imported sibling-relative motion gate
+
+A remaining source-proof hole was closed without creating a second import owner.
+
+Before this slice the isolated UE imported-motion pilot required `PBody_058` and `Pmag_061` to have named tracks and non-trivial imported motion, but it did not prove that the two parts move **relative to one another** after UE import. A rigid whole-weapon movement could therefore satisfy the old per-bone motion condition.
 
 Implemented commits:
 
-- `cc900dfa569a1537f5ec8b5ff16cd1a61abdb447` — fail closed on stale canonical HEAD or donor drift;
-- `bc682751d6548b38b1e5649282b377bbf0761b8b` — guard the new preflight contract in the source verifier;
-- `4909dcc3145a75340ba33688457beeb1f3bff43c` — align the verifier with the final launcher wording.
+- `11828182d964c75365dffe56951913d07df4518b` — `PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py` now fail-closes unless imported skeletal hierarchy preserves a common parent for `PBody_058` / `Pmag_061` and at least one imported AnimSequence shows non-trivial sibling-relative motion using same-time sampled poses;
+- `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b` — `VERIFY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py` guards the shared-parent and imported relative-motion contract against regression.
 
-The launcher now performs read-only preflight before invoking UE 5.8:
+The pilot still reuses `PASS45_REMINGTON870_UE58_IMPORT_PILOT.py`; it does not create another `AssetImportTask`, save packages, create production Remington content, switch authority, or claim runtime acceptance.
 
-- requires exact canonical branch;
-- compares local `HEAD` with `git ls-remote origin refs/heads/<canonical>` and fails closed if stale or unreachable;
-- checks only the tracked files that define the isolated pilot and aborts if they differ from HEAD without modifying them;
-- requires donor size exactly `20,621,580` bytes;
-- computes SHA-256 with `Get-FileHash` and requires exact `147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`;
-- performs no checkout, pull, fetch, reset, clean, stash, restore, switch or LFS mutation;
-- still preserves `pump_node_identity=UNPROVEN`, `standalone_pump_clip=UNPROVEN`, `runtime_acceptance=0`, `item16_checked=0`.
+Exact-head GitHub CI for `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b` completed successfully. In particular:
 
-Exact-head source CI for `4909dcc3145a75340ba33688457beeb1f3bff43c` completed successfully. In particular:
+- `Pass 45 Remington 870 UE58 imported motion pilot contract` run `33609750258`: **SUCCESS**;
+- `Source verification` run `33609749476`: **SUCCESS**;
+- `Runtime recovery Pass 45` run `33609750251`: **SUCCESS**;
+- `Runtime diagnostics Pass 18` run `33609750178`: **SUCCESS**;
+- Remington source intake, donor-motion audit, UE58 import-pilot contract, remote-candidate audit and manual-action audio provenance: **SUCCESS**.
 
-- `Pass 45 Remington 870 UE58 imported motion pilot contract` run `33579145722`: **SUCCESS**;
-- `Source verification` run `33579144955`: **SUCCESS**;
-- `Runtime recovery Pass 45` run `33579145881`: **SUCCESS**;
-- Remington source intake and donor-motion audit: **SUCCESS**;
-- exact-head check-runs had no queued, in-progress or failed checks when this checkpoint was written.
-
-These are source checks only. They do not change runtime truth.
+These are source/static checks only. They do not execute the user's local UE 5.8 editor and do not change runtime truth.
 
 ## Acceptance state
 
 - Remington donor provenance/source intake: **PASS FOR ISOLATED UE IMPORT**.
 - Articulated donor motion: **SOURCE EVIDENCE PASS**.
-- Structure/skin separation evidence: **SOURCE EVIDENCE PASS**.
-- Imported named-track/motion proof implementation: **PREPARED / SOURCE-GUARDED**.
+- Structure/skin separation: **SOURCE EVIDENCE PASS**.
+- Source sibling-relative motion: **SOURCE EVIDENCE PASS**.
+- Imported sibling-parent/relative-motion proof implementation: **PREPARED / SOURCE-GUARDED**.
 - Current-head/exact-donor launcher preflight: **SOURCE-GUARDED**.
 - Local UE 5.8 imported-motion execution: **PENDING**.
 - Exact pump/fore-end identity: **UNPROVEN**.
@@ -118,8 +116,8 @@ These are source checks only. They do not change runtime truth.
 
 ## Next factual operation
 
-Run `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` on the **current canonical checkout** with the full pinned Git LFS donor present. The launcher now independently rejects a stale checkout or donor-byte drift before UE starts.
+Run `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` on the **current canonical checkout** with the full pinned Git LFS donor present.
 
-A PASS may prove that UE 5.8 preserved the named weapon-side tracks and non-trivial imported motion. It still cannot close item 16 by itself. Direct visual inspection must then identify the actual fore-end/pump and determine whether an imported clip is a valid standalone manual-action sequence.
+A PASS must now prove in UE 5.8 that the imported named weapon-side tracks survive, that `PBody_058` / `Pmag_061` preserve the required sibling hierarchy, and that their relative transform changes non-trivially in at least one imported animation. It still cannot close item 16 by itself. Direct visual inspection must identify the actual fore-end/pump and determine whether an imported clip is a valid standalone manual-action sequence.
 
 Until that evidence exists: do not populate production `ManualActionAnimationObjectPath`, do not create `/Game/Production/Weapons/Remington870` as accepted content, do not stack a second Remington donor, do not mark item 16 complete, and do not merge PR #94.
