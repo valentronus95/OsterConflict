@@ -29,6 +29,7 @@ audit = read(DONOR_AUDIT)
 for needle in (
     'BASE_PILOT = "PASS45_REMINGTON870_UE58_IMPORT_PILOT.py"',
     'REQUIRED_IMPORTED_MOTION_BONES = ("PBody_058", "Pmag_061")',
+    'REQUIRED_SIBLING_BONES = ("PBody_058", "Pmag_061")',
     'AUDIT_ONLY_BONES = ("Rif_059", "Trigger_060")',
     'base.main()',
     'base.imported_objects_from_destination()',
@@ -36,9 +37,17 @@ for needle in (
     'animation_library.does_bone_name_exist(animation, unreal_name)',
     'animation_library.get_bone_pose_for_time(',
     'first.is_near_equal(',
+    'getattr(mesh, "get_bone_parent", None)',
+    'body_parent == sibling_parent',
+    'relative_pose = sibling_pose.make_relative(body_pose)',
+    'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_HIERARCHY',
+    'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_RELATIVE',
+    'required_sibling_parent_not_preserved=1',
+    'required_sibling_relative_motion_not_preserved=1',
     'required_weapon_side_tracks_not_preserved=1',
     'required_weapon_side_motion_not_preserved=1',
     'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT_PASS',
+    'sibling_parent_preserved=1 relative_sibling_motion_preserved=1',
     'pump_node_identity=UNPROVEN standalone_pump_clip=UNPROVEN',
     'visual_inspection_required=1 saved_packages=0 production_cutover=0',
     'runtime_acceptance=0 item16_checked=0',
@@ -129,6 +138,7 @@ if errors:
 print(
     "PASS45 REMINGTON870 UE58 IMPORTED MOTION PILOT: PASS "
     "reuse_existing_import_pilot=1 named_track_gate=1 imported_pose_motion_gate=1 "
+    "imported_sibling_parent_gate=1 imported_relative_motion_gate=1 "
     "local_launcher_guarded=1 current_head_preflight=1 exact_donor_sha256=1 local_changes_untouched=1 "
     "pump_identity_unproven=1 visual_inspection_required=1 ue58_execution_pending=1 "
     "production_cutover=0 runtime_acceptance=0 item16_checked=0"
