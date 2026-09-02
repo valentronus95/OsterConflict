@@ -21,8 +21,9 @@ Git history remains the raw source of truth. This file stays compact so future s
 - Active integration branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
 - Active integration PR: **#94 OPEN / UNMERGED**.
 - Target: `main@bca00f4046700f383af9f1742cc24b6a62401b1a` at this checkpoint.
-- Latest factual local verdict: **RUNTIME REJECTED 2026-08-31**.
-- Latest substantive item-16 source-hardening head before this ledger update: `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b`.
+- Latest factual full gameplay runtime verdict: **RUNTIME REJECTED 2026-08-31**.
+- Latest factual isolated UE 5.8 Remington import-pilot verdict: **REJECTED 2026-09-02 on `fbc2d0d48f10bb8e93937d41cc7f700ab150a8f1` due to removed `AssetImportTask.async` editor property**.
+- Latest substantive item-16 source-hardening head before this ledger update: `c4d995653c50e4153727c54eae279fde6ae98bfb`.
 - PR #94 must remain unmerged until a **current-head** local UE 5.8 full runtime test passes import, build, gameplay, automated evidence gates and direct screenshot/audio acceptance.
 - Official checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**. Source/docs work does not increase it.
 
@@ -96,6 +97,23 @@ Exact-head GitHub CI for `bac96f3cb096a1c8c7ee5550b734cacb5e2c2d9b` completed su
 
 These are source/static checks only. They do not execute the user's local UE 5.8 editor and do not change runtime truth.
 
+## 2026-09-02 factual local UE 5.8 import-pilot rejection and corrective slice
+
+The current-head/exact-donor launcher was run locally against UE `5.8.1-56057345` on canonical head `fbc2d0d48f10bb8e93937d41cc7f700ab150a8f1`. Preflight passed on the exact canonical branch, exact head and exact donor SHA-256, so the failure is valid isolated UE evidence rather than a stale-checkout artifact.
+
+UE then rejected the base import pilot before donor import because `unreal.AssetImportTask` in this UE 5.8.1 build does not expose the legacy editor property named `async`:
+
+`AssetImportTask: Failed to find property 'async' for attribute 'async' on 'AssetImportTask'`
+
+This is an engine/Python API compatibility blocker in the pilot harness, not evidence that the donor itself is incompatible.
+
+Corrective source slice:
+
+- `b71e734fbb49f161b25d31eab160b132a6c75a16` removes the unsupported `task.set_editor_property("async", False)` write from `PASS45_REMINGTON870_UE58_IMPORT_PILOT.py`; the pilot still waits for `import_asset_tasks([task])` to return and then fail-closes on imported-object, skeletal-mesh, animation-count, positive-length and shared-skeleton evidence before any PASS marker;
+- `c4d995653c50e4153727c54eae279fde6ae98bfb` updates `VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py` so the removed UE 5.8 property cannot silently return while all no-save/no-production/no-runtime-acceptance constraints remain guarded.
+
+No local user `Changes` were modified by this failure investigation or by the remote corrective commits. No production Remington cutover occurred. PR #94 remains unmerged.
+
 ## Acceptance state
 
 - Remington donor provenance/source intake: **PASS FOR ISOLATED UE IMPORT**.
@@ -103,21 +121,21 @@ These are source/static checks only. They do not execute the user's local UE 5.8
 - Structure/skin separation: **SOURCE EVIDENCE PASS**.
 - Source sibling-relative motion: **SOURCE EVIDENCE PASS**.
 - Imported sibling-parent/relative-motion proof implementation: **PREPARED / SOURCE-GUARDED**.
-- Current-head/exact-donor launcher preflight: **SOURCE-GUARDED**.
-- Local UE 5.8 imported-motion execution: **PENDING**.
+- Current-head/exact-donor launcher preflight: **LOCAL PASS on `fbc2d0d4...`**.
+- Local UE 5.8 imported-motion execution: **REJECTED on `fbc2d0d4...` by removed `AssetImportTask.async` harness property; corrective source prepared through `c4d99565...`; rerun pending**.
 - Exact pump/fore-end identity: **UNPROVEN**.
 - Standalone pump/manual-action sequence: **UNPROVEN**.
 - Production Remington cutover: **NOT AUTHORIZED**.
 - Item 16: **UNCHECKED**.
-- Runtime verdict: **RUNTIME REJECTED 2026-08-31**.
+- Full gameplay runtime verdict: **RUNTIME REJECTED 2026-08-31**.
 - PR #94: **OPEN / UNMERGED**.
 - Local user `Changes`: **NOT TOUCHED**.
 - Official progress: **22/36 = 61.1% complete, 38.9% remaining**.
 
 ## Next factual operation
 
-Run `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` on the **current canonical checkout** with the full pinned Git LFS donor present.
+Fast-forward the local canonical checkout to the new current canonical head and rerun `OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd` with the full pinned Git LFS donor present.
 
-A PASS must now prove in UE 5.8 that the imported named weapon-side tracks survive, that `PBody_058` / `Pmag_061` preserve the required sibling hierarchy, and that their relative transform changes non-trivially in at least one imported animation. It still cannot close item 16 by itself. Direct visual inspection must identify the actual fore-end/pump and determine whether an imported clip is a valid standalone manual-action sequence.
+A PASS must prove in UE 5.8 that the imported named weapon-side tracks survive, that `PBody_058` / `Pmag_061` preserve the required sibling hierarchy, and that their relative transform changes non-trivially in at least one imported animation. It still cannot close item 16 by itself. Direct visual inspection must identify the actual fore-end/pump and determine whether an imported clip is a valid standalone manual-action sequence.
 
 Until that evidence exists: do not populate production `ManualActionAnimationObjectPath`, do not create `/Game/Production/Weapons/Remington870` as accepted content, do not stack a second Remington donor, do not mark item 16 complete, and do not merge PR #94.
