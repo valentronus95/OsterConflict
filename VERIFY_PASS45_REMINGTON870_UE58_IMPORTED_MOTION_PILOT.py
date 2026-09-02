@@ -76,6 +76,18 @@ for needle in (
     '-run=pythonscript',
     '-unattended -nop4 -nosplash -nullrhi',
     'No automatic working-tree mutation is performed here.',
+    'CANONICAL_BRANCH=fix/pass45-runtime-rejection-material-closure-20260826',
+    'EXPECTED_SOURCE_SIZE=20621580',
+    'EXPECTED_SOURCE_SHA256=147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2',
+    'rev-parse --abbrev-ref HEAD',
+    'rev-parse HEAD',
+    'ls-remote origin "refs/heads/%CANONICAL_BRANCH%"',
+    'local checkout is stale relative to remote canonical HEAD',
+    'status --porcelain --untracked-files=no',
+    'Local Changes were not modified.',
+    'Get-FileHash -Algorithm SHA256',
+    'Remington 870 donor SHA-256 drifted.',
+    'CURRENT-HEAD / EXACT-DONOR PREFLIGHT PASS',
     'PASS45_REMINGTON870_UE58_IMPORT_PILOT_PASS',
     'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT_PASS',
     'pbody_track_preserved=1 pbody_motion_preserved=1',
@@ -90,6 +102,11 @@ for forbidden in (
     'git checkout',
     'git reset',
     'git clean',
+    'git pull',
+    'git fetch',
+    'git stash',
+    'git switch',
+    'git restore',
     'OsterConflict.uproject" -run=pythonscript',
 ):
     req(forbidden not in launcher, f"imported-motion launcher regained forbidden working-tree/runtime-host behavior: {forbidden}")
@@ -112,6 +129,7 @@ if errors:
 print(
     "PASS45 REMINGTON870 UE58 IMPORTED MOTION PILOT: PASS "
     "reuse_existing_import_pilot=1 named_track_gate=1 imported_pose_motion_gate=1 "
-    "local_launcher_guarded=1 pump_identity_unproven=1 visual_inspection_required=1 "
-    "ue58_execution_pending=1 production_cutover=0 runtime_acceptance=0 item16_checked=0"
+    "local_launcher_guarded=1 current_head_preflight=1 exact_donor_sha256=1 local_changes_untouched=1 "
+    "pump_identity_unproven=1 visual_inspection_required=1 ue58_execution_pending=1 "
+    "production_cutover=0 runtime_acceptance=0 item16_checked=0"
 )
