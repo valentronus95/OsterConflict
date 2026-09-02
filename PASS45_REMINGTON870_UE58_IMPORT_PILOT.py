@@ -244,7 +244,9 @@ def main() -> None:
     task.set_editor_property("filename", str(source))
     task.set_editor_property("destination_path", PILOT_DESTINATION)
     task.set_editor_property("automated", True)
-    task.set_editor_property("async", False)
+    # UE 5.8.1 no longer exposes AssetImportTask's legacy `async` editor property.
+    # import_asset_tasks() is allowed to complete normally and the pilot then
+    # validates the returned/imported objects before any PASS can be emitted.
     task.set_editor_property("save", False)
     task.set_editor_property("replace_existing", False)
     task.set_editor_property("replace_existing_settings", False)
