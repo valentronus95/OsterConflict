@@ -23,7 +23,7 @@ This behavior is now also bound globally by `AGENTS.md` mandatory workflow rule 
 - Five-phase item-16 evidence-chain checkpoint before AGENTS binding: `39ca1c981cba2d54b570b4d1ebad1accfa3b62ec`.
 - Narrow continuation/calibration contract on `39ca1c98...`: **SUCCESS**.
 - Five-phase item-16 evidence-chain contract on `39ca1c98...`: **SUCCESS**.
-- Wider exact-head CI may still be running after a new governance commit and must not be called fully green until final conclusions exist.
+- Wider exact-head CI must not be called fully green until final conclusions exist.
 - Official canonical checklist remains **22/36 = 61.1% complete, 38.9% remaining**.
 - Local user `Changes`, including two local `PC_TEST/TEST_RESULTS/*.zip` worktree differences, remain outside assistant mutation scope.
 
@@ -116,6 +116,18 @@ Immediately auditable: M1911, M72, sardines prop, telephone-pole asset. Ten stil
 `quarantine -> SHA/duplicate/safe-ZIP audit -> model/texture/rig/animation inventory -> exact provenance/license/public-repo permission -> quality audit -> REJECT/DONOR_ONLY/PRODUCTION_CANDIDATE -> selective SOURCE_ASSETS promotion -> individual third-party register record -> isolated UE 5.8 proof -> integration -> cutover -> obsolete-owner cleanup -> regression/runtime acceptance`
 
 Unknown source/license remains fail-closed.
+
+## 2026-09-03 stale literal-marker CI fix
+
+On exact head `91b97305529e9b38559f7fa843d7f216fe7dc31e`, the asset-intake contract failed twice only because `VERIFY_PASS45_ASSET_INTAKE_20260903.py` required three obsolete literal sentences from the living history file. Runtime/source behavior was not the failure.
+
+The verifier has been corrected to validate the current semantic invariants instead of one frozen wording:
+
+- bounded checks before consolidated weapon runtime;
+- PR #94 remains `OPEN / UNMERGED`;
+- frozen 36-item architecture, with no checklist items 37+.
+
+Do not restore stale history wording merely to satisfy an old verifier. This is an application of `AGENTS.md` rule 19: verifier truth follows current behavior, not history.
 
 ## Next factual operation
 
