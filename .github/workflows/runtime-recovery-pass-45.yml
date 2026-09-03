@@ -3,7 +3,6 @@ name: Runtime recovery Pass 45
 on:
   push:
     branches:
-      - fix/runtime-recovery-pass-45-20260824
       - main
   pull_request:
     paths:
@@ -21,6 +20,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldRenderBudgetPass17Subsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+  workflow_dispatch:
 
 jobs:
   pass45-source-contract:
