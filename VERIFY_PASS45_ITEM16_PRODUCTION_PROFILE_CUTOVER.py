@@ -13,6 +13,10 @@ import json
 import re
 from pathlib import Path
 
+from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import (
+    validate_authored_package as validate_package_bytes,
+)
+
 ROOT = Path(__file__).resolve().parent
 PROFILES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAnimationProfiles.cpp"
 RUNTIME_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
@@ -78,6 +82,12 @@ def validate_authored_asset(entry: object, *, label: str, prefix: str, source_sh
     if not isinstance(entry, dict):
         errors.append(f"authoring receipt missing {label} object")
         return None
+
+    # Byte identity is part of the staged cutover itself, not merely a neighboring
+    # workflow step. A same-path .uasset replacement after the authoring receipt
+    # must fail this state machine before profile/runtime evidence can be accepted.
+    errors.extend(validate_package_bytes(entry, label=label, prefix=prefix, root=ROOT))
+
     object_path = str(entry.get("sequence_object_path", ""))
     package_file = str(entry.get("package_file", ""))
     req(object_path.startswith(prefix), f"{label} sequence is outside production namespace: {object_path!r}")
@@ -185,5 +195,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
