@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Fail-closed production-cutover preflight for PASS45 item 16.
 
-The preflight owns calibration-approval truth, not production profile wiring. The
-staged cutover verifier owns the later authoring-receipt/profile/runtime-evidence
-transition. This separation prevents two CI guards from demanding contradictory
-states when production authoring eventually becomes factual.
+The preflight owns calibration-state sequencing, not a second calibration-approval
+schema. Exact approval identity/value validation is delegated to
+VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py so preflight and authoring receipt
+binding cannot drift into competing definitions.
 
 Valid states:
 
@@ -13,7 +13,7 @@ Valid states:
 2. CALIBRATION APPROVED: approval pins exact current-head UE 5.8 visual calibration;
    until a separate production authoring receipt exists, both profile paths stay empty.
 3. AUTHORING RECEIPT PRESENT: this preflight validates the calibration approval and
-   receipt identity only, then delegates package/profile/runtime wiring to
+   receipt state only, then delegates package/profile/runtime wiring to
    VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py.
 
 No state here may claim runtime acceptance, close item 16 or permit PR #94 merge.
@@ -24,15 +24,12 @@ import json
 import re
 from pathlib import Path
 
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import validate_approval
+
 ROOT = Path(__file__).resolve().parent
 PROFILES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAnimationProfiles.cpp"
 APPROVAL = ROOT / "_DOCS" / "PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json"
 AUTHORING_RECEIPT = ROOT / "_DOCS" / "PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json"
-
-M700_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx"
-M700_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
-LEVER_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx"
-LEVER_SHA256 = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
 
 errors: list[str] = []
 
@@ -74,21 +71,9 @@ def profile_manual_path(text: str, weapon_id: str) -> str | None:
     return match.group(1)
 
 
-def require_bool(obj: dict, key: str, expected: bool, label: str = "approval") -> None:
+def require_bool(obj: dict, key: str, expected: bool, label: str) -> None:
     actual = obj.get(key)
     req(actual is expected, f"{label} {key} expected={expected!r} actual={actual!r}")
-
-
-def require_number(obj: dict, key: str, *, nonzero: bool = True) -> float | None:
-    value = obj.get(key)
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        errors.append(f"approval missing/invalid numeric {key}: {value!r}")
-        return None
-    if nonzero and abs(parsed) <= 1e-9:
-        errors.append(f"approval {key} must be non-zero")
-    return parsed
 
 
 profiles = read_text(PROFILES)
@@ -111,33 +96,8 @@ if not approval_present:
     req(lever_path == "", f"Lever production manual-action path populated without approval: {lever_path!r}")
 else:
     approval = load_json(APPROVAL, "approval")
-    req(approval.get("schema") == 1, f"approval schema drifted: {approval.get('schema')!r}")
-    req(approval.get("status") == "ITEM16_MANUAL_ACTION_VISUAL_CALIBRATION_APPROVED_FOR_PRODUCTION_AUTHORING",
-        f"approval status invalid: {approval.get('status')!r}")
-    require_bool(approval, "current_head_ue58_visual_calibration_accepted", True)
-    require_bool(approval, "runtime_acceptance", False)
-    require_bool(approval, "item16_checked", False)
-    require_bool(approval, "merge_permitted", False)
-
-    m700 = approval.get("m700")
-    lever = approval.get("lever_action")
-    req(isinstance(m700, dict), "approval m700 object missing")
-    req(isinstance(lever, dict), "approval lever_action object missing")
-    if isinstance(m700, dict):
-        req(m700.get("source") == M700_SOURCE, f"M700 approval source drifted: {m700.get('source')!r}")
-        req(m700.get("source_sha256") == M700_SHA256, "M700 approval source SHA-256 drifted")
-        require_number(m700, "accepted_translation")
-        require_number(m700, "accepted_rotation_deg")
-        require_bool(m700, "pilot_value_promoted_without_visual_review", False)
-    if isinstance(lever, dict):
-        req(lever.get("source") == LEVER_SOURCE, f"Lever approval source drifted: {lever.get('source')!r}")
-        req(lever.get("source_sha256") == LEVER_SHA256, "Lever approval source SHA-256 drifted")
-        require_number(lever, "accepted_angle_deg")
-        require_bool(lever, "pilot_value_promoted_without_visual_review", False)
-
-    evidence_head = str(approval.get("evidence_head_sha", ""))
-    req(bool(re.fullmatch(r"[0-9a-f]{40}", evidence_head)),
-        f"approval evidence_head_sha must be exact 40-hex SHA, got {evidence_head!r}")
+    if approval:
+        errors.extend(validate_approval(approval))
 
     if not receipt_present:
         # Calibration approval only opens the authoring gate. Until a separate
@@ -173,5 +133,5 @@ print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_production_manual_action_path_present={int(bool(m700_path))}")
 print(f"lever_production_manual_action_path_present={int(bool(lever_path))}")
-print("pilot_profile_leak=0 calibration_gate_fail_closed=1 staged_cutover_guard=1")
+print("pilot_profile_leak=0 calibration_gate_fail_closed=1 approval_schema_single_source=1 staged_cutover_guard=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")

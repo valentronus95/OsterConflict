@@ -23,6 +23,10 @@ RECEIPT = ROOT / "_DOCS" / "PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json"
 
 APPROVAL_STATUS = "ITEM16_MANUAL_ACTION_VISUAL_CALIBRATION_APPROVED_FOR_PRODUCTION_AUTHORING"
 RECEIPT_STATUS = "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED"
+M700_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx"
+M700_SOURCE_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
+LEVER_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx"
+LEVER_SOURCE_SHA256 = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
 HEX40 = re.compile(r"[0-9a-f]{40}")
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
@@ -81,7 +85,19 @@ def as_finite_number(obj: dict, key: str, label: str, errors: list[str]) -> floa
     return parsed
 
 
+def require_nonzero_number(obj: dict, key: str, label: str, errors: list[str]) -> float | None:
+    value = as_finite_number(obj, key, label, errors)
+    if value is not None and abs(value) <= 1e-9:
+        errors.append(f"{label} {key} must be non-zero")
+    return value
+
+
 def validate_approval(approval: dict) -> list[str]:
+    """Own the complete repository-controlled calibration approval schema.
+
+    Preflight and authoring-receipt binding both delegate here so exact source identity,
+    accepted values and fail-closed flags cannot drift into competing definitions.
+    """
     errors: list[str] = []
     if approval.get("schema") != 1:
         errors.append(f"approval schema must be 1, got {approval.get('schema')!r}")
@@ -100,16 +116,24 @@ def validate_approval(approval: dict) -> list[str]:
     if not isinstance(m700, dict):
         errors.append("approval m700 object missing")
     else:
-        as_finite_number(m700, "accepted_translation", "approval.m700", errors)
-        as_finite_number(m700, "accepted_rotation_deg", "approval.m700", errors)
-        if not HEX64.fullmatch(str(m700.get("source_sha256", ""))):
-            errors.append("approval.m700 source_sha256 must be exact lowercase 64-hex")
+        if m700.get("source") != M700_SOURCE:
+            errors.append(f"approval.m700 source mismatch: {m700.get('source')!r}")
+        if m700.get("source_sha256") != M700_SOURCE_SHA256:
+            errors.append("approval.m700 source_sha256 does not match pinned M700 source")
+        require_nonzero_number(m700, "accepted_translation", "approval.m700", errors)
+        require_nonzero_number(m700, "accepted_rotation_deg", "approval.m700", errors)
+        if m700.get("pilot_value_promoted_without_visual_review") is not False:
+            errors.append("approval.m700 pilot_value_promoted_without_visual_review must be false")
     if not isinstance(lever, dict):
         errors.append("approval lever_action object missing")
     else:
-        as_finite_number(lever, "accepted_angle_deg", "approval.lever_action", errors)
-        if not HEX64.fullmatch(str(lever.get("source_sha256", ""))):
-            errors.append("approval.lever_action source_sha256 must be exact lowercase 64-hex")
+        if lever.get("source") != LEVER_SOURCE:
+            errors.append(f"approval.lever_action source mismatch: {lever.get('source')!r}")
+        if lever.get("source_sha256") != LEVER_SOURCE_SHA256:
+            errors.append("approval.lever_action source_sha256 does not match pinned Lever source")
+        require_nonzero_number(lever, "accepted_angle_deg", "approval.lever_action", errors)
+        if lever.get("pilot_value_promoted_without_visual_review") is not False:
+            errors.append("approval.lever_action pilot_value_promoted_without_visual_review must be false")
     return errors
 
 
@@ -277,8 +301,8 @@ def main() -> int:
     print("PASS45 ITEM16 CALIBRATION RECEIPT BINDING: PASS")
     print(f"state={state}")
     print(f"approval_present={int(approval_present)} receipt_present={int(receipt_present)}")
-    print("exact_approval_sha256_binding=1 evidence_head_binding=1 evidence_head_ancestor=1 calibration_critical_drift=0")
-    print("authored_value_binding=1 source_sha_binding=1")
+    print("exact_approval_sha256_binding=1 exact_source_identity=1 evidence_head_binding=1 evidence_head_ancestor=1 calibration_critical_drift=0")
+    print("authored_value_binding=1 source_sha_binding=1 approval_schema_single_source=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

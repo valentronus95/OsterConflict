@@ -10,12 +10,15 @@ import tempfile
 from pathlib import Path
 
 from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
+    LEVER_SOURCE,
+    LEVER_SOURCE_SHA256,
+    M700_SOURCE,
+    M700_SOURCE_SHA256,
+    validate_approval,
     validate_evidence_head_repository,
     validate_pair,
 )
 
-M700_SHA = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
-LEVER_SHA = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
 EVIDENCE_HEAD = "0123456789abcdef0123456789abcdef01234567"
 
 
@@ -122,13 +125,17 @@ def main() -> int:
             "merge_permitted": False,
             "evidence_head_sha": EVIDENCE_HEAD,
             "m700": {
-                "source_sha256": M700_SHA,
+                "source": M700_SOURCE,
+                "source_sha256": M700_SOURCE_SHA256,
                 "accepted_translation": -6.25,
                 "accepted_rotation_deg": 37.5,
+                "pilot_value_promoted_without_visual_review": False,
             },
             "lever_action": {
-                "source_sha256": LEVER_SHA,
+                "source": LEVER_SOURCE,
+                "source_sha256": LEVER_SOURCE_SHA256,
                 "accepted_angle_deg": -42.0,
+                "pilot_value_promoted_without_visual_review": False,
             },
         }
         approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -143,17 +150,63 @@ def main() -> int:
             "calibration_approval_sha256": approval_sha,
             "calibration_evidence_head_sha": EVIDENCE_HEAD,
             "m700": {
-                "source_sha256": M700_SHA,
+                "source_sha256": M700_SOURCE_SHA256,
                 "accepted_translation": -6.25,
                 "accepted_rotation_deg": 37.5,
             },
             "lever_action": {
-                "source_sha256": LEVER_SHA,
+                "source_sha256": LEVER_SOURCE_SHA256,
                 "accepted_angle_deg": -42.0,
             },
         }
 
+        failures.extend(assert_case("exact approval", validate_approval(approval), should_pass=True))
         failures.extend(assert_case("exact binding", validate_pair(approval_path, approval, receipt), should_pass=True))
+
+        bad_approval = copy.deepcopy(approval)
+        bad_approval["m700"]["source"] = LEVER_SOURCE
+        failures.extend(assert_case(
+            "wrong M700 approval source",
+            validate_approval(bad_approval),
+            should_pass=False,
+            needle="approval.m700 source mismatch",
+        ))
+
+        bad_approval = copy.deepcopy(approval)
+        bad_approval["m700"]["source_sha256"] = LEVER_SOURCE_SHA256
+        failures.extend(assert_case(
+            "wrong M700 approval SHA",
+            validate_approval(bad_approval),
+            should_pass=False,
+            needle="pinned M700 source",
+        ))
+
+        bad_approval = copy.deepcopy(approval)
+        bad_approval["m700"]["accepted_rotation_deg"] = 0.0
+        failures.extend(assert_case(
+            "zero M700 approved rotation",
+            validate_approval(bad_approval),
+            should_pass=False,
+            needle="accepted_rotation_deg must be non-zero",
+        ))
+
+        bad_approval = copy.deepcopy(approval)
+        bad_approval["lever_action"]["accepted_angle_deg"] = 0.0
+        failures.extend(assert_case(
+            "zero Lever approved angle",
+            validate_approval(bad_approval),
+            should_pass=False,
+            needle="accepted_angle_deg must be non-zero",
+        ))
+
+        bad_approval = copy.deepcopy(approval)
+        bad_approval["lever_action"]["pilot_value_promoted_without_visual_review"] = True
+        failures.extend(assert_case(
+            "blind pilot promotion rejected",
+            validate_approval(bad_approval),
+            should_pass=False,
+            needle="pilot_value_promoted_without_visual_review must be false",
+        ))
 
         bad = copy.deepcopy(receipt)
         bad["calibration_approval_sha256"] = "0" * 64
@@ -201,7 +254,7 @@ def main() -> int:
         ))
 
         bad = copy.deepcopy(receipt)
-        bad["m700"]["source_sha256"] = LEVER_SHA
+        bad["m700"]["source_sha256"] = LEVER_SOURCE_SHA256
         failures.extend(assert_case(
             "cross-source M700 receipt",
             validate_pair(approval_path, approval, bad),
@@ -225,7 +278,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 CALIBRATION RECEIPT BINDING CONTRACT: PASS")
-    print("exact_hash=1 evidence_head=1 ancestor=1 critical_drift=1 m700_translation=1 m700_rotation=1 lever_angle=1 source_sha=1 numeric_type=1")
+    print("exact_hash=1 evidence_head=1 ancestor=1 critical_drift=1 exact_source=1 nonzero_values=1 pilot_promotion_rejected=1 m700_translation=1 m700_rotation=1 lever_angle=1 source_sha=1 numeric_type=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
