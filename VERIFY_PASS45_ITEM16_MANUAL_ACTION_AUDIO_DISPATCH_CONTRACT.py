@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Fail-closed source contract for PASS45 item-16 manual-action audio dispatch.
 
-Runtime evidence must prove more than a loaded bolt/pump/lever SoundBase. The
-manual-action transition must dispatch ManualActionCycle, the exact repository-owned
-manual-action sound expected for that weapon must flow through local playback with
-positive effective volume, and the runtime log must preserve that factual dispatch.
-Direct audible/feel acceptance remains a separate UE 5.8 manual gate.
+Runtime evidence must prove more than a loaded bolt/pump/lever SoundBase. The same
+authoritative action-cycle rising edge must dispatch ManualActionCycle and attempt the
+authored moving-part animation without a second gameplay timer. The exact current
+manual-action sound expected for that weapon must then flow through local playback
+with positive effective volume. Direct audible/visual feel acceptance remains a
+separate UE 5.8 manual gate.
 """
 from __future__ import annotations
 
@@ -66,18 +67,51 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
     )
 
     dispatch = "Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);"
+    edge_gate = "if (bActionCycling && !State.bWasActionCycling)"
+    profile_resolve = "const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);"
+    authored_guard = "if (AnimationProfile.HasManualActionAnimation())"
+    authored_start = "bAuthoredManualActionStarted = PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay);"
+    authored_ready = "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY"
+
     if action_block:
+        for marker, label in (
+            (edge_gate, "authoritative action-cycle rising-edge gate"),
+            ("const EOCWeaponActionType ActionType = Weapon->GetWeaponActionType();", "manual-action type resolution"),
+            ("if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())", "weapon-audio component lookup"),
+            (dispatch, "ManualActionCycle audio dispatch"),
+            (profile_resolve, "authored animation profile resolution"),
+            (authored_guard, "authored manual-action guard"),
+            (authored_start, "authored moving-part animation start"),
+            (authored_ready, "authored moving-part READY evidence"),
+            ("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL", "authored moving-part failure evidence"),
+            ("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP", "authored moving-part content-gap evidence"),
+        ):
+            if marker not in action_block:
+                errors.append(f"same-transition manual-action route missing {label}: {marker}")
+
         if action_block.count(dispatch) != 1:
             errors.append("manual-action transition must dispatch exactly one ManualActionCycle audio event")
-        if "if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())" not in action_block:
-            errors.append("manual-action transition lost weapon-audio component lookup")
-        dispatch_pos = action_block.find(dispatch)
-        profile_pos = action_block.find("OCResolveWeaponAnimationProfile(WeaponId)")
-        if dispatch_pos < 0 or profile_pos < 0 or dispatch_pos > profile_pos:
-            errors.append("manual-action audio dispatch no longer occurs before authored animation presentation")
-        for forbidden in ("SetTimer(", "ManualActionCycleTimerHandle", "ActionCycleStartTime"):
+        if action_block.count(authored_start) != 1:
+            errors.append("manual-action transition must attempt exactly one authored moving-part animation start")
+
+        positions = [
+            action_block.find(edge_gate),
+            action_block.find(dispatch),
+            action_block.find(profile_resolve),
+            action_block.find(authored_guard),
+            action_block.find(authored_start),
+            action_block.find(authored_ready),
+        ]
+        if any(position < 0 for position in positions) or positions != sorted(positions):
+            errors.append(
+                "manual-action same-transition order drifted: rising edge -> audio dispatch -> profile -> authored start -> READY"
+            )
+
+        # This block is presentation-only. It must observe the replicated gameplay gate,
+        # not acquire its own timer or abort between audio and authored-animation work.
+        for forbidden in ("SetTimer(", "ManualActionCycleTimerHandle", "ActionCycleStartTime", "return;"):
             if forbidden in action_block:
-                errors.append(f"manual-action presentation regained a second gameplay timing owner: {forbidden}")
+                errors.append(f"manual-action presentation regained a second owner/early exit: {forbidden}")
 
     for marker in (
         "case EOCWeaponAudioEvent::ManualActionCycle:",
@@ -147,9 +181,12 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
         '"effective_volume_gt_zero=1"',
         '("PASS45_WEAPON_AUDIO_CONTENT_GAP", "event=manual_action")',
         '("PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL",)',
+        '"PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY"',
+        '("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP",)',
+        '("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL",)',
     ):
         if marker not in runtime:
-            errors.append(f"runtime manual-action audio evidence gate missing: {marker}")
+            errors.append(f"runtime manual-action evidence gate missing: {marker}")
 
     return errors
 
@@ -163,6 +200,13 @@ def main() -> int:
     # Adversarial source mutations prove the guard is not a decorative grep collection.
     negative_cases = (
         (
+            "missing rising-edge ownership",
+            presentation.replace(edge_gate := "if (bActionCycling && !State.bWasActionCycling)", "if (bActionCycling)", 1),
+            audio,
+            runtime,
+            "rising-edge gate",
+        ),
+        (
             "missing dispatch",
             presentation.replace(
                 "Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);",
@@ -171,7 +215,18 @@ def main() -> int:
             ),
             audio,
             runtime,
-            "dispatch exactly one",
+            "dispatch",
+        ),
+        (
+            "missing authored moving-part start",
+            presentation.replace(
+                "bAuthoredManualActionStarted = PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay);",
+                "// removed authored start",
+                1,
+            ),
+            audio,
+            runtime,
+            "authored moving-part animation start",
         ),
         (
             "missing local success playback",
@@ -236,8 +291,8 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 MANUAL ACTION AUDIO DISPATCH: PASS")
-    print("manual_action_dispatch=1 loaded_sound_guard=1 exact_sound_identity=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
-    print("runtime_playback_marker_required=1 wrong_sound_identity_rejected=1 direct_audible_acceptance=pending")
+    print("same_rising_edge_audio_and_authored_animation=1 manual_action_dispatch=1 authored_start_attempt=1 loaded_sound_guard=1 exact_sound_identity=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
+    print("runtime_playback_marker_required=1 wrong_sound_identity_rejected=1 direct_audible_visual_acceptance=pending")
     print("second_gameplay_timer=0 runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
