@@ -5,6 +5,8 @@ on:
     paths:
       - 'VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py'
       - 'VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py'
+      - 'VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py'
+      - 'VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py'
       - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
       - '_DOCS/PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json'
       - '_DOCS/PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json'
@@ -19,7 +21,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile production cutover preflight
-        run: python -m py_compile VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py
+      - name: Compile production cutover guards
+        run: python -m py_compile VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py
+      - name: Verify calibration-to-authoring binding regression contract
+        run: python VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py
       - name: Verify fail-closed item16 production cutover boundary
         run: python VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py
+      - name: Verify exact calibration approval to authoring receipt binding
+        run: python VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py
