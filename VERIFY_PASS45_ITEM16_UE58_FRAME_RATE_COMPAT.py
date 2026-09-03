@@ -27,8 +27,10 @@ lever_launcher = read("OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_P
 chain = read("OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd")
 
 # UE 5.8 cadence contract. The transient sequence starts at 30 fps in the local
-# engine, while the bounded proof shapes were authored around exact 20 fps
-# durations. The compatibility shims preserve the exact duration at 60 fps.
+# engine. M700's 1.10 s envelope maps exactly to 33 source frames. Lever's real
+# 0.85 s motion endpoint maps to 25.5 source frames, so its 60 fps proof keeps the
+# motion endpoint at frame 51 but adds one bind-pose tail frame: 52/60 s maps to
+# exactly 26 frames on the initial 30 fps grid.
 for needle in (
     "EXPECTED_LEGACY_FRAME_RATE = 20",
     "EXPECTED_LEGACY_FRAME_COUNT = 22",
@@ -45,16 +47,37 @@ for needle in (
     "EXPECTED_LEGACY_FRAME_RATE = 20",
     "EXPECTED_LEGACY_FRAME_COUNT = 17",
     "EXPECTED_LEGACY_KEY_COUNT = 18",
+    "INITIAL_TRANSIENT_FRAME_RATE = 30",
     "COMPAT_FRAME_RATE = 60",
-    "COMPAT_FRAME_COUNT = 51",
-    "COMPAT_KEY_COUNT = 52",
     "EXPECTED_CYCLE_DURATION = 0.85",
+    "EXPECTED_CYCLE_END_FRAME = 51",
+    "COMPAT_PAD_FRAME_COUNT = 1",
+    "COMPAT_FRAME_COUNT = EXPECTED_CYCLE_END_FRAME + COMPAT_PAD_FRAME_COUNT",
+    "COMPAT_KEY_COUNT = COMPAT_FRAME_COUNT + 1",
+    "PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY",
+    '"resampled_source_frames": resampled_source_frames',
+    '"motion_duration_seconds": EXPECTED_CYCLE_DURATION',
+    '"tail_pad_frames": COMPAT_PAD_FRAME_COUNT',
     "pilot.FRAME_RATE = COMPAT_FRAME_RATE",
     "pilot.FRAME_COUNT = COMPAT_FRAME_COUNT",
     "pilot.KEY_COUNT = COMPAT_KEY_COUNT",
     "pilot.main()",
 ):
     req(needle in lever, f"Lever compatibility contract missing: {needle}")
+
+req(
+    "COMPAT_FRAME_COUNT = 51" not in lever,
+    "Lever UE58 compatibility shim regressed to the rejected 51-frame envelope",
+)
+req(
+    "COMPAT_KEY_COUNT = 52" not in lever,
+    "Lever UE58 compatibility shim regressed to the rejected 52-key layout",
+)
+req(
+    "COMPAT_FRAME_COUNT * INITIAL_TRANSIENT_FRAME_RATE" in lever
+    and "% COMPAT_FRAME_RATE != 0" in lever,
+    "Lever UE58 compatibility shim does not fail closed on a fractional 30fps resample grid",
+)
 
 # UE 5.8 animation-data API regression guard.
 # The 2026-09-03 factual local run on cf75b86c failed because the legacy
@@ -84,11 +107,10 @@ for needle in (
 req(".add_bone_track(" not in m700, "M700 compatibility shim directly calls deprecated add_bone_track()")
 req(".add_bone_track(" not in lever, "Lever compatibility shim directly calls deprecated add_bone_track()")
 
-# UE 5.8 async compilation/DDC teardown guard.
-# The later factual local run reached Lever Action but crashed inside
-# UnrealEditor-DerivedDataCache.dll during commandlet shutdown. Both transient
-# animation shims must synchronously drain in-flight asset compilation after key
-# mutation (before sampling) and once more before commandlet exit.
+# UE 5.8 async compilation/DDC teardown guard. This is independent of the Lever
+# resampling-grid fix: the latest factual rejection occurs during SetNumberOfFrames
+# before the key-write barrier can be reached, but both transient shims still drain
+# in-flight compilation before sampling and before commandlet exit.
 for shim, label, marker in (
     (m700, "M700", "PASS45_M700_UE58_ASSET_COMPILATION_BARRIER_"),
     (lever, "Lever", "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_"),
@@ -160,6 +182,6 @@ if errors:
 
 print("PASS45 ITEM16 UE58 COMPAT: PASS")
 print("m700_legacy_fps=20 m700_compat_fps=60 m700_frames=66 duration=1.10 bone_curve_api=1 async_barriers=2")
-print("lever_legacy_fps=20 lever_compat_fps=60 lever_frames=51 duration=0.85 bone_curve_api=1 async_barriers=2")
+print("lever_legacy_fps=20 lever_compat_fps=60 motion_end_frame=51 sequence_frames=52 keys=53 source30_frames=26 motion_duration=0.85 tail_pad_frames=1 bone_curve_api=1 async_barriers=2")
 print("deprecated_add_bone_track_direct_calls=0")
 print("production_cutover=0 runtime_acceptance=0 item16_checked=0 merge_permitted=0")
