@@ -59,6 +59,19 @@ if not exist "%FLASH_VFX_VERIFY%" (
   exit /b 4
 )
 
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [ACCEPTANCE] FAILED - Git not found in PATH; exact-head runtime evidence cannot be bound.
+  exit /b 31
+)
+set "PASS45_SOURCE_SHA="
+for /f "delims=" %%H in ('git rev-parse --verify HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
+if not defined PASS45_SOURCE_SHA (
+  echo [ACCEPTANCE] FAILED - current Git HEAD could not be resolved before runtime.
+  exit /b 31
+)
+echo [ACCEPTANCE] Exact source HEAD pinned before runtime: %PASS45_SOURCE_SHA%
+
 call "%PLAYFLOW%"
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (
@@ -77,6 +90,21 @@ if not "%MATERIAL_RC%"=="0" (
   exit /b %MATERIAL_RC%
 )
 
+set "PASS45_SOURCE_SHA_AFTER="
+for /f "delims=" %%H in ('git rev-parse --verify HEAD 2^>nul') do set "PASS45_SOURCE_SHA_AFTER=%%H"
+if not defined PASS45_SOURCE_SHA_AFTER (
+  echo [ACCEPTANCE] FAILED - current Git HEAD could not be resolved after runtime/material gates.
+  exit /b 31
+)
+if /I not "%PASS45_SOURCE_SHA_AFTER%"=="%PASS45_SOURCE_SHA%" (
+  echo [ACCEPTANCE] FAILED - source HEAD changed during runtime acceptance.
+  echo [ACCEPTANCE] Before: %PASS45_SOURCE_SHA%
+  echo [ACCEPTANCE] After:  %PASS45_SOURCE_SHA_AFTER%
+  exit /b 31
+)
+
+echo [ACCEPTANCE] Exact source HEAD remained stable through runtime/material gates: %PASS45_SOURCE_SHA%
+
 set "PY_CMD="
 where py >nul 2>nul
 if not errorlevel 1 set "PY_CMD=py -3"
@@ -88,10 +116,6 @@ if not defined PY_CMD (
   echo [ACCEPTANCE] FAILED - Python 3 not found in PATH.
   exit /b 30
 )
-
-set "PASS45_SOURCE_SHA=unknown"
-for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
-set "PASS45_SOURCE_SHA=%PASS45_SOURCE_SHA%"
 
 echo.
 echo [ACCEPTANCE] Verifying Gate K final-world visual truth...

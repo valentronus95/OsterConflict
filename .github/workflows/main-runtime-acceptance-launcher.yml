@@ -8,6 +8,7 @@ on:
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
       - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
       - '.github/workflows/main-runtime-acceptance-launcher.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
       - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
       - '.github/workflows/main-runtime-acceptance-launcher.yml'
 

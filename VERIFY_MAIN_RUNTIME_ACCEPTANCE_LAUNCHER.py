@@ -45,6 +45,11 @@ for stale in ('PASS7_PRODUCTION_WEAPONS_READY', 'PASS7_PRODUCTION_WEAPON_RUNTIME
 required_strict = (
     'set "OC_FORCE_ACCEPTANCE=1"',
     'set "PLAYFLOW=%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"',
+    'where git >nul 2>nul',
+    "git rev-parse --verify HEAD",
+    'set "PASS45_SOURCE_SHA_AFTER="',
+    'if /I not "%PASS45_SOURCE_SHA_AFTER%"=="%PASS45_SOURCE_SHA%"',
+    'source HEAD changed during runtime acceptance',
     'call "%PLAYFLOW%"',
     'call "%MATERIAL_GATE%"',
     'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py',
@@ -55,6 +60,9 @@ required_strict = (
 for marker in required_strict:
     if marker not in strict:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing strict wrapper marker {marker!r}")
+
+if 'PASS45_SOURCE_SHA=unknown' in strict:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict wrapper still permits unbound SOURCE_SHA=unknown evidence")
 
 if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in playflow:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: playflow wrapper no longer owns the single CURRENT_GAMEPLAY delegation")
@@ -81,6 +89,7 @@ for marker in (
     'PASS45_GUNNER_EXIT_TRANSFORM_READY',
     'textureDependency=PASS',
     'VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION',
+    'SOURCE_SHA=',
 ):
     if marker not in evidence:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing evidence requirement {marker!r}")
@@ -94,6 +103,7 @@ if 'start /wait' not in main:
 
 print("MAIN RUNTIME ACCEPTANCE LAUNCHER + PASS45 REQUIRED-AVAILABLE CONTRACT PASS")
 print("- CURRENT_GAMEPLAY remains the single gameplay process owner")
+print("- strict main wrapper pins Git HEAD before runtime and rejects a source-head change before evidence verification")
 print("- strict main wrapper delegates through playflow, then runs material/dependency and interaction evidence gates")
 print("- exact weapon payload gaps stay CONTENT GAP; required available visuals and materials remain mandatory")
 print("- driver enter/exit and M2 gunner pitch/exit are mandatory Pass45 regression evidence")
