@@ -25,23 +25,47 @@ continue from the latest factual checkpoint. Do **not** restart a full-project a
 3. If another chat/process advanced the branch, consume those commits and continue from the newest factual state. Never replay superseded work merely because the current conversation is new.
 4. Treat already `ACCEPTED`, `CLOSED`, or otherwise factually completed work as frozen unless its owning source/contracts materially changed or newer runtime evidence invalidated it.
 5. Inspect the first factual open checklist item and its direct dependency surface first. Do not perform a new broad audit of unrelated systems.
-6. If that first-open item is blocked **only** by deferred user-local UE evidence and all safe remote work inside it is exhausted, leave it unchecked, record the deferred evidence, and continue the next remote-preparable item/direct dependency in the same consolidated acceptance batch. Do not stop every continuation at the same user-only blocker.
-7. Continue until the next factual remote blocker or meaningful checkpoint.
+6. If that first-open item is blocked **only** by deferred user-local UE evidence and all safe remote work inside it is exhausted, leave it unchecked, record the deferred evidence, and continue the next remote-preparable item/direct dependency in the same broad integrated PASS45 batch. Do not stop every continuation at the same user-only blocker.
+7. Continue until the next factual **remote** blocker or meaningful checkpoint. A deferred local UE check is not a remote blocker while useful repository/source/content/CI work remains elsewhere in the approved PASS45 scope.
 8. After substantive work, update `PASS45_RUNTIME_RECOVERY_HISTORY.md` with what changed, what remains open, the next factual operation, and the unchanged/updated official checklist accounting.
 
 ## Deferred user-local acceptance rule
 
-A pending user gameplay/visual/audio check is an acceptance dependency, not automatically a reason to halt all repository work.
+A pending user gameplay/visual/audio check is an acceptance dependency, not automatically a reason to halt repository work.
 
-For PASS45 weapon work:
+For PASS45 continuation while the user has deferred local UE execution:
 
-- keep each deferred runtime-dependent checklist item factually open;
-- continue source/content/CI preparation for the rest of the intended weapon acceptance batch where dependencies allow it;
-- do not fabricate calibration values or runtime verdicts;
+- keep every deferred runtime-dependent checklist item factually open;
+- continue source/content/CI preparation into later remote-preparable checklist items where dependencies allow it;
+- do **not** stop at one weapon, one asset, one model, one animation or one SoundWave merely because its final proof needs UE 5.8;
+- do not fabricate calibration values, imported `.uasset` files, fresh-load results or runtime verdicts;
 - do not merge PR #94 while required runtime acceptance remains pending;
-- return to the deferred items together in one consolidated weapon acceptance window when the batch is ready.
+- keep `runtime_acceptance=0`, `item16_checked=0`, `merge_permitted=0`, and `user_local_execution_requested=0` truthful until their real acceptance conditions are met;
+- return to deferred local-only items together when the broad integrated PASS45 batch is ready for a useful end-to-end check.
 
-This rule is specifically intended to prevent repeated chats from sitting on the same single-weapon local check while useful remote work remains.
+### Broad integrated PASS45 batch target
+
+The user has explicitly chosen **batch-first local verification**. The deferred local acceptance window is not limited to the current weapon item.
+
+Before asking the user for the planned local UE 5.8 check, continue as far as safely possible through the current TZ so the integrated build contains, where the repository/TZ and available assets permit:
+
+1. the intended weapon model/mechanics/audio preparation rather than one isolated weapon;
+2. first-person hands/arms presentation and weapon-hand integration;
+3. other production model/asset replacements that are already remote-preparable;
+4. vehicle model/integration work, including the tracked military vehicle set where sources exist;
+5. graphics/visual-quality improvements that are remote-preparable without inventing runtime evidence.
+
+A local-only acceptance seam inside any one of those areas must be recorded as `DEFERRED_LOCAL_ACCEPTANCE` (or the equivalent factual open state) and **must not block moving to the next remote-preparable area**.
+
+The intended cadence is therefore:
+
+`remote-preparable broad integration -> one meaningful integrated UE 5.8 check -> one consolidated defect list -> batch fixes -> targeted failed-component retests -> final integrated acceptance`
+
+It is specifically prohibited to fall back to:
+
+`one weapon -> ask user to test -> fix -> another weapon -> ask user to test -> ...`
+
+unless the user explicitly requests that cadence or a genuinely local-only fact makes further remote work unsafe/impossible across the remaining approved batch.
 
 ## Full re-audit is allowed only when justified
 
@@ -72,19 +96,19 @@ Uncommitted/stashed files that exist only on the user's PC remain outside assist
 
 Do not increase the official PASS45 percentage for documentation, source preparation, CI contracts, quarantine intake, pilot-only evidence, or for merely deferring a required local acceptance. Only canonical checklist closure with its required acceptance may change the 36-item accounting.
 
-## Weapon runtime cadence
+## Integrated runtime cadence
 
-For item 16 and related weapon setup:
+For item 16 and later remotely-preparable PASS45 work:
 
-- run all possible repository/source/static/CI checks while configuring individual weapons;
-- do **not** ask the user to run UE after every small weapon tweak or after each individual weapon reaches a local-only boundary;
-- prepare the intended weapon setup set as far as safely possible first;
-- then run one consolidated current-head UE 5.8 weapon runtime acceptance with direct visual/audio/gameplay evidence across the affected weapons;
+- run all possible repository/source/static/CI checks while configuring individual components;
+- do **not** ask the user to run UE after every small weapon tweak, asset import preparation, vehicle change, hands change, visual change, or after each individual component reaches a local-only boundary;
+- prepare the broad integrated PASS45 set as far as safely possible first;
+- then run one consolidated current-head UE 5.8 visual/audio/gameplay acceptance over the integrated batch;
 - collect one defect list and fix it as a batch;
 - during corrective debugging, rerun only the component(s) that actually failed;
-- run one final consolidated weapon acceptance after corrections.
+- run one final consolidated acceptance after corrections.
 
-A targeted single-component user run before that batch is allowed only when a genuinely local-only fact is a hard blocker that prevents further safe remote work, or when the user explicitly asks to test it now.
+A targeted single-component user run before that batch is allowed only when a genuinely local-only fact is a hard blocker that prevents further safe remote work across the remaining batch, or when the user explicitly asks to test it now.
 
 ## User-facing communication rule
 
