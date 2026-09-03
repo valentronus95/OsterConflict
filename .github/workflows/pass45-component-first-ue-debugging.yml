@@ -1,0 +1,28 @@
+name: Pass 45 component-first UE debugging
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'OSTER_CONFLICT_WORK_LEDGER.md'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - '_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md'
+      - 'VERIFY_PASS45_COMPONENT_FIRST_UE_DEBUGGING.py'
+      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
+      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
+      - '.github/workflows/pass45-component-first-ue-debugging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify component-first local UE debugging cadence
+        run: python VERIFY_PASS45_COMPONENT_FIRST_UE_DEBUGGING.py
