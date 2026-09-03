@@ -46,13 +46,20 @@ def assert_rejected(callable_obj, payload: dict, expected_fragment: str, label: 
 
 
 def main() -> int:
-    require(PROTOCOL, (
+    protocol = require(PROTOCOL, (
         "Do **not** restart a full-project audit by default.",
-        "Inspect only the first factual open checklist item",
+        "first factual open checklist item",
+        "Deferred user-local acceptance rule",
+        "same consolidated acceptance batch",
         "Parallel chats",
         "Local user Changes",
         "one consolidated current-head UE 5.8 weapon runtime acceptance",
+        "ВІД ТЕБЕ ЗАРАЗ НІЧОГО НЕ ПОТРІБНО.",
+        "ПОТРІБНА ТВОЯ ПЕРЕВІРКА.",
     ))
+    if "Do not stop every continuation at the same user-only blocker" not in protocol:
+        fail("continuation protocol lost the deferred local-acceptance forward-progress rule")
+
     require(HISTORY, (
         "PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md",
         "item 16",
@@ -224,6 +231,7 @@ def main() -> int:
     )
 
     print("PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION_CONTRACT_PASS")
+    print("deferred_user_acceptance_does_not_stall_batch=1 plain_language_handoff=1")
     print("current_ue58_compat_evidence_required=1 source_identity_pinned=1 legacy_pilot_evidence_accepted=0 cross_source_pilot_evidence_accepted=0")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
