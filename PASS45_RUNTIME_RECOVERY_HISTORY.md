@@ -53,7 +53,9 @@ Historical/local blocker sequence retained for non-regression:
 17. `fac7de39b6151c3419afc881ecfe6c49acb81861` — historical Pass44 verifier stops depending on frozen ledger headings and validates semantics instead;
 18. `79d6363bb7cb1174a749969d009c00b50edf98fa` — item-16 calibration review rejects stale pre-recovery pilot JSON and requires current UE 5.8 compatibility evidence;
 19. `67d3e443783beb2f3b6b080c99601e9f84b3d801` — checkpoint/calibration verifier proves current-compat evidence is accepted while legacy `add_bone_track`, missing Lever duration bridge and rejected 51-frame grid evidence are fail-closed;
-20. `1f428d4237e81a340c5d8ff0236e3f849ed40b7f` — component-first verifier is reconciled with the user-authoritative remote-only pause while still protecting the deferred Lever launcher and consolidated chain.
+20. `1f428d4237e81a340c5d8ff0236e3f849ed40b7f` — component-first verifier is reconciled with the user-authoritative remote-only pause while still protecting the deferred Lever launcher and consolidated chain;
+21. `e34a41bab79bed713bac7f5c77626224aef55907` — calibration review additionally pins exact M700/Lever Stein source paths and SHA-256 identities, rejecting cross-source pilot evidence;
+22. `73497cf7c4c23e7baf9df3786f3d37593541a6da` — companion checkpoint/calibration verifier adds exact-source synthetic fixtures and negative wrong-SHA tests; every pull-request workflow returned by GitHub for this exact head completed **SUCCESS**.
 
 ## First factual open item — item 16
 
@@ -152,9 +154,11 @@ Current recovery is **CODED_UNTESTED** locally until factual UE 5.8 evidence sup
 
 `PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py` no longer accepts a pilot JSON merely because it contains measurable BOLT/LEVER movement.
 
-M700 review now requires the current UE 5.8 proof shape:
+M700 review now requires the exact pinned Stein source plus the current UE 5.8 proof shape:
 
 ```text
+source=OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx
+source_sha256=b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840
 track_creation_api=add_bone_curve
 frame_rate=60
 frame_count=66
@@ -163,9 +167,11 @@ asset_compilation_barrier_before_sampling=true
 cycle_duration_seconds=1.10
 ```
 
-Lever review additionally requires:
+Lever review additionally requires its exact pinned Stein source and compatibility envelope:
 
 ```text
+source=OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx
+source_sha256=b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69
 initial_transient_frame_rate=30
 frame_rate=60
 frame_count=52
@@ -179,7 +185,7 @@ sequence_envelope_validation_bridge=true
 asset_compilation_barrier_before_sampling=true
 ```
 
-The review emits `CURRENT_UE58_COMPAT_FAIL_CLOSED`, keeps final travel/rotation/angle unaccepted and preserves `runtime_acceptance=0`, `item16_checked=0`, `merge_permitted=0`.
+The review emits `CURRENT_UE58_COMPAT_FAIL_CLOSED`, `source_identity_pinned=1`, rejects legacy/cross-source evidence, keeps final travel/rotation/angle unaccepted and preserves `runtime_acceptance=0`, `item16_checked=0`, `merge_permitted=0`.
 
 This is evidence hygiene only. It does not create missing runtime evidence.
 
@@ -216,16 +222,22 @@ This does not waive runtime/visual acceptance. It only removes user-local execut
 
 ## Current CI boundary
 
-On `67d3e443783beb2f3b6b080c99601e9f84b3d801` the formerly red checkpoint/verifier jobs were rechecked:
+Exact-head source/CI checkpoint `73497cf7c4c23e7baf9df3786f3d37593541a6da` is structurally green: **all pull-request workflow runs returned by GitHub for that head completed SUCCESS**.
 
-- `Pass 45 checkpoint continuation and item16 calibration contract`: **SUCCESS**;
-- `Pass 45 asset intake 2026-09-03 contract`: **SUCCESS**;
-- `Runtime map spawn FPS assets Pass 44`: **SUCCESS**;
-- `Source verification`: **SUCCESS**.
+Relevant item-16/current-checkpoint gates include:
 
-`Pass 45 component-first UE debugging` then exposed one remaining stale expectation: it still required the living ledger/history to present the Lever-only local launcher as the active operation even though the latest user instruction explicitly paused all PC-side checks. Commit `1f428d4237e81a340c5d8ff0236e3f849ed40b7f` fixes that verifier contract without weakening the deferred launcher itself.
+- `Pass 45 checkpoint continuation and item16 calibration contract`: SUCCESS;
+- `Pass 45 component-first UE debugging`: SUCCESS;
+- `Pass 45 item16 UE58 frame-rate compatibility`: SUCCESS;
+- `Pass 45 item16 local UE58 evidence chain contract`: SUCCESS;
+- `Pass 45 M700 derived bolt translation UE58 pilot contract`: SUCCESS;
+- Remington source/import/derived-pump/assembly/production wiring contracts: SUCCESS;
+- `Pass 45 manual-action audio provenance`: SUCCESS;
+- `Pass 45 local build import regression`: SUCCESS;
+- `Runtime map spawn FPS assets Pass 44`: SUCCESS;
+- `Source verification`: SUCCESS.
 
-Do not call the newest exact head fully green until its new workflow set settles.
+This means the current remote/source contract set is internally consistent. It does **not** convert the locally untested Lever duration bridge, missing final calibration, or direct gameplay/visual/audio acceptance into runtime success. GitHub CI remains structural evidence only.
 
 ## Next factual operation
 
@@ -233,10 +245,11 @@ User-local execution is currently paused by explicit instruction.
 
 Continue remotely in this order:
 
-1. settle exact-head CI after the remote-only component-verifier correction;
-2. keep item 16 open and fail-closed;
-3. continue only remote-preparable item-16 source/acceptance hardening that does not invent M700/Lever visual calibration;
-4. do not merge PR #94 and do not promote runtime acceptance from CI alone.
+1. keep exact-head CI/source contracts green while hardening item-16 evidence;
+2. audit the manual-action runtime bridge for factual timing/evidence fields without inventing a timing acceptance tolerance;
+3. keep final M700 travel/rotation and Lever angle unaccepted until factual visual calibration exists;
+4. keep Remington visible-pump/mechanical-audio acceptance pending factual runtime evidence;
+5. do not merge PR #94 and do not promote runtime acceptance from CI alone.
 
 PR #94 remains OPEN / UNMERGED.
 
