@@ -6,10 +6,18 @@ changing that sequence to 20 fps because 20 is neither a multiple nor a factor o
 30. UE 5.8 also deprecates add_bone_track() in favor of add_bone_curve(); on the
 current local engine the legacy call returns INDEX_NONE for the imported BOLT bone.
 
+The 2026-09-03 Lever phase later exposed a second commandlet-only hazard: transient
+animation mutation can leave asset/DDC compilation running into process teardown.
+UE 5.8 exposes AutomationUtilsBlueprintLibrary.finish_all_asset_compilation() to
+block until in-flight asset compilation and render-thread follow-up work is done.
+M700 uses the same bounded barrier policy so the evidence chain does not merely
+move the shutdown race between adjacent phases.
+
 The underlying pilot remains authoritative for source identity, motion shape,
 acceptance flags, evidence, and all safety gates. This shim changes only transient
-pilot authoring compatibility: 60 fps cadence and the UE 5.8 bone-curve creation
-API. It preserves the exact 1.10 s cycle as 66 frames.
+pilot authoring/teardown compatibility: 60 fps cadence, the UE 5.8 bone-curve API,
+and bounded async-compilation draining. It preserves the exact 1.10 s cycle as
+66 frames.
 
 This is proof-only. It does not save packages, change production profiles, accept
 pilot travel, author bolt rotation, close item 16, or permit merge.
@@ -30,6 +38,31 @@ EXPECTED_LEGACY_FRAME_COUNT = 22
 COMPAT_FRAME_RATE = 60
 COMPAT_FRAME_COUNT = 66
 EXPECTED_CYCLE_DURATION = 1.10
+
+
+def finish_asset_compilation_ue58(stage: str) -> None:
+    unreal = pilot.unreal
+    library = getattr(unreal, "AutomationUtilsBlueprintLibrary", None)
+    if library is None:
+        pilot.fail(
+            "ue58_automation_utils_unavailable=1 "
+            f"stage={stage} finish_all_asset_compilation_required=1"
+        )
+    finish_all = getattr(library, "finish_all_asset_compilation", None)
+    if not callable(finish_all):
+        pilot.fail(
+            "ue58_finish_all_asset_compilation_unavailable=1 "
+            f"stage={stage}"
+        )
+    unreal.log(
+        "PASS45_M700_UE58_ASSET_COMPILATION_BARRIER_BEGIN "
+        f"stage={stage}"
+    )
+    finish_all()
+    unreal.log(
+        "PASS45_M700_UE58_ASSET_COMPILATION_BARRIER_END "
+        f"stage={stage}"
+    )
 
 
 def create_sequence_ue58(
@@ -103,6 +136,9 @@ def create_sequence_ue58(
     ):
         pilot.fail("bolt_bone_track_key_write_failed=1")
 
+    # Drain compression/DDC work before the base pilot samples this sequence.
+    finish_asset_compilation_ue58("after_set_bone_track_keys_before_sampling")
+
     return sequence, {
         "track_index": None,
         "track_creation_api": "add_bone_curve",
@@ -115,6 +151,7 @@ def create_sequence_ue58(
             float(bind_t.z),
         ],
         "keys": keys,
+        "asset_compilation_barrier_before_sampling": True,
     }
 
 
@@ -136,6 +173,10 @@ def main() -> None:
     pilot.FRAME_COUNT = COMPAT_FRAME_COUNT
     pilot.create_sequence = create_sequence_ue58
     pilot.main()
+
+    # Keep shutdown deterministic even if sampling/evidence work queued follow-up
+    # compilation after the first barrier.
+    finish_asset_compilation_ue58("post_pilot_before_commandlet_exit")
 
 
 if __name__ == "__main__":
