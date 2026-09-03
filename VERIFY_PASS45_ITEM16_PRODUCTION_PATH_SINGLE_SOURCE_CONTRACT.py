@@ -9,11 +9,18 @@ ROOT = Path(__file__).resolve().parent
 PROFILE = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py"
 PACKAGE_BINDING_MODULE = "VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING"
 CALIBRATION_BINDING_MODULE = "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING"
-PACKAGE_SYMBOLS = {"expected_package_file", "M700_PREFIX", "LEVER_PREFIX"}
+PACKAGE_SYMBOLS = {"validate_authored_package", "M700_PREFIX", "LEVER_PREFIX"}
 CALIBRATION_SYMBOLS = {
     "validate_approval",
     "validate_evidence_head_repository",
     "validate_pair",
+}
+FORBIDDEN_PACKAGE_RULE_DIAGNOSTICS = {
+    "sequence is outside production namespace",
+    "sequence points at calibration pilot",
+    "sequence object path is not canonical",
+    "package mapping mismatch",
+    "authored production package missing",
 }
 
 
@@ -54,9 +61,10 @@ def loaded_names(tree: ast.AST) -> set[str]:
 
 def main() -> int:
     failures: list[str] = []
-    tree = ast.parse(PROFILE.read_text(encoding="utf-8"), filename=str(PROFILE))
+    profile_text = PROFILE.read_text(encoding="utf-8")
+    tree = ast.parse(profile_text, filename=str(PROFILE))
 
-    forbidden_local_defs = {"expected_package_file", *CALIBRATION_SYMBOLS}
+    forbidden_local_defs = {"validate_authored_package", *CALIBRATION_SYMBOLS}
     local_defs = {
         node.name
         for node in ast.walk(tree)
@@ -92,8 +100,10 @@ def main() -> int:
         )
 
     calls = called_names(tree)
-    if "expected_package_file" not in calls:
-        failures.append("profile cutover imports but does not call expected_package_file")
+    if "validate_authored_package" not in calls:
+        failures.append("profile cutover imports but does not call validate_authored_package")
+    if "expected_package_file" in calls:
+        failures.append("profile cutover must not revalidate canonical package mapping directly")
     missing_calls = CALIBRATION_SYMBOLS - calls
     if missing_calls:
         failures.append(
@@ -109,6 +119,15 @@ def main() -> int:
             + ", ".join(sorted(missing_namespace_uses))
         )
 
+    repeated_package_rules = sorted(
+        diagnostic for diagnostic in FORBIDDEN_PACKAGE_RULE_DIAGNOSTICS if diagnostic in profile_text
+    )
+    if repeated_package_rules:
+        failures.append(
+            "profile cutover repeats canonical production package validation rules: "
+            + ", ".join(repeated_package_rules)
+        )
+
     if failures:
         print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: FAIL")
         for failure in failures:
@@ -117,7 +136,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: PASS")
-    print("canonical_mapping_imported=1 production_namespace_imported=1 duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1")
+    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

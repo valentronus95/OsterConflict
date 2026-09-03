@@ -25,8 +25,7 @@ from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
 from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import (
     LEVER_PREFIX,
     M700_PREFIX,
-    expected_package_file,
-    validate_authored_package as validate_package_bytes,
+    validate_authored_package,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -80,25 +79,14 @@ def validate_authored_asset(entry: object, *, label: str, prefix: str, source_sh
         errors.append(f"authoring receipt missing {label} object")
         return None
 
-    # Byte identity, canonical object-path mapping, and production namespace ownership
-    # share one implementation in VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py.
-    # Do not fork those rules here; otherwise profile cutover can drift from package
-    # binding after a future hardening change.
-    errors.extend(validate_package_bytes(entry, label=label, prefix=prefix, root=ROOT))
+    # Byte identity, canonical object-path mapping, production namespace ownership,
+    # pilot rejection and package existence all have one implementation in
+    # VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py. Profile cutover only adds
+    # the item-16 donor-source identity requirement and consumes the canonical path.
+    errors.extend(validate_authored_package(entry, label=label, prefix=prefix, root=ROOT))
 
     object_path = str(entry.get("sequence_object_path", ""))
-    package_file = str(entry.get("package_file", ""))
-    req(object_path.startswith(prefix), f"{label} sequence is outside production namespace: {object_path!r}")
-    req("/ImportPilots/" not in object_path and "Pilot" not in object_path,
-        f"{label} sequence points at calibration pilot: {object_path!r}")
-    derived_file = expected_package_file(object_path)
-    req(derived_file is not None, f"{label} sequence object path is not canonical: {object_path!r}")
-    if derived_file is not None:
-        req(package_file == derived_file,
-            f"{label} package mapping mismatch expected={derived_file!r} actual={package_file!r}")
     req(entry.get("source_sha256") == source_sha256, f"{label} source SHA-256 drifted in authoring receipt")
-    if package_file:
-        req((ROOT / package_file).is_file(), f"{label} authored production package missing: {package_file}")
     return object_path or None
 
 
@@ -184,5 +172,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 production_package_validation_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
