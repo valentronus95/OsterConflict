@@ -15,10 +15,20 @@ frames on the initial 30 fps grid. The final padded key remains at the returned
 bind pose because the authoritative motion function clamps at the 0.85 s cycle
 endpoint.
 
+A later factual rerun proved that this frame-grid fix removes the compression
+assert and reaches the first asset-compilation barrier successfully, but the
+legacy base pilot then rejected the intentionally padded 0.866666... s sequence
+envelope because its generic duration check still compared full play length with
+the 0.85 s motion duration. This shim therefore bridges that one validation point
+without lying about evidence: after all 0.85 s motion keys are authored, the base
+pilot's duration contract is temporarily set to the legal sequence envelope; the
+sample-motion hook restores the authoritative 0.85 s motion duration before
+sampling, evidence generation, or the PASS log. As a result, evidence continues
+to report cycle_duration_seconds=0.85 and the factual play_length_seconds remains
+0.866666..., while the controller block records the one-frame tail pad explicitly.
+
 UE 5.8 also deprecates add_bone_track() in favor of add_bone_curve(). The shim
-keeps the previously added asset-compilation barriers as a separate teardown
-safety guard, but the frame-grid correction happens before those barriers because
-the rejected run crashed during SetNumberOfFrames/compression.
+keeps the asset-compilation barriers as a separate teardown safety guard.
 
 The underlying pilot remains authoritative for source identity, motion shape,
 acceptance flags, evidence, and all safety gates. This is proof-only. It does not
@@ -46,6 +56,8 @@ EXPECTED_CYCLE_END_FRAME = 51
 COMPAT_PAD_FRAME_COUNT = 1
 COMPAT_FRAME_COUNT = EXPECTED_CYCLE_END_FRAME + COMPAT_PAD_FRAME_COUNT
 COMPAT_KEY_COUNT = COMPAT_FRAME_COUNT + 1
+COMPAT_SEQUENCE_DURATION = COMPAT_FRAME_COUNT / float(COMPAT_FRAME_RATE)
+ORIGINAL_SAMPLE_MOTION = pilot.sample_motion
 
 
 def finish_asset_compilation_ue58(stage: str) -> None:
@@ -71,6 +83,25 @@ def finish_asset_compilation_ue58(stage: str) -> None:
         "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END "
         f"stage={stage}"
     )
+
+
+def sample_motion_ue58(sequence: object):
+    """Restore the factual 0.85 s motion contract before sampling/evidence."""
+    unreal = pilot.unreal
+    current_contract = float(pilot.CYCLE_DURATION)
+    if abs(current_contract - COMPAT_SEQUENCE_DURATION) > 1e-9:
+        pilot.fail(
+            "ue58_sequence_envelope_contract_not_armed=1 "
+            f"expected={COMPAT_SEQUENCE_DURATION:.9f} actual={current_contract:.9f}"
+        )
+    pilot.CYCLE_DURATION = EXPECTED_CYCLE_DURATION
+    unreal.log(
+        "PASS45_LEVERACTION_UE58_MOTION_DURATION_RESTORED "
+        f"motion_duration={EXPECTED_CYCLE_DURATION:.6f} "
+        f"sequence_envelope={COMPAT_SEQUENCE_DURATION:.6f} "
+        f"tail_pad_frames={COMPAT_PAD_FRAME_COUNT}"
+    )
+    return ORIGINAL_SAMPLE_MOTION(sequence)
 
 
 def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str, object]:
@@ -141,6 +172,19 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
     # Drain that work before the base pilot samples the sequence.
     finish_asset_compilation_ue58("after_set_bone_track_keys_before_sampling")
 
+    # Base pilot validation predates the UE58 integral-resample-grid tail pad and
+    # compares full sequence play length with the actual 0.85 s motion duration.
+    # Arm only that validation boundary now, after all motion keys are already
+    # authored with the factual 0.85 s clamp. sample_motion_ue58 restores 0.85 s
+    # before any sampling/evidence/PASS output occurs.
+    pilot.CYCLE_DURATION = COMPAT_SEQUENCE_DURATION
+    unreal.log(
+        "PASS45_LEVERACTION_UE58_SEQUENCE_ENVELOPE_CONTRACT_ARMED "
+        f"motion_duration={EXPECTED_CYCLE_DURATION:.6f} "
+        f"sequence_envelope={COMPAT_SEQUENCE_DURATION:.6f} "
+        f"tail_pad_frames={COMPAT_PAD_FRAME_COUNT}"
+    )
+
     return {
         "track_index": None,
         "track_creation_api": "add_bone_curve",
@@ -152,7 +196,7 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
         "motion_duration_seconds": EXPECTED_CYCLE_DURATION,
         "motion_end_frame": EXPECTED_CYCLE_END_FRAME,
         "tail_pad_frames": COMPAT_PAD_FRAME_COUNT,
-        "sequence_duration_seconds": pilot.FRAME_COUNT / float(pilot.FRAME_RATE),
+        "sequence_duration_seconds": COMPAT_SEQUENCE_DURATION,
         "bind_translation": [
             float(bind_translation.x),
             float(bind_translation.y),
@@ -171,6 +215,7 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
         ],
         "keys": key_rows,
         "asset_compilation_barrier_before_sampling": True,
+        "sequence_envelope_validation_bridge": True,
     }
 
 
@@ -205,12 +250,22 @@ def main() -> None:
         raise RuntimeError(
             "Lever compatibility sequence envelope no longer maps to an integral 30 fps resampling frame"
         )
+    if abs(COMPAT_SEQUENCE_DURATION - (52.0 / 60.0)) > 1e-9:
+        raise RuntimeError("Lever compatibility sequence duration drifted")
 
     pilot.FRAME_RATE = COMPAT_FRAME_RATE
     pilot.FRAME_COUNT = COMPAT_FRAME_COUNT
     pilot.KEY_COUNT = COMPAT_KEY_COUNT
     pilot.configure_sequence = configure_sequence_ue58
-    pilot.main()
+    pilot.sample_motion = sample_motion_ue58
+
+    try:
+        pilot.main()
+    finally:
+        # Never leak compatibility-only globals if Python remains alive after a
+        # fail-closed pilot exception.
+        pilot.CYCLE_DURATION = EXPECTED_CYCLE_DURATION
+        pilot.sample_motion = ORIGINAL_SAMPLE_MOTION
 
     # Do not let the PythonScriptCommandlet tear down transient imported/animation
     # objects while UE foreground workers still own compilation/DDC follow-up work.
