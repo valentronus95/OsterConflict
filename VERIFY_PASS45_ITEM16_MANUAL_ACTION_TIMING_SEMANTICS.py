@@ -34,17 +34,23 @@ def req(condition: bool, message: str) -> None:
         errors.append(message)
 
 
-def constructor_block(text: str, class_name: str, next_class_name: str) -> str:
+def constructor_block(text: str, class_name: str, next_class_name: str | None) -> str:
     start = text.find(f"{class_name}::{class_name}()")
-    end = text.find(f"{next_class_name}::{next_class_name}()", start + 1)
-    if start < 0 or end < 0:
+    if start < 0:
         errors.append(f"cannot isolate constructor block {class_name}")
         return ""
+    if next_class_name is None:
+        end = len(text)
+    else:
+        end = text.find(f"{next_class_name}::{next_class_name}()", start + 1)
+        if end < 0:
+            errors.append(f"cannot find next constructor after {class_name}: {next_class_name}")
+            return ""
     return text[start:end]
 
 
 def parse_scalar(text: str, pattern: str, label: str) -> float:
-    match = re.search(pattern, text)
+    match = re.search(pattern, text, re.MULTILINE)
     if not match:
         errors.append(f"missing {label}")
         return float("nan")
@@ -61,7 +67,7 @@ runtime_evidence = read("VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
 m700_block = constructor_block(variants, "AOCWeapon_Sniper", "AOCWeapon_Shotgun")
 remington_block = constructor_block(variants, "AOCWeapon_Shotgun", "AOCWeapon_LMG")
-lever_block = constructor_block(variants, "AOCWeapon_LeverAction", "AOCWeapon_RocketLauncher")
+lever_block = constructor_block(variants, "AOCWeapon_LeverAction", None)
 
 for block, weapon_id, action, gate, label in (
     (m700_block, 'TEXT("OC_SNP1")', "EOCWeaponActionType::BoltAction", 1.10, "M700"),
