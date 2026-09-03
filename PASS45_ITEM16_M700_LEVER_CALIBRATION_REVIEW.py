@@ -5,6 +5,13 @@ This tool never authors production animation, chooses a final calibration value,
 imports/saves Unreal assets, closes item 16, or claims runtime acceptance. It only
 consolidates already-produced local UE evidence so continuation does not replay the
 same source investigation.
+
+The review is deliberately fail-closed against stale pre-recovery evidence. M700
+must prove the current UE 5.8 add_bone_curve + 60 fps + compilation-barrier path.
+Lever must additionally prove the integral 30->60 resampling envelope and the
+0.85 s motion / 52-frame technical-envelope validation bridge. A legacy pilot JSON
+that merely contains measurable motion is not sufficient for current-head
+calibration review.
 """
 from __future__ import annotations
 
@@ -17,6 +24,19 @@ LEVER_PATH = ROOT / "OsterConflict" / "Saved" / "PASS45" / "PASS45_LEVERACTION_D
 OUT_DIR = ROOT / "PC_TEST" / "TEST_RESULTS"
 OUT_JSON = OUT_DIR / "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.json"
 OUT_MD = OUT_DIR / "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.md"
+
+M700_COMPAT_FPS = 60
+M700_COMPAT_FRAMES = 66
+M700_COMPAT_KEYS = 67
+LEVER_INITIAL_FPS = 30
+LEVER_COMPAT_FPS = 60
+LEVER_MOTION_DURATION = 0.85
+LEVER_MOTION_END_FRAME = 51
+LEVER_COMPAT_FRAMES = 52
+LEVER_COMPAT_KEYS = 53
+LEVER_SOURCE_FRAMES = 26
+LEVER_TAIL_PAD_FRAMES = 1
+LEVER_SEQUENCE_DURATION = LEVER_COMPAT_FRAMES / float(LEVER_COMPAT_FPS)
 
 
 def fail(message: str) -> None:
@@ -40,6 +60,42 @@ def require_false(data: dict, key: str, label: str) -> None:
         fail(f"{label} must preserve {key}=false; got {data.get(key)!r}")
 
 
+def require_true(data: dict, key: str, label: str) -> None:
+    if data.get(key) is not True:
+        fail(f"{label} must preserve {key}=true; got {data.get(key)!r}")
+
+
+def require_int(data: dict, key: str, expected: int, label: str) -> None:
+    try:
+        actual = int(data.get(key))
+    except (TypeError, ValueError):
+        fail(f"{label} missing/invalid {key}: {data.get(key)!r}")
+    if actual != expected:
+        fail(f"{label} {key} drifted: expected={expected} actual={actual}")
+
+
+def require_float(data: dict, key: str, expected: float, tolerance: float, label: str) -> None:
+    try:
+        actual = float(data.get(key))
+    except (TypeError, ValueError):
+        fail(f"{label} missing/invalid {key}: {data.get(key)!r}")
+    if abs(actual - expected) > tolerance:
+        fail(f"{label} {key} drifted: expected={expected} actual={actual}")
+
+
+def require_controller(data: dict, label: str) -> dict:
+    controller = data.get("controller")
+    if not isinstance(controller, dict):
+        fail(f"{label} current UE58 controller evidence missing")
+    if controller.get("track_creation_api") != "add_bone_curve":
+        fail(
+            f"{label} stale/unsupported bone-track creation evidence: "
+            f"{controller.get('track_creation_api')!r}"
+        )
+    require_true(controller, "asset_compilation_barrier_before_sampling", label)
+    return controller
+
+
 def validate_common(data: dict, label: str) -> None:
     engine = str(data.get("engine_version", ""))
     if not engine.startswith("5.8"):
@@ -59,6 +115,14 @@ def validate_m700(data: dict) -> dict:
         fail("M700 must preserve rotation_calibration_pending=true")
     if data.get("bolt_bone_addressable") is not True or data.get("bolt_motion_nontrivial") is not True:
         fail("M700 no longer proves addressable non-trivial BOLT motion")
+
+    controller = require_controller(data, "M700")
+    require_int(controller, "frame_rate", M700_COMPAT_FPS, "M700")
+    require_int(controller, "frame_count", M700_COMPAT_FRAMES, "M700")
+    require_int(controller, "key_count", M700_COMPAT_KEYS, "M700")
+    require_float(data, "cycle_duration_seconds", 1.10, 1e-6, "M700")
+    require_float(data, "play_length_seconds", 1.10, 0.011, "M700")
+
     pilot = float(data.get("pilot_max_travel", 0.0))
     sampled = float(data.get("max_sampled_translation_delta", 0.0))
     if pilot <= 0.0 or sampled <= 0.0:
@@ -70,6 +134,10 @@ def validate_m700(data: dict) -> dict:
         "pilot_max_travel": pilot,
         "max_sampled_translation_delta": sampled,
         "end_return_error": float(data.get("end_return_error", 0.0)),
+        "ue58_track_creation_api": controller["track_creation_api"],
+        "ue58_frame_rate": int(controller["frame_rate"]),
+        "ue58_frame_count": int(controller["frame_count"]),
+        "ue58_asset_compilation_barrier": True,
         "travel_accepted": False,
         "rotation_pending": True,
         "manual_visual_calibration_required": True,
@@ -83,6 +151,26 @@ def validate_lever(data: dict) -> dict:
     require_false(data, "pilot_angle_accepted", "Lever Action")
     if data.get("lever_bone_addressable") is not True or data.get("lever_motion_nontrivial") is not True:
         fail("Lever Action no longer proves addressable non-trivial LEVER motion")
+
+    controller = require_controller(data, "Lever Action")
+    require_int(controller, "frame_rate", LEVER_COMPAT_FPS, "Lever Action")
+    require_int(controller, "frame_count", LEVER_COMPAT_FRAMES, "Lever Action")
+    require_int(controller, "key_count", LEVER_COMPAT_KEYS, "Lever Action")
+    require_int(controller, "initial_transient_frame_rate", LEVER_INITIAL_FPS, "Lever Action")
+    require_int(controller, "resampled_source_frames", LEVER_SOURCE_FRAMES, "Lever Action")
+    require_int(controller, "motion_end_frame", LEVER_MOTION_END_FRAME, "Lever Action")
+    require_int(controller, "tail_pad_frames", LEVER_TAIL_PAD_FRAMES, "Lever Action")
+    require_float(controller, "motion_duration_seconds", LEVER_MOTION_DURATION, 1e-9, "Lever Action")
+    require_float(controller, "sequence_duration_seconds", LEVER_SEQUENCE_DURATION, 1e-9, "Lever Action")
+    require_true(controller, "sequence_envelope_validation_bridge", "Lever Action")
+    require_float(data, "cycle_duration_seconds", LEVER_MOTION_DURATION, 1e-6, "Lever Action")
+    require_float(data, "play_length_seconds", LEVER_SEQUENCE_DURATION, 1e-5, "Lever Action")
+
+    if (LEVER_COMPAT_FRAMES * LEVER_INITIAL_FPS) % LEVER_COMPAT_FPS != 0:
+        fail("internal Lever integral-grid review contract drifted")
+    if LEVER_MOTION_END_FRAME / float(LEVER_COMPAT_FPS) != LEVER_MOTION_DURATION:
+        fail("internal Lever motion-end review contract drifted")
+
     angle = float(data.get("pilot_max_angle_deg", 0.0))
     sampled = float(data.get("max_sampled_rotation_delta_deg", 0.0))
     if abs(angle) < 1.0 or sampled <= 0.0:
@@ -94,6 +182,17 @@ def validate_lever(data: dict) -> dict:
         "pilot_max_angle_deg": angle,
         "max_sampled_rotation_delta_deg": sampled,
         "end_return_error_deg": float(data.get("end_return_error_deg", 0.0)),
+        "ue58_track_creation_api": controller["track_creation_api"],
+        "ue58_initial_frame_rate": int(controller["initial_transient_frame_rate"]),
+        "ue58_compat_frame_rate": int(controller["frame_rate"]),
+        "ue58_compat_frame_count": int(controller["frame_count"]),
+        "ue58_resampled_source_frames": int(controller["resampled_source_frames"]),
+        "ue58_motion_duration_seconds": float(controller["motion_duration_seconds"]),
+        "ue58_sequence_duration_seconds": float(controller["sequence_duration_seconds"]),
+        "ue58_motion_end_frame": int(controller["motion_end_frame"]),
+        "ue58_tail_pad_frames": int(controller["tail_pad_frames"]),
+        "ue58_sequence_envelope_validation_bridge": True,
+        "ue58_asset_compilation_barrier": True,
         "angle_accepted": False,
         "manual_visual_calibration_required": True,
     }
@@ -103,8 +202,9 @@ def build_review(m700: dict, lever: dict) -> dict:
     if str(m700["engine_version"]).split("-")[0] != str(lever["engine_version"]).split("-")[0]:
         fail(f"UE evidence versions differ: M700={m700['engine_version']} Lever={lever['engine_version']}")
     return {
-        "schema": 1,
-        "status": "ITEM16_M700_LEVER_LOCAL_UE58_PILOTS_REVIEWED_CALIBRATION_PENDING",
+        "schema": 2,
+        "status": "ITEM16_M700_LEVER_CURRENT_UE58_COMPAT_PILOTS_REVIEWED_CALIBRATION_PENDING",
+        "evidence_contract": "CURRENT_UE58_COMPAT_FAIL_CLOSED",
         "m700": m700,
         "lever_action": lever,
         "next_factual_gate": "MANUAL_CURRENT_HEAD_UE58_VISUAL_CALIBRATION_BEFORE_PRODUCTION_AUTHORING",
@@ -123,11 +223,17 @@ def write_report(review: dict) -> None:
     text = f"""# PASS45 Item 16 M700 / Lever Calibration Review
 
 - Status: `{review['status']}`
+- Evidence contract: `{review['evidence_contract']}`
 - M700 pilot max travel: `{m['pilot_max_travel']}`
 - M700 sampled translation delta: `{m['max_sampled_translation_delta']}`
+- M700 UE58 authoring: `{m['ue58_track_creation_api']} @ {m['ue58_frame_rate']} fps / {m['ue58_frame_count']} frames`
 - M700 rotation calibration pending: `true`
 - Lever pilot max angle: `{l['pilot_max_angle_deg']} deg`
 - Lever sampled rotation delta: `{l['max_sampled_rotation_delta_deg']} deg`
+- Lever UE58 envelope: `{l['ue58_compat_frame_count']} @ {l['ue58_compat_frame_rate']} fps -> {l['ue58_resampled_source_frames']} frames @ {l['ue58_initial_frame_rate']} fps`
+- Lever factual motion duration: `{l['ue58_motion_duration_seconds']} s`
+- Lever technical sequence duration: `{l['ue58_sequence_duration_seconds']} s`
+- Lever tail pad: `{l['ue58_tail_pad_frames']} frame`
 - Final M700 travel/rotation accepted: `false`
 - Final Lever angle accepted: `false`
 - Full gameplay runtime now: `false`
@@ -136,7 +242,9 @@ def write_report(review: dict) -> None:
 - `item16_checked=0`
 - `merge_permitted=0`
 
-This report consolidates pilot evidence only. Final motion values require direct current-head UE 5.8 visual calibration before production authoring/cutover.
+This report consolidates current UE 5.8 compatibility-pilot evidence only. Legacy
+pre-recovery pilot JSON is rejected. Final motion values still require direct
+current-head UE 5.8 visual calibration before production authoring/cutover.
 """
     OUT_MD.write_text(text, encoding="utf-8")
 
@@ -147,8 +255,10 @@ def main() -> int:
     review = build_review(m700, lever)
     write_report(review)
     print("PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW_PASS")
+    print("evidence_contract=CURRENT_UE58_COMPAT_FAIL_CLOSED")
     print(f"m700_pilot_max_travel={m700['pilot_max_travel']}")
     print(f"lever_pilot_max_angle_deg={lever['pilot_max_angle_deg']}")
+    print("legacy_pilot_evidence_accepted=0")
     print("manual_visual_calibration_required=1")
     print("full_gameplay_runtime_now=0")
     print("runtime_acceptance=0")
