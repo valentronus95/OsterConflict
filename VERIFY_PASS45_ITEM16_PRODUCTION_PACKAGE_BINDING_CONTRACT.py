@@ -114,6 +114,54 @@ def main() -> int:
             )
         )
 
+        traversal = copy.deepcopy(entry)
+        traversal["sequence_object_path"] = (
+            "/Game/Production/Weapons/M700/../LeverAction/AN_M700_BoltCycle.AN_M700_BoltCycle"
+        )
+        traversal["package_file"] = (
+            "OsterConflict/Content/Production/Weapons/M700/../LeverAction/AN_M700_BoltCycle.uasset"
+        )
+        failures.extend(
+            assert_case(
+                "dot-dot namespace traversal rejected",
+                validate_authored_package(traversal, label="M700", prefix=M700_PREFIX, root=root),
+                should_pass=False,
+                needle="sequence object path is not canonical",
+            )
+        )
+
+        duplicate_separator = copy.deepcopy(entry)
+        duplicate_separator["sequence_object_path"] = (
+            "/Game/Production/Weapons/M700//AN_M700_BoltCycle.AN_M700_BoltCycle"
+        )
+        duplicate_separator["package_file"] = (
+            "OsterConflict/Content/Production/Weapons/M700//AN_M700_BoltCycle.uasset"
+        )
+        failures.extend(
+            assert_case(
+                "duplicate separator alias rejected",
+                validate_authored_package(duplicate_separator, label="M700", prefix=M700_PREFIX, root=root),
+                should_pass=False,
+                needle="sequence object path is not canonical",
+            )
+        )
+
+        backslash_alias = copy.deepcopy(entry)
+        backslash_alias["sequence_object_path"] = (
+            "/Game/Production/Weapons/M700/Folder\\AN_M700_BoltCycle.AN_M700_BoltCycle"
+        )
+        backslash_alias["package_file"] = (
+            "OsterConflict/Content/Production/Weapons/M700/Folder\\AN_M700_BoltCycle.uasset"
+        )
+        failures.extend(
+            assert_case(
+                "backslash alias rejected",
+                validate_authored_package(backslash_alias, label="M700", prefix=M700_PREFIX, root=root),
+                should_pass=False,
+                needle="sequence object path is not canonical",
+            )
+        )
+
     if failures:
         print("PASS45 ITEM16 PRODUCTION PACKAGE BINDING CONTRACT: FAIL")
         for failure in failures:
@@ -121,7 +169,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 PRODUCTION PACKAGE BINDING CONTRACT: PASS")
-    print("exact_bytes=1 missing_hash_rejected=1 wrong_hash_rejected=1 same_path_replacement_rejected=1 canonical_mapping=1 pilot_namespace_rejected=1")
+    print("exact_bytes=1 missing_hash_rejected=1 wrong_hash_rejected=1 same_path_replacement_rejected=1 canonical_mapping=1 pilot_namespace_rejected=1 traversal_rejected=1 duplicate_separator_rejected=1 backslash_alias_rejected=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

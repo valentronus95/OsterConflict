@@ -29,11 +29,21 @@ HEX64 = re.compile(r"[0-9a-f]{64}")
 def expected_package_file(object_path: str) -> str | None:
     if not object_path.startswith("/Game/") or "." not in object_path:
         return None
+    # Unreal long package names are forward-slash canonical. Reject filesystem-like
+    # aliases before mapping them into repository paths, otherwise a receipt such as
+    # /Game/Production/Weapons/M700/../LeverAction/... can satisfy a lexical prefix
+    # check while resolving to a different package on disk.
+    if "\\" in object_path or "//" in object_path:
+        return None
     package_object, object_name = object_path.rsplit(".", 1)
-    asset_name = package_object.rsplit("/", 1)[-1]
+    relative_package = package_object[len("/Game/"):]
+    segments = relative_package.split("/")
+    if not segments or any(segment in ("", ".", "..") for segment in segments):
+        return None
+    asset_name = segments[-1]
     if not object_name or object_name != asset_name:
         return None
-    return "OsterConflict/Content/" + package_object[len("/Game/"):] + ".uasset"
+    return "OsterConflict/Content/" + relative_package + ".uasset"
 
 
 def sha256_file(path: Path) -> str:
@@ -132,7 +142,7 @@ def validate_receipt(receipt: dict, *, root: Path = ROOT) -> list[str]:
 def main() -> int:
     if not RECEIPT.is_file():
         print("PASS45 ITEM16 PRODUCTION PACKAGE BINDING: PASS")
-        print("state=AUTHORING_RECEIPT_ABSENT package_byte_binding_armed=1")
+        print("state=AUTHORING_RECEIPT_ABSENT package_byte_binding_armed=1 canonical_object_path_required=1")
         print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
         return 0
 
@@ -148,7 +158,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PACKAGE BINDING: PASS")
-    print("state=AUTHORING_RECEIPT_PACKAGE_BYTES_BOUND package_sha256=1 same_path_replacement_fail_closed=1")
+    print("state=AUTHORING_RECEIPT_PACKAGE_BYTES_BOUND package_sha256=1 same_path_replacement_fail_closed=1 canonical_object_path_required=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
