@@ -13,6 +13,11 @@ import json
 import re
 from pathlib import Path
 
+from PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY import (
+    LEVER_SOURCE_SHA256,
+    M700_SOURCE_SHA256,
+)
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import validate_approval
 from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import (
     expected_package_file,
     validate_authored_package as validate_package_bytes,
@@ -24,8 +29,6 @@ RUNTIME_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 APPROVAL = ROOT / "_DOCS" / "PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json"
 AUTHORING_RECEIPT = ROOT / "_DOCS" / "PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json"
 
-M700_SOURCE_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
-LEVER_SOURCE_SHA256 = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
 M700_PREFIX = "/Game/Production/Weapons/M700/"
 LEVER_PREFIX = "/Game/Production/Weapons/LeverAction/"
 
@@ -117,19 +120,13 @@ if not approval_present:
     req(lever_profile_path == "", f"Lever production path populated before calibration approval: {lever_profile_path!r}")
 elif not receipt_present:
     approval = load_json(APPROVAL, "calibration approval")
-    req(approval.get("status") == "ITEM16_MANUAL_ACTION_VISUAL_CALIBRATION_APPROVED_FOR_PRODUCTION_AUTHORING",
-        f"calibration approval status invalid: {approval.get('status')!r}")
-    req(approval.get("current_head_ue58_visual_calibration_accepted") is True,
-        "calibration approval lacks current-head UE 5.8 visual acceptance")
+    errors.extend(validate_approval(approval))
     req(m700_profile_path == "", f"M700 profile cut over before production authoring receipt: {m700_profile_path!r}")
     req(lever_profile_path == "", f"Lever profile cut over before production authoring receipt: {lever_profile_path!r}")
 else:
     approval = load_json(APPROVAL, "calibration approval")
     receipt = load_json(AUTHORING_RECEIPT, "production authoring receipt")
-    req(approval.get("status") == "ITEM16_MANUAL_ACTION_VISUAL_CALIBRATION_APPROVED_FOR_PRODUCTION_AUTHORING",
-        f"calibration approval status invalid: {approval.get('status')!r}")
-    req(approval.get("current_head_ue58_visual_calibration_accepted") is True,
-        "production authoring cannot follow an unaccepted calibration")
+    errors.extend(validate_approval(approval))
     req(receipt.get("schema") == 1, f"production authoring receipt schema drifted: {receipt.get('schema')!r}")
     req(receipt.get("status") == "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED",
         f"production authoring receipt status invalid: {receipt.get('status')!r}")
@@ -187,5 +184,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")

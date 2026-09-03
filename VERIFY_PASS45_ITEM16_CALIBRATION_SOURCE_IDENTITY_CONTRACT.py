@@ -19,6 +19,7 @@ IDENTITY = ROOT / "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY.py"
 REVIEW = ROOT / "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py"
 BINDING = ROOT / "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py"
 BINDING_CONTRACT = ROOT / "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py"
+PROFILE_CUTOVER = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py"
 MODULE = "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY"
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
@@ -49,18 +50,20 @@ def main() -> int:
         if not HEX64.fullmatch(value):
             failures.append(f"{label} source SHA-256 is not lowercase 64-hex: {value!r}")
 
-    binding_names = {"M700_SOURCE", "M700_SOURCE_SHA256", "LEVER_SOURCE", "LEVER_SOURCE_SHA256"}
+    full_identity_names = {"M700_SOURCE", "M700_SOURCE_SHA256", "LEVER_SOURCE", "LEVER_SOURCE_SHA256"}
+    sha_identity_names = {"M700_SOURCE_SHA256", "LEVER_SOURCE_SHA256"}
     consumers = (
-        (BINDING, "calibration receipt binding"),
-        (REVIEW, "calibration review"),
-        (BINDING_CONTRACT, "calibration receipt binding contract"),
+        (BINDING, "calibration receipt binding", full_identity_names),
+        (REVIEW, "calibration review", full_identity_names),
+        (BINDING_CONTRACT, "calibration receipt binding contract", full_identity_names),
+        (PROFILE_CUTOVER, "production profile cutover", sha_identity_names),
     )
-    for path, label in consumers:
-        if not imports_identity(path, binding_names):
-            failures.append(f"{label} does not import all donor identities from the canonical module")
+    for path, label, required_names in consumers:
+        if not imports_identity(path, required_names):
+            failures.append(f"{label} does not import required donor identity from the canonical module")
 
     identity_text = IDENTITY.read_text(encoding="utf-8")
-    for path, _label in consumers:
+    for path, _label, _required_names in consumers:
         text = path.read_text(encoding="utf-8")
         for name, literal in expected.items():
             if literal in text:
@@ -83,7 +86,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 CALIBRATION SOURCE IDENTITY CONTRACT: PASS")
-    print("single_source=1 review_imports=1 binding_imports=1 binding_contract_imports=1 identity_change_invalidates_approval=1")
+    print("single_source=1 review_imports=1 binding_imports=1 binding_contract_imports=1 profile_cutover_sha_imports=1 identity_change_invalidates_approval=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
