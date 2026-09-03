@@ -5,10 +5,18 @@ UE 5.8 creates a transient AnimSequence at 30 fps. AnimationDataController rejec
 changing that sequence to 20 fps because 20 is neither a multiple nor a factor of
 30. UE 5.8 also deprecates add_bone_track() in favor of add_bone_curve().
 
+The 2026-09-03 factual local run reached this Lever phase and then crashed in a
+DerivedDataCache foreground worker during commandlet shutdown. UE 5.8 exposes
+AutomationUtilsBlueprintLibrary.finish_all_asset_compilation() specifically to
+block until in-flight asset compilation and render-thread follow-up work is done.
+This shim therefore places explicit compilation barriers after animation-key
+mutation and again after the proof completes, before the commandlet can exit.
+
 The underlying pilot remains authoritative for source identity, motion shape,
 acceptance flags, evidence, and all safety gates. This shim changes only transient
-pilot authoring compatibility: 60 fps cadence and the UE 5.8 bone-curve creation
-API. It preserves the exact 0.85 s cycle as 51 frames.
+pilot authoring/teardown compatibility: 60 fps cadence, the UE 5.8 bone-curve API,
+and bounded async-compilation draining. It preserves the exact 0.85 s cycle as
+51 frames.
 
 This is proof-only. It does not save packages, change production profiles, accept
 the pilot angle, close item 16, or permit merge.
@@ -31,6 +39,31 @@ COMPAT_FRAME_RATE = 60
 COMPAT_FRAME_COUNT = 51
 COMPAT_KEY_COUNT = 52
 EXPECTED_CYCLE_DURATION = 0.85
+
+
+def finish_asset_compilation_ue58(stage: str) -> None:
+    unreal = pilot.unreal
+    library = getattr(unreal, "AutomationUtilsBlueprintLibrary", None)
+    if library is None:
+        pilot.fail(
+            "ue58_automation_utils_unavailable=1 "
+            f"stage={stage} finish_all_asset_compilation_required=1"
+        )
+    finish_all = getattr(library, "finish_all_asset_compilation", None)
+    if not callable(finish_all):
+        pilot.fail(
+            "ue58_finish_all_asset_compilation_unavailable=1 "
+            f"stage={stage}"
+        )
+    unreal.log(
+        "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_BEGIN "
+        f"stage={stage}"
+    )
+    finish_all()
+    unreal.log(
+        "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END "
+        f"stage={stage}"
+    )
 
 
 def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str, object]:
@@ -84,6 +117,10 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
     ):
         pilot.fail("lever_bone_track_key_write_failed=1")
 
+    # SetBoneTrackKeys broadcasts TrackChanged and may start compression/DDC work.
+    # Drain that work before the base pilot samples the sequence.
+    finish_asset_compilation_ue58("after_set_bone_track_keys_before_sampling")
+
     return {
         "track_index": None,
         "track_creation_api": "add_bone_curve",
@@ -107,6 +144,7 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
             float(bind_scale.z),
         ],
         "keys": key_rows,
+        "asset_compilation_barrier_before_sampling": True,
     }
 
 
@@ -137,6 +175,10 @@ def main() -> None:
     pilot.KEY_COUNT = COMPAT_KEY_COUNT
     pilot.configure_sequence = configure_sequence_ue58
     pilot.main()
+
+    # Do not let the PythonScriptCommandlet tear down transient imported/animation
+    # objects while UE foreground workers still own compilation/DDC follow-up work.
+    finish_asset_compilation_ue58("post_pilot_before_commandlet_exit")
 
 
 if __name__ == "__main__":
