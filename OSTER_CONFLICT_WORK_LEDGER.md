@@ -21,7 +21,7 @@ The previous complete ledger remains preserved by Git history. This live ledger 
 
 Current status token:
 
-**PASS45 ACTIVE / ITEM16 OPEN / M700 BOUNDED UE58 PROOF PASS / REMINGTON BOUNDED UE58 PUMP+ASSEMBLY PROOF PASS / LEVER 52@60 INTEGRAL RESAMPLE GRID + PRE-SAMPLING COMPILATION BARRIER FACTUALLY PASS / CURRENT LEVER DURATION-ENVELOPE BRIDGE CODED_UNTESTED LOCALLY / MANUAL-ACTION AUDIO PLAYBACK DISPATCH INSTRUMENTED / EXACT CURRENT PLAYBACK OBJECT IDENTITY PINNED FOR M700+870+LEVER / WRONG-SOUND ADVERSARIAL CASE REJECTED / EXACT-HEAD PR CI GREEN / USER LOCAL CHECKS PAUSED / FULL GAMEPLAY DEFERRED / PR94 UNMERGED**
+**PASS45 ACTIVE / ITEM16 OPEN / M700 BOUNDED UE58 PROOF PASS / REMINGTON BOUNDED UE58 PUMP+ASSEMBLY PROOF PASS / LEVER 52@60 INTEGRAL RESAMPLE GRID + PRE-SAMPLING COMPILATION BARRIER FACTUALLY PASS / CURRENT LEVER DURATION-ENVELOPE BRIDGE CODED_UNTESTED LOCALLY / MANUAL-ACTION AUDIO PLAYBACK DISPATCH INSTRUMENTED / EXACT CURRENT PLAYBACK OBJECT IDENTITY PINNED / AUDIO+AUTHORED ANIMATION BOUND TO SAME BActionCycling RISING EDGE BY SOURCE CONTRACT / USER LOCAL CHECKS PAUSED / FULL GAMEPLAY DEFERRED / PR94 UNMERGED**
 
 ## 2. Status rules
 
@@ -112,9 +112,9 @@ The bounded local assembly proof passes, but direct current-head visible-pump an
 
 The eventual production-authoring boundary remains **MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION**. The user's current pause on PC checks does not convert pending evidence into acceptance.
 
-## 6. Current manual-action audio evidence hardening
+## 6. Current manual-action audio/evidence hardening
 
-Current source now emits a factual result from the real `HandleStateEventLocal()` playback path:
+Current source emits factual playback evidence from the real `HandleStateEventLocal()` path:
 
 ```text
 PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED
@@ -130,25 +130,19 @@ runtime_acceptance=0
 
 Failure to dispatch a usable sound emits `PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL`, which the runtime verifier rejects.
 
-The runtime gate no longer accepts generic `sound=/Game/` evidence. It requires the exact current expected playback object:
+The runtime gate requires the exact current expected playback object:
 
 - `OC_SNP1` → `/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor`;
 - `OC_SG1` → `/Game/R13/Audio/shotguncock.shotguncock`;
 - `R13_LEVER4570` → `/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor`.
 
-The static guard binds those runtime expectations to the actual source `LoadSound()` object paths. The executable adversarial contract proves that a wrong M700 playback object is rejected.
+The static guard binds these runtime expectations to the actual source `LoadSound()` paths, and the executable adversarial contract rejects a wrong M700 playback object.
 
-These are exact current playback-object identities. They are **not** a claim that the M700/Lever donor recordings are exact real-weapon recordings, and they are not direct audible-quality acceptance.
+Commit `80d0f727f02194530497a84ba5bc389f018c4c29` adds the next structural guard: both the `ManualActionCycle` audio dispatch and the authored moving-part animation start must remain inside the **same** `if (bActionCycling && !State.bWasActionCycling)` rising-edge block, in that order, with no presentation-owned timer or early return. It also adversarially rejects loss of the rising-edge gate or authored start attempt.
 
-Relevant commits:
+Exact-head `Pass 45 item16 manual-action timing semantics` and `Pass 45 manual-action audio provenance` both passed this guard.
 
-- `b389c21ac64b01ef9862662e87b0fc85a47382e9` — playback dispatch/failure instrumentation;
-- `119b18829e5f252392fbd0e3d0999279f83e4ae2` — runtime playback evidence requirement;
-- `b7b5aeff9fddb6d8830cad196ab0bc1b8e06ade4` — static dispatch/positive-volume guard;
-- `db9e252c33223f944b86b41165599d7601c2b664` / `3dc8cdffff6f8a92aee050bb75017438a19d05b5` — executable playback contract and real missing-marker adversarial case;
-- `e59f672286279377ee6a22779f3c9c9e8a7721cf` — exact runtime playback-object binding;
-- `924867a156a47de3782b668fc6a94500ea298364` — wrong M700 sound adversarial rejection;
-- `46c400c228661a4200248ae35bb819c420ce5a2d` — source/runtime exact sound identity binding.
+These are source/runtime-evidence contracts, not direct audible or visual quality acceptance.
 
 ## 7. Exact-head acceptance integrity
 
@@ -177,39 +171,53 @@ User-local execution is currently paused by explicit instruction. Therefore:
 
 The `asset-intake-20260903` branch remains quarantine-only and must never be merged wholesale. No checklist items 37+ are created from quarantine inventory.
 
-## 9. Current exact-head CI truth
+## 9. Historical Pass 44 non-regression
 
-Canonical source checkpoint before this ledger update: `46c400c228661a4200248ae35bb819c420ce5a2d`.
+### Pass 44 historical runtime rejection
 
-GitHub returned the full pull-request workflow matrix for that exact head as **completed / SUCCESS**. Relevant item-16 gates include:
+**Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass 44 as a complete solution. Pass 45 is the active corrective pass.
 
-- `Pass 45 manual-action audio provenance`: SUCCESS, including provenance, third-party register, playback-dispatch source contract and executable runtime contract;
-- `Pass 45 checkpoint continuation and item16 calibration contract`: SUCCESS;
-- `Pass 45 item16 production profile cutover`: SUCCESS;
-- `Pass 45 item16 production cutover preflight`: SUCCESS;
-- `Pass 45 item16 UE58 frame-rate compatibility`: SUCCESS;
-- `Pass 45 item16 local UE58 evidence chain contract`: SUCCESS;
-- `Pass 45 M700 derived bolt translation UE58 pilot contract`: SUCCESS;
-- Remington source/import/derived-pump/assembly/production wiring contracts: SUCCESS;
-- `Pass 45 strict runtime acceptance harness`: SUCCESS;
-- `Main runtime acceptance launcher contracts`: SUCCESS;
-- `Source verification`: SUCCESS.
+### Pass 44 behavior retained unless disproved
 
-Green exact-head CI proves the repository contracts are internally consistent. It does **not** prove direct UE visual/audio acceptance.
+Protected retained behavior unless newer factual evidence invalidates it:
 
-## 10. Next factual operation
+- compact central-Oster playable extent, never restore the historical 2.4 km battlefield;
+- zero implicit filler bots in normal local gameplay;
+- actual live Museum BASE pawn proof, not source-only spawnpoint existence;
+- compact-reference tactical-map bounds;
+- authored material gaps stay fail-visible and grey/BasicShape repair stays forbidden;
+- retired Pass37 weapon-palette compatibility owner stays physically deleted.
+
+These retained behaviors are historical non-regression constraints only. They do not restore Pass 44 as active or verified.
+
+## 10. Current exact-head CI truth
+
+`46c400c228661a4200248ae35bb819c420ce5a2d` had a fully green pull-request workflow matrix, including all item-16 audio, calibration, production-cutover, UE58 compatibility, Remington, strict runtime harness, main launcher and Source verification gates.
+
+On `80d0f727f02194530497a84ba5bc389f018c4c29`:
+
+- `Pass 45 item16 manual-action timing semantics`: **SUCCESS**;
+- `Pass 45 manual-action audio provenance`: **SUCCESS**;
+- Source verification reached the full structural suite and exposed only a **documentation regression** introduced by the previous ledger compaction: the required historical Pass44 rejection/non-regression section had been removed. Runtime/gameplay source was not implicated.
+
+This ledger revision restores that historical section instead of weakening the verifier. The next exact-head Source verification must confirm the repair.
+
+Green source CI never substitutes for current-head UE 5.8 direct visual/audio acceptance.
+
+## 11. Next factual operation
 
 The active operation remains remote, not user-local:
 
-1. audit and, if necessary, harden the same-transition relationship between authoritative manual-action state, mechanical-audio playback dispatch and authored moving-part presentation without adding a second gameplay timer;
-2. keep final M700 travel/rotation and Lever angle unaccepted until factual visual calibration exists;
-3. keep Remington visible-pump/mechanical-audio acceptance pending factual current-head gameplay evidence;
-4. preserve one later consolidated runtime acceptance instead of repeated full-game launches;
-5. do not merge PR #94 and do not promote runtime acceptance from CI alone.
+1. confirm exact-head Source verification after restoring the required Pass44 historical ledger contract;
+2. keep the same-rising-edge audio/authored-animation source guard green;
+3. keep final M700 travel/rotation and Lever angle unaccepted until factual visual calibration exists;
+4. keep Remington visible-pump/mechanical-audio acceptance pending factual current-head gameplay evidence;
+5. preserve one later consolidated runtime acceptance instead of repeated full-game launches;
+6. do not merge PR #94 and do not promote runtime acceptance from CI alone.
 
 Do **not** run or request `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` now.
 
-## 11. Protected merge/accounting state
+## 12. Protected merge/accounting state
 
 - PR #94: **OPEN / UNMERGED**.
 - Item 16: **UNCHECKED**.
