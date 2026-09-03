@@ -72,13 +72,37 @@ req(
     "full bounded item-16 chain lost its no-full-gameplay marker",
 )
 
+# The current Lever-only launcher must be self-validating. A zero commandlet exit
+# is not sufficient because the user's last factual run proved that one technical
+# repair can succeed and a later base-pilot assertion can still reject the same
+# component. Require every boundary that must be seen before reporting PASS.
 for needle in (
     "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py",
+    "PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY initial_fps=30 compat_fps=60 compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1",
+    "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=after_set_bone_track_keys_before_sampling",
+    "PASS45_LEVERACTION_UE58_SEQUENCE_ENVELOPE_CONTRACT_ARMED motion_duration=0.850000 sequence_envelope=0.866667 tail_pad_frames=1",
+    "PASS45_LEVERACTION_UE58_MOTION_DURATION_RESTORED motion_duration=0.850000 sequence_envelope=0.866667 tail_pad_frames=1",
     "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_PASS",
+    "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=post_pilot_before_commandlet_exit",
+    "source_authored_endpoint=0",
+    "pilot_angle_accepted=0",
+    "saved_packages=0",
+    "production_profile_changed=0",
+    "production_cutover=0",
+    "runtime_visual_acceptance=0",
     "runtime_acceptance=0",
     "item16_checked=0",
 ):
-    req(needle in lever_launcher, f"Lever component launcher invariant missing: {needle}")
+    req(needle in lever_launcher, f"Lever component launcher exact proof invariant missing: {needle}")
+
+req(
+    lever_launcher.count('findstr /L /C:') >= 14,
+    "Lever component launcher no longer performs the expected exact-marker postflight",
+)
+req(
+    "pilot_sequence_duration_mismatch" not in lever_launcher,
+    "Lever launcher contains a stale hard-coded duration-mismatch acceptance path",
+)
 
 lower_launcher = lever_launcher.lower()
 for forbidden in ("git pull", "git push", "git reset", "git clean", "git checkout", "gh "):
@@ -91,5 +115,5 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 COMPONENT-FIRST UE DEBUGGING: PASS")
-print("preflight_first=1 component_only_until_pass=1 full_chain_after_component_pass=1 full_gameplay_acceptance_only=1")
-print("current_local_component=LeverAction official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
+print("preflight_first=1 component_only_until_pass=1 self_validating_lever_postflight=1 full_chain_after_component_pass=1 full_gameplay_acceptance_only=1")
+print("current_local_component=LeverAction required_exact_markers=15 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
