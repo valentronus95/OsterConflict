@@ -1,38 +1,7 @@
 name: Pass 45 item16 local UE58 evidence chain contract
 
+# Local evidence-chain diagnostic. Deferred until the integrated UE 5.8 acceptance milestone.
 on:
-  push:
-    branches:
-      - fix/pass45-runtime-rejection-material-closure-20260826
-    paths:
-      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
-      - 'VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py'
-      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
-      - 'OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd'
-      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
-      - 'OsterConflict/PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd'
-      - 'OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd'
-      - 'PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py'
-      - 'PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
-      - 'PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py'
-      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp'
-      - '.github/workflows/pass45-item16-local-ue58-evidence-chain.yml'
-  pull_request:
-    paths:
-      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
-      - 'VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py'
-      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
-      - 'OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd'
-      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
-      - 'OsterConflict/PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd'
-      - 'OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd'
-      - 'PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py'
-      - 'PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
-      - 'PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py'
-      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp'
-      - '.github/workflows/pass45-item16-local-ue58-evidence-chain.yml'
   workflow_dispatch:
 
 permissions:
