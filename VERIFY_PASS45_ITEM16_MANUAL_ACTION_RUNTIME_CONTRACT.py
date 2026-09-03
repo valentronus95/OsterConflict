@@ -123,7 +123,7 @@ def main() -> int:
 
     missing_playback_log = good_log.replace(
         "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED weapon=OC_SNP1",
-        "REMOVED_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED weapon=OC_SNP1",
+        "PASS45_AUDIO_PLAYBACK_MARKER_REMOVED weapon=OC_SNP1",
         1,
     )
     errors.extend(run_case(
