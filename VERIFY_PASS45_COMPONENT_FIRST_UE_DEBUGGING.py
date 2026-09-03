@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Static contract for PASS45 component-first UE debugging cadence.
+"""Static contract for PASS45 batch-first UE acceptance and component-first recovery.
 
-The protocol still defines the narrow Lever-only UE proof when local execution is
-resumed, but the current user-authoritative checkpoint explicitly pauses all
-user-local execution. CI therefore validates both things at once: the deferred
-launcher remains safe/self-validating, and living checkpoint docs must not present
-that launcher as an active instruction while user_local_execution_requested=0.
+The user-authoritative checkpoint defers PC-side weapon checking until the intended
+weapon batch is ready. CI therefore proves two distinct facts:
+
+1. ordinary preparation is remote-first and culminates in one consolidated weapon
+   acceptance window; and
+2. the narrow Lever launcher remains safe/self-validating for later corrective
+   debugging if a consolidated run actually identifies Lever as the failed component.
 """
 from __future__ import annotations
 
@@ -35,26 +37,35 @@ full_chain = read("OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd")
 lever_launcher = read("OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd")
 
 req(
-    "31. **Use component-first local UE debugging; the user is not the first test environment.**" in agents,
-    "AGENTS.md rule 31 is missing",
+    "31. **Use batch-first user runtime acceptance and component-first corrective debugging; the user is not the first test environment.**" in agents,
+    "AGENTS.md rule 31 no longer binds batch-first acceptance/component-first recovery",
 )
 req(
     "_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md" in agents,
     "AGENTS.md does not bind the component-first protocol",
 )
+req(
+    "32. **User-facing status and required actions must be unmistakable and written in plain language.**" in agents,
+    "AGENTS.md lost the plain-language user handoff rule",
+)
 
 for needle in (
-    "When a fail-closed local UE chain stops at one component, that component becomes the only local rerun target until it passes",
-    "Do **not** ask the user to rerun earlier phases that already passed",
+    "Core rule — remote first, user runtime in batches",
+    "do **not** ask the user to test M700, Remington 870, Lever Action or another individual weapon",
+    "collect one consolidated defect list",
+    "rerun only failed components during corrective debugging",
     "Level A — static / remote preflight",
-    "Level B — single-component UE proof",
-    "Level C — consolidated chain / gameplay acceptance",
+    "Level B — targeted component UE proof",
+    "Level C — consolidated weapon chain / gameplay acceptance",
     "The full gameplay route is an acceptance gate, not a Python/asset-authoring debugger.",
     "OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd",
-    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd",
-    "Do not rerun the five-phase chain until this Lever-only proof passes.",
+    "Latest explicit user requirement supersedes the earlier instruction that made a Lever-only run the immediate next action",
+    "Lever-only is no longer the current user action",
+    "Deferred-acceptance continuation rule",
+    "ВІД ТЕБЕ ЗАРАЗ НІЧОГО НЕ ПОТРІБНО.",
+    "ПОТРІБНА ТВОЯ ПЕРЕВІРКА.",
 ):
-    req(needle in protocol, f"component-first protocol invariant missing: {needle}")
+    req(needle in protocol, f"batch/component protocol invariant missing: {needle}")
 
 for text, label in ((ledger, "ledger"), (history, "history")):
     req("component-first" in text.lower(), f"{label} does not record component-first cadence")
@@ -102,9 +113,9 @@ req(
     "full bounded item-16 chain lost its no-full-gameplay marker",
 )
 
-# The deferred Lever-only launcher must remain self-validating. A zero commandlet
-# exit is not sufficient because a technical repair can pass before a later base
-# pilot assertion rejects the same component.
+# The deferred Lever-only launcher remains a recovery tool, not today's action.
+# A zero commandlet exit is not sufficient because a technical repair can pass
+# before a later base-pilot assertion rejects the same component.
 for needle in (
     "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py",
     "PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY initial_fps=30 compat_fps=60 compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1",
@@ -144,5 +155,5 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 COMPONENT-FIRST UE DEBUGGING: PASS")
-print("preflight_first=1 component_only_until_pass=1 deferred_lever_postflight_safe=1 full_gameplay_acceptance_only=1")
+print("remote_first=1 consolidated_weapon_acceptance=1 component_only_after_actual_failure=1 deferred_lever_postflight_safe=1")
 print("user_local_execution_requested=0 deferred_local_component=LeverAction exact_postflight_checks=14 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
