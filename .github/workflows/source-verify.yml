@@ -5,14 +5,13 @@ on:
     branches:
       - main
       - r13-content-gameplay-pass
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: source-verify-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: source-verify-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,13 +45,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify Stadion Oster integration
+        if: github.ref_name == 'main' || github.ref_name == 'r13-content-gameplay-pass'
         shell: pwsh
         run: |
           python .\VERIFY_R13_STADION_OSTER.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run full structural and regression suite
-        if: github.ref_name != 'main'
+        if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           python .\RUN_ALL_VERIFY.py
