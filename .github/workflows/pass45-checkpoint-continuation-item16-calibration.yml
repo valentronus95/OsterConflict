@@ -1,0 +1,41 @@
+name: Pass 45 checkpoint continuation and item16 calibration contract
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - '_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - 'PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py'
+      - 'VERIFY_PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION.py'
+      - 'OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd'
+      - '.github/workflows/pass45-checkpoint-continuation-item16-calibration.yml'
+  pull_request:
+    paths:
+      - '_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - 'PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py'
+      - 'VERIFY_PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION.py'
+      - 'OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd'
+      - '.github/workflows/pass45-checkpoint-continuation-item16-calibration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile bounded continuation/calibration tools
+        run: |
+          python -m py_compile PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py
+          python -m py_compile VERIFY_PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION.py
+      - name: Verify checkpoint continuation and item16 calibration contract
+        run: python VERIFY_PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION.py
