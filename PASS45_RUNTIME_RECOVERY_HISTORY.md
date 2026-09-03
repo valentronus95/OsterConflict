@@ -10,6 +10,8 @@ Canonical PASS45 continuation protocol:
 
 When the user asks to continue from the latest factual/current checkpoint, do **not** restart a full-project audit by default. Reconcile current branch/HEAD/PR/recent commits/CI/history, consume any newer parallel-chat commits, then inspect only the first factual open item and its direct dependencies. Broad re-audit is allowed only under the invalidation conditions recorded in the protocol.
 
+This behavior is now also bound globally by `AGENTS.md` mandatory workflow rule 30, so a fresh chat must not replay accepted PASS45 analysis simply because the conversation context is new.
+
 ## Canonical ownership
 
 - Canonical TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
@@ -18,8 +20,10 @@ When the user asks to continue from the latest factual/current checkpoint, do **
 - Active integration PR: **#94 OPEN / UNMERGED**.
 - Parent checkpoint before continuation-rule work: `940a00f7b31c51d05e9b83d83a1cd881f2f814ef`.
 - Continuation/calibration source checkpoint: `fea79ea7a25d115d1a6833267bd934880bd58a8d`.
-- Narrow continuation/calibration contract on `fea79ea7...`: **SUCCESS**.
-- Wider exact-head CI may still be running after a new commit and must not be called fully green until final conclusions exist.
+- Five-phase item-16 evidence-chain checkpoint before AGENTS binding: `39ca1c981cba2d54b570b4d1ebad1accfa3b62ec`.
+- Narrow continuation/calibration contract on `39ca1c98...`: **SUCCESS**.
+- Five-phase item-16 evidence-chain contract on `39ca1c98...`: **SUCCESS**.
+- Wider exact-head CI may still be running after a new governance commit and must not be called fully green until final conclusions exist.
 - Official canonical checklist remains **22/36 = 61.1% complete, 38.9% remaining**.
 - Local user `Changes`, including two local `PC_TEST/TEST_RESULTS/*.zip` worktree differences, remain outside assistant mutation scope.
 
