@@ -47,7 +47,13 @@ Historical/local blocker sequence retained for non-regression:
 11. `37361f61c6afa33ab094490f10ae74c35de3cceb` — component-first UE debugging protocol;
 12. `23ac9d1d8cc3677a9d4f9a56cbce63f72d4e91fc` — `AGENTS.md` rule 31 binds component-first local UE debugging;
 13. `ed37f3378275a0346af745c2b2889d36907ca714` — live ledger updated to the latest Lever-only boundary and historical build/import regression markers;
-14. `4c98f55db606ea17061cfa4ae43850cd0aa7cfdb` — component-first remote preflight is green across cadence, UE58 compatibility, consolidated-chain fail-closed and historical build/import regression guards.
+14. `4c98f55db606ea17061cfa4ae43850cd0aa7cfdb` — component-first remote preflight is green across cadence, UE58 compatibility, consolidated-chain fail-closed and historical build/import regression guards;
+15. `30abff23fd1bba01d3a7c941cb33dbdc91932128` — history restores quarantine/cadence invariants and records the explicit no-PC-check execution boundary;
+16. `78d7b1abfb74cf140996a9f3e2a95afe0409241c` — live ledger makes remote-only continuation authoritative while preserving runtime acceptance as pending;
+17. `fac7de39b6151c3419afc881ecfe6c49acb81861` — historical Pass44 verifier stops depending on frozen ledger headings and validates semantics instead;
+18. `79d6363bb7cb1174a749969d009c00b50edf98fa` — item-16 calibration review rejects stale pre-recovery pilot JSON and requires current UE 5.8 compatibility evidence;
+19. `67d3e443783beb2f3b6b080c99601e9f84b3d801` — checkpoint/calibration verifier proves current-compat evidence is accepted while legacy `add_bone_track`, missing Lever duration bridge and rejected 51-frame grid evidence are fail-closed;
+20. `1f428d4237e81a340c5d8ff0236e3f849ed40b7f` — component-first verifier is reconciled with the user-authoritative remote-only pause while still protecting the deferred Lever launcher and consolidated chain.
 
 ## First factual open item — item 16
 
@@ -142,6 +148,41 @@ The regression guard requires:
 
 Current recovery is **CODED_UNTESTED** locally until factual UE 5.8 evidence supersedes it.
 
+## Current calibration-review evidence contract
+
+`PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py` no longer accepts a pilot JSON merely because it contains measurable BOLT/LEVER movement.
+
+M700 review now requires the current UE 5.8 proof shape:
+
+```text
+track_creation_api=add_bone_curve
+frame_rate=60
+frame_count=66
+key_count=67
+asset_compilation_barrier_before_sampling=true
+cycle_duration_seconds=1.10
+```
+
+Lever review additionally requires:
+
+```text
+initial_transient_frame_rate=30
+frame_rate=60
+frame_count=52
+key_count=53
+resampled_source_frames=26
+motion_duration_seconds=0.85
+motion_end_frame=51
+tail_pad_frames=1
+sequence_duration_seconds=52/60
+sequence_envelope_validation_bridge=true
+asset_compilation_barrier_before_sampling=true
+```
+
+The review emits `CURRENT_UE58_COMPAT_FAIL_CLOSED`, keeps final travel/rotation/angle unaccepted and preserves `runtime_acceptance=0`, `item16_checked=0`, `merge_permitted=0`.
+
+This is evidence hygiene only. It does not create missing runtime evidence.
+
 ## Historical 2026-08-25 build/import non-regression
 
 Retain the factual historical **LOCAL UE BUILD REJECTED** evidence:
@@ -175,15 +216,16 @@ This does not waive runtime/visual acceptance. It only removes user-local execut
 
 ## Current CI boundary
 
-On `4c98f55db606ea17061cfa4ae43850cd0aa7cfdb`:
+On `67d3e443783beb2f3b6b080c99601e9f84b3d801` the formerly red checkpoint/verifier jobs were rechecked:
 
-- component-first preflight: SUCCESS;
-- item-16 frame-rate compatibility: SUCCESS;
-- item-16 local evidence-chain source contract: SUCCESS;
-- M700/Remington/Lever related narrow source contracts: SUCCESS where present;
-- remaining red workflows are stale-history/verifier compatibility failures, not new UE/gameplay regressions: asset-intake checkpoint wording, checkpoint/history wording, and Pass44 ledger heading matching.
+- `Pass 45 checkpoint continuation and item16 calibration contract`: **SUCCESS**;
+- `Pass 45 asset intake 2026-09-03 contract`: **SUCCESS**;
+- `Runtime map spawn FPS assets Pass 44`: **SUCCESS**;
+- `Source verification`: **SUCCESS**.
 
-Those red checks are being repaired at the verifier/checkpoint layer without restoring rejected runtime behavior.
+`Pass 45 component-first UE debugging` then exposed one remaining stale expectation: it still required the living ledger/history to present the Lever-only local launcher as the active operation even though the latest user instruction explicitly paused all PC-side checks. Commit `1f428d4237e81a340c5d8ff0236e3f849ed40b7f` fixes that verifier contract without weakening the deferred launcher itself.
+
+Do not call the newest exact head fully green until its new workflow set settles.
 
 ## Next factual operation
 
@@ -191,7 +233,7 @@ User-local execution is currently paused by explicit instruction.
 
 Continue remotely in this order:
 
-1. eliminate the stale-history/verifier CI failures on the current PASS45 head;
+1. settle exact-head CI after the remote-only component-verifier correction;
 2. keep item 16 open and fail-closed;
 3. continue only remote-preparable item-16 source/acceptance hardening that does not invent M700/Lever visual calibration;
 4. do not merge PR #94 and do not promote runtime acceptance from CI alone.
