@@ -1,25 +1,29 @@
 #!/usr/bin/env python3
 """UE 5.8 compatibility shim for the bounded Lever Action motion pilot.
 
-UE 5.8 creates a transient AnimSequence at 30 fps. AnimationDataController rejects
-changing that sequence to 20 fps because 20 is neither a multiple nor a factor of
-30. UE 5.8 also deprecates add_bone_track() in favor of add_bone_curve().
+UE 5.8 creates the transient AnimSequence on a 30 fps sampling grid. The legacy
+pilot uses a 20 fps / 0.85 s cycle, so the compatibility shim authors at 60 fps.
+A 0.85 s sequence envelope is not itself legal for UE's 30 fps resampling path:
+0.85 * 30 = 25.5 source frames. The 2026-09-03 factual local run proved that
+SetNumberOfFrames(51 @ 60 fps) reaches AnimSequence resampling with a 0.5
+sub-frame remainder and then asserts in animation compression.
 
-The 2026-09-03 factual local run reached this Lever phase and then crashed in a
-DerivedDataCache foreground worker during commandlet shutdown. UE 5.8 exposes
-AutomationUtilsBlueprintLibrary.finish_all_asset_compilation() specifically to
-block until in-flight asset compilation and render-thread follow-up work is done.
-This shim therefore places explicit compilation barriers after animation-key
-mutation and again after the proof completes, before the commandlet can exit.
+The recovery keeps the actual Lever motion exactly 0.85 s: frame 51 at 60 fps is
+still the exact motion endpoint. The transient sequence envelope is padded by one
+additional 60 fps frame to 52 frames / 0.866666... s, which maps to exactly 26
+frames on the initial 30 fps grid. The final padded key remains at the returned
+bind pose because the authoritative motion function clamps at the 0.85 s cycle
+endpoint.
+
+UE 5.8 also deprecates add_bone_track() in favor of add_bone_curve(). The shim
+keeps the previously added asset-compilation barriers as a separate teardown
+safety guard, but the frame-grid correction happens before those barriers because
+the rejected run crashed during SetNumberOfFrames/compression.
 
 The underlying pilot remains authoritative for source identity, motion shape,
-acceptance flags, evidence, and all safety gates. This shim changes only transient
-pilot authoring/teardown compatibility: 60 fps cadence, the UE 5.8 bone-curve API,
-and bounded async-compilation draining. It preserves the exact 0.85 s cycle as
-51 frames.
-
-This is proof-only. It does not save packages, change production profiles, accept
-the pilot angle, close item 16, or permit merge.
+acceptance flags, evidence, and all safety gates. This is proof-only. It does not
+save packages, change production profiles, accept the pilot angle, close item 16,
+or permit merge.
 """
 from __future__ import annotations
 
@@ -35,10 +39,13 @@ import PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT as pilot
 EXPECTED_LEGACY_FRAME_RATE = 20
 EXPECTED_LEGACY_FRAME_COUNT = 17
 EXPECTED_LEGACY_KEY_COUNT = 18
+INITIAL_TRANSIENT_FRAME_RATE = 30
 COMPAT_FRAME_RATE = 60
-COMPAT_FRAME_COUNT = 51
-COMPAT_KEY_COUNT = 52
 EXPECTED_CYCLE_DURATION = 0.85
+EXPECTED_CYCLE_END_FRAME = 51
+COMPAT_PAD_FRAME_COUNT = 1
+COMPAT_FRAME_COUNT = EXPECTED_CYCLE_END_FRAME + COMPAT_PAD_FRAME_COUNT
+COMPAT_KEY_COUNT = COMPAT_FRAME_COUNT + 1
 
 
 def finish_asset_compilation_ue58(stage: str) -> None:
@@ -71,6 +78,19 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
     controller = pilot.animation_controller(sequence)
     controller.set_frame_rate(
         unreal.FrameRate(numerator=pilot.FRAME_RATE, denominator=1), False
+    )
+
+    resampled_source_frames = (
+        pilot.FRAME_COUNT * INITIAL_TRANSIENT_FRAME_RATE
+    ) // pilot.FRAME_RATE
+    unreal.log(
+        "PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY "
+        f"initial_fps={INITIAL_TRANSIENT_FRAME_RATE} "
+        f"compat_fps={pilot.FRAME_RATE} "
+        f"compat_frames={pilot.FRAME_COUNT} "
+        f"source_frames={resampled_source_frames} "
+        f"motion_end_frame={EXPECTED_CYCLE_END_FRAME} "
+        f"tail_pad_frames={COMPAT_PAD_FRAME_COUNT}"
     )
     controller.set_number_of_frames(
         unreal.FrameNumber(value=pilot.FRAME_COUNT), False
@@ -127,6 +147,12 @@ def configure_sequence_ue58(sequence: object, ref_transform: object) -> dict[str
         "frame_rate": pilot.FRAME_RATE,
         "frame_count": pilot.FRAME_COUNT,
         "key_count": pilot.KEY_COUNT,
+        "initial_transient_frame_rate": INITIAL_TRANSIENT_FRAME_RATE,
+        "resampled_source_frames": resampled_source_frames,
+        "motion_duration_seconds": EXPECTED_CYCLE_DURATION,
+        "motion_end_frame": EXPECTED_CYCLE_END_FRAME,
+        "tail_pad_frames": COMPAT_PAD_FRAME_COUNT,
+        "sequence_duration_seconds": pilot.FRAME_COUNT / float(pilot.FRAME_RATE),
         "bind_translation": [
             float(bind_translation.x),
             float(bind_translation.y),
@@ -161,13 +187,23 @@ def main() -> None:
         raise RuntimeError(
             f"Lever pilot key-count contract drifted: expected {EXPECTED_LEGACY_KEY_COUNT}, got {pilot.KEY_COUNT}"
         )
-    if abs((COMPAT_FRAME_COUNT / COMPAT_FRAME_RATE) - EXPECTED_CYCLE_DURATION) > 1e-9:
+    if abs(
+        (EXPECTED_CYCLE_END_FRAME / COMPAT_FRAME_RATE) - EXPECTED_CYCLE_DURATION
+    ) > 1e-9:
         raise RuntimeError(
-            "Lever compatibility cadence no longer preserves the 0.85 s pilot duration"
+            "Lever compatibility motion endpoint no longer preserves the exact 0.85 s cycle"
         )
+    if COMPAT_FRAME_COUNT != EXPECTED_CYCLE_END_FRAME + COMPAT_PAD_FRAME_COUNT:
+        raise RuntimeError("Lever compatibility tail-pad contract drifted")
     if COMPAT_KEY_COUNT != COMPAT_FRAME_COUNT + 1:
         raise RuntimeError(
             "Lever compatibility key count no longer matches frame count + 1"
+        )
+    if (
+        COMPAT_FRAME_COUNT * INITIAL_TRANSIENT_FRAME_RATE
+    ) % COMPAT_FRAME_RATE != 0:
+        raise RuntimeError(
+            "Lever compatibility sequence envelope no longer maps to an integral 30 fps resampling frame"
         )
 
     pilot.FRAME_RATE = COMPAT_FRAME_RATE
