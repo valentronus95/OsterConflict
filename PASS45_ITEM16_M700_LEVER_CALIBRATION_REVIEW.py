@@ -9,8 +9,9 @@ same source investigation.
 The review is deliberately fail-closed against stale pre-recovery evidence. M700
 must prove the current UE 5.8 add_bone_curve + 60 fps + compilation-barrier path.
 Lever must additionally prove the integral 30->60 resampling envelope and the
-0.85 s motion / 52-frame technical-envelope validation bridge. A legacy pilot JSON
-that merely contains measurable motion is not sufficient for current-head
+0.85 s motion / 52-frame technical-envelope validation bridge. Both evidence files
+must also name the exact pinned Stein source path and SHA-256 used by the current
+pilots. A legacy or cross-source pilot JSON is not sufficient for current-head
 calibration review.
 """
 from __future__ import annotations
@@ -25,6 +26,10 @@ OUT_DIR = ROOT / "PC_TEST" / "TEST_RESULTS"
 OUT_JSON = OUT_DIR / "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.json"
 OUT_MD = OUT_DIR / "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.md"
 
+M700_EXPECTED_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx"
+M700_EXPECTED_SOURCE_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
+LEVER_EXPECTED_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx"
+LEVER_EXPECTED_SOURCE_SHA256 = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
 M700_COMPAT_FPS = 60
 M700_COMPAT_FRAMES = 66
 M700_COMPAT_KEYS = 67
@@ -83,6 +88,21 @@ def require_float(data: dict, key: str, expected: float, tolerance: float, label
         fail(f"{label} {key} drifted: expected={expected} actual={actual}")
 
 
+def require_source_identity(
+    data: dict,
+    *,
+    expected_path: str,
+    expected_sha256: str,
+    label: str,
+) -> None:
+    actual_path = str(data.get("source", ""))
+    actual_sha = str(data.get("source_sha256", ""))
+    if actual_path != expected_path:
+        fail(f"{label} source path drifted: expected={expected_path!r} actual={actual_path!r}")
+    if actual_sha != expected_sha256:
+        fail(f"{label} source SHA-256 drifted: expected={expected_sha256} actual={actual_sha or 'MISSING'}")
+
+
 def require_controller(data: dict, label: str) -> dict:
     controller = data.get("controller")
     if not isinstance(controller, dict):
@@ -107,6 +127,12 @@ def validate_common(data: dict, label: str) -> None:
 
 def validate_m700(data: dict) -> dict:
     validate_common(data, "M700")
+    require_source_identity(
+        data,
+        expected_path=M700_EXPECTED_SOURCE,
+        expected_sha256=M700_EXPECTED_SOURCE_SHA256,
+        label="M700",
+    )
     if data.get("status") != "M700_BOLT_TRANSLATION_DERIVED_UE58_MOTION_PROOF_ONLY":
         fail(f"M700 status drifted: {data.get('status')!r}")
     require_false(data, "pilot_travel_accepted", "M700")
@@ -129,7 +155,8 @@ def validate_m700(data: dict) -> dict:
         fail(f"M700 pilot motion is not measurable: pilot={pilot}, sampled={sampled}")
     return {
         "engine_version": data["engine_version"],
-        "source_sha256": data.get("source_sha256"),
+        "source": data["source"],
+        "source_sha256": data["source_sha256"],
         "pilot_axis": data.get("pilot_axis"),
         "pilot_max_travel": pilot,
         "max_sampled_translation_delta": sampled,
@@ -146,6 +173,12 @@ def validate_m700(data: dict) -> dict:
 
 def validate_lever(data: dict) -> dict:
     validate_common(data, "Lever Action")
+    require_source_identity(
+        data,
+        expected_path=LEVER_EXPECTED_SOURCE,
+        expected_sha256=LEVER_EXPECTED_SOURCE_SHA256,
+        label="Lever Action",
+    )
     if data.get("status") != "LEVERACTION_DERIVED_UE58_MOTION_PROOF_ONLY":
         fail(f"Lever Action status drifted: {data.get('status')!r}")
     require_false(data, "pilot_angle_accepted", "Lever Action")
@@ -177,7 +210,8 @@ def validate_lever(data: dict) -> dict:
         fail(f"Lever Action pilot motion is not measurable: angle={angle}, sampled={sampled}")
     return {
         "engine_version": data["engine_version"],
-        "source_sha256": data.get("source_sha256"),
+        "source": data["source"],
+        "source_sha256": data["source_sha256"],
         "pilot_axis": data.get("pilot_axis"),
         "pilot_max_angle_deg": angle,
         "max_sampled_rotation_delta_deg": sampled,
@@ -205,6 +239,7 @@ def build_review(m700: dict, lever: dict) -> dict:
         "schema": 2,
         "status": "ITEM16_M700_LEVER_CURRENT_UE58_COMPAT_PILOTS_REVIEWED_CALIBRATION_PENDING",
         "evidence_contract": "CURRENT_UE58_COMPAT_FAIL_CLOSED",
+        "source_identity_pinned": True,
         "m700": m700,
         "lever_action": lever,
         "next_factual_gate": "MANUAL_CURRENT_HEAD_UE58_VISUAL_CALIBRATION_BEFORE_PRODUCTION_AUTHORING",
@@ -224,10 +259,13 @@ def write_report(review: dict) -> None:
 
 - Status: `{review['status']}`
 - Evidence contract: `{review['evidence_contract']}`
+- Source identity pinned: `true`
+- M700 source SHA-256: `{m['source_sha256']}`
 - M700 pilot max travel: `{m['pilot_max_travel']}`
 - M700 sampled translation delta: `{m['max_sampled_translation_delta']}`
 - M700 UE58 authoring: `{m['ue58_track_creation_api']} @ {m['ue58_frame_rate']} fps / {m['ue58_frame_count']} frames`
 - M700 rotation calibration pending: `true`
+- Lever source SHA-256: `{l['source_sha256']}`
 - Lever pilot max angle: `{l['pilot_max_angle_deg']} deg`
 - Lever sampled rotation delta: `{l['max_sampled_rotation_delta_deg']} deg`
 - Lever UE58 envelope: `{l['ue58_compat_frame_count']} @ {l['ue58_compat_frame_rate']} fps -> {l['ue58_resampled_source_frames']} frames @ {l['ue58_initial_frame_rate']} fps`
@@ -242,9 +280,10 @@ def write_report(review: dict) -> None:
 - `item16_checked=0`
 - `merge_permitted=0`
 
-This report consolidates current UE 5.8 compatibility-pilot evidence only. Legacy
-pre-recovery pilot JSON is rejected. Final motion values still require direct
-current-head UE 5.8 visual calibration before production authoring/cutover.
+This report consolidates current UE 5.8 compatibility-pilot evidence only. Legacy,
+cross-source, or pre-recovery pilot JSON is rejected. Final motion values still
+require direct current-head UE 5.8 visual calibration before production
+authoring/cutover.
 """
     OUT_MD.write_text(text, encoding="utf-8")
 
@@ -256,9 +295,11 @@ def main() -> int:
     write_report(review)
     print("PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW_PASS")
     print("evidence_contract=CURRENT_UE58_COMPAT_FAIL_CLOSED")
+    print("source_identity_pinned=1")
     print(f"m700_pilot_max_travel={m700['pilot_max_travel']}")
     print(f"lever_pilot_max_angle_deg={lever['pilot_max_angle_deg']}")
     print("legacy_pilot_evidence_accepted=0")
+    print("cross_source_pilot_evidence_accepted=0")
     print("manual_visual_calibration_required=1")
     print("full_gameplay_runtime_now=0")
     print("runtime_acceptance=0")
