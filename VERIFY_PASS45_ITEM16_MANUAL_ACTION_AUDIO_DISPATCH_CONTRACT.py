@@ -2,10 +2,10 @@
 """Fail-closed source contract for PASS45 item-16 manual-action audio dispatch.
 
 Runtime evidence must prove more than a loaded bolt/pump/lever SoundBase. The
-manual-action transition must dispatch ManualActionCycle, a non-empty sound must
-flow through the local playback route with positive effective volume, and the
-runtime log must preserve that factual dispatch. Direct audible/feel acceptance
-remains a separate UE 5.8 manual gate.
+manual-action transition must dispatch ManualActionCycle, the exact repository-owned
+manual-action sound expected for that weapon must flow through local playback with
+positive effective volume, and the runtime log must preserve that factual dispatch.
+Direct audible/feel acceptance remains a separate UE 5.8 manual gate.
 """
 from __future__ import annotations
 
@@ -15,6 +15,21 @@ ROOT = Path(__file__).resolve().parent
 PRESENTATION = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCFirstPersonWeaponPresentationSubsystem.cpp"
 AUDIO = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAudioComponent.cpp"
 RUNTIME = ROOT / "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
+
+EXPECTED_AUDIO = (
+    (
+        "M700 bolt",
+        "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
+    ),
+    (
+        "Remington 870 pump",
+        "/Game/R13/Audio/shotguncock.shotguncock",
+    ),
+    (
+        "Lever Action",
+        "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
+    ),
+)
 
 
 def read(path: Path) -> str:
@@ -111,7 +126,14 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
         if marker not in audio:
             errors.append(f"manual-action loaded-audio evidence route missing: {marker}")
 
-    # Runtime gate must require loaded action-family audio, actual local playback dispatch,
+    # Bind runtime expectation to the exact sound objects actually loaded by source.
+    for label, object_path in EXPECTED_AUDIO:
+        if f'LoadSound(TEXT("{object_path}"))' not in audio:
+            errors.append(f"{label} exact fallback sound object drifted from source: {object_path}")
+        if f'"audio_object_path": "{object_path}"' not in runtime:
+            errors.append(f"{label} exact runtime sound identity gate missing: {object_path}")
+
+    # Runtime gate must require loaded action-family audio, exact playback identity,
     # positive bus/effective volume and failure-marker rejection for every required weapon.
     for marker in (
         '"audio_field": "bolt_cycle=1"',
@@ -119,7 +141,7 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
         '"audio_field": "lever_cycle=1"',
         '"PASS45_WEAPON_AUDIO_FALLBACK_READY"',
         '"PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED"',
-        '"sound=/Game/"',
+        'f"sound={audio_object_path}"',
         '"route=local2d"',
         '"bus_gt_zero=1"',
         '"effective_volume_gt_zero=1"',
@@ -159,11 +181,33 @@ def main() -> int:
             "Play2D",
         ),
         (
+            "M700 source sound identity drift",
+            presentation,
+            audio.replace(
+                "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
+                "/Game/R13/Audio/shotguncock.shotguncock",
+                1,
+            ),
+            runtime,
+            "M700 bolt exact fallback sound object drifted",
+        ),
+        (
             "missing runtime playback evidence",
             presentation,
             audio,
             runtime.replace('"PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED"', '"REMOVED_PLAYBACK_MARKER"', 1),
             "PLAYBACK_DISPATCHED",
+        ),
+        (
+            "missing exact runtime sound identity",
+            presentation,
+            audio,
+            runtime.replace(
+                '"audio_object_path": "/Game/R13/Audio/shotguncock.shotguncock"',
+                '"audio_object_path": "/Game/R13/Audio/gunreload1.gunreload1"',
+                1,
+            ),
+            "Remington 870 pump exact runtime sound identity gate missing",
         ),
         (
             "missing positive runtime volume requirement",
@@ -192,8 +236,8 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 MANUAL ACTION AUDIO DISPATCH: PASS")
-    print("manual_action_dispatch=1 loaded_sound_guard=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
-    print("runtime_playback_marker_required=1 direct_audible_acceptance=pending")
+    print("manual_action_dispatch=1 loaded_sound_guard=1 exact_sound_identity=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
+    print("runtime_playback_marker_required=1 wrong_sound_identity_rejected=1 direct_audible_acceptance=pending")
     print("second_gameplay_timer=0 runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
