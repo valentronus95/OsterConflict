@@ -15,6 +15,7 @@ Use Git history and PASS45 archived ledgers for older implementation detail. Thi
 - Active corrective branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
 - Active PR: **#94 OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
+- **Pass 45 remains the ACTIVE corrective pass.**
 - UE target: 5.8.x / Windows.
 - Formal checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**.
 - First factual open checklist item remains **item 16**.
@@ -86,7 +87,26 @@ item16_checked=0
 merge_permitted=0
 ```
 
-## 5. Item 16 current boundary
+## 5. Historical Pass 44 non-regression
+
+### Pass 44 historical runtime rejection (retained fact)
+
+**Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass 44 as a complete solution. Pass 45 is the active corrective pass. This historical rejection remains evidence and may not be erased by later source fixes.
+
+### Pass 44 behavior retained unless disproved
+
+The following accepted non-regression decisions remain protected unless newer factual evidence explicitly invalidates them:
+
+- compact central-Oster playable extent, never restore the historical 2.4 km battlefield;
+- normal local gameplay defaults to zero implicit filler bots unless explicitly requested;
+- Museum BASE acceptance is based on the actual live pawn, not source-only spawnpoint existence;
+- tactical-map bounds follow the compact central-Oster reference rather than legacy peripheral auto-fit;
+- grey/BasicShape weapon material repair remains forbidden and authored material gaps stay fail-visible;
+- the retired Pass37 weapon-palette compatibility owner stays physically deleted.
+
+These retained facts do not authorize resurrection of any Pass 44 owner or repair path later rejected by Pass 45.
+
+## 6. Item 16 current boundary
 
 Item 16 requires accepted authored moving-part/manual-action presentation and factual mechanical audio for M700, Remington 870 and Lever Action plus local UE 5.8 acceptance.
 
@@ -113,7 +133,7 @@ The 2026-09-02 gameplay observation remains a rejection only of the older pre-cu
 - current technical blocker is commandlet/DDC stability, not acceptance of that angle;
 - final accepted lever angle still requires direct current-head UE 5.8 visual calibration after the bounded pilot becomes stable.
 
-## 6. Binding reuse-first / non-regression rules
+## 7. Binding reuse-first / non-regression rules
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
 
@@ -127,7 +147,7 @@ Protected rules:
 - direct UE/gameplay evidence outranks source-only READY claims;
 - source/docs/CI/pilot-only work never inflates canonical checklist progress.
 
-## 7. Next factual operation
+## 8. Next factual operation
 
 Do **not** run `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` yet.
 
@@ -144,7 +164,7 @@ The next acceptance boundary is narrow:
 
 After all five bounded phases pass, use the report plus direct current-head UE 5.8 visual observation to choose factual M700 travel/rotation and Lever angle. Only then author/cut over accepted M700/Lever production sequences, finish the intended weapon setup batch and run one consolidated full weapon runtime acceptance.
 
-## 8. Protected merge/accounting state
+## 9. Protected merge/accounting state
 
 - PR #94: **OPEN / UNMERGED**.
 - Do not merge without current-head UE 5.8 runtime acceptance.
