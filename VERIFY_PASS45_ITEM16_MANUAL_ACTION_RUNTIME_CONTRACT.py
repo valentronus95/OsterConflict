@@ -4,6 +4,8 @@
 The strict runtime route must bind each READY line to the exact production animation
 path currently declared by the gameplay profile. A generic READY marker is not enough:
 otherwise a stale calibration pilot or unrelated weapon line could satisfy the gate.
+The synthetic acceptance log must also carry the factual local mechanical-audio
+playback-dispatch marker now required by the runtime verifier.
 """
 from __future__ import annotations
 
@@ -58,6 +60,13 @@ def build_log() -> str:
         )
         lines.append(f"PASS45_WEAPON_AUDIO_FALLBACK_READY weapon={weapon} {audio_field}")
         lines.append(
+            "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED "
+            f"weapon={weapon} action={action} "
+            f"sound=/Game/PASS45/Test/{weapon}_ManualAction.{weapon}_ManualAction "
+            "route=local2d bus_gt_zero=1 effective_volume_gt_zero=1 "
+            "second_gameplay_timer=0 runtime_acceptance=0"
+        )
+        lines.append(
             "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY "
             f"weapon={weapon} action={action} path={path} "
             "replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0"
@@ -110,7 +119,19 @@ def main() -> int:
             errors.append(f"strict main wrapper lost manual-action runtime gate: {marker}")
 
     good_log = build_log()
-    errors.extend(run_case(good_log, PROFILES_GOOD, expect_success=True, label="exact production paths"))
+    errors.extend(run_case(good_log, PROFILES_GOOD, expect_success=True, label="exact production paths plus playback dispatch"))
+
+    missing_playback_log = good_log.replace(
+        "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED weapon=OC_SNP1",
+        "REMOVED_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED weapon=OC_SNP1",
+        1,
+    )
+    errors.extend(run_case(
+        missing_playback_log,
+        PROFILES_GOOD,
+        expect_success=False,
+        label="missing M700 local playback dispatch",
+    ))
 
     stale_pilot_log = good_log.replace(
         "/Game/Production/Weapons/M700/AN_M700_BoltCycle.AN_M700_BoltCycle",
@@ -140,7 +161,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 MANUAL ACTION RUNTIME CONTRACT: PASS")
-    print("exact_profile_path_binding=1 stale_pilot_ready_rejected=1 empty_profile_rejected=1 pilot_profile_rejected=1")
+    print("exact_profile_path_binding=1 local_audio_playback_dispatch_required=1 stale_pilot_ready_rejected=1 empty_profile_rejected=1 pilot_profile_rejected=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
