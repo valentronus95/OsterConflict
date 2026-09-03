@@ -17,7 +17,11 @@ from PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY import (
     LEVER_SOURCE_SHA256,
     M700_SOURCE_SHA256,
 )
-from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import validate_approval
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
+    validate_approval,
+    validate_evidence_head_repository,
+    validate_pair,
+)
 from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import (
     expected_package_file,
     validate_authored_package as validate_package_bytes,
@@ -121,17 +125,14 @@ if not approval_present:
 elif not receipt_present:
     approval = load_json(APPROVAL, "calibration approval")
     errors.extend(validate_approval(approval))
+    errors.extend(validate_evidence_head_repository(str(approval.get("evidence_head_sha", ""))))
     req(m700_profile_path == "", f"M700 profile cut over before production authoring receipt: {m700_profile_path!r}")
     req(lever_profile_path == "", f"Lever profile cut over before production authoring receipt: {lever_profile_path!r}")
 else:
     approval = load_json(APPROVAL, "calibration approval")
     receipt = load_json(AUTHORING_RECEIPT, "production authoring receipt")
-    errors.extend(validate_approval(approval))
-    req(receipt.get("schema") == 1, f"production authoring receipt schema drifted: {receipt.get('schema')!r}")
-    req(receipt.get("status") == "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED",
-        f"production authoring receipt status invalid: {receipt.get('status')!r}")
-    for key in ("runtime_acceptance", "item16_checked", "merge_permitted"):
-        req(receipt.get(key) is False, f"production authoring receipt illegally promotes {key}")
+    errors.extend(validate_pair(APPROVAL, approval, receipt))
+    errors.extend(validate_evidence_head_repository(str(approval.get("evidence_head_sha", ""))))
 
     m700_receipt_path = validate_authored_asset(
         receipt.get("m700"), label="M700", prefix=M700_PREFIX, source_sha256=M700_SOURCE_SHA256
@@ -184,5 +185,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
