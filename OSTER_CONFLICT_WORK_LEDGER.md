@@ -23,7 +23,7 @@ Use Git history and PASS45 archived ledgers for older implementation detail. Thi
 
 Current status token:
 
-**PASS45 ACTIVE / ITEM16 OPEN / LOCAL CF75B86C M700 PILOT REJECTED ON LEGACY UE58 BONE-TRACK CREATION / CURRENT SOURCE RECOVERED TO UE58 BONE-CURVE API FOR M700+LEVER / BOUNDED LOCAL ITEM16 EVIDENCE RERUN REQUIRED / FULL GAMEPLAY RUNTIME NOT YET DUE / PR94 UNMERGED**
+**PASS45 ACTIVE / ITEM16 OPEN / M700 LEGACY BONE-TRACK BLOCKER RECOVERED / LATEST LOCAL CHAIN NOW REACHES LEVER ACTION / LEVER COMMANDLET CRASHES IN DERIVEDDATACACHE FOREGROUND WORKER DURING SHUTDOWN / UE58 ASSET-COMPILATION BARRIERS SOURCE-CODED / BOUNDED LOCAL RERUN REQUIRED / FULL GAMEPLAY RUNTIME NOT YET DUE / PR94 UNMERGED**
 
 ## 2. Status rules
 
@@ -40,46 +40,51 @@ Current status token:
 
 ## 3. Latest direct local UE truth — 2026-09-03
 
-The newest supplied local evidence tested branch head:
+The newest supplied screenshot is from a bounded item-16 rerun after the earlier M700 API recovery. The screenshot does **not** display the exact local Git SHA, so no exact tested head is invented here.
 
-`cf75b86ce5988ef489f0ef653d3f1b3f637278fd`
+What the run factually proves:
 
-The user ran the canonical bounded item-16 chain:
+- the chain progressed beyond the old phase-1 M700 `bolt_bone_track_creation_failed=1` blocker;
+- it reached **phase 3/5 Lever Action**;
+- UE crashed in a runnable foreground worker with stack frames in `UnrealEditor-DerivedDataCache.dll` and `UnrealEditor-Core.dll`;
+- the wrapper reported:
 
-`OsterConflict\RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd`
+```text
+ERROR: Lever Action UE 5.8 pilot failed with code 3.
+ERROR: item-16 evidence chain stopped at Lever Action. rc=7
+```
 
-The chain failed closed in **phase 1/5 M700** before Remington, Lever, audio import or calibration review could run.
+Therefore the earlier M700 failure is no longer the current factual blocker for this run. The current blocker is **Lever transient-animation / async asset-DDC teardown stability in the UE 5.8 commandlet host**.
 
-Factual failure:
+Because the chain stopped at Lever Action, phases 4/5 mechanical-audio import/fresh-load and 5/5 calibration review did not complete in this run.
 
-`PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_FAIL bolt_bone_track_creation_failed=1`
+## 4. Source recovery for the current Lever/DDC rejection
 
-and:
+The current source already uses UE 5.8 `add_bone_curve()` for M700 BOLT and Lever LEVER and retains `set_bone_track_keys()` for key writes.
 
-`ERROR: item-16 evidence chain stopped at M700. rc=36`
+The new crash is not handled by changing gameplay timing, donor identity, final bolt travel or final lever angle. The bounded source recovery addresses commandlet teardown only.
 
-This is a valid local UE 5.8 rejection of the `cf75b86c...` compatibility path. It is **not** a Remington or Lever runtime verdict because those phases were never reached.
+Epic UE 5.8 exposes `AutomationUtilsBlueprintLibrary.finish_all_asset_compilation()` specifically to block until in-flight asset compilation finishes and render-thread follow-up commands are drained. Current PASS45 source now uses explicit barriers in both transient M700 and Lever compatibility shims:
 
-## 4. Current source recovery after that rejection
+1. immediately after `set_bone_track_keys()` and **before sequence sampling**;
+2. once again after the proof returns and **before PythonScriptCommandlet exit**.
 
-The local failure exposed a UE 5.8 animation-controller API incompatibility: the legacy `add_bone_track()` path returned an invalid result for the transient imported moving-part bone.
+Recovery commits:
 
-Current branch source has already advanced beyond the rejected head with two narrow compatibility fixes:
+- `7b70c56e0c1e77c6642ba517d45310d7879be343` — Lever UE 5.8 asset-compilation/DDC barriers;
+- `2ac5b9560b63a51be3f57c770c6a93d2c302373c` — same teardown policy for M700 to prevent the shutdown race moving between phases;
+- `03ab7bded49fc23ea1c19c23586b86797aaeba93` — regression verifier now requires both bone-curve API recovery and both async-compilation barriers.
 
-- `89bb635d67b24afdb5e32bccd91092401b6024d6` — **M700** pilot now creates the BOLT curve through UE 5.8 `add_bone_curve()` and then writes keys through `set_bone_track_keys()`;
-- `3dc5d1b57a6b908b0bd5356e0b01b681e397d285` — **Lever Action** pilot applies the same UE 5.8 bone-curve API correction for LEVER.
+These changes are **CODED_UNTESTED** locally until the user's actual UE 5.8 rerun clears Lever without a DDC crash.
 
-These changes preserve the bounded proof contract:
+The barriers do not save production animation packages and preserve:
 
-- no production animation package is saved by the M700/Lever motion pilots;
-- M700 pilot travel remains calibration-only and bolt rotation remains pending;
-- Lever `-45°` remains calibration-only, not an accepted production endpoint;
-- `runtime_visual_acceptance=0`;
-- `runtime_acceptance=0`;
-- `item16_checked=0`;
-- `merge_permitted=0`.
-
-Exact-head GitHub Actions on `3dc5d1b5...` are structurally green, including the item-16 evidence-chain, M700, Lever and source-verification contracts. That does **not** substitute for rerunning the chain in the user's actual UE 5.8 installation.
+```text
+runtime_visual_acceptance=0
+runtime_acceptance=0
+item16_checked=0
+merge_permitted=0
+```
 
 ## 5. Item 16 current boundary
 
@@ -98,14 +103,15 @@ The 2026-09-02 gameplay observation remains a rejection only of the older pre-cu
 
 - factual weighted `BOLT` moving part exists;
 - `BOLT_STOP` is **not** an accepted authored travel endpoint;
-- bounded translation proof is calibration-only;
+- bounded translation proof remains calibration-only;
 - final bolt travel and bolt rotation require direct current-head UE 5.8 visual calibration before production authoring/cutover.
 
 ### Lever Action
 
 - factual addressable `LEVER` moving part exists;
-- current bounded local-X `-45°` excursion is calibration-only;
-- final accepted lever angle requires direct current-head UE 5.8 visual calibration before production authoring/cutover.
+- current bounded local-X `-45°` excursion remains calibration-only;
+- current technical blocker is commandlet/DDC stability, not acceptance of that angle;
+- final accepted lever angle still requires direct current-head UE 5.8 visual calibration after the bounded pilot becomes stable.
 
 ## 6. Binding reuse-first / non-regression rules
 
@@ -125,19 +131,18 @@ Protected rules:
 
 Do **not** run `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` yet.
 
-The next local-only operation is to fast-forward the user's checked-out PASS45 branch to the current remote head and run exactly the bounded chain:
+The next local-only operation is to fast-forward the user's checked-out PASS45 branch to the newest remote head and rerun exactly:
 
 `OsterConflict\RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd`
 
-The chain must reach all five phases:
+The next acceptance boundary is narrow:
 
-1. M700 bounded BOLT translation proof;
-2. Remington derived pump + assembly proof;
-3. Lever LEVER motion proof;
-4. Bolt/Lever mechanical-audio import + independent fresh-load;
-5. M700/Lever calibration evidence consolidation.
+- M700 must still pass;
+- Remington phase must still pass its bounded proof;
+- Lever must pass without `DerivedDataCache`/foreground-worker crash and emit its normal pilot PASS;
+- only then may phases 4/5 and 5/5 continue.
 
-After that bounded chain passes, use its report plus direct current-head UE 5.8 visual observation to choose factual M700 travel/rotation and Lever angle. Only then author/cut over accepted M700/Lever production sequences, finish the intended weapon setup batch and run one consolidated full weapon runtime acceptance.
+After all five bounded phases pass, use the report plus direct current-head UE 5.8 visual observation to choose factual M700 travel/rotation and Lever angle. Only then author/cut over accepted M700/Lever production sequences, finish the intended weapon setup batch and run one consolidated full weapon runtime acceptance.
 
 ## 8. Protected merge/accounting state
 
