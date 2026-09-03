@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - 'VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py'
+      - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py'
+      - 'VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py'
       - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
       - '_DOCS/PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json'
       - '_DOCS/PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json'
@@ -21,7 +24,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile production profile cutover guard
-        run: python -m py_compile VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py
+      - name: Compile production profile cutover guards
+        run: python -m py_compile VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py
       - name: Verify staged item16 production profile cutover
         run: python VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py
+      - name: Verify exact production-path runtime evidence binding
+        run: python VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py
