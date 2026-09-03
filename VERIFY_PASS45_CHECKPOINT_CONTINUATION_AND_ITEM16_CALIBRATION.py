@@ -57,7 +57,8 @@ def main() -> int:
         "PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md",
         "item 16",
         "22/36 = 61.1%",
-        "remote quarantine audit",
+        "asset-intake-20260903",
+        "quarantine-only",
         "MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION",
         "user_local_execution_requested=0",
     ))
