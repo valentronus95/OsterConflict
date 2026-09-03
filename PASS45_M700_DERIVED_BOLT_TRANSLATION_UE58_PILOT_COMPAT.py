@@ -13,6 +13,13 @@ pilot travel, author bolt rotation, close item 16, or permit merge.
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT as pilot
 
 EXPECTED_LEGACY_FRAME_RATE = 20
