@@ -71,7 +71,9 @@ req(
     "history no longer preserves the user's explicit no-PC-check instruction",
 )
 req(
-    "no pc-side checking" in ledger_lower,
+    "no pc-side checking" in ledger_lower
+    or "do not require/request pc-side checks" in ledger_lower
+    or "do not require or request pc-side checks" in ledger_lower,
     "ledger no longer preserves the user's explicit no-PC-check instruction",
 )
 req(
