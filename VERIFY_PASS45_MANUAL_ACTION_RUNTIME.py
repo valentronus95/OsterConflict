@@ -107,6 +107,23 @@ def main() -> int:
         if not audio_lines:
             errors.append(f"missing loaded mechanical audio evidence for {weapon}: {expected['audio_field']}")
 
+        playback_lines = lines_with(
+            gameplay,
+            "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED",
+            f"weapon={weapon}",
+            f"action={action}",
+            "sound=/Game/",
+            "route=local2d",
+            "bus_gt_zero=1",
+            "effective_volume_gt_zero=1",
+            "second_gameplay_timer=0",
+            "runtime_acceptance=0",
+        )
+        if not playback_lines:
+            errors.append(
+                f"missing factual local manual-action audio playback dispatch for {weapon} {action}"
+            )
+
         if profile_path_ok:
             authored_lines = lines_with(
                 gameplay,
@@ -126,6 +143,7 @@ def main() -> int:
 
         forbidden = (
             ("PASS45_WEAPON_AUDIO_CONTENT_GAP", "event=manual_action"),
+            ("PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL",),
             ("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP",),
             ("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL",),
         )
@@ -142,7 +160,7 @@ def main() -> int:
 
     print("PASS45 MANUAL ACTION RUNTIME: PASS")
     print("- M700 bolt, Remington 870 pump and Lever Action cycles were each factually exercised")
-    print("- authoritative cycle timing, loaded mechanical audio and exact production-profile authored animation evidence are present")
+    print("- authoritative cycle timing, loaded and playback-dispatched local mechanical audio, and exact production-profile authored animation evidence are present")
     print("- calibration-pilot paths and manual-action audio/content bridge failures are rejected for all three required weapons")
     print("STATUS: AUTOMATED ITEM16 RUNTIME EVIDENCE PASS; direct visual/audio feel acceptance still required")
     return 0
