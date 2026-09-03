@@ -68,11 +68,15 @@ def main() -> int:
         "source_authored_endpoint",
         "rotation_calibration_pending",
         "CURRENT_UE58_COMPAT_FAIL_CLOSED",
+        "M700_EXPECTED_SOURCE_SHA256",
+        "LEVER_EXPECTED_SOURCE_SHA256",
+        "source_identity_pinned",
         "track_creation_api",
         "asset_compilation_barrier_before_sampling",
         "sequence_envelope_validation_bridge",
         "resampled_source_frames",
         "legacy_pilot_evidence_accepted=0",
+        "cross_source_pilot_evidence_accepted=0",
         "full_gameplay_runtime_now",
         "merge_permitted",
     ))
@@ -92,10 +96,11 @@ def main() -> int:
         "item16_checked": False,
         "production_cutover": False,
         "source_authored_endpoint": False,
-        "source_sha256": "test",
     }
     m700_payload = {
         **common,
+        "source": mod.M700_EXPECTED_SOURCE,
+        "source_sha256": mod.M700_EXPECTED_SOURCE_SHA256,
         "status": "M700_BOLT_TRANSLATION_DERIVED_UE58_MOTION_PROOF_ONLY",
         "pilot_travel_accepted": False,
         "bolt_stop_used_as_endpoint": False,
@@ -118,6 +123,8 @@ def main() -> int:
     }
     lever_payload = {
         **common,
+        "source": mod.LEVER_EXPECTED_SOURCE,
+        "source_sha256": mod.LEVER_EXPECTED_SOURCE_SHA256,
         "status": "LEVERACTION_DERIVED_UE58_MOTION_PROOF_ONLY",
         "pilot_angle_accepted": False,
         "lever_bone_addressable": True,
@@ -149,6 +156,8 @@ def main() -> int:
     review = mod.build_review(m700, lever)
     if review.get("evidence_contract") != "CURRENT_UE58_COMPAT_FAIL_CLOSED":
         fail("synthetic review lost the current UE58 compatibility evidence contract")
+    if review.get("source_identity_pinned") is not True:
+        fail("synthetic review lost exact source-identity pinning")
     if review.get("runtime_acceptance") is not False:
         fail("synthetic review falsely claims runtime acceptance")
     if review.get("item16_checked") is not False:
@@ -173,6 +182,15 @@ def main() -> int:
         "M700 legacy add_bone_track evidence",
     )
 
+    wrong_source_m700 = dict(m700_payload)
+    wrong_source_m700["source_sha256"] = "0" * 64
+    assert_rejected(
+        mod.validate_m700,
+        wrong_source_m700,
+        "source SHA-256 drifted",
+        "M700 cross-source evidence",
+    )
+
     stale_lever = dict(lever_payload)
     stale_lever["controller"] = dict(lever_payload["controller"])
     stale_lever["controller"].pop("sequence_envelope_validation_bridge")
@@ -181,6 +199,15 @@ def main() -> int:
         stale_lever,
         "sequence_envelope_validation_bridge=true",
         "Lever evidence without padded-envelope validation bridge",
+    )
+
+    wrong_source_lever = dict(lever_payload)
+    wrong_source_lever["source_sha256"] = "f" * 64
+    assert_rejected(
+        mod.validate_lever,
+        wrong_source_lever,
+        "source SHA-256 drifted",
+        "Lever cross-source evidence",
     )
 
     fractional_lever = dict(lever_payload)
@@ -196,7 +223,7 @@ def main() -> int:
     )
 
     print("PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION_CONTRACT_PASS")
-    print("current_ue58_compat_evidence_required=1 legacy_pilot_evidence_accepted=0")
+    print("current_ue58_compat_evidence_required=1 source_identity_pinned=1 legacy_pilot_evidence_accepted=0 cross_source_pilot_evidence_accepted=0")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
