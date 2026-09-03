@@ -22,10 +22,10 @@ This behavior is also bound globally by `AGENTS.md` mandatory workflow rule 30.
 - M700 UE 5.8 bone-curve recovery: `89bb635d67b24afdb5e32bccd91092401b6024d6`.
 - Lever UE 5.8 bone-curve recovery: `3dc5d1b57a6b908b0bd5356e0b01b681e397d285`.
 - Bone-curve regression guard: `3de85c46a9c12aa9dd43a3950a888872cf266e6f`.
-- Lever UE 5.8 DDC/asset-compilation teardown recovery: `7b70c56e0c1e77c6642ba517d45310d7879be343`.
-- M700 matching asset-compilation teardown policy: `2ac5b9560b63a51be3f57c770c6a93d2c302373c`.
+- Lever/M700 asset-compilation barriers: `7b70c56e0c1e77c6642ba517d45310d7879be343`, `2ac5b9560b63a51be3f57c770c6a93d2c302373c`.
 - Async-compilation barrier regression guard: `03ab7bded49fc23ea1c19c23586b86797aaeba93`.
-- Latest live-ledger checkpoint after restoring historical non-regression markers: `0d81f9a3fb844f6620d057a20d9a0facece28d50`.
+- Lever integral 30 fps resampling-grid recovery: `3b66261b79a82deed7ebe698844205176cc92b20`.
+- Lever resampling-grid regression guard: `91da695e4dbc07d2a0890e0394e93ba066bc6a92`.
 - Official canonical checklist remains **22/36 = 61.1% complete, 38.9% remaining**.
 - Local user `Changes` remain outside assistant mutation scope.
 
@@ -85,53 +85,66 @@ ERROR: item-16 evidence chain stopped at M700. rc=36
 
 That failure was bounded to the deprecated/invalid UE 5.8 `add_bone_track()` creation path and is superseded by the M700/Lever `add_bone_curve()` recovery commits listed above.
 
-Do not return to the old API merely because a historical verifier once accepted it.
+## 2026-09-03 latest local Lever resampling-grid rejection
 
-## 2026-09-03 latest local Lever/DDC rejection
+The newest factual local item-16 rerun again progressed beyond M700 and Remington into phase 3/5 Lever Action. It now exposes the failure *before* the previously added asset-compilation barrier can execute.
 
-The newest user screenshot is from a later bounded rerun after the earlier M700 API recovery. The screenshot does **not** display the exact local Git SHA, so no exact tested head is claimed.
-
-Factual result:
-
-- the chain progressed past the prior M700 blocker;
-- the run reached **Lever Action**;
-- UE reported a crash in `Foreground Worker #1` with stack frames inside `UnrealEditor-DerivedDataCache.dll` and `UnrealEditor-Core.dll` during shutdown;
-- wrapper result:
+UE emitted:
 
 ```text
+Script Stack: /Script/Engine.AnimationDataController.SetNumberOfFrames
+Ensure condition failed: FMath::IsNearlyZero(ResampledFrameTime.GetSubFrame())
+Incompatible resampling frame rate for animation sequence AN_PASS45_LeverAction_Cycle_Pilot, frame remainder of 0.50000000
+Assertion failed: FMath::IsNearlyZero(SampleFrameTime.GetSubFrame())
 ERROR: Lever Action UE 5.8 pilot failed with code 3.
 ERROR: item-16 evidence chain stopped at Lever Action. rc=7
 ```
 
-This means phases 4/5 audio import/fresh-load and 5/5 calibration review did not complete in that run.
+This supersedes the earlier working theory that commandlet teardown itself was the primary blocker. The `DerivedDataCache` foreground-worker stack remains real, but in this run it is downstream of animation compression started by an invalid fractional resampling grid.
 
-The failure is treated as a transient animation/asset-compilation teardown stability issue, not as evidence for changing Lever gameplay timing or accepting/rejecting the `-45°` calibration angle.
+The arithmetic is exact:
 
-## UE 5.8 asset-compilation/DDC teardown recovery
+- transient UE sequence starts on a 30 fps grid;
+- compatibility pilot was 60 fps with 51 playable frames;
+- `51 / 60 = 0.85 s`;
+- `0.85 * 30 = 25.5` source frames;
+- UE 5.8 rejects that half-frame remainder during `SetNumberOfFrames` / compression.
 
-Epic UE 5.8 exposes `AutomationUtilsBlueprintLibrary.finish_all_asset_compilation()` to block until in-flight asset compilation finishes and render-thread follow-up work is drained.
+The crash therefore happens before `set_bone_track_keys()` and before the pre-sampling compilation barrier. Adding more shutdown waits would merely decorate the wrong side of the failure, a favorite human tradition that the engine has thankfully made impossible with an assertion.
 
-PASS45 now uses that API in both M700 and Lever compatibility shims at two bounded points:
+## UE 5.8 Lever integral-grid recovery
 
-1. after `set_bone_track_keys()` and before sequence sampling;
-2. after the proof returns and before PythonScriptCommandlet exit.
+The recovery keeps the real Lever motion endpoint exactly at `0.85 s`, which is frame 51 at 60 fps, but gives the transient sequence one additional bind-pose tail frame:
 
-Reason for both barriers:
+```text
+initial_grid_fps=30
+compat_fps=60
+motion_end_frame=51
+motion_duration=0.85
+sequence_frames=52
+sequence_duration=0.8666666667
+tail_pad_frames=1
+resampled_source_frames=26
+keys=53
+```
 
-- `set_bone_track_keys()` can trigger animation compression/DDC work through TrackChanged notifications;
-- the base pilot immediately samples the transient sequence;
-- after sampling/evidence work, commandlet shutdown must not destroy transient imported/animation objects while foreground workers still own compilation follow-up work.
+Why 52 frames:
 
-The current regression verifier requires:
+- `52 / 60 = 0.866666... s`;
+- that envelope maps to exactly `26` frames at 30 fps;
+- frame 51 remains exactly `0.85 s`, so the authored calibration motion itself is not stretched;
+- frame 52 is only a returned-bind-pose padding key because the authoritative motion function clamps at the 0.85 s endpoint.
 
-- UE 5.8 `add_bone_curve()` creation for BOLT/LEVER;
-- no direct `.add_bone_track(` in compatibility shims;
-- `finish_all_asset_compilation()` through one centralized helper per shim;
-- a pre-sampling barrier;
-- a pre-commandlet-exit barrier;
-- no production save/cutover/acceptance mutation.
+Current code emits `PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY` before calling `SetNumberOfFrames` and fails closed if the compatibility envelope stops mapping to an integral initial-grid frame.
 
-These changes remain **CODED_UNTESTED** locally until the bounded UE 5.8 chain is rerun on a checkout fast-forwarded to the newest canonical branch head.
+The previously added `finish_all_asset_compilation()` barriers remain as an independent safety guard after key mutation and before commandlet exit. They are no longer claimed as the root-cause fix for this specific rejection.
+
+Current recovery commits:
+
+- `3b66261b79a82deed7ebe698844205176cc92b20` — 52-frame / 53-key integral resampling envelope while preserving the exact 0.85 s motion endpoint;
+- `91da695e4dbc07d2a0890e0394e93ba066bc6a92` — regression contract rejects the old 51-frame envelope and requires the 30→60 integral-grid rule.
+
+These changes remain **CODED_UNTESTED** locally until a new UE 5.8 bounded chain run clears Lever and proceeds into phases 4/5 and 5/5.
 
 ## Weapon runtime cadence
 
@@ -167,7 +180,9 @@ The next narrow acceptance target is:
 
 - M700 still passes;
 - Remington bounded phase still passes;
-- Lever emits its normal pilot PASS and commandlet exits cleanly without DerivedDataCache/foreground-worker crash;
+- Lever prints `PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY` with `compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1`;
+- no `frame remainder of 0.50000000` / `SampleFrameTime.GetSubFrame()` assertion occurs;
+- Lever reaches its normal pilot PASS and both asset-compilation barriers;
 - phases 4/5 and 5/5 then complete.
 
 After all five bounded phases pass, use the report plus direct current-head UE 5.8 visual observation to determine factual M700 travel/rotation and Lever angle. Only then author/cut over accepted M700/Lever production sequences and later run the consolidated full weapon runtime acceptance.
