@@ -8,26 +8,22 @@ The previous complete ledger remains preserved by Git blob:
 
 Use Git history and PASS45 archived ledgers for older implementation detail. This live ledger intentionally stays compact so new sessions resume from the current factual blocker rather than replaying already completed work.
 
-## 1. Current context — 2026-09-02
+## 1. Current context — 2026-09-03
 
 - Repository: `valentronus95/OsterConflict`.
 - Integrated `main` baseline: `bca00f4046700f383af9f1742cc24b6a62401b1a`.
 - Active corrective branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
 - Active PR: **#94 OPEN / UNMERGED**.
 - Canonical active TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Pass 45 remains the active corrective pass.
-- Latest Remington strict-runtime implementation head before the current ledger/docs checkpoint: `43588a0adce133608901fc17778d35928c87ea86`.
-- PASS45 persistent-history refresh after that implementation: `d39ab31c73b013bf6fe39d288cecf7ff46aee29f`.
+- UE target: 5.8.x / Windows.
 - Formal checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**.
 - First factual open checklist item remains **item 16**.
-- UE target: 5.8.x / Windows.
-- Canonical full acceptance launcher: `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ`.
+- Local user `Changes`, including local `PC_TEST/TEST_RESULTS` evidence differences, remain outside assistant mutation scope.
 - PR #94 must not merge until current-head UE 5.8 runtime acceptance passes required automated and direct visual/audio gates.
-- Local user `Changes` must not be reset, cleaned, overwritten or casually committed.
 
 Current status token:
 
-**PASS45 ACTIVE / ITEM16 OPEN / REMINGTON PRODUCTION SKELETAL+PUMPCYCLE SOURCE-WIRED / STRICT RUNTIME EVIDENCE NOW REQUIRES ACTUAL OC_SG1 PUMP ACTIVATION / CURRENT-HEAD DIRECT UE58 VISUAL+AUDIO ACCEPTANCE PENDING / M700+LEVER AUTHORED ACTION GAPS REMAIN / PR94 UNMERGED**
+**PASS45 ACTIVE / ITEM16 OPEN / LOCAL CF75B86C M700 PILOT REJECTED ON LEGACY UE58 BONE-TRACK CREATION / CURRENT SOURCE RECOVERED TO UE58 BONE-CURVE API FOR M700+LEVER / BOUNDED LOCAL ITEM16 EVIDENCE RERUN REQUIRED / FULL GAMEPLAY RUNTIME NOT YET DUE / PR94 UNMERGED**
 
 ## 2. Status rules
 
@@ -35,152 +31,113 @@ Current status token:
 - `CODED_UNTESTED` — source correction exists but current factual local UE build/runtime has not accepted it.
 - `CONTENT GAP` — required production content is absent/unverified; never fake READY.
 - `AUDIO CONTENT GAP` — routing exists but accepted authored sound is absent/unverified.
-- `RUNTIME REJECTED` — factual local gameplay disproved the tested result.
+- `RUNTIME REJECTED` — factual local gameplay or UE execution disproved the tested result.
 - `VERIFIED BUILD` — factual local UBT/UE build succeeds on the tested head.
 - `VERIFIED RUNTIME` — factual current-head UE/user playtest proves behavior/appearance.
-- Green source CI is structural evidence only, not UE runtime acceptance.
-- Older runtime evidence remains factual for the head it tested, but cannot prove a later cutover head.
-- Historical verifiers may not resurrect retired owners or stale asset paths.
+- Green GitHub/source CI is structural evidence only, not UE runtime acceptance.
+- Older runtime evidence remains factual for the head it tested, but cannot prove a later recovery head.
+- Historical verifiers may not resurrect retired owners or stale asset/API paths.
 
-## 3. Latest direct runtime truth — 2026-09-02
+## 3. Latest direct local UE truth — 2026-09-03
 
-The latest direct user run reached gameplay. It proved:
+The newest supplied local evidence tested branch head:
 
-- the gameplay world loaded;
-- M700 and Lever Action were present/usable in that tested session;
-- Remington 870 fired and showed recoil;
-- the Remington fore-end did **not** visibly pump after firing.
+`cf75b86ce5988ef489f0ef653d3f1b3f637278fd`
 
-That remains a valid rejection of the **pre-production-cutover Remington presentation**:
+The user ran the canonical bounded item-16 chain:
 
-`GAMEPLAY_REACHED / REMINGTON_RECOIL_PRESENT / REMINGTON_PUMP_PRESENTATION_MISSING`.
+`OsterConflict\RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd`
 
-Later source work has replaced the old static/generic Remington route with a guarded skeletal production path and authored PumpCycle. Therefore the older runtime result no longer proves the current head's visual outcome. Current-head UE 5.8 runtime evidence is still mandatory.
+The chain failed closed in **phase 1/5 M700** before Remington, Lever, audio import or calibration review could run.
 
-### Pass 44 historical runtime rejection (retained fact)
+Factual failure:
 
-**Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass44 as a complete solution: spawn/result framing was wrong, the map was still perceived as excessively large/empty, weapon visuals/materials were not production-ready, production-model claims were unreliable, and FPS could collapse severely. Pass45 supersedes Pass44 as the active corrective pass; this historical rejection may not be erased by later source fixes.
+`PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_FAIL bolt_bone_track_creation_failed=1`
 
-### Pass 44 behavior retained unless disproved
+and:
 
-The following Pass44 decisions remain protected as non-regression because later evidence did not invalidate them:
+`ERROR: item-16 evidence chain stopped at M700. rc=36`
 
-- compact central-Oster hard extent: approximately 960×940 m, never restore the historical 2.4 km battlefield;
-- normal local gameplay defaults to zero implicit filler bots unless explicitly requested;
-- Museum BASE acceptance must be based on the actual live pawn, not source-only spawnpoint existence;
-- tactical-map bounds follow the compact central-Oster reference rather than legacy peripheral component auto-fit;
-- grey/BasicShape weapon material repair is forbidden; authored material gaps remain fail-visible;
-- the retired Pass37 weapon palette compatibility owner stays physically deleted, not preserved as an inert shell.
+This is a valid local UE 5.8 rejection of the `cf75b86c...` compatibility path. It is **not** a Remington or Lever runtime verdict because those phases were never reached.
 
-Pass44 historical non-regression does **not** authorize resurrection of any owner/repair path that Pass45 physically retired.
+## 4. Current source recovery after that rejection
 
-### Historical local UE build/import rejection — 2026-08-25
+The local failure exposed a UE 5.8 animation-controller API incompatibility: the legacy `add_bone_track()` path returned an invalid result for the transient imported moving-part bone.
 
-**LOCAL UE BUILD REJECTED.** The factual local UE 5.8.1 / MSVC 14.51 run exposed two independent regressions:
+Current branch source has already advanced beyond the rejected head with two narrow compatibility fixes:
 
-- tactical-map `FVector2D` reference-road data declared `constexpr` failed with compiler error `C2131`;
-- HMMWV/M2 GLB Interchange intake attempted the deprecated `auto_detect_mesh_type` editor property and was rejected by current UE 5.8.
+- `89bb635d67b24afdb5e32bccd91092401b6024d6` — **M700** pilot now creates the BOLT curve through UE 5.8 `add_bone_curve()` and then writes keys through `set_bone_track_keys()`;
+- `3dc5d1b57a6b908b0bd5356e0b01b681e397d285` — **Lever Action** pilot applies the same UE 5.8 bone-curve API correction for LEVER.
 
-The source fixes now use a normal `const` road table and the current explicit static-mesh Interchange policy. Their status remains **CODED_UNTESTED** until a later factual local UE build/import run proves them; source CI alone is not that acceptance.
+These changes preserve the bounded proof contract:
 
-## 4. Binding reuse-first / non-regression rules
+- no production animation package is saved by the M700/Lever motion pilots;
+- M700 pilot travel remains calibration-only and bolt rotation remains pending;
+- Lever `-45°` remains calibration-only, not an accepted production endpoint;
+- `runtime_visual_acceptance=0`;
+- `runtime_acceptance=0`;
+- `item16_checked=0`;
+- `merge_permitted=0`.
+
+Exact-head GitHub Actions on `3dc5d1b5...` are structurally green, including the item-16 evidence-chain, M700, Lever and source-verification contracts. That does **not** substitute for rerunning the chain in the user's actual UE 5.8 installation.
+
+## 5. Item 16 current boundary
+
+Item 16 requires accepted authored moving-part/manual-action presentation and factual mechanical audio for M700, Remington 870 and Lever Action plus local UE 5.8 acceptance.
+
+### Remington 870
+
+Current source retains the guarded registered CC-BY-4.0 donor derivative, production skeletal visual and exact PumpCycle path:
+
+- `/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870`;
+- `/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle`.
+
+The 2026-09-02 gameplay observation remains a rejection only of the older pre-cutover presentation where recoil occurred but the fore-end did not visibly pump. The newer production path still requires current-head direct visible-pump and mechanical-audio acceptance.
+
+### M700
+
+- factual weighted `BOLT` moving part exists;
+- `BOLT_STOP` is **not** an accepted authored travel endpoint;
+- bounded translation proof is calibration-only;
+- final bolt travel and bolt rotation require direct current-head UE 5.8 visual calibration before production authoring/cutover.
+
+### Lever Action
+
+- factual addressable `LEVER` moving part exists;
+- current bounded local-X `-45°` excursion is calibration-only;
+- final accepted lever angle requires direct current-head UE 5.8 visual calibration before production authoring/cutover.
+
+## 6. Binding reuse-first / non-regression rules
 
 `_DOCS/PASS45_REUSE_FIRST_REPLACEMENT_SPEC.md`, `_DOCS/PASS45_REUSE_FIRST_DEEP_AUDIT_2026-09-01.md` and `_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md` remain binding.
 
 Protected rules:
 
 - one runtime responsibility has one mutating owner;
-- authored manual-action animation follows the existing replicated mechanical-action cycle, not a second timer;
+- authored manual-action animation follows the existing replicated mechanical-action cycle, not a second gameplay timer;
 - retired procedural whole-weapon/arms manual-action fallback stays physically retired;
 - primary registered Remington donor is exhausted before any second donor is promoted;
 - unverified licensing cannot be promoted;
-- direct gameplay evidence outranks source-only READY claims;
-- source/docs work never inflates canonical checklist progress.
-
-## 5. Item 16 current source state
-
-Item 16 requires accepted authored moving-part/manual-action presentation and factual mechanical audio for M700, Remington 870 and Lever Action plus local UE 5.8 acceptance.
-
-### Remington 870
-
-Registered donor remains the CC-BY-4.0 8sianDude payload:
-
-`SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb`
-
-SHA-256 / LFS OID:
-
-`147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2`
-
-The deterministic derivative isolates the physical fore-end into `PASS45_PumpForeEnd` and provides standalone `PASS45_Remington870_PumpCycle` near 0.55 s. The separate local `Remington_870_FREE.glb` remains quarantined and is not the production donor.
-
-Current guarded production source now exists:
-
-- importer: `PASS45_REMINGTON870_PRODUCTION_UE58_IMPORT.py`;
-- wrapper: `OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd`;
-- fresh-load verifier: `OsterConflict/Scripts/verify_remington870_production_fresh_load.py`;
-- skeletal visual: `/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870`;
-- pump sequence: `/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle`.
-
-Runtime source now:
-
-- loads Remington through the skeletal production visual path;
-- maps `OC_SG1` / PumpAction to the exact production PumpCycle;
-- reuses the existing `bActionCycling` transition and authored animation bridge;
-- keeps `runtime_acceptance=0` until factual runtime observation.
-
-The old ledger statements that the production Remington package is absent, the runtime visual is still generic/static, or the `OC_SG1` authored action path is empty are now **superseded source history** and must not drive future implementation.
-
-### Strict runtime gate
-
-The existing canonical runtime evidence verifier now requires a factual gameplay activation:
-
-`PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=OC_SG1`
-
-with:
-
-- PumpAction identity;
-- exact production PumpCycle path;
-- replicated gate ownership;
-- no second gameplay timer;
-- explicit `runtime_acceptance=0` until manual acceptance.
-
-It fails closed on Remington authored bridge failure, authored content gap, or manual-action audio content gap. The strict harness contract-checks that these Remington requirements cannot silently disappear.
-
-Implementation heads:
-
-- `768c4a379438e976c7d0f9365b6ec7a0f89dcd81` — Remington pump runtime evidence gate;
-- `43588a0adce133608901fc17778d35928c87ea86` — strict harness binding.
-
-### Remaining item-16 gaps
-
-- Remington current-head direct visible pump acceptance: **PENDING UE 5.8 RUNTIME**.
-- Remington current-head direct mechanical-audio acceptance: **PENDING UE 5.8 RUNTIME**.
-- M700 exact authored bolt animation: **CONTENT GAP**.
-- Lever Action exact authored lever animation: **CONTENT GAP**.
-- Item 16 remains **UNCHECKED**.
-
-## 6. Current CI truth
-
-Exact-head GitHub Actions for the `43588a0...` implementation head started and the large matrix was partially complete at the last check. Some jobs were already successful while others were still running. No in-progress CI state is treated as final PASS.
-
-The documentation checkpoint creates a newer head, so final exact-head CI status must always be read from the latest PR head before any merge or acceptance claim.
+- direct UE/gameplay evidence outranks source-only READY claims;
+- source/docs/CI/pilot-only work never inflates canonical checklist progress.
 
 ## 7. Next factual operation
 
-Run the canonical **current-head** full acceptance route:
+Do **not** run `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` yet.
 
-`START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ`
+The next local-only operation is to fast-forward the user's checked-out PASS45 branch to the current remote head and run exactly the bounded chain:
 
-During gameplay, fire/cycle the `OC_SG1` Remington 870. A Remington slice PASS requires the same current head to prove:
+`OsterConflict\RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd`
 
-1. guarded import/build/gameplay/evidence gates complete;
-2. actual `OC_SG1` authored bridge READY reaches the exact production PumpCycle;
-3. no Remington animation/content/audio gap marker appears;
-4. the first-person fore-end visibly performs the post-shot pump cycle;
-5. pump mechanical audio is audibly synchronized to that cycle;
-6. direct screenshot/observation evidence is retained.
+The chain must reach all five phases:
 
-After that, item 16 still requires the missing M700 bolt and Lever Action lever authored animation slices. Do not skip them.
+1. M700 bounded BOLT translation proof;
+2. Remington derived pump + assembly proof;
+3. Lever LEVER motion proof;
+4. Bolt/Lever mechanical-audio import + independent fresh-load;
+5. M700/Lever calibration evidence consolidation.
+
+After that bounded chain passes, use its report plus direct current-head UE 5.8 visual observation to choose factual M700 travel/rotation and Lever angle. Only then author/cut over accepted M700/Lever production sequences, finish the intended weapon setup batch and run one consolidated full weapon runtime acceptance.
 
 ## 8. Protected merge/accounting state
 
