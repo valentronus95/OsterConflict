@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py'
+      - 'VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py'
       - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
       - '_DOCS/PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json'
+      - '_DOCS/PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json'
       - '.github/workflows/pass45-item16-production-cutover-preflight.yml'
   workflow_dispatch:
 
