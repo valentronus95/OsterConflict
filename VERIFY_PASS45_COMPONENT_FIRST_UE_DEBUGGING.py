@@ -55,13 +55,31 @@ for text, label in ((ledger, "ledger"), (history, "history")):
         f"{label} does not name the current Lever-only local operation",
     )
     req(
-        "RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd" in text,
-        f"{label} lost the later consolidated five-phase chain",
-    )
-    req(
         "22/36 = 61.1%" in text,
         f"{label} lost frozen PASS45 progress accounting",
     )
+
+# Keep documentation checks semantic instead of freezing every living checkpoint
+# to the same literal launcher sentence. The history/protocol carry the canonical
+# exact path, while the compact ledger only needs to preserve the later one-shot
+# five-phase boundary and explicitly say it is not due while Lever is unstable.
+req(
+    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd" in history,
+    "history lost the canonical later consolidated five-phase launcher",
+)
+req(
+    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd" in protocol,
+    "component-first protocol lost the canonical later consolidated five-phase launcher",
+)
+ledger_lower = ledger.lower()
+req(
+    "five-phase item-16" in ledger_lower or "five-phase item16" in ledger_lower,
+    "ledger lost the later consolidated five-phase item-16 boundary",
+)
+req(
+    "do **not** rerun the full five-phase" in ledger_lower,
+    "ledger no longer blocks premature full-chain reruns while Lever is unstable",
+)
 
 req(
     "PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN_COMPLETE" in full_chain,
@@ -116,4 +134,4 @@ if errors:
 
 print("PASS45 COMPONENT-FIRST UE DEBUGGING: PASS")
 print("preflight_first=1 component_only_until_pass=1 self_validating_lever_postflight=1 full_chain_after_component_pass=1 full_gameplay_acceptance_only=1")
-print("current_local_component=LeverAction required_exact_markers=15 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
+print("current_local_component=LeverAction exact_postflight_checks=14 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
