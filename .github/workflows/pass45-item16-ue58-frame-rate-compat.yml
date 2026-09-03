@@ -1,0 +1,40 @@
+name: Pass 45 item16 UE58 frame-rate compatibility
+
+on:
+  push:
+    paths:
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py'
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py'
+      - 'VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py'
+      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
+      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
+      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
+      - '.github/workflows/pass45-item16-ue58-frame-rate-compat.yml'
+  pull_request:
+    paths:
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py'
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py'
+      - 'VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py'
+      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
+      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
+      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
+      - '.github/workflows/pass45-item16-ue58-frame-rate-compat.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile compatibility shims and verifier
+        run: |
+          python -m py_compile PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py
+          python -m py_compile PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py
+          python -m py_compile VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py
+      - name: Verify item16 UE58 frame-rate compatibility contract
+        run: python VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py

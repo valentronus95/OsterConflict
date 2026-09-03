@@ -5,7 +5,8 @@ chcp 65001 >nul
 set "PROJECT_DIR=%~dp0"
 set "REPO_ROOT=%PROJECT_DIR%..\"
 set "COMMANDLET_UPROJECT=%PROJECT_DIR%OsterConflictPass45Commandlet.uproject"
-set "SCRIPT=%REPO_ROOT%PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.py"
+set "BASE_SCRIPT=%REPO_ROOT%PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.py"
+set "SCRIPT=%REPO_ROOT%PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py"
 set "SOURCE=%PROJECT_DIR%Content\Raw\R13\Weapons\SteinClassicWeapons\WeaponsPack\LeverAction\SKM_LeverAction.fbx"
 set "LOG=%PROJECT_DIR%Saved\Logs\Pass45LeverActionDerivedLeverUE58Pilot.log"
 set "UE_ROOT="
@@ -33,9 +34,13 @@ if not exist "%COMMANDLET_UPROJECT%" (
     echo ERROR: isolated Pass45 commandlet project not found: %COMMANDLET_UPROJECT%
     exit /b 3
 )
-if not exist "%SCRIPT%" (
-    echo ERROR: Lever Action UE 5.8 pilot script not found: %SCRIPT%
+if not exist "%BASE_SCRIPT%" (
+    echo ERROR: canonical Lever Action UE 5.8 pilot script not found: %BASE_SCRIPT%
     exit /b 4
+)
+if not exist "%SCRIPT%" (
+    echo ERROR: Lever Action UE 5.8 frame-rate compatibility shim not found: %SCRIPT%
+    exit /b 10
 )
 if not exist "%SOURCE%" (
     echo ERROR: exact Stein Lever Action donor not found: %SOURCE%
@@ -58,6 +63,7 @@ echo Host:    %COMMANDLET_UPROJECT%
 echo Source:  %SOURCE%
 echo.
 echo [PASS45] ISOLATED LEVER MOVING-PART PROOF ONLY.
+echo [PASS45] UE 5.8 transient AnimSequence cadence is adapted from legacy 20 fps to compatible 60 fps only.
 echo [PASS45] Pilot angle is calibration-only, not a source-authored endpoint.
 echo [PASS45] No package save, no production profile cutover, no item-16 acceptance.
 echo.
