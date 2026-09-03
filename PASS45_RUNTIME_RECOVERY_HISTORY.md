@@ -2,190 +2,184 @@
 
 This is the current human-readable checkpoint index for `PASS45_RUNTIME_RECOVERY_TZ.md`. Git history remains the raw source of truth; this file records the newest factual continuation state so new chats do not replay completed analysis.
 
-## Binding continuation rule — 2026-09-03
+## Binding continuation and local-debug rules — 2026-09-03
 
-Canonical PASS45 continuation protocol:
+Canonical continuation protocol:
 
 `_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md`
 
-When the user asks to continue from the latest factual/current checkpoint, do **not** restart a full-project audit by default. Reconcile current branch/HEAD/PR/recent commits/CI/history, consume any newer parallel-chat commits, then inspect only the first factual open item and its direct dependencies. Broad re-audit is allowed only under the invalidation conditions recorded in the protocol.
+Canonical component-first UE debugging protocol:
 
-This behavior is also bound globally by `AGENTS.md` mandatory workflow rule 30.
+`_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md`
+
+`AGENTS.md` rules 30–31 are binding:
+
+- continue from the latest factual checkpoint instead of restarting a broad audit;
+- after a fail-closed local chain stops at one component, exhaust source/static/preflight checks first and rerun only that failed component until it passes;
+- do not make the user repeat earlier phases that already passed;
+- run the full bounded chain once only after affected components are individually green;
+- run full gameplay only as consolidated acceptance, not as a Python/asset-authoring debugger.
 
 ## Canonical ownership
 
 - Canonical TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Active integration branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
+- Active branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
 - Target baseline: `main@bca00f4046700f383af9f1742cc24b6a62401b1a`.
-- Active integration PR: **#94 OPEN / UNMERGED**.
-- Rejected local M700 API test head: `cf75b86ce5988ef489f0ef653d3f1b3f637278fd`.
-- M700 UE 5.8 bone-curve recovery: `89bb635d67b24afdb5e32bccd91092401b6024d6`.
-- Lever UE 5.8 bone-curve recovery: `3dc5d1b57a6b908b0bd5356e0b01b681e397d285`.
-- Bone-curve regression guard: `3de85c46a9c12aa9dd43a3950a888872cf266e6f`.
-- Lever/M700 asset-compilation barriers: `7b70c56e0c1e77c6642ba517d45310d7879be343`, `2ac5b9560b63a51be3f57c770c6a93d2c302373c`.
-- Async-compilation barrier regression guard: `03ab7bded49fc23ea1c19c23586b86797aaeba93`.
-- Lever integral 30 fps resampling-grid recovery: `3b66261b79a82deed7ebe698844205176cc92b20`.
-- Lever resampling-grid regression guard: `91da695e4dbc07d2a0890e0394e93ba066bc6a92`.
-- Official canonical checklist remains **22/36 = 61.1% complete, 38.9% remaining**.
+- Active PR: **#94 OPEN / UNMERGED**.
+- Official checklist: **22/36 = 61.1% complete, 38.9% remaining**.
+- First factual open item: **item 16**.
 - Local user `Changes` remain outside assistant mutation scope.
 
-## First factual open item
+## Relevant recovery chain
 
-The first canonical unchecked checklist item remains **item 16**: accepted authored M700 / Remington 870 / Lever Action moving-part or skeletal manual-action presentation, factual bolt/pump/lever mechanical audio, and local UE 5.8 acceptance.
+Historical/local blocker sequence retained for non-regression:
 
-Source/docs/intake/CI/pilot-only work does not check item 16 and does not increase the official percentage.
+1. `cf75b86ce5988ef489f0ef653d3f1b3f637278fd` — factual M700 local rejection on legacy bone-track creation;
+2. `89bb635d67b24afdb5e32bccd91092401b6024d6` — M700 UE 5.8 `add_bone_curve()` recovery;
+3. `3dc5d1b57a6b908b0bd5356e0b01b681e397d285` — Lever UE 5.8 `add_bone_curve()` recovery;
+4. `3de85c46a9c12aa9dd43a3950a888872cf266e6f` — regression guard against deprecated direct bone-track creation;
+5. `7b70c56e0c1e77c6642ba517d45310d7879be343` / `2ac5b9560b63a51be3f57c770c6a93d2c302373c` — Lever/M700 asset-compilation barriers;
+6. `03ab7bded49fc23ea1c19c23586b86797aaeba93` — async-compilation barrier regression guard;
+7. `3b66261b79a82deed7ebe698844205176cc92b20` — Lever 52-frame integral 30→60 resampling envelope;
+8. `91da695e4dbc07d2a0890e0394e93ba066bc6a92` — resampling-grid regression guard;
+9. `a03b128c902b4103eabf60b7a85f779992ff24cd` — Lever motion-duration versus technical-envelope validation bridge;
+10. `48d097d801e4e515bec9d728d59a6eec55f758c0` — regression guard for the padded-envelope bridge;
+11. `37361f61c6afa33ab094490f10ae74c35de3cceb` — component-first UE debugging protocol;
+12. `23ac9d1d8cc3677a9d4f9a56cbce63f72d4e91fc` — `AGENTS.md` rule 31 binds component-first local UE debugging;
+13. `ed37f3378275a0346af745c2b2889d36907ca714` — live ledger updated to the latest Lever-only boundary and historical build/import regression markers.
 
-## Item 16 — factual source boundary
+## First factual open item — item 16
+
+Item 16 still requires accepted authored M700 / Remington 870 / Lever Action moving-part/manual-action presentation, factual mechanical audio and current-head UE 5.8 acceptance.
+
+Source/docs/CI/pilot-only work does not check item 16 and does not increase the official percentage.
 
 ### Remington 870
 
-The current source has the guarded registered CC-BY-4.0 donor derivative, production skeletal path and PumpCycle bridge. The last direct user playtest on 2026-09-02 rejected the **pre-cutover** presentation because the fore-end did not visibly pump. The later current-head path still requires new direct visual/audio acceptance.
+Current source has the guarded registered CC-BY-4.0 donor derivative, production skeletal path and PumpCycle bridge. The older 2026-09-02 gameplay result rejected only the pre-cutover presentation where the fore-end did not visibly pump.
+
+Latest bounded local evidence now passes the derived pump + imported assembly proof, but direct current-head visible-pump and mechanical-audio gameplay acceptance remain pending.
 
 ### M700
 
-The committed Stein CC0 source has a factual weighted `BOLT` joint. `BOLT_STOP` is separate weighted geometry and is explicitly rejected as an authored bolt-travel endpoint. The bounded pilot travel is calibration-only, source-authored endpoint is false, bolt rotation remains pending and production cutover is false.
+The Stein CC0 source has a factual weighted `BOLT` joint. `BOLT_STOP` is not accepted as an authored travel endpoint.
+
+Latest bounded local evidence passes the M700 translation proof. Final bolt travel and bolt rotation remain manual current-head visual calibration work before production authoring/cutover.
 
 ### Lever Action
 
-The committed Stein CC0 source has an addressable `LEVER` bone but no source-authored lever endpoint. The current `-45°` local-X excursion is calibration-only, not accepted production motion.
+The Stein CC0 source has a factual addressable `LEVER` bone. The current `-45°` local-X excursion remains calibration-only.
 
-The next factual production boundary remains **MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION** after the bounded technical evidence chain itself is stable.
+## Latest factual local item-16 run — 2026-09-03
 
-## One-shot item-16 local evidence chain
+The newest supplied five-phase chain advanced as follows:
 
-Canonical local launcher:
+### 1/5 M700
 
-`OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd`
+**PASS — bounded translation proof only.**
 
-It performs, fail-closed:
+### 2/5 Remington 870
 
-1. M700 bounded BOLT translation UE 5.8 pilot;
-2. Remington 870 derived pump + assembly UE 5.8 proof;
-3. Lever Action LEVER UE 5.8 pilot;
-4. Bolt/Lever manual-action audio import + fresh-load;
-5. M700/Lever calibration evidence consolidation.
+**PASS — derived pump + assembly evidence only.**
 
-It preserves:
+### 3/5 Lever Action
+
+The 52-frame frame-grid correction factually worked far enough to emit:
 
 ```text
-runtime_visual_acceptance=0
-runtime_acceptance=0
-item16_checked=0
-merge_permitted=0
+PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY initial_fps=30 compat_fps=60 compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1
+PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_BEGIN stage=after_set_bone_track_keys_before_sampling
+PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=after_set_bone_track_keys_before_sampling
 ```
 
-## 2026-09-03 local M700 API rejection — superseded blocker
+The previous `frame remainder of 0.50000000` compression assertion did not remain the current blocker.
 
-A factual local run on `cf75b86ce5988ef489f0ef653d3f1b3f637278fd` failed in phase 1/5 M700 with:
-
-```text
-PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_FAIL bolt_bone_track_creation_failed=1
-ERROR: item-16 evidence chain stopped at M700. rc=36
-```
-
-That failure was bounded to the deprecated/invalid UE 5.8 `add_bone_track()` creation path and is superseded by the M700/Lever `add_bone_curve()` recovery commits listed above.
-
-## 2026-09-03 latest local Lever resampling-grid rejection
-
-The newest factual local item-16 rerun again progressed beyond M700 and Remington into phase 3/5 Lever Action. It now exposes the failure *before* the previously added asset-compilation barrier can execute.
-
-UE emitted:
+The base pilot then rejected the intentional technical tail pad:
 
 ```text
-Script Stack: /Script/Engine.AnimationDataController.SetNumberOfFrames
-Ensure condition failed: FMath::IsNearlyZero(ResampledFrameTime.GetSubFrame())
-Incompatible resampling frame rate for animation sequence AN_PASS45_LeverAction_Cycle_Pilot, frame remainder of 0.50000000
-Assertion failed: FMath::IsNearlyZero(SampleFrameTime.GetSubFrame())
-ERROR: Lever Action UE 5.8 pilot failed with code 3.
+PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_FAIL pilot_sequence_duration_mismatch=1 expected=0.85 actual=0.8666666746139526
+ERROR: Lever Action UE 5.8 pilot failed with code -1.
 ERROR: item-16 evidence chain stopped at Lever Action. rc=7
 ```
 
-This supersedes the earlier working theory that commandlet teardown itself was the primary blocker. The `DerivedDataCache` foreground-worker stack remains real, but in this run it is downstream of animation compression started by an invalid fractional resampling grid.
-
-The arithmetic is exact:
-
-- transient UE sequence starts on a 30 fps grid;
-- compatibility pilot was 60 fps with 51 playable frames;
-- `51 / 60 = 0.85 s`;
-- `0.85 * 30 = 25.5` source frames;
-- UE 5.8 rejects that half-frame remainder during `SetNumberOfFrames` / compression.
-
-The crash therefore happens before `set_bone_track_keys()` and before the pre-sampling compilation barrier. Adding more shutdown waits would merely decorate the wrong side of the failure, a favorite human tradition that the engine has thankfully made impossible with an assertion.
-
-## UE 5.8 Lever integral-grid recovery
-
-The recovery keeps the real Lever motion endpoint exactly at `0.85 s`, which is frame 51 at 60 fps, but gives the transient sequence one additional bind-pose tail frame:
+This is a stale validation-contract mismatch:
 
 ```text
-initial_grid_fps=30
-compat_fps=60
-motion_end_frame=51
-motion_duration=0.85
-sequence_frames=52
-sequence_duration=0.8666666667
+factual_motion_duration=0.85 s
+motion_end_frame=51 @ 60 fps
+technical_sequence_frames=52
+technical_sequence_duration=0.866666... s
 tail_pad_frames=1
-resampled_source_frames=26
-keys=53
+initial_30fps_resampled_frames=26
 ```
 
-Why 52 frames:
+Phases 4/5 audio and 5/5 calibration review were not reached.
 
-- `52 / 60 = 0.866666... s`;
-- that envelope maps to exactly `26` frames at 30 fps;
-- frame 51 remains exactly `0.85 s`, so the authored calibration motion itself is not stretched;
-- frame 52 is only a returned-bind-pose padding key because the authoritative motion function clamps at the 0.85 s endpoint.
+## Current Lever source recovery
 
-Current code emits `PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY` before calling `SetNumberOfFrames` and fails closed if the compatibility envelope stops mapping to an integral initial-grid frame.
+The compatibility shim now arms the base duration validation for the legal technical envelope only after the factual 0.85 s motion keys are authored. Before sampling/evidence/PASS output it restores `0.85 s` as the authoritative motion duration.
 
-The previously added `finish_all_asset_compilation()` barriers remain as an independent safety guard after key mutation and before commandlet exit. They are no longer claimed as the root-cause fix for this specific rejection.
+Required source markers include:
 
-Current recovery commits:
+```text
+PASS45_LEVERACTION_UE58_SEQUENCE_ENVELOPE_CONTRACT_ARMED
+PASS45_LEVERACTION_UE58_MOTION_DURATION_RESTORED
+```
 
-- `3b66261b79a82deed7ebe698844205176cc92b20` — 52-frame / 53-key integral resampling envelope while preserving the exact 0.85 s motion endpoint;
-- `91da695e4dbc07d2a0890e0394e93ba066bc6a92` — regression contract rejects the old 51-frame envelope and requires the 30→60 integral-grid rule.
+The regression guard requires:
 
-These changes remain **CODED_UNTESTED** locally until a new UE 5.8 bounded chain run clears Lever and proceeds into phases 4/5 and 5/5.
+- 52 sequence frames / 53 keys;
+- 26 integral source frames on the initial 30 fps grid;
+- motion endpoint frame 51 at exactly 0.85 s;
+- one bind-pose tail frame;
+- `add_bone_curve()` + `set_bone_track_keys()`;
+- pre-sampling and post-pilot compilation barriers;
+- padded-envelope validation bridge;
+- no production cutover or acceptance promotion.
 
-## Weapon runtime cadence
+Current recovery is **CODED_UNTESTED** locally until a Lever-only UE 5.8 proof passes.
 
-Do **not** run the expensive full UE 5.8 gameplay acceptance after every small weapon tweak.
+## Historical 2026-08-25 build/import non-regression
 
-Required cadence:
+Retain the factual historical **LOCAL UE BUILD REJECTED** evidence:
 
-1. bounded source/import/fresh-load/calibration checks while configuring individual weapons;
-2. finish the intended weapon setup set;
-3. run one consolidated current-head weapon runtime acceptance across that set;
-4. retain direct visual/audio/gameplay evidence;
-5. close checklist items only from factual accepted results.
+- UE 5.8.1 / MSVC `C2131` rejected the tactical `FVector2D` road table when it was `constexpr`;
+- UE 5.8 Interchange rejected deprecated `auto_detect_mesh_type` usage for HMMWV/M2 intake.
 
-## Asset quarantine
+These are historical regression guards, not current item-16 blockers. Current source fixes remain recorded as `CODED_UNTESTED` unless later factual local build/import evidence explicitly verifies them.
 
-The downloaded batch remains quarantined on `asset-intake-20260903`, never wholesale merged into production PASS45. The earlier **remote quarantine audit** remains factual source-intake evidence; quarantine does not preempt item 16 and creates no checklist items 37+.
+## Current CI boundary
 
-## Binding reuse-first / legal sequence
+On `48d097d801e4e515bec9d728d59a6eec55f758c0`:
 
-`quarantine -> SHA/duplicate/safe-ZIP audit -> model/texture/rig/animation inventory -> exact provenance/license/public-repo permission -> quality audit -> REJECT/DONOR_ONLY/PRODUCTION_CANDIDATE -> selective SOURCE_ASSETS promotion -> individual third-party register record -> isolated UE 5.8 proof -> integration -> cutover -> obsolete-owner cleanup -> regression/runtime acceptance`
+- item-16 frame-rate compatibility: SUCCESS;
+- item-16 local evidence-chain source contract: SUCCESS;
+- M700/Remington/Lever related narrow source contracts: SUCCESS where present;
+- two wider workflows failed because the compact live ledger had dropped the historical `LOCAL UE BUILD REJECTED`, `C2131` and `auto_detect_mesh_type` markers required by `VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py`.
 
-Unknown source/license remains fail-closed.
+The ledger now restores those factual historical markers. Do not claim full exact-head CI green until the new head settles.
 
 ## Next factual operation
 
-Do **not** run the full gameplay runtime yet.
+Do **not** run full gameplay.
 
-On a local PASS45 checkout fast-forwarded to the newest canonical branch head, run only:
+Do **not** rerun the five-phase item-16 chain while Lever remains the only unstable component.
 
-`OsterConflict\RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd`
+First settle exact-head source/preflight CI on the current documentation/process head. Then the next user-local operation is exactly the existing Lever component launcher:
 
-The next narrow acceptance target is:
+`OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd`
 
-- M700 still passes;
-- Remington bounded phase still passes;
-- Lever prints `PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY` with `compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1`;
-- no `frame remainder of 0.50000000` / `SampleFrameTime.GetSubFrame()` assertion occurs;
-- Lever reaches its normal pilot PASS and both asset-compilation barriers;
-- phases 4/5 and 5/5 then complete.
+The Lever-only proof must show:
 
-After all five bounded phases pass, use the report plus direct current-head UE 5.8 visual observation to determine factual M700 travel/rotation and Lever angle. Only then author/cut over accepted M700/Lever production sequences and later run the consolidated full weapon runtime acceptance.
+1. integral 52-frame / 26-source-frame grid marker;
+2. pre-sampling compilation barrier PASS;
+3. sequence-envelope contract armed;
+4. factual 0.85 s motion contract restored;
+5. no duration mismatch;
+6. normal Lever pilot PASS;
+7. post-pilot compilation barrier PASS.
+
+Only after Lever-only PASS should `OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd` run once to exercise all five bounded phases. After that, proceed to manual M700/Lever visual calibration, accepted production authoring/cutover and one consolidated full weapon runtime acceptance.
 
 PR #94 remains OPEN / UNMERGED.
 
