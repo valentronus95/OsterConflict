@@ -3,8 +3,9 @@
 
 This is a repository/source gate only. It prevents a future production-authoring
 receipt from drifting away from the exact manual UE 5.8 calibration approval that
-opened the authoring gate. It does not create calibration, runtime acceptance, or
-merge permission.
+opened the authoring gate. It also binds that approval to a real ancestor commit and
+rejects later changes to the calibration-critical M700 / Lever source chain. It does
+not create calibration, runtime acceptance, or merge permission.
 """
 from __future__ import annotations
 
@@ -12,7 +13,9 @@ import hashlib
 import json
 import math
 import re
+import subprocess
 from pathlib import Path
+from typing import Sequence
 
 ROOT = Path(__file__).resolve().parent
 APPROVAL = ROOT / "_DOCS" / "PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json"
@@ -22,6 +25,25 @@ APPROVAL_STATUS = "ITEM16_MANUAL_ACTION_VISUAL_CALIBRATION_APPROVED_FOR_PRODUCTI
 RECEIPT_STATUS = "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED"
 HEX40 = re.compile(r"[0-9a-f]{40}")
 HEX64 = re.compile(r"[0-9a-f]{64}")
+
+CALIBRATION_CRITICAL_PATHS = (
+    "PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py",
+    "PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py",
+    "PASS45_M700_SOURCE_MOTION_AUDIT.py",
+    "PASS45_M700_BOLT_GEOMETRY_AUDIT.py",
+    "_DOCS/PASS45_M700_SOURCE_MOTION_AUDIT_2026-09-02.json",
+    "_DOCS/PASS45_M700_BOLT_GEOMETRY_AUDIT_2026-09-02.json",
+    "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx",
+    "OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd",
+    "PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py",
+    "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py",
+    "PASS45_LEVERACTION_SOURCE_MOTION_AUDIT.py",
+    "_DOCS/PASS45_LEVERACTION_SOURCE_MOTION_AUDIT_2026-09-02.json",
+    "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx",
+    "OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd",
+    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd",
+    "OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd",
+)
 
 
 def load_json(path: Path, label: str, errors: list[str]) -> dict:
@@ -87,6 +109,73 @@ def validate_approval(approval: dict) -> list[str]:
         as_finite_number(lever, "accepted_angle_deg", "approval.lever_action", errors)
         if not HEX64.fullmatch(str(lever.get("source_sha256", ""))):
             errors.append("approval.lever_action source_sha256 must be exact lowercase 64-hex")
+    return errors
+
+
+def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def validate_evidence_head_repository(
+    evidence_head: str,
+    *,
+    repo_root: Path = ROOT,
+    current_head: str = "HEAD",
+    critical_paths: Sequence[str] = CALIBRATION_CRITICAL_PATHS,
+) -> list[str]:
+    """Prove that calibration evidence belongs to this lineage and is not stale.
+
+    The accepted calibration commit may be an ancestor because approval and authoring
+    necessarily create later commits. What may not happen is a calibration-critical
+    source/input change after that evidence commit while the old approval remains live.
+    """
+    errors: list[str] = []
+    if not HEX40.fullmatch(evidence_head):
+        return errors
+
+    shallow = _git(repo_root, "rev-parse", "--is-shallow-repository")
+    if shallow.returncode != 0:
+        errors.append(f"cannot determine repository history depth: {shallow.stderr.strip() or shallow.stdout.strip()}")
+        return errors
+    if shallow.stdout.strip().lower() == "true":
+        errors.append("repository history is shallow; exact calibration evidence ancestry cannot be verified")
+        return errors
+
+    commit_check = _git(repo_root, "cat-file", "-e", f"{evidence_head}^{{commit}}")
+    if commit_check.returncode != 0:
+        errors.append(f"approval evidence_head_sha is not a repository commit: {evidence_head}")
+        return errors
+
+    head_check = _git(repo_root, "rev-parse", "--verify", f"{current_head}^{{commit}}")
+    if head_check.returncode != 0:
+        errors.append(f"current repository head cannot be resolved: {current_head}")
+        return errors
+
+    ancestor = _git(repo_root, "merge-base", "--is-ancestor", evidence_head, current_head)
+    if ancestor.returncode != 0:
+        errors.append(
+            f"approval evidence_head_sha is not an ancestor of current repository head: "
+            f"evidence={evidence_head} current={current_head}"
+        )
+        return errors
+
+    diff = _git(repo_root, "diff", "--name-only", f"{evidence_head}..{current_head}", "--", *critical_paths)
+    if diff.returncode != 0:
+        errors.append(f"cannot compare calibration-critical source against evidence head: {diff.stderr.strip()}")
+        return errors
+    changed = sorted({line.strip() for line in diff.stdout.splitlines() if line.strip()})
+    if changed:
+        errors.append(
+            "calibration-critical source changed after approved evidence head; fresh current-head UE 5.8 visual "
+            "calibration is required: " + ", ".join(changed)
+        )
     return errors
 
 
@@ -161,6 +250,8 @@ def main() -> int:
         errors.append("production authoring receipt exists without calibration approval")
     elif approval_present:
         approval = load_json(APPROVAL, "calibration approval", errors)
+        if approval:
+            errors.extend(validate_evidence_head_repository(str(approval.get("evidence_head_sha", ""))))
         if receipt_present:
             receipt = load_json(RECEIPT, "production authoring receipt", errors)
             if approval and receipt:
@@ -185,7 +276,8 @@ def main() -> int:
     print("PASS45 ITEM16 CALIBRATION RECEIPT BINDING: PASS")
     print(f"state={state}")
     print(f"approval_present={int(approval_present)} receipt_present={int(receipt_present)}")
-    print("exact_approval_sha256_binding=1 evidence_head_binding=1 authored_value_binding=1 source_sha_binding=1")
+    print("exact_approval_sha256_binding=1 evidence_head_binding=1 evidence_head_ancestor=1 calibration_critical_drift=0")
+    print("authored_value_binding=1 source_sha_binding=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

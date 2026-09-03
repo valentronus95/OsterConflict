@@ -5,10 +5,14 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 
-from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import validate_pair
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
+    validate_evidence_head_repository,
+    validate_pair,
+)
 
 M700_SHA = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
 LEVER_SHA = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
@@ -25,8 +29,88 @@ def assert_case(label: str, errors: list[str], *, should_pass: bool, needle: str
     return failures
 
 
+def git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr}")
+    return result.stdout.strip()
+
+
+def provenance_contract(failures: list[str]) -> None:
+    critical = "PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py"
+    with tempfile.TemporaryDirectory(prefix="pass45_item16_provenance_") as temp_dir:
+        repo = Path(temp_dir)
+        git(repo, "init", "-q")
+        git(repo, "config", "user.email", "pass45@example.invalid")
+        git(repo, "config", "user.name", "PASS45 Contract")
+
+        (repo / critical).write_text("pilot = 1\n", encoding="utf-8")
+        git(repo, "add", critical)
+        git(repo, "commit", "-q", "-m", "base calibration source")
+        evidence_head = git(repo, "rev-parse", "HEAD")
+
+        (repo / "README.txt").write_text("non critical\n", encoding="utf-8")
+        git(repo, "add", "README.txt")
+        git(repo, "commit", "-q", "-m", "non-critical change")
+        failures.extend(assert_case(
+            "non-critical descendant allowed",
+            validate_evidence_head_repository(
+                evidence_head,
+                repo_root=repo,
+                critical_paths=(critical,),
+            ),
+            should_pass=True,
+        ))
+
+        (repo / critical).write_text("pilot = 2\n", encoding="utf-8")
+        git(repo, "add", critical)
+        git(repo, "commit", "-q", "-m", "critical drift")
+        failures.extend(assert_case(
+            "critical descendant rejected",
+            validate_evidence_head_repository(
+                evidence_head,
+                repo_root=repo,
+                critical_paths=(critical,),
+            ),
+            should_pass=False,
+            needle="calibration-critical source changed",
+        ))
+
+        failures.extend(assert_case(
+            "unknown evidence commit rejected",
+            validate_evidence_head_repository(
+                "f" * 40,
+                repo_root=repo,
+                critical_paths=(critical,),
+            ),
+            should_pass=False,
+            needle="not a repository commit",
+        ))
+
+        orphan = git(repo, "commit-tree", git(repo, "write-tree"), "-m", "detached unrelated")
+        failures.extend(assert_case(
+            "non-ancestor evidence rejected",
+            validate_evidence_head_repository(
+                orphan,
+                repo_root=repo,
+                critical_paths=(critical,),
+            ),
+            should_pass=False,
+            needle="not an ancestor",
+        ))
+
+
 def main() -> int:
     failures: list[str] = []
+    provenance_contract(failures)
+
     with tempfile.TemporaryDirectory(prefix="pass45_item16_binding_") as temp_dir:
         approval_path = Path(temp_dir) / "approval.json"
         approval = {
@@ -141,7 +225,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 CALIBRATION RECEIPT BINDING CONTRACT: PASS")
-    print("exact_hash=1 evidence_head=1 m700_translation=1 m700_rotation=1 lever_angle=1 source_sha=1 numeric_type=1")
+    print("exact_hash=1 evidence_head=1 ancestor=1 critical_drift=1 m700_translation=1 m700_rotation=1 lever_angle=1 source_sha=1 numeric_type=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

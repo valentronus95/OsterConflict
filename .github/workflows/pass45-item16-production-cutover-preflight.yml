@@ -10,6 +10,22 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
       - '_DOCS/PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json'
       - '_DOCS/PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json'
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py'
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py'
+      - 'PASS45_M700_SOURCE_MOTION_AUDIT.py'
+      - 'PASS45_M700_BOLT_GEOMETRY_AUDIT.py'
+      - '_DOCS/PASS45_M700_SOURCE_MOTION_AUDIT_2026-09-02.json'
+      - '_DOCS/PASS45_M700_BOLT_GEOMETRY_AUDIT_2026-09-02.json'
+      - 'OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
+      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py'
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py'
+      - 'PASS45_LEVERACTION_SOURCE_MOTION_AUDIT.py'
+      - '_DOCS/PASS45_LEVERACTION_SOURCE_MOTION_AUDIT_2026-09-02.json'
+      - 'OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx'
+      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
+      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
+      - 'OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd'
       - '.github/workflows/pass45-item16-production-cutover-preflight.yml'
   workflow_dispatch:
 
@@ -18,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
