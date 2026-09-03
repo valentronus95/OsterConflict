@@ -17,20 +17,24 @@ import subprocess
 from pathlib import Path
 from typing import Sequence
 
+from PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY import (
+    LEVER_SOURCE,
+    LEVER_SOURCE_SHA256,
+    M700_SOURCE,
+    M700_SOURCE_SHA256,
+)
+
 ROOT = Path(__file__).resolve().parent
 APPROVAL = ROOT / "_DOCS" / "PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json"
 RECEIPT = ROOT / "_DOCS" / "PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json"
 
 APPROVAL_STATUS = "ITEM16_MANUAL_ACTION_VISUAL_CALIBRATION_APPROVED_FOR_PRODUCTION_AUTHORING"
 RECEIPT_STATUS = "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED"
-M700_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx"
-M700_SOURCE_SHA256 = "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840"
-LEVER_SOURCE = "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx"
-LEVER_SOURCE_SHA256 = "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69"
 HEX40 = re.compile(r"[0-9a-f]{40}")
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
 CALIBRATION_CRITICAL_PATHS = (
+    "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY.py",
     "PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py",
     "PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py",
     "PASS45_M700_SOURCE_MOTION_AUDIT.py",
@@ -302,7 +306,7 @@ def main() -> int:
     print(f"state={state}")
     print(f"approval_present={int(approval_present)} receipt_present={int(receipt_present)}")
     print("exact_approval_sha256_binding=1 exact_source_identity=1 evidence_head_binding=1 evidence_head_ancestor=1 calibration_critical_drift=0")
-    print("authored_value_binding=1 source_sha_binding=1 approval_schema_single_source=1")
+    print("authored_value_binding=1 source_sha_binding=1 approval_schema_single_source=1 source_identity_single_source=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
