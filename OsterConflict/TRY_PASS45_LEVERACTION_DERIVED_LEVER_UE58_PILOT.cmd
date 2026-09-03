@@ -66,6 +66,7 @@ echo [PASS45] ISOLATED LEVER MOVING-PART PROOF ONLY.
 echo [PASS45] UE 5.8 transient AnimSequence cadence is adapted from legacy 20 fps to compatible 60 fps only.
 echo [PASS45] Pilot angle is calibration-only, not a source-authored endpoint.
 echo [PASS45] No package save, no production profile cutover, no item-16 acceptance.
+echo [PASS45] This component launcher validates the 52-frame integral grid, duration bridge, and both compilation barriers before reporting PASS.
 echo.
 
 "%UE_CMD%" "%COMMANDLET_UPROJECT%" -run=pythonscript -script="%SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
@@ -82,6 +83,10 @@ if not exist "%LOG%" (
     exit /b 8
 )
 
+findstr /L /C:"PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY initial_fps=30 compat_fps=60 compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1" "%LOG%" >nul || goto :pilot_failed
+findstr /L /C:"PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=after_set_bone_track_keys_before_sampling" "%LOG%" >nul || goto :pilot_failed
+findstr /L /C:"PASS45_LEVERACTION_UE58_SEQUENCE_ENVELOPE_CONTRACT_ARMED motion_duration=0.850000 sequence_envelope=0.866667 tail_pad_frames=1" "%LOG%" >nul || goto :pilot_failed
+findstr /L /C:"PASS45_LEVERACTION_UE58_MOTION_DURATION_RESTORED motion_duration=0.850000 sequence_envelope=0.866667 tail_pad_frames=1" "%LOG%" >nul || goto :pilot_failed
 findstr /L /C:"PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_PASS" "%LOG%" >nul || goto :pilot_failed
 findstr /L /C:"source_authored_endpoint=0" "%LOG%" >nul || goto :pilot_failed
 findstr /L /C:"pilot_angle_accepted=0" "%LOG%" >nul || goto :pilot_failed
@@ -91,9 +96,10 @@ findstr /L /C:"production_cutover=0" "%LOG%" >nul || goto :pilot_failed
 findstr /L /C:"runtime_visual_acceptance=0" "%LOG%" >nul || goto :pilot_failed
 findstr /L /C:"runtime_acceptance=0" "%LOG%" >nul || goto :pilot_failed
 findstr /L /C:"item16_checked=0" "%LOG%" >nul || goto :pilot_failed
+findstr /L /C:"PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=post_pilot_before_commandlet_exit" "%LOG%" >nul || goto :pilot_failed
 
 echo.
-echo PASS: UE 5.8 preserved the isolated Lever Action LEVER bone and non-trivial pilot motion.
+echo PASS: UE 5.8 preserved the isolated Lever Action LEVER bone, integral resampling grid, duration bridge, compilation barriers and non-trivial pilot motion.
 echo STATUS: MOVING-PART PROOF ONLY. Pilot-angle calibration, production cutover and runtime acceptance remain pending.
 echo Log: %LOG%
 exit /b 0
