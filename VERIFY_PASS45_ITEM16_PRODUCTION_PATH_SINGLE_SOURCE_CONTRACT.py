@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Regression contract: item-16 profile cutover reuses canonical production/calibration bindings."""
+"""Regression contract: item-16 profile/runtime gates reuse canonical production/calibration bindings."""
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 
+from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import LEVER_PREFIX, M700_PREFIX
+
 ROOT = Path(__file__).resolve().parent
 PROFILE = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py"
+RUNTIME = ROOT / "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
 PACKAGE_BINDING_MODULE = "VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING"
 CALIBRATION_BINDING_MODULE = "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING"
 SOURCE_IDENTITY_MODULE = "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY"
@@ -138,6 +141,33 @@ def main() -> int:
             + ", ".join(repeated_local_rules)
         )
 
+    runtime_text = RUNTIME.read_text(encoding="utf-8")
+    runtime_tree = ast.parse(runtime_text, filename=str(RUNTIME))
+    runtime_imports = imported_names(runtime_tree, PACKAGE_BINDING_MODULE)
+    missing_runtime_prefix_imports = {"M700_PREFIX", "LEVER_PREFIX"} - runtime_imports
+    if missing_runtime_prefix_imports:
+        failures.append(
+            "strict runtime verifier must import canonical production namespace prefixes: "
+            + ", ".join(sorted(missing_runtime_prefix_imports))
+        )
+    runtime_assignments = assigned_names(runtime_tree)
+    duplicate_runtime_owners = {"M700_PREFIX", "LEVER_PREFIX"} & runtime_assignments
+    if duplicate_runtime_owners:
+        failures.append(
+            "strict runtime verifier must not own production namespace prefixes: "
+            + ", ".join(sorted(duplicate_runtime_owners))
+        )
+    runtime_loads = loaded_names(runtime_tree)
+    missing_runtime_prefix_uses = {"M700_PREFIX", "LEVER_PREFIX"} - runtime_loads
+    if missing_runtime_prefix_uses:
+        failures.append(
+            "strict runtime verifier imports but does not use canonical production namespace prefixes: "
+            + ", ".join(sorted(missing_runtime_prefix_uses))
+        )
+    for label, prefix in (("M700", M700_PREFIX), ("LeverAction", LEVER_PREFIX)):
+        if prefix in runtime_text:
+            failures.append(f"strict runtime verifier re-hardcodes canonical {label} production namespace")
+
     if failures:
         print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: FAIL")
         for failure in failures:
@@ -146,7 +176,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: PASS")
-    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1 direct_source_identity_import=0 duplicate_donor_sha_validation=0")
+    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 runtime_namespace_imported=1 runtime_duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1 direct_source_identity_import=0 duplicate_donor_sha_validation=0")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

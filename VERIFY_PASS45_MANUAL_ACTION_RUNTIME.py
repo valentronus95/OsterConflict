@@ -5,6 +5,8 @@ import re
 import sys
 from pathlib import Path
 
+from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import LEVER_PREFIX, M700_PREFIX
+
 ROOT = Path(__file__).resolve().parent
 DEFAULT_GAMEPLAY_LOG = ROOT / "Logs" / "R14_CURRENT_GAMEPLAY.log"
 DEFAULT_PROFILES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAnimationProfiles.cpp"
@@ -16,7 +18,7 @@ EXPECTED = (
         "duration": "duration=1.100",
         "audio_field": "bolt_cycle=1",
         "audio_object_path": "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
-        "production_prefix": "/Game/Production/Weapons/M700/",
+        "production_prefix": M700_PREFIX,
     },
     {
         "weapon": "OC_SG1",
@@ -32,7 +34,7 @@ EXPECTED = (
         "duration": "duration=0.850",
         "audio_field": "lever_cycle=1",
         "audio_object_path": "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
-        "production_prefix": "/Game/Production/Weapons/LeverAction/",
+        "production_prefix": LEVER_PREFIX,
     },
 )
 
