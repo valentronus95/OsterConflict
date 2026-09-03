@@ -35,6 +35,16 @@ def load_review_module():
     return module
 
 
+def assert_rejected(callable_obj, payload: dict, expected_fragment: str, label: str) -> None:
+    try:
+        callable_obj(payload)
+    except SystemExit as exc:
+        if expected_fragment not in str(exc):
+            fail(f"{label} rejected for the wrong reason: {exc}")
+    else:
+        fail(f"{label} stale evidence was incorrectly accepted")
+
+
 def main() -> int:
     require(PROTOCOL, (
         "Do **not** restart a full-project audit by default.",
@@ -49,6 +59,7 @@ def main() -> int:
         "22/36 = 61.1%",
         "remote quarantine audit",
         "MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION",
+        "user_local_execution_requested=0",
     ))
     require(REVIEW, (
         "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW_PASS",
@@ -56,6 +67,12 @@ def main() -> int:
         "LEVERACTION_DERIVED_UE58_MOTION_PROOF_ONLY",
         "source_authored_endpoint",
         "rotation_calibration_pending",
+        "CURRENT_UE58_COMPAT_FAIL_CLOSED",
+        "track_creation_api",
+        "asset_compilation_barrier_before_sampling",
+        "sequence_envelope_validation_bridge",
+        "resampled_source_frames",
+        "legacy_pilot_evidence_accepted=0",
         "full_gameplay_runtime_now",
         "merge_permitted",
     ))
@@ -77,7 +94,7 @@ def main() -> int:
         "source_authored_endpoint": False,
         "source_sha256": "test",
     }
-    m700 = mod.validate_m700({
+    m700_payload = {
         **common,
         "status": "M700_BOLT_TRANSLATION_DERIVED_UE58_MOTION_PROOF_ONLY",
         "pilot_travel_accepted": False,
@@ -89,8 +106,17 @@ def main() -> int:
         "pilot_max_travel": 0.039,
         "max_sampled_translation_delta": 0.039,
         "end_return_error": 0.0,
-    })
-    lever = mod.validate_lever({
+        "cycle_duration_seconds": 1.10,
+        "play_length_seconds": 1.10,
+        "controller": {
+            "track_creation_api": "add_bone_curve",
+            "frame_rate": 60,
+            "frame_count": 66,
+            "key_count": 67,
+            "asset_compilation_barrier_before_sampling": True,
+        },
+    }
+    lever_payload = {
         **common,
         "status": "LEVERACTION_DERIVED_UE58_MOTION_PROOF_ONLY",
         "pilot_angle_accepted": False,
@@ -100,8 +126,29 @@ def main() -> int:
         "pilot_max_angle_deg": -45.0,
         "max_sampled_rotation_delta_deg": 45.0,
         "end_return_error_deg": 0.0,
-    })
+        "cycle_duration_seconds": 0.85,
+        "play_length_seconds": 52.0 / 60.0,
+        "controller": {
+            "track_creation_api": "add_bone_curve",
+            "frame_rate": 60,
+            "frame_count": 52,
+            "key_count": 53,
+            "initial_transient_frame_rate": 30,
+            "resampled_source_frames": 26,
+            "motion_duration_seconds": 0.85,
+            "motion_end_frame": 51,
+            "tail_pad_frames": 1,
+            "sequence_duration_seconds": 52.0 / 60.0,
+            "asset_compilation_barrier_before_sampling": True,
+            "sequence_envelope_validation_bridge": True,
+        },
+    }
+
+    m700 = mod.validate_m700(m700_payload)
+    lever = mod.validate_lever(lever_payload)
     review = mod.build_review(m700, lever)
+    if review.get("evidence_contract") != "CURRENT_UE58_COMPAT_FAIL_CLOSED":
+        fail("synthetic review lost the current UE58 compatibility evidence contract")
     if review.get("runtime_acceptance") is not False:
         fail("synthetic review falsely claims runtime acceptance")
     if review.get("item16_checked") is not False:
@@ -111,7 +158,46 @@ def main() -> int:
     if review.get("full_gameplay_runtime_now") is not False:
         fail("synthetic review incorrectly requires full gameplay runtime now")
 
+    stale_m700 = dict(m700_payload)
+    stale_m700["controller"] = {
+        "track_creation_api": "add_bone_track",
+        "frame_rate": 20,
+        "frame_count": 22,
+        "key_count": 23,
+        "asset_compilation_barrier_before_sampling": False,
+    }
+    assert_rejected(
+        mod.validate_m700,
+        stale_m700,
+        "stale/unsupported bone-track creation evidence",
+        "M700 legacy add_bone_track evidence",
+    )
+
+    stale_lever = dict(lever_payload)
+    stale_lever["controller"] = dict(lever_payload["controller"])
+    stale_lever["controller"].pop("sequence_envelope_validation_bridge")
+    assert_rejected(
+        mod.validate_lever,
+        stale_lever,
+        "sequence_envelope_validation_bridge=true",
+        "Lever evidence without padded-envelope validation bridge",
+    )
+
+    fractional_lever = dict(lever_payload)
+    fractional_lever["controller"] = dict(lever_payload["controller"])
+    fractional_lever["controller"]["frame_count"] = 51
+    fractional_lever["controller"]["key_count"] = 52
+    fractional_lever["controller"]["resampled_source_frames"] = 25
+    assert_rejected(
+        mod.validate_lever,
+        fractional_lever,
+        "frame_count drifted",
+        "Lever rejected 51-frame fractional-grid evidence",
+    )
+
     print("PASS45_CHECKPOINT_CONTINUATION_AND_ITEM16_CALIBRATION_CONTRACT_PASS")
+    print("current_ue58_compat_evidence_required=1 legacy_pilot_evidence_accepted=0")
+    print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
 
