@@ -13,10 +13,6 @@ import json
 import re
 from pathlib import Path
 
-from PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY import (
-    LEVER_SOURCE_SHA256,
-    M700_SOURCE_SHA256,
-)
 from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
     validate_approval,
     validate_evidence_head_repository,
@@ -74,20 +70,16 @@ def profile_manual_path(text: str, weapon_id: str) -> str | None:
     return match.group(1)
 
 
-def validate_authored_asset(entry: object, *, label: str, prefix: str, source_sha256: str) -> str | None:
-    if not isinstance(entry, dict):
-        errors.append(f"authoring receipt missing {label} object")
-        return None
-
-    # Byte identity, canonical object-path mapping, production namespace ownership,
-    # pilot rejection and package existence all have one implementation in
-    # VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py. Profile cutover only adds
-    # the item-16 donor-source identity requirement and consumes the canonical path.
+def validate_authored_asset(entry: object, *, label: str, prefix: str) -> str | None:
+    # Receipt-entry shape, byte identity, canonical object-path mapping, production
+    # namespace ownership, pilot rejection and package existence all have one owner in
+    # VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py. Donor-source identity is
+    # already bound by validate_pair() -> validate_approval(). Profile cutover only
+    # consumes those canonical decisions and returns the receipt object path.
     errors.extend(validate_authored_package(entry, label=label, prefix=prefix, root=ROOT))
-
-    object_path = str(entry.get("sequence_object_path", ""))
-    req(entry.get("source_sha256") == source_sha256, f"{label} source SHA-256 drifted in authoring receipt")
-    return object_path or None
+    if not isinstance(entry, dict):
+        return None
+    return str(entry.get("sequence_object_path", "")) or None
 
 
 profiles = read_text(PROFILES)
@@ -122,10 +114,10 @@ else:
     errors.extend(validate_evidence_head_repository(str(approval.get("evidence_head_sha", ""))))
 
     m700_receipt_path = validate_authored_asset(
-        receipt.get("m700"), label="M700", prefix=M700_PREFIX, source_sha256=M700_SOURCE_SHA256
+        receipt.get("m700"), label="M700", prefix=M700_PREFIX
     )
     lever_receipt_path = validate_authored_asset(
-        receipt.get("lever_action"), label="LeverAction", prefix=LEVER_PREFIX, source_sha256=LEVER_SOURCE_SHA256
+        receipt.get("lever_action"), label="LeverAction", prefix=LEVER_PREFIX
     )
     if m700_receipt_path:
         req(m700_profile_path == m700_receipt_path,
@@ -172,5 +164,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 production_package_validation_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 production_package_validation_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 profile_direct_donor_sha_check=0 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")

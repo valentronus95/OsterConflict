@@ -9,18 +9,21 @@ ROOT = Path(__file__).resolve().parent
 PROFILE = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py"
 PACKAGE_BINDING_MODULE = "VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING"
 CALIBRATION_BINDING_MODULE = "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING"
+SOURCE_IDENTITY_MODULE = "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY"
 PACKAGE_SYMBOLS = {"validate_authored_package", "M700_PREFIX", "LEVER_PREFIX"}
 CALIBRATION_SYMBOLS = {
     "validate_approval",
     "validate_evidence_head_repository",
     "validate_pair",
 }
-FORBIDDEN_PACKAGE_RULE_DIAGNOSTICS = {
+FORBIDDEN_LOCAL_VALIDATION_DIAGNOSTICS = {
+    "authoring receipt missing",
     "sequence is outside production namespace",
     "sequence points at calibration pilot",
     "sequence object path is not canonical",
     "package mapping mismatch",
     "authored production package missing",
+    "source SHA-256 drifted in authoring receipt",
 }
 
 
@@ -99,6 +102,13 @@ def main() -> int:
             + ", ".join(sorted(missing_calibration_imports))
         )
 
+    direct_source_identity_imports = imported_names(tree, SOURCE_IDENTITY_MODULE)
+    if direct_source_identity_imports:
+        failures.append(
+            "profile cutover must consume donor identity through canonical calibration binding, not import it directly: "
+            + ", ".join(sorted(direct_source_identity_imports))
+        )
+
     calls = called_names(tree)
     if "validate_authored_package" not in calls:
         failures.append("profile cutover imports but does not call validate_authored_package")
@@ -119,13 +129,13 @@ def main() -> int:
             + ", ".join(sorted(missing_namespace_uses))
         )
 
-    repeated_package_rules = sorted(
-        diagnostic for diagnostic in FORBIDDEN_PACKAGE_RULE_DIAGNOSTICS if diagnostic in profile_text
+    repeated_local_rules = sorted(
+        diagnostic for diagnostic in FORBIDDEN_LOCAL_VALIDATION_DIAGNOSTICS if diagnostic in profile_text
     )
-    if repeated_package_rules:
+    if repeated_local_rules:
         failures.append(
-            "profile cutover repeats canonical production package validation rules: "
-            + ", ".join(repeated_package_rules)
+            "profile cutover repeats canonical production/calibration validation rules: "
+            + ", ".join(repeated_local_rules)
         )
 
     if failures:
@@ -136,7 +146,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: PASS")
-    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1")
+    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1 direct_source_identity_import=0 duplicate_donor_sha_validation=0")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
