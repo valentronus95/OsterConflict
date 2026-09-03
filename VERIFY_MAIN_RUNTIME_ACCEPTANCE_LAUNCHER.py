@@ -47,9 +47,16 @@ required_strict = (
     'set "PLAYFLOW=%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"',
     'where git >nul 2>nul',
     "git rev-parse --verify HEAD",
+    'git diff --quiet --ignore-submodules --',
+    'git diff --cached --quiet --ignore-submodules --',
+    'tracked unstaged Changes are present before runtime',
+    'tracked staged Changes are present before runtime',
+    'Local Changes are preserved. This launcher never resets, cleans, stashes or restores them.',
     'set "PASS45_SOURCE_SHA_AFTER="',
     'if /I not "%PASS45_SOURCE_SHA_AFTER%"=="%PASS45_SOURCE_SHA%"',
     'source HEAD changed during runtime acceptance',
+    'runtime/import stages changed tracked unstaged content',
+    'runtime/import stages changed tracked staged content',
     'call "%PLAYFLOW%"',
     'call "%MATERIAL_GATE%"',
     'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py',
@@ -61,8 +68,24 @@ for marker in required_strict:
     if marker not in strict:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing strict wrapper marker {marker!r}")
 
+if strict.count('git diff --quiet --ignore-submodules --') < 2:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: tracked unstaged worktree is not checked both before and after runtime")
+if strict.count('git diff --cached --quiet --ignore-submodules --') < 2:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: tracked staged worktree is not checked both before and after runtime")
+
 if 'PASS45_SOURCE_SHA=unknown' in strict:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict wrapper still permits unbound SOURCE_SHA=unknown evidence")
+
+# Exact-head checking may refuse dirty tracked bytes, but it must never mutate the user's local worktree.
+for destructive in (
+    'git reset',
+    'git clean',
+    'git stash',
+    'git restore',
+    'git checkout --',
+):
+    if destructive in strict.lower():
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict wrapper gained destructive local-change command {destructive!r}")
 
 if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in playflow:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: playflow wrapper no longer owns the single CURRENT_GAMEPLAY delegation")
@@ -103,7 +126,8 @@ if 'start /wait' not in main:
 
 print("MAIN RUNTIME ACCEPTANCE LAUNCHER + PASS45 REQUIRED-AVAILABLE CONTRACT PASS")
 print("- CURRENT_GAMEPLAY remains the single gameplay process owner")
-print("- strict main wrapper pins Git HEAD before runtime and rejects a source-head change before evidence verification")
+print("- strict main wrapper pins Git HEAD and requires a clean tracked worktree before runtime")
+print("- strict main wrapper rejects HEAD or tracked-worktree drift after runtime/material stages without mutating local Changes")
 print("- strict main wrapper delegates through playflow, then runs material/dependency and interaction evidence gates")
 print("- exact weapon payload gaps stay CONTENT GAP; required available visuals and materials remain mandatory")
 print("- driver enter/exit and M2 gunner pitch/exit are mandatory Pass45 regression evidence")

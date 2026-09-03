@@ -72,6 +72,22 @@ if not defined PASS45_SOURCE_SHA (
 )
 echo [ACCEPTANCE] Exact source HEAD pinned before runtime: %PASS45_SOURCE_SHA%
 
+git diff --quiet --ignore-submodules --
+if errorlevel 1 (
+  echo [ACCEPTANCE] FAILED - tracked unstaged Changes are present before runtime.
+  echo [ACCEPTANCE] Local Changes are preserved. This launcher never resets, cleans, stashes or restores them.
+  echo [ACCEPTANCE] Exact-head evidence is refused because the tested tracked bytes would not equal HEAD.
+  exit /b 32
+)
+git diff --cached --quiet --ignore-submodules --
+if errorlevel 1 (
+  echo [ACCEPTANCE] FAILED - tracked staged Changes are present before runtime.
+  echo [ACCEPTANCE] Local Changes are preserved. This launcher never resets, cleans, stashes or restores them.
+  echo [ACCEPTANCE] Exact-head evidence is refused because the tested tracked bytes would not equal HEAD.
+  exit /b 32
+)
+echo [ACCEPTANCE] Exact tracked worktree matches pinned HEAD before runtime. Untracked evidence files do not block acceptance.
+
 call "%PLAYFLOW%"
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (
@@ -103,7 +119,20 @@ if /I not "%PASS45_SOURCE_SHA_AFTER%"=="%PASS45_SOURCE_SHA%" (
   exit /b 31
 )
 
-echo [ACCEPTANCE] Exact source HEAD remained stable through runtime/material gates: %PASS45_SOURCE_SHA%
+git diff --quiet --ignore-submodules --
+if errorlevel 1 (
+  echo [ACCEPTANCE] FAILED - runtime/import stages changed tracked unstaged content.
+  echo [ACCEPTANCE] Exact-head evidence is refused; generated or imported tracked bytes must be committed before acceptance.
+  exit /b 32
+)
+git diff --cached --quiet --ignore-submodules --
+if errorlevel 1 (
+  echo [ACCEPTANCE] FAILED - runtime/import stages changed tracked staged content.
+  echo [ACCEPTANCE] Exact-head evidence is refused; staged bytes are not part of the pinned HEAD.
+  exit /b 32
+)
+
+echo [ACCEPTANCE] Exact source HEAD and tracked worktree remained stable through runtime/material gates: %PASS45_SOURCE_SHA%
 
 set "PY_CMD="
 where py >nul 2>nul
