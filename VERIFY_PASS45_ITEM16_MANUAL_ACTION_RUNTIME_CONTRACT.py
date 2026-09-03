@@ -4,8 +4,8 @@
 The strict runtime route must bind each READY line to the exact production animation
 path currently declared by the gameplay profile. A generic READY marker is not enough:
 otherwise a stale calibration pilot or unrelated weapon line could satisfy the gate.
-The synthetic acceptance log must also carry the factual local mechanical-audio
-playback-dispatch marker now required by the runtime verifier.
+The synthetic acceptance log must also carry the exact expected mechanical-audio
+playback object for each weapon, not merely some /Game/ sound.
 """
 from __future__ import annotations
 
@@ -33,6 +33,7 @@ READY = (
         "EOCWeaponActionType::BoltAction",
         "duration=1.100",
         "bolt_cycle=1",
+        "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
         "/Game/Production/Weapons/M700/AN_M700_BoltCycle.AN_M700_BoltCycle",
     ),
     (
@@ -40,6 +41,7 @@ READY = (
         "EOCWeaponActionType::PumpAction",
         "duration=0.720",
         "pump_cycle=1",
+        "/Game/R13/Audio/shotguncock.shotguncock",
         "/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle",
     ),
     (
@@ -47,6 +49,7 @@ READY = (
         "EOCWeaponActionType::LeverAction",
         "duration=0.850",
         "lever_cycle=1",
+        "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
         "/Game/Production/Weapons/LeverAction/AN_LeverAction_Cycle.AN_LeverAction_Cycle",
     ),
 )
@@ -54,21 +57,20 @@ READY = (
 
 def build_log() -> str:
     lines: list[str] = []
-    for weapon, action, duration, audio_field, path in READY:
+    for weapon, action, duration, audio_field, audio_object_path, animation_path in READY:
         lines.append(
             f"PASS45_MANUAL_ACTION_CYCLE_READY weapon={weapon} action={action} {duration} authoritative=1"
         )
         lines.append(f"PASS45_WEAPON_AUDIO_FALLBACK_READY weapon={weapon} {audio_field}")
         lines.append(
             "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED "
-            f"weapon={weapon} action={action} "
-            f"sound=/Game/PASS45/Test/{weapon}_ManualAction.{weapon}_ManualAction "
+            f"weapon={weapon} action={action} sound={audio_object_path} "
             "route=local2d bus_gt_zero=1 effective_volume_gt_zero=1 "
             "second_gameplay_timer=0 runtime_acceptance=0"
         )
         lines.append(
             "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY "
-            f"weapon={weapon} action={action} path={path} "
+            f"weapon={weapon} action={action} path={animation_path} "
             "replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0"
         )
     return "\n".join(lines) + "\n"
@@ -119,7 +121,7 @@ def main() -> int:
             errors.append(f"strict main wrapper lost manual-action runtime gate: {marker}")
 
     good_log = build_log()
-    errors.extend(run_case(good_log, PROFILES_GOOD, expect_success=True, label="exact production paths plus playback dispatch"))
+    errors.extend(run_case(good_log, PROFILES_GOOD, expect_success=True, label="exact production paths plus exact audio playback"))
 
     missing_playback_log = good_log.replace(
         "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED weapon=OC_SNP1",
@@ -131,6 +133,18 @@ def main() -> int:
         PROFILES_GOOD,
         expect_success=False,
         label="missing M700 local playback dispatch",
+    ))
+
+    wrong_audio_log = good_log.replace(
+        "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
+        "/Game/R13/Audio/shotguncock.shotguncock",
+        1,
+    )
+    errors.extend(run_case(
+        wrong_audio_log,
+        PROFILES_GOOD,
+        expect_success=False,
+        label="wrong M700 manual-action sound identity",
     ))
 
     stale_pilot_log = good_log.replace(
@@ -161,7 +175,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 MANUAL ACTION RUNTIME CONTRACT: PASS")
-    print("exact_profile_path_binding=1 local_audio_playback_dispatch_required=1 stale_pilot_ready_rejected=1 empty_profile_rejected=1 pilot_profile_rejected=1")
+    print("exact_profile_path_binding=1 exact_audio_object_binding=1 local_audio_playback_dispatch_required=1 wrong_audio_rejected=1 stale_pilot_ready_rejected=1 empty_profile_rejected=1 pilot_profile_rejected=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
