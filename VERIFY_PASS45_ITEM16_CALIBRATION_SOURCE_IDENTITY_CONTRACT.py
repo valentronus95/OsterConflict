@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 IDENTITY = ROOT / "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY.py"
 REVIEW = ROOT / "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py"
 BINDING = ROOT / "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py"
+BINDING_CONTRACT = ROOT / "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py"
 MODULE = "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY"
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
@@ -49,13 +50,17 @@ def main() -> int:
             failures.append(f"{label} source SHA-256 is not lowercase 64-hex: {value!r}")
 
     binding_names = {"M700_SOURCE", "M700_SOURCE_SHA256", "LEVER_SOURCE", "LEVER_SOURCE_SHA256"}
-    if not imports_identity(BINDING, binding_names):
-        failures.append("calibration receipt binding does not import all donor identities from the canonical module")
-    if not imports_identity(REVIEW, binding_names):
-        failures.append("calibration review does not import all donor identities from the canonical module")
+    consumers = (
+        (BINDING, "calibration receipt binding"),
+        (REVIEW, "calibration review"),
+        (BINDING_CONTRACT, "calibration receipt binding contract"),
+    )
+    for path, label in consumers:
+        if not imports_identity(path, binding_names):
+            failures.append(f"{label} does not import all donor identities from the canonical module")
 
     identity_text = IDENTITY.read_text(encoding="utf-8")
-    for path in (REVIEW, BINDING):
+    for path, _label in consumers:
         text = path.read_text(encoding="utf-8")
         for name, literal in expected.items():
             if literal in text:
@@ -78,7 +83,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 CALIBRATION SOURCE IDENTITY CONTRACT: PASS")
-    print("single_source=1 review_imports=1 binding_imports=1 identity_change_invalidates_approval=1")
+    print("single_source=1 review_imports=1 binding_imports=1 binding_contract_imports=1 identity_change_invalidates_approval=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

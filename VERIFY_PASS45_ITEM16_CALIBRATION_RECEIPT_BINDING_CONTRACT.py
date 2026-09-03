@@ -9,11 +9,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
+from PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY import (
     LEVER_SOURCE,
     LEVER_SOURCE_SHA256,
     M700_SOURCE,
     M700_SOURCE_SHA256,
+)
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
     validate_approval,
     validate_evidence_head_repository,
     validate_pair,
