@@ -84,6 +84,35 @@ for needle in (
 req(".add_bone_track(" not in m700, "M700 compatibility shim directly calls deprecated add_bone_track()")
 req(".add_bone_track(" not in lever, "Lever compatibility shim directly calls deprecated add_bone_track()")
 
+# UE 5.8 async compilation/DDC teardown guard.
+# The later factual local run reached Lever Action but crashed inside
+# UnrealEditor-DerivedDataCache.dll during commandlet shutdown. Both transient
+# animation shims must synchronously drain in-flight asset compilation after key
+# mutation (before sampling) and once more before commandlet exit.
+for shim, label, marker in (
+    (m700, "M700", "PASS45_M700_UE58_ASSET_COMPILATION_BARRIER_"),
+    (lever, "Lever", "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_"),
+):
+    for needle in (
+        "def finish_asset_compilation_ue58(stage: str) -> None:",
+        'getattr(unreal, "AutomationUtilsBlueprintLibrary", None)',
+        'getattr(library, "finish_all_asset_compilation", None)',
+        'finish_asset_compilation_ue58("after_set_bone_track_keys_before_sampling")',
+        'finish_asset_compilation_ue58("post_pilot_before_commandlet_exit")',
+        '"asset_compilation_barrier_before_sampling": True',
+        marker + "BEGIN",
+        marker + "END",
+    ):
+        req(needle in shim, f"{label} UE58 async-compilation barrier missing: {needle}")
+    req(
+        shim.count("finish_all()") == 1,
+        f"{label} compatibility shim must centralize finish_all_asset_compilation in one helper",
+    )
+    req(
+        shim.count("finish_asset_compilation_ue58(") >= 3,
+        f"{label} compatibility shim must define and invoke both compilation barriers",
+    )
+
 req("PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py" in m700_launcher, "M700 canonical pilot identity disappeared from launcher")
 req("PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py" in m700_launcher, "M700 launcher does not use compatibility shim")
 req("PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.py" in lever_launcher, "Lever canonical pilot identity disappeared from launcher")
@@ -130,7 +159,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 ITEM16 UE58 COMPAT: PASS")
-print("m700_legacy_fps=20 m700_compat_fps=60 m700_frames=66 duration=1.10 bone_curve_api=1")
-print("lever_legacy_fps=20 lever_compat_fps=60 lever_frames=51 duration=0.85 bone_curve_api=1")
+print("m700_legacy_fps=20 m700_compat_fps=60 m700_frames=66 duration=1.10 bone_curve_api=1 async_barriers=2")
+print("lever_legacy_fps=20 lever_compat_fps=60 lever_frames=51 duration=0.85 bone_curve_api=1 async_barriers=2")
 print("deprecated_add_bone_track_direct_calls=0")
 print("production_cutover=0 runtime_acceptance=0 item16_checked=0 merge_permitted=0")
