@@ -1,0 +1,49 @@
+name: Pass 45 M700 derived bolt translation UE58 pilot contract
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py'
+      - 'VERIFY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py'
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py'
+      - 'VERIFY_PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py'
+      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - '_DOCS/PASS45_M700_SOURCE_MOTION_AUDIT_2026-09-02.json'
+      - '_DOCS/PASS45_M700_BOLT_GEOMETRY_AUDIT_2026-09-02.json'
+      - '.github/workflows/pass45-m700-derived-bolt-translation-ue58-pilot-contract.yml'
+  pull_request:
+    paths:
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py'
+      - 'VERIFY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py'
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py'
+      - 'VERIFY_PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py'
+      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - '_DOCS/PASS45_M700_SOURCE_MOTION_AUDIT_2026-09-02.json'
+      - '_DOCS/PASS45_M700_BOLT_GEOMETRY_AUDIT_2026-09-02.json'
+      - '.github/workflows/pass45-m700-derived-bolt-translation-ue58-pilot-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile M700 UE58 pilot contract
+        run: python -m py_compile PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py VERIFY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py
+      - name: Verify fail-closed M700 UE58 pilot contract
+        run: python VERIFY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.py
