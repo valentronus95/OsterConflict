@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Static contract for PASS45 component-first local UE debugging cadence."""
+"""Static contract for PASS45 component-first UE debugging cadence.
+
+The protocol still defines the narrow Lever-only UE proof when local execution is
+resumed, but the current user-authoritative checkpoint explicitly pauses all
+user-local execution. CI therefore validates both things at once: the deferred
+launcher remains safe/self-validating, and living checkpoint docs must not present
+that launcher as an active instruction while user_local_execution_requested=0.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,43 +51,46 @@ for needle in (
     "Level C — consolidated chain / gameplay acceptance",
     "The full gameplay route is an acceptance gate, not a Python/asset-authoring debugger.",
     "OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd",
+    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd",
     "Do not rerun the five-phase chain until this Lever-only proof passes.",
 ):
     req(needle in protocol, f"component-first protocol invariant missing: {needle}")
 
 for text, label in ((ledger, "ledger"), (history, "history")):
     req("component-first" in text.lower(), f"{label} does not record component-first cadence")
+    req("22/36 = 61.1%" in text, f"{label} lost frozen PASS45 progress accounting")
     req(
-        "OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd" in text,
-        f"{label} does not name the current Lever-only local operation",
-    )
-    req(
-        "22/36 = 61.1%" in text,
-        f"{label} lost frozen PASS45 progress accounting",
+        "user_local_execution_requested=0" in text,
+        f"{label} lost the explicit user-local execution pause",
     )
 
-# Keep documentation checks semantic instead of freezing every living checkpoint
-# to the same literal launcher sentence. The history/protocol carry the canonical
-# exact path, while the compact ledger only needs to preserve the later one-shot
-# five-phase boundary and explicitly say it is not due while Lever is unstable.
-req(
-    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd" in history,
-    "history lost the canonical later consolidated five-phase launcher",
-)
-req(
-    "OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd" in protocol,
-    "component-first protocol lost the canonical later consolidated five-phase launcher",
-)
+history_lower = history.lower()
 ledger_lower = ledger.lower()
 req(
-    "five-phase item-16" in ledger_lower or "five-phase item16" in ledger_lower,
-    "ledger lost the later consolidated five-phase item-16 boundary",
+    "do not require or request pc-side checks" in history_lower,
+    "history no longer preserves the user's explicit no-PC-check instruction",
 )
 req(
-    "do **not** rerun the full five-phase" in ledger_lower,
-    "ledger no longer blocks premature full-chain reruns while Lever is unstable",
+    "no pc-side checking" in ledger_lower,
+    "ledger no longer preserves the user's explicit no-PC-check instruction",
+)
+req(
+    "user-local execution is currently paused" in history_lower,
+    "history no longer marks local execution as paused",
+)
+req(
+    "user-local execution itself is now paused" in ledger_lower
+    or "user local checks paused" in ledger_lower,
+    "ledger no longer marks local execution as paused",
+)
+req(
+    "do **not** run or request `start_here.cmd -> 2. повний runtime-тест` now" in ledger_lower,
+    "ledger no longer blocks premature full gameplay requests while local execution is paused",
 )
 
+# The bounded chain remains canonical infrastructure even while it is not an
+# active user instruction. Preserve its fail-closed shape for a future factual
+# runtime pass without forcing living checkpoint docs to tell the user to run it.
 req(
     "PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN_COMPLETE" in full_chain,
     "full item-16 chain no longer retains its completion marker",
@@ -90,10 +100,9 @@ req(
     "full bounded item-16 chain lost its no-full-gameplay marker",
 )
 
-# The current Lever-only launcher must be self-validating. A zero commandlet exit
-# is not sufficient because the user's last factual run proved that one technical
-# repair can succeed and a later base-pilot assertion can still reject the same
-# component. Require every boundary that must be seen before reporting PASS.
+# The deferred Lever-only launcher must remain self-validating. A zero commandlet
+# exit is not sufficient because a technical repair can pass before a later base
+# pilot assertion rejects the same component.
 for needle in (
     "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py",
     "PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY initial_fps=30 compat_fps=60 compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1",
@@ -133,5 +142,5 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 COMPONENT-FIRST UE DEBUGGING: PASS")
-print("preflight_first=1 component_only_until_pass=1 self_validating_lever_postflight=1 full_chain_after_component_pass=1 full_gameplay_acceptance_only=1")
-print("current_local_component=LeverAction exact_postflight_checks=14 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
+print("preflight_first=1 component_only_until_pass=1 deferred_lever_postflight_safe=1 full_gameplay_acceptance_only=1")
+print("user_local_execution_requested=0 deferred_local_component=LeverAction exact_postflight_checks=14 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")
