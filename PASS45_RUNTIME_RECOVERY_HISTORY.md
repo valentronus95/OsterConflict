@@ -46,13 +46,16 @@ Historical/local blocker sequence retained for non-regression:
 10. `48d097d801e4e515bec9d728d59a6eec55f758c0` — regression guard for the padded-envelope bridge;
 11. `37361f61c6afa33ab094490f10ae74c35de3cceb` — component-first UE debugging protocol;
 12. `23ac9d1d8cc3677a9d4f9a56cbce63f72d4e91fc` — `AGENTS.md` rule 31 binds component-first local UE debugging;
-13. `ed37f3378275a0346af745c2b2889d36907ca714` — live ledger updated to the latest Lever-only boundary and historical build/import regression markers.
+13. `ed37f3378275a0346af745c2b2889d36907ca714` — live ledger updated to the latest Lever-only boundary and historical build/import regression markers;
+14. `4c98f55db606ea17061cfa4ae43850cd0aa7cfdb` — component-first remote preflight is green across cadence, UE58 compatibility, consolidated-chain fail-closed and historical build/import regression guards.
 
 ## First factual open item — item 16
 
 Item 16 still requires accepted authored M700 / Remington 870 / Lever Action moving-part/manual-action presentation, factual mechanical audio and current-head UE 5.8 acceptance.
 
 Source/docs/CI/pilot-only work does not check item 16 and does not increase the official percentage.
+
+The eventual production-authoring boundary remains **MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION** for final M700 travel/rotation and Lever angle. This acceptance boundary is not waived by source-only work.
 
 ### Remington 870
 
@@ -137,7 +140,7 @@ The regression guard requires:
 - padded-envelope validation bridge;
 - no production cutover or acceptance promotion.
 
-Current recovery is **CODED_UNTESTED** locally until a Lever-only UE 5.8 proof passes.
+Current recovery is **CODED_UNTESTED** locally until factual UE 5.8 evidence supersedes it.
 
 ## Historical 2026-08-25 build/import non-regression
 
@@ -148,38 +151,50 @@ Retain the factual historical **LOCAL UE BUILD REJECTED** evidence:
 
 These are historical regression guards, not current item-16 blockers. Current source fixes remain recorded as `CODED_UNTESTED` unless later factual local build/import evidence explicitly verifies them.
 
+## Asset quarantine and bounded-before-consolidated runtime cadence
+
+The `asset-intake-20260903` branch remains quarantine-only. The earlier **remote quarantine audit** remains valid source-intake evidence, but quarantine content is not production-ready, not runtime-accepted and must never be merged wholesale into PASS45.
+
+The checklist architecture remains frozen at 36 canonical items: **no checklist items 37+** are created from asset intake or quarantine inventory.
+
+Do **not** run the expensive full UE 5.8 gameplay acceptance after every small weapon tweak. Use bounded source/import/fresh-load/component checks while configuration is still moving, then run **one consolidated current-head weapon runtime acceptance** only after the intended weapon setup batch is ready.
+
+## Explicit user-local execution boundary — 2026-09-03
+
+Latest explicit user instruction: **do not require or request PC-side checks; continue `PASS45_RUNTIME_RECOVERY_TZ.md` from the repository/checkpoint instead.**
+
+Therefore:
+
+- no current next-step instruction may send the user to GitHub Desktop, CMD, UE Editor or a local launcher;
+- local-only UE evidence remains pending factual evidence, not silently accepted;
+- the assistant continues remote/source/CI/verifier cleanup and any item-16 preparation that does not require fabricated visual calibration;
+- `runtime_acceptance=0`, `item16_checked=0`, `merge_permitted=0` remain unchanged;
+- PR #94 remains OPEN / UNMERGED until the existing runtime acceptance rule is actually satisfied by factual evidence at some later point.
+
+This does not waive runtime/visual acceptance. It only removes user-local execution from the active work queue unless the user later explicitly resumes it.
+
 ## Current CI boundary
 
-On `48d097d801e4e515bec9d728d59a6eec55f758c0`:
+On `4c98f55db606ea17061cfa4ae43850cd0aa7cfdb`:
 
+- component-first preflight: SUCCESS;
 - item-16 frame-rate compatibility: SUCCESS;
 - item-16 local evidence-chain source contract: SUCCESS;
 - M700/Remington/Lever related narrow source contracts: SUCCESS where present;
-- two wider workflows failed because the compact live ledger had dropped the historical `LOCAL UE BUILD REJECTED`, `C2131` and `auto_detect_mesh_type` markers required by `VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py`.
+- remaining red workflows are stale-history/verifier compatibility failures, not new UE/gameplay regressions: asset-intake checkpoint wording, checkpoint/history wording, and Pass44 ledger heading matching.
 
-The ledger now restores those factual historical markers. Do not claim full exact-head CI green until the new head settles.
+Those red checks are being repaired at the verifier/checkpoint layer without restoring rejected runtime behavior.
 
 ## Next factual operation
 
-Do **not** run full gameplay.
+User-local execution is currently paused by explicit instruction.
 
-Do **not** rerun the five-phase item-16 chain while Lever remains the only unstable component.
+Continue remotely in this order:
 
-First settle exact-head source/preflight CI on the current documentation/process head. Then the next user-local operation is exactly the existing Lever component launcher:
-
-`OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd`
-
-The Lever-only proof must show:
-
-1. integral 52-frame / 26-source-frame grid marker;
-2. pre-sampling compilation barrier PASS;
-3. sequence-envelope contract armed;
-4. factual 0.85 s motion contract restored;
-5. no duration mismatch;
-6. normal Lever pilot PASS;
-7. post-pilot compilation barrier PASS.
-
-Only after Lever-only PASS should `OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd` run once to exercise all five bounded phases. After that, proceed to manual M700/Lever visual calibration, accepted production authoring/cutover and one consolidated full weapon runtime acceptance.
+1. eliminate the stale-history/verifier CI failures on the current PASS45 head;
+2. keep item 16 open and fail-closed;
+3. continue only remote-preparable item-16 source/acceptance hardening that does not invent M700/Lever visual calibration;
+4. do not merge PR #94 and do not promote runtime acceptance from CI alone.
 
 PR #94 remains OPEN / UNMERGED.
 
@@ -189,4 +204,5 @@ remaining=38.9%
 item16_checked=0
 runtime_acceptance=0
 merge_permitted=0
+user_local_execution_requested=0
 ```
