@@ -2,9 +2,10 @@
 """Fail-closed production-cutover preflight for PASS45 item 16.
 
 The preflight owns calibration-state sequencing, not a second calibration-approval
-schema. Exact approval identity/value validation is delegated to
-VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py so preflight and authoring receipt
-binding cannot drift into competing definitions.
+schema or production-authoring receipt header. Exact approval identity/value and
+receipt schema/status validation are delegated to
+VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py so preflight and later authoring
+stages cannot drift into competing definitions.
 
 Valid states:
 
@@ -24,7 +25,10 @@ import json
 import re
 from pathlib import Path
 
-from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import validate_approval
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
+    validate_approval,
+    validate_authoring_receipt_header,
+)
 
 ROOT = Path(__file__).resolve().parent
 PROFILES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAnimationProfiles.cpp"
@@ -71,11 +75,6 @@ def profile_manual_path(text: str, weapon_id: str) -> str | None:
     return match.group(1)
 
 
-def require_bool(obj: dict, key: str, expected: bool, label: str) -> None:
-    actual = obj.get(key)
-    req(actual is expected, f"{label} {key} expected={expected!r} actual={actual!r}")
-
-
 profiles = read_text(PROFILES)
 m700_path = profile_manual_path(profiles, "OC_SNP1")
 lever_path = profile_manual_path(profiles, "R13_LEVER4570")
@@ -106,14 +105,10 @@ else:
         req(lever_path == "", "Lever profile must remain empty until a production-authoring receipt exists")
     else:
         receipt = load_json(AUTHORING_RECEIPT, "production authoring receipt")
-        req(receipt.get("schema") == 1, f"production authoring receipt schema drifted: {receipt.get('schema')!r}")
-        req(receipt.get("status") == "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED",
-            f"production authoring receipt status invalid: {receipt.get('status')!r}")
-        require_bool(receipt, "runtime_acceptance", False, "production authoring receipt")
-        require_bool(receipt, "item16_checked", False, "production authoring receipt")
-        require_bool(receipt, "merge_permitted", False, "production authoring receipt")
+        errors.extend(validate_authoring_receipt_header(receipt))
         # Exact package/profile/runtime wiring is deliberately delegated to the
-        # separate staged-cutover verifier. Do not reintroduce an empty-path rule here.
+        # separate staged-cutover verifier. Do not reintroduce package or empty-path
+        # rules here.
 
 if errors:
     print("PASS45 ITEM16 PRODUCTION CUTOVER PREFLIGHT: FAIL")
@@ -133,5 +128,5 @@ print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_production_manual_action_path_present={int(bool(m700_path))}")
 print(f"lever_production_manual_action_path_present={int(bool(lever_path))}")
-print("pilot_profile_leak=0 calibration_gate_fail_closed=1 approval_schema_single_source=1 staged_cutover_guard=1")
+print("pilot_profile_leak=0 calibration_gate_fail_closed=1 approval_schema_single_source=1 authoring_receipt_header_single_source=1 staged_cutover_guard=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")

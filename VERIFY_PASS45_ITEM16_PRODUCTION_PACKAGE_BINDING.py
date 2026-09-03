@@ -17,10 +17,11 @@ import json
 import re
 from pathlib import Path
 
+from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import validate_authoring_receipt_header
+
 ROOT = Path(__file__).resolve().parent
 RECEIPT = ROOT / "_DOCS" / "PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json"
 
-RECEIPT_STATUS = "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED"
 M700_PREFIX = "/Game/Production/Weapons/M700/"
 LEVER_PREFIX = "/Game/Production/Weapons/LeverAction/"
 HEX64 = re.compile(r"[0-9a-f]{64}")
@@ -117,15 +118,7 @@ def load_receipt(path: Path) -> tuple[dict, list[str]]:
 
 
 def validate_receipt(receipt: dict, *, root: Path = ROOT) -> list[str]:
-    errors: list[str] = []
-    if receipt.get("schema") != 1:
-        errors.append(f"production authoring receipt schema must be 1, got {receipt.get('schema')!r}")
-    if receipt.get("status") != RECEIPT_STATUS:
-        errors.append(f"production authoring receipt status invalid: {receipt.get('status')!r}")
-    for key in ("runtime_acceptance", "item16_checked", "merge_permitted"):
-        if receipt.get(key) is not False:
-            errors.append(f"production authoring receipt {key} must remain false")
-
+    errors = validate_authoring_receipt_header(receipt)
     errors.extend(
         validate_authored_package(
             receipt.get("m700"), label="M700", prefix=M700_PREFIX, root=root
@@ -158,7 +151,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PACKAGE BINDING: PASS")
-    print("state=AUTHORING_RECEIPT_PACKAGE_BYTES_BOUND package_sha256=1 same_path_replacement_fail_closed=1 canonical_object_path_required=1")
+    print("state=AUTHORING_RECEIPT_PACKAGE_BYTES_BOUND package_sha256=1 same_path_replacement_fail_closed=1 canonical_object_path_required=1 authoring_receipt_header_single_source=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

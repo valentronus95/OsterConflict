@@ -73,6 +73,22 @@ def require_false_flags(obj: dict, label: str, errors: list[str]) -> None:
             errors.append(f"{label} {key} must remain false, got {obj.get(key)!r}")
 
 
+def validate_authoring_receipt_header(receipt: dict) -> list[str]:
+    """Own the production-authoring receipt base schema and fail-closed flags.
+
+    Calibration binding, package-byte binding and production-cutover preflight all
+    delegate here so the receipt cannot acquire competing schema/status definitions.
+    Package-specific fields remain owned by the package-binding gate.
+    """
+    errors: list[str] = []
+    if receipt.get("schema") != 1:
+        errors.append(f"production authoring receipt schema must be 1, got {receipt.get('schema')!r}")
+    if receipt.get("status") != RECEIPT_STATUS:
+        errors.append(f"production authoring receipt status invalid: {receipt.get('status')!r}")
+    require_false_flags(receipt, "production authoring receipt", errors)
+    return errors
+
+
 def as_finite_number(obj: dict, key: str, label: str, errors: list[str]) -> float | None:
     value = obj.get(key)
     if isinstance(value, bool):
@@ -210,11 +226,7 @@ def validate_evidence_head_repository(
 
 def validate_pair(approval_path: Path, approval: dict, receipt: dict) -> list[str]:
     errors = validate_approval(approval)
-    if receipt.get("schema") != 1:
-        errors.append(f"production authoring receipt schema must be 1, got {receipt.get('schema')!r}")
-    if receipt.get("status") != RECEIPT_STATUS:
-        errors.append(f"production authoring receipt status invalid: {receipt.get('status')!r}")
-    require_false_flags(receipt, "production authoring receipt", errors)
+    errors.extend(validate_authoring_receipt_header(receipt))
 
     expected_approval_sha256 = hashlib.sha256(approval_path.read_bytes()).hexdigest()
     receipt_approval_sha256 = str(receipt.get("calibration_approval_sha256", ""))
@@ -306,7 +318,7 @@ def main() -> int:
     print(f"state={state}")
     print(f"approval_present={int(approval_present)} receipt_present={int(receipt_present)}")
     print("exact_approval_sha256_binding=1 exact_source_identity=1 evidence_head_binding=1 evidence_head_ancestor=1 calibration_critical_drift=0")
-    print("authored_value_binding=1 source_sha_binding=1 approval_schema_single_source=1 source_identity_single_source=1")
+    print("authored_value_binding=1 source_sha_binding=1 approval_schema_single_source=1 source_identity_single_source=1 authoring_receipt_header_single_source=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

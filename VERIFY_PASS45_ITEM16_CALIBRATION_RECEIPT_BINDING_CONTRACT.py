@@ -2,6 +2,7 @@
 """Synthetic regression contract for item-16 calibration -> production receipt binding."""
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import json
@@ -17,10 +18,18 @@ from PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY import (
 )
 from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
     validate_approval,
+    validate_authoring_receipt_header,
     validate_evidence_head_repository,
     validate_pair,
 )
 
+ROOT = Path(__file__).resolve().parent
+BINDING = ROOT / "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py"
+PACKAGE_BINDING = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py"
+PREFLIGHT = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py"
+CALIBRATION_BINDING_MODULE = "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING"
+RECEIPT_STATUS = "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED"
+RECEIPT_HEADER_KEYS = {"schema", "status", "runtime_acceptance", "item16_checked", "merge_permitted"}
 EVIDENCE_HEAD = "0123456789abcdef0123456789abcdef01234567"
 
 
@@ -32,6 +41,55 @@ def assert_case(label: str, errors: list[str], *, should_pass: bool, needle: str
     if needle is not None and not any(needle in error for error in errors):
         failures.append(f"{label}: expected error containing {needle!r}, got {errors}")
     return failures
+
+
+def imported_names(path: Path, module: str) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == module:
+            names.update(alias.name for alias in node.names)
+    return names
+
+
+def receipt_get_keys(path: Path, *, function_name: str | None = None) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    root: ast.AST = tree
+    if function_name is not None:
+        matches = [
+            node for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name
+        ]
+        if not matches:
+            return {"<missing-function>"}
+        root = matches[0]
+    keys: set[str] = set()
+    for node in ast.walk(root):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "get" or not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "receipt" or not node.args:
+            continue
+        first = node.args[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            keys.add(first.value)
+    return keys
+
+
+def called_names(path: Path, function_name: str) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    matches = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name
+    ]
+    if not matches:
+        return set()
+    names: set[str] = set()
+    for node in ast.walk(matches[0]):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            names.add(node.func.id)
+    return names
 
 
 def git(repo: Path, *args: str) -> str:
@@ -116,6 +174,32 @@ def main() -> int:
     failures: list[str] = []
     provenance_contract(failures)
 
+    for path, label in (
+        (PACKAGE_BINDING, "production package binding"),
+        (PREFLIGHT, "production cutover preflight"),
+    ):
+        imports = imported_names(path, CALIBRATION_BINDING_MODULE)
+        if "validate_authoring_receipt_header" not in imports:
+            failures.append(f"{label} must import canonical validate_authoring_receipt_header")
+        duplicate_keys = RECEIPT_HEADER_KEYS & receipt_get_keys(path)
+        if duplicate_keys:
+            failures.append(
+                f"{label} revalidates authoring receipt header keys instead of delegating: "
+                + ", ".join(sorted(duplicate_keys))
+            )
+        if RECEIPT_STATUS in path.read_text(encoding="utf-8"):
+            failures.append(f"{label} re-hardcodes production authoring receipt status")
+
+    pair_calls = called_names(BINDING, "validate_pair")
+    if "validate_authoring_receipt_header" not in pair_calls:
+        failures.append("validate_pair must delegate authoring receipt base schema to validate_authoring_receipt_header")
+    pair_duplicate_keys = RECEIPT_HEADER_KEYS & receipt_get_keys(BINDING, function_name="validate_pair")
+    if pair_duplicate_keys:
+        failures.append(
+            "validate_pair revalidates authoring receipt header keys directly: "
+            + ", ".join(sorted(pair_duplicate_keys))
+        )
+
     with tempfile.TemporaryDirectory(prefix="pass45_item16_binding_") as temp_dir:
         approval_path = Path(temp_dir) / "approval.json"
         approval = {
@@ -145,7 +229,7 @@ def main() -> int:
 
         receipt = {
             "schema": 1,
-            "status": "ITEM16_MANUAL_ACTION_PRODUCTION_ASSETS_AUTHORED",
+            "status": RECEIPT_STATUS,
             "runtime_acceptance": False,
             "item16_checked": False,
             "merge_permitted": False,
@@ -163,7 +247,45 @@ def main() -> int:
         }
 
         failures.extend(assert_case("exact approval", validate_approval(approval), should_pass=True))
+        failures.extend(assert_case(
+            "exact authoring receipt header",
+            validate_authoring_receipt_header(receipt),
+            should_pass=True,
+        ))
         failures.extend(assert_case("exact binding", validate_pair(approval_path, approval, receipt), should_pass=True))
+
+        bad_header = copy.deepcopy(receipt)
+        bad_header["schema"] = 2
+        failures.extend(assert_case(
+            "wrong authoring receipt schema",
+            validate_authoring_receipt_header(bad_header),
+            should_pass=False,
+            needle="schema must be 1",
+        ))
+        failures.extend(assert_case(
+            "pair rejects wrong authoring receipt schema",
+            validate_pair(approval_path, approval, bad_header),
+            should_pass=False,
+            needle="schema must be 1",
+        ))
+
+        bad_header = copy.deepcopy(receipt)
+        bad_header["status"] = "WRONG_STATUS"
+        failures.extend(assert_case(
+            "wrong authoring receipt status",
+            validate_authoring_receipt_header(bad_header),
+            should_pass=False,
+            needle="status invalid",
+        ))
+
+        bad_header = copy.deepcopy(receipt)
+        bad_header["merge_permitted"] = True
+        failures.extend(assert_case(
+            "authoring receipt cannot self-promote merge",
+            validate_authoring_receipt_header(bad_header),
+            should_pass=False,
+            needle="merge_permitted must remain false",
+        ))
 
         bad_approval = copy.deepcopy(approval)
         bad_approval["m700"]["source"] = LEVER_SOURCE
@@ -280,7 +402,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 CALIBRATION RECEIPT BINDING CONTRACT: PASS")
-    print("exact_hash=1 evidence_head=1 ancestor=1 critical_drift=1 exact_source=1 nonzero_values=1 pilot_promotion_rejected=1 m700_translation=1 m700_rotation=1 lever_angle=1 source_sha=1 numeric_type=1")
+    print("exact_hash=1 evidence_head=1 ancestor=1 critical_drift=1 exact_source=1 nonzero_values=1 pilot_promotion_rejected=1 m700_translation=1 m700_rotation=1 lever_angle=1 source_sha=1 numeric_type=1 authoring_receipt_header_single_source=1 header_consumers_delegate=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
