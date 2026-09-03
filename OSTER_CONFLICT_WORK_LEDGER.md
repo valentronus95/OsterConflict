@@ -16,11 +16,12 @@ The previous complete ledger remains preserved by Git history. This live ledger 
 - Formal checklist accounting remains **22/36 = 61.1% complete, 38.9% remaining**.
 - First factual open checklist item remains **item 16**.
 - Local user `Changes`, including local `PC_TEST/TEST_RESULTS` evidence ZIPs, remain outside assistant mutation scope.
+- Latest explicit user instruction: **do not require/request PC-side checks; continue PASS45 remotely from repository/CI/checkpoint state**.
 - PR #94 must not merge until current-head UE 5.8 runtime acceptance passes required automated and direct visual/audio gates.
 
 Current status token:
 
-**PASS45 ACTIVE / ITEM16 OPEN / M700 BOUNDED UE58 PROOF PASS / REMINGTON BOUNDED UE58 PUMP+ASSEMBLY PROOF PASS / LEVER 52@60 INTEGRAL RESAMPLE GRID + PRE-SAMPLING COMPILATION BARRIER FACTUALLY PASS / LATEST LEVER REJECTION IS STALE 0.85-VS-0.866667 DURATION ASSERTION / CURRENT SOURCE BRIDGES MOTION DURATION VS TECHNICAL ENVELOPE / COMPONENT-FIRST LEVER-ONLY RERUN NEXT AFTER PREFLIGHT / FULL FIVE-PHASE CHAIN NOT YET DUE / FULL GAMEPLAY NOT DUE / PR94 UNMERGED**
+**PASS45 ACTIVE / ITEM16 OPEN / M700 BOUNDED UE58 PROOF PASS / REMINGTON BOUNDED UE58 PUMP+ASSEMBLY PROOF PASS / LEVER 52@60 INTEGRAL RESAMPLE GRID + PRE-SAMPLING COMPILATION BARRIER FACTUALLY PASS / LATEST LEVER REJECTION IS STALE 0.85-VS-0.866667 DURATION ASSERTION / CURRENT SOURCE BRIDGES MOTION DURATION VS TECHNICAL ENVELOPE / COMPONENT-FIRST REMOTE PREFLIGHT GREEN / USER LOCAL CHECKS PAUSED BY EXPLICIT INSTRUCTION / REMOTE SOURCE+CI WORK CONTINUES / FULL FIVE-PHASE CHAIN DEFERRED / FULL GAMEPLAY DEFERRED / PR94 UNMERGED**
 
 ## 2. Status rules
 
@@ -116,7 +117,7 @@ runtime_acceptance=0
 item16_checked=0
 ```
 
-This recovery is **CODED_UNTESTED** locally until the Lever-only UE 5.8 component proof passes.
+This recovery is **CODED_UNTESTED** locally until factual UE 5.8 evidence supersedes it.
 
 ## 6. Binding component-first local UE debugging cadence
 
@@ -131,11 +132,15 @@ After a chain stops at one component:
 5. run the full multi-phase chain once only after affected components individually pass;
 6. run full gameplay only as consolidated acceptance, never as a script debugger.
 
-For the current checkpoint, **do not rerun M700 and Remington while debugging Lever**.
+For the current checkpoint, M700 and Remington are not rerun while Lever is the unresolved component. User-local execution itself is now paused by explicit instruction, so the active queue remains remote/source/CI only.
 
 ## 7. Historical Pass 44 non-regression
 
+### Pass 44 historical runtime rejection (retained fact)
+
 **Pass 44 verdict: RUNTIME REJECTED.** The 2026-08-24 factual runtime disproved Pass 44 as a complete solution. Pass 45 is the active corrective pass.
+
+### Pass 44 behavior retained unless disproved
 
 Protected retained behavior unless newer factual evidence invalidates it:
 
@@ -171,44 +176,48 @@ The bounded local assembly proof now passes, but direct current-head visible-pum
 - factual `LEVER` moving part exists;
 - 52-frame UE 5.8 technical envelope and pre-sampling barrier now have factual local evidence;
 - current `-45°` excursion remains calibration-only;
-- the duration-validation bridge still needs one narrow Lever-only local proof before the angle can enter visual calibration.
+- the duration-validation bridge remains source-corrected but locally unverified on the newest head.
+
+The eventual production-authoring boundary remains **MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION**. The user's current refusal to perform PC checks does not convert pending evidence into acceptance.
 
 ## 9. Current CI truth
 
-On `48d097d801e4e515bec9d728d59a6eec55f758c0`, item-16-specific source contracts are green, including frame-rate compatibility and the five-phase evidence-chain contract.
+On `4c98f55db606ea17061cfa4ae43850cd0aa7cfdb`, the component-first preflight and item-16-specific source contracts are green, including frame-rate compatibility and the five-phase evidence-chain contract.
 
-Two wider workflows failed only because this compact live ledger had dropped historical local-build markers:
+The remaining red workflows are stale checkpoint/verifier compatibility failures rather than new UE/gameplay regressions:
 
-- `Pass 45 local build import regression`;
-- `Source verification` through that same verifier.
+- asset-intake history markers were dropped from the compact history;
+- checkpoint verifier required an old exact quarantine/calibration phrase;
+- Pass44 verifier claimed to be semantic but still required frozen ledger headings.
 
-The failing expectations were the retained historical `LOCAL UE BUILD REJECTED`, `C2131`, and `auto_detect_mesh_type` evidence. Section 3 restores those factual markers without resurrecting stale behavior.
+Current remote work repairs those checkpoint/verifier contracts without resurrecting rejected Pass44 behavior and without changing runtime acceptance.
 
-Do not claim full exact-head CI green until the next head settles.
+## 10. Explicit user-local execution boundary
 
-## 10. Next factual operation
+Latest explicit user instruction on 2026-09-03: **no PC-side checking. Continue `PASS45_RUNTIME_RECOVERY_TZ.md` from the latest repository/checkpoint.**
 
-Do **not** run `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ`.
+Binding effect for future continuation:
 
-Do **not** rerun the full five-phase item-16 chain yet.
+- do not send the user to GitHub Desktop, CMD, UE Editor or local launchers as the active next step;
+- continue assistant-owned GitHub/source/CI work whenever technically possible;
+- local runtime/visual evidence may remain pending, but must never be fabricated or promoted from CI;
+- do not merge PR #94 while runtime acceptance remains pending;
+- local execution can return to the queue only if the user later explicitly resumes it.
 
-First settle exact-head source/preflight CI after the current documentation/process corrections. If relevant preflight is green, the next local-only operation is **Lever only**:
+## 11. Next factual operation
 
-`OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd`
+The active operation is remote, not user-local:
 
-Required next Lever-only acceptance:
+1. settle stale exact-head CI failures caused by checkpoint/verifier wording drift;
+2. keep item 16 open and fail-closed;
+3. continue remote-preparable item-16 source/acceptance hardening that does not invent final M700/Lever calibration;
+4. preserve deferred consolidated runtime acceptance as a later factual gate, not a current instruction to the user.
 
-- `compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1`;
-- pre-sampling compilation barrier completes;
-- `PASS45_LEVERACTION_UE58_SEQUENCE_ENVELOPE_CONTRACT_ARMED` appears;
-- `PASS45_LEVERACTION_UE58_MOTION_DURATION_RESTORED` appears;
-- no `pilot_sequence_duration_mismatch`;
-- normal Lever pilot PASS appears;
-- post-pilot compilation barrier completes.
+Do **not** run or request `START_HERE.cmd -> 2. ПОВНИЙ RUNTIME-ТЕСТ` now.
 
-Only after Lever-only PASS should the complete five-phase item-16 evidence chain be run once. After that, perform direct M700/Lever visual calibration, author/cut over accepted production motion, finish the intended weapon setup batch and run one consolidated gameplay/runtime acceptance.
+Do **not** merge PR #94.
 
-## 11. Protected merge/accounting state
+## 12. Protected merge/accounting state
 
 - PR #94: **OPEN / UNMERGED**.
 - Item 16: **UNCHECKED**.
@@ -216,4 +225,5 @@ Only after Lever-only PASS should the complete five-phase item-16 evidence chain
 - Remaining: **38.9%**.
 - `runtime_acceptance=0`.
 - `merge_permitted=0`.
+- `user_local_execution_requested=0`.
 - Local user `Changes`: **DO NOT TOUCH**.
