@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent
 PROFILE = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py"
 PACKAGE_BINDING_MODULE = "VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING"
 CALIBRATION_BINDING_MODULE = "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING"
-PACKAGE_SYMBOL = "expected_package_file"
+PACKAGE_SYMBOLS = {"expected_package_file", "M700_PREFIX", "LEVER_PREFIX"}
 CALIBRATION_SYMBOLS = {
     "validate_approval",
     "validate_evidence_head_repository",
@@ -33,11 +33,30 @@ def called_names(tree: ast.AST) -> set[str]:
     return names
 
 
+def assigned_names(tree: ast.AST) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    names.add(target.id)
+    return names
+
+
+def loaded_names(tree: ast.AST) -> set[str]:
+    return {
+        node.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+    }
+
+
 def main() -> int:
     failures: list[str] = []
     tree = ast.parse(PROFILE.read_text(encoding="utf-8"), filename=str(PROFILE))
 
-    forbidden_local_defs = {PACKAGE_SYMBOL, *CALIBRATION_SYMBOLS}
+    forbidden_local_defs = {"expected_package_file", *CALIBRATION_SYMBOLS}
     local_defs = {
         node.name
         for node in ast.walk(tree)
@@ -48,28 +67,46 @@ def main() -> int:
             "profile cutover must not redefine canonical binding helpers: " + ", ".join(sorted(local_defs))
         )
 
-    package_imports = imported_names(tree, PACKAGE_BINDING_MODULE)
-    if PACKAGE_SYMBOL not in package_imports:
+    assignments = assigned_names(tree)
+    duplicate_namespace_owners = {"M700_PREFIX", "LEVER_PREFIX"} & assignments
+    if duplicate_namespace_owners:
         failures.append(
-            f"profile cutover must import {PACKAGE_SYMBOL} from {PACKAGE_BINDING_MODULE}"
+            "profile cutover must not own production namespace prefixes: "
+            + ", ".join(sorted(duplicate_namespace_owners))
+        )
+
+    package_imports = imported_names(tree, PACKAGE_BINDING_MODULE)
+    missing_package_imports = PACKAGE_SYMBOLS - package_imports
+    if missing_package_imports:
+        failures.append(
+            "profile cutover must import canonical package binding symbols: "
+            + ", ".join(sorted(missing_package_imports))
         )
 
     calibration_imports = imported_names(tree, CALIBRATION_BINDING_MODULE)
-    missing_imports = CALIBRATION_SYMBOLS - calibration_imports
-    if missing_imports:
+    missing_calibration_imports = CALIBRATION_SYMBOLS - calibration_imports
+    if missing_calibration_imports:
         failures.append(
             "profile cutover must import canonical calibration binding helpers: "
-            + ", ".join(sorted(missing_imports))
+            + ", ".join(sorted(missing_calibration_imports))
         )
 
     calls = called_names(tree)
-    if PACKAGE_SYMBOL not in calls:
-        failures.append(f"profile cutover imports but does not call {PACKAGE_SYMBOL}")
+    if "expected_package_file" not in calls:
+        failures.append("profile cutover imports but does not call expected_package_file")
     missing_calls = CALIBRATION_SYMBOLS - calls
     if missing_calls:
         failures.append(
             "profile cutover imports but does not call calibration binding helpers: "
             + ", ".join(sorted(missing_calls))
+        )
+
+    loads = loaded_names(tree)
+    missing_namespace_uses = {"M700_PREFIX", "LEVER_PREFIX"} - loads
+    if missing_namespace_uses:
+        failures.append(
+            "profile cutover imports but does not use canonical production namespace prefixes: "
+            + ", ".join(sorted(missing_namespace_uses))
         )
 
     if failures:
@@ -80,7 +117,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: PASS")
-    print("canonical_mapping_imported=1 duplicate_mapping_definition=0 calibration_binding_imports=1 calibration_binding_calls=1")
+    print("canonical_mapping_imported=1 production_namespace_imported=1 duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 

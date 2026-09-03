@@ -23,6 +23,8 @@ from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
     validate_pair,
 )
 from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import (
+    LEVER_PREFIX,
+    M700_PREFIX,
     expected_package_file,
     validate_authored_package as validate_package_bytes,
 )
@@ -32,9 +34,6 @@ PROFILES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OC
 RUNTIME_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 APPROVAL = ROOT / "_DOCS" / "PASS45_ITEM16_MANUAL_ACTION_CALIBRATION_APPROVAL.json"
 AUTHORING_RECEIPT = ROOT / "_DOCS" / "PASS45_ITEM16_PRODUCTION_AUTHORING_RECEIPT.json"
-
-M700_PREFIX = "/Game/Production/Weapons/M700/"
-LEVER_PREFIX = "/Game/Production/Weapons/LeverAction/"
 
 errors: list[str] = []
 
@@ -81,10 +80,10 @@ def validate_authored_asset(entry: object, *, label: str, prefix: str, source_sh
         errors.append(f"authoring receipt missing {label} object")
         return None
 
-    # Byte identity and canonical object-path mapping share one implementation in
-    # VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py. Do not fork the mapping
-    # rules here; otherwise the profile-cutover state machine can drift from the
-    # package-binding gate after a future hardening change.
+    # Byte identity, canonical object-path mapping, and production namespace ownership
+    # share one implementation in VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py.
+    # Do not fork those rules here; otherwise profile cutover can drift from package
+    # binding after a future hardening change.
     errors.extend(validate_package_bytes(entry, label=label, prefix=prefix, root=ROOT))
 
     object_path = str(entry.get("sequence_object_path", ""))
@@ -185,5 +184,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
