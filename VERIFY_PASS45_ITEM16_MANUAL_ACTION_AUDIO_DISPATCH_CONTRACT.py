@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Fail-closed source contract for PASS45 item-16 manual-action audio dispatch.
 
-Runtime evidence already proves that the required bolt/pump/lever SoundBase loaded into
-the repository fallback profile. This contract closes the other half of that evidence:
-the authoritative manual-action transition must actually dispatch ManualActionCycle,
-and a non-empty resolved set must flow to Play2D/PlayAt without a second gameplay
-timer. Direct audible/feel acceptance remains a separate UE 5.8 manual gate.
+Runtime evidence must prove more than a loaded bolt/pump/lever SoundBase. The
+manual-action transition must dispatch ManualActionCycle, a non-empty sound must
+flow through the local playback route with positive effective volume, and the
+runtime log must preserve that factual dispatch. Direct audible/feel acceptance
+remains a separate UE 5.8 manual gate.
 """
 from __future__ import annotations
 
@@ -74,11 +74,25 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
         "if (!Set || Set->IsEmpty())",
         "PASS45_WEAPON_AUDIO_CONTENT_GAP weapon=%s event=manual_action",
         "USoundBase* Sound = Pick(*Set, EventSeed);",
-        "Play2D(Sound, StateProfile->LocalMechanicalVolume);",
-        "PlayAt(Sound, SourceLocation, 1.0f);",
+        "const bool bLocalPlayback = IsLocalWeaponOwner() && Event != EOCWeaponAudioEvent::Drop;",
+        "const float PlaybackVolume = bLocalPlayback ? StateProfile->LocalMechanicalVolume : 1.0f;",
+        "const float WeaponBusVolume = UOCAudioUserSettings::Get()->GetBusVolume(EOCAudioBus::Weapons);",
+        "const bool bPlaybackDispatchable = Sound && PlaybackVolume > 0.0f && WeaponBusVolume > 0.0f;",
+        "Play2D(Sound, PlaybackVolume);",
+        "PlayAt(Sound, SourceLocation, PlaybackVolume);",
+        "if (Event == EOCWeaponAudioEvent::ManualActionCycle)",
+        "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED",
+        "sound=%s route=%s bus_gt_zero=1 effective_volume_gt_zero=1 second_gameplay_timer=0 runtime_acceptance=0",
+        "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL",
     ):
         if marker not in audio_block:
             errors.append(f"manual-action audio success/failure route missing: {marker}")
+
+    playback_marker_pos = audio_block.find("PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED")
+    play2d_pos = audio_block.find("Play2D(Sound, PlaybackVolume);")
+    playat_pos = audio_block.find("PlayAt(Sound, SourceLocation, PlaybackVolume);")
+    if playback_marker_pos < 0 or play2d_pos < 0 or playat_pos < 0 or playback_marker_pos < max(play2d_pos, playat_pos):
+        errors.append("manual-action playback evidence must be emitted only after the Play2D/PlayAt dispatch branches")
 
     # Repository fallback arrays may only receive successfully loaded SoundBase objects.
     for label, marker in (
@@ -97,13 +111,20 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
         if marker not in audio:
             errors.append(f"manual-action loaded-audio evidence route missing: {marker}")
 
-    # Runtime gate must require both the loaded action-family slot and reject the event content-gap marker.
+    # Runtime gate must require loaded action-family audio, actual local playback dispatch,
+    # positive bus/effective volume and failure-marker rejection for every required weapon.
     for marker in (
         '"audio_field": "bolt_cycle=1"',
         '"audio_field": "pump_cycle=1"',
         '"audio_field": "lever_cycle=1"',
         '"PASS45_WEAPON_AUDIO_FALLBACK_READY"',
+        '"PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED"',
+        '"sound=/Game/"',
+        '"route=local2d"',
+        '"bus_gt_zero=1"',
+        '"effective_volume_gt_zero=1"',
         '("PASS45_WEAPON_AUDIO_CONTENT_GAP", "event=manual_action")',
+        '("PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL",)',
     ):
         if marker not in runtime:
             errors.append(f"runtime manual-action audio evidence gate missing: {marker}")
@@ -131,18 +152,32 @@ def main() -> int:
             "dispatch exactly one",
         ),
         (
-            "missing success playback",
+            "missing local success playback",
             presentation,
-            audio.replace("Play2D(Sound, StateProfile->LocalMechanicalVolume);", "// removed Play2D", 1),
+            audio.replace("Play2D(Sound, PlaybackVolume);", "// removed Play2D", 1),
             runtime,
             "Play2D",
         ),
         (
-            "missing runtime content-gap rejection",
+            "missing runtime playback evidence",
             presentation,
             audio,
-            runtime.replace('(\"PASS45_WEAPON_AUDIO_CONTENT_GAP\", \"event=manual_action\")', '(\"REMOVED\",)', 1),
-            "CONTENT_GAP",
+            runtime.replace('"PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED"', '"REMOVED_PLAYBACK_MARKER"', 1),
+            "PLAYBACK_DISPATCHED",
+        ),
+        (
+            "missing positive runtime volume requirement",
+            presentation,
+            audio,
+            runtime.replace('"effective_volume_gt_zero=1"', '"REMOVED_EFFECTIVE_VOLUME"', 1),
+            "effective_volume_gt_zero=1",
+        ),
+        (
+            "missing runtime playback failure rejection",
+            presentation,
+            audio,
+            runtime.replace('(\"PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL\",)', '(\"REMOVED\",)', 1),
+            "PLAYBACK_FAIL",
         ),
     )
     for label, p_text, a_text, r_text, expected in negative_cases:
@@ -157,8 +192,8 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 MANUAL ACTION AUDIO DISPATCH: PASS")
-    print("manual_action_dispatch=1 loaded_sound_guard=1 play2d_or_playat=1 content_gap_fail_closed=1")
-    print("audio_runtime_inference=loaded_slot_plus_mandatory_dispatch direct_audible_acceptance=pending")
+    print("manual_action_dispatch=1 loaded_sound_guard=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
+    print("runtime_playback_marker_required=1 direct_audible_acceptance=pending")
     print("second_gameplay_timer=0 runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
