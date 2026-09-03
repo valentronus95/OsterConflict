@@ -25,7 +25,7 @@ This behavior is also bound globally by `AGENTS.md` mandatory workflow rule 30.
 - Lever UE 5.8 DDC/asset-compilation teardown recovery: `7b70c56e0c1e77c6642ba517d45310d7879be343`.
 - M700 matching asset-compilation teardown policy: `2ac5b9560b63a51be3f57c770c6a93d2c302373c`.
 - Async-compilation barrier regression guard: `03ab7bded49fc23ea1c19c23586b86797aaeba93`.
-- Latest live-ledger checkpoint after the Lever crash: `5a492238a9ee7f490175dbe3213ec6eb04289341`.
+- Latest live-ledger checkpoint after restoring historical non-regression markers: `0d81f9a3fb844f6620d057a20d9a0facece28d50`.
 - Official canonical checklist remains **22/36 = 61.1% complete, 38.9% remaining**.
 - Local user `Changes` remain outside assistant mutation scope.
 
@@ -48,6 +48,8 @@ The committed Stein CC0 source has a factual weighted `BOLT` joint. `BOLT_STOP` 
 ### Lever Action
 
 The committed Stein CC0 source has an addressable `LEVER` bone but no source-authored lever endpoint. The current `-45°` local-X excursion is calibration-only, not accepted production motion.
+
+The next factual production boundary remains **MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION** after the bounded technical evidence chain itself is stable.
 
 ## One-shot item-16 local evidence chain
 
@@ -145,7 +147,7 @@ Required cadence:
 
 ## Asset quarantine
 
-The downloaded batch remains quarantined on `asset-intake-20260903`, never wholesale merged into production PASS45. Quarantine does not preempt item 16 and creates no checklist items 37+.
+The downloaded batch remains quarantined on `asset-intake-20260903`, never wholesale merged into production PASS45. The earlier **remote quarantine audit** remains factual source-intake evidence; quarantine does not preempt item 16 and creates no checklist items 37+.
 
 ## Binding reuse-first / legal sequence
 
