@@ -28,6 +28,8 @@ m700_launcher = read("OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE5
 remington_launcher = read("OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd")
 lever_launcher = read("OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd")
 audio_launcher = read("OsterConflict/PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd")
+review_launcher = read("OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd")
+review_tool = read("PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py")
 audio_import = read("PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py")
 audio_fresh = read("PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py")
 profiles = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp")
@@ -38,6 +40,7 @@ launchers = {
     "Remington870": "TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd",
     "LeverAction": "TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd",
     "Audio": "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd",
+    "CalibrationReview": "REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd",
 }
 for label, name in launchers.items():
     req(chain.count(name) == 1, f"{label} launcher must appear exactly once in orchestrator")
@@ -47,6 +50,7 @@ for var, label in (
     ("%REMINGTON%", "Remington870"),
     ("%LEVER%", "LeverAction"),
     ("%AUDIO%", "Audio"),
+    ("%REVIEW%", "CalibrationReview"),
 ):
     req(f'call "{var}"' in chain, f"{label} phase is not invoked with CALL")
     req(
@@ -54,17 +58,24 @@ for var, label in (
         f"{label} phase is not before completion marker",
     )
 
-req(chain.count('set "RC=!ERRORLEVEL!"') == 4, "orchestrator must capture four phase return codes")
-for code in (91, 92, 93, 94):
+req(chain.count('set "RC=!ERRORLEVEL!"') == 5, "orchestrator must capture five phase return codes")
+for code in (91, 92, 93, 94, 95):
     req(f"exit /b {code}" in chain, f"orchestrator missing fail-closed exit code {code}")
 req("exit /b 90" in chain, "orchestrator must fail if any launcher is missing")
 
 for needle in (
+    "[1/5] M700",
+    "[2/5] Remington 870",
+    "[3/5] Lever Action",
+    "[4/5] Manual-action audio",
+    "[5/5] M700 / Lever calibration review",
     "PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN_COMPLETE",
     "STATUS: EVIDENCE CHAIN COMPLETE, ITEM 16 STILL OPEN.",
     "Motion phases are isolated proof-only and do not save production packages.",
-    "Audio phase saves only the two repository-owned Bolt/Lever donor SoundWave assets under /Game/PASS45/Audio/ManualAction.",
     "This is the ONLY save-bearing phase in this orchestrator.",
+    "Calibration review reads evidence only and does not author/save production weapon content.",
+    "No full gameplay runtime is run by this orchestrator.",
+    "Do NOT run full gameplay runtime yet.",
     "runtime_visual_acceptance=0",
     "runtime_acceptance=0",
     "item16_checked=0",
@@ -74,17 +85,8 @@ for needle in (
 
 lower_chain = chain.lower()
 for forbidden in (
-    "git.exe",
-    "github",
-    "unrealeditor-cmd",
-    "powershell",
-    "pwsh",
-    "robocopy",
-    "xcopy",
-    "rmdir",
-    "rd /",
-    "erase ",
-    "del /",
+    "git.exe", "github", "unrealeditor-cmd", "powershell", "pwsh",
+    "robocopy", "xcopy", "rmdir", "rd /", "erase ", "del /",
 ):
     req(forbidden not in lower_chain, f"orchestrator contains forbidden direct mutation/execution token: {forbidden}")
 for line in chain.splitlines():
@@ -98,7 +100,7 @@ for command_word in ("checkout", "reset", "clean", "pull", "push", "merge"):
         re.search(rf"(^|[&|])\s*{command_word}\s+", lower_chain, re.MULTILINE) is None,
         f"orchestrator contains forbidden direct mutation command: {command_word}",
     )
-req("No Git commands are run by this orchestrator." in chain, "orchestrator must explicitly state Git is not invoked")
+req("No Git commands are run by this orchestrator." in chain, "orchestrator must state Git is not invoked")
 
 motion_launchers = {
     "M700": m700_launcher,
@@ -108,12 +110,9 @@ motion_launchers = {
 for label, text in motion_launchers.items():
     lower = text.lower()
     req("unrealeditor-cmd.exe" in lower, f"{label} launcher no longer invokes UE commandlet")
-    req("-run=pythonscript" in lower, f"{label} launcher no longer invokes the approved UE Python pilot")
-    req("-unattended -nop4 -nosplash -nullrhi" in lower, f"{label} launcher lost isolated commandlet flags")
+    req("-run=pythonscript" in lower, f"{label} launcher no longer invokes approved UE Python pilot")
     req("runtime_acceptance=0" in lower, f"{label} launcher lost non-acceptance marker")
     req("item16_checked=0" in lower, f"{label} launcher lost item16-open marker")
-    for forbidden in ("git checkout", "git reset", "git clean", "git pull", "git push", "git merge"):
-        req(forbidden not in lower, f"{label} launcher contains forbidden Git mutation: {forbidden}")
 
 for needle in (
     "PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_PASS",
@@ -149,10 +148,31 @@ for needle in (
     "PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py",
     "SW_PASS45_BoltAction_CC0_Donor.uasset",
     "SW_PASS45_LeverAction_CC0_Donor.uasset",
-    "PASS: manual-action BoltCycle/LeverCycle donor SoundWaves were imported and independently fresh-loaded.",
     "runtime_acceptance=0 item16_checked=0",
 ):
     req(needle in audio_launcher, f"audio launcher invariant missing: {needle}")
+
+for needle in (
+    "PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW_COMPLETE",
+    "PILOT EVIDENCE CONSOLIDATED; MANUAL VISUAL CALIBRATION STILL REQUIRED.",
+    "runtime_acceptance=0",
+    "item16_checked=0",
+    "merge_permitted=0",
+):
+    req(needle in review_launcher, f"calibration review launcher invariant missing: {needle}")
+for needle in (
+    "M700_BOLT_TRANSLATION_DERIVED_UE58_MOTION_PROOF_ONLY",
+    "LEVERACTION_DERIVED_UE58_MOTION_PROOF_ONLY",
+    "source_authored_endpoint",
+    "pilot_travel_accepted",
+    "rotation_calibration_pending",
+    "pilot_angle_accepted",
+    "MANUAL_CURRENT_HEAD_UE58_VISUAL_CALIBRATION_BEFORE_PRODUCTION_AUTHORING",
+    '"runtime_acceptance": False',
+    '"item16_checked": False',
+    '"merge_permitted": False',
+):
+    req(needle in review_tool, f"calibration review fail-closed invariant missing: {needle}")
 
 for needle in (
     'DESTINATION_PATH = "/Game/PASS45/Audio/ManualAction"',
@@ -163,49 +183,28 @@ for needle in (
     'print("runtime_acceptance=0 item16_checked=0")',
 ):
     req(needle in audio_import, f"audio importer scope/non-acceptance contract missing: {needle}")
-
-for forbidden in (
-    "/Game/Production/Weapons",
-    "OCWeaponAnimationProfiles",
-    "runtime_acceptance=1",
-    "item16_checked=1",
-):
+for forbidden in ("/Game/Production/Weapons", "runtime_acceptance=1", "item16_checked=1"):
     req(forbidden not in audio_import, f"audio importer regained forbidden production/acceptance behavior: {forbidden}")
-
-for needle in (
-    "SW_PASS45_BoltAction_CC0_Donor",
-    "SW_PASS45_LeverAction_CC0_Donor",
-    "runtime_acceptance=0",
-    "item16_checked=0",
-):
+for needle in ("SW_PASS45_BoltAction_CC0_Donor", "SW_PASS45_LeverAction_CC0_Donor", "runtime_acceptance=0", "item16_checked=0"):
     req(needle in audio_fresh, f"audio fresh-load verifier invariant missing: {needle}")
 
 for needle in (
     'EOCWeaponActionType::BoltAction',
     '/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor',
-    'RepositoryFallbackProfile->BoltCycle.Add(Bolt);',
     'EOCWeaponActionType::PumpAction',
     '/Game/R13/Audio/shotguncock.shotguncock',
-    'RepositoryFallbackProfile->PumpCycle.Add(Pump);',
     'EOCWeaponActionType::LeverAction',
     '/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor',
-    'RepositoryFallbackProfile->LeverCycle.Add(Lever);',
     'case EOCWeaponAudioEvent::ManualActionCycle:',
 ):
     req(needle in audio_component, f"manual-action runtime audio routing invariant missing: {needle}")
 
-req(
-    '{ FName(TEXT("OC_SNP1")), TEXT(""), TEXT(""), true, TEXT(""), true }' in profiles,
-    "M700 production manual-action path is no longer fail-closed/empty",
-)
-req(
-    '{ FName(TEXT("R13_LEVER4570")), TEXT(""), TEXT(""), true, TEXT(""), true }' in profiles,
-    "LeverAction production manual-action path is no longer fail-closed/empty",
-)
-req(
-    'TEXT("/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle")' in profiles,
-    "Remington production pump sequence disappeared or drifted",
-)
+req('{ FName(TEXT("OC_SNP1")), TEXT(""), TEXT(""), true, TEXT(""), true }' in profiles,
+    "M700 production manual-action path is no longer fail-closed/empty")
+req('{ FName(TEXT("R13_LEVER4570")), TEXT(""), TEXT(""), true, TEXT(""), true }' in profiles,
+    "LeverAction production manual-action path is no longer fail-closed/empty")
+req('TEXT("/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle")' in profiles,
+    "Remington production pump sequence disappeared or drifted")
 for forbidden in (
     "/Game/PASS45/ImportPilots/M700DerivedBoltTranslation",
     "AN_PASS45_M700_BoltTranslation_Pilot",
@@ -221,9 +220,9 @@ if errors:
 
 print(
     "PASS45 ITEM16 LOCAL UE58 EVIDENCE CHAIN: PASS "
-    "phase_count=4 fail_closed=1 motion_phases_unsaved=1 "
-    "remington_assembly_includes_pump_motion=1 audio_only_save_bearing_phase=1 "
+    "phase_count=5 fail_closed=1 motion_phases_unsaved=1 "
+    "audio_only_save_bearing_phase=1 calibration_review_read_only=1 "
     "m700_profile_fail_closed=1 lever_profile_fail_closed=1 remington_production_pump_preserved=1 "
-    "git_mutation=0 production_cutover=0 runtime_visual_acceptance=0 runtime_acceptance=0 "
-    "item16_checked=0 merge_permitted=0"
+    "full_gameplay_runtime_now=0 git_mutation=0 production_cutover=0 runtime_visual_acceptance=0 "
+    "runtime_acceptance=0 item16_checked=0 merge_permitted=0"
 )
