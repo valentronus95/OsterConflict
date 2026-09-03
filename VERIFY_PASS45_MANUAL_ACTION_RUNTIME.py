@@ -15,6 +15,7 @@ EXPECTED = (
         "action": "EOCWeaponActionType::BoltAction",
         "duration": "duration=1.100",
         "audio_field": "bolt_cycle=1",
+        "audio_object_path": "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
         "production_prefix": "/Game/Production/Weapons/M700/",
     },
     {
@@ -22,6 +23,7 @@ EXPECTED = (
         "action": "EOCWeaponActionType::PumpAction",
         "duration": "duration=0.720",
         "audio_field": "pump_cycle=1",
+        "audio_object_path": "/Game/R13/Audio/shotguncock.shotguncock",
         "production_prefix": "/Game/Production/Weapons/Remington870/",
     },
     {
@@ -29,6 +31,7 @@ EXPECTED = (
         "action": "EOCWeaponActionType::LeverAction",
         "duration": "duration=0.850",
         "audio_field": "lever_cycle=1",
+        "audio_object_path": "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
         "production_prefix": "/Game/Production/Weapons/LeverAction/",
     },
 )
@@ -67,6 +70,7 @@ def main() -> int:
         weapon = expected["weapon"]
         action = expected["action"]
         production_prefix = expected["production_prefix"]
+        audio_object_path = expected["audio_object_path"]
         profile_path = profile_manual_path(profiles, weapon)
 
         if profile_path is None:
@@ -112,7 +116,7 @@ def main() -> int:
             "PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED",
             f"weapon={weapon}",
             f"action={action}",
-            "sound=/Game/",
+            f"sound={audio_object_path}",
             "route=local2d",
             "bus_gt_zero=1",
             "effective_volume_gt_zero=1",
@@ -121,7 +125,8 @@ def main() -> int:
         )
         if not playback_lines:
             errors.append(
-                f"missing factual local manual-action audio playback dispatch for {weapon} {action}"
+                f"missing exact local manual-action audio playback dispatch for {weapon} {action}: "
+                f"sound={audio_object_path}"
             )
 
         if profile_path_ok:
@@ -160,8 +165,8 @@ def main() -> int:
 
     print("PASS45 MANUAL ACTION RUNTIME: PASS")
     print("- M700 bolt, Remington 870 pump and Lever Action cycles were each factually exercised")
-    print("- authoritative cycle timing, loaded and playback-dispatched local mechanical audio, and exact production-profile authored animation evidence are present")
-    print("- calibration-pilot paths and manual-action audio/content bridge failures are rejected for all three required weapons")
+    print("- authoritative cycle timing, exact expected playback-dispatched local mechanical audio, and exact production-profile authored animation evidence are present")
+    print("- wrong manual-action sound identity, calibration-pilot paths and audio/content bridge failures are rejected for all three required weapons")
     print("STATUS: AUTOMATED ITEM16 RUNTIME EVIDENCE PASS; direct visual/audio feel acceptance still required")
     return 0
 
