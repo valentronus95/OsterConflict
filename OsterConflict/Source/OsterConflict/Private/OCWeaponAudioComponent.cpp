@@ -391,14 +391,39 @@ void UOCWeaponAudioComponent::HandleStateEventLocal(EOCWeaponAudioEvent Event, c
     }
 
     USoundBase* Sound = Pick(*Set, EventSeed);
-    if (IsLocalWeaponOwner() && Event != EOCWeaponAudioEvent::Drop)
+    const bool bLocalPlayback = IsLocalWeaponOwner() && Event != EOCWeaponAudioEvent::Drop;
+    const float PlaybackVolume = bLocalPlayback ? StateProfile->LocalMechanicalVolume : 1.0f;
+    const float WeaponBusVolume = UOCAudioUserSettings::Get()->GetBusVolume(EOCAudioBus::Weapons);
+    const bool bPlaybackDispatchable = Sound && PlaybackVolume > 0.0f && WeaponBusVolume > 0.0f;
+    if (bLocalPlayback)
     {
-        Play2D(Sound, StateProfile->LocalMechanicalVolume);
+        Play2D(Sound, PlaybackVolume);
     }
     else
     {
-        PlayAt(Sound, SourceLocation, 1.0f);
+        PlayAt(Sound, SourceLocation, PlaybackVolume);
     }
+
+    if (Event == EOCWeaponAudioEvent::ManualActionCycle)
+    {
+        const FName WeaponId = Weapon ? Weapon->GetWeaponId() : NAME_None;
+        const EOCWeaponActionType ActionType = Weapon ? Weapon->GetWeaponActionType() : EOCWeaponActionType::GasOperated;
+        if (bPlaybackDispatchable)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED weapon=%s action=%s sound=%s route=%s bus_gt_zero=1 effective_volume_gt_zero=1 second_gameplay_timer=0 runtime_acceptance=0"),
+                *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), *GetPathNameSafe(Sound),
+                bLocalPlayback ? TEXT("local2d") : TEXT("world3d"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_FAIL weapon=%s action=%s sound_present=%d bus_gt_zero=%d effective_volume_gt_zero=%d runtime_acceptance=0"),
+                *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType), Sound ? 1 : 0,
+                WeaponBusVolume > 0.0f ? 1 : 0, PlaybackVolume > 0.0f ? 1 : 0);
+        }
+    }
+
     EmitDebugEvent(UEnum::GetValueAsString(Event), SourceLocation);
 }
 
