@@ -13,6 +13,7 @@ on:
       - 'VERIFY_PASS45_THIRD_PARTY_MANUAL_ACTION_REGISTER.py'
       - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py'
       - 'VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py'
+      - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py'
       - 'PASS45_RUNTIME_RECOVERY_TZ.md'
       - '.github/workflows/pass45-manual-action-audio-provenance.yml'
   push:
@@ -30,6 +31,7 @@ on:
       - 'VERIFY_PASS45_THIRD_PARTY_MANUAL_ACTION_REGISTER.py'
       - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py'
       - 'VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py'
+      - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py'
       - 'PASS45_RUNTIME_RECOVERY_TZ.md'
       - '.github/workflows/pass45-manual-action-audio-provenance.yml'
 
@@ -48,10 +50,12 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile item16 manual-action audio guards
-        run: python -m py_compile VERIFY_PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.py VERIFY_PASS45_THIRD_PARTY_MANUAL_ACTION_REGISTER.py VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py
+        run: python -m py_compile VERIFY_PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.py VERIFY_PASS45_THIRD_PARTY_MANUAL_ACTION_REGISTER.py VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py
       - name: Verify manual-action audio provenance and fail-closed wiring
         run: python VERIFY_PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.py
       - name: Verify mandatory third-party manual-action import records
         run: python VERIFY_PASS45_THIRD_PARTY_MANUAL_ACTION_REGISTER.py
       - name: Verify manual-action playback dispatch contract
         run: python VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py
+      - name: Verify executable manual-action runtime evidence contract
+        run: python VERIFY_PASS45_ITEM16_MANUAL_ACTION_RUNTIME_CONTRACT.py
