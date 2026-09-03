@@ -10,7 +10,6 @@ exists; a calibration pilot can never become production merely by changing a pat
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 from VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING import (
@@ -23,6 +22,7 @@ from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import (
     M700_PREFIX,
     validate_authored_package,
 )
+from VERIFY_PASS45_MANUAL_ACTION_RUNTIME import profile_manual_path
 
 ROOT = Path(__file__).resolve().parent
 PROFILES = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCWeaponAnimationProfiles.cpp"
@@ -56,20 +56,6 @@ def load_json(path: Path, label: str) -> dict:
     return value
 
 
-def profile_manual_path(text: str, weapon_id: str) -> str | None:
-    pattern = re.compile(
-        r"\{\s*FName\(TEXT\(\"" + re.escape(weapon_id) + r"\"\)\)\s*,"
-        r"\s*TEXT\(\"[^\"]*\"\)\s*,\s*TEXT\(\"[^\"]*\"\)\s*,\s*true\s*,"
-        r"\s*TEXT\(\"([^\"]*)\"\)\s*,\s*true\s*\}",
-        re.MULTILINE,
-    )
-    match = pattern.search(text)
-    if not match:
-        errors.append(f"cannot resolve required manual-action profile for {weapon_id}")
-        return None
-    return match.group(1)
-
-
 def validate_authored_asset(entry: object, *, label: str, prefix: str) -> str | None:
     # Receipt-entry shape, byte identity, canonical object-path mapping, production
     # namespace ownership, pilot rejection and package existence all have one owner in
@@ -83,9 +69,12 @@ def validate_authored_asset(entry: object, *, label: str, prefix: str) -> str | 
 
 
 profiles = read_text(PROFILES)
-runtime_evidence = read_text(RUNTIME_EVIDENCE)
 m700_profile_path = profile_manual_path(profiles, "OC_SNP1")
 lever_profile_path = profile_manual_path(profiles, "R13_LEVER4570")
+if m700_profile_path is None:
+    errors.append("cannot resolve required manual-action profile for OC_SNP1")
+if lever_profile_path is None:
+    errors.append("cannot resolve required manual-action profile for R13_LEVER4570")
 approval_present = APPROVAL.is_file()
 receipt_present = AUTHORING_RECEIPT.is_file()
 
@@ -140,7 +129,9 @@ else:
         ):
             req(marker in runtime_evidence, f"strict runtime evidence is not armed for Lever cutover: {marker}")
 
-# No repository-controlled pre-runtime stage may self-promote acceptance.
+# No repository-controlled pre-runtime stage may self-promote acceptance. Keep this
+# raw-text guard in addition to parsed boolean validation so duplicate JSON keys cannot
+# hide an earlier explicit true value behind a later false value.
 for path in (APPROVAL, AUTHORING_RECEIPT):
     if path.is_file():
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -164,5 +155,5 @@ print("PASS45 ITEM16 PRODUCTION PROFILE CUTOVER: PASS")
 print(f"state={state}")
 print(f"approval_present={int(approval_present)} authoring_receipt_present={int(receipt_present)}")
 print(f"m700_profile_path_present={int(bool(m700_profile_path))} lever_profile_path_present={int(bool(lever_profile_path))}")
-print("pilot_profile_leak=0 staged_cutover=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 production_package_validation_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 profile_direct_donor_sha_check=0 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
+print("pilot_profile_leak=0 staged_cutover=1 profile_parser_single_source=1 production_package_sha256_required=1 canonical_package_mapping_single_source=1 production_namespace_single_source=1 production_package_validation_single_source=1 calibration_approval_schema_single_source=1 calibration_donor_sha_single_source=1 profile_direct_donor_sha_check=0 exact_approval_receipt_binding=1 calibration_evidence_ancestry_required=1 strict_runtime_evidence_required_after_authoring=1")
 print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")

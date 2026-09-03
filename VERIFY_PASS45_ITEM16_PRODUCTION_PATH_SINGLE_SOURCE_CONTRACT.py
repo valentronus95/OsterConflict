@@ -9,10 +9,12 @@ from VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING import LEVER_PREFIX, M700_P
 
 ROOT = Path(__file__).resolve().parent
 PROFILE = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py"
+PREFLIGHT = ROOT / "VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py"
 RUNTIME = ROOT / "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
 PACKAGE_BINDING_MODULE = "VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING"
 CALIBRATION_BINDING_MODULE = "VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING"
 SOURCE_IDENTITY_MODULE = "PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY"
+RUNTIME_MODULE = "VERIFY_PASS45_MANUAL_ACTION_RUNTIME"
 PACKAGE_SYMBOLS = {"validate_authored_package", "M700_PREFIX", "LEVER_PREFIX"}
 CALIBRATION_SYMBOLS = {
     "validate_approval",
@@ -63,6 +65,14 @@ def loaded_names(tree: ast.AST) -> set[str]:
         for node in ast.walk(tree)
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
     }
+
+
+def defined_functions(tree: ast.AST) -> list[str]:
+    return [
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
 
 
 def main() -> int:
@@ -168,6 +178,22 @@ def main() -> int:
         if prefix in runtime_text:
             failures.append(f"strict runtime verifier re-hardcodes canonical {label} production namespace")
 
+    runtime_functions = defined_functions(runtime_tree)
+    if runtime_functions.count("profile_manual_path") != 1:
+        failures.append("strict runtime verifier must be the single profile_manual_path parser owner")
+
+    for path, label, consumer_tree in (
+        (PROFILE, "profile cutover", tree),
+        (PREFLIGHT, "production cutover preflight", ast.parse(PREFLIGHT.read_text(encoding="utf-8"), filename=str(PREFLIGHT))),
+    ):
+        if "profile_manual_path" in defined_functions(consumer_tree):
+            failures.append(f"{label} must not define a local profile_manual_path parser")
+        parser_imports = imported_names(consumer_tree, RUNTIME_MODULE)
+        if "profile_manual_path" not in parser_imports:
+            failures.append(f"{label} must import profile_manual_path from strict runtime verifier")
+        if "profile_manual_path" not in called_names(consumer_tree):
+            failures.append(f"{label} imports but does not call canonical profile_manual_path")
+
     if failures:
         print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: FAIL")
         for failure in failures:
@@ -176,7 +202,7 @@ def main() -> int:
         return 1
 
     print("PASS45 ITEM16 PRODUCTION PATH SINGLE SOURCE CONTRACT: PASS")
-    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 runtime_namespace_imported=1 runtime_duplicate_namespace_owner=0 calibration_binding_imports=1 calibration_binding_calls=1 direct_source_identity_import=0 duplicate_donor_sha_validation=0")
+    print("canonical_package_validator_imported=1 canonical_package_validator_called=1 duplicate_package_validation=0 production_namespace_imported=1 duplicate_namespace_owner=0 runtime_namespace_imported=1 runtime_duplicate_namespace_owner=0 profile_parser_single_source=1 profile_parser_consumers_import=1 calibration_binding_imports=1 calibration_binding_calls=1 direct_source_identity_import=0 duplicate_donor_sha_validation=0")
     print("runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
 
