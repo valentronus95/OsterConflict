@@ -25,6 +25,8 @@ rem Pass 45: keep DX11/SM5/no-HDR, but stop making -norhithread the only normal 
 rem The explicit START_HERE compatibility route sets OC_RHI_COMPAT=1 for A/B crash/performance diagnosis.
 set "RHI_FLAGS=-d3d11 -sm5 -nohdr"
 set "RHI_MODE=dx11_sm5_rhi_thread"
+set "LOCAL_INBOX_FLAG="
+if /I "%OC_VALIDATE_LOCAL_INBOX%"=="1" set "LOCAL_INBOX_FLAG=-ValidateLocalInbox"
 if /I "%OC_RHI_COMPAT%"=="1" (
   set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"
   set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"
@@ -267,7 +269,7 @@ echo Source: %LOCAL_HEAD%
 echo.
 echo [PASS45] PASS45_RHI_MODE mode=%RHI_MODE% flags=%RHI_FLAGS%
 echo [PASS45] PASS45_NORMAL_DISPLAY_THERMAL_GUARD fullscreen=1 max_fps=60 render_scale_mutation=0
-start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% %LOCAL_INBOX_FLAG% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not "%GAME_RC%"=="0" (
