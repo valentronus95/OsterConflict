@@ -8,7 +8,7 @@ set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "INBOX=%REPO_ROOT%\models_game_OC"
 set "AUDIT=%PROJECT_DIR%Scripts\audit_local_model_inbox.ps1"
 set "PREPARE=%PROJECT_DIR%Scripts\prepare_all_local_inbox_assets.ps1"
-set "IMPORTER=%PROJECT_DIR%Scripts\import_all_local_inbox_assets.py"
+set "IMPORTER=%PROJECT_DIR%Scripts\import_all_project_assets.py"
 set "SUCCESS=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
 set "MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
@@ -17,8 +17,7 @@ set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UE_CMD="
 
 if not exist "%INBOX%" (
-  echo [LOCAL ASSETS] models_game_OC відсутня. Немає чого імпортувати.
-  exit /b 0
+  echo [LOCAL ASSETS] models_game_OC відсутня; все одно перевіряю і підключаю assets, завантажені прямо через Unreal/Fab.
 )
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" set "UE_CMD=%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -50,7 +49,7 @@ if not exist "%PREPARE%" (
   exit /b 53
 )
 if not exist "%IMPORTER%" (
-  echo [STOP] Відсутній UE importer локальних моделей: %IMPORTER%
+  echo [STOP] Відсутній єдиний UE importer локальних + Unreal/Fab моделей: %IMPORTER%
   exit /b 54
 )
 
@@ -59,15 +58,15 @@ if exist "%MANIFEST%" del /q "%MANIFEST%" >nul 2>nul
 if exist "%LOG%" del /q "%LOG%" >nul 2>nul
 
 echo ============================================================
-echo OSTER CONFLICT - ВСІ ЛОКАЛЬНІ МОДЕЛІ
-echo models_game_OC -> розпакування -> Content -> UE import -> runtime binding
+echo OSTER CONFLICT - ВСІ МОДЕЛІ ПРОЕКТУ
+echo models_game_OC + Unreal/Fab/Marketplace Content -> UE import/catalog -> runtime binding
 echo ============================================================
 
-echo [1/4] Перевіряю ZIP...
+echo [1/4] Перевіряю локальні ZIP...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [2/4] Розпаковую всі ZIP і переношу UE-ready assets у проєкт...
+echo [2/4] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
@@ -79,7 +78,7 @@ if not "!BUILD_RC!"=="0" (
   exit /b !BUILD_RC!
 )
 
-echo [4/4] Імпортую і прив'язую всі підтримувані моделі/HUD/скіни в Unreal...
+echo [4/4] Імпортую models_game_OC і додаю ВСІ mesh assets із Unreal/Fab/Marketplace packs у runtime catalog...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORTER%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
@@ -89,7 +88,7 @@ if not "!IMPORT_RC!"=="0" (
 )
 
 if not exist "%SUCCESS%" (
-  echo [STOP] Не всі моделі/HUD/скіни отримали runtime binding.
+  echo [STOP] Не всі знайдені моделі/HUD/скіни отримали runtime binding.
   echo Manifest: %MANIFEST%
   echo Log: %LOG%
   exit /b 55
@@ -101,5 +100,5 @@ if errorlevel 1 (
   exit /b 56
 )
 
-echo [LOCAL ASSETS] PASS: усе знайдене підтримуване content підготовлено і прив'язано.
+echo [ALL PROJECT ASSETS] PASS: локальні та Unreal/Fab mesh assets зібрані в один runtime catalog.
 exit /b 0
