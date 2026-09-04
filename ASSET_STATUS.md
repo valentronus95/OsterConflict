@@ -3,9 +3,9 @@
 Date: 2026-09-04  
 Branch: `fix/pass45-asset-import-fail-closed-20260904`  
 Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`  
-Last verified code checkpoint: `a5249ef74ab6d615597b0fffafdeef5538ae29d9`  
+Last verified code checkpoint: `dffad3234f39c1e76404c52453d8e5b93c31f100`  
 PR: #98 — Draft, unmerged  
-Exact-head GitHub CI on `a5249ef7`: **18/18 SUCCESS**
+Exact-head GitHub CI on `dffad323`: **18/18 SUCCESS**
 
 ## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
@@ -21,9 +21,9 @@ Exact-head GitHub CI on `a5249ef7`: **18/18 SUCCESS**
 | 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
 | 5 | Production import logic | 🟢 | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
 | 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Exact-head `a5249ef7`: **18/18 SUCCESS** | Нічого |
-| 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline, failed-import snapshot і exact result code готові | Потрібен фактичний локальний UE 5.8 import |
-| 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Поточна `fix/pass45-asset-*` гілка дозволена для pre-merge runtime; validators готові | Потрібні live inbox/world/material/gameplay результати |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Exact-head `dffad323`: **18/18 SUCCESS** | Нічого |
+| 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline, failed-import snapshot і exact import code готові | Потрібен фактичний локальний UE 5.8 import |
+| 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Pre-merge runtime дозволений; кожен ранній runtime FAIL тепер оновлює snapshot з exact runtime code | Потрібні live inbox/world/material/gameplay результати |
 | 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% підтверджено | +0% | Acceptance/cleanup contract готовий | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
 
 ### ЗАГАЛЬНИЙ ПРОГРЕС
@@ -99,7 +99,9 @@ Exact-head GitHub CI on `a5249ef7`: **18/18 SUCCESS**
 
 ## 5. LOCAL_ASSET_STATUS SNAPSHOT
 
-`COLLECT_LOCAL_ASSET_STATUS.py` тепер створює зведення **одразу після asset import**, ще до переходу в gameplay. Якщо import падає, snapshot все одно створюється і містить:
+`COLLECT_LOCAL_ASSET_STATUS.py` створює зведення одразу після asset import і оновлює його на runtime-етапі.
+
+Якщо import падає, snapshot містить:
 
 - `LOCAL_UE_IMPORT=FAIL`;
 - точний `IMPORT_RESULT_CODE=<код>`;
@@ -108,7 +110,22 @@ Exact-head GitHub CI on `a5249ef7`: **18/18 SUCCESS**
 - exact GAP reasons;
 - список відсутніх evidence files.
 
-Canonical runtime evidence потім оновлює той самий snapshot після runtime PASS або FAIL.
+Якщо import пройшов, але full runtime падає раніше canonical evidence verifier, `START_HERE` тепер теж оновлює snapshot перед виходом. Покриті ранні провали:
+
+- gameplay launcher / acceptance;
+- missing або failed local inbox runtime proof;
+- missing або failed local world runtime proof;
+- strict material gate;
+- відсутній Python для evidence stage;
+- canonical runtime evidence FAIL.
+
+У такому випадку snapshot містить:
+
+- `LIVE_RUNTIME_HOOKUP=FAIL`;
+- точний `RUNTIME_RESULT_CODE=<код>`;
+- наявні import/binding/material/runtime факти на момент провалу.
+
+Canonical runtime evidence при досягненні фінальної стадії так само оновлює цей snapshot для PASS або FAIL.
 
 Файли:
 
@@ -135,14 +152,17 @@ Direct visual acceptance автоматично не підвищується: `
 
 ## 7. ЗАКРИТО В ЦЬОМУ CHECKPOINT
 
-- 🟢 failed asset import більше не губиться: snapshot створюється до branch-on-error;
-- 🟢 exact failed-import code записується як `IMPORT_RESULT_CODE`, а `LOCAL_UE_IMPORT=FAIL` стає однозначним;
+- 🟢 failed asset import snapshot зберігає exact `IMPORT_RESULT_CODE` і `LOCAL_UE_IMPORT=FAIL`;
+- 🟢 early full-runtime failures тепер теж refresh-ять `LOCAL_ASSET_STATUS` до виходу;
+- 🟢 exact runtime failure code передається через `PASS45_RUNTIME_RC` і записується як `RUNTIME_RESULT_CODE`;
+- 🟢 ненульовий runtime code однозначно дає `LIVE_RUNTIME_HOOKUP=FAIL`, а не `PENDING_OR_GAP`;
+- 🟢 regression-guard вимагає snapshot coverage для gameplay/inbox/world/material/Python/evidence failure paths;
 - 🟢 поточні `fix/pass45-asset-*` гілки дозволені для pre-merge runtime acceptance;
 - 🟢 Pass19/Pass15/Pass20/Pass22/Pass23 forward-port’нуті з видалених per-pass acceptance launchers на `START_HERE` + canonical Pass45 evidence;
 - 🟢 Pass3 перевіряє audit у його реальному власнику `IMPORT_ALL_LOCAL_INBOX_UE58.cmd`, а не вимагає дубль у `START_HERE`;
 - 🟢 Pass4 звіряє фактичну current source-recovery truth, а не старий текст повідомлення;
 - 🟢 BTR verifier відповідає поточному intake: local FBX або Oster-authored generated fallback;
-- 🟢 exact-head source/regression CI на `a5249ef7`: **18/18 SUCCESS**;
+- 🟢 exact-head source/regression CI на `dffad323`: **18/18 SUCCESS**;
 - 🟢 PR #98 лишається Draft/unmerged до локального UE runtime acceptance.
 
 ## 8. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
@@ -156,9 +176,10 @@ Direct visual acceptance автоматично не підвищується: `
 1. exact `prepared / discovered / imported / bound / unbound` цифри;
 2. proven assets переводяться 🟡 → 🟢;
 3. factual import failures переводяться в 🔴 з exact `IMPORT_RESULT_CODE` і GAP reason;
-4. local UE import PASS закриває етап 8: **70% → 80%**;
-5. live runtime PASS закриває етап 9: **80% → 90%**;
-6. direct visual acceptance + safe source ZIP cleanup закриває етап 10: **90% → 100%**.
+4. factual runtime failures переводяться в 🔴 з exact `RUNTIME_RESULT_CODE` і stage evidence;
+5. local UE import PASS закриває етап 8: **70% → 80%**;
+6. live runtime PASS закриває етап 9: **80% → 90%**;
+7. direct visual acceptance + safe source ZIP cleanup закриває етап 10: **90% → 100%**.
 
 ## 9. CONTINUATION RULE
 
