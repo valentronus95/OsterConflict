@@ -11,6 +11,30 @@ for path in (MAIN, ENTRY, MATERIAL, EVIDENCE, PASS8):
     if not path.is_file():
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing {path.relative_to(ROOT)}")
 
+FORBIDDEN_MANUAL_WRAPPERS = (
+    "RUN_CLEAN_FULL_TEST.cmd",
+    "RUN_PC_TEST.cmd",
+    "RUN_R11_LISTEN_TEST.cmd",
+    "RUN_LOCAL_GAME_AFTER_BUILD.cmd",
+    "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
+    "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd",
+    "RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd",
+    "RUN_R14_MAIN_SANDBOX_TEST.cmd",
+    "RUN_R14_ROAD_PROFILE_RUNTIME_ACCEPTANCE.cmd",
+    "RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd",
+    "RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd",
+    "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd",
+    "RUN_R17_RUNTIME_PERFORMANCE_ACCEPTANCE.cmd",
+    "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd",
+    "START_MUSEUM_OSTER.cmd",
+    "VALIDATE_SILPO_UE58.cmd",
+    "OsterConflict/TRY_PRODUCTION_VEHICLES_UE58.cmd",
+    "OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd",
+)
+for rel in FORBIDDEN_MANUAL_WRAPPERS:
+    if (ROOT / rel).exists():
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete manual wrapper returned: {rel}")
+
 main = MAIN.read_text(encoding="utf-8")
 entry = ENTRY.read_text(encoding="utf-8")
 material = MATERIAL.read_text(encoding="utf-8")
@@ -70,6 +94,7 @@ for marker in (
 
 print("MAIN RUNTIME ACCEPTANCE LAUNCHER SOURCE CONTRACT PASS")
 print("- START_HERE.cmd is the only user-facing launcher/test entrypoint")
+print("- obsolete manual runtime/test wrappers are physically absent")
 print("- RUN_R14_CURRENT_GAMEPLAY.cmd remains the single internal gameplay execution route")
 print("- strict material, interaction and performance evidence is verified without extra acceptance wrappers")
 print("STATUS: SOURCE VERIFIED ONLY; local Windows UE 5.8 execution is still required")
