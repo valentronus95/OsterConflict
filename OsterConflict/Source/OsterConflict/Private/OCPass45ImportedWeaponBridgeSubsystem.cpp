@@ -18,7 +18,8 @@ namespace
     const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
     const FName LocalBridgeTag(TEXT("OC_PASS45_LOCAL_IMPORTED_WEAPON"));
-    constexpr int32 MaxRefreshPasses = 8;
+    constexpr int32 FastRefreshPasses = 8;
+    constexpr float SandboxWatchIntervalSeconds = 1.50f;
 
     struct FLocalWeaponQuery
     {
@@ -281,11 +282,28 @@ void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
             RefreshPass, ExactCandidates, Applied);
     }
 
-    if (RefreshPass >= MaxRefreshPasses)
+    if (RefreshPass == FastRefreshPasses)
     {
-        World->GetTimerManager().ClearTimer(RefreshTimer);
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_STOPPED passes=%d permanent_scan=0 wrong_identity_substitution=0"),
-            RefreshPass);
+        const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
+        if (GameMode && GameMode->IsSandboxMode())
+        {
+            World->GetTimerManager().SetTimer(
+                RefreshTimer,
+                this,
+                &UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons,
+                SandboxWatchIntervalSeconds,
+                true,
+                SandboxWatchIntervalSeconds);
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_SANDBOX_WATCH_READY fast_passes=%d interval_s=%.2f late_spawn_support=1 permanent_scan_sandbox_only=1 wrong_identity_substitution=0"),
+                FastRefreshPasses, SandboxWatchIntervalSeconds);
+        }
+        else
+        {
+            World->GetTimerManager().ClearTimer(RefreshTimer);
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_STOPPED passes=%d permanent_scan=0 sandbox=0 wrong_identity_substitution=0"),
+                RefreshPass);
+        }
     }
 }
