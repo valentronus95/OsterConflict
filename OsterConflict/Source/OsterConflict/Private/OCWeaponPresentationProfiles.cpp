@@ -15,6 +15,15 @@ namespace
         FName(TEXT("R13_TEC9")),
         FName(TEXT("R13_LEVER4570")),
         FName(TEXT("OC_RPG1")),
+        FName(TEXT("IMP_AK74M")),
+        FName(TEXT("IMP_AR15")),
+        FName(TEXT("IMP_M4A1")),
+        FName(TEXT("IMP_BALLISTA")),
+        FName(TEXT("IMP_KAR98K")),
+        FName(TEXT("IMP_MAKAROV")),
+        FName(TEXT("IMP_TOMMY")),
+        FName(TEXT("IMP_M72")),
+        FName(TEXT("IMP_RPG26")),
     };
 
     FOCFirstPersonWeaponProfile MakeLegacyBaselineProfile(const FName WeaponId)
@@ -89,7 +98,7 @@ FOCFirstPersonWeaponProfile OCResolveFirstPersonWeaponProfile(const FName Weapon
         return MakeLeverActionProfile();
     }
 
-    // Remaining weapons keep their previous baseline until each exact production mesh is
-    // visually calibrated. The AK has a known verified axis correction from runtime history.
+    // Every declared imported weapon gets an explicit fail-closed first-person baseline immediately.
+    // Exact grip/ADS offsets are promoted only after the shared UE 5.8 visual acceptance session.
     return MakeLegacyBaselineProfile(WeaponId);
 }
