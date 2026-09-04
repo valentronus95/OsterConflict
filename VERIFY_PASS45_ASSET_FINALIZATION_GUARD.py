@@ -30,6 +30,9 @@ import_cmd = read(IMPORT_CMD)
 for marker in (
     '"--accept-visual" not in sys.argv[1:]',
     'git_output("rev-parse", "HEAD")',
+    "verify_exact_remote_head(head)",
+    'git_output("fetch", "origin", branch)',
+    'git_output("rev-parse", f"origin/{branch}")',
     "verify_clean_acceptance_source()",
     "verify_current_automated_status(current, head)",
     'status.get("runtime_scope") != "CURRENT_RUN_COMPLETED"',
@@ -41,12 +44,15 @@ for marker in (
     'production.get("weapons_status") != "PASS"',
     'bindings.get("all_models_bound")',
     'bindings.get("unbound")',
-    'prepared.get("status")',
+    'category_counts.get("M16_M4")',
+    "M16/M4 production content gap is still open",
+    'prepared_status not in {"PASS", "NO_INBOX"}',
     'status != "EXTRACTED"',
     'INBOX.rglob("*.zip")',
     "sha256(path)",
     "digest not in accepted_hashes",
     "source ZIP cleanup refused",
+    "VISUAL_CHECKLIST",
     "write_manual_acceptance(head)",
     "path.unlink()",
     'write_cleanup_report(head, "PASS", deleted)',
@@ -55,10 +61,13 @@ for marker in (
     require(marker in finalizer, f"finalizer lost fail-closed marker: {marker}")
 
 require(
-    finalizer.index("preflight_source_zips(accepted_hashes)")
+    finalizer.index("verify_exact_remote_head(head)")
+    < finalizer.index("verify_clean_acceptance_source()")
+    < finalizer.index("verify_current_automated_status(current, head)")
+    < finalizer.index("preflight_source_zips(accepted_hashes)")
     < finalizer.index("write_manual_acceptance(head)")
     < finalizer.index("path.unlink()"),
-    "manual visual PASS or ZIP deletion can happen before full ZIP preflight",
+    "final acceptance ordering no longer proves remote/source/runtime/ZIP state before manual PASS or deletion",
 )
 require(
     "shutil.rmtree" not in finalizer and "os.remove(INBOX" not in finalizer,
@@ -67,6 +76,10 @@ require(
 require(
     'relative(path)' in finalizer and 'sha256' in finalizer,
     "cleanup report must preserve exact path/hash evidence",
+)
+require(
+    'prepared_status not in {"PASS", "NO_INBOX"}' in finalizer,
+    "Fab-only/no-inbox projects must not be blocked from zero-ZIP cleanup after full acceptance",
 )
 
 for marker in (
@@ -134,7 +147,9 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 ASSET FINALIZATION GUARD: PASS")
-print("- direct visual PASS requires explicit human confirmation after current automated PASS")
+print("- direct visual PASS requires explicit human confirmation after exact-remote current automated PASS")
+print("- M16/M4 content gap must be closed by a fresh bound payload before 100% finalization")
+print("- Fab-only/no-inbox runs can finalize with zero source ZIPs after the automated gates pass")
 print("- manual/cleanup records are exact-source scoped and fresh ingest invalidates them")
 print("- source ZIP deletion is limited to models_game_OC archives whose SHA-256 is proven by prepared_sources")
 print("- unknown/unproven ZIP blocks cleanup before any archive is deleted")
