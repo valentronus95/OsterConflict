@@ -6,6 +6,7 @@
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -52,11 +53,37 @@ namespace
         FName(TEXT("OC_RPG1")),
     };
 
+    constexpr float FullRackRadiusCm = 1450.0f;
+    const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
+
     bool IsCoreRackId(const FName WeaponId)
     {
         for (const FName CoreId : CoreRackIds)
         {
             if (CoreId == WeaponId) return true;
+        }
+        return false;
+    }
+
+    bool IsDeclaredCatalogId(const FName WeaponId)
+    {
+        for (const FWeaponCatalogEntry& Entry : WeaponCatalog)
+        {
+            if (Entry.WeaponId == WeaponId) return true;
+        }
+        return false;
+    }
+
+    bool HasExactProductionVisual(const AOCWeaponBase& Weapon)
+    {
+        TArray<UPrimitiveComponent*> Components;
+        Weapon.GetComponents<UPrimitiveComponent>(Components);
+        for (const UPrimitiveComponent* Component : Components)
+        {
+            if (Component && Component->ComponentHasTag(ProductionWeaponVisualTag) && Component->IsVisible())
+            {
+                return true;
+            }
         }
         return false;
     }
@@ -90,7 +117,12 @@ void UOCPass45WeaponCatalogSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 void UOCPass45WeaponCatalogSpawnSubsystem::Deinitialize()
 {
-    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(SpawnTimer);
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(SpawnTimer);
+        World->GetTimerManager().ClearTimer(ValidationTimer);
+    }
+    CompletedRackCenter = FVector::ZeroVector;
     ScanPass = 0;
     bRackCompleted = false;
     Super::Deinitialize();
@@ -156,7 +188,6 @@ void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
 
     if (!bFoundAdminCoreRack) return;
 
-    constexpr float FullRackRadiusCm = 1450.0f;
     TSet<FName> LocalIds;
     for (AOCWeaponBase* Weapon : WorldPickups)
     {
@@ -201,10 +232,90 @@ void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
         ++Spawned;
     }
 
+    CompletedRackCenter = RackCenter;
     bRackCompleted = true;
     World->GetTimerManager().ClearTimer(SpawnTimer);
 
+    // Give the local exact-asset bridge enough time to service late admin-created actors before validating.
+    World->GetTimerManager().SetTimer(
+        ValidationTimer,
+        this,
+        &UOCPass45WeaponCatalogSpawnSubsystem::ValidateCompleteWeaponRack,
+        3.20f,
+        false);
+
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_COMPLETE_WEAPON_RACK_READY total_declared=%d local_distinct=%d appended=%d spawn_failures=%d admin_core_trigger=1 duplicate_auto_rack=0 duplicate_weapon_ids=0 runtime_acceptance=0"),
+        TEXT("PASS45_COMPLETE_WEAPON_RACK_READY total_declared=%d local_distinct=%d appended=%d spawn_failures=%d admin_core_trigger=1 duplicate_auto_rack=0 duplicate_weapon_ids=0 exact_visual_validation_pending=1 runtime_acceptance=0"),
         UE_ARRAY_COUNT(WeaponCatalog), LocalIds.Num(), Spawned, SpawnFailures);
+}
+
+void UOCPass45WeaponCatalogSpawnSubsystem::ValidateCompleteWeaponRack()
+{
+    UWorld* World = GetWorld();
+    if (!World || !bRackCompleted) return;
+
+    TMap<FName, int32> CountsById;
+    TSet<FName> ExactVisualIds;
+
+    for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
+    {
+        AOCWeaponBase* Weapon = *It;
+        if (!Weapon || Weapon->IsActorBeingDestroyed() || !Weapon->IsWorldPickup()) continue;
+        if (FVector::DistSquared2D(CompletedRackCenter, Weapon->GetActorLocation()) > FMath::Square(FullRackRadiusCm)) continue;
+
+        const FName WeaponId = Weapon->GetWeaponId();
+        if (!IsDeclaredCatalogId(WeaponId)) continue;
+        CountsById.FindOrAdd(WeaponId) += 1;
+        if (HasExactProductionVisual(*Weapon)) ExactVisualIds.Add(WeaponId);
+    }
+
+    TArray<FString> MissingIds;
+    TArray<FString> MissingExactVisuals;
+    TArray<FString> DuplicateIds;
+    int32 PresentIds = 0;
+    int32 ExactVisualCount = 0;
+
+    for (const FWeaponCatalogEntry& Entry : WeaponCatalog)
+    {
+        const int32 Count = CountsById.FindRef(Entry.WeaponId);
+        if (Count <= 0)
+        {
+            MissingIds.Add(Entry.WeaponId.ToString());
+            continue;
+        }
+
+        ++PresentIds;
+        if (Count > 1)
+        {
+            DuplicateIds.Add(FString::Printf(TEXT("%s:%d"), *Entry.WeaponId.ToString(), Count));
+        }
+
+        if (ExactVisualIds.Contains(Entry.WeaponId))
+        {
+            ++ExactVisualCount;
+        }
+        else
+        {
+            MissingExactVisuals.Add(Entry.WeaponId.ToString());
+        }
+    }
+
+    const int32 DeclaredCount = UE_ARRAY_COUNT(WeaponCatalog);
+    const bool bComplete = PresentIds == DeclaredCount && ExactVisualCount == DeclaredCount && DuplicateIds.IsEmpty();
+    if (bComplete)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY declared=%d present=%d exact_visuals=%d missing_ids=0 missing_exact_visuals=0 duplicate_weapon_ids=0 wrong_identity_substitution=0 runtime_acceptance=0"),
+            DeclaredCount, PresentIds, ExactVisualCount);
+        return;
+    }
+
+    UE_LOG(LogTemp, Error,
+        TEXT("PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP declared=%d present=%d exact_visuals=%d missing_ids=%s missing_exact_visuals=%s duplicate_weapon_ids=%s wrong_identity_substitution=0 runtime_acceptance=0"),
+        DeclaredCount,
+        PresentIds,
+        ExactVisualCount,
+        MissingIds.IsEmpty() ? TEXT("NONE") : *FString::Join(MissingIds, TEXT(",")),
+        MissingExactVisuals.IsEmpty() ? TEXT("NONE") : *FString::Join(MissingExactVisuals, TEXT(",")),
+        DuplicateIds.IsEmpty() ? TEXT("NONE") : *FString::Join(DuplicateIds, TEXT(",")));
 }
