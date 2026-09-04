@@ -1,0 +1,51 @@
+name: One-shot remote branch cleanup
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - '.github/workflows/branch-cleanup-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete every remote branch except main and canonical PASS45
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          KEEP_MAIN: main
+          KEEP_PASS45: fix/pass45-runtime-rejection-material-closure-20260826
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t branches < <(gh api --paginate "repos/${REPO}/branches?per_page=100" --jq '.[].name')
+          for branch in "${branches[@]}"; do
+            if [[ "$branch" == "$KEEP_MAIN" || "$branch" == "$KEEP_PASS45" ]]; then
+              echo "KEEP $branch"
+              continue
+            fi
+            echo "DELETE $branch"
+            gh api --method DELETE "repos/${REPO}/git/refs/heads/${branch}"
+          done
+          echo "Remaining branches:"
+          gh api --paginate "repos/${REPO}/branches?per_page=100" --jq '.[].name'
+
+      - name: Remove this one-shot workflow from the branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: fix/pass45-runtime-rejection-material-closure-20260826
+          FILE: .github/workflows/branch-cleanup-once.yml
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA=$(gh api "repos/${REPO}/contents/${FILE}?ref=${BRANCH}" --jq '.sha')
+          gh api --method DELETE "repos/${REPO}/contents/${FILE}" \
+            -f message='Remove one-shot branch cleanup workflow' \
+            -f sha="$SHA" \
+            -f branch="$BRANCH"
