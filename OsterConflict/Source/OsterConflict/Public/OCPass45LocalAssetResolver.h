@@ -25,6 +25,11 @@ OSTERCONFLICT_API USkeletalMesh* OCPass45FindLocalSkeletalMesh(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens = {});
 
+/** Skeletal equivalent of the strict static-mesh resolver. */
+OSTERCONFLICT_API USkeletalMesh* OCPass45FindLocalSkeletalMeshStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens);
+
 OSTERCONFLICT_API UAnimSequence* OCPass45FindLocalAnimation(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens = {});
