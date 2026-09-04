@@ -111,9 +111,16 @@ def verify_clean_acceptance_source() -> None:
 
 
 def verify_current_automated_status(status: dict, head: str) -> None:
+    if status.get("schema") != "oster-conflict-local-asset-status-v4":
+        raise RuntimeError(f"LOCAL_ASSET_STATUS schema is not current v4: {status.get('schema') or 'MISSING'}")
+
     source_sha = str(status.get("source_sha") or "")
     if source_sha.lower() != head.lower():
         raise RuntimeError(f"LOCAL_ASSET_STATUS source {source_sha or 'UNKNOWN'} != current HEAD {head}")
+    if status.get("import_result_code") != 0:
+        raise RuntimeError(f"current asset import result is not zero: {status.get('import_result_code')}")
+    if status.get("runtime_result_code") != 0:
+        raise RuntimeError(f"current runtime result is not zero: {status.get('runtime_result_code')}")
     if status.get("runtime_scope") != "CURRENT_RUN_COMPLETED":
         raise RuntimeError("full current runtime has not completed successfully")
 
@@ -137,6 +144,22 @@ def verify_current_automated_status(status: dict, head: str) -> None:
         raise RuntimeError("not all discovered models are runtime-bound")
     if bindings.get("unbound"):
         raise RuntimeError("unbound/GAP rows remain in LOCAL_ASSET_STATUS")
+
+    summary = bindings.get("summary") or {}
+    try:
+        summary_unbound = int(summary.get("unbound_models") or 0)
+    except (TypeError, ValueError):
+        raise RuntimeError("binding summary has an invalid unbound_models count")
+    if summary_unbound != 0:
+        raise RuntimeError(f"binding summary still reports unbound models: {summary_unbound}")
+
+    source_status_counts = bindings.get("source_status_counts") or {}
+    try:
+        explicit_unbound = int(source_status_counts.get("UNBOUND") or 0)
+    except (TypeError, ValueError):
+        raise RuntimeError("source_status_counts has an invalid UNBOUND count")
+    if explicit_unbound != 0:
+        raise RuntimeError(f"source_status_counts still contains explicit UNBOUND rows: {explicit_unbound}")
 
     category_counts = bindings.get("category_counts") or {}
     try:
