@@ -84,7 +84,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
 ) else (
   rem Runtime correction branches are explicitly testable before merge. The launcher must fetch/compare
   rem that exact branch instead of forcing main and accidentally making pre-merge acceptance impossible.
-  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/runtime-recovery-" /C:"fix/pass45-runtime-rejection-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
+  echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/runtime-recovery-" /C:"fix/pass45-runtime-rejection-" /C:"fix/pass45-asset-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Normal gameplay playtest is allowed only from main or an explicit runtime-fix branch.
     echo Current branch: %CURRENT_BRANCH%
