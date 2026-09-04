@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
 BASE_IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_all_local_inbox_assets.py"
+WEAPON_NORMALIZER = ROOT / "OsterConflict" / "Scripts" / "normalize_local_weapon_categories.py"
 ENTRYPOINT = ROOT / "START_HERE.cmd"
 COLLECTOR = ROOT / "COLLECT_LOCAL_ASSET_STATUS.py"
 IMPORT_CMD = ROOT / "OsterConflict" / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
@@ -26,6 +27,7 @@ def require(condition: bool, message: str) -> None:
 
 finalizer = read(FINALIZER)
 base_importer = read(BASE_IMPORTER)
+weapon_normalizer = read(WEAPON_NORMALIZER)
 entrypoint = read(ENTRYPOINT)
 collector = read(COLLECTOR)
 import_cmd = read(IMPORT_CMD)
@@ -84,6 +86,29 @@ all_bound_pos = base_importer.find('bindings["all_models_bound"] = len(bindings[
 require(
     -1 not in (unbound_guard_pos, all_bound_pos) and unbound_guard_pos < all_bound_pos,
     "base importer may compute all_models_bound before explicit source_status UNBOUND rows are promoted",
+)
+
+for marker in (
+    "A factual import/load failure",
+    'row_status = str(row.get("status") or "").upper()',
+    'if row_status == "UNBOUND":',
+    "Independent reconciliation: every source_status row still marked UNBOUND after normalization",
+    'if str(row.get("status") or "").upper() != "UNBOUND":',
+    'data["all_models_bound"] = len(retained) == 0',
+):
+    require(marker in weapon_normalizer, f"weapon normalizer lost factual-UNBOUND guard: {marker}")
+
+status_guard_pos = weapon_normalizer.find('if row_status == "UNBOUND":')
+source_promote_pos = weapon_normalizer.find("if source in resolved_sources:", status_guard_pos)
+reconcile_pos = weapon_normalizer.find("Independent reconciliation: every source_status row still marked UNBOUND")
+normalizer_all_bound_pos = weapon_normalizer.find('data["all_models_bound"] = len(retained) == 0')
+require(
+    -1 not in (status_guard_pos, source_promote_pos) and status_guard_pos < source_promote_pos,
+    "weapon normalizer may upgrade factual UNBOUND rows based only on filename/category mapping",
+)
+require(
+    -1 not in (reconcile_pos, normalizer_all_bound_pos) and reconcile_pos < normalizer_all_bound_pos,
+    "weapon normalizer may compute all_models_bound before reconciling explicit UNBOUND source rows",
 )
 
 main_pos = finalizer.find("def main() -> int:")
@@ -205,6 +230,8 @@ if errors:
 print("PASS45 ASSET FINALIZATION GUARD: PASS")
 print("- START_HERE remains the single user-facing launcher and owns finalization after full runtime")
 print("- base importer promotes every explicit source_status UNBOUND row before computing all_models_bound")
+print("- weapon normalization cannot upgrade factual import/load UNBOUND rows from filename matching")
+print("- weapon normalization independently reconciles all explicit UNBOUND rows before all_models_bound")
 print("- finalizer requires exact v4 schema plus explicit import/runtime result code zero")
 print("- finalizer independently rejects summary/source-status UNBOUND counts")
 print("- preflight is non-destructive and runs before the human visual confirmation")
