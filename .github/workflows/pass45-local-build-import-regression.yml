@@ -7,6 +7,7 @@ on:
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
       - 'OsterConflict/Scripts/import_all_local_inbox_assets.py'
+      - 'OsterConflict/Scripts/normalize_local_weapon_categories.py'
       - 'OsterConflict/Scripts/finalize_asset_acceptance.py'
       - 'OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd'
       - 'COLLECT_LOCAL_ASSET_STATUS.py'
