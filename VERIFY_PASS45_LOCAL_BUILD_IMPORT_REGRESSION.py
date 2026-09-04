@@ -167,6 +167,29 @@ require(
     "return 2" in runtime_evidence,
     "runtime evidence verifier no longer returns nonzero when final LOCAL_ASSET_STATUS cannot be written",
 )
+
+# Asset import itself must be tied to the exact current remote head before Unreal is allowed to mutate
+# Content/Saved. Otherwise a stale local branch could produce a fresh-looking snapshot for old code.
+for marker in (
+    ":verify_current_asset_source",
+    'set "CURRENT_ASSET_BRANCH="',
+    'set "LOCAL_ASSET_HEAD="',
+    'set "REMOTE_ASSET_HEAD="',
+    'git -C "%~dp0" fetch origin "%CURRENT_ASSET_BRANCH%"',
+    'git -C "%~dp0" rev-parse HEAD',
+    'git -C "%~dp0" rev-parse "origin/%CURRENT_ASSET_BRANCH%"',
+    'if /I not "%LOCAL_ASSET_HEAD%"=="%REMOTE_ASSET_HEAD%"',
+    "UE import на застарілому HEAD не запускається",
+    "call :verify_current_asset_source",
+):
+    require(marker in start_here, f"START_HERE exact-head asset precheck lost {marker}")
+for exit_code in ("exit /b 66", "exit /b 67", "exit /b 68", "exit /b 69", "exit /b 70"):
+    require(exit_code in start_here, f"START_HERE lost exact-head asset precheck code {exit_code}")
+require(
+    start_here.index("call :verify_current_asset_source") < start_here.index('if not exist "%ALL_ASSET_IMPORT%"') < start_here.index('call "%ALL_ASSET_IMPORT%"'),
+    "START_HERE must verify exact remote head before any asset importer execution",
+)
+
 for marker in (
     'set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"',
     'set "ASSET_STATUS_TEXT=%~dp0OsterConflict\\Saved\\AssetStatus\\LOCAL_ASSET_STATUS.txt"',
@@ -254,6 +277,7 @@ print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy"
 print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- stale aggregate PASS is cleared before a fresh import run")
+print("- asset ingest is blocked unless local HEAD exactly matches fetched origin/current-branch")
 print("- import-only LOCAL_ASSET_STATUS cannot reuse stale runtime/material/evidence PASS")
 print("- stale LOCAL_ASSET_STATUS files are deleted before every fresh collection")
 print("- successful import fails closed unless fresh LOCAL_ASSET_STATUS txt/json both exist")
