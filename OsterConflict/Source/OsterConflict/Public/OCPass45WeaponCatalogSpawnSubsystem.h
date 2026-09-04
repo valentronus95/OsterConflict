@@ -22,7 +22,11 @@ public:
 
 private:
     void CompleteRequestedWeaponRack();
+    void ValidateCompleteWeaponRack();
+
     FTimerHandle SpawnTimer;
+    FTimerHandle ValidationTimer;
+    FVector CompletedRackCenter = FVector::ZeroVector;
     int32 ScanPass = 0;
     bool bRackCompleted = false;
 };
