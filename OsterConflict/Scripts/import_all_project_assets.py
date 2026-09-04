@@ -10,26 +10,22 @@ STATE_ROOT = PROJECT_DIR / "Saved" / "LocalModelInbox"
 BINDINGS = STATE_ROOT / "runtime_bindings.json"
 SUCCESS = STATE_ROOT / "runtime_bindings_success.txt"
 
-# These are the asset packs that arrived through Unreal/Fab/Marketplace or the production import path.
-# Core authored game roots (R13, QuantumCharacter, Maps, UI) are intentionally not duplicated into this pool.
-PROJECT_CONTENT_ROOTS = [
-    "/Game/AK-47",
-    "/Game/AdvancedVillagePack",
-    "/Game/Fab",
-    "/Game/Fire_EXP_Vol01_Free",
-    "/Game/KiteDemo",
-    "/Game/Mega_Street_Props_Pack",
-    "/Game/Megaplant_Library",
-    "/Game/Modular_Rural_Cabin",
-    "/Game/PN_FoliageCollection",
-    "/Game/PotaVFX_Smoke",
-    "/Game/Production",
-    "/Game/Scene_RoadsideConstruction",
-    "/Game/Scene_UnfinishedBuilding",
-    "/Game/Street_Props_Pack_V1",
-    "/Game/TileableForestRoad",
-    "/Game/VehicleVarietyPack",
-]
+# Scan every project/plugin content mount that Unreal actually knows about. This avoids the old
+# brittle hard-coded pack list, so assets downloaded later through Fab/Marketplace are picked up
+# automatically without another source edit.
+CORE_AUTHORED_PREFIXES = (
+    "/Game/R13",
+    "/Game/QuantumCharacter",
+    "/Game/Maps",
+    "/Game/UI",
+)
+IGNORED_MOUNT_PREFIXES = (
+    "/Engine",
+    "/Script",
+    "/Temp",
+    "/Transient",
+    "/Memory",
+)
 
 
 def _asset_class_name(asset_data):
@@ -69,9 +65,42 @@ def _dedupe(bindings, key):
     bindings[key] = unique
 
 
+def _is_core_authored_path(object_path):
+    package = object_path.split(".", 1)[0]
+    return any(package == prefix or package.startswith(prefix + "/") for prefix in CORE_AUTHORED_PREFIXES)
+
+
+def _discover_content_mounts(registry):
+    roots = {"/Game"}
+    try:
+        cached_paths = registry.get_all_cached_paths()
+    except Exception:
+        cached_paths = []
+
+    for raw_path in cached_paths:
+        path = str(raw_path).replace("\\", "/")
+        if not path.startswith("/"):
+            continue
+        if any(path == prefix or path.startswith(prefix + "/") for prefix in IGNORED_MOUNT_PREFIXES):
+            continue
+        parts = path.strip("/").split("/", 1)
+        if parts and parts[0]:
+            roots.add("/" + parts[0])
+
+    return sorted(roots)
+
+
 def _catalog_existing_project_models(bindings, quantum_skeleton_path):
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
-    registry.scan_paths_synchronous(PROJECT_CONTENT_ROOTS, True)
+
+    # Prime /Game first so Fab/Marketplace folders are visible, then discover any project plugin mounts.
+    registry.scan_paths_synchronous(["/Game"], True)
+    content_roots = _discover_content_mounts(registry)
+    try:
+        registry.scan_paths_synchronous(content_roots, True)
+    except Exception:
+        # /Game is always the minimum valid project mount; individual plugin paths are handled below.
+        registry.scan_paths_synchronous(["/Game"], True)
 
     existing_paths = {entry.get("path") for entry in bindings.get("static_assets", [])}
     existing_paths.update(entry.get("path") for entry in bindings.get("skeletal_assets", []))
@@ -80,12 +109,22 @@ def _catalog_existing_project_models(bindings, quantum_skeleton_path):
     static_count = 0
     skeletal_count = 0
     failures = []
+    scanned_roots = []
 
-    for root in PROJECT_CONTENT_ROOTS:
+    for root in content_roots:
         try:
             assets = registry.get_assets_by_path(root, recursive=True, include_only_on_disk_assets=False)
         except TypeError:
-            assets = registry.get_assets_by_path(root, True)
+            try:
+                assets = registry.get_assets_by_path(root, True)
+            except Exception as exc:
+                failures.append({
+                    "source": f"PROJECT_CONTENT:{root}",
+                    "category": "UNCLASSIFIED",
+                    "status": "UNBOUND",
+                    "reason": f"asset_registry_scan_failed:{type(exc).__name__}:{exc}",
+                })
+                continue
         except Exception as exc:
             failures.append({
                 "source": f"PROJECT_CONTENT:{root}",
@@ -95,6 +134,7 @@ def _catalog_existing_project_models(bindings, quantum_skeleton_path):
             })
             continue
 
+        scanned_roots.append(root)
         for data in assets:
             class_name = _asset_class_name(data)
             if "StaticMesh" not in class_name and "SkeletalMesh" not in class_name:
@@ -108,6 +148,8 @@ def _catalog_existing_project_models(bindings, quantum_skeleton_path):
                     "status": "UNBOUND",
                     "reason": "asset_registry_object_path_missing",
                 })
+                continue
+            if _is_core_authored_path(object_path):
                 continue
             if object_path in existing_paths:
                 continue
@@ -157,7 +199,7 @@ def _catalog_existing_project_models(bindings, quantum_skeleton_path):
                 existing_paths.add(object_path)
 
     bindings.setdefault("unbound_models", []).extend(failures)
-    return discovered, static_count, skeletal_count, failures
+    return discovered, static_count, skeletal_count, failures, scanned_roots
 
 
 def main():
@@ -171,7 +213,7 @@ def main():
     quantum = inbox.load_asset(inbox.QUANTUM_BODY)
     quantum_skeleton_path = inbox.skeleton_path(quantum)
 
-    discovered, static_count, skeletal_count, failures = _catalog_existing_project_models(
+    discovered, static_count, skeletal_count, failures, scanned_roots = _catalog_existing_project_models(
         bindings, quantum_skeleton_path
     )
 
@@ -206,22 +248,23 @@ def main():
         "unbound_models": len(bindings["unbound_models"]),
     }
     bindings["all_models_bound"] = len(bindings["unbound_models"]) == 0
-    bindings["project_content_roots"] = PROJECT_CONTENT_ROOTS
+    bindings["project_content_roots"] = scanned_roots
+    bindings["excluded_core_authored_roots"] = list(CORE_AUTHORED_PREFIXES)
 
     BINDINGS.write_text(json.dumps(bindings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     if bindings["all_models_bound"]:
         SUCCESS.write_text("PASS45_LOCAL_INBOX_IMPORT_BINDING=PASS\n", encoding="utf-8")
         inbox.log(
-            "PASS local inbox + UE/Fab project model catalog bound. "
-            f"summary={bindings['summary']} manifest={BINDINGS}"
+            "PASS local inbox + UE/Fab/project-plugin model catalog bound. "
+            f"summary={bindings['summary']} roots={scanned_roots} manifest={BINDINGS}"
         )
     else:
         if SUCCESS.exists():
             SUCCESS.unlink()
         inbox.warn(
-            "GAP local inbox + project content contains unbound models. "
-            f"count={len(bindings['unbound_models'])} manifest={BINDINGS}"
+            "GAP local inbox + project/plugin content contains unbound models. "
+            f"count={len(bindings['unbound_models'])} roots={scanned_roots} manifest={BINDINGS}"
         )
 
 
