@@ -88,6 +88,23 @@ def _read_status_sentinel(path):
 
 def _run_required_ingest(label, runner, sentinel, reason):
     try:
+        if sentinel.exists():
+            sentinel.unlink()
+    except Exception as exc:
+        failure = {
+            "source": f"REQUIRED_INGEST:{label}",
+            "category": "PRODUCTION_REQUIRED",
+            "status": "UNBOUND",
+            "reason": f"{reason}_sentinel_reset_failed:{type(exc).__name__}:{exc}",
+            "sentinel": str(sentinel),
+        }
+        inbox.warn(
+            f"{label} stale status sentinel could not be cleared; aggregate asset PASS is blocked: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return [failure]
+
+    try:
         runner()
     except Exception as exc:
         failure = {
