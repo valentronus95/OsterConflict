@@ -33,6 +33,16 @@ TRACKED_ACCEPTANCE_SOURCE = (
     "OsterConflict/Source",
 )
 
+VISUAL_CHECKLIST = (
+    "HMMWV scale/orientation/materials and usable vehicle presentation",
+    "M2 Browning mount/alignment/pitch/muzzle presentation",
+    "BTR-4 proportions/orientation/materials",
+    "all discovered weapon models including M16/M4 family",
+    "buildings/props/furniture/fences/foliage/roads/terrain/water",
+    "character skins and HUD/UI assets that were discovered and bound",
+    "no obvious placeholder, broken material, absurd scale, or detached mesh",
+)
+
 
 def fail(message: str, code: int = 1) -> int:
     print(f"[FINALIZE STOP] {message}")
@@ -72,6 +82,18 @@ def sha256(path: Path) -> str:
 
 def relative(path: Path) -> str:
     return str(path.resolve().relative_to(ROOT.resolve())).replace("\\", "/")
+
+
+def verify_exact_remote_head(head: str) -> None:
+    branch = git_output("branch", "--show-current")
+    if not branch:
+        raise RuntimeError("current Git branch is unknown; final acceptance refused")
+    git_output("fetch", "origin", branch)
+    remote = git_output("rev-parse", f"origin/{branch}")
+    if remote.lower() != head.lower():
+        raise RuntimeError(
+            f"local HEAD {head} != origin/{branch} {remote}; pull current branch and rerun acceptance"
+        )
 
 
 def verify_clean_acceptance_source() -> None:
@@ -117,10 +139,19 @@ def verify_current_automated_status(status: dict, head: str) -> None:
     if bindings.get("unbound"):
         raise RuntimeError("unbound/GAP rows remain in LOCAL_ASSET_STATUS")
 
+    category_counts = bindings.get("category_counts") or {}
+    try:
+        m16_m4_count = int(category_counts.get("M16_M4") or 0)
+    except (TypeError, ValueError):
+        m16_m4_count = 0
+    if m16_m4_count < 1:
+        raise RuntimeError("M16/M4 production content gap is still open; fresh manifest has no M16_M4 payload")
+
 
 def verify_prepared_manifest(prepared: dict) -> set[str]:
-    if str(prepared.get("status") or "").upper() != "PASS":
-        raise RuntimeError(f"prepared_sources status is not PASS: {prepared.get('status')}")
+    prepared_status = str(prepared.get("status") or "").upper()
+    if prepared_status not in {"PASS", "NO_INBOX"}:
+        raise RuntimeError(f"prepared_sources status is not PASS/NO_INBOX: {prepared.get('status')}")
     if prepared.get("conflicts"):
         raise RuntimeError("prepared_sources still contains package conflicts")
 
@@ -171,13 +202,16 @@ def write_manual_acceptance(head: str) -> None:
         "source_sha": head,
         "accepted_at_utc": now,
         "assertion": "User explicitly confirmed direct visual inspection after automated UE/runtime acceptance.",
+        "checklist": list(VISUAL_CHECKLIST),
     }
     STATUS_DIR.mkdir(parents=True, exist_ok=True)
     MANUAL_JSON.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     MANUAL_TEXT.write_text(
         "PASS45_MANUAL_VISUAL_ACCEPTANCE=PASS\n"
         f"SOURCE_SHA={head}\n"
-        f"ACCEPTED_AT_UTC={now}\n",
+        f"ACCEPTED_AT_UTC={now}\n"
+        + "\n".join(f"CHECKED={item}" for item in VISUAL_CHECKLIST)
+        + "\n",
         encoding="utf-8",
     )
 
@@ -224,6 +258,7 @@ def main() -> int:
         head = git_output("rev-parse", "HEAD")
         if not head:
             return fail("could not determine current Git HEAD", 3)
+        verify_exact_remote_head(head)
         verify_clean_acceptance_source()
 
         current = load_json(STATUS_JSON)
@@ -235,7 +270,7 @@ def main() -> int:
     except Exception as exc:
         return fail(str(exc), 4)
 
-    # Manual PASS is written only after every automated/source/ZIP preflight above succeeded.
+    # Manual PASS is written only after every automated/source/content/ZIP preflight above succeeded.
     write_manual_acceptance(head)
 
     deleted: list[dict] = []
@@ -254,7 +289,7 @@ def main() -> int:
             pass
         return fail(f"ZIP cleanup did not complete: {exc}", 5)
 
-    print("[FINALIZE PASS] Direct visual acceptance recorded for exact current HEAD.")
+    print("[FINALIZE PASS] Direct visual acceptance recorded for exact current remote HEAD.")
     print(f"[FINALIZE PASS] Safely deleted {len(deleted)} manifest-proven source ZIP(s).")
     print(f"[FINALIZE PASS] Consolidated status refreshed: {STATUS_TEXT}")
     return 0
