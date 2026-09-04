@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
+BASE_IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_all_local_inbox_assets.py"
 ENTRYPOINT = ROOT / "START_HERE.cmd"
 COLLECTOR = ROOT / "COLLECT_LOCAL_ASSET_STATUS.py"
 IMPORT_CMD = ROOT / "OsterConflict" / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
@@ -24,6 +25,7 @@ def require(condition: bool, message: str) -> None:
 
 
 finalizer = read(FINALIZER)
+base_importer = read(BASE_IMPORTER)
 entrypoint = read(ENTRYPOINT)
 collector = read(COLLECTOR)
 import_cmd = read(IMPORT_CMD)
@@ -38,6 +40,9 @@ for marker in (
     'git_output("rev-parse", f"origin/{branch}")',
     "verify_clean_acceptance_source()",
     "verify_current_automated_status(current, head)",
+    'status.get("schema") != "oster-conflict-local-asset-status-v4"',
+    'status.get("import_result_code") != 0',
+    'status.get("runtime_result_code") != 0',
     'status.get("runtime_scope") != "CURRENT_RUN_COMPLETED"',
     '"local_ue_import"',
     '"live_runtime_hookup"',
@@ -47,6 +52,9 @@ for marker in (
     'production.get("weapons_status") != "PASS"',
     'bindings.get("all_models_bound")',
     'bindings.get("unbound")',
+    'summary.get("unbound_models")',
+    'source_status_counts.get("UNBOUND")',
+    "source_status_counts still contains explicit UNBOUND rows",
     'category_counts.get("M16_M4")',
     "M16/M4 production content gap is still open",
     'prepared_status not in {"PASS", "NO_INBOX"}',
@@ -63,6 +71,21 @@ for marker in (
 ):
     require(marker in finalizer, f"finalizer lost fail-closed marker: {marker}")
 
+for marker in (
+    "Fail closed on every source row the importer itself explicitly classified as UNBOUND",
+    'if str(status.get("status") or "").upper() != "UNBOUND":',
+    'bindings["unbound_models"].append(status)',
+    'bindings["all_models_bound"] = len(bindings["unbound_models"]) == 0',
+):
+    require(marker in base_importer, f"base importer lost explicit-UNBOUND fail-closed marker: {marker}")
+
+unbound_guard_pos = base_importer.find("Fail closed on every source row")
+all_bound_pos = base_importer.find('bindings["all_models_bound"] = len(bindings["unbound_models"]) == 0')
+require(
+    -1 not in (unbound_guard_pos, all_bound_pos) and unbound_guard_pos < all_bound_pos,
+    "base importer may compute all_models_bound before explicit source_status UNBOUND rows are promoted",
+)
+
 main_pos = finalizer.find("def main() -> int:")
 if main_pos < 0:
     errors.append("finalizer main() is missing")
@@ -77,6 +100,19 @@ else:
         all(pos >= 0 for pos in call_positions) and call_positions == sorted(call_positions),
         "finalizer can mutate acceptance/ZIP state before preflight completes",
     )
+
+schema_pos = finalizer.find('status.get("schema") != "oster-conflict-local-asset-status-v4"')
+source_pos = finalizer.find('source_sha = str(status.get("source_sha") or "")')
+import_code_pos = finalizer.find('status.get("import_result_code") != 0')
+runtime_code_pos = finalizer.find('status.get("runtime_result_code") != 0')
+runtime_scope_pos = finalizer.find('status.get("runtime_scope") != "CURRENT_RUN_COMPLETED"')
+source_status_pos = finalizer.find('source_status_counts.get("UNBOUND")')
+m16_pos = finalizer.find('category_counts.get("M16_M4")')
+require(
+    -1 not in (schema_pos, source_pos, import_code_pos, runtime_code_pos, runtime_scope_pos, source_status_pos, m16_pos)
+    and schema_pos < source_pos < import_code_pos < runtime_code_pos < runtime_scope_pos < source_status_pos < m16_pos,
+    "finalizer lost strict current-schema/result/unbound ordering before content finalization",
+)
 
 require(
     "shutil.rmtree" not in finalizer and "os.remove(INBOX" not in finalizer,
@@ -168,6 +204,9 @@ if errors:
 
 print("PASS45 ASSET FINALIZATION GUARD: PASS")
 print("- START_HERE remains the single user-facing launcher and owns finalization after full runtime")
+print("- base importer promotes every explicit source_status UNBOUND row before computing all_models_bound")
+print("- finalizer requires exact v4 schema plus explicit import/runtime result code zero")
+print("- finalizer independently rejects summary/source-status UNBOUND counts")
 print("- preflight is non-destructive and runs before the human visual confirmation")
 print("- direct visual PASS requires explicit confirmation after exact-remote current automated PASS")
 print("- M16/M4 content gap must be closed by a fresh bound payload before 100% finalization")
