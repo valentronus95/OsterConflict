@@ -11,6 +11,7 @@ set "PROJECT_DIR=%~dp0OsterConflict"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
 set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\weapon_runtime_validation.txt"
+set "LOCAL_INBOX_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_inbox_runtime_validation.txt"
 
 :menu
 cls
@@ -83,6 +84,7 @@ if not "%INBOX_RC%"=="0" (
   exit /b %INBOX_RC%
 )
 
+if exist "%LOCAL_INBOX_RUNTIME_REPORT%" del /q "%LOCAL_INBOX_RUNTIME_REPORT%" >nul 2>nul
 set "OC_FORCE_ACCEPTANCE=1"
 set "OC_RHI_COMPAT=0"
 call "%CURRENT_GAMEPLAY%"
@@ -93,6 +95,19 @@ if not "%GAME_RC%"=="0" (
   echo [STOP] Runtime acceptance failed: %GAME_RC%
   exit /b %GAME_RC%
 )
+
+if not exist "%LOCAL_INBOX_RUNTIME_REPORT%" (
+  echo [STOP] Не отримано live runtime proof для models_game_OC.
+  echo Очікувався файл: %LOCAL_INBOX_RUNTIME_REPORT%
+  exit /b 35
+)
+findstr /L /C:"PASS45_LOCAL_INBOX_RUNTIME=PASS" "%LOCAL_INBOX_RUNTIME_REPORT%" >nul
+if errorlevel 1 (
+  echo [STOP] Не всі локальні моделі реально завантажились у gameplay runtime.
+  type "%LOCAL_INBOX_RUNTIME_REPORT%"
+  exit /b 36
+)
+echo [MODEL INBOX] PASS: усі прив'язані моделі реально відкрились у gameplay runtime.
 
 call "%MATERIAL_GATE%"
 set "MATERIAL_RC=%ERRORLEVEL%"
@@ -121,6 +136,7 @@ if not "%EVIDENCE_RC%"=="0" exit /b %EVIDENCE_RC%
 
 echo ============================================================
 echo PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED.
+echo ALL models_game_OC assets also passed live runtime loading.
 echo VISUAL ACCEPTANCE IS STILL PENDING direct observation.
 echo ============================================================
 exit /b 0
