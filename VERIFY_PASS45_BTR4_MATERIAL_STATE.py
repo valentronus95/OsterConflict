@@ -30,6 +30,20 @@ for phase in ("ApplyVehicleStyle", "PossessedBy", "UnPossessed", "PawnClientRest
     require(f'ValidateProductionBTR4MaterialState(TEXT("{phase}"))' in btr_cpp,
             f"BTR revalidates material state at {phase}")
 
+# Exact BTR-4 is the only presentation owner. If its production asset is missing/invalid, all old
+# cube/cylinder hull/turret proxies must stay retired instead of masquerading as a second BTR visual.
+for marker in (
+    "PASS45_BTR4_PRODUCTION_VISUAL_GAP",
+    "blockout_substitution=0",
+    "primitive_hull_visible=0",
+    "primitive_turret_visible=0",
+):
+    require(marker in btr_cpp, f"BTR production-shell fail-closed marker present: {marker}")
+require("DisableVisualProxy(Chassis);" in btr_cpp,
+        "missing BTR production shell hides the legacy chassis visual")
+require("DisableVisualProxy(TurretBaseMesh);" in btr_cpp and "DisableVisualProxy(BarrelMesh);" in btr_cpp,
+        "missing BTR production shell hides primitive turret/barrel visuals")
+
 require('MeshPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/"))' in btr_cpp,
         "material guard is scoped to production BTR-4 mesh")
 require('MaterialPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/"))' in btr_cpp,
@@ -48,6 +62,7 @@ require('Chassis->SetVisibility(true, true);' in btr_cpp and 'Chassis->SetHidden
         "valid authored BTR is restored visible")
 
 print("PASS45 BTR4 MATERIAL STATE VERIFY PASS")
+print("- exact BTR-4 production shell is the single visual owner; blockout substitution is retired")
 print("- production materials survive base tint bypass and are revalidated before/after possession")
 print("- null/default/BasicShape BTR material slots fail closed instead of rendering a white vehicle")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 rendered possession validation remains authoritative")
