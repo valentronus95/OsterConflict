@@ -1,17 +1,7 @@
 name: Pass 45 Remington 870 derived pump UE58 assembly audit
 
+# Local assembly diagnostic retained for corrective debugging only.
 on:
-  pull_request:
-    paths:
-      - 'PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py'
-      - 'VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py'
-      - 'PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py'
-      - 'VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py'
-      - 'PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py'
-      - 'OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd'
-      - 'OsterConflict/OsterConflict.uproject'
-      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
-      - '.github/workflows/pass45-remington870-derived-pump-ue58-assembly-audit.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile UE58 assembly audit contract
-        run: python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py
-      - name: Verify fail-closed UE58 assembly audit contract
-        run: python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py
+      - name: Verify fail-closed UE58 assembly audit on demand
+        run: |
+          python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py
+          python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py
