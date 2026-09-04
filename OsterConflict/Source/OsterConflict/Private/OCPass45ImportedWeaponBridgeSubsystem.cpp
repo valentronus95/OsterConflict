@@ -49,21 +49,21 @@ namespace
     {
         if (DisplayName.Equals(TEXT("M1911"), ESearchCase::IgnoreCase))
         {
-            return OCPass45FindLocalStaticMesh(
+            return OCPass45FindLocalStaticMeshStrict(
                 { FName(TEXT("/Game/colt-m1911")) },
-                { TEXT("1911"), TEXT("colt"), TEXT("pistol") });
+                { TEXT("1911"), TEXT("colt") });
         }
         if (DisplayName.Equals(TEXT("Remington 870"), ESearchCase::IgnoreCase))
         {
-            return OCPass45FindLocalStaticMesh(
+            return OCPass45FindLocalStaticMeshStrict(
                 { FName(TEXT("/Game/shotgun")) },
-                { TEXT("shotgun"), TEXT("remington"), TEXT("weapon") });
+                { TEXT("remington"), TEXT("870") });
         }
         if (DisplayName.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
         {
-            return OCPass45FindLocalStaticMesh(
+            return OCPass45FindLocalStaticMeshStrict(
                 { FName(TEXT("/Game/AK-47")) },
-                { TEXT("ak-47"), TEXT("ak47"), TEXT("weapon") });
+                { TEXT("ak-47"), TEXT("ak47") });
         }
         return nullptr;
     }
