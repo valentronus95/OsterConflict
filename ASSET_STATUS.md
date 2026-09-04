@@ -83,9 +83,9 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 | Present | Integration | Asset / pack | Evidence / current state |
 |---|---|---|---|
-| ✅ | 🟡 | Advanced Village Pack | `Content/AdvancedVillagePack/`; world/building content present; selected runtime use only |
-| ✅ LOCAL | 🟡 | Five-story post-Soviet apartment building | `Content/fivestory-building-appartament-of-post-soviet/`; building bridge exists; final correct placement pending |
-| ✅ | 🟡 | Modular Rural Cabin | `Content/Modular_Rural_Cabin/`; available for Oster housing; final placement pending |
+| ✅ | 🟡 | Advanced Village Pack | `Content/AdvancedVillagePack/`; usable house content is now a strict fallback candidate for the named Krushelnytska private house; broader selected runtime use remains pending UE acceptance |
+| ✅ LOCAL | 🟡 | Five-story post-Soviet apartment building | `Content/fivestory-building-appartament-of-post-soviet/`; building bridge exists but it is explicitly barred from impersonating the Krushelnytska private house; intentional apartment placement still pending |
+| ✅ | 🟡 | Modular Rural Cabin | `Content/Modular_Rural_Cabin/`; strict house/cabin mesh now feeds the existing zero-instance `Buildings` owner at the named Krushelnytska anchor, with uniform bounds fit and no generic residential grid resurrection; UE acceptance pending |
 | 🟡 REPORT | ❌ | Modular Urban Houses | user-added pack; exact local root must be reconciled and buildings placed intentionally |
 | 🟡 REPORT | ❌ | Unfinished / construction building pack | previously visible/imported building content; exact current package root pending reconciliation |
 | ✅ | 🟡 | Open World Demo Collection / KiteDemo | `Content/KiteDemo/`; foliage/trees used, ground/rocks only partially integrated |
@@ -111,7 +111,7 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ | 🟡 | Sidewalk 01 | tracked `Scene_RoadsideConstruction/.../SM_Urb_Roa_Sidewalk_01`; current world-surface owner replaces source Sidewalks while preserving topology; UE acceptance pending |
 | 🟡 REPORT | ❌ | Realistic Asphalt Material PBR | separate user-added surface pack; exact local root/material cutover pending |
 | 🟡 REPORT | ❌ | Tileable Pine Forest Road | user-added road/surface pack; exact local root/runtime placement pending |
-| ✅ | 🟡 | Roadside Construction | tracked `Content/Scene_RoadsideConstruction/`; road/sidewalk surfaces plus exact cement-bag, debris-bucket and cable-wheel construction props now feed the authoritative Sidewalks-based runtime dressing layer; UE acceptance pending |
+| ✅ | 🟡 | Roadside Construction | tracked `Content/Scene_RoadsideConstruction/`; road/sidewalk surfaces plus cement bags, debris buckets, cable wheels, Jersey barriers, gravel piles, wheelbarrows, toolboxes, pallets, orange barrels, metal barricades, traffic cones, bollards and common shrubs now feed the authoritative Sidewalks-based runtime dressing layer; UE acceptance pending |
 | 🟡 REPORT | ❌ | Free Furniture Pack | user-added furniture pack; exact local root and interior placement pending |
 
 ## Vegetation and terrain
@@ -163,7 +163,7 @@ These items are already in the inventory and may not be forgotten merely because
 1. Record exact local package/model names for the **new Fab RPG**, AKS-74U, revolver and rubble mesh after UE exposes them, and enumerate the still-unresolved additional pistol, FPS Weapon Bundle and all additional character packs. The RPG, AKS-74U, revolver and rubble runtime bridges are already coded and no longer wait on exact folder names.
 2. Resolve the exact local roots for Modular Urban Houses, City Streets Props, the separate Realistic Asphalt PBR pack, forest road, Free Furniture, Temperate Vegetation and the additional fence packs. Street Props Vol.2 is no longer in this unresolved set because its tracked root is now verified.
 3. Bind the four new grenade models as **Frag A / Frag B / Smoke / Flash**, then retire the legacy shared R13 grenade visual from active use.
-4. Finish intentional building/world placement. Importing a house pack into Content is not the same as placing the correct house on the Oster map.
+4. Continue intentional building/world placement: the named Krushelnytska private house is now wired through the existing `Buildings` owner; apartment/urban-house/construction-building imports still need factual locations and must not revive the retired generic residential grid.
 5. Run one integrated UE 5.8 current-head acceptance after the broad asset batch is ready; only then promote runtime/visual/audio rows from `🟡` to `✅`.
 
 ## Current truth
@@ -173,9 +173,10 @@ These items are already in the inventory and may not be forgotten merely because
 - Duplicate donor-root rows were removed; each donor stays represented by its functional row(s) instead of being counted twice under a second generic root entry.
 - AKS-74U, the newly added Fab RPG and the revolver now have distinct gameplay IDs/catalog entries and strict local visual resolution. They remain `🟡` until UE 5.8 proves the local models selected and rendered correctly.
 - The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
-- `Scene_RoadsideConstruction` now supplies both authored road/sidewalk surfaces and exact sparse construction props: cement bags, debris buckets and cable wheels.
+- The named Krushelnytska private-house slot now uses the existing `Buildings` owner and a strict Rural-Cabin/Advanced-Village house resolver; the five-storey apartment is forbidden as a private-house substitution and the old generic residential grid stays retired.
+- `Scene_RoadsideConstruction` now supplies authored road/sidewalk surfaces plus a broader exact worksite vocabulary: cement bags, debris buckets, cable wheels, Jersey barriers, gravel piles, wheelbarrows, toolboxes, pallets, orange barrels, metal barricades, traffic cones, bollards and shrubs.
 - First-person long-gun arms now select Sample Animation Pack hip/ADS idle plus forward/back/left/right locomotion by actual local movement direction, with skeleton compatibility still fail-closed until UE acceptance.
-- The existing park/city prop layer now adds selected imported bins, lamps, bicycle stands, flower pots, bus stops, road signs, barriers and pylons. Bus stops/signs/construction dressing derive from the authoritative `Sidewalks` topology rather than inventing another road layout.
+- The existing park/city prop layer adds imported bins, lamps, bicycle stands, flower pots, bus stops, road signs, barriers, pylons and construction dressing. Every road-side layer derives from the authoritative `Sidewalks` topology rather than inventing another road layout.
 - The sardine-can and Ukrainian cherry-juice imports now have strict local runtime bridges and are used as sparse bench-top detail instead of remaining dead Content Browser payload.
 - This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
 - Formal PASS45 progress remains separate from asset-integration progress.
