@@ -72,10 +72,10 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 | Present | Integration | Asset / pack | Evidence / current state |
 |---|---|---|---|
-| ✅ | 🟡 | Quantum Modular Character / QuantumCharacter | `Content/QuantumCharacter/`; arms/modules available; FP/runtime integration not fully accepted |
-| ✅ LOCAL | 🟡 | FPSArms3D donor | `SourceAssets/ThirdParty/Gameplay/FPSArms3D/`; first-person arms donor |
+| ✅ | 🟡 | Quantum Modular Character / QuantumCharacter | `Content/QuantumCharacter/`; production body and `SKM_Arms` are wired; Quantum idle/walk/run/fall are skeleton-checked at runtime; UE acceptance pending |
+| ✅ LOCAL | 🟡 | FPSArms3D donor | `SourceAssets/ThirdParty/Gameplay/FPSArms3D/`; first-person arms donor retained, not a second runtime owner |
 | ✅ LOCAL | 🟡 | FPSAssetKit donor | `SourceAssets/ThirdParty/Gameplay/FPSAssetKit/`; donor inventory retained locally |
-| ✅ | 🟡 | Sample Animation Pack / Free Animation Pack | `Content/SampleAnimationPack/`; animations present, runtime use only partially accepted |
+| ✅ | 🟡 | Sample Animation Pack / Free Animation Pack | `Content/SampleAnimationPack/`; rifle hip + ADS idle and forward/back/left/right locomotion are now selected from local movement direction for long-gun FP arms; UE skeleton/visual acceptance pending |
 | 🟡 LOCAL PROJECT | ❌ | Game Animation Sample | separate local UE project; inventory/integration into OsterConflict not complete |
 | 🟡 REPORT | ❌ | Additional Fab character packs | user reported several character packs; exact package names must be appended when locally enumerated |
 
@@ -96,9 +96,9 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 | Present | Integration | Asset / pack | Evidence / current state |
 |---|---|---|---|
-| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park bench/fence and selected props wired; full pack not blanket-spawned |
-| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/`; available, selected runtime use pending/partial |
-| 🟡 REPORT | 🟡 | Street Props Pack Vol.2 | user-added pack; selected meshes are already referenced through current Street Props content, exact root reconciliation pending |
+| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park benches/fences plus runtime park bins, lamps, bicycle stands and flower pots are wired intentionally; UE acceptance pending |
+| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/` and mirrored V1 content under Mega pack; selected flower-pot/bin content now participates in the park prop layer; UE acceptance pending |
+| ✅ | 🟡 | Street Props Pack Vol.2 | tracked exact root `Content/Mega_Street_Props_Pack/Street_Props_pack_V2/`; `SM_Lamp_1` and `SM_Bicycle_Stand_1` are now runtime park props; UE acceptance pending |
 | ✅ LOCAL | 🟡 | Military Trenches Barrier Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Barrier_Sandbag_Canvas_Square_01_yd0kbfl/High/`; runtime bridge written, UE validation pending |
 | ✅ LOCAL | 🟡 | Military Trenches Pile Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Pile_Sandbag_Canvas_01_yd0tae2/High/`; runtime bridge written, UE validation pending |
 | ✅ LOCAL | 🟡 | PO-2 fence | `Content/po-2-fence/`; available local fence model |
@@ -166,7 +166,7 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 These items are already in the inventory and may not be forgotten merely because Git ignores their payload:
 
 1. Record exact local package/model names for the **new Fab RPG**, AKS-74U, revolver and rubble mesh after UE exposes them, and enumerate the still-unresolved additional pistol, FPS Weapon Bundle and all additional character packs. The RPG, AKS-74U, revolver and rubble runtime bridges are already coded and no longer wait on exact folder names.
-2. Resolve the exact local roots for Modular Urban Houses, Street Props Vol.2, City Streets Props, the separate Realistic Asphalt PBR pack, forest road, Free Furniture, Temperate Vegetation and the additional fence packs.
+2. Resolve the exact local roots for Modular Urban Houses, City Streets Props, the separate Realistic Asphalt PBR pack, forest road, Free Furniture, Temperate Vegetation and the additional fence packs. Street Props Vol.2 is no longer in this unresolved set because its tracked root is now verified.
 3. Bind the four new grenade models as **Frag A / Frag B / Smoke / Flash**, then retire the legacy shared R13 grenade visual from active use.
 4. Finish intentional building/world placement. Importing a house pack into Content is not the same as placing the correct house on the Oster map.
 5. Run one integrated UE 5.8 current-head acceptance after the broad asset batch is ready; only then promote runtime/visual/audio rows from `🟡` to `✅`.
@@ -178,5 +178,7 @@ These items are already in the inventory and may not be forgotten merely because
 - AKS-74U, the newly added Fab RPG and the revolver now have distinct gameplay IDs/catalog entries and strict local visual resolution. They remain `🟡` until UE 5.8 proves the local models selected and rendered correctly.
 - The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
 - `Scene_RoadsideConstruction` is verified present in Git and already owns authored road/sidewalk meshes, so those rows are no longer falsely shown as unintegrated.
+- First-person long-gun arms now select Sample Animation Pack hip/ADS idle plus forward/back/left/right locomotion by actual local movement direction, with skeleton compatibility still fail-closed until UE acceptance.
+- The existing park prop owner now also receives selected imported bins, lamps, bicycle stands and flower pots from the tracked Street Props packs instead of leaving those assets parked uselessly in Content.
 - This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
 - Formal PASS45 progress remains separate from asset-integration progress.
