@@ -10,12 +10,14 @@ set "AUDIT=%PROJECT_DIR%Scripts\audit_local_model_inbox.ps1"
 set "PREPARE=%PROJECT_DIR%Scripts\prepare_all_local_inbox_assets.ps1"
 set "PREPARE_WEAPONS=%PROJECT_DIR%Scripts\prepare_local_weapon_sources.ps1"
 set "IMPORTER=%PROJECT_DIR%Scripts\import_all_project_assets.py"
+set "NORMALIZE_WEAPONS=%PROJECT_DIR%Scripts\normalize_local_weapon_categories.py"
 set "SUCCESS=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
 set "MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
 set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UE_CMD="
+set "PY_CMD="
 
 if not exist "%INBOX%" (
   echo [LOCAL ASSETS] models_game_OC відсутня; все одно перевіряю і підключаю assets, завантажені прямо через Unreal/Fab.
@@ -29,9 +31,20 @@ if not defined UE_CMD (
   )
 )
 
+where py >nul 2>nul
+if not errorlevel 1 set "PY_CMD=py -3"
+if not defined PY_CMD (
+  where python >nul 2>nul
+  if not errorlevel 1 set "PY_CMD=python"
+)
+
 if not defined UE_CMD (
   echo [STOP] Unreal Engine 5.8 UnrealEditor-Cmd.exe не знайдено.
   exit /b 50
+)
+if not defined PY_CMD (
+  echo [STOP] Python 3 не знайдено; без нього неможливо перевірити runtime-клас кожної зброї.
+  exit /b 46
 )
 if not exist "%BUILD_BAT%" (
   echo [STOP] UE 5.8 Build.bat не знайдено: %BUILD_BAT%
@@ -57,6 +70,10 @@ if not exist "%IMPORTER%" (
   echo [STOP] Відсутній єдиний UE importer локальних + Unreal/Fab моделей: %IMPORTER%
   exit /b 54
 )
+if not exist "%NORMALIZE_WEAPONS%" (
+  echo [STOP] Відсутня перевірка live-binding усієї завантаженої зброї: %NORMALIZE_WEAPONS%
+  exit /b 57
+)
 
 if exist "%SUCCESS%" del /q "%SUCCESS%" >nul 2>nul
 if exist "%MANIFEST%" del /q "%MANIFEST%" >nul 2>nul
@@ -64,10 +81,10 @@ if exist "%LOG%" del /q "%LOG%" >nul 2>nul
 
 echo ============================================================
 echo OSTER CONFLICT - ВСІ МОДЕЛІ ПРОЕКТУ
-echo models_game_OC + Unreal/Fab/Marketplace Content -> UE import/catalog -> runtime binding
+echo models_game_OC + Unreal/Fab/Marketplace Content -> UE import -> gameplay/runtime binding
 echo ============================================================
 
-echo [1/6] Дотягую реальні Git LFS payloads для всіх уже доданих model packs...
+echo [1/7] Дотягую реальні Git LFS payloads для всіх уже доданих model packs...
 where git >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Git не знайдено в PATH.
@@ -92,19 +109,19 @@ if errorlevel 1 (
   exit /b 49
 )
 
-echo [2/6] Перевіряю локальні ZIP...
+echo [2/7] Інвентаризую ВСІ локальні ZIP, не тільки стару production-п'ятірку...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [3/6] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
+echo [3/7] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [4/6] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
+echo [4/7] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [5/6] Збираю актуальний OsterConflictEditor перед імпортом...
+echo [5/7] Збираю актуальний OsterConflictEditor перед імпортом...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
 set "BUILD_RC=!ERRORLEVEL!"
 if not "!BUILD_RC!"=="0" (
@@ -112,7 +129,7 @@ if not "!BUILD_RC!"=="0" (
   exit /b !BUILD_RC!
 )
 
-echo [6/6] Імпортую models_game_OC, HMMWV/M2/BTR4, M249/Remington і ВСІ mesh assets із Unreal/Fab/Marketplace packs...
+echo [6/7] Імпортую ВСІ models_game_OC та ВСІ mesh assets із Unreal/Fab/Marketplace packs...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORTER%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
@@ -121,8 +138,18 @@ if not "!IMPORT_RC!"=="0" (
   exit /b !IMPORT_RC!
 )
 
+echo [7/7] Прив'язую КОЖНУ знайдену зброю до live weapon class і забороняю тихий WEAPON_OTHER...
+%PY_CMD% "%NORMALIZE_WEAPONS%"
+set "WEAPON_BIND_RC=!ERRORLEVEL!"
+if not "!WEAPON_BIND_RC!"=="0" (
+  echo [STOP] Є імпортована зброя, яка досі не має реального gameplay/runtime binding.
+  echo Manifest: %MANIFEST%
+  echo Код: !WEAPON_BIND_RC!
+  exit /b !WEAPON_BIND_RC!
+)
+
 if not exist "%SUCCESS%" (
-  echo [STOP] Не всі знайдені моделі/HUD/скіни отримали runtime binding.
+  echo [STOP] Не всі знайдені моделі/HUD/скіни/зброя отримали runtime binding.
   echo Manifest: %MANIFEST%
   echo Log: %LOG%
   exit /b 55
@@ -134,5 +161,5 @@ if errorlevel 1 (
   exit /b 56
 )
 
-echo [ALL PROJECT ASSETS] PASS: локальні, production та Unreal/Fab mesh assets зібрані в один runtime catalog.
+echo [ALL PROJECT ASSETS] PASS: усі знайдені локальні, production та Unreal/Fab assets мають runtime binding.
 exit /b 0
