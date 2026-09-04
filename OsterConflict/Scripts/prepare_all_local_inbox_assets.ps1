@@ -177,19 +177,19 @@ $archiveOrdinal = 0
 while ($archiveQueue.Count -gt 0) {
     $item = $archiveQueue.Dequeue()
     $archive = $item.file
+    $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($seenArchiveHashes.ContainsKey($hash)) { continue }
+    $seenArchiveHashes[$hash] = $true
+
     if ($item.depth -gt 4) {
-        $depthHash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         $manifest.archives += [ordered]@{
-            archive=$archive.FullName; sha256=$depthHash; status='NESTED_DEPTH_LIMIT';
+            archive=$archive.FullName; sha256=$hash; status='NESTED_DEPTH_LIMIT';
             error='nested_zip_depth_limit_exceeded'; depth=$item.depth; parent=$item.parent
         }
         Write-Host ('[ALL INBOX] STOP nested ZIP depth limit exceeded: ' + $archive.FullName) -ForegroundColor Red
         continue
     }
 
-    $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($seenArchiveHashes.ContainsKey($hash)) { continue }
-    $seenArchiveHashes[$hash] = $true
     $archiveOrdinal++
     $stage = Join-Path $ExtractRoot ($hash.Substring(0,16))
     $marker = Join-Path $stage '.oc_extracted_ok'
