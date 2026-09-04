@@ -190,14 +190,25 @@ for marker in (
     'not unbound',
     'explicit_unbound_count == 0',
     "inconsistent manifest where all_models_bound/success says green but explicit UNBOUND evidence remains",
+    'source_sha_known = bool(source_sha and source_sha.lower() != "unknown")',
+    'evidence_source_match = source_sha_known and _marker(texts["runtime_evidence"], f"SOURCE_SHA={source_sha}")',
+    '"STALE_SOURCE" if evidence_pass',
 ):
-    require(marker in collector, f"collector lost finalization/import fail-closed marker: {marker}")
+    require(marker in collector, f"collector lost finalization/import/runtime fail-closed marker: {marker}")
 
 collector_unbound_pos = collector.find('explicit_unbound_count = int(source_status_counts.get("UNBOUND", 0))')
 collector_import_pass_pos = collector.find('import_stage = "PASS"')
 require(
     -1 not in (collector_unbound_pos, collector_import_pass_pos) and collector_unbound_pos < collector_import_pass_pos,
     "collector may mint LOCAL_UE_IMPORT=PASS before checking explicit UNBOUND evidence",
+)
+evidence_pass_pos = collector.find('evidence_pass = _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS")')
+evidence_source_pos = collector.find('evidence_source_match = source_sha_known and _marker(texts["runtime_evidence"], f"SOURCE_SHA={source_sha}")')
+evidence_stage_pos = collector.find('evidence_stage = (', evidence_source_pos)
+require(
+    -1 not in (evidence_pass_pos, evidence_source_pos, evidence_stage_pos)
+    and evidence_pass_pos < evidence_source_pos < evidence_stage_pos,
+    "collector may accept runtime evidence PASS without exact source-SHA attribution",
 )
 require(
     collector.index("automated_ready = all(") < collector.index('visual_stage = "PASS"'),
@@ -243,6 +254,7 @@ print("- base importer promotes every explicit source_status UNBOUND row before 
 print("- weapon normalization cannot upgrade factual import/load UNBOUND rows from filename matching")
 print("- weapon normalization independently reconciles all explicit UNBOUND rows before all_models_bound")
 print("- collector independently blocks import PASS on unbound_models or explicit source_status UNBOUND")
+print("- collector accepts automated runtime evidence only when its SOURCE_SHA matches the current snapshot")
 print("- finalizer requires exact v4 schema plus explicit import/runtime result code zero")
 print("- finalizer independently rejects summary/source-status UNBOUND counts")
 print("- preflight is non-destructive and runs before the human visual confirmation")
