@@ -28,6 +28,21 @@ namespace
         return Mesh && Mesh->GetPathName().Contains(TEXT("/Engine/BasicShapes/Cube"), ESearchCase::IgnoreCase);
     }
 
+    UStaticMesh* ResolveEnterableHouseMesh()
+    {
+        // The named Krushelnytska private house must remain a house. Never use the five-storey apartment
+        // pack as a visual fallback merely because it also contains the word "building".
+        if (UStaticMesh* Mesh = OCPass45FindLocalStaticMeshStrict(
+            { FName(TEXT("/Game/Modular_Rural_Cabin")) },
+            { TEXT("cabin"), TEXT("house"), TEXT("home") }))
+        {
+            return Mesh;
+        }
+        return OCPass45FindLocalStaticMeshStrict(
+            { FName(TEXT("/Game/AdvancedVillagePack")) },
+            { TEXT("house"), TEXT("home"), TEXT("cottage") });
+    }
+
     UStaticMesh* ResolveResidentialMesh()
     {
         if (UStaticMesh* Mesh = OCPass45FindLocalStaticMesh(
@@ -45,6 +60,30 @@ namespace
         return OCPass45FindLocalStaticMesh(
             { FName(TEXT("/Game/Modular_Rural_Cabin")) },
             { TEXT("cabin"), TEXT("house"), TEXT("building") });
+    }
+
+    FTransform BuildGroundedHouseTransform(
+        const UStaticMesh* AuthoredMesh,
+        const FVector& GroundAnchor,
+        const float YawDegrees)
+    {
+        if (!AuthoredMesh) return FTransform::Identity;
+
+        const FBoxSphereBounds Bounds = AuthoredMesh->GetBounds();
+        const FVector Size = Bounds.BoxExtent * 2.0f;
+        if (Size.X <= 1.0f || Size.Y <= 1.0f || Size.Z <= 1.0f) return FTransform::Identity;
+
+        // Keep the imported house plausible for the compact private-house lot without non-uniform stretching.
+        constexpr float TargetMaxFootprintCm = 1400.0f;
+        constexpr float TargetMaxHeightCm = 900.0f;
+        const float FootprintScale = TargetMaxFootprintCm / FMath::Max(Size.X, Size.Y);
+        const float HeightScale = TargetMaxHeightCm / Size.Z;
+        const float UniformScale = FMath::Clamp(FMath::Min(FootprintScale, HeightScale), 0.02f, 12.0f);
+
+        const FQuat Rotation = FRotator(0.0f, YawDegrees, 0.0f).Quaternion();
+        FVector Location = GroundAnchor - Rotation.RotateVector(Bounds.Origin * UniformScale);
+        Location.Z = GroundAnchor.Z - (Bounds.Origin.Z - Bounds.BoxExtent.Z) * UniformScale;
+        return FTransform(Rotation, Location, FVector(UniformScale));
     }
 
     FTransform FitBuildingToSourceBox(
@@ -127,10 +166,10 @@ void UOCPass45ImportedResidentialUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWo
     if (SectorCount != 1 || !Sector) return;
 
     UInstancedStaticMeshComponent* Buildings = FindISM(Sector, TEXT("Buildings"));
-    if (!Buildings || Buildings->GetInstanceCount() <= 0)
+    if (!Buildings)
     {
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_RESIDENTIAL_SKIPPED reason=no_generic_residential_instances verified_landmarks_untouched=1"));
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_IMPORTED_RESIDENTIAL_FAIL reason=missing_buildings_owner duplicate_owner_created=0 runtime_acceptance=0"));
         return;
     }
     if (!IsEngineCube(Buildings->GetStaticMesh()))
@@ -138,6 +177,46 @@ void UOCPass45ImportedResidentialUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWo
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_IMPORTED_RESIDENTIAL_SKIPPED reason=existing_authored_owner_preserved mesh=%s"),
             Buildings->GetStaticMesh() ? *Buildings->GetStaticMesh()->GetPathName() : TEXT("null"));
+        return;
+    }
+
+    // Pass45 intentionally retired the old procedural residential grid. Reuse the existing zero-instance
+    // Buildings owner for one named, reference-specific private house instead of resurrecting that grid or
+    // spawning a second world owner.
+    if (Buildings->GetInstanceCount() == 0)
+    {
+        UStaticMesh* HouseMesh = ResolveEnterableHouseMesh();
+        if (!HouseMesh)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_IMPORTED_ENTERABLE_HOUSE_CONTENT_GAP cabin_or_village_house=0 apartment_substitution=0 generic_residential_grids=0 owner=Buildings runtime_acceptance=0"));
+            return;
+        }
+
+        const FTransform HouseTransform = BuildGroundedHouseTransform(
+            HouseMesh,
+            AOCWorldSectorOster::KrushelnytskaEnterableHouseAnchor(),
+            AOCWorldSectorOster::KrushelnytskaEnterableHouseYaw());
+
+        Buildings->SetStaticMesh(HouseMesh);
+        Buildings->EmptyOverrideMaterials();
+        Buildings->SetCollisionProfileName(TEXT("BlockAll"));
+        const int32 InstanceIndex = Buildings->AddInstance(HouseTransform, false);
+        Buildings->MarkRenderStateDirty();
+
+        if (InstanceIndex == INDEX_NONE || Buildings->GetInstanceCount() != 1)
+        {
+            Buildings->ClearInstances();
+            Buildings->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+            Buildings->MarkRenderStateDirty();
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_IMPORTED_ENTERABLE_HOUSE_FAIL owner=Buildings rollback_to_zero_instances=1 runtime_acceptance=0"));
+            return;
+        }
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_IMPORTED_ENTERABLE_HOUSE_READY asset=%s instances=1 anchor=Krushelnytska generic_residential_grids=0 duplicate_owner=0 apartment_substitution=0 verified_landmarks_untouched=1 bounds_fit=1 ground_contact_preserved=1 runtime_acceptance=0"),
+            *HouseMesh->GetPathName());
         return;
     }
 
