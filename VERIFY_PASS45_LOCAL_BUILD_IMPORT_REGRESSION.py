@@ -100,9 +100,9 @@ require(
     "aggregate importer no longer makes production GAP status fail-visible",
 )
 
-# One local snapshot must consolidate the otherwise scattered Saved/ and Logs evidence. The import
-# wrapper must emit it immediately after ingest even when Unreal/import exits non-zero; runtime evidence
-# may later overwrite it with the fuller gameplay/material state. Neither route may promote visual acceptance.
+# One local snapshot must consolidate the otherwise scattered Saved/ and Logs evidence. Import and
+# every early full-runtime failure must refresh the same snapshot with exact exit codes. Neither route
+# may promote visual acceptance without direct observation.
 for marker in (
     "def collect_snapshot(",
     "runtime_bindings.json",
@@ -113,9 +113,13 @@ for marker in (
     "LOCAL_ASSET_STATUS.json",
     "LOCAL_ASSET_STATUS.txt",
     "IMPORT_RESULT_CODE=",
+    "RUNTIME_RESULT_CODE=",
     '"import_result_code": import_result',
+    '"runtime_result_code": runtime_result',
     'import_stage = "FAIL"',
+    'runtime_stage = "FAIL"',
     "PASS45_ASSET_IMPORT_RC",
+    "PASS45_RUNTIME_RC",
     "PENDING_MANUAL_OBSERVATION",
 ):
     require(marker in asset_status_collector, f"local asset status collector lost {marker}")
@@ -133,19 +137,36 @@ for marker in (
     'set "ASSET_RC=%ERRORLEVEL%"',
     "call :write_asset_snapshot",
     ":write_asset_snapshot",
-    'set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"',
+    'if defined ASSET_RC set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"',
+    'if defined RUNTIME_RC set "PASS45_RUNTIME_RC=%RUNTIME_RC%"',
     '%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"',
     'set "PASS45_ASSET_IMPORT_RC="',
+    'set "PASS45_RUNTIME_RC="',
     "[ASSET STATUS] Import snapshot:",
+    "[ASSET STATUS] Runtime snapshot:",
 ):
-    require(marker in start_here, f"START_HERE import-stage asset snapshot lost {marker}")
+    require(marker in start_here, f"START_HERE asset snapshot route lost {marker}")
 require(
     start_here.index('set "ASSET_RC=%ERRORLEVEL%"') < start_here.index("call :write_asset_snapshot") < start_here.index('if not "%ASSET_RC%"=="0"'),
     "START_HERE must snapshot the import result before branching on ASSET_RC",
 )
 require(
-    start_here.index('set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"') < start_here.index('set "PASS45_ASSET_IMPORT_RC="'),
+    start_here.index('if defined ASSET_RC set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"') < start_here.index('set "PASS45_ASSET_IMPORT_RC="'),
     "START_HERE must expose the exact import exit code only while the collector runs",
+)
+require(
+    start_here.index('if defined RUNTIME_RC set "PASS45_RUNTIME_RC=%RUNTIME_RC%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"') < start_here.index('set "PASS45_RUNTIME_RC="'),
+    "START_HERE must expose the exact runtime exit code only while the collector runs",
+)
+require(
+    start_here.count("call :write_asset_snapshot") >= 9,
+    "START_HERE no longer snapshots all early full-runtime failure exits",
+)
+for runtime_code in ('set "RUNTIME_RC=35"', 'set "RUNTIME_RC=36"', 'set "RUNTIME_RC=37"', 'set "RUNTIME_RC=38"', 'set "RUNTIME_RC=30"'):
+    require(runtime_code in start_here, f"START_HERE lost explicit runtime failure code {runtime_code}")
+require(
+    'set "RUNTIME_RC=%GAME_RC%"' in start_here and 'set "RUNTIME_RC=%MATERIAL_RC%"' in start_here and 'set "RUNTIME_RC=%EVIDENCE_RC%"' in start_here,
+    "START_HERE lost dynamic gameplay/material/evidence runtime failure codes",
 )
 
 # Status must remain factual: source fix exists, but a later local build/import must verify it.
@@ -176,5 +197,6 @@ print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP senti
 print("- stale aggregate PASS is cleared before a fresh import run")
 print("- START_HERE emits LOCAL_ASSET_STATUS immediately after import, including failed ingest")
 print("- failed asset import is recorded as LOCAL_UE_IMPORT=FAIL with exact IMPORT_RESULT_CODE")
-print("- canonical runtime evidence refreshes the consolidated LOCAL_ASSET_STATUS snapshot")
+print("- every early full-runtime failure refreshes LOCAL_ASSET_STATUS with exact RUNTIME_RESULT_CODE")
+print("- canonical runtime evidence still refreshes the consolidated LOCAL_ASSET_STATUS snapshot")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
