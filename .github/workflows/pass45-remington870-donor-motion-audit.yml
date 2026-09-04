@@ -1,18 +1,9 @@
 name: Pass 45 Remington 870 donor motion audit
 
+# Donor-history diagnostic. Manual only; ordinary production wiring/cutover
+# checks remain automatic where they protect current runtime behavior.
 on:
-  push:
-    paths:
-      - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
-      - '_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md'
-      - 'VERIFY_PASS45_REMINGTON870_DONOR_MOTION_AUDIT.py'
-      - '.github/workflows/pass45-remington870-donor-motion-audit.yml'
-  pull_request:
-    paths:
-      - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
-      - '_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md'
-      - 'VERIFY_PASS45_REMINGTON870_DONOR_MOTION_AUDIT.py'
-      - '.github/workflows/pass45-remington870-donor-motion-audit.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,9 +12,8 @@ jobs:
   donor-motion-audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source without Git LFS payload download
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           lfs: false
-      - name: Verify pinned articulated motion without fake pump acceptance
+      - name: Verify pinned articulated donor motion on demand
         run: python VERIFY_PASS45_REMINGTON870_DONOR_MOTION_AUDIT.py
