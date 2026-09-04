@@ -103,10 +103,7 @@ namespace
             if (Layer->AddInstance(PropTransform, false) != INDEX_NONE) ++Added;
         }
 
-        if (Added <= 0)
-        {
-            Layer->DestroyComponent();
-        }
+        if (Added <= 0) Layer->DestroyComponent();
         return Added;
     }
 
@@ -215,12 +212,34 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     UStaticMesh* PylonMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Mega_Street_Props_Pack/Street_Props_Pack_V1/Mesh/SM_Pylons.SM_Pylons"));
 
+    const TCHAR* RoadsideRoot = TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/");
     UStaticMesh* CementBagMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Bag_Cement_Closed_01/SM_Ind_Con_Bag_Cement_Closed_01.SM_Ind_Con_Bag_Cement_Closed_01"));
     UStaticMesh* DebrisBucketMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Bucket_Debris_White_01/SM_Ind_Con_Bucket_Debris_White_01.SM_Ind_Con_Bucket_Debris_White_01"));
     UStaticMesh* CableWheelMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_CableWheel_Wood_L_01/SM_Ind_Con_CableWheel_Wood_L_01.SM_Ind_Con_CableWheel_Wood_L_01"));
+    UStaticMesh* JerseyBarrierMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Concrete_L_02/SM_Ind_Con_Jersey_Concrete_L_02.SM_Ind_Con_Jersey_Concrete_L_02"));
+    UStaticMesh* GravelPileMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Pile_Gravel_Crushed_01/SM_Ind_Con_Pile_Gravel_Crushed_01.SM_Ind_Con_Pile_Gravel_Crushed_01"));
+    UStaticMesh* WheelbarrowMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Wheelbarrow_Worn_01/SM_Ind_Con_Wheelbarrow_Worn_01.SM_Ind_Con_Wheelbarrow_Worn_01"));
+    UStaticMesh* ToolboxMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Old_Toolbox_Metal_Green_02/SM_Ind_Old_Toolbox_Metal_Green_02.SM_Ind_Old_Toolbox_Metal_Green_02"));
+    UStaticMesh* PalletMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_War_Pallet_Wood_Worn_04/SM_Ind_War_Pallet_Wood_Worn_04.SM_Ind_War_Pallet_Wood_Worn_04"));
+    UStaticMesh* OrangeBarrelMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Barrel_Plastic_Orange_01/SM_Urb_Roa_Barrel_Plastic_Orange_01.SM_Urb_Roa_Barrel_Plastic_Orange_01"));
+    UStaticMesh* MetalBarricadeMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_Barricade_Metal_Worn_02/SM_Urb_Roa_Barricade_Metal_Worn_02.SM_Urb_Roa_Barricade_Metal_Worn_02"));
+    UStaticMesh* TrafficConeMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Roa_TrafficCone_Plastic_Red_01/SM_Urb_Roa_Equipment_TrafficCone_Plastic_Red_01.SM_Urb_Roa_Equipment_TrafficCone_Plastic_Red_01"));
+    UStaticMesh* BollardMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Str_Bollard_Metal_Worn_01/SM_Urb_Str_Bollard_Metal_Worn_01.SM_Urb_Str_Bollard_Metal_Worn_01"));
+    UStaticMesh* ShrubMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D_Plants/Urb_Str_Shrub_Common_Set_01/SM_Urb_Str_Shrub_Common_Set_01_A.SM_Urb_Str_Shrub_Common_Set_01_A"));
+    (void)RoadsideRoot;
 
     UStaticMesh* SardineCanMesh = ResolveSardineCan();
     UStaticMesh* CherryJuiceMesh = ResolveCherryJuice();
@@ -233,37 +252,18 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     int32 CherryJuiceAdded = 0;
     if (Benches && Benches->GetInstanceCount() >= 2 && Benches->GetStaticMesh())
     {
-        BinsAdded = AddAnchoredPropLayer(
-            Sector, Benches, BinMesh,
-            FName(TEXT("Pass45ImportedStreetBins")),
-            90.0f, 2, FVector(0.0f, 175.0f, 0.0f), 0.0f, true);
-
-        LampsAdded = AddAnchoredPropLayer(
-            Sector, Benches, LampMesh,
-            FName(TEXT("Pass45ImportedParkLamps")),
-            430.0f, 3, FVector(-60.0f, -260.0f, 0.0f), 0.0f, true);
-
-        BicycleStandsAdded = AddAnchoredPropLayer(
-            Sector, Benches, BicycleStandMesh,
-            FName(TEXT("Pass45ImportedBicycleStands")),
-            105.0f, 5, FVector(120.0f, -285.0f, 0.0f), 90.0f, true);
-
-        FlowerPotsAdded = AddAnchoredPropLayer(
-            Sector, Benches, FlowerPotMesh,
-            FName(TEXT("Pass45ImportedFlowerPots")),
-            70.0f, 4, FVector(-130.0f, 190.0f, 0.0f), 0.0f, true);
-
-        // Tiny user-imported props are intentionally used as sparse bench dressing instead of becoming
-        // meaningless standalone world owners. Missing local ignored payload simply leaves the layer absent.
-        SardineCansAdded = AddBenchTopPropLayer(
-            Sector, Benches, SardineCanMesh,
-            FName(TEXT("Pass45ImportedSardineCans")),
-            8.0f, 7, FVector(-25.0f, 0.0f, 0.0f), 55.0f, 18.0f);
-
-        CherryJuiceAdded = AddBenchTopPropLayer(
-            Sector, Benches, CherryJuiceMesh,
-            FName(TEXT("Pass45ImportedCherryJuice")),
-            20.0f, 9, FVector(35.0f, 0.0f, 0.0f), 55.0f, -12.0f);
+        BinsAdded = AddAnchoredPropLayer(Sector, Benches, BinMesh,
+            FName(TEXT("Pass45ImportedStreetBins")), 90.0f, 2, FVector(0.0f, 175.0f, 0.0f), 0.0f, true);
+        LampsAdded = AddAnchoredPropLayer(Sector, Benches, LampMesh,
+            FName(TEXT("Pass45ImportedParkLamps")), 430.0f, 3, FVector(-60.0f, -260.0f, 0.0f), 0.0f, true);
+        BicycleStandsAdded = AddAnchoredPropLayer(Sector, Benches, BicycleStandMesh,
+            FName(TEXT("Pass45ImportedBicycleStands")), 105.0f, 5, FVector(120.0f, -285.0f, 0.0f), 90.0f, true);
+        FlowerPotsAdded = AddAnchoredPropLayer(Sector, Benches, FlowerPotMesh,
+            FName(TEXT("Pass45ImportedFlowerPots")), 70.0f, 4, FVector(-130.0f, 190.0f, 0.0f), 0.0f, true);
+        SardineCansAdded = AddBenchTopPropLayer(Sector, Benches, SardineCanMesh,
+            FName(TEXT("Pass45ImportedSardineCans")), 8.0f, 7, FVector(-25.0f, 0.0f, 0.0f), 55.0f, 18.0f);
+        CherryJuiceAdded = AddBenchTopPropLayer(Sector, Benches, CherryJuiceMesh,
+            FName(TEXT("Pass45ImportedCherryJuice")), 20.0f, 9, FVector(35.0f, 0.0f, 0.0f), 55.0f, -12.0f);
     }
 
     int32 BusStopsAdded = 0;
@@ -273,53 +273,59 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     int32 CementBagsAdded = 0;
     int32 DebrisBucketsAdded = 0;
     int32 CableWheelsAdded = 0;
+    int32 JerseyBarriersAdded = 0;
+    int32 GravelPilesAdded = 0;
+    int32 WheelbarrowsAdded = 0;
+    int32 ToolboxesAdded = 0;
+    int32 PalletsAdded = 0;
+    int32 OrangeBarrelsAdded = 0;
+    int32 MetalBarricadesAdded = 0;
+    int32 TrafficConesAdded = 0;
+    int32 BollardsAdded = 0;
+    int32 ShrubsAdded = 0;
+
     if (Sidewalks && Sidewalks->GetInstanceCount() > 0 && Sidewalks->GetStaticMesh())
     {
-        // Sidewalk segments are already the authoritative road-edge topology. Sparse props derive from those
-        // transforms, so they follow the current compact Oster road network without inventing a second map layout.
-        BusStopsAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, BusStopMesh,
-            FName(TEXT("Pass45ImportedBusStops")),
-            285.0f, 5, FVector(0.0f, 90.0f, 0.0f), 90.0f, true);
+        // Sidewalks remain the single authoritative road-edge topology. Every imported worksite layer derives
+        // from those transforms, so expanding the prop vocabulary never creates a parallel procedural city.
+        BusStopsAdded = AddAnchoredPropLayer(Sector, Sidewalks, BusStopMesh,
+            FName(TEXT("Pass45ImportedBusStops")), 285.0f, 5, FVector(0.0f, 90.0f, 0.0f), 90.0f, true);
+        RoadSignsAdded = AddAnchoredPropLayer(Sector, Sidewalks, RoadSignMesh,
+            FName(TEXT("Pass45ImportedRoadSigns")), 250.0f, 3, FVector(0.0f, -95.0f, 0.0f), 90.0f, false);
+        StreetBarriersAdded = AddAnchoredPropLayer(Sector, Sidewalks, StreetBarrierMesh,
+            FName(TEXT("Pass45ImportedStreetBarriers")), 115.0f, 7, FVector(160.0f, -135.0f, 0.0f), 90.0f, true);
+        PylonsAdded = AddAnchoredPropLayer(Sector, Sidewalks, PylonMesh,
+            FName(TEXT("Pass45ImportedPylons")), 72.0f, 6, FVector(-145.0f, 120.0f, 0.0f), 90.0f, true);
+        CementBagsAdded = AddAnchoredPropLayer(Sector, Sidewalks, CementBagMesh,
+            FName(TEXT("Pass45ImportedCementBags")), 34.0f, 8, FVector(220.0f, 150.0f, 0.0f), 25.0f, false);
+        DebrisBucketsAdded = AddAnchoredPropLayer(Sector, Sidewalks, DebrisBucketMesh,
+            FName(TEXT("Pass45ImportedDebrisBuckets")), 46.0f, 10, FVector(-210.0f, 145.0f, 0.0f), -20.0f, false);
+        CableWheelsAdded = AddAnchoredPropLayer(Sector, Sidewalks, CableWheelMesh,
+            FName(TEXT("Pass45ImportedCableWheels")), 125.0f, 12, FVector(260.0f, -160.0f, 0.0f), 90.0f, true);
 
-        RoadSignsAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, RoadSignMesh,
-            FName(TEXT("Pass45ImportedRoadSigns")),
-            250.0f, 3, FVector(0.0f, -95.0f, 0.0f), 90.0f, false);
-
-        StreetBarriersAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, StreetBarrierMesh,
-            FName(TEXT("Pass45ImportedStreetBarriers")),
-            115.0f, 7, FVector(160.0f, -135.0f, 0.0f), 90.0f, true);
-
-        PylonsAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, PylonMesh,
-            FName(TEXT("Pass45ImportedPylons")),
-            72.0f, 6, FVector(-145.0f, 120.0f, 0.0f), 90.0f, true);
-
-        // Roadside Construction is now more than a surface donor: a sparse construction-dressing layer uses
-        // exact tracked meshes while preserving the current Sidewalks topology as the only placement authority.
-        CementBagsAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, CementBagMesh,
-            FName(TEXT("Pass45ImportedCementBags")),
-            34.0f, 8, FVector(220.0f, 150.0f, 0.0f), 25.0f, false);
-
-        DebrisBucketsAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, DebrisBucketMesh,
-            FName(TEXT("Pass45ImportedDebrisBuckets")),
-            46.0f, 10, FVector(-210.0f, 145.0f, 0.0f), -20.0f, false);
-
-        CableWheelsAdded = AddAnchoredPropLayer(
-            Sector, Sidewalks, CableWheelMesh,
-            FName(TEXT("Pass45ImportedCableWheels")),
-            125.0f, 12, FVector(260.0f, -160.0f, 0.0f), 90.0f, true);
+        JerseyBarriersAdded = AddAnchoredPropLayer(Sector, Sidewalks, JerseyBarrierMesh,
+            FName(TEXT("Pass45RoadsideJerseyBarriers")), 90.0f, 13, FVector(300.0f, -180.0f, 0.0f), 90.0f, true);
+        GravelPilesAdded = AddAnchoredPropLayer(Sector, Sidewalks, GravelPileMesh,
+            FName(TEXT("Pass45RoadsideGravelPiles")), 72.0f, 17, FVector(310.0f, 185.0f, 0.0f), 15.0f, false);
+        WheelbarrowsAdded = AddAnchoredPropLayer(Sector, Sidewalks, WheelbarrowMesh,
+            FName(TEXT("Pass45RoadsideWheelbarrows")), 78.0f, 14, FVector(-280.0f, -175.0f, 0.0f), -35.0f, true);
+        ToolboxesAdded = AddAnchoredPropLayer(Sector, Sidewalks, ToolboxMesh,
+            FName(TEXT("Pass45RoadsideToolboxes")), 36.0f, 15, FVector(175.0f, 210.0f, 0.0f), 28.0f, false);
+        PalletsAdded = AddAnchoredPropLayer(Sector, Sidewalks, PalletMesh,
+            FName(TEXT("Pass45RoadsidePallets")), 22.0f, 16, FVector(-320.0f, 190.0f, 0.0f), 12.0f, true);
+        OrangeBarrelsAdded = AddAnchoredPropLayer(Sector, Sidewalks, OrangeBarrelMesh,
+            FName(TEXT("Pass45RoadsideOrangeBarrels")), 105.0f, 9, FVector(235.0f, -205.0f, 0.0f), 0.0f, true);
+        MetalBarricadesAdded = AddAnchoredPropLayer(Sector, Sidewalks, MetalBarricadeMesh,
+            FName(TEXT("Pass45RoadsideMetalBarricades")), 110.0f, 11, FVector(-260.0f, -210.0f, 0.0f), 90.0f, true);
+        TrafficConesAdded = AddAnchoredPropLayer(Sector, Sidewalks, TrafficConeMesh,
+            FName(TEXT("Pass45RoadsideTrafficCones")), 72.0f, 4, FVector(120.0f, -125.0f, 0.0f), 0.0f, false);
+        BollardsAdded = AddAnchoredPropLayer(Sector, Sidewalks, BollardMesh,
+            FName(TEXT("Pass45RoadsideBollards")), 95.0f, 5, FVector(-115.0f, 130.0f, 0.0f), 0.0f, true);
+        ShrubsAdded = AddAnchoredPropLayer(Sector, Sidewalks, ShrubMesh,
+            FName(TEXT("Pass45RoadsideShrubs")), 120.0f, 6, FVector(0.0f, 260.0f, 0.0f), 0.0f, false);
     }
 
-    if (!BinMesh)
-    {
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=street_bin strict_token_match=1 wrong_prop_substitution=0"));
-    }
+    if (!BinMesh) UE_LOG(LogTemp, Display, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=street_bin strict_token_match=1 wrong_prop_substitution=0"));
     if (!LampMesh) UE_LOG(LogTemp, Warning, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=park_lamp exact_asset=SM_Lamp_1 wrong_prop_substitution=0"));
     if (!BicycleStandMesh) UE_LOG(LogTemp, Warning, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=bicycle_stand exact_asset=SM_Bicycle_Stand_1 wrong_prop_substitution=0"));
     if (!FlowerPotMesh) UE_LOG(LogTemp, Warning, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=flower_pot exact_asset=SM_Flower_Pot wrong_prop_substitution=0"));
@@ -327,18 +333,25 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!RoadSignMesh) UE_LOG(LogTemp, Warning, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=road_sign exact_asset=SM_Sign_1 wrong_prop_substitution=0"));
     if (!StreetBarrierMesh) UE_LOG(LogTemp, Warning, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=street_barrier exact_asset=SM_Barrier wrong_prop_substitution=0"));
     if (!PylonMesh) UE_LOG(LogTemp, Warning, TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=pylon exact_asset=SM_Pylons wrong_prop_substitution=0"));
-    if (!CementBagMesh || !DebrisBucketMesh || !CableWheelMesh)
+    if (!CementBagMesh || !DebrisBucketMesh || !CableWheelMesh || !JerseyBarrierMesh || !GravelPileMesh ||
+        !WheelbarrowMesh || !ToolboxMesh || !PalletMesh || !OrangeBarrelMesh || !MetalBarricadeMesh ||
+        !TrafficConeMesh || !BollardMesh || !ShrubMesh)
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS45_ROADSIDE_CONSTRUCTION_PROP_GAP cement_bag=%d debris_bucket=%d cable_wheel=%d wrong_prop_substitution=0"),
-            CementBagMesh ? 1 : 0, DebrisBucketMesh ? 1 : 0, CableWheelMesh ? 1 : 0);
+            TEXT("PASS45_ROADSIDE_CONSTRUCTION_PROP_GAP cement=%d bucket=%d cable=%d jersey=%d gravel=%d wheelbarrow=%d toolbox=%d pallet=%d barrel=%d barricade=%d cone=%d bollard=%d shrub=%d wrong_prop_substitution=0"),
+            CementBagMesh ? 1 : 0, DebrisBucketMesh ? 1 : 0, CableWheelMesh ? 1 : 0,
+            JerseyBarrierMesh ? 1 : 0, GravelPileMesh ? 1 : 0, WheelbarrowMesh ? 1 : 0,
+            ToolboxMesh ? 1 : 0, PalletMesh ? 1 : 0, OrangeBarrelMesh ? 1 : 0,
+            MetalBarricadeMesh ? 1 : 0, TrafficConeMesh ? 1 : 0, BollardMesh ? 1 : 0, ShrubMesh ? 1 : 0);
     }
     if (!SardineCanMesh) UE_LOG(LogTemp, Display, TEXT("PASS45_SMALL_PROP_CONTENT_GAP type=sardine_can local_ignored_payload=1 wrong_prop_substitution=0"));
     if (!CherryJuiceMesh) UE_LOG(LogTemp, Display, TEXT("PASS45_SMALL_PROP_CONTENT_GAP type=cherry_juice local_ignored_payload=1 wrong_prop_substitution=0"));
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_IMPORTED_URBAN_PROP_LAYER_READY bins=%d lamps=%d bicycle_stands=%d flower_pots=%d bus_stops=%d road_signs=%d barriers=%d pylons=%d cement_bags=%d debris_buckets=%d cable_wheels=%d sardine_cans=%d cherry_juice=%d park_owner=ParkBenches road_owner=Sidewalks duplicate_world_owner=0 runtime_acceptance=0"),
+        TEXT("PASS45_IMPORTED_URBAN_PROP_LAYER_READY bins=%d lamps=%d bicycle_stands=%d flower_pots=%d bus_stops=%d road_signs=%d barriers=%d pylons=%d cement_bags=%d debris_buckets=%d cable_wheels=%d jersey=%d gravel=%d wheelbarrows=%d toolboxes=%d pallets=%d barrels=%d metal_barricades=%d traffic_cones=%d bollards=%d shrubs=%d sardine_cans=%d cherry_juice=%d park_owner=ParkBenches road_owner=Sidewalks duplicate_world_owner=0 runtime_acceptance=0"),
         BinsAdded, LampsAdded, BicycleStandsAdded, FlowerPotsAdded, BusStopsAdded, RoadSignsAdded,
         StreetBarriersAdded, PylonsAdded, CementBagsAdded, DebrisBucketsAdded, CableWheelsAdded,
+        JerseyBarriersAdded, GravelPilesAdded, WheelbarrowsAdded, ToolboxesAdded, PalletsAdded,
+        OrangeBarrelsAdded, MetalBarricadesAdded, TrafficConesAdded, BollardsAdded, ShrubsAdded,
         SardineCansAdded, CherryJuiceAdded);
 }
