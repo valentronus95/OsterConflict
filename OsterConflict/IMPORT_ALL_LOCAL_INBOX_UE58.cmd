@@ -12,6 +12,8 @@ set "IMPORTER=%PROJECT_DIR%Scripts\import_all_local_inbox_assets.py"
 set "SUCCESS=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
 set "MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
+set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
+set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UE_CMD="
 
 if not exist "%INBOX%" (
@@ -29,6 +31,10 @@ if not defined UE_CMD (
 
 if not defined UE_CMD (
   echo [STOP] Unreal Engine 5.8 UnrealEditor-Cmd.exe не знайдено.
+  exit /b 50
+)
+if not exist "%BUILD_BAT%" (
+  echo [STOP] UE 5.8 Build.bat не знайдено: %BUILD_BAT%
   exit /b 50
 )
 if not exist "%UPROJECT%" (
@@ -54,19 +60,26 @@ if exist "%LOG%" del /q "%LOG%" >nul 2>nul
 
 echo ============================================================
 echo OSTER CONFLICT - ВСІ ЛОКАЛЬНІ МОДЕЛІ
-
 echo models_game_OC -> розпакування -> Content -> UE import -> runtime binding
 echo ============================================================
 
-echo [1/3] Перевіряю ZIP...
+echo [1/4] Перевіряю ZIP...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [2/3] Розпаковую всі ZIP і переношу UE-ready assets у проєкт...
+echo [2/4] Розпаковую всі ZIP і переношу UE-ready assets у проєкт...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [3/3] Імпортую і прив'язую всі підтримувані моделі/HUD/скіни в Unreal...
+echo [3/4] Збираю актуальний OsterConflictEditor перед імпортом...
+call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
+set "BUILD_RC=!ERRORLEVEL!"
+if not "!BUILD_RC!"=="0" (
+  echo [STOP] UE build перед імпортом завершився з кодом !BUILD_RC!.
+  exit /b !BUILD_RC!
+)
+
+echo [4/4] Імпортую і прив'язую всі підтримувані моделі/HUD/скіни в Unreal...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORTER%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
