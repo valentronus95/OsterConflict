@@ -8,6 +8,7 @@ set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
 set "ALL_ASSET_IMPORT=%~dp0OsterConflict\IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
 set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+set "ASSET_FINALIZER=%~dp0OsterConflict\Scripts\finalize_asset_acceptance.py"
 set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"
 set "ASSET_STATUS_TEXT=%~dp0OsterConflict\Saved\AssetStatus\LOCAL_ASSET_STATUS.txt"
 set "ASSET_STATUS_JSON=%~dp0OsterConflict\Saved\AssetStatus\LOCAL_ASSET_STATUS.json"
@@ -247,6 +248,10 @@ if not exist "%EVIDENCE_VERIFY%" (
   echo [STOP] Відсутній runtime evidence verifier: %EVIDENCE_VERIFY%
   exit /b 4
 )
+if not exist "%ASSET_FINALIZER%" (
+  echo [STOP] Відсутній final asset acceptance helper: %ASSET_FINALIZER%
+  exit /b 71
+)
 
 call :ingest_all_assets
 if errorlevel 1 exit /b %ERRORLEVEL%
@@ -339,7 +344,42 @@ if not "%EVIDENCE_RC%"=="0" (
 echo ============================================================
 echo PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED.
 echo ALL models_game_OC assets also passed live runtime loading.
-echo VISUAL ACCEPTANCE IS STILL PENDING direct observation.
+echo ============================================================
+
+echo [FINALIZE PRECHECK] Перевіряю, чи взагалі можна переходити до ручного visual acceptance...
+%PY_CMD% "%ASSET_FINALIZER%" --preflight
+set "FINAL_PRECHECK_RC=%ERRORLEVEL%"
+if not "%FINAL_PRECHECK_RC%"=="0" (
+  echo [FINALIZE PENDING] Automated runtime PASS збережено, але 100%% поки заблоковано factual GAP/cleanup precheck.
+  echo [FINALIZE PENDING] ZIP не видалялись. Visual acceptance не записано.
+  exit /b 0
+)
+
+echo.
+echo Перед підтвердженням перевірте у щойно завершеному runtime/UE:
+echo - HMMWV, M2 Browning і BTR-4: масштаб, орієнтація, матеріали, кріплення;
+echo - зброю, включно з M16/M4: правильні mesh/materials без placeholder;
+echo - будівлі, пропи, рослинність, дороги, terrain і water;
+echo - character skins та HUD/UI, які були discovered/bound;
+echo - відсутність відірваних mesh, дикого масштабу або очевидно зламаних матеріалів.
+echo.
+choice /C YN /N /M "Ви реально оглянули ці assets і приймаєте їх візуальний стан? [Y/N]: "
+if errorlevel 2 (
+  echo [FINALIZE PENDING] Visual acceptance залишено PENDING. ZIP не видалялись.
+  exit /b 0
+)
+
+%PY_CMD% "%ASSET_FINALIZER%" --accept-visual
+set "FINALIZE_RC=%ERRORLEVEL%"
+if not "%FINALIZE_RC%"=="0" (
+  echo [STOP] Final visual acceptance / safe ZIP cleanup не завершено. Код: %FINALIZE_RC%
+  exit /b %FINALIZE_RC%
+)
+
+echo ============================================================
+echo PASS45 FULL ASSET LIFECYCLE ACCEPTED.
+echo DIRECT VISUAL ACCEPTANCE: PASS.
+echo SOURCE ZIP CLEANUP: PASS.
 echo ============================================================
 exit /b 0
 
