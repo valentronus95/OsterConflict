@@ -65,6 +65,9 @@ namespace
             if (!Category.Equals(TEXT("BUILDING_WORLD"), ESearchCase::IgnoreCase) &&
                 !Category.Equals(TEXT("FOLIAGE"), ESearchCase::IgnoreCase) &&
                 !Category.Equals(TEXT("PROP"), ESearchCase::IgnoreCase) &&
+                !Category.Equals(TEXT("ROAD_WORLD"), ESearchCase::IgnoreCase) &&
+                !Category.Equals(TEXT("WATER_WORLD"), ESearchCase::IgnoreCase) &&
+                !Category.Equals(TEXT("GROUND_WORLD"), ESearchCase::IgnoreCase) &&
                 !Category.Equals(TEXT("UNCLASSIFIED"), ESearchCase::IgnoreCase))
             {
                 continue;
@@ -244,10 +247,14 @@ void UOCLocalInboxWorldAssetsSubsystem::ApplyWorldAssets()
     TArray<FLocalWorldAsset> TreeFoliage;
     TArray<FLocalWorldAsset> GroundFoliage;
     TArray<FLocalWorldAsset> Fences;
+    TArray<FLocalWorldAsset> Bridges;
+    TArray<FLocalWorldAsset> Roads;
+    TArray<FLocalWorldAsset> Water;
     TArray<FLocalWorldAsset> Props;
 
     const TArray<FString> GroundWords = { TEXT("grass"), TEXT("flower"), TEXT("fern"), TEXT("heather"), TEXT("yarrow"), TEXT("leaf"), TEXT("moss") };
     const TArray<FString> FenceWords = { TEXT("fence"), TEXT("wall"), TEXT("gate"), TEXT("barrier"), TEXT("паркан") };
+    const TArray<FString> BridgeWords = { TEXT("bridge"), TEXT("міст") };
 
     for (const FLocalWorldAsset& Asset : AllAssets)
     {
@@ -261,8 +268,12 @@ void UOCLocalInboxWorldAssetsSubsystem::ApplyWorldAssets()
         else if (Asset.Category.Equals(TEXT("PROP"), ESearchCase::IgnoreCase))
         {
             if (ContainsAny(Hint, FenceWords)) Fences.Add(Asset);
+            else if (ContainsAny(Hint, BridgeWords)) Bridges.Add(Asset);
             else Props.Add(Asset);
         }
+        else if (Asset.Category.Equals(TEXT("ROAD_WORLD"), ESearchCase::IgnoreCase)) Roads.Add(Asset);
+        else if (Asset.Category.Equals(TEXT("WATER_WORLD"), ESearchCase::IgnoreCase)) Water.Add(Asset);
+        else if (Asset.Category.Equals(TEXT("GROUND_WORLD"), ESearchCase::IgnoreCase)) GroundFoliage.Add(Asset);
         else Props.Add(Asset);
     }
 
@@ -295,6 +306,18 @@ void UOCLocalInboxWorldAssetsSubsystem::ApplyWorldAssets()
         TotalReplaced += BindMeshPool(Sector, Fences,
             { TEXT("Fences"), TEXT("WoodFences"), TEXT("MetalFences"), TEXT("LightSheetFences") },
             TEXT("Fences"), Loaded, Used);
+        TotalLoadedAssets += Loaded; TotalUsedAssets += Used;
+
+        TotalReplaced += BindMeshPool(Sector, Bridges,
+            { TEXT("Bridges") }, TEXT("Bridges"), Loaded, Used);
+        TotalLoadedAssets += Loaded; TotalUsedAssets += Used;
+
+        TotalReplaced += BindMeshPool(Sector, Roads,
+            { TEXT("Roads"), TEXT("Sidewalks") }, TEXT("Roads"), Loaded, Used);
+        TotalLoadedAssets += Loaded; TotalUsedAssets += Used;
+
+        TotalReplaced += BindMeshPool(Sector, Water,
+            { TEXT("Waterways") }, TEXT("Water"), Loaded, Used);
         TotalLoadedAssets += Loaded; TotalUsedAssets += Used;
 
         TotalReplaced += BindMeshPool(Sector, Props,

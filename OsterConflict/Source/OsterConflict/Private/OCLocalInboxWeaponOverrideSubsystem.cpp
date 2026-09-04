@@ -59,8 +59,8 @@ namespace
         {
             if (Component && !Component->ComponentHasTag(LocalVisualTag))
             {
-                Component->SetVisibility(false, true);
-                Component->SetHiddenInGame(true, true);
+                Component->SetVisibility(false, false);
+                Component->SetHiddenInGame(true, false);
             }
         }
 
@@ -70,8 +70,8 @@ namespace
         {
             if (Component && !Component->ComponentHasTag(LocalVisualTag))
             {
-                Component->SetVisibility(false, true);
-                Component->SetHiddenInGame(true, true);
+                Component->SetVisibility(false, false);
+                Component->SetHiddenInGame(true, false);
             }
         }
     }
