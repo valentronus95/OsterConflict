@@ -6,7 +6,7 @@ Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`
 Last verified code checkpoint: `1615a4c0eba67756bd327928abea5d142a0c809e`  
 PR: #98 — Draft, unmerged  
 Exact-head GitHub CI on code checkpoint `1615a4c`: **18/18 SUCCESS**  
-Previous verified tracker checkpoint: `44250f6c87c92b507f700cea007dfc3ce3de60dd` — **18/18 SUCCESS**
+Current tracker head before this status-only update: `ac10ac3d24a7e5227a1c790743f9729ecdf6883b` — CI running
 
 ## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
@@ -22,7 +22,7 @@ Previous verified tracker checkpoint: `44250f6c87c92b507f700cea007dfc3ce3de60dd`
 | 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
 | 5 | Production import logic | 🟢 | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
 | 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale import PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `1615a4c`: **18/18 SUCCESS**; final snapshot fail-closed guarded | Нічого |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `1615a4c`: **18/18 SUCCESS**; final snapshot fail-closed guarded | Tracker-only CI ще добігає |
 | 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline, failed-import snapshot, exact import code і stale-runtime protection готові | Потрібен фактичний локальний UE 5.8 import |
 | 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Runtime PASS тепер неможливий без успішного final `LOCAL_ASSET_STATUS`; early failures мають exact code | Потрібні live inbox/world/material/gameplay результати |
 | 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% підтверджено | +0% | Acceptance/cleanup contract готовий | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
@@ -34,7 +34,7 @@ Previous verified tracker checkpoint: `44250f6c87c92b507f700cea007dfc3ce3de60dd`
 | Завершено етапів | **7 / 10** | 🟢 |
 | Загальний прогрес | **70%** | 🟡 |
 | Залишилось | **30%** | 🟡 |
-| Source/code/CI частина | **100%** | 🟢 |
+| Source/code/CI частина | **100% на verified code head** | 🟢 |
 | Local UE import acceptance | **0% підтверджено** | 🟡 |
 | Live runtime acceptance | **0% підтверджено** | 🟡 |
 | Direct visual acceptance | **0% підтверджено** | 🟡 |
