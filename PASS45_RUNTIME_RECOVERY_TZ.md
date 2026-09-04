@@ -56,6 +56,36 @@ For every remaining Museum/world/material/spawn layer, classify it as one of:
 
 One runtime responsibility may have only one mutating owner. Pass chronology does not grant ownership.
 
+### 0.2 Single launcher/test and local asset-intake contract — 2026-09-04
+
+Pass 45 must not create a new manual BAT/CMD wrapper for every test, asset, weapon or historical pass.
+
+Mandatory contract:
+
+- `START_HERE.cmd` is the **only user-facing launcher/test entrypoint**.
+- `RUN_R14_CURRENT_GAMEPLAY.cmd` may remain as the single internal gameplay execution route called by `START_HERE.cmd`; it is not a second user workflow.
+- do not create new `RUN_*`, `TRY_*`, `REVIEW_*`, per-pass or per-asset BAT/CMD wrappers without explicit user approval;
+- runtime/test checklists, acceptance criteria and pending evidence live in this TZ; verification logic should be consolidated into Python/UE commandlets where practical instead of multiplying manual launchers;
+- obsolete wrappers/verifiers/workflows that duplicate the current authority are physically deleted or rewritten, not kept as historical clutter that can re-enter execution;
+- normal game launch must not automatically re-import or re-test production assets on every start unless the selected full runtime test explicitly requires that gate.
+
+Local model inbox contract:
+
+- `models_game_OC/` is a **local-only inbox** and must remain ignored/untracked by Git;
+- raw ZIP/download payloads are never committed merely to make intake possible;
+- each archive must follow one lifecycle: **safety/structure check -> exact duplicate check -> safe extraction -> classify asset -> UE 5.8 import -> save production package -> connect to the correct weapon/vehicle/world/gameplay owner -> fresh-load/runtime validation -> delete the source ZIP only after validated success**;
+- an archive that fails extraction, provenance/rights gating where applicable, UE import, package save or runtime hookup validation is **not deleted** and must be reported as unresolved;
+- placing an archive in `models_game_OC/` is not completion. An asset counts as integrated only when the game actually references the resulting production asset through the intended runtime owner;
+- quarantine/audit-only tooling may inspect an archive but may not be reported as integration;
+- no hardcoded branch switching, hidden `git pull`, auto-commit or auto-push is permitted inside asset-ingest tooling.
+
+Cleanup applied on 2026-09-04:
+
+- root `.gitignore` again owns the local `models_game_OC/` exclusion; redundant nested inbox marker was removed;
+- `START_HERE.cmd` now owns the full runtime-test path and centralized evidence verification;
+- redundant `RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd`, `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd`, `OsterConflict/TRY_PRODUCTION_VEHICLES_UE58.cmd` and the obsolete branch-switching `OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd` were physically removed;
+- Pass45 runtime/material/interaction/performance evidence checking was consolidated around `VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py` and the current CI contracts.
+
 ## 1. Current factual verdict
 
 The local UE 5.8 build blocker discovered on 2026-08-25 was fixed by PR #82 and the project now reaches gameplay. That proves the previous C2131 tactical-map compile blocker is no longer the immediate blocker.
@@ -458,6 +488,6 @@ All items below are **CODED_UNTESTED** until factual local UE runtime acceptance
 - Museum ownership audit found a stale late mutation path in `OCMuseumLayerPerformanceGuardSubsystem`. The old Pass32 behavior could hide R13.7 visible components and repair/remove world state after authoritative startup, directly violating one-owner rules.
 - Current contract is validation-only: `R13.7 = visible exterior`, `R13.8 = hidden interaction collision + final breakable glass`; the layer validator may only observe and emit `PASS45_MUSEUM_LAYER_VALIDATION_READY/FAIL`, with `mutation=0` and `primary_authoring_fix_required=1` on failure.
 - R13.7 no longer creates even empty prototype glass/door components; obsolete visible/prototype ownership is removed at source rather than hidden later.
-- `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd` no longer requires retired Pass30 speculative-interior or Pass32 repair READY markers. It requires the current validation-only Museum evidence.
+- the dedicated historical Pass14 runtime wrapper has been physically removed; `START_HERE.cmd` full runtime test now owns the current validation-only Museum evidence route through the centralized verifier.
 - Production model integration CI now validates proportional native-bounds HMMWV/BTR grounding and explicitly rejects reintroduction of per-axis non-uniform fitting.
 - Historical local build failure remains preserved separately: **LOCAL UE BUILD REJECTED**, including tactical-map **C2131** and deprecated Interchange `auto_detect_mesh_type`; later source fixes do not erase that factual attempt.
