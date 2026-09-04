@@ -66,6 +66,10 @@ require(
     "aggregate importer no longer records required production ingest results",
 )
 require(
+    'if SUCCESS.exists():' in aggregate_importer and 'SUCCESS.unlink()' in aggregate_importer,
+    "aggregate importer does not clear the previous global PASS marker before a fresh run",
+)
+require(
     "production.SUCCESS_SENTINEL" in aggregate_importer,
     "aggregate importer does not gate on production vehicle STATUS sentinel",
 )
@@ -115,4 +119,5 @@ print("- UE 5.8 FVector2D tactical-road table is no longer constexpr")
 print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy")
 print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
+print("- stale aggregate PASS is cleared before a fresh import run")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
