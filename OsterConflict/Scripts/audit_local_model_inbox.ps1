@@ -29,11 +29,34 @@ function Get-Category([string]$Text) {
     if ($value -match 'm249|minimi') { $categories.Add('M249') }
     if ($value -match 'remington|870') { $categories.Add('REMINGTON870') }
     if ($value -match 'm16|m4a1|(^|[^a-z0-9])m4([^a-z0-9]|$)') { $categories.Add('M16_M4') }
-    if ($value -match 'pickup|pick.?up|technical|hilux') { $categories.Add('PICKUP') }
-    if ($value -match 'skin|character|soldier|human|mannequin|uniform|персона|солдат|скін') { $categories.Add('CHARACTER_SKIN') }
-    if ($value -match 'building|house|home|museum|silpo|stadium|culture|college|street|будин|музей|стадіон|вулиц') { $categories.Add('BUILDING_WORLD') }
-    if ($value -match 'tree|foliage|grass|bush|vegetation|дерев|кущ|трава') { $categories.Add('FOLIAGE') }
-    if ($value -match 'prop|furniture|chair|table|barrel|crate|мебл|проп') { $categories.Add('PROP') }
+    if ($value -match '(^|[^a-z0-9])ak[ _.-]?74(m)?([^a-z0-9]|$)') { $categories.Add('AK74') }
+    if ($value -match '(^|[^a-z0-9])ak[ _.-]?47([^a-z0-9]|$)|(^|[^a-z0-9])akm([^a-z0-9]|$)') { $categories.Add('AK47') }
+    if ($value -match '(^|[^a-z0-9])ar[ _.-]?15([^a-z0-9]|$)') { $categories.Add('AR15') }
+    if ($value -match 'ballista') { $categories.Add('BALLISTA') }
+    if ($value -match 'kar[ _.-]?98(k)?') { $categories.Add('KAR98') }
+    if ($value -match 'makarov') { $categories.Add('MAKAROV') }
+    if ($value -match '(^|[^a-z0-9])m[ _.-]?72([^a-z0-9]|$)|m72[ _.-]?law') { $categories.Add('M72') }
+    if ($value -match '(^|[^a-z0-9])mp5([^a-z0-9]|$)') { $categories.Add('MP5') }
+    if ($value -match 'm?1911') { $categories.Add('M1911') }
+    if ($value -match 'm700|remington.?700') { $categories.Add('M700') }
+    if ($value -match '(^|[^a-z0-9])m14([^a-z0-9]|$)') { $categories.Add('M14') }
+    if ($value -match 'mac.?10') { $categories.Add('MAC10') }
+    if ($value -match 'tec.?9') { $categories.Add('TEC9') }
+    if ($value -match 'lever|winchester') { $categories.Add('LEVER_ACTION') }
+    if ($value -match 'rpg|rocket[ _.-]?launcher|grenade[ _.-]?launcher|bazooka|panzerfaust|at4') { $categories.Add('LAUNCHER_GENERIC') }
+    if ($value -match 'scar|hk[ _.-]?416|g36|famas|(^|[^a-z0-9])aug([^a-z0-9]|$)|galil|acr|assault[ _.-]?rifle') { $categories.Add('ASSAULT_GENERIC') }
+    if ($value -match 'sniper|dragunov|(^|[^a-z0-9])svd([^a-z0-9]|$)|(^|[^a-z0-9])awp([^a-z0-9]|$)|m24|m40|barrett') { $categories.Add('SNIPER_GENERIC') }
+    if ($value -match 'shotgun|mossberg|benelli|spas[ _.-]?12|saiga[ _.-]?12') { $categories.Add('SHOTGUN_GENERIC') }
+    if ($value -match 'submachine|(^|[^a-z0-9])smg([^a-z0-9]|$)|(^|[^a-z0-9])uzi([^a-z0-9]|$)|p90|ump[ _.-]?45|vector') { $categories.Add('SMG_GENERIC') }
+    if ($value -match 'pistol|handgun|glock|beretta|desert[ _.-]?eagle|deagle|sig[ _.-]?sauer|usp') { $categories.Add('PISTOL_GENERIC') }
+    if ($value -match 'light[ _.-]?machine[ _.-]?gun|machine[ _.-]?gun|(^|[^a-z0-9])lmg([^a-z0-9]|$)|rpk|pkm') { $categories.Add('LMG_GENERIC') }
+    if ($value -match 'rifle|carbine|weapon|gun') { $categories.Add('WEAPON_OTHER') }
+    if ($value -match 'pickup|pick.?up|technical|hilux|truck') { $categories.Add('PICKUP') }
+    if ($value -match 'skin|character|soldier|human|mannequin|uniform|operator|fighter|персона|солдат|скін|людин') { $categories.Add('CHARACTER_SKIN') }
+    if ($value -match 'building|house|home|hut|roof|wall|porch|balcony|shed|tower|museum|silpo|stadium|culture|college|street|town|village|будин|музей|стадіон|вулиц') { $categories.Add('BUILDING_WORLD') }
+    if ($value -match 'tree|foliage|grass|bush|vegetation|plant|flower|дерев|кущ|трава') { $categories.Add('FOLIAGE') }
+    if ($value -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|bench|ladder|plank|wheel|bucket|sack|cart|axe|boat|well|torch|hay|log|stone|мебл|проп|паркан') { $categories.Add('PROP') }
+    if ($value -match 'hud|heads.?up|crosshair|reticle|minimap|health.?bar|ammo.?ui|overlay|interface|compass|scope.?ui') { $categories.Add('HUD_UI') }
 
     if ($categories.Count -eq 0) { $categories.Add('UNCLASSIFIED') }
     return @($categories | Sort-Object -Unique)
@@ -56,7 +79,7 @@ function Test-SafeZipEntry([string]$EntryName, [string]$StageRoot) {
 }
 
 $inventory = [ordered]@{
-    schema = 'oster-conflict-pass45-local-model-inbox-v1'
+    schema = 'oster-conflict-pass45-local-model-inbox-v2'
     inbox = $Inbox
     archive_count = 0
     unsafe_archive_count = 0
