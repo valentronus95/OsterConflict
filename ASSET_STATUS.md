@@ -96,8 +96,8 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 | Present | Integration | Asset / pack | Evidence / current state |
 |---|---|---|---|
-| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park benches/fences plus runtime bins, lamps, bicycle stands, flower pots, bus stops and road signs are wired intentionally; UE acceptance pending |
-| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/` and mirrored V1 content under Mega pack; flower pots/bins plus exact `SM_Bus_stop` and `SM_Sign_1` now feed the runtime city/park prop layer; UE acceptance pending |
+| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park benches/fences plus runtime bins, lamps, bicycle stands, flower pots, bus stops, road signs, barriers and pylons are wired intentionally; UE acceptance pending |
+| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/` and mirrored V1 content under Mega pack; flower pots/bins plus exact `SM_Bus_stop`, `SM_Sign_1`, `SM_Barrier` and `SM_Pylons` now feed the runtime city/park prop layer; UE acceptance pending |
 | ✅ | 🟡 | Street Props Pack Vol.2 | tracked exact root `Content/Mega_Street_Props_Pack/Street_Props_pack_V2/`; `SM_Lamp_1` and `SM_Bicycle_Stand_1` are runtime park props; UE acceptance pending |
 | ✅ LOCAL | 🟡 | Military Trenches Barrier Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Barrier_Sandbag_Canvas_Square_01_yd0kbfl/High/`; runtime bridge written, UE validation pending |
 | ✅ LOCAL | 🟡 | Military Trenches Pile Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Pile_Sandbag_Canvas_01_yd0tae2/High/`; runtime bridge written, UE validation pending |
@@ -111,7 +111,7 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ | 🟡 | Sidewalk 01 | tracked `Scene_RoadsideConstruction/.../SM_Urb_Roa_Sidewalk_01`; current world-surface owner replaces source Sidewalks while preserving topology; UE acceptance pending |
 | 🟡 REPORT | ❌ | Realistic Asphalt Material PBR | separate user-added surface pack; exact local root/material cutover pending |
 | 🟡 REPORT | ❌ | Tileable Pine Forest Road | user-added road/surface pack; exact local root/runtime placement pending |
-| ✅ | 🟡 | Roadside Construction | tracked `Content/Scene_RoadsideConstruction/`; `SM_Urb_Roa_Asphalt_01` and `SM_Urb_Roa_Sidewalk_01` are current road/sidewalk runtime assets; UE acceptance pending |
+| ✅ | 🟡 | Roadside Construction | tracked `Content/Scene_RoadsideConstruction/`; road/sidewalk surfaces plus exact cement-bag, debris-bucket and cable-wheel construction props now feed the authoritative Sidewalks-based runtime dressing layer; UE acceptance pending |
 | 🟡 REPORT | ❌ | Free Furniture Pack | user-added furniture pack; exact local root and interior placement pending |
 
 ## Vegetation and terrain
@@ -151,8 +151,8 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 | Present | Integration | Asset / root | Evidence / current state |
 |---|---|---|---|
-| ✅ LOCAL | ❌ | Sardine can | `Content/konserva-sardines/`; imported prop, not yet intentionally placed |
-| ✅ LOCAL | ❌ | Ukrainian cherry juice | `Content/ukrainian-cherry-juice-nash-sik/`; imported prop, not yet intentionally placed |
+| ✅ LOCAL | 🟡 | Sardine can | `Content/konserva-sardines/`; strict local mesh resolver now places sparse no-collision cans on existing park benches; UE visual acceptance pending |
+| ✅ LOCAL | 🟡 | Ukrainian cherry juice | `Content/ukrainian-cherry-juice-nash-sik/`; strict local mesh resolver now places sparse no-collision juice props on existing park benches; UE visual acceptance pending |
 | ✅ | 🟡 | R13 content root | `Content/R13/`; existing weapons/world/runtime content, individual owners tracked above |
 | ✅ | 🟡 | Raw content root | `Content/Raw/`; source/import staging content, must not become a duplicate runtime owner |
 | ✅ LOCAL | 🟡 | BorderRun donor root | `SourceAssets/ThirdParty/Gameplay/BorderRun/`; covered recursively |
@@ -177,8 +177,9 @@ These items are already in the inventory and may not be forgotten merely because
 - All currently known user-added/imported roots and explicitly reported packs/models are represented, including ignored local content that GitHub cannot list directly.
 - AKS-74U, the newly added Fab RPG and the revolver now have distinct gameplay IDs/catalog entries and strict local visual resolution. They remain `🟡` until UE 5.8 proves the local models selected and rendered correctly.
 - The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
-- `Scene_RoadsideConstruction` is verified present in Git and already owns authored road/sidewalk meshes, so those rows are no longer falsely shown as unintegrated.
+- `Scene_RoadsideConstruction` now supplies both authored road/sidewalk surfaces and exact sparse construction props: cement bags, debris buckets and cable wheels.
 - First-person long-gun arms now select Sample Animation Pack hip/ADS idle plus forward/back/left/right locomotion by actual local movement direction, with skeleton compatibility still fail-closed until UE acceptance.
-- The existing park/city prop layer now adds selected imported bins, lamps, bicycle stands, flower pots, bus stops and road signs. Bus stops/signs derive from the authoritative `Sidewalks` topology rather than inventing another road layout.
+- The existing park/city prop layer now adds selected imported bins, lamps, bicycle stands, flower pots, bus stops, road signs, barriers and pylons. Bus stops/signs/construction dressing derive from the authoritative `Sidewalks` topology rather than inventing another road layout.
+- The sardine-can and Ukrainian cherry-juice imports now have strict local runtime bridges and are used as sparse bench-top detail instead of remaining dead Content Browser payload.
 - This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
 - Formal PASS45 progress remains separate from asset-integration progress.
