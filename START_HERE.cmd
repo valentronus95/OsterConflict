@@ -8,6 +8,8 @@ set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
 set "ALL_ASSET_IMPORT=%~dp0OsterConflict\IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
 set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"
+set "ASSET_STATUS_TEXT=%~dp0OsterConflict\Saved\AssetStatus\LOCAL_ASSET_STATUS.txt"
 set "PROJECT_DIR=%~dp0OsterConflict"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
@@ -132,9 +134,37 @@ if not exist "%ALL_ASSET_IMPORT%" (
 )
 call "%ALL_ASSET_IMPORT%"
 set "ASSET_RC=%ERRORLEVEL%"
+call :write_asset_snapshot
 if not "%ASSET_RC%"=="0" (
   echo [STOP] Локальні моделі/HUD/скіни не завершили повний ingest. Код: %ASSET_RC%
+  if exist "%ASSET_STATUS_TEXT%" echo [ASSET STATUS] Зведення: %ASSET_STATUS_TEXT%
   exit /b %ASSET_RC%
+)
+if exist "%ASSET_STATUS_TEXT%" echo [ASSET STATUS] Import snapshot: %ASSET_STATUS_TEXT%
+exit /b 0
+
+:write_asset_snapshot
+if not exist "%ASSET_STATUS_COLLECTOR%" (
+  echo [WARN] Відсутній collector локального asset-статусу: %ASSET_STATUS_COLLECTOR%
+  exit /b 0
+)
+set "ASSET_PY_CMD="
+where py >nul 2>nul
+if not errorlevel 1 set "ASSET_PY_CMD=py -3"
+if not defined ASSET_PY_CMD (
+  where python >nul 2>nul
+  if not errorlevel 1 set "ASSET_PY_CMD=python"
+)
+if not defined ASSET_PY_CMD (
+  echo [WARN] Python 3 не знайдений; LOCAL_ASSET_STATUS snapshot не створено.
+  exit /b 0
+)
+set "PASS45_SOURCE_SHA=unknown"
+for /f "delims=" %%H in ('git -C "%~dp0" rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
+%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"
+if errorlevel 1 (
+  echo [WARN] Не вдалося створити LOCAL_ASSET_STATUS snapshot.
+  exit /b 0
 )
 exit /b 0
 
