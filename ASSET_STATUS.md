@@ -6,7 +6,7 @@ Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`
 Last verified code checkpoint: `1615a4c0eba67756bd327928abea5d142a0c809e`  
 PR: #98 — Draft, unmerged  
 Exact-head GitHub CI on code checkpoint `1615a4c`: **18/18 SUCCESS**  
-Current tracker head before this status-only update: `ac10ac3d24a7e5227a1c790743f9729ecdf6883b` — CI running
+Last fully verified tracker head before this status-only audit update: `e570c86d0d16ca40d241f4c2f459e93ad6023489` — **18/18 SUCCESS**
 
 ## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
@@ -22,7 +22,7 @@ Current tracker head before this status-only update: `ac10ac3d24a7e5227a1c790743
 | 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
 | 5 | Production import logic | 🟢 | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
 | 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale import PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `1615a4c`: **18/18 SUCCESS**; final snapshot fail-closed guarded | Tracker-only CI ще добігає |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `1615a4c` і tracker `e570c86`: **18/18 SUCCESS**; final snapshot fail-closed guarded | Нічого |
 | 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline, failed-import snapshot, exact import code і stale-runtime protection готові | Потрібен фактичний локальний UE 5.8 import |
 | 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Runtime PASS тепер неможливий без успішного final `LOCAL_ASSET_STATUS`; early failures мають exact code | Потрібні live inbox/world/material/gameplay результати |
 | 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% підтверджено | +0% | Acceptance/cleanup contract готовий | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
@@ -34,11 +34,11 @@ Current tracker head before this status-only update: `ac10ac3d24a7e5227a1c790743
 | Завершено етапів | **7 / 10** | 🟢 |
 | Загальний прогрес | **70%** | 🟡 |
 | Залишилось | **30%** | 🟡 |
-| Source/code/CI частина | **100% на verified code head** | 🟢 |
+| Source/code/CI частина | **100% на verified tracker head** | 🟢 |
 | Local UE import acceptance | **0% підтверджено** | 🟡 |
 | Live runtime acceptance | **0% підтверджено** | 🟡 |
 | Direct visual acceptance | **0% підтверджено** | 🟡 |
-| Failed/cancelled workflows на code checkpoint | **0 / 18** | 🟢 |
+| Failed/cancelled workflows на verified tracker head | **0 / 18** | 🟢 |
 
 **Поточний стан: 🟡 70%. Source-side підготовка завершена; наступні 30% потребують фактичного локального UE/runtime/visual доказу.**
 
@@ -153,7 +153,7 @@ Direct visual acceptance автоматично не підвищується: `
 | `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt` | consolidated human report | 🟡 NOT GENERATED YET |
 | `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json` | consolidated machine report | 🟡 NOT GENERATED YET |
 
-Пошук у connected conversation/Library після попереднього checkpoint не знайшов fresh `LOCAL_ASSET_STATUS` або перелічені current-run UE reports. Це не доказ їх відсутності на локальному диску Windows; це означає лише, що вони ще не доступні цьому робочому процесу.
+Пошук у connected conversation/Library після verified tracker head `e570c86` не знайшов fresh `LOCAL_ASSET_STATUS` або перелічені current-run UE reports. Це не доказ їх відсутності на локальному диску Windows; це означає лише, що вони ще не доступні цьому робочому процесу.
 
 Історичний локальний доказ від 2026-08-26 підтверджує тодішній UE import PASS для HMMWV, M2 і BTR-4 та `production_import_success.txt=PASS`, але він **не використовується** для закриття `LOCAL-UE-ASSET-001`, бо не є fresh current-head доказом PR #98.
 
@@ -163,10 +163,14 @@ Direct visual acceptance автоматично не підвищується: `
 - 🟢 `write_asset_snapshot(...)` повертає factual success/failure;
 - 🟢 canonical runtime PASS тепер fail-closed: якщо final snapshot не записався, evidence стає FAIL і verifier повертає nonzero;
 - 🟢 regression-guard прямо забороняє повернення цього false-green;
-- 🟢 `Pass 45 local build import regression` пройшов на code checkpoint `1615a4c`;
+- 🟢 aggregate importer очищає stale global/sub-import PASS sentinels і записує required production GAP як `UNBOUND`, тому vehicle/exact-weapon failure більше не губиться;
+- 🟢 `IMPORT_ALL_LOCAL_INBOX_UE58.cmd` звірено як один фактичний 8-step шлях: LFS → audit → extract → SHA-256 dedupe → exact M249/Remington staging → UE build → project/Fab import → live weapon binding normalization;
+- 🟢 current `fix/pass45-asset-*` branch дозволений canonical gameplay launcher для pre-merge strict runtime acceptance;
+- 🟢 forward-ported verifier chains Pass15/19/20/22/23/33/37/38 більше не залежать від фізично видалених per-pass launchers і зберігають чинні runtime/material/weapon/FPS fail-closed gates;
 - 🟢 exact-head code checkpoint `1615a4c`: **18/18 SUCCESS**;
+- 🟢 exact-head tracker checkpoint `e570c86`: **18/18 SUCCESS**, failed/cancelled = **0/18**;
 - 🟢 current `main` досі `a1ad0e2`, PR #98 не відстав від новішого main;
-- 🟢 connected evidence search після checkpoint `44250f6` не знайшов fresh current-run UE/runtime reports;
+- 🟢 connected evidence search після `e570c86` не знайшов fresh current-run UE/runtime reports;
 - 🟢 historical 2026-08-26 HMMWV/M2/BTR-4 import PASS лишається тільки baseline;
 - 🟢 PR #98 лишається Draft/unmerged до локального UE runtime acceptance.
 
