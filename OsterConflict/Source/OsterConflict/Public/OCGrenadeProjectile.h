@@ -21,6 +21,10 @@ public:
 
     void InitializeGrenadeServer(EOCGrenadeType NewType, const FVector& InitialVelocity);
 
+    /** Read-only presentation access for the imported Fab visual bridge. Gameplay authority remains here. */
+    EOCGrenadeType GetGrenadeType() const { return GrenadeType; }
+    UStaticMeshComponent* GetGrenadeMeshComponent() const { return GrenadeMesh; }
+
 protected:
     UPROPERTY(VisibleAnywhere) TObjectPtr<USphereComponent> Collision;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> GrenadeMesh;
