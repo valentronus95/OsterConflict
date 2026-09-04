@@ -70,6 +70,10 @@ require(
     "aggregate importer does not gate on production vehicle STATUS sentinel",
 )
 require(
+    "if sentinel.exists():" in aggregate_importer and "sentinel.unlink()" in aggregate_importer,
+    "aggregate importer does not clear stale production PASS sentinels before a fresh ingest attempt",
+)
+require(
     "production_weapons.SUCCESS_SENTINEL" in aggregate_importer,
     "aggregate importer does not gate on exact production weapon STATUS sentinel",
 )
@@ -110,5 +114,5 @@ print("PASS45 LOCAL BUILD/IMPORT REGRESSION: PASS")
 print("- UE 5.8 FVector2D tactical-road table is no longer constexpr")
 print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy")
 print("- deprecated auto_detect_mesh_type cannot silently return")
-print("- aggregate asset PASS is blocked by vehicle/exact-weapon GAP sentinels")
+print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
