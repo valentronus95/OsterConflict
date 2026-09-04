@@ -38,6 +38,18 @@ def fail(message):
     raise RuntimeError(message)
 
 
+def canonical_asset_path(destination_path, asset_name):
+    return f"{destination_path}/{asset_name}"
+
+
+def existing_asset(destination_path, asset_name):
+    asset_path = canonical_asset_path(destination_path, asset_name)
+    if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+        log(f"SKIP already imported: {asset_path}")
+        return asset_path
+    return None
+
+
 def _read_glb(path):
     data = Path(path).read_bytes()
     if len(data) < 12:
@@ -138,8 +150,6 @@ def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes
     mesh_pipeline.set_editor_property("collision", False)
     common_meshes.set_editor_property("force_all_mesh_as_type", force_mesh_type.IFMT_STATIC_MESH)
     common_meshes.set_editor_property("bake_meshes", True)
-    # UE 5.8 removed bAutoDetectMeshType from the active Interchange contract. Because this
-    # intake explicitly forces StaticMesh, animated transforms must never promote the GLB to a rigid skeletal mesh.
     common_meshes.set_editor_property("convert_statics_with_animated_transform_to_skeletals", False)
 
 
@@ -192,7 +202,7 @@ def import_glb_combined(filename, destination_path, asset_name):
     log(f"Importing GLB {filename.name} -> {destination_path}/{asset_name}")
     task = make_interchange_task(filename, destination_path, asset_name)
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
+    return verify_import_task_updated_asset(task, canonical_asset_path(destination_path, asset_name))
 
 
 def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
@@ -234,7 +244,7 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
 
     log(f"Importing FBX {filename.name} -> {destination_path}/{asset_name}")
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
+    return verify_import_task_updated_asset(task, canonical_asset_path(destination_path, asset_name))
 
 
 def attempt(label, source, import_fn, gaps, imported):
@@ -255,39 +265,73 @@ def main():
         SUCCESS_SENTINEL.unlink()
 
     imported = []
+    present = []
     gaps = []
 
-    def import_hmmwv():
-        cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
-        make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
-        return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
+    hmmwv_existing = existing_asset(HMMWV_DEST, HMMWV_NAME)
+    if hmmwv_existing:
+        present.append(hmmwv_existing)
+    else:
+        def import_hmmwv():
+            cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
+            make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
+            return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
+        attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported)
 
-    attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported)
-    attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported)
-    try:
-        if BTR_SOURCE.exists():
-            imported.append(import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME))
-            log("BTR4 local FBX source imported.")
-        else:
-            authored_btr = CACHE_ROOT / "btr4_bucephalus_oc_authored.glb"
-            build_btr4_glb(authored_btr)
-            imported.append(import_glb_combined(authored_btr, BTR_DEST, BTR_NAME))
-            log(f"BTR4 local FBX missing; generated and imported Oster-authored fallback: {authored_btr}")
-    except Exception as exc:
-        gaps.append(f"BTR4_IMPORT_FAILED={exc}")
-        unreal.log_error(f"[OC Production Import] BTR4 import/fallback failed but other independent assets will continue: {exc}")
+    m2_existing = existing_asset(M2_DEST, M2_NAME)
+    if m2_existing:
+        present.append(m2_existing)
+    else:
+        attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported)
 
-    if not imported:
-        fail("No production vehicle/weapon source could be imported. See CONTENT GAP messages above.")
+    btr_existing = existing_asset(BTR_DEST, BTR_NAME)
+    if btr_existing:
+        present.append(btr_existing)
+    else:
+        try:
+            if BTR_SOURCE.exists():
+                imported.append(import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME))
+                log("BTR4 local FBX source imported.")
+            else:
+                authored_btr = CACHE_ROOT / "btr4_bucephalus_oc_authored.glb"
+                build_btr4_glb(authored_btr)
+                imported.append(import_glb_combined(authored_btr, BTR_DEST, BTR_NAME))
+                log(f"BTR4 local FBX missing; generated and imported Oster-authored fallback: {authored_btr}")
+        except Exception as exc:
+            gaps.append(f"BTR4_IMPORT_FAILED={exc}")
+            unreal.log_error(f"[OC Production Import] BTR4 import/fallback failed but other independent assets will continue: {exc}")
 
-    unreal.EditorAssetLibrary.save_directory("/Game/Production", only_if_is_dirty=False, recursive=True)
-    log("Independent production import complete:")
+    required = [
+        canonical_asset_path(HMMWV_DEST, HMMWV_NAME),
+        canonical_asset_path(M2_DEST, M2_NAME),
+        canonical_asset_path(BTR_DEST, BTR_NAME),
+    ]
+    final_present = [path for path in required if unreal.EditorAssetLibrary.does_asset_exist(path)]
+    missing_after = [path for path in required if path not in final_present]
+
+    for path in missing_after:
+        marker = f"CANONICAL_ASSET_MISSING_AFTER_IMPORT={path}"
+        if marker not in gaps:
+            gaps.append(marker)
+
+    if not final_present:
+        fail("No canonical production vehicle/weapon asset is present after import attempts.")
+
+    if imported:
+        unreal.EditorAssetLibrary.save_directory("/Game/Production", only_if_is_dirty=False, recursive=True)
+
+    log("Production import state complete:")
+    for path in final_present:
+        log(f"  PRESENT {path}")
     for path in imported:
-        log(f"  IMPORTED {path}")
+        log(f"  NEWLY_IMPORTED {path}")
     for gap in gaps:
         log(f"  {gap}")
 
-    sentinel_lines = [f"IMPORTED={path}" for path in imported]
+    status = "PASS" if not missing_after else "GAP"
+    sentinel_lines = [f"STATUS={status}"]
+    sentinel_lines.extend(f"PRESENT={path}" for path in final_present)
+    sentinel_lines.extend(f"IMPORTED={path}" for path in imported)
     sentinel_lines.extend(f"CONTENT_GAP={gap}" for gap in gaps)
     SUCCESS_SENTINEL.write_text("\n".join(sentinel_lines) + "\n", encoding="utf-8")
     log(f"Import result sentinel written: {SUCCESS_SENTINEL}")
