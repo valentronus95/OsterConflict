@@ -3,6 +3,8 @@ name: Playflow and performance pass 14
 on:
   pull_request:
     paths:
+      - 'START_HERE.cmd'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR13FrontendMenuSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
@@ -12,18 +14,20 @@ on:
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
       - 'VERIFY_RUNTIME_RECONCILE_PASS_8.py'
       - 'VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py'
-      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
       - '.github/workflows/playflow-performance-pass-14.yml'
   push:
     branches: [ main ]
     paths:
+      - 'START_HERE.cmd'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCVisualEnvironment.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCPerformanceSampleSubsystem.cpp'
       - 'OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd'
       - 'VERIFY_PLAYFLOW_PERFORMANCE_PASS_14.py'
-      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
       - '.github/workflows/playflow-performance-pass-14.yml'
 
 jobs:
