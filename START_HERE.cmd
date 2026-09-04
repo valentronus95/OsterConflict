@@ -6,6 +6,8 @@ cd /d "%~dp0"
 set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
 set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+set "MODEL_INBOX_AUDIT=%~dp0OsterConflict\Scripts\audit_local_model_inbox.ps1"
+set "PROJECT_DIR=%~dp0OsterConflict"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
 set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\weapon_runtime_validation.txt"
@@ -14,7 +16,7 @@ set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\w
 cls
 echo ============================================================
 echo OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК
- echo ============================================================
+echo ============================================================
 echo.
 echo 1. ЗВИЧАЙНА ГРА
 echo 2. ПОВНИЙ RUNTIME-ТЕСТ
@@ -67,6 +69,18 @@ if not exist "%MATERIAL_GATE%" (
 if not exist "%EVIDENCE_VERIFY%" (
   echo [STOP] Відсутній runtime evidence verifier: %EVIDENCE_VERIFY%
   exit /b 4
+)
+if not exist "%MODEL_INBOX_AUDIT%" (
+  echo [STOP] Відсутній аудит локального model inbox: %MODEL_INBOX_AUDIT%
+  exit /b 5
+)
+
+echo [MODEL INBOX] Перевіряю всі ZIP у models_game_OC перед імпортом...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%MODEL_INBOX_AUDIT%" -ProjectDir "%PROJECT_DIR%"
+set "INBOX_RC=%ERRORLEVEL%"
+if not "%INBOX_RC%"=="0" (
+  echo [STOP] Model inbox не пройшов safety/structure audit: %INBOX_RC%
+  exit /b %INBOX_RC%
 )
 
 set "OC_FORCE_ACCEPTANCE=1"
