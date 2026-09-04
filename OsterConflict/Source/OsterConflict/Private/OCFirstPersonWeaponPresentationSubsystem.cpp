@@ -130,8 +130,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
 
     if (USkeletalMeshComponent* Arms = Character.GetFirstPersonArms())
     {
-        Arms->SetRelativeLocation(State.BaseArmsLocation);
-        Arms->SetRelativeRotation(State.BaseArmsRotation);
+        // Return to the character-owned transform, not the profile-adjusted baseline. This prevents
+        // per-weapon grip offsets from accumulating every time the player swaps weapons or enters a vehicle.
+        Arms->SetRelativeLocation(State.OriginalArmsLocation);
+        Arms->SetRelativeRotation(State.OriginalArmsRotation);
         if (State.bRiflePoseApplied && Arms->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
         {
             Arms->SetAnimation(nullptr);
@@ -213,6 +215,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     const FName WeaponId = Weapon->GetWeaponId();
     const bool bDeclaredProfile = OCHasDeclaredFirstPersonWeaponProfile(WeaponId);
     const FOCFirstPersonWeaponProfile Profile = OCResolveFirstPersonWeaponProfile(WeaponId);
+    const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);
 
     if (!ExistingState)
     {
@@ -226,8 +229,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
 
         State.BaseWeaponLocation = Profile.CameraLocation;
         State.BaseWeaponRotation = Profile.CameraRotation;
-        State.BaseArmsLocation = Arms->GetRelativeLocation() + Profile.ArmsBaseOffset;
-        State.BaseArmsRotation = Arms->GetRelativeRotation() + Profile.ArmsBaseRotationOffset;
+        State.OriginalArmsLocation = Arms->GetRelativeLocation();
+        State.OriginalArmsRotation = Arms->GetRelativeRotation();
+        State.BaseArmsLocation = State.OriginalArmsLocation + Profile.ArmsBaseOffset;
+        State.BaseArmsRotation = State.OriginalArmsRotation + Profile.ArmsBaseRotationOffset;
 
         UPrimitiveComponent* ProductionVisual = FindProductionWeaponVisual(*Weapon);
         if (!ProductionVisual)
@@ -288,9 +293,12 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     if (State.LastAmmo != INDEX_NONE && CurrentAmmo < State.LastAmmo && !Weapon->IsReloading())
     {
         State.RecoilAlpha = 1.0f;
-        if (WeaponId == FName(TEXT("OC_AR1")))
+        if (AnimationProfile.HasFireAnimation())
         {
-            PlayWeaponAnimation(*Weapon, AKFireAnimation, State, 0.11);
+            UAnimSequence* FireSequence = WeaponId == FName(TEXT("OC_AR1"))
+                ? AKFireAnimation.Get()
+                : LoadObject<UAnimSequence>(nullptr, *AnimationProfile.FireAnimationObjectPath);
+            PlayWeaponAnimation(*Weapon, FireSequence, State, 0.11);
         }
     }
     State.LastAmmo = CurrentAmmo;
@@ -299,9 +307,12 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     if (bReloading && !State.bWasReloading)
     {
         State.ReloadStartTime = Now;
-        if (WeaponId == FName(TEXT("OC_AR1")))
+        if (AnimationProfile.HasReloadAnimation())
         {
-            PlayWeaponAnimation(*Weapon, AKReloadAnimation, State, Weapon->GetReloadDuration());
+            UAnimSequence* ReloadSequence = WeaponId == FName(TEXT("OC_AR1"))
+                ? AKReloadAnimation.Get()
+                : LoadObject<UAnimSequence>(nullptr, *AnimationProfile.ReloadAnimationObjectPath);
+            PlayWeaponAnimation(*Weapon, ReloadSequence, State, Weapon->GetReloadDuration());
         }
     }
 
@@ -340,7 +351,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
             Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);
         }
 
-        const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);
         bool bAuthoredManualActionStarted = false;
         if (AnimationProfile.HasManualActionAnimation())
         {
