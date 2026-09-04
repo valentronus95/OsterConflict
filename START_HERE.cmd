@@ -130,8 +130,50 @@ if %ROBO_RC% GEQ 8 (
 )
 exit /b 0
 
+:verify_current_asset_source
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git не знайдений; asset ingest не запускаю на невідомому source state.
+  exit /b 66
+)
+set "CURRENT_ASSET_BRANCH="
+set "LOCAL_ASSET_HEAD="
+set "REMOTE_ASSET_HEAD="
+for /f "delims=" %%B in ('git -C "%~dp0" branch --show-current 2^>nul') do set "CURRENT_ASSET_BRANCH=%%B"
+if not defined CURRENT_ASSET_BRANCH (
+  echo [STOP] Не вдалося визначити current Git branch; asset ingest скасовано.
+  exit /b 67
+)
+echo [ASSET PRECHECK] Fetching origin/%CURRENT_ASSET_BRANCH% before UE import...
+git -C "%~dp0" fetch origin "%CURRENT_ASSET_BRANCH%"
+if errorlevel 1 (
+  echo [STOP] Не вдалося fetch origin/%CURRENT_ASSET_BRANCH%; asset ingest скасовано замість тесту невідомого коду.
+  exit /b 68
+)
+for /f "delims=" %%H in ('git -C "%~dp0" rev-parse HEAD 2^>nul') do set "LOCAL_ASSET_HEAD=%%H"
+for /f "delims=" %%H in ('git -C "%~dp0" rev-parse "origin/%CURRENT_ASSET_BRANCH%" 2^>nul') do set "REMOTE_ASSET_HEAD=%%H"
+if not defined LOCAL_ASSET_HEAD (
+  echo [STOP] Не вдалося визначити локальний HEAD; asset ingest скасовано.
+  exit /b 69
+)
+if not defined REMOTE_ASSET_HEAD (
+  echo [STOP] Не вдалося визначити origin/%CURRENT_ASSET_BRANCH%; asset ingest скасовано.
+  exit /b 69
+)
+if /I not "%LOCAL_ASSET_HEAD%"=="%REMOTE_ASSET_HEAD%" (
+  echo [STOP] Локальний %CURRENT_ASSET_BRANCH% не відповідає GitHub origin/%CURRENT_ASSET_BRANCH%.
+  echo Local : %LOCAL_ASSET_HEAD%
+  echo GitHub: %REMOTE_ASSET_HEAD%
+  echo Спочатку Fetch/Pull у GitHub Desktop. UE import на застарілому HEAD не запускається.
+  exit /b 70
+)
+echo [ASSET PRECHECK] PASS: local HEAD matches origin/%CURRENT_ASSET_BRANCH% = %LOCAL_ASSET_HEAD%
+exit /b 0
+
 :ingest_all_assets
 set "RUNTIME_RC="
+call :verify_current_asset_source
+if errorlevel 1 exit /b %ERRORLEVEL%
 if not exist "%ALL_ASSET_IMPORT%" (
   echo [STOP] Відсутній єдиний importer усіх локальних assets: %ALL_ASSET_IMPORT%
   exit /b 5
