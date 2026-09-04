@@ -14,6 +14,8 @@ PRODUCTION_REPORTS = PROJECT / "Saved" / "AutomationReports" / "ProductionModels
 OUT_DIR = PROJECT / "Saved" / "AssetStatus"
 OUT_JSON = OUT_DIR / "LOCAL_ASSET_STATUS.json"
 OUT_TEXT = OUT_DIR / "LOCAL_ASSET_STATUS.txt"
+MANUAL_VISUAL_JSON = OUT_DIR / "MANUAL_VISUAL_ACCEPTANCE.json"
+ZIP_CLEANUP_JSON = OUT_DIR / "ACCEPTED_ZIP_CLEANUP.json"
 
 FILES = {
     "prepared_sources": LOCAL_MODEL / "prepared_sources.json",
@@ -87,6 +89,59 @@ def _prepared_counts(prepared: dict) -> dict[str, int | str]:
     }
 
 
+def _finalization_status(
+    source_sha: str,
+    import_stage: str,
+    runtime_scope: str,
+    runtime_stage: str,
+    material_stage: str,
+    evidence_stage: str,
+) -> tuple[str, str, dict, dict]:
+    manual = _read_json(MANUAL_VISUAL_JSON)
+    cleanup = _read_json(ZIP_CLEANUP_JSON)
+
+    automated_ready = all(
+        (
+            import_stage == "PASS",
+            runtime_scope == "CURRENT_RUN_COMPLETED",
+            runtime_stage == "PASS",
+            material_stage == "PASS",
+            evidence_stage == "PASS",
+        )
+    )
+
+    visual_stage = "PENDING_MANUAL_OBSERVATION"
+    if manual:
+        manual_sha = str(manual.get("source_sha") or "")
+        manual_status = str(manual.get("status") or "").upper()
+        if manual_sha.lower() != source_sha.lower():
+            visual_stage = "STALE_SOURCE"
+        elif manual_status == "PASS" and automated_ready:
+            visual_stage = "PASS"
+        elif manual_status == "PASS":
+            visual_stage = "INVALID_AUTOMATED_STATE"
+        else:
+            visual_stage = "FAIL_OR_INVALID"
+
+    cleanup_stage = "PENDING_VISUAL_ACCEPTANCE"
+    if visual_stage == "PASS":
+        if not cleanup:
+            cleanup_stage = "PENDING_CLEANUP"
+        else:
+            cleanup_sha = str(cleanup.get("source_sha") or "")
+            cleanup_status = str(cleanup.get("status") or "").upper()
+            if cleanup_sha.lower() != source_sha.lower():
+                cleanup_stage = "STALE_SOURCE"
+            elif cleanup_status == "PASS":
+                cleanup_stage = "PASS"
+            elif cleanup_status == "FAIL":
+                cleanup_stage = "FAIL"
+            else:
+                cleanup_stage = "PENDING_CLEANUP"
+
+    return visual_stage, cleanup_stage, manual, cleanup
+
+
 def collect_snapshot(
     source_sha: str | None = None,
     runtime_result: int | None = None,
@@ -142,7 +197,6 @@ def collect_snapshot(
             else "PENDING_OR_GAP"
         )
         runtime_stage = "FAIL"
-        # A failure can occur before material/evidence gates. Do not reuse old PASS markers here.
         material_stage = "NOT_PASSED_CURRENT_RUN"
         evidence_stage = "NOT_PASSED_CURRENT_RUN"
     else:
@@ -171,6 +225,15 @@ def collect_snapshot(
             else "MISSING"
         )
 
+    visual_stage, cleanup_stage, manual_record, cleanup_record = _finalization_status(
+        source_sha,
+        import_stage,
+        runtime_scope,
+        runtime_stage,
+        material_stage,
+        evidence_stage,
+    )
+
     binding_summary = dict(bindings.get("summary") or {})
     binding_summary.setdefault("static_assets", len(bindings.get("static_assets", []) or []))
     binding_summary.setdefault("skeletal_assets", len(bindings.get("skeletal_assets", []) or []))
@@ -183,7 +246,7 @@ def collect_snapshot(
     source_status_counts = Counter(str(row.get("status") or "UNKNOWN") for row in source_status)
 
     report = {
-        "schema": "oster-conflict-local-asset-status-v3",
+        "schema": "oster-conflict-local-asset-status-v4",
         "source_sha": source_sha,
         "import_result_code": import_result,
         "runtime_result_code": runtime_result,
@@ -193,7 +256,8 @@ def collect_snapshot(
             "live_runtime_hookup": runtime_stage,
             "strict_material_gate": material_stage,
             "automated_runtime_evidence": evidence_stage,
-            "direct_visual_acceptance": "PENDING_MANUAL_OBSERVATION",
+            "direct_visual_acceptance": visual_stage,
+            "source_zip_cleanup": cleanup_stage,
         },
         "production": {
             "vehicles_status": vehicle_status,
@@ -211,8 +275,16 @@ def collect_snapshot(
             "source_status_counts": dict(sorted(source_status_counts.items())),
             "unbound": unbound,
         },
+        "finalization": {
+            "manual_visual_record": manual_record,
+            "zip_cleanup_record": cleanup_record,
+        },
         "missing_files": missing_files,
-        "files": {name: str(path.relative_to(ROOT)) for name, path in FILES.items()},
+        "files": {
+            **{name: str(path.relative_to(ROOT)) for name, path in FILES.items()},
+            "manual_visual_acceptance": str(MANUAL_VISUAL_JSON.relative_to(ROOT)),
+            "accepted_zip_cleanup": str(ZIP_CLEANUP_JSON.relative_to(ROOT)),
+        },
     }
 
     OUT_JSON.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -229,7 +301,8 @@ def collect_snapshot(
         f"LIVE_RUNTIME_HOOKUP={runtime_stage}",
         f"STRICT_MATERIAL_GATE={material_stage}",
         f"AUTOMATED_RUNTIME_EVIDENCE={evidence_stage}",
-        "DIRECT_VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION",
+        f"DIRECT_VISUAL_ACCEPTANCE={visual_stage}",
+        f"SOURCE_ZIP_CLEANUP={cleanup_stage}",
         "",
         "PRODUCTION",
         f"HMMWV_M2_BTR_STATUS={vehicle_status}",
@@ -271,6 +344,10 @@ def collect_snapshot(
             lines.append(f"{index}. {source} :: {reason}")
     else:
         lines.append("NONE")
+
+    lines.extend(["", "FINALIZATION"])
+    lines.append(f"MANUAL_VISUAL_RECORD={'PRESENT' if manual_record else 'MISSING'}")
+    lines.append(f"ZIP_CLEANUP_RECORD={'PRESENT' if cleanup_record else 'MISSING'}")
 
     lines.extend(["", "MISSING_LOCAL_EVIDENCE"])
     if missing_files:
