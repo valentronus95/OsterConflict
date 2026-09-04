@@ -31,6 +31,5 @@ OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx
 OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/
 OsterConflict/Content/Production/Vehicles/BTR4/
 
-!models_game_OC/
-!models_game_OC/*.zip
-!models_game_OC/**/*.zip
+# Local model inbox. START_HERE processes this folder locally; raw downloads are never committed.
+models_game_OC/
