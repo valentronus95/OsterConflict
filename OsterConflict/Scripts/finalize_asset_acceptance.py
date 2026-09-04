@@ -25,7 +25,6 @@ TRACKED_ACCEPTANCE_SOURCE = (
     "RUN_R14_CURRENT_GAMEPLAY.cmd",
     "COLLECT_LOCAL_ASSET_STATUS.py",
     "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py",
-    "FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd",
     "OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd",
     "OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     "OsterConflict/RUN_PASS45_STRICT_MATERIAL_GATE.cmd",
@@ -177,9 +176,7 @@ def preflight_source_zips(accepted_hashes: set[str]) -> list[tuple[Path, str, in
 
     rows: list[tuple[Path, str, int]] = []
     unknown: list[str] = []
-    for path in sorted(INBOX.rglob("*.zip"), key=lambda p: str(p).lower()):
-        if not path.is_file():
-            continue
+    for path in sorted((p for p in INBOX.rglob("*") if p.is_file() and p.suffix.lower() == ".zip"), key=lambda p: str(p).lower()):
         digest = sha256(path)
         if digest not in accepted_hashes:
             unknown.append(f"{relative(path)} sha256={digest}")
@@ -192,6 +189,22 @@ def preflight_source_zips(accepted_hashes: set[str]) -> list[tuple[Path, str, in
             + "\n".join(unknown)
         )
     return rows
+
+
+def run_preflight() -> tuple[str, list[tuple[Path, str, int]]]:
+    head = git_output("rev-parse", "HEAD")
+    if not head:
+        raise RuntimeError("could not determine current Git HEAD")
+    verify_exact_remote_head(head)
+    verify_clean_acceptance_source()
+
+    current = load_json(STATUS_JSON)
+    verify_current_automated_status(current, head)
+
+    prepared = load_json(PREPARED_JSON)
+    accepted_hashes = verify_prepared_manifest(prepared)
+    source_zips = preflight_source_zips(accepted_hashes)
+    return head, source_zips
 
 
 def write_manual_acceptance(head: str) -> None:
@@ -251,24 +264,21 @@ def refresh_consolidated_status(head: str) -> None:
 
 
 def main() -> int:
-    if "--accept-visual" not in sys.argv[1:]:
-        return fail("explicit --accept-visual confirmation is required; no files were changed", 2)
+    args = set(sys.argv[1:])
+    preflight_only = "--preflight" in args
+    accept_visual = "--accept-visual" in args
+    if preflight_only == accept_visual:
+        return fail("use exactly one mode: --preflight or --accept-visual", 2)
 
     try:
-        head = git_output("rev-parse", "HEAD")
-        if not head:
-            return fail("could not determine current Git HEAD", 3)
-        verify_exact_remote_head(head)
-        verify_clean_acceptance_source()
-
-        current = load_json(STATUS_JSON)
-        verify_current_automated_status(current, head)
-
-        prepared = load_json(PREPARED_JSON)
-        accepted_hashes = verify_prepared_manifest(prepared)
-        source_zips = preflight_source_zips(accepted_hashes)
+        head, source_zips = run_preflight()
     except Exception as exc:
         return fail(str(exc), 4)
+
+    if preflight_only:
+        print("[FINALIZE PRECHECK PASS] Exact remote/source/runtime/content state is eligible for manual visual acceptance.")
+        print(f"[FINALIZE PRECHECK PASS] Manifest-proven source ZIPs eligible for cleanup: {len(source_zips)}")
+        return 0
 
     # Manual PASS is written only after every automated/source/content/ZIP preflight above succeeded.
     write_manual_acceptance(head)
