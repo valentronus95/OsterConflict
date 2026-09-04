@@ -143,20 +143,46 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
         return true;
     };
 
+    // Check specific subclasses before broad assault/SMG/pistol families. Otherwise a MAC-10/M14/etc.
+    // can be swallowed by a parent class and the downloaded exact model never gets a chance to appear.
+    if (Cast<AOCWeapon_M14>(Weapon)) return TryCategory(TEXT("M14"), 112.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
+    if (Cast<AOCWeapon_Mac10>(Weapon)) return TryCategory(TEXT("MAC10"), 30.0f) || TryCategory(TEXT("SMG_GENERIC"), 55.0f);
+    if (Cast<AOCWeapon_Tec9>(Weapon)) return TryCategory(TEXT("TEC9"), 32.0f) || TryCategory(TEXT("SMG_GENERIC"), 55.0f);
+    if (Cast<AOCWeapon_LeverAction>(Weapon)) return TryCategory(TEXT("LEVER_ACTION"), 105.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
+    if (Cast<AOCAntiArmorLauncher>(Weapon))
+    {
+        return TryCategory(TEXT("M72"), 78.0f) || TryCategory(TEXT("LAUNCHER"), 105.0f) ||
+            TryCategory(TEXT("LAUNCHER_GENERIC"), 105.0f);
+    }
+    if (Cast<AOCWeapon_Shotgun>(Weapon))
+    {
+        return TryCategory(TEXT("REMINGTON870"), 100.0f) || TryCategory(TEXT("SHOTGUN_GENERIC"), 100.0f);
+    }
+    if (Cast<AOCWeapon_LMG>(Weapon))
+    {
+        return TryCategory(TEXT("M249"), 104.0f) || TryCategory(TEXT("LMG_GENERIC"), 105.0f);
+    }
+    if (Cast<AOCWeapon_Sniper>(Weapon))
+    {
+        return TryCategory(TEXT("M700"), 112.0f) || TryCategory(TEXT("BALLISTA"), 118.0f) ||
+            TryCategory(TEXT("KAR98"), 111.0f) || TryCategory(TEXT("SNIPER_GENERIC"), 115.0f) ||
+            TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
+    }
+    if (Cast<AOCWeapon_Pistol>(Weapon))
+    {
+        return TryCategory(TEXT("M1911"), 23.0f) || TryCategory(TEXT("MAKAROV"), 22.0f) ||
+            TryCategory(TEXT("PISTOL_GENERIC"), 24.0f);
+    }
+    if (Cast<AOCWeapon_SMG>(Weapon))
+    {
+        return TryCategory(TEXT("MP5"), 68.0f) || TryCategory(TEXT("SMG_GENERIC"), 62.0f);
+    }
     if (Cast<AOCWeapon_AssaultRifle>(Weapon))
     {
-        return TryCategory(TEXT("M16_M4"), 100.0f) || TryCategory(TEXT("AK47"), 88.0f);
+        return TryCategory(TEXT("M16_M4"), 100.0f) || TryCategory(TEXT("AR15"), 100.0f) ||
+            TryCategory(TEXT("AK74"), 94.0f) || TryCategory(TEXT("AK47"), 88.0f) ||
+            TryCategory(TEXT("ASSAULT_GENERIC"), 98.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 105.0f);
     }
-    if (Cast<AOCWeapon_SMG>(Weapon)) return TryCategory(TEXT("MP5"), 68.0f);
-    if (Cast<AOCWeapon_Pistol>(Weapon)) return TryCategory(TEXT("M1911"), 23.0f);
-    if (Cast<AOCWeapon_Sniper>(Weapon)) return TryCategory(TEXT("M700"), 112.0f);
-    if (Cast<AOCWeapon_Shotgun>(Weapon)) return TryCategory(TEXT("REMINGTON870"), 100.0f);
-    if (Cast<AOCWeapon_LMG>(Weapon)) return TryCategory(TEXT("M249"), 104.0f);
-    if (Cast<AOCWeapon_M14>(Weapon)) return TryCategory(TEXT("M14"), 112.0f);
-    if (Cast<AOCWeapon_Mac10>(Weapon)) return TryCategory(TEXT("MAC10"), 30.0f);
-    if (Cast<AOCWeapon_Tec9>(Weapon)) return TryCategory(TEXT("TEC9"), 32.0f);
-    if (Cast<AOCWeapon_LeverAction>(Weapon)) return TryCategory(TEXT("LEVER_ACTION"), 105.0f);
-    if (Cast<AOCAntiArmorLauncher>(Weapon)) return TryCategory(TEXT("LAUNCHER"), 105.0f);
     return false;
 }
 
