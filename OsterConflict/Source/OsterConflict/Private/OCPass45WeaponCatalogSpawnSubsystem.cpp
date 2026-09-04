@@ -18,6 +18,8 @@ namespace
         TSubclassOf<AOCWeaponBase> WeaponClass;
     };
 
+    // Single source of truth for every gameplay weapon currently registered in PASS45.
+    // The first seven entries are the legacy admin-rack trigger set; do not duplicate those IDs in a second array.
     const FWeaponCatalogEntry WeaponCatalog[] =
     {
         { FName(TEXT("OC_AR1")), AOCWeapon_AssaultRifle::StaticClass() },
@@ -26,11 +28,11 @@ namespace
         { FName(TEXT("OC_SNP1")), AOCWeapon_Sniper::StaticClass() },
         { FName(TEXT("OC_SG1")), AOCWeapon_Shotgun::StaticClass() },
         { FName(TEXT("OC_LMG1")), AOCWeapon_LMG::StaticClass() },
+        { FName(TEXT("OC_RPG1")), AOCAntiArmorLauncher::StaticClass() },
         { FName(TEXT("R13_M14")), AOCWeapon_M14::StaticClass() },
         { FName(TEXT("R13_MAC10")), AOCWeapon_Mac10::StaticClass() },
         { FName(TEXT("R13_TEC9")), AOCWeapon_Tec9::StaticClass() },
         { FName(TEXT("R13_LEVER4570")), AOCWeapon_LeverAction::StaticClass() },
-        { FName(TEXT("OC_RPG1")), AOCAntiArmorLauncher::StaticClass() },
         { FName(TEXT("IMP_AK74M")), AOCWeapon_AK74M::StaticClass() },
         { FName(TEXT("IMP_AR15")), AOCWeapon_AR15::StaticClass() },
         { FName(TEXT("IMP_M4A1")), AOCWeapon_M4A1::StaticClass() },
@@ -42,25 +44,16 @@ namespace
         { FName(TEXT("IMP_RPG26")), AOCWeapon_RPG26::StaticClass() },
     };
 
-    const FName CoreRackIds[] =
-    {
-        FName(TEXT("OC_AR1")),
-        FName(TEXT("OC_SMG1")),
-        FName(TEXT("OC_PST1")),
-        FName(TEXT("OC_SNP1")),
-        FName(TEXT("OC_SG1")),
-        FName(TEXT("OC_LMG1")),
-        FName(TEXT("OC_RPG1")),
-    };
-
+    constexpr int32 CoreRackEntryCount = 7;
     constexpr float FullRackRadiusCm = 1450.0f;
     const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
 
     bool IsCoreRackId(const FName WeaponId)
     {
-        for (const FName CoreId : CoreRackIds)
+        static_assert(CoreRackEntryCount <= UE_ARRAY_COUNT(WeaponCatalog), "Core rack cannot exceed complete catalog.");
+        for (int32 Index = 0; Index < CoreRackEntryCount; ++Index)
         {
-            if (CoreId == WeaponId) return true;
+            if (WeaponCatalog[Index].WeaponId == WeaponId) return true;
         }
         return false;
     }
@@ -105,7 +98,7 @@ void UOCPass45WeaponCatalogSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!GameMode || GameMode->IsFrontendOnlySession() || !GameMode->IsSandboxMode()) return;
 
     // Do not create a second automatic weapon rack. The existing admin action is the trigger/owner.
-    // We only watch briefly for its compact seven-weapon core rack, then append the imported identities once.
+    // We only watch briefly for its compact seven-weapon core rack, then append the missing identities once.
     InWorld.GetTimerManager().SetTimer(
         SpawnTimer,
         this,
@@ -178,7 +171,7 @@ void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
             ++Count;
         }
 
-        if (CoreIds.Num() == UE_ARRAY_COUNT(CoreRackIds) && Count >= UE_ARRAY_COUNT(CoreRackIds))
+        if (CoreIds.Num() == CoreRackEntryCount && Count >= CoreRackEntryCount)
         {
             RackCenter = Sum / static_cast<float>(Count);
             bFoundAdminCoreRack = true;
