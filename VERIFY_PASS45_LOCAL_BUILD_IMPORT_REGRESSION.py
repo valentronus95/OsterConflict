@@ -101,8 +101,8 @@ require(
 )
 
 # One local snapshot must consolidate the otherwise scattered Saved/ and Logs evidence. Import and
-# every early full-runtime failure must refresh the same snapshot with exact exit codes. Neither route
-# may promote visual acceptance without direct observation.
+# every early full-runtime failure must refresh the same snapshot with exact exit codes. Import-only
+# snapshots must never reuse stale runtime/material/evidence PASS markers from an older launch.
 for marker in (
     "def collect_snapshot(",
     "runtime_bindings.json",
@@ -114,15 +114,31 @@ for marker in (
     "LOCAL_ASSET_STATUS.txt",
     "IMPORT_RESULT_CODE=",
     "RUNTIME_RESULT_CODE=",
+    "RUNTIME_SCOPE=",
     '"import_result_code": import_result',
     '"runtime_result_code": runtime_result',
+    '"runtime_scope": runtime_scope',
     'import_stage = "FAIL"',
     'runtime_stage = "FAIL"',
+    'runtime_scope = "IMPORT_ONLY"',
+    'runtime_scope = "CURRENT_RUN_FAILED"',
+    'runtime_scope = "CURRENT_RUN_COMPLETED"',
+    'runtime_stage = "PENDING_CURRENT_RUN"',
+    'material_stage = "PENDING_CURRENT_RUN"',
+    'evidence_stage = "PENDING_CURRENT_RUN"',
     "PASS45_ASSET_IMPORT_RC",
     "PASS45_RUNTIME_RC",
     "PENDING_MANUAL_OBSERVATION",
 ):
     require(marker in asset_status_collector, f"local asset status collector lost {marker}")
+require(
+    "if runtime_result is None:" in asset_status_collector,
+    "collector no longer gates runtime interpretation on a current explicit runtime result",
+)
+require(
+    asset_status_collector.index('if runtime_result is None:') < asset_status_collector.index('runtime_scope = "IMPORT_ONLY"'),
+    "import-only runtime freshness gate is malformed",
+)
 require(
     "import COLLECT_LOCAL_ASSET_STATUS as asset_status" in runtime_evidence,
     "canonical runtime evidence verifier no longer imports the local asset status collector",
@@ -130,6 +146,10 @@ require(
 require(
     "asset_status.collect_snapshot" in runtime_evidence,
     "canonical runtime evidence verifier no longer writes the consolidated local asset snapshot",
+)
+require(
+    "import_result=0" in runtime_evidence,
+    "final runtime evidence snapshot no longer preserves the already-proven successful import result",
 )
 for marker in (
     'set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"',
@@ -195,8 +215,8 @@ print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy"
 print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- stale aggregate PASS is cleared before a fresh import run")
-print("- START_HERE emits LOCAL_ASSET_STATUS immediately after import, including failed ingest")
-print("- failed asset import is recorded as LOCAL_UE_IMPORT=FAIL with exact IMPORT_RESULT_CODE")
+print("- import-only LOCAL_ASSET_STATUS cannot reuse stale runtime/material/evidence PASS")
+print("- final runtime snapshot preserves IMPORT_RESULT_CODE=0 plus exact RUNTIME_RESULT_CODE")
 print("- every early full-runtime failure refreshes LOCAL_ASSET_STATUS with exact RUNTIME_RESULT_CODE")
 print("- canonical runtime evidence still refreshes the consolidated LOCAL_ASSET_STATUS snapshot")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
