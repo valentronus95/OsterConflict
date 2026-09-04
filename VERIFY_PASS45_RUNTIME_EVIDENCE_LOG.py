@@ -35,7 +35,7 @@ def forbid(text: str, marker: str, errors: list[str], label: str) -> None:
         errors.append(f"forbidden {label}: {marker}")
 
 
-def write_asset_snapshot(source_sha: str, runtime_result: int) -> None:
+def write_asset_snapshot(source_sha: str, runtime_result: int) -> bool:
     try:
         # Reaching the canonical runtime evidence verifier is only possible after :ingest_all_assets
         # returned zero in START_HERE. Preserve that factual import result in the final snapshot.
@@ -46,8 +46,10 @@ def write_asset_snapshot(source_sha: str, runtime_result: int) -> None:
         )
         print("Asset status snapshot:", text_path)
         print("Asset status JSON:", json_path)
+        return True
     except Exception as exc:
-        print(f"[WARN] LOCAL_ASSET_STATUS snapshot failed: {type(exc).__name__}: {exc}")
+        print(f"[FAIL] LOCAL_ASSET_STATUS snapshot failed: {type(exc).__name__}: {exc}")
+        return False
 
 
 def main() -> int:
@@ -203,7 +205,19 @@ def main() -> int:
         "PERFORMANCE_30FPS_GATE=PASS\n",
         encoding="utf-8",
     )
-    write_asset_snapshot(source_sha, 0)
+    if not write_asset_snapshot(source_sha, 0):
+        EVIDENCE_OUT.write_text(
+            "PASS45_RUNTIME_AUTOMATED_EVIDENCE=FAIL\n"
+            "VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION\n"
+            f"SOURCE_SHA={source_sha}\n"
+            "FAIL=LOCAL_ASSET_STATUS snapshot write failed\n",
+            encoding="utf-8",
+        )
+        print("PASS45 RUNTIME EVIDENCE: FAIL")
+        print("[FAIL] final LOCAL_ASSET_STATUS snapshot could not be written")
+        print("Evidence:", EVIDENCE_OUT)
+        return 2
+
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- all canonical runtime, material, interaction and 30 FPS gates passed")
     print("- playable 11-class real-mesh weapon set also passed the canonical runtime gate")
