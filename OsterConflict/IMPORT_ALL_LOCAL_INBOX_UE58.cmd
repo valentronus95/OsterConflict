@@ -15,6 +15,10 @@ set "NORMALIZE_WEAPONS=%PROJECT_DIR%Scripts\normalize_local_weapon_categories.py
 set "SUCCESS=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
 set "MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
+set "MANUAL_VISUAL_JSON=%PROJECT_DIR%Saved\AssetStatus\MANUAL_VISUAL_ACCEPTANCE.json"
+set "MANUAL_VISUAL_TEXT=%PROJECT_DIR%Saved\AssetStatus\MANUAL_VISUAL_ACCEPTANCE.txt"
+set "ZIP_CLEANUP_JSON=%PROJECT_DIR%Saved\AssetStatus\ACCEPTED_ZIP_CLEANUP.json"
+set "ZIP_CLEANUP_TEXT=%PROJECT_DIR%Saved\AssetStatus\ACCEPTED_ZIP_CLEANUP.txt"
 set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UE_CMD="
@@ -99,6 +103,12 @@ if defined DIRTY_ACCEPTANCE_SOURCE (
   exit /b 59
 )
 
+rem Any fresh ingest invalidates earlier manual visual acceptance and ZIP-cleanup proof, even on the same Git SHA.
+rem The human gate must belong to the current asset lifecycle, not survive a new local/Fab import.
+if exist "%MANUAL_VISUAL_JSON%" del /q "%MANUAL_VISUAL_JSON%" >nul 2>nul
+if exist "%MANUAL_VISUAL_TEXT%" del /q "%MANUAL_VISUAL_TEXT%" >nul 2>nul
+if exist "%ZIP_CLEANUP_JSON%" del /q "%ZIP_CLEANUP_JSON%" >nul 2>nul
+if exist "%ZIP_CLEANUP_TEXT%" del /q "%ZIP_CLEANUP_TEXT%" >nul 2>nul
 if exist "%SUCCESS%" del /q "%SUCCESS%" >nul 2>nul
 if exist "%MANIFEST%" del /q "%MANIFEST%" >nul 2>nul
 if exist "%LOG%" del /q "%LOG%" >nul 2>nul
