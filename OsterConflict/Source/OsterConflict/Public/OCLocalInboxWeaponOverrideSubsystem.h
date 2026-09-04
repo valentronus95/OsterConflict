@@ -5,9 +5,9 @@
 #include "OCLocalInboxWeaponOverrideSubsystem.generated.h"
 
 class AActor;
-class AOCWeapon_AssaultRifle;
+class AOCWeaponBase;
 
-/** Runtime visual override for explicit user-supplied weapon families such as M16/M4. */
+/** Runtime visual override for user-supplied weapon families from models_game_OC. */
 UCLASS()
 class OSTERCONFLICT_API UOCLocalInboxWeaponOverrideSubsystem : public UWorldSubsystem
 {
@@ -20,8 +20,9 @@ public:
 
 private:
     void HandleActorSpawned(AActor* Actor);
-    void ApplyM16Visual(AOCWeapon_AssaultRifle* Weapon);
+    void ApplyLocalVisual(AOCWeaponBase* Weapon);
+    bool ResolveVisualForWeapon(AOCWeaponBase* Weapon, FString& OutObjectPath, float& OutDesiredLengthCm,
+        FString& OutCategory) const;
 
-    FString M16ObjectPath;
     FDelegateHandle ActorSpawnedHandle;
 };
