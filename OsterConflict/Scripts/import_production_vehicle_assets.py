@@ -5,6 +5,8 @@ from pathlib import Path
 
 import unreal
 
+from generate_btr4_game_visual import build_btr4_glb
+
 
 PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
 SOURCE_ROOT = PROJECT_DIR / "SourceAssets" / "Production"
@@ -262,7 +264,18 @@ def main():
 
     attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported)
     attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported)
-    attempt("BTR4", BTR_SOURCE, lambda: import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME), gaps, imported)
+    try:
+        if BTR_SOURCE.exists():
+            imported.append(import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME))
+            log("BTR4 local FBX source imported.")
+        else:
+            authored_btr = CACHE_ROOT / "btr4_bucephalus_oc_authored.glb"
+            build_btr4_glb(authored_btr)
+            imported.append(import_glb_combined(authored_btr, BTR_DEST, BTR_NAME))
+            log(f"BTR4 local FBX missing; generated and imported Oster-authored fallback: {authored_btr}")
+    except Exception as exc:
+        gaps.append(f"BTR4_IMPORT_FAILED={exc}")
+        unreal.log_error(f"[OC Production Import] BTR4 import/fallback failed but other independent assets will continue: {exc}")
 
     if not imported:
         fail("No production vehicle/weapon source could be imported. See CONTENT GAP messages above.")
