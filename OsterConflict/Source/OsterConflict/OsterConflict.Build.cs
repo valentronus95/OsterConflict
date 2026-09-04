@@ -28,7 +28,8 @@ public class OsterConflict : ModuleRules
             "UMG",
             "Slate",
             "SlateCore",
-            "MoviePlayer"
+            "MoviePlayer",
+            "Json"
         });
     }
 }
