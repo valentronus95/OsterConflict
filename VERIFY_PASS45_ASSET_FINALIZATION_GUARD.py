@@ -60,15 +60,23 @@ for marker in (
 ):
     require(marker in finalizer, f"finalizer lost fail-closed marker: {marker}")
 
-require(
-    finalizer.index("verify_exact_remote_head(head)")
-    < finalizer.index("verify_clean_acceptance_source()")
-    < finalizer.index("verify_current_automated_status(current, head)")
-    < finalizer.index("preflight_source_zips(accepted_hashes)")
-    < finalizer.index("write_manual_acceptance(head)")
-    < finalizer.index("path.unlink()"),
-    "final acceptance ordering no longer proves remote/source/runtime/ZIP state before manual PASS or deletion",
-)
+main_pos = finalizer.find("def main() -> int:")
+if main_pos < 0:
+    errors.append("finalizer main() is missing")
+else:
+    call_positions = [
+        finalizer.find("verify_exact_remote_head(head)", main_pos),
+        finalizer.find("verify_clean_acceptance_source()", main_pos),
+        finalizer.find("verify_current_automated_status(current, head)", main_pos),
+        finalizer.find("preflight_source_zips(accepted_hashes)", main_pos),
+        finalizer.find("write_manual_acceptance(head)", main_pos),
+        finalizer.find("path.unlink()", main_pos),
+    ]
+    require(
+        all(pos >= 0 for pos in call_positions) and call_positions == sorted(call_positions),
+        "final acceptance ordering no longer proves remote/source/runtime/ZIP state before manual PASS or deletion",
+    )
+
 require(
     "shutil.rmtree" not in finalizer and "os.remove(INBOX" not in finalizer,
     "finalizer must not recursively delete the inbox",
