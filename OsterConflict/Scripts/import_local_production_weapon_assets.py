@@ -26,6 +26,10 @@ def warn(message):
     unreal.log_warning(f"[OC Local Production Weapon Import] {message}")
 
 
+def canonical_asset_path(destination: str, asset_name: str) -> str:
+    return f"{destination}/{asset_name}"
+
+
 def import_source(source: Path, destination: str, asset_name: str) -> str:
     extension = source.suffix.lower()
     if extension == ".glb":
@@ -40,16 +44,42 @@ def main():
     if SUCCESS_SENTINEL.exists():
         SUCCESS_SENTINEL.unlink()
 
+    imported = []
+    present = []
+    gaps = []
+
+    pending = []
+    for label, (destination, asset_name) in TARGETS.items():
+        asset_path = canonical_asset_path(destination, asset_name)
+        if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+            present.append(asset_path)
+            log(f"SKIP already imported {label}: {asset_path}")
+        else:
+            pending.append(label)
+
+    if not pending:
+        lines = ["STATUS=PASS"]
+        lines.extend(f"PRESENT={path}" for path in present)
+        SUCCESS_SENTINEL.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        log("RESULT all exact production weapons are already present; no re-import performed.")
+        return
+
     if not MANIFEST_PATH.is_file():
+        gaps.append("WEAPON_SOURCE_MANIFEST_MISSING")
         warn(f"CONTENT GAP: local production weapon manifest is missing: {MANIFEST_PATH}")
-        SUCCESS_SENTINEL.write_text("STATUS=GAP\nGAP=WEAPON_SOURCE_MANIFEST_MISSING\n", encoding="utf-8")
+        lines = ["STATUS=GAP"]
+        lines.extend(f"PRESENT={path}" for path in present)
+        lines.extend(f"GAP={gap}" for gap in gaps)
+        SUCCESS_SENTINEL.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return
 
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8-sig"))
-    imported = []
-    gaps = []
 
     for label, (destination, asset_name) in TARGETS.items():
+        asset_path = canonical_asset_path(destination, asset_name)
+        if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+            continue
+
         source_value = manifest.get(label)
         if not source_value:
             gaps.append(f"{label}_SOURCE_MISSING")
@@ -71,14 +101,24 @@ def main():
             gaps.append(f"{label}_IMPORT_FAILED={type(exc).__name__}:{exc}")
             unreal.log_error(f"[OC Local Production Weapon Import] {label} import failed: {exc}")
 
-    lines = ["STATUS=" + ("PASS" if len(imported) == len(TARGETS) and not gaps else "GAP")]
+    final_present = []
+    for label, (destination, asset_name) in TARGETS.items():
+        asset_path = canonical_asset_path(destination, asset_name)
+        if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+            final_present.append(asset_path)
+        elif not any(gap.startswith(label + "_") for gap in gaps):
+            gaps.append(f"{label}_CANONICAL_ASSET_MISSING_AFTER_IMPORT={asset_path}")
+
+    status = "PASS" if len(final_present) == len(TARGETS) else "GAP"
+    lines = [f"STATUS={status}"]
+    lines.extend(f"PRESENT={path}" for path in final_present)
     lines.extend(f"IMPORTED={path}" for path in imported)
     lines.extend(f"GAP={gap}" for gap in gaps)
     SUCCESS_SENTINEL.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     log(
-        f"RESULT imported={len(imported)}/{len(TARGETS)} gaps={len(gaps)} "
-        f"sentinel={SUCCESS_SENTINEL}"
+        f"RESULT present={len(final_present)}/{len(TARGETS)} newly_imported={len(imported)} "
+        f"gaps={len(gaps)} sentinel={SUCCESS_SENTINEL}"
     )
 
 
