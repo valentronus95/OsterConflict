@@ -4,6 +4,7 @@ from pathlib import Path
 import unreal
 
 import import_all_local_inbox_assets as inbox
+import import_local_production_weapon_assets as production_weapons
 import import_production_vehicle_assets as production
 
 PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
@@ -207,13 +208,21 @@ def main():
     # Run the normal models_game_OC import first in this SAME Unreal process.
     inbox.main()
 
-    # Then import the canonical production vehicle set in the same one-pass pipeline. HMMWV and M2
-    # use the hydrated repository sources; BTR4 uses the local FBX when available and otherwise
+    # Import the canonical production vehicle set in the same one-pass pipeline. HMMWV and M2
+    # use hydrated repository sources; BTR4 uses the local FBX when available and otherwise
     # generates the Oster-authored fallback so the project does not keep a green/proxy shell.
     try:
         production.main()
     except Exception as exc:
         inbox.warn(f"Production vehicle ingest gap; continuing the independent Fab/inbox catalog: {type(exc).__name__}: {exc}")
+
+    # Exact M249 and Remington 870 sources, when present in models_game_OC, are staged before this
+    # Python pass by IMPORT_ALL_LOCAL_INBOX_UE58.cmd and imported here into their canonical paths.
+    # Missing exact sources remain a factual content gap but do not block unrelated downloaded packs.
+    try:
+        production_weapons.main()
+    except Exception as exc:
+        inbox.warn(f"Exact local weapon ingest gap; continuing the independent Fab/inbox catalog: {type(exc).__name__}: {exc}")
 
     if not BINDINGS.is_file():
         raise RuntimeError(f"base runtime binding manifest missing after inbox import: {BINDINGS}")
