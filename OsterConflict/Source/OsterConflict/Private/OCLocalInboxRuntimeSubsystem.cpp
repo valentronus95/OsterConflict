@@ -1,6 +1,7 @@
 #include "OCLocalInboxRuntimeSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCLocalInboxHUDOverlayWidget.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Components/StaticMeshComponent.h"
@@ -146,11 +147,6 @@ bool UOCLocalInboxRuntimeSubsystem::ResolveFirstAssetObjectPathForCategory(const
 
 UStaticMesh* UOCLocalInboxRuntimeSubsystem::LoadFirstStaticMeshForCategory(const FString& Category)
 {
-    FString Path;
-    if (!ResolveFirstAssetObjectPathForCategory(Category, Path, false, false)) return nullptr;
-    if (UStaticMesh* Static = LoadObject<UStaticMesh>(nullptr, *Path)) return Static;
-
-    // The first category entry may be skeletal. Continue through static_assets specifically.
     TSharedPtr<FJsonObject> Root;
     if (!LoadBindingRoot(Root)) return nullptr;
     const TArray<TSharedPtr<FJsonValue>>* Values = GetArray(Root, TEXT("static_assets"));
@@ -284,15 +280,29 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
         }
     }
 
-    if (UClass* HUDClass = LoadHUDWidgetClass())
+    bool bHUDBound = false;
+    if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
     {
-        if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+        if (UClass* HUDClass = LoadHUDWidgetClass())
         {
-            if (UUserWidget* Widget = CreateWidget<UUserWidget>(PC, HUDClass))
+            if (UUserWidget* Widget = CreateWidget<UUserWidget>(PC, TSubclassOf<UUserWidget>(HUDClass)))
             {
                 Widget->AddToViewport(5);
                 LocalHUDWidget = Widget;
+                bHUDBound = true;
                 UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_HUD_WIDGET_BOUND class=%s"), *HUDClass->GetPathName());
+            }
+        }
+        else if (UTexture2D* HUDTexture = LoadHUDTexture())
+        {
+            if (UOCLocalInboxHUDOverlayWidget* Overlay = CreateWidget<UOCLocalInboxHUDOverlayWidget>(
+                PC, UOCLocalInboxHUDOverlayWidget::StaticClass()))
+            {
+                Overlay->SetHUDTexture(HUDTexture);
+                Overlay->AddToViewport(1);
+                LocalHUDWidget = Overlay;
+                bHUDBound = true;
+                UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_HUD_TEXTURE_BOUND texture=%s"), *HUDTexture->GetPathName());
             }
         }
     }
@@ -301,11 +311,12 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_LOCAL_INBOX_RUNTIME_READY static=%d skeletal=%d hud_texture=%d hud_widget=%d all_models_bound=1"),
-            StaticLoaded, SkeletalLoaded, LoadHUDTexture() ? 1 : 0, LoadHUDWidgetClass() ? 1 : 0);
+            TEXT("PASS45_LOCAL_INBOX_RUNTIME_READY static=%d skeletal=%d hud_bound=%d all_models_bound=1"),
+            StaticLoaded, SkeletalLoaded, bHUDBound ? 1 : 0);
         if (bValidateLocalInbox)
         {
-            WriteRuntimeReport(true, FString::Printf(TEXT("static=%d skeletal=%d load_failures=0"), StaticLoaded, SkeletalLoaded));
+            WriteRuntimeReport(true, FString::Printf(TEXT("static=%d skeletal=%d hud_bound=%d load_failures=0"),
+                StaticLoaded, SkeletalLoaded, bHUDBound ? 1 : 0));
             SpawnValidationShowcase();
         }
     }
