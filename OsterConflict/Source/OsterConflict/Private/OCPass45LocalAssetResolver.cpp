@@ -9,10 +9,23 @@
 
 namespace
 {
+    bool ContainsPreferredToken(const FAssetData& Asset, const TArray<FString>& PreferredTokens)
+    {
+        if (PreferredTokens.IsEmpty()) return true;
+        const FString Candidate = (Asset.PackageName.ToString() + TEXT("/") + Asset.AssetName.ToString()).ToLower();
+        for (const FString& RawToken : PreferredTokens)
+        {
+            const FString Token = RawToken.ToLower();
+            if (!Token.IsEmpty() && Candidate.Contains(Token)) return true;
+        }
+        return false;
+    }
+
     FAssetData FindBestAsset(
         const UClass* AssetClass,
         const TArray<FName>& PackageRoots,
-        const TArray<FString>& PreferredTokens)
+        const TArray<FString>& PreferredTokens,
+        bool bRequireTokenMatch)
     {
         if (!AssetClass || PackageRoots.IsEmpty()) return FAssetData();
 
@@ -27,6 +40,15 @@ namespace
         TArray<FAssetData> Assets;
         AssetRegistryModule.Get().GetAssets(Filter, Assets);
         if (Assets.IsEmpty()) return FAssetData();
+
+        if (bRequireTokenMatch)
+        {
+            Assets.RemoveAll([&PreferredTokens](const FAssetData& Asset)
+            {
+                return !ContainsPreferredToken(Asset, PreferredTokens);
+            });
+            if (Assets.IsEmpty()) return FAssetData();
+        }
 
         auto Score = [&PreferredTokens](const FAssetData& Asset)
         {
@@ -58,9 +80,10 @@ namespace
     TObjectType* Resolve(
         const UClass* AssetClass,
         const TArray<FName>& PackageRoots,
-        const TArray<FString>& PreferredTokens)
+        const TArray<FString>& PreferredTokens,
+        bool bRequireTokenMatch = false)
     {
-        const FAssetData Best = FindBestAsset(AssetClass, PackageRoots, PreferredTokens);
+        const FAssetData Best = FindBestAsset(AssetClass, PackageRoots, PreferredTokens, bRequireTokenMatch);
         return Best.IsValid() ? Cast<TObjectType>(Best.GetAsset()) : nullptr;
     }
 }
@@ -70,6 +93,13 @@ UStaticMesh* OCPass45FindLocalStaticMesh(
     const TArray<FString>& PreferredTokens)
 {
     return Resolve<UStaticMesh>(UStaticMesh::StaticClass(), PackageRoots, PreferredTokens);
+}
+
+UStaticMesh* OCPass45FindLocalStaticMeshStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens)
+{
+    return Resolve<UStaticMesh>(UStaticMesh::StaticClass(), PackageRoots, RequiredTokens, true);
 }
 
 USkeletalMesh* OCPass45FindLocalSkeletalMesh(

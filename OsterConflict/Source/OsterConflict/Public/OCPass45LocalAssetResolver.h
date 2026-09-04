@@ -16,6 +16,11 @@ OSTERCONFLICT_API UStaticMesh* OCPass45FindLocalStaticMesh(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens = {});
 
+/** Same resolver, but returns null unless at least one preferred token matches the asset path/name. */
+OSTERCONFLICT_API UStaticMesh* OCPass45FindLocalStaticMeshStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens);
+
 OSTERCONFLICT_API USkeletalMesh* OCPass45FindLocalSkeletalMesh(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens = {});
