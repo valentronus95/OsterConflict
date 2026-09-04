@@ -30,9 +30,25 @@ namespace
         return (Asset.PackageName.ToString() + TEXT("/") + Asset.AssetName.ToString()).ToLower();
     }
 
+    bool IsRejectedGrenadeCandidate(const FString& Candidate)
+    {
+        // Fab now also contains actual launchers. A path containing "grenade" must never be enough to make an
+        // RPG/grenade-launcher mesh become the hand-grenade body. Keep identity fail-closed instead of substituting.
+        return Candidate.Contains(TEXT("grenade_launcher")) ||
+            Candidate.Contains(TEXT("grenade-launcher")) ||
+            Candidate.Contains(TEXT("grenadelauncher")) ||
+            Candidate.Contains(TEXT("rocket_launcher")) ||
+            Candidate.Contains(TEXT("rocket-launcher")) ||
+            Candidate.Contains(TEXT("rocketlauncher")) ||
+            Candidate.Contains(TEXT("rpg-")) ||
+            Candidate.Contains(TEXT("rpg_")) ||
+            Candidate.Contains(TEXT("/rpg"));
+    }
+
     EImportedGrenadeVisualKind ClassifyCandidate(const FAssetData& Asset)
     {
         const FString Candidate = CandidateText(Asset);
+        if (IsRejectedGrenadeCandidate(Candidate)) return EImportedGrenadeVisualKind::None;
         if (Candidate.Contains(TEXT("flash"))) return EImportedGrenadeVisualKind::Flash;
         if (Candidate.Contains(TEXT("smoke")) || Candidate.Contains(TEXT("m18"))) return EImportedGrenadeVisualKind::Smoke;
         if (Candidate.Contains(TEXT("frag")) || Candidate.Contains(TEXT("fragment")) ||
@@ -58,6 +74,8 @@ namespace
     int32 CandidateScore(const FAssetData& Asset, EImportedGrenadeVisualKind Kind)
     {
         const FString Candidate = CandidateText(Asset);
+        if (IsRejectedGrenadeCandidate(Candidate)) return MIN_int32 / 2;
+
         int32 Score = 0;
         if (Candidate.Contains(TEXT("grenade")) || Candidate.Contains(TEXT("granade"))) Score += 40;
         if (Kind == EImportedGrenadeVisualKind::Fragmentation &&
@@ -213,7 +231,7 @@ namespace
         Component->ComponentTags.AddUnique(ImportedGrenadeTag);
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_GRENADE_VISUAL_READY type=%d asset=%s variant=%d variant_count=%d shared_generic_body=0 exact_imported_body=1 runtime_acceptance=0"),
+            TEXT("PASS45_IMPORTED_GRENADE_VISUAL_READY type=%d asset=%s variant=%d variant_count=%d shared_generic_body=0 exact_imported_body=1 launcher_false_match=0 runtime_acceptance=0"),
             static_cast<int32>(Grenade.GetGrenadeType()), *Mesh->GetPathName(), VariantIndex, VariantCount);
         return true;
     }
@@ -280,7 +298,7 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
     if (RefreshPass == 1)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d asset_registry_scans=1 local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
+            TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d launcher_candidates_rejected=1 asset_registry_scans=1 local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
             Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num(), Catalog.Frag.Num() >= 2 ? 1 : 0);
     }
     if (Applied > 0)
