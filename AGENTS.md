@@ -196,6 +196,16 @@ This is a project-wide user requirement, not a one-chat preference.
 - The report must show only: block/status, concise state or percentage, what remains when relevant. No long technical memoirs.
 - User action is requested only for a real local-only blocker. Otherwise continue autonomously.
 
+## Canonical asset inventory
+
+`ASSET_STATUS.md` in the repository root is the binding inventory for imported/downloaded game content.
+
+- Every newly observed user import, Fab/Marketplace pack, local donor root, vehicle, weapon, grenade, character, animation, building, prop, vegetation pack, UI pack, VFX or audio source must be added to `ASSET_STATUS.md` immediately when observed.
+- A listed import root covers all of its files recursively. Do not flood the ledger with one row per texture/material unless a specific sub-asset needs its own runtime identity.
+- Never remove an asset from the inventory silently. Superseded assets are marked for retirement, then physically removed when the replacement is factual; Git history is rollback.
+- Before claiming an asset batch complete, reconcile `ASSET_STATUS.md` against the canonical Git tree, ignored local-import roots in `.gitignore`, user-observed Content Browser/git-status evidence and the latest explicit import/download report.
+- GitHub cannot see ignored local payload on the user's PC. Such content remains explicitly tracked as `LOCAL/REPORT` until exact local identity is factually available; absence from Git is never treated as proof that the user did not import it.
+
 ## Current priority
 
 For active PASS45 work, execute the compact `PASS45_RUNTIME_RECOVERY_TZ.md` queue and latest checkpoint instead of expanding architecture surveys.
