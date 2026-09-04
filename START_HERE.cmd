@@ -16,6 +16,8 @@ set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
 set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\weapon_runtime_validation.txt"
 set "LOCAL_INBOX_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_inbox_runtime_validation.txt"
 set "LOCAL_WORLD_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_world_runtime_validation.txt"
+set "ASSET_RC="
+set "RUNTIME_RC="
 
 rem The old PASS45 linked worktree was only an implementation workspace. Before removing it, rescue
 rem every asset family that Unreal/Fab may have written there but Git never tracked, without overwriting main.
@@ -128,6 +130,7 @@ if %ROBO_RC% GEQ 8 (
 exit /b 0
 
 :ingest_all_assets
+set "RUNTIME_RC="
 if not exist "%ALL_ASSET_IMPORT%" (
   echo [STOP] Відсутній єдиний importer усіх локальних assets: %ALL_ASSET_IMPORT%
   exit /b 5
@@ -161,10 +164,12 @@ if not defined ASSET_PY_CMD (
 )
 set "PASS45_SOURCE_SHA=unknown"
 for /f "delims=" %%H in ('git -C "%~dp0" rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
-set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"
+if defined ASSET_RC set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"
+if defined RUNTIME_RC set "PASS45_RUNTIME_RC=%RUNTIME_RC%"
 %ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"
 set "ASSET_STATUS_RC=%ERRORLEVEL%"
 set "PASS45_ASSET_IMPORT_RC="
+set "PASS45_RUNTIME_RC="
 if not "%ASSET_STATUS_RC%"=="0" (
   echo [WARN] Не вдалося створити LOCAL_ASSET_STATUS snapshot.
   exit /b 0
@@ -187,6 +192,7 @@ if not exist "%EVIDENCE_VERIFY%" (
 
 call :ingest_all_assets
 if errorlevel 1 exit /b %ERRORLEVEL%
+set "RUNTIME_RC="
 
 if exist "%LOCAL_INBOX_RUNTIME_REPORT%" del /q "%LOCAL_INBOX_RUNTIME_REPORT%" >nul 2>nul
 if exist "%LOCAL_WORLD_RUNTIME_REPORT%" del /q "%LOCAL_WORLD_RUNTIME_REPORT%" >nul 2>nul
@@ -199,17 +205,24 @@ set "OC_VALIDATE_LOCAL_INBOX="
 set "OC_RHI_COMPAT="
 set "OC_FORCE_ACCEPTANCE="
 if not "%GAME_RC%"=="0" (
+  set "RUNTIME_RC=%GAME_RC%"
+  call :write_asset_snapshot
   echo [STOP] Runtime acceptance failed: %GAME_RC%
+  if exist "%ASSET_STATUS_TEXT%" echo [ASSET STATUS] Runtime snapshot: %ASSET_STATUS_TEXT%
   exit /b %GAME_RC%
 )
 
 if not exist "%LOCAL_INBOX_RUNTIME_REPORT%" (
+  set "RUNTIME_RC=35"
+  call :write_asset_snapshot
   echo [STOP] Не отримано live runtime proof для models_game_OC.
   echo Очікувався файл: %LOCAL_INBOX_RUNTIME_REPORT%
   exit /b 35
 )
 findstr /L /C:"PASS45_LOCAL_INBOX_RUNTIME=PASS" "%LOCAL_INBOX_RUNTIME_REPORT%" >nul
 if errorlevel 1 (
+  set "RUNTIME_RC=36"
+  call :write_asset_snapshot
   echo [STOP] Не всі локальні моделі реально завантажились у gameplay runtime.
   type "%LOCAL_INBOX_RUNTIME_REPORT%"
   exit /b 36
@@ -217,11 +230,15 @@ if errorlevel 1 (
 echo [MODEL INBOX] PASS: усі прив'язані моделі реально відкрились у gameplay runtime.
 
 if not exist "%LOCAL_WORLD_RUNTIME_REPORT%" (
+  set "RUNTIME_RC=37"
+  call :write_asset_snapshot
   echo [STOP] Не отримано runtime proof, що world-моделі реально підключені до Остра.
   exit /b 37
 )
 findstr /L /C:"PASS45_LOCAL_WORLD_RUNTIME=PASS" "%LOCAL_WORLD_RUNTIME_REPORT%" >nul
 if errorlevel 1 (
+  set "RUNTIME_RC=38"
+  call :write_asset_snapshot
   echo [STOP] World assets не пройшли live placement proof.
   type "%LOCAL_WORLD_RUNTIME_REPORT%"
   exit /b 38
@@ -231,6 +248,8 @@ echo [WORLD ASSETS] PASS: будівлі/пропи/рослинність/до�
 call "%MATERIAL_GATE%"
 set "MATERIAL_RC=%ERRORLEVEL%"
 if not "%MATERIAL_RC%"=="0" (
+  set "RUNTIME_RC=%MATERIAL_RC%"
+  call :write_asset_snapshot
   echo [STOP] Material/dependency gate failed: %MATERIAL_RC%
   exit /b %MATERIAL_RC%
 )
@@ -243,6 +262,8 @@ if not defined PY_CMD (
   if not errorlevel 1 set "PY_CMD=python"
 )
 if not defined PY_CMD (
+  set "RUNTIME_RC=30"
+  call :write_asset_snapshot
   echo [STOP] Python 3 not found.
   exit /b 30
 )
@@ -251,7 +272,11 @@ set "PASS45_SOURCE_SHA=unknown"
 for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
 %PY_CMD% "%EVIDENCE_VERIFY%" "%GAMEPLAY_LOG%" "%MATERIAL_LOG%" "%WEAPON_REPORT%"
 set "EVIDENCE_RC=%ERRORLEVEL%"
-if not "%EVIDENCE_RC%"=="0" exit /b %EVIDENCE_RC%
+if not "%EVIDENCE_RC%"=="0" (
+  set "RUNTIME_RC=%EVIDENCE_RC%"
+  call :write_asset_snapshot
+  exit /b %EVIDENCE_RC%
+)
 
 echo ============================================================
 echo PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED.
