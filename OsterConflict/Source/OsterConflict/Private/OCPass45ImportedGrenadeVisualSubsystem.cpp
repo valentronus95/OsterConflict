@@ -13,7 +13,8 @@
 namespace
 {
     const FName ImportedGrenadeTag(TEXT("OC_PASS45_IMPORTED_GRENADE_VISUAL"));
-    constexpr int32 MaxRefreshPasses = 12;
+    constexpr int32 FastRefreshPasses = 12;
+    constexpr float PersistentRefreshIntervalSeconds = 0.25f;
     constexpr float DesiredGrenadeLengthCm = 14.0f;
 
     enum class EImportedGrenadeVisualKind : uint8
@@ -137,6 +138,25 @@ namespace
         SortKind(OutFlash, EImportedGrenadeVisualKind::Flash);
     }
 
+    struct FGrenadeCatalogCache
+    {
+        bool bLoaded = false;
+        TArray<FAssetData> Frag;
+        TArray<FAssetData> Smoke;
+        TArray<FAssetData> Flash;
+    };
+
+    FGrenadeCatalogCache& GetGrenadeCatalogCache()
+    {
+        static FGrenadeCatalogCache Cache;
+        if (!Cache.bLoaded)
+        {
+            GatherFabGrenadeMeshes(Cache.Frag, Cache.Smoke, Cache.Flash);
+            Cache.bLoaded = true;
+        }
+        return Cache;
+    }
+
     UStaticMesh* ResolveVisualFor(AOCGrenadeProjectile& Grenade,
         const TArray<FAssetData>& Frag,
         const TArray<FAssetData>& Smoke,
@@ -238,10 +258,7 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
     if (!World) return;
     ++RefreshPass;
 
-    TArray<FAssetData> Frag;
-    TArray<FAssetData> Smoke;
-    TArray<FAssetData> Flash;
-    GatherFabGrenadeMeshes(Frag, Smoke, Flash);
+    const FGrenadeCatalogCache& Catalog = GetGrenadeCatalogCache();
 
     int32 Applied = 0;
     for (TActorIterator<AOCGrenadeProjectile> It(World); It; ++It)
@@ -253,7 +270,8 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
 
         int32 VariantIndex = 0;
         int32 VariantCount = 0;
-        if (UStaticMesh* Mesh = ResolveVisualFor(*Grenade, Frag, Smoke, Flash, VariantIndex, VariantCount))
+        if (UStaticMesh* Mesh = ResolveVisualFor(
+            *Grenade, Catalog.Frag, Catalog.Smoke, Catalog.Flash, VariantIndex, VariantCount))
         {
             if (ApplyImportedVisual(*Grenade, Mesh, VariantIndex, VariantCount)) ++Applied;
         }
@@ -262,8 +280,8 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
     if (RefreshPass == 1)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
-            Frag.Num(), Smoke.Num(), Flash.Num(), Frag.Num() >= 2 ? 1 : 0);
+            TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d asset_registry_scans=1 local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
+            Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num(), Catalog.Frag.Num() >= 2 ? 1 : 0);
     }
     if (Applied > 0)
     {
@@ -271,8 +289,20 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
             TEXT("PASS45_IMPORTED_GRENADE_VISUAL_PASS pass=%d applied=%d"), RefreshPass, Applied);
     }
 
-    if (RefreshPass >= MaxRefreshPasses)
+    if (RefreshPass == FastRefreshPasses)
     {
-        World->GetTimerManager().ClearTimer(RefreshTimer);
+        // Grenades are transient actors created throughout the match. Stopping here would mean every grenade
+        // thrown after the first few seconds silently reverts to the old shared body. Keep a cheap actor-only
+        // watch alive; the Fab AssetRegistry catalog above is cached once and is not rescanned every tick.
+        World->GetTimerManager().SetTimer(
+            RefreshTimer,
+            this,
+            &UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals,
+            PersistentRefreshIntervalSeconds,
+            true,
+            PersistentRefreshIntervalSeconds);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_IMPORTED_GRENADE_LATE_SPAWN_WATCH_READY fast_passes=%d interval_s=%.2f asset_registry_scans=1 late_throw_support=1 shared_generic_body=0"),
+            FastRefreshPasses, PersistentRefreshIntervalSeconds);
     }
 }
