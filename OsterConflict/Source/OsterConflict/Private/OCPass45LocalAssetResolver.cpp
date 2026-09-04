@@ -109,6 +109,13 @@ USkeletalMesh* OCPass45FindLocalSkeletalMesh(
     return Resolve<USkeletalMesh>(USkeletalMesh::StaticClass(), PackageRoots, PreferredTokens);
 }
 
+USkeletalMesh* OCPass45FindLocalSkeletalMeshStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens)
+{
+    return Resolve<USkeletalMesh>(USkeletalMesh::StaticClass(), PackageRoots, RequiredTokens, true);
+}
+
 UAnimSequence* OCPass45FindLocalAnimation(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens)
