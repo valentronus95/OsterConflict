@@ -1,193 +1,128 @@
-# PASS45 Runtime Recovery — Persistent Work History
+# PASS45 Runtime Recovery — Current Checkpoint
 
-This is the current human-readable checkpoint index for `PASS45_RUNTIME_RECOVERY_TZ.md`. Git history remains the raw source of truth; this file records the newest factual continuation state so new chats do not replay completed analysis.
+Updated: 2026-09-04  
+Purpose: fast continuation index for `PASS45_RUNTIME_RECOVERY_TZ.md`.
 
-## Binding continuation and local-debug rules — 2026-09-03
+Detailed old chronology remains in Git history and `RUNTIME_EVIDENCE/`. Do not rebuild that chronology here.
 
-Canonical continuation protocol:
+## Canonical state
 
-`_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md`
+- Branch: `fix/pass45-runtime-rejection-material-closure-20260826`
+- PR: **#94 OPEN / UNMERGED**
+- Baseline: `main@bca00f4046700f383af9f1742cc24b6a62401b1a`
+- Formal progress: **22/36 = 61.1% complete, 38.9% remaining**
+- First factual open checklist item: **16**
+- Local UE verification: **deferred by user until a broad integrated package is ready**
+- Local user `Changes`: do not touch remotely
 
-Canonical component-first UE debugging protocol:
-
-`_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md`
-
-`AGENTS.md` rules 30–31 remain binding:
-
-- continue from the latest factual checkpoint instead of restarting a broad audit;
-- after a fail-closed local chain stops at one component, exhaust source/static/preflight checks first and rerun only that failed component until it passes;
-- do not make the user repeat earlier phases that already passed;
-- run the full bounded chain once only after affected components are individually green;
-- run full gameplay only as consolidated acceptance, not as a Python/asset-authoring debugger.
-
-## Canonical ownership
-
-- Canonical TZ: `PASS45_RUNTIME_RECOVERY_TZ.md`.
-- Active branch: `fix/pass45-runtime-rejection-material-closure-20260826`.
-- Target baseline: `main@bca00f4046700f383af9f1742cc24b6a62401b1a`.
-- Active PR: **#94 OPEN / UNMERGED**.
-- Official checklist: **22/36 = 61.1% complete, 38.9% remaining**.
-- First factual open item: **item 16**.
-- Local user `Changes` remain outside assistant mutation scope.
-- User-local UE execution remains paused by explicit instruction; active work is repository/source/CI only.
-
-## Relevant recovery chain
-
-Historical/local blocker sequence retained for non-regression:
-
-1. `cf75b86ce5988ef489f0ef653d3f1b3f637278fd` — factual M700 local rejection on legacy bone-track creation;
-2. `89bb635d67b24afdb5e32bccd91092401b6024d6` — M700 UE 5.8 `add_bone_curve()` recovery;
-3. `3dc5d1b57a6b908b0bd5356e0b01b681e397d285` — Lever UE 5.8 `add_bone_curve()` recovery;
-4. `3de85c46a9c12aa9dd43a3950a888872cf266e6f` — regression guard against deprecated direct bone-track creation;
-5. `7b70c56e0c1e77c6642ba517d45310d7879be343` / `2ac5b9560b63a51be3f57c770c6a93d2c302373c` — Lever/M700 asset-compilation barriers;
-6. `03ab7bded49fc23ea1c19c23586b86797aaeba93` — async-compilation barrier regression guard;
-7. `3b66261b79a82deed7ebe698844205176cc92b20` — Lever 52-frame integral 30→60 resampling envelope;
-8. `91da695e4dbc07d2a0890e0394e93ba066bc6a92` — resampling-grid regression guard;
-9. `a03b128c902b4103eabf60b7a85f779992ff24cd` — Lever motion-duration versus technical-envelope validation bridge;
-10. `48d097d801e4e515bec9d728d59a6eec55f758c0` — regression guard for the padded-envelope bridge;
-11. `37361f61c6afa33ab094490f10ae74c35de3cceb` / `23ac9d1d8cc3677a9d4f9a56cbce63f72d4e91fc` — component-first UE debugging protocol and binding AGENTS rule;
-12. `79d6363bb7cb1174a749969d009c00b50edf98fa` / `67d3e443783beb2f3b6b080c99601e9f84b3d801` — calibration review rejects stale pre-recovery evidence and current checkpoint verifier proves fail-closed behavior;
-13. `e34a41bab79bed713bac7f5c77626224aef55907` / `73497cf7c4c23e7baf9df3786f3d37593541a6da` — exact M700/Lever Stein source identity and SHA-256 binding plus negative wrong-source tests;
-14. `2d2eb910716f67223626ff244a068098bf43385c` — calibration approval is bound to a real ancestor commit and rejected if calibration-critical source changes after that evidence head;
-15. `b389c21ac64b01ef9862662e87b0fc85a47382e9` — manual-action audio now emits factual playback dispatch/failure evidence from the real `HandleStateEventLocal()` path;
-16. `119b18829e5f252392fbd0e3d0999279f83e4ae2` / `b7b5aeff9fddb6d8830cad196ab0bc1b8e06ade4` — runtime and source contracts require local playback dispatch, positive weapon bus/effective volume and reject playback failure;
-17. `db9e252c33223f944b86b41165599d7601c2b664` / `3dc8cdffff6f8a92aee050bb75017438a19d05b5` — executable synthetic runtime contract covers playback evidence and its missing-playback adversarial case is a real removal rather than a substring false positive;
-18. `e59f672286279377ee6a22779f3c9c9e8a7721cf` — runtime evidence is no longer satisfied by arbitrary `sound=/Game/`; it pins the exact expected current manual-action playback object for each required weapon;
-19. `924867a156a47de3782b668fc6a94500ea298364` — executable contract rejects wrong M700 manual-action sound identity;
-20. `46c400c228661a4200248ae35bb819c420ce5a2d` — static audio-dispatch guard binds source `LoadSound()` objects to the exact runtime expectations and rejects source/runtime identity drift;
-21. `80d0f727f02194530497a84ba5bc389f018c4c29` — source contract now requires audio dispatch and authored moving-part animation start to remain on the same authoritative `bActionCycling` rising edge, in order, without a second timer or early return.
-
-## First factual open item — item 16
-
-Item 16 still requires accepted authored M700 / Remington 870 / Lever Action moving-part/manual-action presentation, factual mechanical audio and current-head UE 5.8 acceptance.
-
-Source/docs/CI/pilot-only work does not check item 16 and does not increase the official percentage.
-
-The eventual production-authoring boundary remains **MANUAL CURRENT-HEAD UE 5.8 VISUAL CALIBRATION** for final M700 travel/rotation and Lever angle. This acceptance boundary is not waived by source-only work.
-
-### Remington 870
-
-Current source has the guarded registered CC-BY-4.0 donor derivative, production skeletal path and PumpCycle bridge. The older 2026-09-02 gameplay result rejected only the pre-cutover presentation where the fore-end did not visibly pump.
-
-Latest bounded local evidence passes the derived pump + imported assembly proof, but direct current-head visible-pump and mechanical-audio gameplay acceptance remain pending.
-
-### M700
-
-The Stein CC0 source has a factual weighted `BOLT` joint. `BOLT_STOP` is not accepted as an authored travel endpoint.
-
-Latest bounded local evidence passes the M700 translation proof. Final bolt travel and bolt rotation remain manual current-head visual calibration work before production authoring/cutover.
-
-### Lever Action
-
-The Stein CC0 source has a factual addressable `LEVER` bone. The current `-45°` local-X excursion remains calibration-only.
-
-The latest local run proved the 52-frame / 53-key UE 5.8 integral resampling envelope and pre-sampling compilation barrier, then stopped on the stale base-pilot duration assertion `expected=0.85 actual=0.866666...`. Current source separates the factual 0.85 s motion endpoint from the legal 52/60 technical sequence envelope and restores 0.85 s before sampling/evidence. This recovery remains **CODED_UNTESTED** locally.
-
-## Current manual-action audio and same-transition evidence contract
-
-The source now distinguishes four facts that must not be collapsed into one convenient green check:
-
-1. the required action-family sound object loaded into the weapon audio profile;
-2. the authoritative `bActionCycling && !State.bWasActionCycling` rising edge dispatched `ManualActionCycle` through the real audio component;
-3. that same rising-edge block resolves and attempts the authored moving-part animation after audio dispatch, without a second gameplay timer or early return;
-4. a non-null exact expected sound object reached the local 2D playback branch with weapon-bus volume and effective playback volume both greater than zero.
-
-Runtime evidence requires:
+Truth while acceptance is deferred:
 
 ```text
-PASS45_MANUAL_ACTION_AUDIO_PLAYBACK_DISPATCHED
-route=local2d
-bus_gt_zero=1
-effective_volume_gt_zero=1
-second_gameplay_timer=0
 runtime_acceptance=0
-```
-
-and binds the `sound=` field to the current expected object:
-
-```text
-OC_SNP1       -> /Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor
-OC_SG1        -> /Game/R13/Audio/shotguncock.shotguncock
-R13_LEVER4570 -> /Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor
-```
-
-These are exact **current playback-object identities**, not a claim that the M700/Lever donor recordings are exact real-weapon recordings. Direct audible/visual quality acceptance remains pending.
-
-The runtime verifier rejects playback failure, manual-action content gaps, authored-animation content gaps and authored source-bridge failures. The static same-transition guard adversarially rejects removal of the rising-edge gate or authored animation start.
-
-## Exact-head runtime-evidence integrity audit
-
-The strict main acceptance wrapper already pins `git rev-parse HEAD` before runtime, rejects tracked staged/unstaged differences, reruns the source-head check after runtime/material gates, rejects HEAD drift and rejects tracked mutations created by runtime/import stages.
-
-Therefore the manual-action verifier is executed inside an existing exact-head acceptance route rather than against an arbitrarily reusable stale working tree. This is source-contract evidence only; it still does not create the missing direct UE visual/audio acceptance.
-
-## Historical 2026-08-25 build/import non-regression
-
-Retain the factual historical **LOCAL UE BUILD REJECTED** evidence:
-
-- UE 5.8.1 / MSVC `C2131` rejected the tactical `FVector2D` road table when it was `constexpr`;
-- UE 5.8 Interchange rejected deprecated `auto_detect_mesh_type` usage for HMMWV/M2 intake.
-
-These are historical regression guards, not current item-16 blockers. Current source fixes remain recorded as `CODED_UNTESTED` unless later factual local build/import evidence explicitly verifies them.
-
-## Asset quarantine and bounded-before-consolidated runtime cadence
-
-The `asset-intake-20260903` branch remains quarantine-only. Quarantine content is not production-ready, not runtime-accepted and must never be merged wholesale into PASS45.
-
-The checklist architecture remains frozen at 36 canonical items: **no checklist items 37+** are created from asset intake or quarantine inventory.
-
-Do **not** run the expensive full UE 5.8 gameplay acceptance after every small weapon tweak. Use bounded source/import/fresh-load/component checks while configuration is still moving, then run **one consolidated current-head weapon runtime acceptance** only after the intended weapon setup batch is ready.
-
-## Explicit user-local execution boundary — 2026-09-03
-
-Latest explicit user instruction: **do not require or request PC-side checks; continue `PASS45_RUNTIME_RECOVERY_TZ.md` from the repository/checkpoint instead.**
-
-Therefore:
-
-- no current next-step instruction may send the user to GitHub Desktop, CMD, UE Editor or a local launcher;
-- local-only UE evidence remains pending factual evidence, not silently accepted;
-- the assistant continues remote/source/CI/verifier cleanup and any item-16 preparation that does not require fabricated visual calibration;
-- `runtime_acceptance=0`, `item16_checked=0`, `merge_permitted=0` remain unchanged;
-- PR #94 remains OPEN / UNMERGED until the existing runtime acceptance rule is actually satisfied by factual evidence at some later point.
-
-## CI checkpoint and documentation-regression repair
-
-Exact-head `46c400c228661a4200248ae35bb819c420ce5a2d` had a completely green pull-request matrix, including manual-action audio provenance, calibration/cutover, UE58 compatibility, Remington, strict runtime and Source verification gates.
-
-On `80d0f727f02194530497a84ba5bc389f018c4c29`:
-
-- `Pass 45 item16 manual-action timing semantics`: SUCCESS;
-- `Pass 45 manual-action audio provenance`: SUCCESS;
-- Source verification entered the full structural suite and failed only because the previous documentation compaction accidentally removed the ledger's mandatory historical Pass44 rejection/non-regression wording.
-
-The runtime/gameplay source was not implicated. The ledger repair in the next checkpoint restores:
-
-- `Historical Pass 44 non-regression`;
-- `Pass 44 verdict: RUNTIME REJECTED`;
-- `Pass 44 behavior retained unless disproved`;
-- compact 960×940 m central-Oster bounds, zero implicit bot fill, actual Museum BASE pawn proof, compact tactical bounds, fail-visible authored material gaps and physical retirement of the Pass37 palette compatibility owner.
-
-The verifier is intentionally not weakened. Exact-head Source verification after the repair is the required confirmation.
-
-## Next factual operation
-
-User-local execution is currently paused by explicit instruction.
-
-Continue remotely in this order:
-
-1. confirm Source verification after restoring the Pass44 historical ledger contract;
-2. keep the same-rising-edge audio/authored-animation guard green;
-3. keep final M700 travel/rotation and Lever angle unaccepted until factual visual calibration exists;
-4. keep Remington visible-pump/mechanical-audio acceptance pending factual runtime evidence;
-5. do not merge PR #94 and do not promote runtime acceptance from CI alone.
-
-PR #94 remains OPEN / UNMERGED.
-
-```text
-official_progress=22/36=61.1%
-remaining=38.9%
 item16_checked=0
-runtime_acceptance=0
 merge_permitted=0
 user_local_execution_requested=0
 ```
+
+## 2026-09-04 execution-policy reset
+
+The previous workflow was too granular. PASS45 now uses a compact batch-first policy.
+
+Binding files were simplified:
+
+- `PASS45_RUNTIME_RECOVERY_TZ.md`
+- `AGENTS.md`
+- `_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md`
+- `_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md`
+
+Current rules:
+
+1. continue from this checkpoint, not from a full-project re-audit;
+2. do not stop on a local-only seam while later safe remote work exists;
+3. implement coherent subsystem/content batches;
+4. run only critical checks owned by the changed production surface;
+5. broad verification belongs at meaningful batch/milestone/merge boundaries;
+6. local UE is one broad integrated session later, followed by one defect list and targeted failed-component retests;
+7. no fake runtime acceptance and no PR #94 merge before factual integrated acceptance.
+
+## CI/workflow cleanup completed in this policy pass
+
+The following historical/local/pilot/duplicate workflows were removed from ordinary automatic PR/push cadence and retained as manual diagnostics:
+
+- `pass45-item16-local-ue58-evidence-chain.yml`
+- `pass45-checkpoint-continuation-item16-calibration.yml`
+- `pass45-component-first-ue-debugging.yml`
+- `pass45-item16-production-cutover-preflight.yml`
+- `pass45-item16-ue58-frame-rate-compat.yml`
+- `pass45-m700-source-motion-audit.yml`
+- `pass45-leveraction-source-motion-audit.yml`
+- `pass45-m700-bolt-geometry-audit.yml`
+- `pass45-remington870-donor-motion-audit.yml`
+- `pass45-m700-derived-bolt-translation-ue58-pilot-contract.yml`
+- `pass45-remington870-derived-pump-ue58-pilot-contract.yml`
+- `pass45-remington870-derived-pump-ue58-assembly-audit.yml`
+
+The M700/Lever source audits also no longer auto-commit generated audit reports back into the active branch.
+
+Production-critical current owner remains automatic where appropriate, especially:
+
+- `pass45-item16-production-profile-cutover.yml`
+- feature-specific production/source guards for code actually being changed.
+
+`source-verify.yml` is already not an automatic PASS45-branch gate; its broad suite is manual/on-demand or main/integration scoped.
+
+## Current item-16 boundary
+
+### M700
+
+- weighted `BOLT` source exists;
+- bounded translation preparation exists;
+- final travel/rotation is deferred local visual calibration.
+
+### Remington 870
+
+- production skeletal source exists;
+- pump animation/source preparation exists;
+- direct visible-pump/gameplay acceptance is deferred.
+
+### Lever Action
+
+- weighted `LEVER` exists;
+- factual manual-action duration remains 0.85 s;
+- UE 5.8 resampling compatibility preparation exists;
+- final lever angle is deferred local visual calibration.
+
+### Manual-action audio
+
+- action-family routing exists;
+- pinned M700/Lever donor WAV/source preparation exists;
+- actual UE SoundWave import/fresh-load/audibility remains factual local/content work and must not be invented remotely.
+
+Item 16 remains open but **does not block the rest of the remote queue**.
+
+## Next practical remote queue
+
+Continue without requesting local UE:
+
+1. remaining weapon/audio/ADS/hands preparation across items 16/18/20;
+2. grenade first-person presentation/VFX item 24;
+3. vegetation/environment item 27;
+4. HMMWV/M2 hierarchy and handling items 28–29;
+5. BTR material/orientation/remote optic items 30–31;
+6. world/material/LOD/graphics quality item 32;
+7. tactical/performance preparation items 33–34;
+8. only then hand off one useful integrated UE 5.8 acceptance session.
+
+## Continuation rule
+
+At the start of the next chat/cycle:
+
+1. reconcile current branch HEAD and PR #94;
+2. read this checkpoint;
+3. read only the relevant compact TZ section;
+4. continue the first remotely actionable item in the practical queue;
+5. do not replay item-16 calibration analysis merely because item 16 is still formally open.
+
+## User action
+
+`ВІД ТЕБЕ ЗАРАЗ НІЧОГО НЕ ПОТРІБНО.`
