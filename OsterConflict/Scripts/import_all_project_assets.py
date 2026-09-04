@@ -67,6 +67,64 @@ def _dedupe(bindings, key):
     bindings[key] = unique
 
 
+def _read_status_sentinel(path):
+    if not path.is_file():
+        return None, []
+    try:
+        lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+    except Exception as exc:
+        return None, [f"SENTINEL_READ_FAILED={type(exc).__name__}:{exc}"]
+
+    status = None
+    details = []
+    for line in lines:
+        text = line.strip()
+        if text.startswith("STATUS="):
+            status = text.partition("=")[2].strip().upper()
+        elif text.startswith("GAP=") or text.startswith("CONTENT_GAP="):
+            details.append(text)
+    return status, details
+
+
+def _run_required_ingest(label, runner, sentinel, reason):
+    try:
+        runner()
+    except Exception as exc:
+        failure = {
+            "source": f"REQUIRED_INGEST:{label}",
+            "category": "PRODUCTION_REQUIRED",
+            "status": "UNBOUND",
+            "reason": f"{reason}_exception:{type(exc).__name__}:{exc}",
+            "sentinel": str(sentinel),
+        }
+        inbox.warn(
+            f"{label} ingest failed; continuing independent Fab/inbox catalog, "
+            "but aggregate asset PASS is blocked: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return [failure]
+
+    status, details = _read_status_sentinel(sentinel)
+    if status == "PASS":
+        return []
+
+    failure = {
+        "source": f"REQUIRED_INGEST:{label}",
+        "category": "PRODUCTION_REQUIRED",
+        "status": "UNBOUND",
+        "reason": f"{reason}:status={status or 'MISSING'}",
+        "sentinel": str(sentinel),
+    }
+    if details:
+        failure["details"] = details[:16]
+
+    inbox.warn(
+        f"{label} ingest returned {status or 'MISSING'}; continuing independent Fab/inbox catalog, "
+        "but aggregate asset PASS is blocked."
+    )
+    return [failure]
+
+
 def _is_core_authored_path(object_path):
     package = object_path.split(".", 1)[0]
     return any(package == prefix or package.startswith(prefix + "/") for prefix in CORE_AUTHORED_PREFIXES)
@@ -208,26 +266,38 @@ def main():
     # Run the normal models_game_OC import first in this SAME Unreal process.
     inbox.main()
 
-    # Import the canonical production vehicle set in the same one-pass pipeline. HMMWV and M2
-    # use hydrated repository sources; BTR4 uses the local FBX when available and otherwise
-    # generates the Oster-authored fallback so the project does not keep a green/proxy shell.
-    try:
-        production.main()
-    except Exception as exc:
-        inbox.warn(f"Production vehicle ingest gap; continuing the independent Fab/inbox catalog: {type(exc).__name__}: {exc}")
+    # Production sub-importers intentionally keep scanning independent assets after a partial gap.
+    # The aggregate pipeline may also continue cataloging, but it must preserve every required
+    # production GAP in runtime_bindings.json so the final success sentinel cannot lie.
+    required_ingest_failures = []
+    required_ingest_failures.extend(
+        _run_required_ingest(
+            "PRODUCTION_VEHICLES",
+            production.main,
+            production.SUCCESS_SENTINEL,
+            "production_vehicle_import_not_pass",
+        )
+    )
 
-    # Exact M249 and Remington 870 sources, when present in models_game_OC, are staged before this
-    # Python pass by IMPORT_ALL_LOCAL_INBOX_UE58.cmd and imported here into their canonical paths.
-    # Missing exact sources remain a factual content gap but do not block unrelated downloaded packs.
-    try:
-        production_weapons.main()
-    except Exception as exc:
-        inbox.warn(f"Exact local weapon ingest gap; continuing the independent Fab/inbox catalog: {type(exc).__name__}: {exc}")
+    # Exact M249 and Remington 870 sources are staged before this Python pass. Missing/failed exact
+    # sources do not block discovery of unrelated downloaded packs, but they DO block aggregate PASS.
+    required_ingest_failures.extend(
+        _run_required_ingest(
+            "EXACT_PRODUCTION_WEAPONS",
+            production_weapons.main,
+            production_weapons.SUCCESS_SENTINEL,
+            "production_weapon_import_not_pass",
+        )
+    )
 
     if not BINDINGS.is_file():
         raise RuntimeError(f"base runtime binding manifest missing after inbox import: {BINDINGS}")
 
     bindings = json.loads(BINDINGS.read_text(encoding="utf-8-sig"))
+    if required_ingest_failures:
+        bindings.setdefault("unbound_models", []).extend(required_ingest_failures)
+        bindings.setdefault("source_status", []).extend(required_ingest_failures)
+
     quantum = inbox.load_asset(inbox.QUANTUM_BODY)
     quantum_skeleton_path = inbox.skeleton_path(quantum)
 
@@ -263,6 +333,7 @@ def main():
         "project_content_static_bound": static_count,
         "project_content_skeletal_bound": skeletal_count,
         "project_content_failures": len(failures),
+        "required_production_ingest_failures": len(required_ingest_failures),
         "unbound_models": len(bindings["unbound_models"]),
     }
     bindings["all_models_bound"] = len(bindings["unbound_models"]) == 0
