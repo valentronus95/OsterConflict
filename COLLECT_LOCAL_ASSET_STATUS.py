@@ -231,9 +231,14 @@ def collect_snapshot(
             )
         ) else "FAIL_OR_GAP"
 
+        evidence_pass = _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS")
+        evidence_fail = _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=FAIL")
+        source_sha_known = bool(source_sha and source_sha.lower() != "unknown")
+        evidence_source_match = source_sha_known and _marker(texts["runtime_evidence"], f"SOURCE_SHA={source_sha}")
         evidence_stage = (
-            "PASS" if _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS")
-            else "FAIL" if _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=FAIL")
+            "PASS" if evidence_pass and evidence_source_match
+            else "STALE_SOURCE" if evidence_pass
+            else "FAIL" if evidence_fail
             else "MISSING"
         )
 
