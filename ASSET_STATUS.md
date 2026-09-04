@@ -147,7 +147,7 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ | 🟡 | AK fire/reload audio | existing weapon audio path; final integrated audibility acceptance pending |
 | ✅ LOCAL | ❌ | OpenGameArt donor content | `SourceAssets/ThirdParty/Gameplay/OpenGameArt/`; inventory/use only where provenance and exact purpose are valid |
 
-## Miscellaneous props and donor roots
+## Miscellaneous props
 
 | Present | Integration | Asset / root | Evidence / current state |
 |---|---|---|---|
@@ -155,11 +155,6 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ LOCAL | 🟡 | Ukrainian cherry juice | `Content/ukrainian-cherry-juice-nash-sik/`; strict local mesh resolver now places sparse no-collision juice props on existing park benches; UE visual acceptance pending |
 | ✅ | 🟡 | R13 content root | `Content/R13/`; existing weapons/world/runtime content, individual owners tracked above |
 | ✅ | 🟡 | Raw content root | `Content/Raw/`; source/import staging content, must not become a duplicate runtime owner |
-| ✅ LOCAL | 🟡 | BorderRun donor root | `SourceAssets/ThirdParty/Gameplay/BorderRun/`; covered recursively |
-| ✅ LOCAL | 🟡 | FPSArms3D donor root | `SourceAssets/ThirdParty/Gameplay/FPSArms3D/`; covered recursively |
-| ✅ LOCAL | 🟡 | FPSAssetKit donor root | `SourceAssets/ThirdParty/Gameplay/FPSAssetKit/`; covered recursively |
-| ✅ LOCAL | 🟡 | HardLines donor root | `SourceAssets/ThirdParty/Gameplay/HardLines/`; covered recursively |
-| ✅ LOCAL | 🟡 | OpenGameArt donor root | `SourceAssets/ThirdParty/Gameplay/OpenGameArt/`; covered recursively |
 
 ## Mandatory reconciliation queue
 
@@ -175,6 +170,7 @@ These items are already in the inventory and may not be forgotten merely because
 
 - The asset inventory itself is now centralized here.
 - All currently known user-added/imported roots and explicitly reported packs/models are represented, including ignored local content that GitHub cannot list directly.
+- Duplicate donor-root rows were removed; each donor stays represented by its functional row(s) instead of being counted twice under a second generic root entry.
 - AKS-74U, the newly added Fab RPG and the revolver now have distinct gameplay IDs/catalog entries and strict local visual resolution. They remain `🟡` until UE 5.8 proves the local models selected and rendered correctly.
 - The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
 - `Scene_RoadsideConstruction` now supplies both authored road/sidewalk surfaces and exact sparse construction props: cement bags, debris buckets and cable wheels.
