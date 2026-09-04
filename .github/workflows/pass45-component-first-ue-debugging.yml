@@ -1,26 +1,8 @@
 name: Pass 45 component-first UE debugging
 
+# Historical/local UE diagnostic bundle. Ordinary PASS45 development uses
+# batch-first remote preparation and production/path-scoped critical gates.
 on:
-  pull_request:
-    paths:
-      - 'AGENTS.md'
-      - 'OSTER_CONFLICT_WORK_LEDGER.md'
-      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
-      - '_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md'
-      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py'
-      - 'PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.py'
-      - 'PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py'
-      - 'VERIFY_PASS45_COMPONENT_FIRST_UE_DEBUGGING.py'
-      - 'VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py'
-      - 'VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py'
-      - 'VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py'
-      - 'OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd'
-      - 'OsterConflict/TRY_PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT.cmd'
-      - 'OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.cmd'
-      - 'OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd'
-      - 'OsterConflict/PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd'
-      - 'OsterConflict/REVIEW_PASS45_ITEM16_M700_LEVER_CALIBRATION.cmd'
-      - '.github/workflows/pass45-component-first-ue-debugging.yml'
   workflow_dispatch:
 
 permissions:
@@ -34,18 +16,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: A - Verify component-first local UE debugging cadence
-        run: python VERIFY_PASS45_COMPONENT_FIRST_UE_DEBUGGING.py
-      - name: B - Verify UE58 frame grid, duration bridge, bone curves and barriers
-        run: python VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py
-      - name: C - Verify later consolidated item16 evidence chain remains fail-closed
-        run: python VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py
-      - name: D - Verify historical UE58 local build/import regressions cannot return
-        run: python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
-      - name: Preflight complete
+      - name: Verify component/local UE debugging diagnostics on demand
         run: |
-          echo "PASS45 COMPONENT-FIRST UE58 PREFLIGHT: PASS"
-          echo "next_local_component=LeverAction"
-          echo "full_chain_now=0"
-          echo "full_gameplay_now=0"
+          python VERIFY_PASS45_COMPONENT_FIRST_UE_DEBUGGING.py
+          python VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py
+          python VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py
+          python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
+      - name: Diagnostic bundle complete
+        run: |
+          echo "PASS45 LOCAL UE DIAGNOSTICS: PASS"
+          echo "user_local_execution_requested=0"
           echo "item16_checked=0 runtime_acceptance=0 merge_permitted=0"
