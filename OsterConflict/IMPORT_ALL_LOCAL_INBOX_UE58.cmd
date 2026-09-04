@@ -62,15 +62,40 @@ echo OSTER CONFLICT - ВСІ МОДЕЛІ ПРОЕКТУ
 echo models_game_OC + Unreal/Fab/Marketplace Content -> UE import/catalog -> runtime binding
 echo ============================================================
 
-echo [1/4] Перевіряю локальні ZIP...
+echo [1/5] Дотягую реальні Git LFS payloads для всіх уже доданих model packs...
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git не знайдено в PATH.
+  exit /b 47
+)
+git -C "%REPO_ROOT%" lfs version >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git LFS не встановлено; без нього .uasset можуть лишитися pointer-файлами.
+  exit /b 48
+)
+set "CURRENT_BRANCH="
+for /f "delims=" %%B in ('git -C "%REPO_ROOT%" branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
+if not defined CURRENT_BRANCH set "CURRENT_BRANCH=main"
+git -C "%REPO_ROOT%" lfs pull origin "%CURRENT_BRANCH%"
+if errorlevel 1 (
+  echo [STOP] Git LFS не зміг дотягнути assets для %CURRENT_BRANCH%.
+  exit /b 49
+)
+git -C "%REPO_ROOT%" lfs checkout >nul
+if errorlevel 1 (
+  echo [STOP] Git LFS checkout не зміг розгорнути локальні asset payloads.
+  exit /b 49
+)
+
+echo [2/5] Перевіряю локальні ZIP...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [2/4] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
+echo [3/5] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [3/4] Збираю актуальний OsterConflictEditor перед імпортом...
+echo [4/5] Збираю актуальний OsterConflictEditor перед імпортом...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
 set "BUILD_RC=!ERRORLEVEL!"
 if not "!BUILD_RC!"=="0" (
@@ -78,7 +103,7 @@ if not "!BUILD_RC!"=="0" (
   exit /b !BUILD_RC!
 )
 
-echo [4/4] Імпортую models_game_OC і додаю ВСІ mesh assets із Unreal/Fab/Marketplace packs у runtime catalog...
+echo [5/5] Імпортую models_game_OC і додаю ВСІ mesh assets із Unreal/Fab/Marketplace packs у runtime catalog...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORTER%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
