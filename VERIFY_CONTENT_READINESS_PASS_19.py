@@ -24,7 +24,8 @@ def forbid(text: str, needle: str, label: str) -> None:
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 pass19 = read(SRC / "Private" / "OCContentReadinessPass19Subsystem.cpp")
 strict = read(SRC / "Private" / "OCProductionVehicleRuntimeValidationSubsystem.cpp")
-launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
+start_here = read(ROOT / "START_HERE.cmd")
+runtime_evidence = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 vehicle_import = read(ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py")
 vehicle_cmd = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
 vehicle_fresh = read(ROOT / "OsterConflict" / "Scripts" / "verify_production_vehicle_fresh_load.py")
@@ -50,9 +51,17 @@ for needle in (
 ):
     require(pass19, needle, "playable weapon readiness")
 
-require(launcher, "PASS19_PLAYABLE_WEAPON_SET_READY", "focused launcher playable gate")
-require(launcher, "PASS19_PLAYABLE_WEAPON_SET_FAIL", "focused launcher failure gate")
-forbid(launcher, "PASS7_PRODUCTION_WEAPONS_READY", "focused launcher exact-art false certification")
+# The old RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd was retired. START_HERE + the canonical Python
+# evidence verifier now own the runtime acceptance path, and Pass19 readiness remains an explicit gate.
+for needle in (
+    'set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"',
+    "call :full_runtime_test",
+    '%PY_CMD% "%EVIDENCE_VERIFY%"',
+):
+    require(start_here, needle, "canonical runtime launcher route")
+for needle in ("PASS19_PLAYABLE_WEAPON_SET_READY", "PASS19_PLAYABLE_WEAPON_SET_FAIL"):
+    require(runtime_evidence, needle, "canonical Pass19 runtime evidence")
+forbid(start_here, "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd", "retired Pass15 acceptance launcher")
 
 # Pass 44 supersedes the old all-or-nothing ensure_sources_exist() rule. Every production source remains real,
 # but an absent BTR is a named content gap and must not prevent an available HMMWV or M2 from importing.
@@ -93,6 +102,7 @@ print("CONTENT READINESS PASS 19 + PASS 44 INDEPENDENT INTAKE CONTRACT PASS")
 print("- generic weapon fallback meshes do not impersonate production art")
 print("- Pass 7 remains strict exact-production certification")
 print("- Pass 19 separately proves an 11-class playable real-mesh rack")
+print("- Pass19 runtime acceptance is carried by START_HERE + canonical Pass45 evidence, not a deleted CMD")
 print("- HMMWV/M2/BTR4 each still require a real source, but missing BTR cannot block available HMMWV/M2")
 print("- imported vehicle meshes must reopen with authored materials, not Default/BasicShape placeholders")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime and exact asset intake remain required")
