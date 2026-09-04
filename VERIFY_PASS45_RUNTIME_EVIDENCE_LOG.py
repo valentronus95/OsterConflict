@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+import COLLECT_LOCAL_ASSET_STATUS as asset_status
+
 ROOT = Path(__file__).resolve().parent
 DEFAULT_GAMEPLAY_LOG = ROOT / "Logs" / "R14_CURRENT_GAMEPLAY.log"
 DEFAULT_MATERIAL_LOG = ROOT / "Logs" / "PASS45_STRICT_MATERIAL_GATE.log"
@@ -31,6 +33,15 @@ def require_any(text: str, markers: tuple[str, ...], errors: list[str], label: s
 def forbid(text: str, marker: str, errors: list[str], label: str) -> None:
     if marker in text:
         errors.append(f"forbidden {label}: {marker}")
+
+
+def write_asset_snapshot(source_sha: str, runtime_result: int) -> None:
+    try:
+        json_path, text_path = asset_status.collect_snapshot(source_sha=source_sha, runtime_result=runtime_result)
+        print("Asset status snapshot:", text_path)
+        print("Asset status JSON:", json_path)
+    except Exception as exc:
+        print(f"[WARN] LOCAL_ASSET_STATUS snapshot failed: {type(exc).__name__}: {exc}")
 
 
 def main() -> int:
@@ -163,6 +174,7 @@ def main() -> int:
             + "\n",
             encoding="utf-8",
         )
+        write_asset_snapshot(source_sha, 1)
         print("PASS45 RUNTIME EVIDENCE: FAIL")
         for error in errors:
             print("[FAIL]", error)
@@ -182,8 +194,10 @@ def main() -> int:
         "PERFORMANCE_30FPS_GATE=PASS\n",
         encoding="utf-8",
     )
+    write_asset_snapshot(source_sha, 0)
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- all canonical runtime, material, interaction and 30 FPS gates passed")
+    print("- one LOCAL_ASSET_STATUS snapshot now consolidates asset counts, GAPs and missing evidence")
     print("- visual acceptance remains PENDING until direct observation satisfies the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0

@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent
 TACTICAL = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTacticalMapVisual.cpp"
 IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
 AGGREGATE_IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_all_project_assets.py"
+ASSET_STATUS_COLLECTOR = ROOT / "COLLECT_LOCAL_ASSET_STATUS.py"
+RUNTIME_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 LEDGER = ROOT / "OSTER_CONFLICT_WORK_LEDGER.md"
 
 errors = []
@@ -25,6 +27,8 @@ def require(condition: bool, message: str) -> None:
 tactical = read(TACTICAL)
 importer = read(IMPORTER)
 aggregate_importer = read(AGGREGATE_IMPORTER)
+asset_status_collector = read(ASSET_STATUS_COLLECTOR)
+runtime_evidence = read(RUNTIME_EVIDENCE)
 ledger = read(LEDGER)
 
 # Local UE 5.8.1 / MSVC 14.51 factual build rejected the FVector2D table when it was constexpr.
@@ -94,6 +98,29 @@ require(
     "aggregate importer no longer makes production GAP status fail-visible",
 )
 
+# One local snapshot must consolidate the otherwise scattered Saved/ and Logs evidence after the
+# canonical runtime evidence pass. It is diagnostic only and must never promote visual acceptance.
+for marker in (
+    "def collect_snapshot(",
+    "runtime_bindings.json",
+    "production_import_success.txt",
+    "production_weapon_import_result.txt",
+    "local_inbox_runtime_validation.txt",
+    "local_world_runtime_validation.txt",
+    "LOCAL_ASSET_STATUS.json",
+    "LOCAL_ASSET_STATUS.txt",
+    "PENDING_MANUAL_OBSERVATION",
+):
+    require(marker in asset_status_collector, f"local asset status collector lost {marker}")
+require(
+    "import COLLECT_LOCAL_ASSET_STATUS as asset_status" in runtime_evidence,
+    "canonical runtime evidence verifier no longer imports the local asset status collector",
+)
+require(
+    "asset_status.collect_snapshot" in runtime_evidence,
+    "canonical runtime evidence verifier no longer writes the consolidated local asset snapshot",
+)
+
 # Status must remain factual: source fix exists, but a later local build/import must verify it.
 require(
     "LOCAL UE BUILD REJECTED" in ledger,
@@ -120,4 +147,5 @@ print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy"
 print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- stale aggregate PASS is cleared before a fresh import run")
+print("- canonical runtime evidence emits one consolidated LOCAL_ASSET_STATUS snapshot")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
