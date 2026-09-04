@@ -6,8 +6,9 @@
 #include "OCPass45WeaponCatalogSpawnSubsystem.generated.h"
 
 /**
- * Sandbox-only owner for the complete weapon rack.
- * It spawns one pickup for every distinct gameplay weapon identity and skips identities already present.
+ * Sandbox-only completion owner for the existing "Spawn all weapons" admin rack.
+ * It does not create a second automatic rack on map load. Instead it detects the compact core rack
+ * spawned by the admin action and adds only the missing distinct gameplay weapon identities.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCPass45WeaponCatalogSpawnSubsystem : public UWorldSubsystem
@@ -20,6 +21,8 @@ public:
     virtual void Deinitialize() override;
 
 private:
-    void EnsureCompleteWeaponRack();
+    void CompleteRequestedWeaponRack();
     FTimerHandle SpawnTimer;
+    int32 ScanPass = 0;
+    bool bRackCompleted = false;
 };
