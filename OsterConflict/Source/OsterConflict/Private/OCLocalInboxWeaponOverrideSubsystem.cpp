@@ -1,6 +1,8 @@
 #include "OCLocalInboxWeaponOverrideSubsystem.h"
 
+#include "OCAntiArmorLauncher.h"
 #include "OCLocalInboxRuntimeSubsystem.h"
+#include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
 
 #include "Components/SceneComponent.h"
@@ -15,11 +17,12 @@
 
 namespace
 {
-    constexpr float DesiredM16LengthCm = 100.0f;
+    const FName LocalVisualTag(TEXT("OC_LocalInboxWeaponVisual"));
+    const FName LocalBoundTag(TEXT("OC_LocalInboxWeaponBound"));
 
     template <typename TMesh, typename TComponent>
-    TComponent* AddVisual(AOCWeapon_AssaultRifle* Weapon, USceneComponent* Root, TMesh* Mesh,
-        const FName BaseName)
+    TComponent* AddVisual(AOCWeaponBase* Weapon, USceneComponent* Root, TMesh* Mesh,
+        const FName BaseName, const float DesiredLengthCm)
     {
         if (!Weapon || !Root || !Mesh) return nullptr;
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
@@ -30,7 +33,8 @@ namespace
         const FName UniqueName = MakeUniqueObjectName(Weapon, TComponent::StaticClass(), BaseName);
         TComponent* Visual = NewObject<TComponent>(Weapon, UniqueName);
         if (!Visual) return nullptr;
-        const float UniformScale = DesiredM16LengthCm / Longest;
+
+        const float UniformScale = DesiredLengthCm / Longest;
         Visual->SetupAttachment(Root);
         Visual->SetRelativeLocation(-Bounds.Origin * UniformScale);
         Visual->SetRelativeRotation(FRotator::ZeroRotator);
@@ -39,10 +43,37 @@ namespace
         Visual->SetGenerateOverlapEvents(false);
         Visual->SetCanEverAffectNavigation(false);
         Visual->SetCastShadow(true);
-        Visual->ComponentTags.Add(FName(TEXT("OC_LocalInboxM16Visual")));
+        Visual->ComponentTags.Add(LocalVisualTag);
         Weapon->AddInstanceComponent(Visual);
         Visual->RegisterComponent();
         return Visual;
+    }
+
+    void HideOldWeaponPresentation(AOCWeaponBase* Weapon)
+    {
+        if (!Weapon) return;
+
+        TInlineComponentArray<UStaticMeshComponent*> StaticComponents;
+        Weapon->GetComponents(StaticComponents);
+        for (UStaticMeshComponent* Component : StaticComponents)
+        {
+            if (Component && !Component->ComponentHasTag(LocalVisualTag))
+            {
+                Component->SetVisibility(false, true);
+                Component->SetHiddenInGame(true, true);
+            }
+        }
+
+        TInlineComponentArray<USkeletalMeshComponent*> SkeletalComponents;
+        Weapon->GetComponents(SkeletalComponents);
+        for (USkeletalMeshComponent* Component : SkeletalComponents)
+        {
+            if (Component && !Component->ComponentHasTag(LocalVisualTag))
+            {
+                Component->SetVisibility(false, true);
+                Component->SetHiddenInGame(true, true);
+            }
+        }
     }
 }
 
@@ -58,16 +89,18 @@ void UOCLocalInboxWeaponOverrideSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     Super::OnWorldBeginPlay(InWorld);
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-    if (!UOCLocalInboxRuntimeSubsystem::ResolveFirstAssetObjectPathForCategory(TEXT("M16_M4"), M16ObjectPath)) return;
 
-    for (TActorIterator<AOCWeapon_AssaultRifle> It(&InWorld); It; ++It)
+    int32 BoundAtStart = 0;
+    for (TActorIterator<AOCWeaponBase> It(&InWorld); It; ++It)
     {
-        ApplyM16Visual(*It);
+        const bool bBefore = It->ActorHasTag(LocalBoundTag);
+        ApplyLocalVisual(*It);
+        if (!bBefore && It->ActorHasTag(LocalBoundTag)) ++BoundAtStart;
     }
 
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCLocalInboxWeaponOverrideSubsystem::HandleActorSpawned));
-    UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_M16_OVERRIDE_READY source=%s spawn_hook=1"), *M16ObjectPath);
+    UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WEAPON_OVERRIDE_READY initial_bound=%d spawn_hook=1"), BoundAtStart);
 }
 
 void UOCLocalInboxWeaponOverrideSubsystem::Deinitialize()
@@ -82,73 +115,90 @@ void UOCLocalInboxWeaponOverrideSubsystem::Deinitialize()
 
 void UOCLocalInboxWeaponOverrideSubsystem::HandleActorSpawned(AActor* Actor)
 {
-    AOCWeapon_AssaultRifle* Weapon = Cast<AOCWeapon_AssaultRifle>(Actor);
+    AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(Actor);
     UWorld* World = GetWorld();
     if (!Weapon || !World) return;
 
-    const TWeakObjectPtr<AOCWeapon_AssaultRifle> WeakWeapon(Weapon);
+    const TWeakObjectPtr<AOCWeaponBase> WeakWeapon(Weapon);
     World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, WeakWeapon]()
     {
-        if (AOCWeapon_AssaultRifle* LiveWeapon = WeakWeapon.Get()) ApplyM16Visual(LiveWeapon);
+        if (AOCWeaponBase* LiveWeapon = WeakWeapon.Get()) ApplyLocalVisual(LiveWeapon);
     }));
 }
 
-void UOCLocalInboxWeaponOverrideSubsystem::ApplyM16Visual(AOCWeapon_AssaultRifle* Weapon)
+bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase* Weapon,
+    FString& OutObjectPath, float& OutDesiredLengthCm, FString& OutCategory) const
 {
-    if (!Weapon || M16ObjectPath.IsEmpty() || Weapon->ActorHasTag(FName(TEXT("OC_LocalM16Bound")))) return;
+    if (!Weapon) return false;
+
+    auto TryCategory = [&](const TCHAR* Category, const float LengthCm)
+    {
+        FString Path;
+        if (!UOCLocalInboxRuntimeSubsystem::ResolveFirstAssetObjectPathForCategory(Category, Path)) return false;
+        OutObjectPath = MoveTemp(Path);
+        OutDesiredLengthCm = LengthCm;
+        OutCategory = Category;
+        return true;
+    };
+
+    if (Cast<AOCWeapon_AssaultRifle>(Weapon))
+    {
+        return TryCategory(TEXT("M16_M4"), 100.0f) || TryCategory(TEXT("AK47"), 88.0f);
+    }
+    if (Cast<AOCWeapon_SMG>(Weapon)) return TryCategory(TEXT("MP5"), 68.0f);
+    if (Cast<AOCWeapon_Pistol>(Weapon)) return TryCategory(TEXT("M1911"), 23.0f);
+    if (Cast<AOCWeapon_Sniper>(Weapon)) return TryCategory(TEXT("M700"), 112.0f);
+    if (Cast<AOCWeapon_Shotgun>(Weapon)) return TryCategory(TEXT("REMINGTON870"), 100.0f);
+    if (Cast<AOCWeapon_LMG>(Weapon)) return TryCategory(TEXT("M249"), 104.0f);
+    if (Cast<AOCWeapon_M14>(Weapon)) return TryCategory(TEXT("M14"), 112.0f);
+    if (Cast<AOCWeapon_Mac10>(Weapon)) return TryCategory(TEXT("MAC10"), 30.0f);
+    if (Cast<AOCWeapon_Tec9>(Weapon)) return TryCategory(TEXT("TEC9"), 32.0f);
+    if (Cast<AOCWeapon_LeverAction>(Weapon)) return TryCategory(TEXT("LEVER_ACTION"), 105.0f);
+    if (Cast<AOCAntiArmorLauncher>(Weapon)) return TryCategory(TEXT("LAUNCHER"), 105.0f);
+    return false;
+}
+
+void UOCLocalInboxWeaponOverrideSubsystem::ApplyLocalVisual(AOCWeaponBase* Weapon)
+{
+    if (!Weapon || Weapon->ActorHasTag(LocalBoundTag)) return;
+
+    FString ObjectPath;
+    FString Category;
+    float DesiredLengthCm = 100.0f;
+    if (!ResolveVisualForWeapon(Weapon, ObjectPath, DesiredLengthCm, Category)) return;
+
     USceneComponent* Root = Weapon->GetRootComponent();
     if (!Root) return;
 
-    // Keep collision/gameplay components alive but stop every old mesh from rendering before adding the user's model.
-    TInlineComponentArray<UStaticMeshComponent*> StaticComponents;
-    Weapon->GetComponents(StaticComponents);
-    for (UStaticMeshComponent* Component : StaticComponents)
-    {
-        if (Component && !Component->ComponentHasTag(FName(TEXT("OC_LocalInboxM16Visual"))))
-        {
-            Component->SetVisibility(false, true);
-            Component->SetHiddenInGame(true, true);
-        }
-    }
-    TInlineComponentArray<USkeletalMeshComponent*> SkeletalComponents;
-    Weapon->GetComponents(SkeletalComponents);
-    for (USkeletalMeshComponent* Component : SkeletalComponents)
-    {
-        if (Component && !Component->ComponentHasTag(FName(TEXT("OC_LocalInboxM16Visual"))))
-        {
-            Component->SetVisibility(false, true);
-            Component->SetHiddenInGame(true, true);
-        }
-    }
-
     bool bBound = false;
-    if (UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *M16ObjectPath))
+    if (UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *ObjectPath))
     {
         if (UStaticMeshComponent* Visual = AddVisual<UStaticMesh, UStaticMeshComponent>(
-            Weapon, Root, StaticMesh, FName(TEXT("LocalInboxM16Static"))))
+            Weapon, Root, StaticMesh, FName(TEXT("LocalInboxWeaponStatic")), DesiredLengthCm))
         {
             Visual->SetStaticMesh(StaticMesh);
             bBound = true;
         }
     }
-    else if (USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, *M16ObjectPath))
+    else if (USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, *ObjectPath))
     {
         if (USkeletalMeshComponent* Visual = AddVisual<USkeletalMesh, USkeletalMeshComponent>(
-            Weapon, Root, SkeletalMesh, FName(TEXT("LocalInboxM16Skeletal"))))
+            Weapon, Root, SkeletalMesh, FName(TEXT("LocalInboxWeaponSkeletal")), DesiredLengthCm))
         {
             Visual->SetSkeletalMeshAsset(SkeletalMesh);
             bBound = true;
         }
     }
 
-    if (bBound)
+    if (!bBound)
     {
-        Weapon->Tags.Add(FName(TEXT("OC_LocalM16Bound")));
-        UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_M16_RUNTIME_BOUND weapon=%s asset=%s"),
-            *Weapon->GetName(), *M16ObjectPath);
+        UE_LOG(LogTemp, Error, TEXT("PASS45_LOCAL_WEAPON_RUNTIME_FAIL category=%s asset=%s"),
+            *Category, *ObjectPath);
+        return;
     }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("PASS45_LOCAL_M16_RUNTIME_FAIL asset=%s"), *M16ObjectPath);
-    }
+
+    HideOldWeaponPresentation(Weapon);
+    Weapon->Tags.Add(LocalBoundTag);
+    UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WEAPON_RUNTIME_BOUND weapon=%s category=%s asset=%s"),
+        *Weapon->GetName(), *Category, *ObjectPath);
 }
