@@ -30,6 +30,20 @@ for needle in (
 ):
     req(needle in pickup, f"missing production HMMWV/M2 contract: {needle}")
 
+# Exact HMMWV identity is fail-closed. A missing HMMWV shell may not become a pickup, and a missing M2
+# may not be represented by another machine gun. This protects the user's one-owner/no-duplicate identity rule.
+for needle in (
+    "const bool bRequiresHMMWV = ShouldUseHMMWVProductionVisual();",
+    "!bUsingProductionVehicle && Chassis && !bRequiresHMMWV",
+    "PASS45_HMMWV_PRODUCTION_VISUAL_GAP",
+    "pickup_substitution=0",
+    "primitive_chassis_visible=0",
+    "!bUsingMountedGunAsset && !bRequiresHMMWV",
+    "PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP",
+    "other_gun_substitution=0",
+):
+    req(needle in pickup, f"fail-closed HMMWV/M2 identity guard missing: {needle}")
+
 # 2026-08-27 runtime rejection: exact M2 floated above the HMMWV after bounds/longest-axis correction.
 # The imported M2 has an authored receiver/mount pivot; exact production must use it unchanged.
 for needle in (
@@ -101,6 +115,7 @@ if errors:
 
 print("PASS45 HMMWV M2 HIERARCHY: PASS")
 print("- real HMMWV and authored M2 remain production owners")
+print("- explicit HMMWV/M2 identity now fails closed instead of substituting a pickup or another gun")
 print("- exact M2 uses its authored receiver/mount pivot; bounds recenter and longest-axis guessing are forbidden")
 print("- TurretPivot owns yaw; BarrelPivot owns pitch/M2/muzzle; GunnerCameraPivot owns the mounted view")
 print("- HMMWV yaw is continuous and no longer limited by the generic +/-170-degree stop")
