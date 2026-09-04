@@ -36,10 +36,36 @@ void UOCFirstPersonWeaponPresentationSubsystem::OnWorldBeginPlay(UWorld& InWorld
         TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Idle_01.AS_F_Rifle_Idle_01"));
     RifleADSIdleAnimation = LoadObject<UAnimSequence>(nullptr,
         TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Idle_01.AS_F_ADS_Rifle_Idle_01"));
+    RifleWalkForwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_F_Loop.AS_F_Rifle_Walk_F_Loop"));
+    RifleWalkBackwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_B_Loop.AS_F_Rifle_Walk_B_Loop"));
+    RifleWalkLeftAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_L_Loop.AS_F_Rifle_Walk_L_Loop"));
+    RifleWalkRightAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_R_Loop.AS_F_Rifle_Walk_R_Loop"));
+    RifleADSWalkForwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_F_Loop.AS_F_ADS_Rifle_Walk_F_Loop"));
+    RifleADSWalkBackwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_B_Loop.AS_F_ADS_Rifle_Walk_B_Loop"));
+    RifleADSWalkLeftAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_L_Loop.AS_F_ADS_Rifle_Walk_L_Loop"));
+    RifleADSWalkRightAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_R_Loop.AS_F_ADS_Rifle_Walk_R_Loop"));
     AKFireAnimation = LoadObject<UAnimSequence>(nullptr,
         TEXT("/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W"));
     AKReloadAnimation = LoadObject<UAnimSequence>(nullptr,
         TEXT("/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W"));
+
+    const bool bRifleLocomotionPackReady = RifleIdleAnimation && RifleADSIdleAnimation &&
+        RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation &&
+        RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation;
+    UE_LOG(LogTemp, bRifleLocomotionPackReady ? Display : Warning,
+        TEXT("PASS45_FP_RIFLE_LOCOMOTION_CONTENT_BRIDGE hip_idle=%d ads_idle=%d directional_hip=%d directional_ads=%d runtime_acceptance=0"),
+        RifleIdleAnimation ? 1 : 0,
+        RifleADSIdleAnimation ? 1 : 0,
+        (RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation) ? 1 : 0,
+        (RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation) ? 1 : 0);
 }
 
 TStatId UOCFirstPersonWeaponPresentationSubsystem::GetStatId() const
@@ -144,6 +170,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
     State.bRiflePoseApplied = false;
     State.bWasActionCycling = false;
     State.bWasAiming = false;
+    State.ArmsLocomotionState = 255;
     State.RecoilAlpha = 0.0f;
 }
 
@@ -172,17 +199,69 @@ void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Char
 
     if (Arms->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Arms->GetAnimClass()) return;
 
+    enum : uint8
+    {
+        Idle = 0,
+        Forward = 1,
+        Backward = 2,
+        Left = 3,
+        Right = 4
+    };
+
+    uint8 LocomotionState = Idle;
     UAnimSequence* Desired = bADS ? RifleADSIdleAnimation.Get() : RifleIdleAnimation.Get();
+
+    FVector FlatVelocity = Character.GetVelocity();
+    FlatVelocity.Z = 0.0f;
+    if (FlatVelocity.SizeSquared() > FMath::Square(10.0f))
+    {
+        const FVector MoveDirection = FlatVelocity.GetSafeNormal();
+        const float ForwardDot = FVector::DotProduct(Character.GetActorForwardVector(), MoveDirection);
+        const float RightDot = FVector::DotProduct(Character.GetActorRightVector(), MoveDirection);
+
+        if (FMath::Abs(ForwardDot) >= FMath::Abs(RightDot))
+        {
+            if (ForwardDot >= 0.0f)
+            {
+                LocomotionState = Forward;
+                Desired = bADS ? RifleADSWalkForwardAnimation.Get() : RifleWalkForwardAnimation.Get();
+            }
+            else
+            {
+                LocomotionState = Backward;
+                Desired = bADS ? RifleADSWalkBackwardAnimation.Get() : RifleWalkBackwardAnimation.Get();
+            }
+        }
+        else if (RightDot >= 0.0f)
+        {
+            LocomotionState = Right;
+            Desired = bADS ? RifleADSWalkRightAnimation.Get() : RifleWalkRightAnimation.Get();
+        }
+        else
+        {
+            LocomotionState = Left;
+            Desired = bADS ? RifleADSWalkLeftAnimation.Get() : RifleWalkLeftAnimation.Get();
+        }
+    }
+
+    UAnimSequence* IdleFallback = bADS ? RifleADSIdleAnimation.Get() : RifleIdleAnimation.Get();
+    if (!Desired || !Desired->GetSkeleton() || Desired->GetSkeleton() != ArmsMesh->GetSkeleton())
+    {
+        Desired = IdleFallback;
+        LocomotionState = Idle;
+    }
     if (!Desired || !Desired->GetSkeleton() || Desired->GetSkeleton() != ArmsMesh->GetSkeleton())
     {
         return;
     }
 
-    if (!State.bRiflePoseApplied || State.bADSArmsPose != bADS)
+    const uint8 PoseKey = static_cast<uint8>(LocomotionState | (bADS ? 0x80 : 0x00));
+    if (!State.bRiflePoseApplied || State.ArmsLocomotionState != PoseKey)
     {
         Arms->PlayAnimation(Desired, true);
         State.bRiflePoseApplied = true;
         State.bADSArmsPose = bADS;
+        State.ArmsLocomotionState = PoseKey;
     }
 }
 
@@ -287,6 +366,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     {
         Arms->SetAnimation(nullptr);
         State.bRiflePoseApplied = false;
+        State.ArmsLocomotionState = 255;
     }
 
     const int32 CurrentAmmo = Weapon->GetAmmoInMagazine();
