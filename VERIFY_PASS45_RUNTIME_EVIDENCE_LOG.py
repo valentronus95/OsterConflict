@@ -73,6 +73,7 @@ def main() -> int:
         "PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY",
         "PASS45_MUSEUM_LAYER_VALIDATION_READY",
         "PASS42_BASE_RACK_GROUNDED_READY",
+        "PASS19_PLAYABLE_WEAPON_SET_READY",
         "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
         "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
         "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY",
@@ -118,6 +119,7 @@ def main() -> int:
         "PASS45_MUSEUM_LAYER_VALIDATION_FAIL",
         "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
         "PASS42_BASE_RACK_GROUNDING_INCOMPLETE",
+        "PASS19_PLAYABLE_WEAPON_SET_FAIL",
         "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
         "PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL",
         "PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP",
@@ -186,6 +188,7 @@ def main() -> int:
         "VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION\n"
         f"SOURCE_SHA={source_sha}\n"
         "BASE_INITIAL_ONLY=PASS\n"
+        "PLAYABLE_WEAPON_SET=PASS\n"
         "DRIVER_ENTER_EXIT_TRANSFORM=PASS\n"
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
         "PRODUCTION_VEHICLE_MATERIALS=PASS\n"
@@ -197,6 +200,7 @@ def main() -> int:
     write_asset_snapshot(source_sha, 0)
     print("PASS45 RUNTIME EVIDENCE: PASS")
     print("- all canonical runtime, material, interaction and 30 FPS gates passed")
+    print("- playable 11-class real-mesh weapon set also passed the canonical runtime gate")
     print("- one LOCAL_ASSET_STATUS snapshot now consolidates asset counts, GAPs and missing evidence")
     print("- visual acceptance remains PENDING until direct observation satisfies the TZ")
     print("Evidence:", EVIDENCE_OUT)
