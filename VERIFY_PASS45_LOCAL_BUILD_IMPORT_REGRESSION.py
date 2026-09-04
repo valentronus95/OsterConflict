@@ -151,6 +151,22 @@ require(
     "import_result=0" in runtime_evidence,
     "final runtime evidence snapshot no longer preserves the already-proven successful import result",
 )
+require(
+    "def write_asset_snapshot(source_sha: str, runtime_result: int) -> bool:" in runtime_evidence,
+    "runtime evidence verifier no longer reports whether final LOCAL_ASSET_STATUS was actually written",
+)
+require(
+    "if not write_asset_snapshot(source_sha, 0):" in runtime_evidence,
+    "runtime evidence PASS is no longer fail-closed on a missing final LOCAL_ASSET_STATUS snapshot",
+)
+require(
+    "FAIL=LOCAL_ASSET_STATUS snapshot write failed" in runtime_evidence,
+    "runtime evidence verifier no longer records the snapshot-write failure in canonical evidence",
+)
+require(
+    "return 2" in runtime_evidence,
+    "runtime evidence verifier no longer returns nonzero when final LOCAL_ASSET_STATUS cannot be written",
+)
 for marker in (
     'set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"',
     'set "ASSET_STATUS_TEXT=%~dp0OsterConflict\\Saved\\AssetStatus\\LOCAL_ASSET_STATUS.txt"',
@@ -217,6 +233,7 @@ print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP senti
 print("- stale aggregate PASS is cleared before a fresh import run")
 print("- import-only LOCAL_ASSET_STATUS cannot reuse stale runtime/material/evidence PASS")
 print("- final runtime snapshot preserves IMPORT_RESULT_CODE=0 plus exact RUNTIME_RESULT_CODE")
+print("- final runtime PASS fails closed if LOCAL_ASSET_STATUS cannot be written")
 print("- every early full-runtime failure refreshes LOCAL_ASSET_STATUS with exact RUNTIME_RESULT_CODE")
 print("- canonical runtime evidence still refreshes the consolidated LOCAL_ASSET_STATUS snapshot")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
