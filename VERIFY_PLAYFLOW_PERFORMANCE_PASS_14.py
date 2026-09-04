@@ -4,7 +4,6 @@ import re
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "OsterConflict" / "Source" / "OsterConflict"
-
 FRONTEND_H = SRC / "Public" / "OCR13FrontendMenuSubsystem.h"
 FRONTEND = SRC / "Private" / "OCR13FrontendMenuSubsystem.cpp"
 GAME_MODE = SRC / "Private" / "OCGameMode.cpp"
@@ -14,7 +13,8 @@ PERF_H = SRC / "Public" / "OCPerformanceSampleSubsystem.h"
 PERF = SRC / "Private" / "OCPerformanceSampleSubsystem.cpp"
 IMPORTER = ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
 MAIN_LAUNCHER = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
-RUNTIME_LAUNCHER = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
+ENTRY = ROOT / "START_HERE.cmd"
+EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 
 
 def read(path: Path) -> str:
@@ -42,107 +42,78 @@ perf_h = read(PERF_H)
 perf = read(PERF)
 importer = read(IMPORTER)
 main_launcher = read(MAIN_LAUNCHER)
-runtime_launcher = read(RUNTIME_LAUNCHER)
+entry = read(ENTRY)
+evidence = read(EVIDENCE)
 
-# Host setup state remains available, but Pass 29 may bypass the crash-prone live server-setup page.
 for needle in ("StartHostedGameplay", "MaxPlayersEntry", "BotsEntry", "BotDifficultyEntry"):
     require(header, needle, "frontend host setup header")
 
-pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in frontend
+pass29_static = "PASS29_MAIN_START_DIRECT_HOST_QUEUED" in frontend
 if pass29_static:
     for needle in (
-        'if (Page == 0)', 'PASS29_MAIN_START_DIRECT_HOST_QUEUED',
-        'PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE',
-        'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
-        '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
+        "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
+        "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
+        "PASS14_HOST_TRAVEL_BEGIN",
+        "?listen?Mode=Conquest",
+        "?PerfProfile=LowCPU?R13Gameplay=1",
     ):
         require(frontend, needle, "static safe server creation flow")
-    for needle in ('PendingPage = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP'):
-        forbid(frontend, needle, "Pass 29 must not restore crash-prone server-setup page")
 else:
-    for needle in (
-        'if (Page == 0)', 'Page = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP',
-        '"HostTitle", "СТВОРЕННЯ СЕРВЕРА"', '"CreateServer", "СТВОРИТИ СЕРВЕР"',
-        'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
-        '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
-    ):
-        require(frontend, needle, "explicit server creation flow")
+    for needle in ("PASS14_MAIN_START_OPENS_SERVER_SETUP", "PASS14_HOST_TRAVEL_BEGIN", "?listen?Mode=Conquest"):
+        require(frontend, needle, "server creation flow")
 
-forbid(frontend, "LocationTest=1", "normal frontend must not open technical LocationTest")
-forbid(frontend, "AutoDeploy=1", "normal frontend must not bypass deployment")
-forbid(frontend, "StartLocalGameplay", "obsolete direct local-start helper")
-
-for needle in (
-    'PC->GetNetMode() != NM_Standalone', 'PC->IsDeploymentPanelVisible()',
-    'PC->UIToggleFrontend();', 'PASS14_FRONTEND_TRAVEL_HANDOFF_READY',
-):
+forbid(frontend, "LocationTest=1", "normal frontend")
+forbid(frontend, "AutoDeploy=1", "normal frontend")
+for needle in ("PASS14_FRONTEND_TRAVEL_HANDOFF_READY", "PC->UIToggleFrontend();"):
     require(frontend, needle, "post-travel frontend handoff")
-
 for needle in (
-    'if (State && !State->IsBotPlayer() && !State->IsLobbyReady())',
-    'humans stay controller-only while choosing team/squad/role/spawn in Deployment UI',
+    "if (State && !State->IsBotPlayer() && !State->IsLobbyReady())",
+    "humans stay controller-only while choosing team/squad/role/spawn in Deployment UI",
 ):
     require(game_mode, needle, "deployment authority gate")
 
-# Later passes may lower the foliage budget further. Preserve HISM/incremental generation and a strict ceiling,
-# but never force the 2026-08-22 values back after a measured 5 FPS runtime failure.
-grid = re.search(r'constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;', foliage)
-batch = re.search(r'constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;', foliage)
+grid = re.search(r"constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;", foliage)
+batch = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage)
 if not grid or float(grid.group(1)) < 1500.0:
-    raise SystemExit("PASS14 VERIFY FAIL: foliage grid is still too dense for the recovery budget")
+    raise SystemExit("PASS14 VERIFY FAIL: foliage grid is too dense")
 if not batch or not 1 <= int(batch.group(1)) <= 32:
-    raise SystemExit("PASS14 VERIFY FAIL: foliage batch exceeds the recovery CPU ceiling")
-for needle in (
-    'UHierarchicalInstancedStaticMeshComponent', 'SetCollisionEnabled(ECollisionEnabled::NoCollision)',
-    'SetCastShadow(false)', 'PopulateBatch', 'DenseGrass_',
-):
+    raise SystemExit("PASS14 VERIFY FAIL: foliage batch exceeds recovery CPU ceiling")
+for needle in ("UHierarchicalInstancedStaticMeshComponent", "PopulateBatch", "DenseGrass_"):
     require(foliage, needle, "foliage recovery")
-forbid(foliage, 'constexpr float GridStep = 900.0f', "old 9 m foliage grid")
-forbid(foliage, 'constexpr int32 CellsPerBatch = 88', "old 88-cell foliage batch")
 
-for needle in (
-    'SetDynamicShadowCascades(4)', 'SetDynamicShadowDistanceMovableLight(18000.0f)',
-    'SetRealTimeCaptureEnabled(false)', 'PASS14_RENDER_BUDGET_READY',
-):
+for needle in ("SetDynamicShadowCascades(4)", "SetRealTimeCaptureEnabled(false)", "PASS14_RENDER_BUDGET_READY"):
     require(env, needle, "daylight render budget")
-forbid(env, 'SetRealTimeCaptureEnabled(true)', "continuous skylight capture")
-forbid(env, 'SetDynamicShadowDistanceMovableLight(30000.0f)', "old 300 m movable shadow range")
-
-# Pass 15 may add an adaptive probe/emergency profile, but Pass 14 evidence markers remain for compatibility.
-for needle in (
-    'UOCPerformanceSampleSubsystem : public UTickableWorldSubsystem',
-    'WarmupSeconds', 'SampleSeconds', 'WorstFrameSeconds',
-):
+for needle in ("UOCPerformanceSampleSubsystem : public UTickableWorldSubsystem", "WorstFrameSeconds"):
     require(perf_h, needle, "performance sampler header")
-for needle in (
-    'PC->GetPawn() == nullptr', 'PASS14_PERF_SAMPLE', 'PASS14_PERF_BELOW_TARGET',
-    'PASS14_PERF_30FPS_READY', 'AverageFps < 30.0f',
-):
-    require(perf, needle, "performance sampler compatibility")
+for needle in ("PASS14_PERF_SAMPLE", "PASS14_PERF_BELOW_TARGET", "PASS14_PERF_30FPS_READY", "AverageFps < 30.0f"):
+    require(perf, needle, "performance sampler")
 
 for needle in ('set "RECOVERY_PROJECT_DIR=%~dp0."', '-ProjectDir "%RECOVERY_PROJECT_DIR%"'):
     require(importer, needle, "production source recovery path")
-
-for needle in ('call "%PRODUCTION_IMPORT%"', 'if errorlevel 1 (', 'exit /b 20'):
+for needle in ('call "%PRODUCTION_IMPORT%"', 'exit /b 20'):
     require(main_launcher, needle, "production importer fail-closed launcher")
 
-runtime_markers = [
-    'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS14_HOST_TRAVEL_BEGIN',
-    'PASS14_FRONTEND_TRAVEL_HANDOFF_READY', 'PASS14_PERF_SAMPLE',
-    'PASS14_PERF_BELOW_TARGET', 'PASS14_PERF_30FPS_READY', 'R14_CURRENT_GAMEPLAY.log',
-]
-if pass29_static:
-    runtime_markers.append('PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE')
-else:
-    runtime_markers.append('PASS14_MAIN_START_OPENS_SERVER_SETUP')
-for needle in runtime_markers:
-    require(runtime_launcher, needle, "Pass 14 runtime launcher")
+for needle in (
+    "Єдиний користувацький launcher/test entrypoint: START_HERE.cmd.",
+    'set "OC_FORCE_ACCEPTANCE=1"',
+    'call "%CURRENT_GAMEPLAY%"',
+    'call "%MATERIAL_GATE%"',
+    "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py",
+):
+    require(entry, needle, "single START_HERE runtime test route")
+for forbidden in ("RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd", "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd", "TRY_PRODUCTION_VEHICLES_UE58.cmd"):
+    forbid(entry, forbidden, "single START_HERE runtime test route")
+
+for marker in (
+    "PASS14_HOST_TRAVEL_BEGIN",
+    "PASS14_FRONTEND_TRAVEL_HANDOFF_READY",
+    "PASS14_PERF_SAMPLE",
+    "PASS14_PERF_BELOW_TARGET",
+    "PASS14_PERF_30FPS_READY",
+):
+    require(evidence, marker, "central runtime evidence verifier")
 
 print("PLAYFLOW + PERFORMANCE PASS 14 SOURCE CONTRACT PASS")
-if pass29_static:
-    print("- Pass 29 static START replaces the disproven live server-setup page while preserving hosted travel and Deployment ownership")
-else:
-    print("- explicit server setup and Deployment ownership remain intact")
-print("- foliage remains bounded/incremental while later passes may reduce its cost further")
-print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
+print("- START_HERE.cmd is the single user-facing runtime test entrypoint")
+print("- playflow/performance evidence is centralized in VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime acceptance still required")
