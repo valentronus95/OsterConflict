@@ -8,6 +8,7 @@ set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "INBOX=%REPO_ROOT%\models_game_OC"
 set "AUDIT=%PROJECT_DIR%Scripts\audit_local_model_inbox.ps1"
 set "PREPARE=%PROJECT_DIR%Scripts\prepare_all_local_inbox_assets.ps1"
+set "DEDUPE=%PROJECT_DIR%Scripts\dedupe_local_prepared_sources.py"
 set "PREPARE_WEAPONS=%PROJECT_DIR%Scripts\prepare_local_weapon_sources.ps1"
 set "IMPORTER=%PROJECT_DIR%Scripts\import_all_project_assets.py"
 set "NORMALIZE_WEAPONS=%PROJECT_DIR%Scripts\normalize_local_weapon_categories.py"
@@ -43,7 +44,7 @@ if not defined UE_CMD (
   exit /b 50
 )
 if not defined PY_CMD (
-  echo [STOP] Python 3 не знайдено; без нього неможливо перевірити runtime-клас кожної зброї.
+  echo [STOP] Python 3 не знайдено; без нього неможливо перевірити локальні assets.
   exit /b 46
 )
 if not exist "%BUILD_BAT%" (
@@ -61,6 +62,10 @@ if not exist "%AUDIT%" (
 if not exist "%PREPARE%" (
   echo [STOP] Відсутній розпаковувач локальних моделей: %PREPARE%
   exit /b 53
+)
+if not exist "%DEDUPE%" (
+  echo [STOP] Відсутня перевірка точних дублів: %DEDUPE%
+  exit /b 58
 )
 if not exist "%PREPARE_WEAPONS%" (
   echo [STOP] Відсутній staging точних M249/Remington 870: %PREPARE_WEAPONS%
@@ -80,11 +85,11 @@ if exist "%MANIFEST%" del /q "%MANIFEST%" >nul 2>nul
 if exist "%LOG%" del /q "%LOG%" >nul 2>nul
 
 echo ============================================================
-echo OSTER CONFLICT - ВСІ МОДЕЛІ ПРОЕКТУ
-echo models_game_OC + Unreal/Fab/Marketplace Content -> UE import -> gameplay/runtime binding
+echo OSTER CONFLICT - ВСІ ASSETS ПРОЕКТУ
+echo models_game_OC + Unreal/Fab/Marketplace Content -> dedupe -> UE import -> gameplay/runtime binding
 echo ============================================================
 
-echo [1/7] Дотягую реальні Git LFS payloads для всіх уже доданих model packs...
+echo [1/8] Дотягую реальні Git LFS payloads для вже доданих model packs...
 where git >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Git не знайдено в PATH.
@@ -109,19 +114,23 @@ if errorlevel 1 (
   exit /b 49
 )
 
-echo [2/7] Інвентаризую ВСІ локальні ZIP, не тільки стару production-п'ятірку...
+echo [2/8] Інвентаризую ВСІ локальні ZIP, не тільки стару production-п'ятірку...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [3/7] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
+echo [3/8] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [4/7] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
+echo [4/8] Прибираю ТОЧНІ дублікати зі списку імпорту за SHA-256; файли користувача не видаляю...
+%PY_CMD% "%DEDUPE%"
+if errorlevel 1 exit /b !ERRORLEVEL!
+
+echo [5/8] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [5/7] Збираю актуальний OsterConflictEditor перед імпортом...
+echo [6/8] Збираю актуальний OsterConflictEditor перед імпортом...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
 set "BUILD_RC=!ERRORLEVEL!"
 if not "!BUILD_RC!"=="0" (
@@ -129,7 +138,7 @@ if not "!BUILD_RC!"=="0" (
   exit /b !BUILD_RC!
 )
 
-echo [6/7] Імпортую ВСІ models_game_OC та ВСІ mesh assets із Unreal/Fab/Marketplace packs...
+echo [7/8] Імпортую ВСІ нові models_game_OC та сканую ВСІ assets із Unreal/Fab/Marketplace packs...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORTER%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
@@ -138,7 +147,7 @@ if not "!IMPORT_RC!"=="0" (
   exit /b !IMPORT_RC!
 )
 
-echo [7/7] Прив'язую КОЖНУ знайдену зброю до live weapon class і забороняю тихий WEAPON_OTHER...
+echo [8/8] Прив'язую КОЖНУ знайдену зброю до live weapon class і забороняю тихий WEAPON_OTHER...
 %PY_CMD% "%NORMALIZE_WEAPONS%"
 set "WEAPON_BIND_RC=!ERRORLEVEL!"
 if not "!WEAPON_BIND_RC!"=="0" (
