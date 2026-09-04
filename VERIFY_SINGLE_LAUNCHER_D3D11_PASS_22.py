@@ -4,9 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 START = ROOT / "START_HERE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
-PLAYFLOW = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
-RECOVERY = ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"
-LANDMARK = ROOT / "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd"
+EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 
 
 def read(path: Path) -> str:
@@ -20,46 +18,63 @@ def require(text: str, needle: str, label: str) -> None:
         raise SystemExit(f"PASS22 VERIFY FAIL: {label}: missing {needle!r}")
 
 
+def forbid(text: str, needle: str, label: str) -> None:
+    if needle in text:
+        raise SystemExit(f"PASS22 VERIFY FAIL: {label}: forbidden {needle!r}")
+
+
 start = read(START)
 normal = read(NORMAL)
-playflow = read(PLAYFLOW)
-recovery = read(RECOVERY)
-landmark = read(LANDMARK)
+evidence = read(EVIDENCE)
 
-# START_HERE remains the only user-facing launcher. Pass45 keeps one explicit renderer-compatibility
-# A/B route, so the editor is option 4. Pass15 and Pass21 remain internal helpers.
+# START_HERE is the only user-facing launcher. The full runtime test now uses one canonical gameplay
+# launcher plus live asset/world proof, strict material gate and the canonical Python evidence verifier.
 for needle in (
     "1. ЗВИЧАЙНА ГРА",
     "2. ПОВНИЙ RUNTIME-ТЕСТ",
     "3. SAFE СУМІСНІСТЬ",
     "4. ВІДКРИТИ UNREAL EDITOR",
+    'set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
+    'set "MATERIAL_GATE=%~dp0OsterConflict\\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"',
+    'set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"',
+    "call :ingest_all_assets",
+    "call :full_runtime_test",
     'set "OC_RHI_COMPAT=1"',
     'set "OC_RHI_COMPAT=0"',
-    'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
-    'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"',
+    'call "%CURRENT_GAMEPLAY%"',
+    'call "%MATERIAL_GATE%"',
+    '%PY_CMD% "%EVIDENCE_VERIFY%"',
     "-d3d11",
     "-sm5",
     "-nohdr",
 ):
     require(start, needle, "START_HERE canonical route")
 
-for internal in (
-    'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd',
-    'RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd',
-    'RUN_R14_MAIN_SANDBOX_TEST.cmd',
+for retired in (
+    "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd",
+    "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd",
+    "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd",
+    "RUN_R14_MAIN_SANDBOX_TEST.cmd",
 ):
-    if internal in start:
-        raise SystemExit(f"PASS22 VERIFY FAIL: internal/technical launcher leaked into START_HERE: {internal}")
+    forbid(start, retired, "retired/internal launcher leaked into START_HERE")
 
-# The user-facing full runtime test wraps the canonical normal launcher and checks current playflow/performance evidence.
-for needle in (
-    'RUN_R14_CURRENT_GAMEPLAY.cmd',
-    'PASS29_MAIN_START_DIRECT_HOST_QUEUED',
-    'PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE',
-    'PASS14_PERF_SAMPLE',
-    'PASS14_PERF_30FPS_READY',
+# Canonical evidence retains playflow, current landmark ownership, weapon readiness and >=30 FPS.
+for marker in (
+    "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
+    "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
+    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
+    "PASS19_PLAYABLE_WEAPON_SET_READY",
+    "PASS14_PERF_SAMPLE",
+    "PASS14_PERF_30FPS_READY",
 ):
-    require(playflow, needle, "full runtime playflow wrapper")
+    require(evidence, marker, f"canonical runtime evidence {marker}")
+for marker in (
+    "PASS19_PLAYABLE_WEAPON_SET_FAIL",
+    "PASS45_MUSEUM_LAYER_VALIDATION_FAIL",
+    "PASS14_PERF_BELOW_TARGET",
+):
+    require(evidence, marker, f"fail-closed runtime evidence {marker}")
 
 # Pass45 renderer contract: DX11 + SM5 + HDR off. Normal gameplay keeps normal RHI threading;
 # -norhithread exists only behind the explicit compatibility selector.
@@ -75,38 +90,13 @@ for forbidden in ("-d3d12", "-dx12", "-sm6"):
     if forbidden in normal.lower():
         raise SystemExit(f"PASS22 VERIFY FAIL: normal gameplay re-enabled forbidden renderer flag {forbidden}")
 
-# Focused recovery is an internal DX11 compatibility diagnostic. The verifier checks behavior/flags,
-# not whether the launcher preserves historical prose mentioning a rejected renderer.
-for needle in ("-d3d11", "-sm5", "-nohdr"):
-    require(recovery, needle, "focused runtime acceptance renderer contract")
-for forbidden in ("-d3d12", "-dx12", "-sm6"):
-    if forbidden in recovery.lower():
-        raise SystemExit(f"PASS22 VERIFY FAIL: focused recovery forces forbidden renderer flag {forbidden}")
-
-# Pass21 remains internal and now validates current Pass45 single-owner evidence instead of old duplicate repair markers.
-require(landmark, "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd", "Pass21 chains focused recovery")
-for marker in (
-    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
-    "PASS45_MUSEUM_LAYER_VALIDATION_READY",
-    "PASS45_LANDMARK_SEPARATION_VALIDATION_READY",
-):
-    require(landmark, marker, f"Pass21 current runtime evidence {marker}")
-for stale in (
-    "PASS21_LANDMARK_DUPLICATE_REPAIRED",
-    "PASS21_LANDMARK_OWNERSHIP_READY",
-    "PASS21_LANDMARK_OWNERSHIP_FAIL",
-):
-    if stale in landmark:
-        raise SystemExit(f"PASS22 VERIFY FAIL: retired Pass21 repair marker returned: {stale}")
-
-# Dirty local content should be visible rather than silently ignored during a test.
+# Dirty local content stays visible during a test rather than being silently hidden.
 require(normal, "[LOCAL CHANGE]", "normal game local-change visibility")
-require(recovery, "[LOCAL CHANGE]", "acceptance local-change visibility")
 
 print("SINGLE LAUNCHER / D3D11 PASS22/PASS45 SOURCE CONTRACT PASS")
-print("- START_HERE is still the only user-facing entry point")
-print("- option 3 is the explicit no-RHI-thread compatibility A/B route; editor is option 4")
+print("- START_HERE remains the only user-facing entry point")
+print("- option 3 remains the explicit no-RHI-thread compatibility A/B route; editor is option 4")
 print("- normal gameplay uses DX11/SM5/no-HDR with normal RHI threading")
-print("- focused recovery is checked by current flags, not obsolete renderer-history prose")
-print("- internal Pass21 follows validation-only landmark ownership")
+print("- full runtime acceptance uses current gameplay + live asset/world proof + material/evidence gates")
+print("- retired per-pass acceptance launchers are not required")
 print("STATUS: SOURCE CONTRACT ONLY; local UE runtime must confirm renderer stability and FPS")
