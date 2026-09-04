@@ -96,9 +96,9 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 | Present | Integration | Asset / pack | Evidence / current state |
 |---|---|---|---|
-| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park benches/fences plus runtime park bins, lamps, bicycle stands and flower pots are wired intentionally; UE acceptance pending |
-| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/` and mirrored V1 content under Mega pack; selected flower-pot/bin content now participates in the park prop layer; UE acceptance pending |
-| ✅ | 🟡 | Street Props Pack Vol.2 | tracked exact root `Content/Mega_Street_Props_Pack/Street_Props_pack_V2/`; `SM_Lamp_1` and `SM_Bicycle_Stand_1` are now runtime park props; UE acceptance pending |
+| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park benches/fences plus runtime bins, lamps, bicycle stands, flower pots, bus stops and road signs are wired intentionally; UE acceptance pending |
+| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/` and mirrored V1 content under Mega pack; flower pots/bins plus exact `SM_Bus_stop` and `SM_Sign_1` now feed the runtime city/park prop layer; UE acceptance pending |
+| ✅ | 🟡 | Street Props Pack Vol.2 | tracked exact root `Content/Mega_Street_Props_Pack/Street_Props_pack_V2/`; `SM_Lamp_1` and `SM_Bicycle_Stand_1` are runtime park props; UE acceptance pending |
 | ✅ LOCAL | 🟡 | Military Trenches Barrier Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Barrier_Sandbag_Canvas_Square_01_yd0kbfl/High/`; runtime bridge written, UE validation pending |
 | ✅ LOCAL | 🟡 | Military Trenches Pile Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Pile_Sandbag_Canvas_01_yd0tae2/High/`; runtime bridge written, UE validation pending |
 | ✅ LOCAL | 🟡 | PO-2 fence | `Content/po-2-fence/`; available local fence model |
@@ -179,6 +179,6 @@ These items are already in the inventory and may not be forgotten merely because
 - The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
 - `Scene_RoadsideConstruction` is verified present in Git and already owns authored road/sidewalk meshes, so those rows are no longer falsely shown as unintegrated.
 - First-person long-gun arms now select Sample Animation Pack hip/ADS idle plus forward/back/left/right locomotion by actual local movement direction, with skeleton compatibility still fail-closed until UE acceptance.
-- The existing park prop owner now also receives selected imported bins, lamps, bicycle stands and flower pots from the tracked Street Props packs instead of leaving those assets parked uselessly in Content.
+- The existing park/city prop layer now adds selected imported bins, lamps, bicycle stands, flower pots, bus stops and road signs. Bus stops/signs derive from the authoritative `Sidewalks` topology rather than inventing another road layout.
 - This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
 - Formal PASS45 progress remains separate from asset-integration progress.
