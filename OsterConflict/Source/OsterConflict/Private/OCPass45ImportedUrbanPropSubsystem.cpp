@@ -37,6 +37,63 @@ namespace
         return OCPass45FindLocalStaticMeshStrict(
             { FName(TEXT("/Game/Street_Props_Pack_V1")) }, BinTokens);
     }
+
+    int32 AddBenchAnchoredPropLayer(
+        AOCWorldSectorOster* Sector,
+        UInstancedStaticMeshComponent* Benches,
+        UStaticMesh* PropMesh,
+        const FName ComponentBaseName,
+        const float DesiredHeightCm,
+        const int32 Stride,
+        const FVector LocalOffset,
+        const float YawOffsetDegrees)
+    {
+        if (!Sector || !Benches || !Benches->GetStaticMesh() || !PropMesh || Stride <= 0) return 0;
+
+        const FBoxSphereBounds PropBounds = PropMesh->GetBounds();
+        const FVector PropSize = PropBounds.BoxExtent * 2.0f;
+        if (PropSize.Z <= 1.0f) return 0;
+        const float PropScale = FMath::Clamp(DesiredHeightCm / PropSize.Z, 0.05f, 6.0f);
+
+        UInstancedStaticMeshComponent* Layer = NewObject<UInstancedStaticMeshComponent>(
+            Sector,
+            MakeUniqueObjectName(Sector, UInstancedStaticMeshComponent::StaticClass(), ComponentBaseName));
+        if (!Layer) return 0;
+
+        Layer->SetupAttachment(Sector->GetRootComponent());
+        Layer->SetStaticMesh(PropMesh);
+        Layer->SetCollisionProfileName(TEXT("BlockAll"));
+        Layer->SetCanEverAffectNavigation(false);
+        Layer->SetCastShadow(true);
+        Sector->AddInstanceComponent(Layer);
+        Layer->RegisterComponent();
+
+        const FBoxSphereBounds BenchBounds = Benches->GetStaticMesh()->GetBounds();
+        int32 Added = 0;
+        for (int32 Index = 0; Index < Benches->GetInstanceCount(); Index += Stride)
+        {
+            FTransform BenchTransform;
+            if (!Benches->GetInstanceTransform(Index, BenchTransform, false)) continue;
+
+            const FVector BenchScale = BenchTransform.GetScale3D().GetAbs();
+            const float BenchBottomZ = BenchTransform.GetLocation().Z +
+                (BenchBounds.Origin.Z - BenchBounds.BoxExtent.Z) * BenchScale.Z;
+
+            FVector Location = BenchTransform.GetLocation() +
+                BenchTransform.GetRotation().RotateVector(LocalOffset);
+            Location.Z = BenchBottomZ - (PropBounds.Origin.Z - PropBounds.BoxExtent.Z) * PropScale;
+
+            const FQuat Rotation = BenchTransform.GetRotation() * FQuat(FRotator(0.0f, YawOffsetDegrees, 0.0f));
+            const FTransform PropTransform(Rotation, Location, FVector(PropScale));
+            if (Layer->AddInstance(PropTransform, false) != INDEX_NONE) ++Added;
+        }
+
+        if (Added <= 0)
+        {
+            Layer->DestroyComponent();
+        }
+        return Added;
+    }
 }
 
 bool UOCPass45ImportedUrbanPropSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -69,59 +126,55 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!Benches || Benches->GetInstanceCount() < 2 || !Benches->GetStaticMesh()) return;
 
     UStaticMesh* BinMesh = ResolveStreetBin();
+    UStaticMesh* LampMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Lamp_1.SM_Lamp_1"));
+    UStaticMesh* BicycleStandMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Bicycle_Stand_1.SM_Bicycle_Stand_1"));
+    UStaticMesh* FlowerPotMesh = LoadObject<UStaticMesh>(nullptr,
+        TEXT("/Game/Mega_Street_Props_Pack/Street_Props_Pack_V1/Mesh/SM_Flower_Pot.SM_Flower_Pot"));
+
+    const int32 BinsAdded = AddBenchAnchoredPropLayer(
+        Sector, Benches, BinMesh,
+        FName(TEXT("Pass45ImportedStreetBins")),
+        90.0f, 2, FVector(0.0f, 175.0f, 0.0f), 0.0f);
+
+    const int32 LampsAdded = AddBenchAnchoredPropLayer(
+        Sector, Benches, LampMesh,
+        FName(TEXT("Pass45ImportedParkLamps")),
+        430.0f, 3, FVector(-60.0f, -260.0f, 0.0f), 0.0f);
+
+    const int32 BicycleStandsAdded = AddBenchAnchoredPropLayer(
+        Sector, Benches, BicycleStandMesh,
+        FName(TEXT("Pass45ImportedBicycleStands")),
+        105.0f, 5, FVector(120.0f, -285.0f, 0.0f), 90.0f);
+
+    const int32 FlowerPotsAdded = AddBenchAnchoredPropLayer(
+        Sector, Benches, FlowerPotMesh,
+        FName(TEXT("Pass45ImportedFlowerPots")),
+        70.0f, 4, FVector(-130.0f, 190.0f, 0.0f), 0.0f);
+
     if (!BinMesh)
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=street_bin strict_token_match=1 wrong_prop_substitution=0"));
-        return;
     }
-
-    const FBoxSphereBounds BinBounds = BinMesh->GetBounds();
-    const FVector BinSize = BinBounds.BoxExtent * 2.0f;
-    if (BinSize.Z <= 1.0f) return;
-    const float BinScale = FMath::Clamp(90.0f / BinSize.Z, 0.05f, 5.0f);
-
-    UInstancedStaticMeshComponent* Bins = NewObject<UInstancedStaticMeshComponent>(
-        Sector,
-        MakeUniqueObjectName(Sector, UInstancedStaticMeshComponent::StaticClass(), FName(TEXT("Pass45ImportedStreetBins"))));
-    if (!Bins) return;
-
-    Bins->SetupAttachment(Sector->GetRootComponent());
-    Bins->SetStaticMesh(BinMesh);
-    Bins->SetCollisionProfileName(TEXT("BlockAll"));
-    Bins->SetCanEverAffectNavigation(false);
-    Bins->SetCastShadow(true);
-    Sector->AddInstanceComponent(Bins);
-    Bins->RegisterComponent();
-
-    const FBoxSphereBounds BenchBounds = Benches->GetStaticMesh()->GetBounds();
-    int32 Added = 0;
-    for (int32 Index = 0; Index < Benches->GetInstanceCount(); Index += 2)
+    if (!LampMesh)
     {
-        FTransform BenchTransform;
-        if (!Benches->GetInstanceTransform(Index, BenchTransform, false)) continue;
-
-        const FVector BenchScale = BenchTransform.GetScale3D().GetAbs();
-        const float BenchBottomZ = BenchTransform.GetLocation().Z +
-            (BenchBounds.Origin.Z - BenchBounds.BoxExtent.Z) * BenchScale.Z;
-        FVector Location = BenchTransform.GetLocation() +
-            BenchTransform.GetRotation().RotateVector(FVector(0.0f, 175.0f, 0.0f));
-        Location.Z = BenchBottomZ - (BinBounds.Origin.Z - BinBounds.BoxExtent.Z) * BinScale;
-
-        const FTransform BinTransform(
-            BenchTransform.GetRotation(),
-            Location,
-            FVector(BinScale));
-        if (Bins->AddInstance(BinTransform, false) != INDEX_NONE) ++Added;
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=park_lamp exact_asset=SM_Lamp_1 wrong_prop_substitution=0"));
     }
-
-    if (Added <= 0)
+    if (!BicycleStandMesh)
     {
-        Bins->DestroyComponent();
-        return;
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=bicycle_stand exact_asset=SM_Bicycle_Stand_1 wrong_prop_substitution=0"));
+    }
+    if (!FlowerPotMesh)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_IMPORTED_URBAN_PROP_CONTENT_GAP type=flower_pot exact_asset=SM_Flower_Pot wrong_prop_substitution=0"));
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_IMPORTED_URBAN_PROP_READY type=street_bin asset=%s instances=%d placement_owner=ParkBenches strict_identity_match=1 runtime_acceptance=0"),
-        *BinMesh->GetPathName(), Added);
+        TEXT("PASS45_IMPORTED_URBAN_PROP_LAYER_READY bins=%d lamps=%d bicycle_stands=%d flower_pots=%d placement_owner=ParkBenches duplicate_world_owner=0 runtime_acceptance=0"),
+        BinsAdded, LampsAdded, BicycleStandsAdded, FlowerPotsAdded);
 }
