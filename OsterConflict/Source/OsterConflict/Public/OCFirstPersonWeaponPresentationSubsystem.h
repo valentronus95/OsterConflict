@@ -21,6 +21,7 @@ struct FOCFirstPersonWeaponState
     bool bADSArmsPose = false;
     bool bRiflePoseApplied = false;
     bool bWeaponAnimationActive = false;
+    uint8 ArmsLocomotionState = 255;
     double ReloadStartTime = 0.0;
     double WeaponAnimationResetTime = 0.0;
     float RecoilAlpha = 0.0f;
@@ -59,6 +60,14 @@ private:
 
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleIdleAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSIdleAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleWalkForwardAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleWalkBackwardAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleWalkLeftAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleWalkRightAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSWalkForwardAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSWalkBackwardAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSWalkLeftAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimSequence> RifleADSWalkRightAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> AKFireAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> AKReloadAnimation;
 
