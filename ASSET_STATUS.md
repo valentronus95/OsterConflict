@@ -4,7 +4,6 @@ Date: 2026-09-05
 Branch: `fix/pass45-asset-import-fail-closed-20260904`  
 Base/current main: `a1ad0e200611911102c48180956d82f73d0d8fc3`  
 Last fully verified code checkpoint: `13a49efaaee04eaf1cb786cc4604099e927038a7` — **19/19 SUCCESS**  
-Current tracker checkpoint: `0d935ad54b3326e62ede4e46db485081c194ceeb`  
 PR: #98 — Draft, unmerged, mergeable  
 Branch relation at verified code checkpoint: **ahead 93 / behind 0**, merge-base = current `main@a1ad0e2`  
 Changed-file scope: **28 files**, intentional asset/runtime/finalization scope  
@@ -181,7 +180,7 @@ Finalizer тепер окремо вимагає:
 | Remington 870 | WAIT | exact importer support | fresh source/UE/runtime/visual proof |
 | M16/M4 family | GAP | classifier/runtime category support | fresh manifest must prove actual bound `M16_M4 >= 1` |
 
-M16/M4 remains a **factual content gap**, not a code-classifier gap. Local/Fab payload may exist, but only fresh current-run `runtime_bindings.json` can close it.
+M16/M4 remains a **factual content gap**, not a code-classifier gap. Local/Fab payload may exist, але only fresh current-run `runtime_bindings.json` can close it.
 
 Other supported local/Fab families such as AK-47, MP5, M1911, M700, M14, MAC-10, TEC-9, Lever Action, other weapons, pickups, buildings, props/furniture/fences, foliage, roads, terrain, water, character skins and HUD/UI remain PENDING factual runtime/visual proof.
 
