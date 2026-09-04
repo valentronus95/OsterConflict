@@ -45,6 +45,16 @@ def _read_json(path: Path) -> dict:
         return {}
 
 
+def _env_int(name: str) -> int | None:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return None
+    try:
+        return int(value.strip())
+    except ValueError:
+        return None
+
+
 def _kv_status(text: str) -> str:
     for line in text.splitlines():
         if line.strip().startswith("STATUS="):
@@ -77,7 +87,11 @@ def _prepared_counts(prepared: dict) -> dict[str, int | str]:
     }
 
 
-def collect_snapshot(source_sha: str | None = None, runtime_result: int | None = None) -> tuple[Path, Path]:
+def collect_snapshot(
+    source_sha: str | None = None,
+    runtime_result: int | None = None,
+    import_result: int | None = None,
+) -> tuple[Path, Path]:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     texts = {name: _read_text(path) for name, path in FILES.items()}
@@ -86,13 +100,21 @@ def collect_snapshot(source_sha: str | None = None, runtime_result: int | None =
 
     missing_files = [str(path.relative_to(ROOT)) for path in FILES.values() if not path.is_file()]
     source_sha = source_sha or os.environ.get("PASS45_SOURCE_SHA", "unknown")
+    if import_result is None:
+        import_result = _env_int("PASS45_ASSET_IMPORT_RC")
 
     vehicle_status = _kv_status(texts["production_vehicles"])
     weapon_status = _kv_status(texts["production_weapons"])
     binding_pass = _marker(texts["runtime_bindings_success"], "PASS45_LOCAL_INBOX_IMPORT_BINDING=PASS")
     all_models_bound = bool(bindings.get("all_models_bound"))
 
-    import_stage = "PASS" if all((vehicle_status == "PASS", weapon_status == "PASS", binding_pass, all_models_bound)) else "PENDING_OR_GAP"
+    if import_result is not None and import_result != 0:
+        import_stage = "FAIL"
+    elif all((vehicle_status == "PASS", weapon_status == "PASS", binding_pass, all_models_bound)):
+        import_stage = "PASS"
+    else:
+        import_stage = "PENDING_OR_GAP"
+
     inbox_runtime = "PASS" if _marker(texts["local_inbox_runtime"], "PASS45_LOCAL_INBOX_RUNTIME=PASS") else "PENDING_OR_GAP"
     world_runtime = "PASS" if _marker(texts["local_world_runtime"], "PASS45_LOCAL_WORLD_RUNTIME=PASS") else "PENDING_OR_GAP"
     runtime_stage = "PASS" if inbox_runtime == "PASS" and world_runtime == "PASS" else "PENDING_OR_GAP"
@@ -123,8 +145,9 @@ def collect_snapshot(source_sha: str | None = None, runtime_result: int | None =
     source_status_counts = Counter(str(row.get("status") or "UNKNOWN") for row in source_status)
 
     report = {
-        "schema": "oster-conflict-local-asset-status-v1",
+        "schema": "oster-conflict-local-asset-status-v2",
         "source_sha": source_sha,
+        "import_result_code": import_result,
         "runtime_result_code": runtime_result,
         "stages": {
             "local_ue_import": import_stage,
@@ -158,6 +181,7 @@ def collect_snapshot(source_sha: str | None = None, runtime_result: int | None =
     lines = [
         "OSTER CONFLICT — LOCAL ASSET STATUS",
         f"SOURCE_SHA={source_sha}",
+        f"IMPORT_RESULT_CODE={import_result if import_result is not None else 'UNKNOWN'}",
         f"RUNTIME_RESULT_CODE={runtime_result if runtime_result is not None else 'UNKNOWN'}",
         "",
         "STAGES",
@@ -215,6 +239,6 @@ def collect_snapshot(source_sha: str | None = None, runtime_result: int | None =
 
 
 if __name__ == "__main__":
-    json_path, text_path = collect_snapshot()
+    json_path, text_path = collect_snapshot(import_result=_env_int("PASS45_ASSET_IMPORT_RC"))
     print(f"LOCAL ASSET STATUS JSON: {json_path}")
     print(f"LOCAL ASSET STATUS TEXT: {text_path}")
