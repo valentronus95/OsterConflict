@@ -3,11 +3,11 @@ name: Pass 45 local build import regression
 on:
   pull_request:
     paths:
+      - 'START_HERE.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
       - 'OsterConflict/Scripts/finalize_asset_acceptance.py'
       - 'OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd'
-      - 'FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd'
       - 'COLLECT_LOCAL_ASSET_STATUS.py'
       - 'VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py'
       - 'VERIFY_PASS45_ASSET_SOURCE_CLEAN_GUARD.py'
