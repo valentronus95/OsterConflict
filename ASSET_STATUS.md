@@ -1,229 +1,192 @@
 # OSTER CONFLICT — ASSET STATUS
 
-Date: 2026-09-04  
+Date: 2026-09-05  
 Branch: `fix/pass45-asset-import-fail-closed-20260904`  
 Base/current main: `a1ad0e200611911102c48180956d82f73d0d8fc3`  
-Last fully verified code checkpoint: `15090c44eda2448e1c4e4ce3a85ea906b2b7841f` — **19/19 SUCCESS**  
+Last fully verified code checkpoint: `13a49efaaee04eaf1cb786cc4604099e927038a7` — **19/19 SUCCESS**  
 PR: #98 — Draft, unmerged, mergeable  
-Branch relation at verified code checkpoint: **ahead 77 / behind 0**, merge-base = current `main@a1ad0e2`  
-Changed-file scope: **25 files**, intentional asset/runtime/finalization scope  
-PR review threads: **0** · submitted reviews: **0**
+Branch relation at verified code checkpoint: **ahead 93 / behind 0**, merge-base = current `main@a1ad0e2`  
+Changed-file scope: **28 files**, intentional asset/runtime/finalization scope  
+Fresh connected local UE/runtime evidence: **not found**
 
-## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
+## 1. ГОЛОВНИЙ ПРОГРЕС ТЗ
 
-Кожен із 10 етапів = 10% загального прогресу.
+Кожен із 10 етапів = 10% загального factual progress.
 
-| № | Етап | Стан | Виконано | Вклад | Що вже зроблено | Що лишилось |
-|---:|---|---|---:|---:|---|---|
-| 1 | Local inbox / intake contract | DONE | 100% | +10% | `models_game_OC` lifecycle і safe local-only policy визначені | Нічого |
-| 2 | Prepare / extract / classify | DONE | 100% | +10% | ZIP/loose sources безпечно готуються й класифікуються | Нічого |
-| 3 | Exact duplicate removal | DONE | 100% | +10% | SHA-256 dedupe працює до UE import | Нічого |
-| 4 | Fab / Marketplace / project discovery | DONE | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
-| 5 | Production import logic | DONE | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
-| 6 | Fail-closed aggregate result | DONE | 100% | +10% | GAP/exception блокує фальшивий PASS; stale import PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | DONE | 100% | +10% | `15090c4`: **19/19 SUCCESS**; exact-head, dirty-source, freshness, runtime і finalization guards активні | Нічого |
-| 8 | Local UE 5.8 import result | WAIT | 0% підтверджено | +0% | Import PASS можливий лише на exact remote HEAD, clean tracked runtime source, explicit current import result=0 і fresh snapshot | Потрібен фактичний local UE 5.8 import |
-| 9 | Live gameplay/runtime hookup | WAIT | 0% підтверджено | +0% | Current gameplay/material/weapon/world evidence fail-closed; final runtime snapshot обов'язковий | Потрібен factual full runtime PASS |
-| 10 | Direct visual acceptance + safe ZIP cleanup | WAIT | 0% підтверджено | +0% | **Кодовий шлях завершений і CI-захищений**: finalization вбудований у `START_HERE`, manual Y/N + exact SHA/hash cleanup | Потрібен фактичний visual inspection після успішного runtime і factual M16/M4 payload |
+| № | Етап | Стан | Вклад | Що вже закрито | Що лишилось |
+|---:|---|---|---:|---|---|
+| 1 | Local inbox / intake contract | DONE | +10% | `models_game_OC`, local-only lifecycle, ZIP/loose/Fab intake | Нічого |
+| 2 | Prepare / extract / classify | DONE | +10% | safe ZIP extraction, nested ZIP accounting, package conflict protection | Нічого по коду |
+| 3 | Exact duplicate removal | DONE | +10% | SHA-256 dedupe до import; duplicate nested ZIP не створює false failure | Нічого |
+| 4 | Fab / Marketplace / project discovery | DONE | +10% | `/Game`, Content, Plugins/Fab/project discovery | Нічого по коду |
+| 5 | Production import logic | DONE | +10% | HMMWV, M2, BTR-4, M249, Remington 870 production paths | Нічого по коду |
+| 6 | Fail-closed aggregate/binding result | DONE | +10% | GAP/UNBOUND/import failure не можуть перетворитися на aggregate PASS | Нічого по коду |
+| 7 | Source/regression/finalization CI | DONE | +10% | exact HEAD/source freshness/runtime/finalization guards, `13a49ef` = 19/19 SUCCESS | Нічого по GitHub-коду |
+| 8 | Local UE 5.8 import result | WAIT | +0% | pipeline готовий і fail-closed | Потрібен фактичний fresh local UE import |
+| 9 | Live gameplay/runtime hookup | WAIT | +0% | runtime/material/world/evidence gates готові | Потрібен factual full runtime PASS |
+| 10 | Direct visual acceptance + safe ZIP cleanup | WAIT | +0% | finalizer і manual Y/N/hash cleanup готові | Потрібен фактичний visual inspection після runtime PASS |
 
-### ЗАГАЛЬНИЙ ПРОГРЕС
+### ФАКТИЧНЕ ВИКОНАННЯ
 
-| Показник | Значення |
-|---|---:|
-| Завершено етапів | **7 / 10** |
-| Загальний factual прогрес | **70%** |
-| Залишилось | **30%** |
-| Source/code/CI частина | **100% на `15090c4`** |
-| Local UE import acceptance | **0% підтверджено** |
-| Live runtime acceptance | **0% підтверджено** |
-| Direct visual acceptance | **0% підтверджено** |
-| Failed/cancelled workflows на verified code head | **0 / 19** |
+- Завершено: **7 / 10 етапів**.
+- Загальний factual progress: **70%**.
+- Залишилось: **30%**.
+- Source/code/CI lifecycle: **100% реалізований і перевірений на `13a49ef`**.
+- Local UE import acceptance: **0% підтверджено**.
+- Live runtime acceptance: **0% підтверджено**.
+- Direct visual acceptance/cleanup: **0% підтверджено**.
+- Exact code-head CI: **19/19 SUCCESS**, failed = 0.
 
-Поточний стан: **70%**. Кодовий lifecycle від intake до final cleanup тепер повний, але останні 30% не можна чесно зарахувати без локального UE/runtime/manual evidence.
+Шлях закриття: **70% → local UE import PASS = 80% → live runtime PASS = 90% → manual visual acceptance + safe ZIP cleanup = 100%.**
 
-Шлях: **70% → local UE import PASS = 80% → live runtime PASS = 90% → direct visual acceptance + safe ZIP cleanup = 100%.**
+## 2. АУДИТ ПРОПУЩЕНИХ ПРОБЛЕМ — 2026-09-05
 
-## 2. PRODUCTION ASSET MATRIX
+Цей pass був окремим deep audit ланцюга:
 
-| Asset | Стан | Підтверджено | Чого бракує |
-|---|---|---:|---|
-| HMMWV | WAIT | 25% | Fresh UE import, live use, scale/orientation/material visual proof |
-| M2 Browning | WAIT | 25% | Fresh UE import, HMMWV mount, pitch/muzzle/material visual proof |
-| BTR-4 | WAIT | 25% | Fresh UE result, live use, proportions/orientation/material visual proof |
-| M249 | WAIT | 25% | Exact local payload/UE result/runtime/visual proof |
-| Remington 870 | WAIT | 25% | Exact local payload/UE result/runtime/visual proof |
-| M16/M4 family | GAP | 0% READY | Fresh `runtime_bindings.json` має фактично показати `M16_M4 >= 1`; без цього finalization до 100% заблокований |
+`prepare ZIP → base import/binding → weapon normalization → consolidated collector → runtime evidence attribution → finalizer/cleanup`.
 
-`25%` означає тільки підтверджений source/import support, не готовність asset у грі.
+Знайдені нижче пропуски були реальними false-green або silent-skip шляхами і вже закриті.
 
-GitHub tracked evidence досі не дає підстав зняти M16/M4 gap. Local/Fab payload може існувати, але це повинен довести fresh current-run manifest.
+### 2.1 Explicit `source_status=UNBOUND` міг не блокувати `all_models_bound`
 
-## 3. OTHER LOCAL / FAB ASSET FAMILIES
+Проблема:
 
-AK-47, MP5, M1911, M700, M14, MAC-10, TEC-9, Lever Action, інші weapon/launcher assets, pickups/vehicle props, buildings, props/furniture/fences, foliage/trees/grass, roads/sidewalks, ground/terrain, water/river, character skins, HUD/UI та Fab/Marketplace/project-plugin meshes мають intake/classification support, але current runtime/visual state лишається **PENDING** до fresh manifest і live proof.
+- `import_all_local_inbox_assets.py` записував factual `UNBOUND`, наприклад `asset_load_failed`;
+- у `unbound_models` переносились не всі такі рядки, а тільки вибрані heuristic model sources;
+- нестандартно названа `.uasset` mesh могла лишитися `source_status=UNBOUND`, але `all_models_bound=true`.
 
-## 4. FAIL-CLOSED ACCEPTANCE CONTRACT
+Виправлено:
 
-### 4.1 Exact remote HEAD before import
+- кожен explicit `source_status=UNBOUND` тепер обов'язково переноситься в `unbound_models`;
+- dedupe unbound rows зберігається;
+- `all_models_bound` обчислюється тільки після повного reconciliation;
+- regression guard перевіряє порядок.
 
-`START_HERE.cmd` до UE import виконує fetch + exact comparison:
+### 2.2 Weapon normalizer міг перетворити реальний import failure на `BOUND`
 
-- Git missing → `66`;
-- branch unknown → `67`;
-- fetch failed → `68`;
-- local/remote HEAD unknown → `69`;
-- local HEAD != `origin/<current branch>` → `70`;
-- лише exact match дозволяє asset ingest.
+Проблема:
 
-### 4.2 Dirty tracked runtime/source guard
+- `normalize_local_weapon_categories.py` міг побачити factual `UNBOUND`, наприклад `asset_load_failed`;
+- якщо ім'я source/path підходило під regex `AR15`, `AK74`, іншу зброю, normalizer міг переписати рядок у `BOUND`;
+- фактичне завантаження asset таким чином підмінялося класифікацією по назві.
 
-`IMPORT_ALL_LOCAL_INBOX_UE58.cmd` до evidence cleanup/LFS/build/UE import перевіряє tracked runtime/source files:
+Виправлено:
 
-- launcher-и;
-- collector/evidence verifier;
-- production/material CMD;
-- `OsterConflict/Scripts`;
-- `OsterConflict/Source`.
+- factual `UNBOUND` rows normalizer більше ніколи не підвищує до `BOUND`;
+- після normalization виконується незалежний reconciliation усіх залишених `source_status=UNBOUND`;
+- тільки після цього перераховується `all_models_bound` і success sentinel;
+- CI trigger включає `normalize_local_weapon_categories.py`.
 
-Untracked local payloads та `Content` не блокуються. Dirty tracked runtime/source → code `59`.
+### 2.3 Collector міг занадто довіряти `all_models_bound=true`
 
-### 4.3 Explicit current import result + fresh snapshot
+Проблема:
 
-`COLLECT_LOCAL_ASSET_STATUS.py` тепер schema `oster-conflict-local-asset-status-v4`.
+- `COLLECT_LOCAL_ASSET_STATUS.py` для `LOCAL_UE_IMPORT=PASS` перевіряв aggregate flag/sentinel;
+- inconsistent manifest теоретично міг мати `all_models_bound=true`, але explicit `UNBOUND` rows.
 
-- `import_result is None` → `LOCAL_UE_IMPORT=PENDING_CURRENT_RUN`;
-- current nonzero import code → `FAIL`;
-- `PASS` можливий лише при explicit current `import_result=0` + required vehicle/weapon/binding/all-models-bound PASS;
-- stale `LOCAL_ASSET_STATUS.txt/json` видаляються перед fresh collection;
-- collector missing → `62`;
-- Python missing → `63`;
-- collector nonzero → `64`;
-- missing txt/json → `65`;
-- importer success + snapshot failure = overall nonzero.
+Виправлено:
 
-### 4.4 Runtime/material/weapon freshness
+Current import PASS тепер одночасно вимагає:
 
-- `START_HERE` очищає old local inbox/world runtime reports перед current gameplay;
-- `RUN_R14_CURRENT_GAMEPLAY.cmd` очищає gameplay/preflight logs/sentinels;
-- strict material gate очищає old weapon report/sentinel/material log;
-- canonical evidence verifier вимагає current gameplay + material + exact weapon dependency proof;
-- final runtime PASS fail-closed, якщо final consolidated status не записався.
+- explicit current `import_result=0`;
+- production vehicle PASS;
+- production weapon PASS;
+- binding success sentinel;
+- `all_models_bound=true`;
+- `unbound_models=[]`;
+- `source_status_counts.UNBOUND=0`.
 
-`RUNTIME_SCOPE`:
+Тому один пошкоджений aggregate flag більше не може сам дати 80%.
 
-| Scope | Значення |
-|---|---|
-| `IMPORT_ONLY` | runtime/material/evidence = `PENDING_CURRENT_RUN` |
-| `CURRENT_RUN_FAILED` | runtime FAIL, exact current runtime code; old PASS не успадковується |
-| `CURRENT_RUN_COMPLETED` | PASS дозволений лише за current runtime/material/evidence |
+### 2.4 Runtime evidence PASS не був жорстко прив'язаний до exact source SHA у collector
 
-## 5. STAGE 10 — MANUAL VISUAL ACCEPTANCE + ZIP CLEANUP
+Проблема:
 
-Знайдений у цьому pass фактичний пропуск: tracker вимагав visual acceptance/cleanup, але в коді не було безпечного способу їх зафіксувати й завершити.
+- canonical evidence file вже записував `SOURCE_SHA`;
+- collector дивився переважно на `PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS`;
+- при нестандартному/ручному виклику collector теоретично можна було змішати current snapshot зі stale evidence іншого HEAD.
 
-Тепер це закрито по коду.
+Виправлено:
 
-### 5.1 Один user-facing launcher
+`AUTOMATED_RUNTIME_EVIDENCE=PASS` тепер можливий тільки якщо:
 
-`START_HERE.cmd` лишається **єдиним** user-facing launcher. Окремий `FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd`, створений під час аудиту, був видалений до фінального checkpoint, щоб не повернути старий хаос із багатьма запускалками.
+- current runtime result explicit `0`;
+- snapshot має відомий source SHA;
+- evidence має `PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS`;
+- evidence має exact `SOURCE_SHA=<current snapshot SHA>`.
 
-Після `2. ПОВНИЙ RUNTIME-ТЕСТ`:
+PASS з іншого SHA стає `STALE_SOURCE`.
 
-1. проходить import;
-2. live gameplay/runtime;
-3. local inbox/world proof;
-4. strict material/weapon gate;
-5. canonical automated evidence;
-6. запускається **non-destructive finalization preflight**;
-7. лише якщо preflight PASS, `START_HERE` показує visual checklist і питає Y/N;
-8. `N` → visual лишається PENDING, ZIP не видаляються;
-9. `Y` → finalizer повторно перевіряє все і тільки тоді записує manual PASS та виконує safe ZIP cleanup.
+### 2.5 Nested ZIP depth-limit міг мовчки пропустити assets
 
-### 5.2 Finalization preflight
+Проблема:
 
-`OsterConflict/Scripts/finalize_asset_acceptance.py` вимагає:
+- nested ZIP глибше 4 рівнів отримував warning і `continue`;
+- його не було у manifest як failure;
+- prepare міг лишитися PASS, хоча частина payload не була оброблена.
 
-- exact current `HEAD == origin/<current branch>`;
-- clean tracked runtime/acceptance source;
-- `LOCAL_ASSET_STATUS.source_sha == HEAD`;
+Виправлено:
+
+- deep archive записується в manifest як `NESTED_DEPTH_LIMIT`;
+- `error=nested_zip_depth_limit_exceeded`;
+- він входить у `$unsafeCount`;
+- manifest → `UNSAFE_ARCHIVE_PRESENT`;
+- prepare завершується code `40`, а не green PASS;
+- SHA-dedupe виконується **до** depth rejection, тому exact duplicate уже обробленого archive не створює false failure.
+
+### 2.6 Finalizer отримав незалежні бар'єри
+
+Finalizer тепер окремо вимагає:
+
+- exact schema `oster-conflict-local-asset-status-v4`;
+- `source_sha == current HEAD`;
+- `import_result_code == 0`;
+- `runtime_result_code == 0`;
 - `RUNTIME_SCOPE=CURRENT_RUN_COMPLETED`;
-- local UE import/runtime/material/automated evidence = PASS;
-- production vehicles = PASS;
-- production weapons = PASS;
+- import/runtime/material/evidence stages = PASS;
+- production vehicles/weapons = PASS;
 - `all_models_bound=true`;
 - `unbound=[]`;
-- fresh `category_counts.M16_M4 >= 1`;
-- prepared manifest = `PASS` або factual `NO_INBOX`;
-- no prepared conflicts;
-- every source ZIP selected for cleanup must have SHA-256 present in current prepared manifest as `EXTRACTED`.
+- summary `unbound_models=0`;
+- `source_status_counts.UNBOUND=0`;
+- `M16_M4 >= 1`;
+- prepared status `PASS` або factual `NO_INBOX`;
+- no package conflicts;
+- source ZIP cleanup тільки для manifest-proven SHA-256.
 
-Якщо будь-який ZIP у `models_game_OC` не доведений current manifest/hash, cleanup відмовляється **до першого видалення**.
+## 3. ЩО ПЕРЕВІРЕНО І НЕ Є ПРОПУСКОМ
 
-Fab-only / `NO_INBOX` case підтриманий: після повного acceptance дозволений zero-ZIP cleanup.
+- `NO_INBOX` не успадковує stale archive rows: manifest створюється заново з порожніми arrays.
+- unknown/unproven ZIP блокує cleanup **до першого видалення**.
+- Fab-only/`NO_INBOX` може коректно завершити zero-ZIP cleanup після інших PASS gates.
+- fresh ingest анулює старі manual visual/cleanup records.
+- dirty tracked runtime/source блокує import до UE execution.
+- exact `local HEAD == origin/current branch` перевіряється до asset import і знову перед final acceptance.
+- stale consolidated snapshot не може пережити fresh collection.
+- production HMMWV/M2/BTR і exact M249/Remington мають окремі mandatory result gates.
+- `RUN_ALL_VERIFY.py` запускає source-clean і finalization guards.
+- після останніх source changes exact code head `13a49ef` пройшов **19/19 SUCCESS**.
 
-### 5.3 Manual evidence
+Після цього deep audit відомого source-only false-green шляху в перевіреному ланцюгу не залишилось. Це **не** означає, що actual UE runtime уже прийнятий: його фізично ще не запускали на цьому current head у доступному evidence.
 
-Після явного `Y` записуються:
+## 4. PRODUCTION ASSET MATRIX
 
-- `OsterConflict/Saved/AssetStatus/MANUAL_VISUAL_ACCEPTANCE.json`
-- `OsterConflict/Saved/AssetStatus/MANUAL_VISUAL_ACCEPTANCE.txt`
+| Asset | Factual стан | Що підтверджено | Що ще треба |
+|---|---|---|---|
+| HMMWV | WAIT | source/import support | fresh UE import + live use + visual proof |
+| M2 Browning | WAIT | source/import support | fresh UE import + mount/pitch/muzzle/material visual proof |
+| BTR-4 | WAIT | source/import support | fresh UE result + live use + visual proof |
+| M249 | WAIT | exact importer support | fresh source/UE/runtime/visual proof |
+| Remington 870 | WAIT | exact importer support | fresh source/UE/runtime/visual proof |
+| M16/M4 family | GAP | classifier/runtime category support | fresh manifest must prove actual bound `M16_M4 >= 1` |
 
-Запис містить exact source SHA, UTC timestamp і checklist: HMMWV, M2, BTR-4, weapon models including M16/M4, world assets, skins/HUD та відсутність obvious placeholder/broken material/absurd scale/detached mesh.
+M16/M4 remains a **factual content gap**, not a code-classifier gap. Local/Fab payload may exist, but only fresh current-run `runtime_bindings.json` can close it.
 
-### 5.4 Safe source ZIP cleanup evidence
+Other supported local/Fab families such as AK-47, MP5, M1911, M700, M14, MAC-10, TEC-9, Lever Action, other weapons, pickups, buildings, props/furniture/fences, foliage, roads, terrain, water, character skins and HUD/UI remain PENDING factual runtime/visual proof.
 
-Cleanup видаляє **тільки** source ZIP у `models_game_OC`, SHA-256 яких доведений current `prepared_sources.json`.
+## 5. FRESH LOCAL EVIDENCE STATUS
 
-Записуються:
-
-- `OsterConflict/Saved/AssetStatus/ACCEPTED_ZIP_CLEANUP.json`
-- `OsterConflict/Saved/AssetStatus/ACCEPTED_ZIP_CLEANUP.txt`
-
-Evidence містить source SHA, exact deleted paths, SHA-256, bytes, count і result.
-
-Якщо cleanup частково падає, результат = FAIL і 100% не досягається.
-
-### 5.5 Stale manual PASS заборонений
-
-Будь-який новий asset ingest автоматично видаляє старі:
-
-- `MANUAL_VISUAL_ACCEPTANCE.json/.txt`;
-- `ACCEPTED_ZIP_CLEANUP.json/.txt`.
-
-Тому не можна один раз отримати visual PASS, потім додати новий Fab/ZIP asset і успадкувати старі 100%.
-
-`LOCAL_ASSET_STATUS` v4 окремо показує:
-
-- `DIRECT_VISUAL_ACCEPTANCE=...`;
-- `SOURCE_ZIP_CLEANUP=...`.
-
-Manual/cleanup record з іншого SHA позначається stale і не дає PASS.
-
-## 6. REGRESSION / CI AUDIT ЦЬОГО CHECKPOINT
-
-Додано/посилено:
-
-- `VERIFY_PASS45_ASSET_SOURCE_CLEAN_GUARD.py`;
-- `VERIFY_PASS45_ASSET_FINALIZATION_GUARD.py`;
-- `VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py`;
-- `RUN_ALL_VERIFY.py` тепер запускає source-clean і finalization guards;
-- local build/import workflow запускає всі три asset guards;
-- `VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py`, `VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py`, `VERIFY_RUNTIME_ACCEPTANCE_PASS_33.py` оновлені під automated→manual boundary без послаблення gameplay/material/FPS gates.
-
-Під час аудиту CI реально спіймав старі verifier assumptions. Вони були виправлені, а не обійдені.
-
-Final verified code head `15090c4`:
-
-- **19/19 workflows SUCCESS**;
-- failed = 0;
-- cancelled = 0;
-- Source verification = SUCCESS;
-- Main runtime acceptance launcher = SUCCESS;
-- Strict runtime acceptance harness = SUCCESS;
-- Pass37 + Pass33 compatibility chain = SUCCESS;
-- Pass36 / Pass38 / DX11 / normal route / single launcher / material audits = SUCCESS.
-
-## 7. LOCAL FILES, ЯКИХ ЩЕ НЕМАЄ В CONNECTED EVIDENCE
+Repeated connected conversation/Library search on 2026-09-05 found **no fresh current-head**:
 
 - `OsterConflict/Saved/LocalModelInbox/prepared_sources.json`
 - `OsterConflict/Saved/LocalModelInbox/runtime_bindings.json`
@@ -234,33 +197,38 @@ Final verified code head `15090c4`:
 - `OsterConflict/Saved/AutomationReports/ProductionModels/local_world_runtime_validation.txt`
 - `Logs/R14_CURRENT_GAMEPLAY.log`
 - `Logs/PASS45_STRICT_MATERIAL_GATE.log`
+- `Logs/PASS45_RUNTIME_ACCEPTANCE_EVIDENCE.txt`
 - `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt`
 - `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json`
-- `OsterConflict/Saved/AssetStatus/MANUAL_VISUAL_ACCEPTANCE.json/.txt`
-- `OsterConflict/Saved/AssetStatus/ACCEPTED_ZIP_CLEANUP.json/.txt`
 
-Повторний connected Library/conversation search не знайшов fresh current-run evidence. Старі локальні логи 2026-08-22…26 і historical HMMWV/M2/BTR-4 PASS не закривають current acceptance.
+Search повернув лише старі серпневі логи/сторонні файли. Вони не зараховуються для current checkpoint.
 
-## 8. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
+## 6. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
 
 ### `LOCAL-UE-ASSET-001`
 
-Фактичне наступне завдання: виконати current full asset/runtime path на локальному UE 5.8 project через **`START_HERE.cmd` → `2. ПОВНИЙ RUNTIME-ТЕСТ`**.
+Єдина наступна factual робота, яку GitHub сам виконати не може:
 
-Для 80% потрібен fresh current `LOCAL_ASSET_STATUS` із import PASS.  
-Для 90% потрібен current full runtime/material/evidence PASS.  
-Для 100% finalization preflight додатково не дозволить пройти з M16/M4 gap; після factual payload + runtime PASS він попросить явний visual Y/N і лише після `Y` виконає manifest/hash-proven source ZIP cleanup.
+1. локальна гілка має бути синхронізована з current PR head;
+2. запускати тільки `START_HERE.cmd`;
+3. вибрати `2. ПОВНИЙ RUNTIME-ТЕСТ`;
+4. pipeline сам виконає prepare/import/binding/runtime/material/evidence/finalization preflight;
+5. fresh `LOCAL_ASSET_STATUS.txt/json` визначить factual result.
 
-Поки fresh local UE evidence немає, factual progress лишається **70%**.
+Результат:
 
-## 9. CONTINUATION RULE
+- import PASS → **70% → 80%**;
+- runtime PASS → **80% → 90%**;
+- manual visual PASS + hash-proven ZIP cleanup → **90% → 100%**;
+- будь-який GAP/UNBOUND/stale source/missing M16-M4 залишає відповідний етап незакритим.
+
+## 7. CONTINUATION RULE
 
 Наступний pass:
 
 - не повторює DONE 1–7;
-- починає з `LOCAL-UE-ASSET-001` або з fresh локального result, якщо він уже з'явився;
-- оновлює exact branch/head/PR/CI;
-- оновлює asset rows за current manifest;
-- не підвищує % без factual evidence;
-- не merge PR #98 до local UE/runtime acceptance;
-- не видаляє source ZIP поза manifest/hash-proven finalization route.
+- спочатку звіряє current branch/head/main/PR/CI;
+- читає fresh consolidated `LOCAL_ASSET_STATUS` першим, якщо він з'явився;
+- individual logs читаються тільки для конкретного FAIL/GAP;
+- progress підвищується лише за factual local UE/runtime/manual evidence;
+- PR #98 не merge до local UE/runtime acceptance.
