@@ -23,6 +23,7 @@ fallback = read("OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallback
 frontend = read("OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp")
 launcher = read("RUN_R14_CURRENT_GAMEPLAY.cmd")
 start_here = read("START_HERE.cmd")
+all_asset_import = read("OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd")
 lfs_verify = read("OsterConflict/Scripts/verify_playtest_lfs_payloads.ps1")
 production_import = read("OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
 fresh_vehicle_verify = read("OsterConflict/Scripts/verify_production_vehicle_fresh_load.py")
@@ -75,8 +76,8 @@ if "UMaterialInstanceDynamic::Create" in fallback or "Component->SetMaterial(Slo
 
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
 
-# Current normal/strict split. Normal gameplay does not silently re-import every model on every start.
-# START_HERE option 2 owns inbox audit + strict content/runtime acceptance; the internal launcher owns the strict importer.
+# Current normal/strict split. START_HERE owns the full asset ingest before gameplay; the internal launcher
+# owns the strict production acceptance stage. Asset-fix branches must be testable before merge.
 for needle in (
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     'if "%IS_ACCEPTANCE%"=="1" (',
@@ -87,18 +88,29 @@ for needle in (
     "git lfs checkout >nul",
     "verify_playtest_lfs_payloads.ps1",
     '/C:"fix/runtime-map-spawn-fps-assets-"',
+    '/C:"fix/pass45-asset-"',
 ):
     require(launcher, needle, "current normal/strict gameplay split")
 if "--include=" in launcher:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: unsupported Git LFS --include flag returned")
 
 for needle in (
-    "audit_local_model_inbox.ps1",
-    "Перевіряю всі ZIP у models_game_OC",
+    'set "ALL_ASSET_IMPORT=%~dp0OsterConflict\\IMPORT_ALL_LOCAL_INBOX_UE58.cmd"',
+    "call :ingest_all_assets",
     'set "OC_FORCE_ACCEPTANCE=1"',
     'call "%CURRENT_GAMEPLAY%"',
 ):
     require(start_here, needle, "single launcher full-runtime model intake")
+for needle in (
+    "audit_local_model_inbox.ps1",
+    "Інвентаризую ВСІ локальні ZIP",
+    'powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"',
+    "prepare_all_local_inbox_assets.ps1",
+    "dedupe_local_prepared_sources.py",
+    "prepare_local_weapon_sources.ps1",
+    "import_all_project_assets.py",
+):
+    require(all_asset_import, needle, "canonical all-asset ingest pipeline")
 
 for needle in (
     "Content\\AK-47", "Content\\R13\\Weapons", "Content\\PN_FoliageCollection",
@@ -154,7 +166,8 @@ for needle in (
 print("RUNTIME ACCEPTANCE PASS 3 + PASS45 CURRENT CONTRACT PASS")
 print("- Museum BASE source remains and actual live-pawn Museum proof is retained")
 print("- foliage and weapon helper work stays bounded")
-print("- START_HERE full runtime test audits every local inbox ZIP before strict intake")
+print("- START_HERE delegates one canonical all-asset ingest pipeline before strict runtime gameplay")
+print("- the all-asset pipeline audits every local inbox ZIP, prepares/dedupes sources and imports project/Fab content")
 print("- HMMWV/M2/BTR plus exact M249/Remington intake fail visible instead of promoting missing content")
 print("- production fresh-load rejects placeholder material/dependency gaps")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
