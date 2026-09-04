@@ -112,8 +112,15 @@ void UOCPass45TrenchSetpieceSubsystem::Tick(float DeltaTime)
         return;
     }
 
+    // Optional user-added rubble pack. Strict identity matching means a random prop is never substituted.
+    // /Game fallback is allowed because Fab packs may import to their own top-level package rather than /Game/Fab.
+    UStaticMesh* RubbleMesh = OCPass45FindLocalStaticMeshStrict(
+        { FName(TEXT("/Game/Fab")), FName(TEXT("/Game")) },
+        { TEXT("rubble") });
+
     int32 BaseCount = 0;
     int32 SpawnedCount = 0;
+    int32 RubbleSpawnedCount = 0;
     for (TActorIterator<AOCTeamSpawnPoint> It(*World); It; ++It)
     {
         AOCTeamSpawnPoint* Spawn = *It;
@@ -149,9 +156,40 @@ void UOCPass45TrenchSetpieceSubsystem::Tick(float DeltaTime)
                 ++SpawnedCount;
             }
         }
+
+        if (RubbleMesh)
+        {
+            const struct FRubblePlacement
+            {
+                FVector Offset;
+                float YawOffset;
+                float SizeCm;
+            } RubblePlacements[] = {
+                { Forward * 930.0f + Right * 690.0f,  18.0f, 260.0f },
+                { Forward * 870.0f - Right * 720.0f, -24.0f, 230.0f },
+                { Forward * -650.0f + Right * 840.0f, 41.0f, 210.0f },
+                { Forward * -720.0f - Right * 790.0f,-37.0f, 240.0f }
+            };
+
+            for (const FRubblePlacement& Placement : RubblePlacements)
+            {
+                if (SpawnSetpiece(*World, RubbleMesh, Base + Placement.Offset,
+                    FRotator(0.0f, Facing.Yaw + Placement.YawOffset, 0.0f), Placement.SizeCm))
+                {
+                    ++RubbleSpawnedCount;
+                    ++SpawnedCount;
+                }
+            }
+        }
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_TRENCH_SETPIECE_READY base_spawns=%d authored_instances=%d barrier=%s pile=%s no_collision=1 duplicate_spawn=0 runtime_acceptance=0"),
-        BaseCount, SpawnedCount, *BarrierMesh->GetName(), *PileMesh->GetName());
+        TEXT("PASS45_TRENCH_SETPIECE_READY base_spawns=%d authored_instances=%d barrier=%s pile=%s rubble_loaded=%d rubble_instances=%d rubble_asset=%s no_collision=1 duplicate_spawn=0 runtime_acceptance=0"),
+        BaseCount,
+        SpawnedCount,
+        *BarrierMesh->GetName(),
+        *PileMesh->GetName(),
+        RubbleMesh ? 1 : 0,
+        RubbleSpawnedCount,
+        RubbleMesh ? *RubbleMesh->GetPathName() : TEXT("NONE"));
 }

@@ -43,8 +43,8 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ LOCAL | 🟡 | RPG-26 | `Content/rpg-26-grenade-launcher-low-poly/`; `IMP_RPG26`; projectile launcher gameplay wired |
 | 🟡 REPORT | 🟡 | New Fab RPG added 2026-09-04 | distinct gameplay identity `IMP_FAB_RPG`; Fab-only exact-model resolver prevents RPG-26 substitution; UE visual/runtime acceptance pending |
 | 🟡 REPORT | 🟡 | AKS-74U | distinct gameplay identity `IMP_AKS74U`; local/Fab exact-token visual bridge and sandbox catalog spawn wired; UE visual/runtime acceptance pending |
-| 🟡 REPORT | ❌ | Revolver | user-reported Fab import; exact local package identity/integration pending |
-| 🟡 REPORT | ❌ | Additional pistol pack | user-reported Fab import; reconcile against M1911/Makarov before creating another gameplay identity |
+| 🟡 REPORT | 🟡 | Revolver | distinct gameplay identity `IMP_REVOLVER`; dedicated `Revolver` mechanical action metadata, Fab exact-token visual resolver and sandbox catalog entry wired; UE visual/runtime acceptance pending |
+| 🟡 REPORT | ❌ | Additional pistol pack | user-reported Fab import; reconcile against M1911/Makarov/Revolver before creating another gameplay identity |
 | 🟡 REPORT | ❌ | FPS Weapon Bundle | user-reported Fab import; exact contained weapon inventory still needs local package enumeration |
 | ✅ | 🟡 | M14 | existing gameplay/imported weapon identity; final UE acceptance pending |
 | ✅ | 🟡 | MAC-10 | existing gameplay/imported weapon identity; final UE acceptance pending |
@@ -107,11 +107,11 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ LOCAL | 🟡 | Telephone pole scene | `Content/telephone-pole-scene/`; road-side infrastructure bridge exists, UE validation pending |
 | 🟡 REPORT | ❌ | Additional chain-link fence pack | user-reported Fab import; reconcile exact root against Pripyat/PO-2 packs |
 | 🟡 REPORT | ❌ | Additional fences pack | user-reported Fab import; exact root/integration pending |
-| 🟡 REPORT | ❌ | Rubble pack | user-reported Fab import; exact root/integration pending |
-| 🟡 REPORT | ❌ | Sidewalk 01 | user-added pack; exact local root/integration pending |
-| 🟡 REPORT | ❌ | Realistic Asphalt Material PBR | user-added surface pack; exact local root/material cutover pending |
+| 🟡 REPORT | 🟡 | Rubble pack | strict `rubble` local resolver now feeds decorative debris into the existing team-base trench setpiece owner; UE visual/runtime acceptance pending |
+| ✅ | 🟡 | Sidewalk 01 | tracked `Scene_RoadsideConstruction/.../SM_Urb_Roa_Sidewalk_01`; current world-surface owner replaces source Sidewalks while preserving topology; UE acceptance pending |
+| 🟡 REPORT | ❌ | Realistic Asphalt Material PBR | separate user-added surface pack; exact local root/material cutover pending |
 | 🟡 REPORT | ❌ | Tileable Pine Forest Road | user-added road/surface pack; exact local root/runtime placement pending |
-| 🟡 REPORT | ❌ | Roadside Construction | user-added road props pack; exact local root/runtime placement pending |
+| ✅ | 🟡 | Roadside Construction | tracked `Content/Scene_RoadsideConstruction/`; `SM_Urb_Roa_Asphalt_01` and `SM_Urb_Roa_Sidewalk_01` are current road/sidewalk runtime assets; UE acceptance pending |
 | 🟡 REPORT | ❌ | Free Furniture Pack | user-added furniture pack; exact local root and interior placement pending |
 
 ## Vegetation and terrain
@@ -165,8 +165,8 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 These items are already in the inventory and may not be forgotten merely because Git ignores their payload:
 
-1. Record exact local package/model names for the **new Fab RPG** and AKS-74U after UE exposes them, and enumerate the still-unresolved revolver, additional pistol, FPS Weapon Bundle and all additional character packs. The RPG and AKS-74U gameplay identities/bridges are already coded and no longer wait on exact folder names.
-2. Resolve the exact local roots for Modular Urban Houses, Street Props Vol.2, City Streets Props, Sidewalk 01, asphalt, forest road, Roadside Construction, Free Furniture, Temperate Vegetation, rubble and the additional fence packs.
+1. Record exact local package/model names for the **new Fab RPG**, AKS-74U, revolver and rubble mesh after UE exposes them, and enumerate the still-unresolved additional pistol, FPS Weapon Bundle and all additional character packs. The RPG, AKS-74U, revolver and rubble runtime bridges are already coded and no longer wait on exact folder names.
+2. Resolve the exact local roots for Modular Urban Houses, Street Props Vol.2, City Streets Props, the separate Realistic Asphalt PBR pack, forest road, Free Furniture, Temperate Vegetation and the additional fence packs.
 3. Bind the four new grenade models as **Frag A / Frag B / Smoke / Flash**, then retire the legacy shared R13 grenade visual from active use.
 4. Finish intentional building/world placement. Importing a house pack into Content is not the same as placing the correct house on the Oster map.
 5. Run one integrated UE 5.8 current-head acceptance after the broad asset batch is ready; only then promote runtime/visual/audio rows from `🟡` to `✅`.
@@ -175,6 +175,8 @@ These items are already in the inventory and may not be forgotten merely because
 
 - The asset inventory itself is now centralized here.
 - All currently known user-added/imported roots and explicitly reported packs/models are represented, including ignored local content that GitHub cannot list directly.
-- AKS-74U and the newly added Fab RPG now have distinct gameplay IDs, sandbox-rack entries and local exact-token visual resolution. They remain `🟡` until UE 5.8 proves the local model selected and rendered correctly.
+- AKS-74U, the newly added Fab RPG and the revolver now have distinct gameplay IDs/catalog entries and strict local visual resolution. They remain `🟡` until UE 5.8 proves the local models selected and rendered correctly.
+- The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
+- `Scene_RoadsideConstruction` is verified present in Git and already owns authored road/sidewalk meshes, so those rows are no longer falsely shown as unintegrated.
 - This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
 - Formal PASS45 progress remains separate from asset-integration progress.
