@@ -26,6 +26,10 @@ struct FOCFirstPersonWeaponState
     float RecoilAlpha = 0.0f;
     FVector BaseWeaponLocation = FVector::ZeroVector;
     FRotator BaseWeaponRotation = FRotator::ZeroRotator;
+    // Preserve the character-owned arms transform separately from the per-weapon presentation baseline.
+    // Without this split, switching weapons can repeatedly add grip offsets and slowly drift the arms in camera space.
+    FVector OriginalArmsLocation = FVector::ZeroVector;
+    FRotator OriginalArmsRotation = FRotator::ZeroRotator;
     FVector BaseArmsLocation = FVector::ZeroVector;
     FRotator BaseArmsRotation = FRotator::ZeroRotator;
 };
