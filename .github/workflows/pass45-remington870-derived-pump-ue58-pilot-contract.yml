@@ -1,17 +1,7 @@
 name: Pass 45 Remington 870 derived pump UE58 pilot contract
 
+# Local UE pilot contract. Manual only under the batch-first PASS45 policy.
 on:
-  pull_request:
-    paths:
-      - 'PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py'
-      - 'VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py'
-      - 'PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py'
-      - 'VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py'
-      - 'OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.cmd'
-      - 'OsterConflict/OsterConflict.uproject'
-      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
-      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
-      - '.github/workflows/pass45-remington870-derived-pump-ue58-pilot-contract.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile derived UE58 pilot contract
-        run: python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py
-      - name: Verify fail-closed derived UE58 pilot contract
-        run: python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py
+      - name: Verify fail-closed Remington UE58 pilot contract on demand
+        run: |
+          python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py
+          python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py
