@@ -1,14 +1,8 @@
 name: Pass 45 M700 bolt geometry audit
 
+# Historical/diagnostic geometry classifier. Manual only; current production
+# cutover checks own ordinary PASS45 gating.
 on:
-  push:
-    branches:
-      - fix/pass45-runtime-rejection-material-closure-20260826
-    paths:
-      - 'OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
-      - 'PASS45_M700_SOURCE_MOTION_AUDIT.py'
-      - 'PASS45_M700_BOLT_GEOMETRY_AUDIT.py'
-      - '.github/workflows/pass45-m700-bolt-geometry-audit.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,64 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout exact Oster head without bulk LFS payload download
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
           lfs: false
-
-      - name: Materialize only the pinned Stein M700 FBX
+      - name: Run M700 bolt geometry diagnostic on demand
         shell: bash
         run: |
           set -euo pipefail
           SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
           git lfs install --local
           git lfs pull --include="$SOURCE" --exclude=''
-          test -f "$SOURCE"
-          if head -c 64 "$SOURCE" | grep -q 'git-lfs.github.com/spec'; then
-            echo 'PASS45_M700_BOLT_GEOMETRY_AUDIT_LFS_POINTER_UNRESOLVED'
-            exit 1
-          fi
-          python - <<'PY'
-          from pathlib import Path
-          import hashlib
-          source = Path('OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx')
-          payload = source.read_bytes()
-          digest = hashlib.sha256(payload).hexdigest()
-          if len(payload) != 638732:
-              raise SystemExit(f'M700 FBX size drifted: {len(payload)}')
-          if digest != 'b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840':
-              raise SystemExit(f'M700 FBX SHA-256 drifted: {digest}')
-          print(f'PASS45_M700_PINNED_SOURCE_OK size={len(payload)} sha256={digest}')
-          PY
-
-      - name: Install deterministic FBX inspection converter
-        shell: bash
-        run: |
-          set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends assimp-utils
-          assimp version
-
-      - name: Convert exact FBX and classify BOLT geometry ownership
-        shell: bash
-        run: |
-          set -euo pipefail
-          SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
           GLTF='/tmp/pass45_m700_bolt_geometry.gltf'
-          OUTPUT='_DOCS/PASS45_M700_BOLT_GEOMETRY_AUDIT_2026-09-02.json'
+          OUTPUT='/tmp/PASS45_M700_BOLT_GEOMETRY_AUDIT.json'
           assimp export "$SOURCE" "$GLTF" -f gltf2
-          test -s "$GLTF"
-          python PASS45_M700_BOLT_GEOMETRY_AUDIT.py \
-            --source "$SOURCE" \
-            --gltf "$GLTF" \
-            --output "$OUTPUT"
+          python PASS45_M700_BOLT_GEOMETRY_AUDIT.py --source "$SOURCE" --gltf "$GLTF" --output "$OUTPUT"
           cat "$OUTPUT"
-
-      - name: Preserve M700 bolt-geometry audit artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pass45-m700-bolt-geometry-audit
-          path: _DOCS/PASS45_M700_BOLT_GEOMETRY_AUDIT_2026-09-02.json
-          if-no-files-found: error
-          retention-days: 3
