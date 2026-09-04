@@ -80,6 +80,25 @@ if not exist "%NORMALIZE_WEAPONS%" (
   exit /b 57
 )
 
+rem Acceptance evidence must describe the committed GitHub source, not locally edited launchers/scripts/code.
+rem Ignore untracked local payloads and Content: those are exactly what this importer is supposed to ingest.
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git не знайдено в PATH.
+  exit /b 47
+)
+set "DIRTY_ACCEPTANCE_SOURCE="
+for /f "delims=" %%D in ('git -C "%REPO_ROOT%" status --porcelain --untracked-files=no -- START_HERE.cmd RUN_R14_CURRENT_GAMEPLAY.cmd COLLECT_LOCAL_ASSET_STATUS.py VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd OsterConflict/RUN_PASS45_STRICT_MATERIAL_GATE.cmd OsterConflict/Scripts OsterConflict/Source 2^>nul') do (
+  echo [LOCAL SOURCE CHANGE] %%D
+  set "DIRTY_ACCEPTANCE_SOURCE=1"
+)
+if defined DIRTY_ACCEPTANCE_SOURCE (
+  echo [STOP] Є незакомічені зміни у tracked runtime/source файлах.
+  echo Asset acceptance не запускається, бо snapshot не може приписувати локально змінений код GitHub HEAD.
+  echo Локальні/untracked model payloads та Content цим guard не блокуються.
+  exit /b 59
+)
+
 if exist "%SUCCESS%" del /q "%SUCCESS%" >nul 2>nul
 if exist "%MANIFEST%" del /q "%MANIFEST%" >nul 2>nul
 if exist "%LOG%" del /q "%LOG%" >nul 2>nul
@@ -90,11 +109,6 @@ echo models_game_OC + Unreal/Fab/Marketplace Content -> dedupe -> UE import -> g
 echo ============================================================
 
 echo [1/8] Дотягую реальні Git LFS payloads для вже доданих model packs...
-where git >nul 2>nul
-if errorlevel 1 (
-  echo [STOP] Git не знайдено в PATH.
-  exit /b 47
-)
 git -C "%REPO_ROOT%" lfs version >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Git LFS не встановлено; без нього .uasset можуть лишитися pointer-файлами.
