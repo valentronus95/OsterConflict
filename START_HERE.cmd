@@ -12,6 +12,7 @@ set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
 set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\weapon_runtime_validation.txt"
 set "LOCAL_INBOX_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_inbox_runtime_validation.txt"
+set "LOCAL_WORLD_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_world_runtime_validation.txt"
 
 :menu
 cls
@@ -95,6 +96,7 @@ call :ingest_all_assets
 if errorlevel 1 exit /b %ERRORLEVEL%
 
 if exist "%LOCAL_INBOX_RUNTIME_REPORT%" del /q "%LOCAL_INBOX_RUNTIME_REPORT%" >nul 2>nul
+if exist "%LOCAL_WORLD_RUNTIME_REPORT%" del /q "%LOCAL_WORLD_RUNTIME_REPORT%" >nul 2>nul
 set "OC_FORCE_ACCEPTANCE=1"
 set "OC_RHI_COMPAT=0"
 set "OC_VALIDATE_LOCAL_INBOX=1"
@@ -120,6 +122,18 @@ if errorlevel 1 (
   exit /b 36
 )
 echo [MODEL INBOX] PASS: усі прив'язані моделі реально відкрились у gameplay runtime.
+
+if not exist "%LOCAL_WORLD_RUNTIME_REPORT%" (
+  echo [STOP] Не отримано runtime proof, що world-моделі реально підключені до Остра.
+  exit /b 37
+)
+findstr /L /C:"PASS45_LOCAL_WORLD_RUNTIME=PASS" "%LOCAL_WORLD_RUNTIME_REPORT%" >nul
+if errorlevel 1 (
+  echo [STOP] World assets не пройшли live placement proof.
+  type "%LOCAL_WORLD_RUNTIME_REPORT%"
+  exit /b 38
+)
+echo [WORLD ASSETS] PASS: будівлі/пропи/рослинність/дороги/вода підключені до live Oster runtime.
 
 call "%MATERIAL_GATE%"
 set "MATERIAL_RC=%ERRORLEVEL%"

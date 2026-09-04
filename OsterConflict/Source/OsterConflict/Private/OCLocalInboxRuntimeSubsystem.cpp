@@ -280,6 +280,10 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
         }
     }
 
+    const TArray<TSharedPtr<FJsonValue>>* HUDTextures = GetArray(Root, TEXT("hud_textures"));
+    const TArray<TSharedPtr<FJsonValue>>* HUDWidgets = GetArray(Root, TEXT("hud_widget_classes"));
+    const bool bHUDExpected = (HUDTextures && !HUDTextures->IsEmpty()) || (HUDWidgets && !HUDWidgets->IsEmpty());
+
     bool bHUDBound = false;
     if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
     {
@@ -307,7 +311,7 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
         }
     }
 
-    const bool bPass = bManifestBound && LoadFailures == 0;
+    const bool bPass = bManifestBound && LoadFailures == 0 && (!bHUDExpected || bHUDBound);
     if (bPass)
     {
         UE_LOG(LogTemp, Display,
@@ -323,8 +327,8 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_LOCAL_INBOX_RUNTIME_FAIL manifest_bound=%d load_failures=%d static_loaded=%d skeletal_loaded=%d"),
-            bManifestBound ? 1 : 0, LoadFailures, StaticLoaded, SkeletalLoaded);
+            TEXT("PASS45_LOCAL_INBOX_RUNTIME_FAIL manifest_bound=%d load_failures=%d static_loaded=%d skeletal_loaded=%d hud_expected=%d hud_bound=%d"),
+            bManifestBound ? 1 : 0, LoadFailures, StaticLoaded, SkeletalLoaded, bHUDExpected ? 1 : 0, bHUDBound ? 1 : 0);
         if (bValidateLocalInbox)
         {
             WriteRuntimeReport(false, FString::Printf(TEXT("manifest_bound=%d load_failures=%d"),

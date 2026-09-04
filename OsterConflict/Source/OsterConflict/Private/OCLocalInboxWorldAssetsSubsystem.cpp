@@ -9,7 +9,9 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/FileManager.h"
+#include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -28,6 +30,22 @@ namespace
     FString BindingManifestPath()
     {
         return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("LocalModelInbox"), TEXT("runtime_bindings.json"));
+    }
+
+    FString WorldRuntimeReportPath()
+    {
+        return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("AutomationReports"), TEXT("ProductionModels"),
+            TEXT("local_world_runtime_validation.txt"));
+    }
+
+    void WriteWorldReport(const bool bPass, const FString& Detail)
+    {
+        if (!FParse::Param(FCommandLine::Get(), TEXT("ValidateLocalInbox"))) return;
+        const FString Path = WorldRuntimeReportPath();
+        IFileManager::Get().MakeDirectory(*FPaths::GetPath(Path), true);
+        const FString Text = FString::Printf(TEXT("PASS45_LOCAL_WORLD_RUNTIME=%s\n%s\n"),
+            bPass ? TEXT("PASS") : TEXT("FAIL"), *Detail);
+        FFileHelper::SaveStringToFile(Text, *Path);
     }
 
     FString PackageToObjectPath(const FString& InPath)
@@ -329,6 +347,7 @@ void UOCLocalInboxWorldAssetsSubsystem::ApplyWorldAssets()
     if (AllAssets.IsEmpty())
     {
         UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WORLD_ASSETS_READY supplied_world_assets=0"));
+        WriteWorldReport(true, TEXT("supplied_world_assets=0"));
         return;
     }
 
@@ -337,11 +356,15 @@ void UOCLocalInboxWorldAssetsSubsystem::ApplyWorldAssets()
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_LOCAL_WORLD_ASSETS_READY supplied=%d loaded_pool_entries=%d visible_pool_entries=%d replaced_instances=%d sectors=%d"),
             AllAssets.Num(), TotalLoadedAssets, TotalUsedAssets, TotalReplaced, SectorCount);
+        WriteWorldReport(true, FString::Printf(TEXT("supplied=%d loaded_pool_entries=%d visible_pool_entries=%d replaced_instances=%d sectors=%d"),
+            AllAssets.Num(), TotalLoadedAssets, TotalUsedAssets, TotalReplaced, SectorCount));
     }
     else
     {
         UE_LOG(LogTemp, Error,
             TEXT("PASS45_LOCAL_WORLD_ASSETS_FAIL supplied=%d loaded_pool_entries=%d replaced_instances=%d sectors=%d"),
             AllAssets.Num(), TotalLoadedAssets, TotalReplaced, SectorCount);
+        WriteWorldReport(false, FString::Printf(TEXT("supplied=%d loaded_pool_entries=%d replaced_instances=%d sectors=%d"),
+            AllAssets.Num(), TotalLoadedAssets, TotalReplaced, SectorCount));
     }
 }

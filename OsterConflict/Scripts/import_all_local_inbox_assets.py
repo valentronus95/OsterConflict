@@ -242,19 +242,36 @@ def main():
     seen_source_asset = set()
 
     # First register UE-ready packages that were copied into Content while preserving package names.
+    # Mesh-looking .uasset files are acceptance-owned individually. A material may be a dependency,
+    # but a StaticMeshes/Meshes/SM_/SK_/SKM_ source is not allowed to disappear silently.
+    expected_ue_model_sources = set()
     unreal.AssetRegistryHelpers.get_asset_registry().scan_paths_synchronous(["/Game"], True)
     for item in prepared.get("ue_packages", []):
         if str(item.get("extension", "")).lower() != ".uasset":
             continue
-        asset_path = object_path_from_content_file(item.get("target", ""))
-        if not asset_path:
-            continue
         source = item.get("source", "")
+        target = item.get("target", "")
+        hint = (str(source) + " " + str(target)).replace("\\", "/").lower()
+        expects_runtime_model = (
+            "/staticmeshes/" in hint or "/meshes/" in hint or
+            re.search(r"(?:^|/)(?:sm_|sk_|skm_)[^/]*\.uasset$", hint) is not None
+        )
+        if expects_runtime_model:
+            expected_ue_model_sources.add(str(source))
+
+        asset_path = object_path_from_content_file(target)
         category = item.get("category") or category_for(source)
+        if not asset_path:
+            if expects_runtime_model:
+                bindings["source_status"].append({"source": str(source), "category": category, "status": "UNBOUND", "reason": "ue_model_package_path_unresolved"})
+            continue
+
         before = len(bindings["source_status"])
         classify_loaded_asset(asset_path, source, category, quantum_skeleton_path, bindings, bindings["source_status"])
         if len(bindings["source_status"]) > before:
             seen_source_asset.add(source)
+        elif expects_runtime_model:
+            bindings["source_status"].append({"source": str(source), "category": category, "status": "UNBOUND", "reason": "ue_model_package_not_loadable_as_runtime_mesh", "asset": asset_path})
 
     # Import every raw model. Each source gets its own deterministic destination so same-named downloads cannot collide.
     for item in prepared.get("raw_models", []):
@@ -324,6 +341,7 @@ def main():
     # Every raw model source must have a model binding. For UE packs, only actual mesh/widget assets count;
     # materials/textures are dependencies and are not falsely reported as separate 'unbound models'.
     model_sources = {str(item.get("source", "")) for item in prepared.get("raw_models", [])}
+    model_sources.update(expected_ue_model_sources)
     for status in bindings["source_status"]:
         if status.get("status") == "UNBOUND" and (status.get("source") in model_sources or status.get("category") == "CHARACTER_SKIN"):
             bindings["unbound_models"].append(status)
