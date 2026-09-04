@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 START = ROOT / "START_HERE.cmd"
 EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
 
 
 def read(path: Path) -> str:
@@ -24,15 +25,17 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 start = read(START)
 evidence = read(EVIDENCE)
+finalizer = read(FINALIZER)
 
 # START_HERE is the only user-facing launcher. Full runtime testing must stay on the current
-# gameplay -> live asset proof -> strict material gate -> canonical evidence verifier route.
+# gameplay -> live asset proof -> strict material gate -> canonical automated evidence -> manual finalization route.
 for needle in (
     "2. ПОВНИЙ RUNTIME-ТЕСТ",
     'set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
     'set "ALL_ASSET_IMPORT=%~dp0OsterConflict\\IMPORT_ALL_LOCAL_INBOX_UE58.cmd"',
     'set "MATERIAL_GATE=%~dp0OsterConflict\\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"',
     'set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"',
+    'set "ASSET_FINALIZER=%~dp0OsterConflict\\Scripts\\finalize_asset_acceptance.py"',
     "call :full_runtime_test",
     "call :ingest_all_assets",
     'set "OC_FORCE_ACCEPTANCE=1"',
@@ -42,14 +45,30 @@ for needle in (
     'PASS45_LOCAL_WORLD_RUNTIME=PASS',
     'call "%MATERIAL_GATE%"',
     '%PY_CMD% "%EVIDENCE_VERIFY%" "%GAMEPLAY_LOG%" "%MATERIAL_LOG%" "%WEAPON_REPORT%"',
-    "VISUAL ACCEPTANCE IS STILL PENDING direct observation.",
+    "PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED",
+    '"%ASSET_FINALIZER%" --preflight',
+    "FINALIZE PENDING",
+    "Visual acceptance не записано",
+    "choice /C YN",
+    '"%ASSET_FINALIZER%" --accept-visual',
 ):
     require(start, needle, "current START_HERE full runtime route")
+
+preflight_pos = start.find('"%ASSET_FINALIZER%" --preflight')
+choice_pos = start.find('choice /C YN', preflight_pos)
+accept_pos = start.find('"%ASSET_FINALIZER%" --accept-visual', choice_pos)
+if -1 in (preflight_pos, choice_pos, accept_pos) or not preflight_pos < choice_pos < accept_pos:
+    raise SystemExit("PASS33 VERIFY FAIL: visual acceptance is not gated after automated evidence + preflight + explicit Y/N")
 
 forbid(
     start,
     "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd",
     "deleted per-pass acceptance launcher must not return",
+)
+forbid(
+    start,
+    "FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd",
+    "second user-facing finalization launcher must not return",
 )
 
 # The canonical Python verifier owns automated runtime evidence semantics now.
@@ -137,7 +156,7 @@ for propagated in (
 ):
     require(start, propagated, f"current gate failure propagation {propagated}")
 
-# Authored production materials and exact weapon texture dependencies are hard gates.
+# Authored production materials and exact weapon texture dependencies are hard automated gates.
 for marker in (
     "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
     "SUMMARY=11/11 production weapon classes PASS",
@@ -153,6 +172,16 @@ for marker in (
     "RESULT=FAIL",
 ):
     require(evidence, marker, f"fail-closed production evidence {marker}")
+
+# Final manual acceptance must remain outside the automated evidence verifier.
+for marker in (
+    'preflight_only = "--preflight" in args',
+    'accept_visual = "--accept-visual" in args',
+    "verify_current_automated_status(current, head)",
+    'category_counts.get("M16_M4")',
+    "write_manual_acceptance(head)",
+):
+    require(finalizer, marker, f"manual finalization contract {marker}")
 
 # Retired historical repair/palette/rebuild semantics must not be restored just to satisfy Pass33.
 for retired in (
@@ -171,7 +200,7 @@ for retired in (
 print("RUNTIME ACCEPTANCE PASS 33 / PASS45 CURRENT CONTRACT PASS")
 print("- START_HERE owns the full runtime-test route; deleted per-pass acceptance CMD stays absent")
 print("- local inbox/world live runtime proof is mandatory before material/evidence acceptance")
-print("- canonical Python evidence verifier owns Museum, vehicle, weapon, input and >=30 FPS gates")
+print("- canonical Python evidence verifier owns Museum, vehicle, weapon, input and >=30 FPS automated gates")
+print("- automated evidence leaves visual acceptance pending; finalizer preflight + explicit Y/N own the manual visual/cleanup stage")
 print("- production material/texture gaps remain fail-closed")
-print("- visual acceptance remains pending direct UE observation")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 run remains the runtime authority")
