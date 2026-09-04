@@ -32,7 +32,7 @@ spawn_guard_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
 fallback_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 layer_guard = read(SRC / "Private" / "OCMuseumLayerPerformanceGuardSubsystem.cpp")
-acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
+acceptance = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
 # Pass45 deletes the old destructive visibility rebuild guard and the already-retired palette shell.
 for path, label in (
@@ -88,8 +88,8 @@ for needle in (
 ):
     require(layer_guard, needle, "Pass45 Museum validation-only ownership")
 
-# Acceptance follows the current owner set. It accepts either legitimate initial BASE terminal marker through
-# the PASS45_INITIAL_BASE_DEPLOYMENT_ prefix rather than pretending recovery can never be the factual path.
+# The canonical runtime evidence verifier replaced the deleted per-pass acceptance CMD and must retain
+# support for either legitimate initial BASE terminal result plus the current Museum/material/perf gates.
 for forbidden_marker in (
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
@@ -99,7 +99,8 @@ for forbidden_marker in (
 ):
     forbid(acceptance, forbidden_marker, "stale runtime marker must not be required")
 for marker in (
-    'findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%"',
+    "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE",
     "PASS45_MUSEUM_LAYER_VALIDATION_READY",
     "PASS42_BASE_RACK_GROUNDED_READY",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
@@ -112,4 +113,5 @@ print("- destructive Museum visibility/rebuild and weapon palette owners stay ph
 print("- Museum BASE recovery is initial-character-only and acceptance permits either factual terminal result")
 print("- Museum ownership validation cannot mutate the scene")
 print("- authored material gaps remain fail-visible through the bounded real-weapon audit")
+print("- canonical runtime evidence verifier is authoritative; deleted per-pass CMD is not required")
 print("STATUS: SOURCE CONTRACT ONLY; actual UE 5.8 visual/runtime acceptance remains required")
