@@ -31,10 +31,6 @@ OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx
 OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/
 OsterConflict/Content/Production/Vehicles/BTR4/
 
-# Reproducible third-party gameplay intake bytes are local candidates, not repository payload.
-# Keep only the generated SHA-256 receipt visible to Git for review.
-OsterConflict/SourceAssets/ThirdParty/Gameplay/*
-!OsterConflict/SourceAssets/ThirdParty/Gameplay/LOCAL_CONTENT_RECEIPT.csv
-
-# Local downloaded/source asset cache. Never commit these raw archives to the repository.
-models_game_OC/
+!models_game_OC/
+!models_game_OC/*.zip
+!models_game_OC/**/*.zip
