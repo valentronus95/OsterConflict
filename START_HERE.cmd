@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul
+rem Єдиний користувацький launcher/test entrypoint: START_HERE.cmd.
 cd /d "%~dp0"
 
 set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
