@@ -280,6 +280,11 @@ def _catalog_existing_project_models(bindings, quantum_skeleton_path):
 
 
 def main():
+    # A success marker is valid only for the current aggregate pass. Clear any previous run before
+    # the first operation so an early exception cannot leave stale green evidence behind.
+    if SUCCESS.exists():
+        SUCCESS.unlink()
+
     # Run the normal models_game_OC import first in this SAME Unreal process.
     inbox.main()
 
