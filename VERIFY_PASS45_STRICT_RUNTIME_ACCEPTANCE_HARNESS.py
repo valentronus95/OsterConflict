@@ -6,6 +6,7 @@ ENTRY = ROOT / "START_HERE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
 errors = []
 
 
@@ -25,6 +26,7 @@ entry = read(ENTRY)
 normal = read(NORMAL)
 material = read(MATERIAL)
 evidence = read(EVIDENCE)
+finalizer = read(FINALIZER)
 
 req('Єдиний користувацький launcher/test entrypoint: START_HERE.cmd.' in entry,
     "START_HERE no longer declares the single user-facing launcher/test contract")
@@ -73,11 +75,33 @@ for marker in (
     req(marker in evidence, f"Pass45 evidence verifier does not reject failure marker: {marker}")
 
 req("VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION" in evidence,
-    "evidence file no longer preserves visual acceptance as pending")
-req("VISUAL ACCEPTANCE IS STILL PENDING" in entry,
-    "START_HERE falsely implies automated logs complete visual acceptance")
+    "automated evidence no longer preserves visual acceptance as pending")
 req("PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS" in evidence,
     "evidence output lacks explicit automated-only PASS status")
+
+for marker in (
+    '"%ASSET_FINALIZER%" --preflight',
+    "FINALIZE PENDING",
+    "Visual acceptance не записано",
+    "choice /C YN",
+    '"%ASSET_FINALIZER%" --accept-visual',
+):
+    req(marker in entry, f"START_HERE lost manual visual-acceptance boundary marker: {marker}")
+for marker in (
+    'preflight_only = "--preflight" in args',
+    'accept_visual = "--accept-visual" in args',
+    "run_preflight()",
+    "write_manual_acceptance(head)",
+):
+    req(marker in finalizer, f"finalizer lost manual-only acceptance marker: {marker}")
+
+preflight_pos = entry.find('"%ASSET_FINALIZER%" --preflight')
+choice_pos = entry.find('choice /C YN', preflight_pos)
+accept_pos = entry.find('"%ASSET_FINALIZER%" --accept-visual', choice_pos)
+req(
+    -1 not in (preflight_pos, choice_pos, accept_pos) and preflight_pos < choice_pos < accept_pos,
+    "START_HERE can complete visual acceptance without preflight plus explicit human Y/N confirmation",
+)
 
 if errors:
     print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: FAIL")
@@ -89,4 +113,5 @@ print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
 print("- START_HERE.cmd is the only user-facing launcher/test entrypoint")
 print("- RUN_R14_CURRENT_GAMEPLAY.cmd is the one internal gameplay route")
 print("- strict material, interaction and performance evidence is centralized")
+print("- automated evidence leaves visual acceptance pending; manual PASS requires finalizer preflight and explicit human confirmation")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 playtest still required")
