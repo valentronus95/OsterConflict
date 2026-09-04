@@ -164,14 +164,26 @@ def collect_snapshot(
     weapon_status = _kv_status(texts["production_weapons"])
     binding_pass = _marker(texts["runtime_bindings_success"], "PASS45_LOCAL_INBOX_IMPORT_BINDING=PASS")
     all_models_bound = bool(bindings.get("all_models_bound"))
+    unbound = [row for row in (bindings.get("unbound_models", []) or []) if isinstance(row, dict)]
+    source_status = [row for row in (bindings.get("source_status", []) or []) if isinstance(row, dict)]
+    source_status_counts = Counter(str(row.get("status") or "UNKNOWN").upper() for row in source_status)
+    explicit_unbound_count = int(source_status_counts.get("UNBOUND", 0))
 
     # Import sentinels/manifests can survive an older local run. Never mint a current import PASS
-    # unless the caller supplies an explicit current import result code of zero.
+    # unless the caller supplies an explicit current import result code of zero. Also distrust any
+    # inconsistent manifest where all_models_bound/success says green but explicit UNBOUND evidence remains.
     if import_result is None:
         import_stage = "PENDING_CURRENT_RUN"
     elif import_result != 0:
         import_stage = "FAIL"
-    elif all((vehicle_status == "PASS", weapon_status == "PASS", binding_pass, all_models_bound)):
+    elif all((
+        vehicle_status == "PASS",
+        weapon_status == "PASS",
+        binding_pass,
+        all_models_bound,
+        not unbound,
+        explicit_unbound_count == 0,
+    )):
         import_stage = "PASS"
     else:
         import_stage = "PENDING_OR_GAP"
@@ -239,11 +251,7 @@ def collect_snapshot(
     binding_summary.setdefault("skeletal_assets", len(bindings.get("skeletal_assets", []) or []))
     binding_summary.setdefault("hud_textures", len(bindings.get("hud_textures", []) or []))
     binding_summary.setdefault("hud_widget_classes", len(bindings.get("hud_widget_classes", []) or []))
-    binding_summary.setdefault("unbound_models", len(bindings.get("unbound_models", []) or []))
-
-    unbound = [row for row in (bindings.get("unbound_models", []) or []) if isinstance(row, dict)]
-    source_status = [row for row in (bindings.get("source_status", []) or []) if isinstance(row, dict)]
-    source_status_counts = Counter(str(row.get("status") or "UNKNOWN") for row in source_status)
+    binding_summary.setdefault("unbound_models", len(unbound))
 
     report = {
         "schema": "oster-conflict-local-asset-status-v4",
