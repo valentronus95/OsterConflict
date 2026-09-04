@@ -30,7 +30,8 @@ spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 foliage = read(SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp")
 perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
 perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
-launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
+start_here = read(ROOT / "START_HERE.cmd")
+runtime_evidence = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
 for needle in ("ApplyFrontendRepairs", "ApplyJoinPendingOverlay", "RunHostTravelFallback"):
     require(recovery_h, needle, "recovery subsystem header")
@@ -91,34 +92,36 @@ for forbidden in (
 ):
     forbid(perf, forbidden, "performance sampler must not mutate graphics quality")
 
-# Focused recovery proves playability, not exact final art. It must use current Pass45 deployment truth.
+# The retired RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd is no longer an authority. START_HERE owns the
+# actual runtime launch and the canonical Pass45 evidence verifier carries forward the relevant Pass15
+# outcomes together with the newer deployment, weapon-readiness and >=30 FPS gates.
 for needle in (
-    '/C:"fix/pass45-runtime-rejection-"',
-    "PASS15_FRONTEND_FIELDS_OPAQUE_READY",
-    "PASS15_MUSEUM_BASES_WEAPONS_READY",
-    'findstr /C:"PASS45_INITIAL_BASE_DEPLOYMENT_" "%LOG%"',
-    'findstr /C:"vehicle_revalidation=0"',
+    'set "CURRENT_GAMEPLAY=%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
+    'set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"',
+    'set "OC_FORCE_ACCEPTANCE=1"',
+    'call "%CURRENT_GAMEPLAY%"',
+    '%PY_CMD% "%EVIDENCE_VERIFY%"',
+):
+    require(start_here, needle, "canonical Pass45 runtime route")
+for needle in (
+    "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
+    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE",
     "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL",
-    "PASS19_PLAYABLE_WEAPON_SET_READY", "PASS19_PLAYABLE_WEAPON_SET_FAIL",
-    "PASS16_RUNTIME_GRAPHICS_IDENTITY",
-    "PASS15_PERF_SAMPLE", "PASS15_PERF_BELOW_TARGET", "PASS15_PERF_30FPS_READY",
+    "PASS19_PLAYABLE_WEAPON_SET_READY",
+    "PASS19_PLAYABLE_WEAPON_SET_FAIL",
+    "PASS14_PERF_SAMPLE",
+    "PASS14_PERF_30FPS_READY",
+    "PASS14_PERF_BELOW_TARGET",
     "PASS15_EMERGENCY_PERF_PROFILE_APPLIED",
-    "exact production-art certification", "R14_CURRENT_GAMEPLAY.log",
 ):
-    require(launcher, needle, "focused Pass45 runtime launcher")
-for forbidden in (
-    "PASS15_BASE_DEPLOYMENT_NEAR_MUSEUM",
-    "PASS15_BASE_DEPLOYMENT_RECOVERED",
-    "PASS15_BASE_DEPLOYMENT_RECOVERY_FAIL",
-    "PASS7_PRODUCTION_WEAPONS_READY",
-    'findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL"',
-):
-    forbid(launcher, forbidden, "retired focused recovery dependency")
+    require(runtime_evidence, needle, "canonical runtime evidence carry-forward")
+forbid(start_here, "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd", "retired Pass15 launcher")
 
 print("RUNTIME RECOVERY PASS15/PASS45 SOURCE CONTRACT PASS")
 print("- frontend/server recovery and physical 11-weapon Museum rack remain required")
 print("- Museum BASE correction is initial-character-only and vehicle revalidation is forbidden")
-print("- focused launcher accepts the current Pass45 terminal deployment evidence")
+print("- START_HERE + canonical Pass45 evidence replace the deleted focused Pass15 launcher")
 print("- low-FPS probe remains diagnostic-only and does not destroy graphics quality")
+print("- playable weapon readiness and >=30 FPS remain fail-closed runtime gates")
 print("- exact production-art certification remains separate")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile/runtime acceptance still required")
