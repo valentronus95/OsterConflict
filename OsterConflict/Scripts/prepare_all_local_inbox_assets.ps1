@@ -137,6 +137,21 @@ foreach ($file in (Get-ChildItem -LiteralPath $Inbox -Recurse -File -ErrorAction
     $category = Get-Category $file.FullName
     $record = [ordered]@{ source=$file.FullName; category=$category; extension=$ext; archive=$null }
     $manifest.loose_sources += $record
+
+    # Loose UE-ready packages obey the same rule as ZIP content: deploy them into the real project
+    # while preserving their /Game-relative path. Dropping a .uasset beside a ZIP must not leave it inert.
+    if ($uePackageExtensions -contains $ext) {
+        $deploy = Get-DeployTarget -SourcePath $file.FullName -StageRoot $Inbox
+        if ($deploy) {
+            $copyResult = Copy-PackageFile -Source $file.FullName -DeployInfo $deploy -Conflicts $conflicts
+            $manifest.ue_packages += [ordered]@{
+                source=$file.FullName; archive=$null; category=$category; extension=$ext;
+                deploy_kind=$deploy.kind; target=$deploy.target; package_relative=$deploy.package_relative; result=$copyResult
+            }
+        }
+        continue
+    }
+
     if ($modelExtensions -contains $ext) { $manifest.raw_models += $record }
     if (($imageExtensions -contains $ext) -and $category -eq 'HUD_UI') { $manifest.hud_images += $record }
 }
