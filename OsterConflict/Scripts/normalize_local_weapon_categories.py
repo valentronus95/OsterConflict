@@ -58,13 +58,15 @@ def main():
             path = str(entry.get("path") or "")
             probe = f"{source} {path}"
 
-            if category == "WEAPON_OTHER":
+            # Old intake could call e.g. ak-74m.zip UNCLASSIFIED because the filename contained no
+            # generic word such as rifle. Recheck both buckets against the actual source/path now.
+            if category in {"WEAPON_OTHER", "UNCLASSIFIED"}:
                 mapped = classify_weapon(probe)
                 if mapped:
                     entry["category"] = mapped
                     category = mapped
                     changed += 1
-                else:
+                elif category == "WEAPON_OTHER":
                     unresolved.append({
                         "source": source,
                         "asset": path,
@@ -80,11 +82,12 @@ def main():
     # considered complete merely because UE can load it; a weapon needs a gameplay weapon class.
     for row in data.get("source_status", []):
         source = str(row.get("source") or "")
+        row_category = str(row.get("category") or "")
         if source in resolved_sources:
             row["category"] = resolved_sources[source]
             row["status"] = "BOUND"
             row["binding"] = "LIVE_WEAPON_RUNTIME_OVERRIDE"
-        elif str(row.get("category") or "") == "WEAPON_OTHER":
+        elif row_category in {"WEAPON_OTHER", "UNCLASSIFIED"}:
             mapped = classify_weapon(source + " " + str(row.get("asset") or ""))
             if mapped:
                 row["category"] = mapped
@@ -92,7 +95,7 @@ def main():
                 row["binding"] = "LIVE_WEAPON_RUNTIME_OVERRIDE"
                 resolved_sources[source] = mapped
                 changed += 1
-            else:
+            elif row_category == "WEAPON_OTHER":
                 row["status"] = "UNBOUND"
                 row["reason"] = "weapon_runtime_class_unresolved"
 
