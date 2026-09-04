@@ -6,7 +6,7 @@ Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`
 Last verified code checkpoint: `2fd6e74e83b1349033b606638eb6a7f629ce469f`  
 PR: #98 — Draft, unmerged  
 Exact-head GitHub CI on code checkpoint `2fd6e74`: **18/18 SUCCESS**  
-Latest tracker head after this checkpoint: `038f9d924cb47a93c2fd49bd12162507c57802cd` — **18/18 SUCCESS**
+Latest verified tracker parent before this status-only update: `a91deba1c0eafe5b6ff522cb16656db5184e7853` — **18/18 SUCCESS**
 
 ## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
@@ -22,7 +22,7 @@ Latest tracker head after this checkpoint: `038f9d924cb47a93c2fd49bd12162507c578
 | 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
 | 5 | Production import logic | 🟢 | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
 | 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale import PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `2fd6e74`, tracker `038f9d92`: **18/18 SUCCESS** | Нічого |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `2fd6e74`, verified tracker parent `a91deba`: **18/18 SUCCESS** | Нічого |
 | 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline, failed-import snapshot, exact import code і stale-runtime protection готові | Потрібен фактичний локальний UE 5.8 import |
 | 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Pre-merge runtime дозволений; early runtime FAIL фіксується exact code; старий runtime PASS не може підмінити current run | Потрібні live inbox/world/material/gameplay результати |
 | 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% підтверджено | +0% | Acceptance/cleanup contract готовий | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
@@ -39,7 +39,7 @@ Latest tracker head after this checkpoint: `038f9d924cb47a93c2fd49bd12162507c578
 | Live runtime acceptance | **0% підтверджено** | 🟡 |
 | Direct visual acceptance | **0% підтверджено** | 🟡 |
 | Failed/cancelled workflows на code checkpoint | **0 / 18** | 🟢 |
-| Failed/cancelled workflows на tracker checkpoint | **0 / 18** | 🟢 |
+| Failed/cancelled workflows на latest verified tracker parent | **0 / 18** | 🟢 |
 
 **Поточний стан: 🟡 70%. Source-side підготовка завершена; наступні 30% потребують фактичного локального UE/runtime/visual доказу.**
 
@@ -151,7 +151,9 @@ Direct visual acceptance автоматично не підвищується: `
 | `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt` | consolidated human report | 🟡 NOT GENERATED YET |
 | `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json` | consolidated machine report | 🟡 NOT GENERATED YET |
 
-Пошук у connected conversation/Library на цьому checkpoint не знайшов fresh `LOCAL_ASSET_STATUS` або перелічені UE reports. Це не доказ їх відсутності на локальному диску Windows; це означає лише, що вони ще не доступні цьому робочому процесу.
+Пошук у connected conversation/Library 2026-09-04 не знайшов fresh `LOCAL_ASSET_STATUS` або перелічені current-run UE reports. Це не доказ їх відсутності на локальному диску Windows; це означає лише, що вони ще не доступні цьому робочому процесу.
+
+Історичний локальний доказ від 2026-08-26 підтверджує тодішній UE import PASS для HMMWV, M2 і BTR-4 та `production_import_success.txt=PASS`, але він **не використовується** для закриття `LOCAL-UE-ASSET-001`, бо не є fresh current-head доказом PR #98.
 
 ## 7. ЗАКРИТО В ЦЬОМУ CHECKPOINT
 
@@ -163,7 +165,9 @@ Direct visual acceptance автоматично не підвищується: `
 - 🟢 regression-guard перевіряє current-run freshness і забороняє повернення stale false-green;
 - 🟢 current `main` досі `a1ad0e2`, тобто PR #98 не відстав від новішого main;
 - 🟢 code checkpoint `2fd6e74`: **18/18 SUCCESS**;
-- 🟢 tracker checkpoint `038f9d92`: **18/18 SUCCESS**;
+- 🟢 latest verified tracker parent `a91deba`: **18/18 SUCCESS**;
+- 🟢 connected evidence search 2026-09-04 повторно не знайшов fresh current-run UE/runtime reports;
+- 🟢 historical 2026-08-26 HMMWV/M2/BTR-4 import PASS збережений тільки як baseline, без фальшивого підвищення current acceptance;
 - 🟢 PR #98 лишається Draft/unmerged до локального UE runtime acceptance.
 
 ## 8. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
