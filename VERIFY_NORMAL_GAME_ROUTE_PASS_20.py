@@ -50,6 +50,7 @@ for needle in (
     "-Frontend",
     '/C:"fix/runtime-map-spawn-fps-assets-"',
     '/C:"fix/pass45-runtime-rejection-"',
+    '/C:"fix/pass45-asset-"',
 ):
     require(normal, needle, "normal playable route")
 
@@ -116,6 +117,7 @@ for needle in (
 print("NORMAL GAME ROUTE PASS 20 + PASS 45 SOURCE CONTRACT PASS")
 print("- START_HERE ingests assets before calling the canonical normal-game launcher")
 print("- normal gameplay keeps the real/playable weapon preflight and branch-aware pre-merge test route")
+print("- current fix/pass45-asset-* branches are explicitly runtime-testable before merge")
 print("- exact source filenames belong to source-recovery/Python import; command wrapper owns per-model outcomes")
 print("- BTR4 may use local FBX or authored generated fallback without blocking independent HMMWV/M2 intake")
 print("- historical Pass15/19 runtime evidence is carried by the canonical Pass45 verifier")
