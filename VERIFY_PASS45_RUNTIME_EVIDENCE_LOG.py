@@ -37,7 +37,13 @@ def forbid(text: str, marker: str, errors: list[str], label: str) -> None:
 
 def write_asset_snapshot(source_sha: str, runtime_result: int) -> None:
     try:
-        json_path, text_path = asset_status.collect_snapshot(source_sha=source_sha, runtime_result=runtime_result)
+        # Reaching the canonical runtime evidence verifier is only possible after :ingest_all_assets
+        # returned zero in START_HERE. Preserve that factual import result in the final snapshot.
+        json_path, text_path = asset_status.collect_snapshot(
+            source_sha=source_sha,
+            runtime_result=runtime_result,
+            import_result=0,
+        )
         print("Asset status snapshot:", text_path)
         print("Asset status JSON:", json_path)
     except Exception as exc:
