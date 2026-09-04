@@ -114,6 +114,12 @@ namespace
             Out = {{ FName(TEXT("/Game/ak-74m")), FabRoot }, { TEXT("ak-74m"), TEXT("ak74m"), TEXT("ak_74m") }, 94.0f};
             return true;
         }
+        if (DisplayName.Equals(TEXT("AKS-74U"), ESearchCase::IgnoreCase))
+        {
+            Out = {{ FName(TEXT("/Game/aks-74u")), FName(TEXT("/Game/AKS-74U")), FabRoot },
+                { TEXT("aks-74u"), TEXT("aks74u"), TEXT("aks_74u") }, 73.5f};
+            return true;
+        }
         if (DisplayName.Equals(TEXT("AR-15"), ESearchCase::IgnoreCase))
         {
             Out = {{ FName(TEXT("/Game/ar15-rifle")), FabRoot }, { TEXT("ar15"), TEXT("ar-15") }, 86.0f};
@@ -152,6 +158,12 @@ namespace
         if (DisplayName.Equals(TEXT("RPG-26"), ESearchCase::IgnoreCase))
         {
             Out = {{ FName(TEXT("/Game/rpg-26-grenade-launcher-low-poly")), FabRoot }, { TEXT("rpg-26"), TEXT("rpg26") }, 77.0f};
+            return true;
+        }
+        if (DisplayName.Equals(TEXT("RPG Launcher"), ESearchCase::IgnoreCase))
+        {
+            // This identity is intentionally Fab-only so it can never steal the separate local RPG-26 model.
+            Out = {{ FabRoot }, { TEXT("rpg") }, 95.0f};
             return true;
         }
         return false;

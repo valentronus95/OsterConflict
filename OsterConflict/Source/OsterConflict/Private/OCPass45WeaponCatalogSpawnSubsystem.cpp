@@ -34,6 +34,7 @@ namespace
         { FName(TEXT("R13_TEC9")), AOCWeapon_Tec9::StaticClass() },
         { FName(TEXT("R13_LEVER4570")), AOCWeapon_LeverAction::StaticClass() },
         { FName(TEXT("IMP_AK74M")), AOCWeapon_AK74M::StaticClass() },
+        { FName(TEXT("IMP_AKS74U")), AOCWeapon_AKS74U::StaticClass() },
         { FName(TEXT("IMP_AR15")), AOCWeapon_AR15::StaticClass() },
         { FName(TEXT("IMP_M4A1")), AOCWeapon_M4A1::StaticClass() },
         { FName(TEXT("IMP_BALLISTA")), AOCWeapon_FnBallista::StaticClass() },
@@ -42,6 +43,7 @@ namespace
         { FName(TEXT("IMP_TOMMY")), AOCWeapon_TommyGun::StaticClass() },
         { FName(TEXT("IMP_M72")), AOCWeapon_M72LAW::StaticClass() },
         { FName(TEXT("IMP_RPG26")), AOCWeapon_RPG26::StaticClass() },
+        { FName(TEXT("IMP_FAB_RPG")), AOCWeapon_FabRPG::StaticClass() },
     };
 
     constexpr int32 CoreRackEntryCount = 7;

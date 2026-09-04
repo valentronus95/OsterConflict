@@ -235,3 +235,37 @@ void AOCWeapon_RPG26::BeginPlay()
     AOCWeaponBase::BeginPlay();
     HideSourceOnlyVisuals(this);
 }
+
+AOCWeapon_AKS74U::AOCWeapon_AKS74U()
+{
+    FOCWeaponTuning T = MakeImportedFirearm(TEXT("IMP_AKS74U"), TEXT("AKS-74U"),
+        EOCWeaponClass::AssaultRifle, EOCInventorySlot::Primary, EOCAmmoType::Rifle,
+        EOCWeaponActionType::GasOperated);
+    T.Damage = 30.0f; T.RangeCm = 10500.0f; T.RoundsPerMinute = 700.0f;
+    T.HipSpreadDegrees = 1.28f; T.ADSSpreadDegrees = 0.24f; T.MovingSpreadMultiplier = 1.55f;
+    T.RecoilPitchMin = 0.56f; T.RecoilPitchMax = 0.92f; T.RecoilYawMax = 0.38f;
+    T.MagazineSize = 30; T.InitialReserveAmmo = 120; T.MaxReserveAmmo = 240; T.ReloadDuration = 2.15f;
+    T.bSupportsSemiAutomatic = true; T.bSupportsAutomatic = true;
+    ConfigureBuiltInTuning(T);
+}
+
+void AOCWeapon_AKS74U::BeginPlay()
+{
+    Super::BeginPlay();
+    HideSourceOnlyVisuals(this);
+}
+
+AOCWeapon_FabRPG::AOCWeapon_FabRPG()
+{
+    FOCWeaponTuning T = MakeImportedLauncher(TEXT("IMP_FAB_RPG"), TEXT("RPG Launcher"));
+    T.InitialReserveAmmo = 3;
+    T.MaxReserveAmmo = 6;
+    T.ReloadDuration = 4.00f;
+    ConfigureBuiltInTuning(T);
+}
+
+void AOCWeapon_FabRPG::BeginPlay()
+{
+    AOCWeaponBase::BeginPlay();
+    HideSourceOnlyVisuals(this);
+}
