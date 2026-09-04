@@ -11,14 +11,19 @@ set "SOURCE_RECOVERY=%PROJECT_DIR%Scripts\prepare_local_production_sources.ps1"
 set "WEAPON_SOURCE_RECOVERY=%PROJECT_DIR%Scripts\prepare_local_weapon_sources.ps1"
 set "WEAPON_IMPORT_SCRIPT=%PROJECT_DIR%Scripts\import_local_production_weapon_assets.py"
 set "WEAPON_VERIFY_SCRIPT=%PROJECT_DIR%Scripts\verify_local_production_weapon_fresh_load.py"
+set "ALL_SOURCE_PREP=%PROJECT_DIR%Scripts\prepare_all_local_inbox_assets.ps1"
+set "ALL_IMPORT_SCRIPT=%PROJECT_DIR%Scripts\import_all_local_inbox_assets.py"
 set "SUCCESS_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_import_success.txt"
 set "FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_fresh_load_success.txt"
 set "WEAPON_IMPORT_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_weapon_import_result.txt"
 set "WEAPON_FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_weapon_fresh_load_result.txt"
+set "ALL_BINDING_SENTINEL=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
+set "ALL_BINDING_MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "IMPORT_LOG=%PROJECT_DIR%Saved\Logs\ProductionVehicleImport.log"
 set "FRESH_LOG=%PROJECT_DIR%Saved\Logs\ProductionVehicleFreshLoad.log"
 set "WEAPON_IMPORT_LOG=%PROJECT_DIR%Saved\Logs\ProductionWeaponImport.log"
 set "WEAPON_FRESH_LOG=%PROJECT_DIR%Saved\Logs\ProductionWeaponFreshLoad.log"
+set "ALL_IMPORT_LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
 set "UE_CMD="
 
 set "HMMWV_ASSET=/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA"
@@ -70,6 +75,24 @@ if not exist "%WEAPON_VERIFY_SCRIPT%" (
     echo ERROR: local production weapon fresh-load verifier not found: %WEAPON_VERIFY_SCRIPT%
     exit /b 10
 )
+if not exist "%ALL_SOURCE_PREP%" (
+    echo ERROR: all-inbox source preparation script not found: %ALL_SOURCE_PREP%
+    exit /b 11
+)
+if not exist "%ALL_IMPORT_SCRIPT%" (
+    echo ERROR: all-inbox Unreal import/binding script not found: %ALL_IMPORT_SCRIPT%
+    exit /b 12
+)
+
+rem First prepare EVERY model/UI pack in models_game_OC. UE-ready uasset packs keep their original /Game path;
+rem raw FBX/GLB/OBJ and HUD images remain staged for the Unreal import pass below.
+echo [ALL INBOX] Preparing every user-supplied ZIP/model/HUD source...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ALL_SOURCE_PREP%" -ProjectDir "%RECOVERY_PROJECT_DIR%"
+set "ALL_PREP_RC=!ERRORLEVEL!"
+if not "!ALL_PREP_RC!"=="0" (
+    echo ERROR: all-inbox preparation failed with code !ALL_PREP_RC!.
+    exit /b !ALL_PREP_RC!
+)
 
 rem Vehicle source recovery is independent: usable sources import even when another exact vehicle remains a gap.
 if exist "%SOURCE_RECOVERY%" (
@@ -89,7 +112,7 @@ if not "!WEAPON_SOURCE_RC!"=="0" (
     exit /b !WEAPON_SOURCE_RC!
 )
 
-for %%F in ("%SUCCESS_SENTINEL%" "%FRESH_SENTINEL%" "%WEAPON_IMPORT_SENTINEL%" "%WEAPON_FRESH_SENTINEL%" "%IMPORT_LOG%" "%FRESH_LOG%" "%WEAPON_IMPORT_LOG%" "%WEAPON_FRESH_LOG%") do (
+for %%F in ("%SUCCESS_SENTINEL%" "%FRESH_SENTINEL%" "%WEAPON_IMPORT_SENTINEL%" "%WEAPON_FRESH_SENTINEL%" "%ALL_BINDING_SENTINEL%" "%IMPORT_LOG%" "%FRESH_LOG%" "%WEAPON_IMPORT_LOG%" "%WEAPON_FRESH_LOG%" "%ALL_IMPORT_LOG%") do (
     if exist "%%~F" del /q "%%~F" >nul 2>nul
 )
 
@@ -99,6 +122,21 @@ echo ============================================================
 echo UE:      %UE_CMD%
 echo Project: %UPROJECT%
 echo.
+
+echo [ALL INBOX] Importing/binding all user models, humans, UE packs and HUD assets...
+"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%ALL_IMPORT_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%ALL_IMPORT_LOG%"
+set "ALL_IMPORT_RC=!ERRORLEVEL!"
+if not "!ALL_IMPORT_RC!"=="0" (
+    echo ERROR: all-inbox Unreal import process failed. code=!ALL_IMPORT_RC!
+    echo Log: %ALL_IMPORT_LOG%
+    exit /b !ALL_IMPORT_RC!
+)
+if not exist "%ALL_BINDING_SENTINEL%" (
+    echo [ALL INBOX] CONTENT GAP: at least one supplied model/HUD could not be bound to runtime.
+    if exist "%ALL_BINDING_MANIFEST%" type "%ALL_BINDING_MANIFEST%"
+    echo Log: %ALL_IMPORT_LOG%
+    exit /b 34
+)
 
 echo [VEHICLES] Importing HMMWV + M2 Browning + BTR-4 candidates...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%PY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%IMPORT_LOG%"
@@ -182,6 +220,7 @@ if errorlevel 1 (
 )
 
 echo.
+echo [ASSETS] ALL supplied inbox models/HUD are imported and assigned to a runtime binding.
 echo [ASSETS] Vehicle result: HMMWV=!HMMWV_IMPORTED! M2=!M2_IMPORTED! BTR4=!BTR_IMPORTED!
 if "!HMMWV_IMPORTED!"=="1" echo [ASSETS] HMMWV canonical production mesh imported and fresh-load verified.
 if "!M2_IMPORTED!"=="1" echo [ASSETS] M2 Browning canonical production mesh imported and fresh-load verified.
