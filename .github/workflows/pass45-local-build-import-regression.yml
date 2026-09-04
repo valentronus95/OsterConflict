@@ -5,7 +5,9 @@ on:
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd'
       - 'VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py'
+      - 'VERIFY_PASS45_ASSET_SOURCE_CLEAN_GUARD.py'
       - 'OSTER_CONFLICT_WORK_LEDGER.md'
       - 'PASS45_RUNTIME_RECOVERY_TZ.md'
       - 'RUN_ALL_VERIFY.py'
@@ -22,3 +24,5 @@ jobs:
           python-version: '3.12'
       - name: Verify local UE build/import regression guards
         run: python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
+      - name: Verify asset source clean guard
+        run: python VERIFY_PASS45_ASSET_SOURCE_CLEAN_GUARD.py
