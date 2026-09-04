@@ -161,8 +161,11 @@ if not defined ASSET_PY_CMD (
 )
 set "PASS45_SOURCE_SHA=unknown"
 for /f "delims=" %%H in ('git -C "%~dp0" rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
+set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"
 %ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"
-if errorlevel 1 (
+set "ASSET_STATUS_RC=%ERRORLEVEL%"
+set "PASS45_ASSET_IMPORT_RC="
+if not "%ASSET_STATUS_RC%"=="0" (
   echo [WARN] Не вдалося створити LOCAL_ASSET_STATUS snapshot.
   exit /b 0
 )
