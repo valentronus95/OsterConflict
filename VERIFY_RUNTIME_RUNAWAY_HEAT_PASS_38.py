@@ -42,7 +42,7 @@ fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
-acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
+acceptance = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
 # Current Museum startup has one coordinated startup window and explicitly reports no old recovery owners.
 for needle in (
@@ -82,7 +82,7 @@ for needle in (
 ):
     require(runtime_safe, needle, "runtime-safe local bot suppression")
 
-# Acceptance must no longer demand logs from physically deleted recovery/palette owners.
+# The canonical runtime evidence verifier replaced the physically deleted per-pass acceptance CMD.
 for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
@@ -105,4 +105,5 @@ print("- obsolete palette owner is physically deleted")
 print("- landmark startup is coordinated once and historical delayed stage timers are cancelled")
 print("- weapon fallback/material audit remains finite and fail-visible")
 print("- normal local game defaults to zero filler bots unless explicitly requested")
+print("- canonical runtime evidence verifier is authoritative; deleted per-pass CMD is not required")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
