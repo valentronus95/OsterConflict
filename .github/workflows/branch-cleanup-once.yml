@@ -14,23 +14,20 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete every remote branch except main and canonical PASS45
+      - name: Delete final stale branches
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          KEEP_MAIN: main
-          KEEP_PASS45: fix/pass45-runtime-rejection-material-closure-20260826
         shell: bash
         run: |
-          set -euo pipefail
-          mapfile -t branches < <(gh api --paginate "repos/${REPO}/branches?per_page=100" --jq '.[].name')
-          for branch in "${branches[@]}"; do
-            if [[ "$branch" == "$KEEP_MAIN" || "$branch" == "$KEEP_PASS45" ]]; then
-              echo "KEEP $branch"
-              continue
-            fi
+          set -u
+          for branch in \
+            tmp-do-not-use-2 \
+            tmp-pass45-consolidation-safety-20260828 \
+            tmp-pass45-museum-site-context-20260828
+          do
             echo "DELETE $branch"
-            gh api --method DELETE "repos/${REPO}/git/refs/heads/${branch}"
+            gh api --method DELETE "repos/${REPO}/git/refs/heads/${branch}" || true
           done
           echo "Remaining branches:"
           gh api --paginate "repos/${REPO}/branches?per_page=100" --jq '.[].name'
