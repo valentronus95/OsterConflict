@@ -41,8 +41,8 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 | ✅ LOCAL | 🟡 | Thompson / Tommy Gun | `Content/tommy-gun/`; `IMP_TOMMY` |
 | ✅ LOCAL | 🟡 | M72 LAW | `Content/law-light-anti-tank-weapon-m72/`; `IMP_M72`; projectile launcher gameplay wired |
 | ✅ LOCAL | 🟡 | RPG-26 | `Content/rpg-26-grenade-launcher-low-poly/`; `IMP_RPG26`; projectile launcher gameplay wired |
-| 🟡 REPORT | ❌ | New Fab RPG added 2026-09-04 | separate from RPG-26; exact package/model name not yet remotely visible, must get its own identity and must not overwrite RPG-26 |
-| 🟡 REPORT | ❌ | AKS-74U | user-reported Fab import; exact local package identity/integration pending |
+| 🟡 REPORT | 🟡 | New Fab RPG added 2026-09-04 | distinct gameplay identity `IMP_FAB_RPG`; Fab-only exact-model resolver prevents RPG-26 substitution; UE visual/runtime acceptance pending |
+| 🟡 REPORT | 🟡 | AKS-74U | distinct gameplay identity `IMP_AKS74U`; local/Fab exact-token visual bridge and sandbox catalog spawn wired; UE visual/runtime acceptance pending |
 | 🟡 REPORT | ❌ | Revolver | user-reported Fab import; exact local package identity/integration pending |
 | 🟡 REPORT | ❌ | Additional pistol pack | user-reported Fab import; reconcile against M1911/Makarov before creating another gameplay identity |
 | 🟡 REPORT | ❌ | FPS Weapon Bundle | user-reported Fab import; exact contained weapon inventory still needs local package enumeration |
@@ -165,7 +165,7 @@ Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pa
 
 These items are already in the inventory and may not be forgotten merely because Git ignores their payload:
 
-1. Enumerate exact local package/model names for the **new Fab RPG**, AKS-74U, revolver, additional pistol, FPS Weapon Bundle and all additional character packs.
+1. Record exact local package/model names for the **new Fab RPG** and AKS-74U after UE exposes them, and enumerate the still-unresolved revolver, additional pistol, FPS Weapon Bundle and all additional character packs. The RPG and AKS-74U gameplay identities/bridges are already coded and no longer wait on exact folder names.
 2. Resolve the exact local roots for Modular Urban Houses, Street Props Vol.2, City Streets Props, Sidewalk 01, asphalt, forest road, Roadside Construction, Free Furniture, Temperate Vegetation, rubble and the additional fence packs.
 3. Bind the four new grenade models as **Frag A / Frag B / Smoke / Flash**, then retire the legacy shared R13 grenade visual from active use.
 4. Finish intentional building/world placement. Importing a house pack into Content is not the same as placing the correct house on the Oster map.
@@ -175,5 +175,6 @@ These items are already in the inventory and may not be forgotten merely because
 
 - The asset inventory itself is now centralized here.
 - All currently known user-added/imported roots and explicitly reported packs/models are represented, including ignored local content that GitHub cannot list directly.
+- AKS-74U and the newly added Fab RPG now have distinct gameplay IDs, sandbox-rack entries and local exact-token visual resolution. They remain `🟡` until UE 5.8 proves the local model selected and rendered correctly.
 - This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
 - Formal PASS45 progress remains separate from asset-integration progress.
