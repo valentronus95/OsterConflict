@@ -5,7 +5,8 @@ Branch: `fix/pass45-asset-import-fail-closed-20260904`
 Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`  
 Last verified code checkpoint: `2fd6e74e83b1349033b606638eb6a7f629ce469f`  
 PR: #98 — Draft, unmerged  
-Exact-head GitHub CI on `2fd6e74`: **18/18 SUCCESS**
+Exact-head GitHub CI on code checkpoint `2fd6e74`: **18/18 SUCCESS**  
+Tracker checkpoint: `2d339b59249b05deb62a269badbcee94760fbcf1` — **18/18 SUCCESS**
 
 ## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
@@ -21,7 +22,7 @@ Exact-head GitHub CI on `2fd6e74`: **18/18 SUCCESS**
 | 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
 | 5 | Production import logic | 🟢 | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
 | 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale import PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Exact-head `2fd6e74`: **18/18 SUCCESS** | Нічого |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `2fd6e74` і tracker `2d339b59`: **18/18 SUCCESS** | Нічого |
 | 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline, failed-import snapshot, exact import code і stale-runtime protection готові | Потрібен фактичний локальний UE 5.8 import |
 | 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Pre-merge runtime дозволений; early runtime FAIL фіксується exact code; старий runtime PASS не може підмінити current run | Потрібні live inbox/world/material/gameplay результати |
 | 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% підтверджено | +0% | Acceptance/cleanup contract готовий | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
@@ -37,7 +38,8 @@ Exact-head GitHub CI on `2fd6e74`: **18/18 SUCCESS**
 | Local UE import acceptance | **0% підтверджено** | 🟡 |
 | Live runtime acceptance | **0% підтверджено** | 🟡 |
 | Direct visual acceptance | **0% підтверджено** | 🟡 |
-| Failed/cancelled GitHub workflows на verified code checkpoint | **0 / 18** | 🟢 |
+| Failed/cancelled workflows на code checkpoint | **0 / 18** | 🟢 |
+| Failed/cancelled workflows на tracker checkpoint | **0 / 18** | 🟢 |
 
 **Поточний стан: 🟡 70%. Source-side підготовка завершена; наступні 30% потребують фактичного локального UE/runtime/visual доказу.**
 
@@ -160,7 +162,8 @@ Direct visual acceptance автоматично не підвищується: `
 - 🟢 canonical runtime evidence snapshot зберігає factual `IMPORT_RESULT_CODE=0`;
 - 🟢 regression-guard перевіряє current-run freshness і забороняє повернення stale false-green;
 - 🟢 current `main` досі `a1ad0e2`, тобто PR #98 не відстав від новішого main;
-- 🟢 exact-head source/regression CI на `2fd6e74`: **18/18 SUCCESS**;
+- 🟢 code checkpoint `2fd6e74`: **18/18 SUCCESS**;
+- 🟢 tracker checkpoint `2d339b59`: **18/18 SUCCESS**;
 - 🟢 PR #98 лишається Draft/unmerged до локального UE runtime acceptance.
 
 ## 8. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
