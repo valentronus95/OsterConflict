@@ -279,9 +279,29 @@ void AOCBTR::ApplyVehicleStyle()
 
         ValidateProductionBTR4MaterialState(TEXT("ApplyVehicleStyle"));
     }
-    else if (Chassis)
+    else
     {
-        Chassis->SetRelativeScale3D(FVector(6.15f, 2.45f, 0.72f));
+        // Exact BTR-4 is the only valid visual owner. Missing/invalid production content may not fall back to
+        // the old cube/cylinder APC because that creates a second visual truth and hides the real content gap.
+        DisableVisualProxy(Chassis);
+        UStaticMeshComponent* ProxyParts[] =
+        {
+            UpperHull.Get(), NoseArmor.Get(), RearArmor.Get(),
+            WheelExtraFL.Get(), WheelExtraFR.Get(), WheelExtraRL.Get(), WheelExtraRR.Get(),
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+        };
+        for (UStaticMeshComponent* Component : ProxyParts)
+        {
+            DisableVisualProxy(Component);
+        }
+        for (UStaticMeshComponent* Wheel : WheelVisuals)
+        {
+            DisableVisualProxy(Wheel);
+        }
+        DisableVisualProxy(TurretBaseMesh);
+        DisableVisualProxy(BarrelMesh);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_BTR4_PRODUCTION_VISUAL_GAP exact_btr4=0 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 runtime_acceptance=0"));
     }
 
     InteriorCamera->SetRelativeLocation(bUsingBTR4 ? FVector(145.0f, -58.0f, 112.0f) : FVector(130.0f, -52.0f, 105.0f));
