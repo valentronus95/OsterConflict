@@ -188,8 +188,8 @@ Name `Oster Conflict / PASS45`, give the smallest exact action, and explain what
 This is a project-wide user requirement, not a one-chat preference.
 
 - The assistant owns progress tracking and must keep the current state consistent across continuations without requiring the user to reconstruct it.
-- After every meaningful work cycle, provide one **short status table** in Ukrainian. Use: `🟢` = fully done for the stated scope, `🟡` = in progress / coded but still awaiting required integration or UE runtime acceptance, `🔴` = not done or factually blocked.
-- A row may be marked `🟢 100%` only when every acceptance gate required by that row has actually passed. Source code alone does not make runtime/visual/audio work 100%.
+- After every meaningful work cycle, provide one **short status table** in Ukrainian. Use exactly: `✅` = fully done for the stated scope, `🟡` = in progress / coded but still awaiting required integration or UE runtime acceptance, `❌` = not done or factually blocked.
+- A row may be marked `✅ 100%` only when every acceptance gate required by that row has actually passed. Source code alone does not make runtime/visual/audio work 100%.
 - Never inflate progress to make the report look better. If a prior estimate was wrong, correct it explicitly from current evidence.
 - Keep two concepts separate when needed: **formal TZ progress** and **asset/runtime integration progress**. Do not mix their percentages.
 - The assistant must compare the new report against the previous factual state, detect regressions or stalled items itself, and continue the first safe unfinished item without waiting for the user to remind it.
