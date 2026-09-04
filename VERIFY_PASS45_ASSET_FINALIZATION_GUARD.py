@@ -186,9 +186,19 @@ for marker in (
     'cleanup_stage = "PASS"',
     'f"DIRECT_VISUAL_ACCEPTANCE={visual_stage}"',
     'f"SOURCE_ZIP_CLEANUP={cleanup_stage}"',
+    'explicit_unbound_count = int(source_status_counts.get("UNBOUND", 0))',
+    'not unbound',
+    'explicit_unbound_count == 0',
+    "inconsistent manifest where all_models_bound/success says green but explicit UNBOUND evidence remains",
 ):
-    require(marker in collector, f"collector lost finalization marker: {marker}")
+    require(marker in collector, f"collector lost finalization/import fail-closed marker: {marker}")
 
+collector_unbound_pos = collector.find('explicit_unbound_count = int(source_status_counts.get("UNBOUND", 0))')
+collector_import_pass_pos = collector.find('import_stage = "PASS"')
+require(
+    -1 not in (collector_unbound_pos, collector_import_pass_pos) and collector_unbound_pos < collector_import_pass_pos,
+    "collector may mint LOCAL_UE_IMPORT=PASS before checking explicit UNBOUND evidence",
+)
 require(
     collector.index("automated_ready = all(") < collector.index('visual_stage = "PASS"'),
     "collector may mint manual visual PASS without current automated PASS",
@@ -232,6 +242,7 @@ print("- START_HERE remains the single user-facing launcher and owns finalizatio
 print("- base importer promotes every explicit source_status UNBOUND row before computing all_models_bound")
 print("- weapon normalization cannot upgrade factual import/load UNBOUND rows from filename matching")
 print("- weapon normalization independently reconciles all explicit UNBOUND rows before all_models_bound")
+print("- collector independently blocks import PASS on unbound_models or explicit source_status UNBOUND")
 print("- finalizer requires exact v4 schema plus explicit import/runtime result code zero")
 print("- finalizer independently rejects summary/source-status UNBOUND counts")
 print("- preflight is non-destructive and runs before the human visual confirmation")
