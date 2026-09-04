@@ -3,9 +3,9 @@
 Date: 2026-09-04  
 Branch: `fix/pass45-asset-import-fail-closed-20260904`  
 Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`  
-Last verified code checkpoint: `cf3a0a54d7999805128f24940c0ce817ed168bc9` — **18/18 SUCCESS**  
+Last verified code checkpoint: `262f74309a2cea4e72ade6831edd291aa00d4be6` — **18/18 SUCCESS**  
 PR: #98 — Draft, unmerged  
-Last fully verified tracker head before this status-only update: `090f8bbb9cb1794159354bdec84d0aa6bb69a271` — **18/18 SUCCESS**
+Last tracker checkpoint before this status-only update: `aeb0c76b5111f58803ff1f3989426a0d14e68d7e`
 
 ## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
@@ -21,8 +21,8 @@ Last fully verified tracker head before this status-only update: `090f8bbb9cb179
 | 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin mounts | Нічого |
 | 5 | Production import logic | 🟢 | 100% | +10% | HMMWV, M2, BTR-4, M249, Remington 870 import paths готові | Нічого по коду |
 | 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale import PASS markers очищаються | Нічого |
-| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `cf3a0a54`: **18/18 SUCCESS**; import і final runtime snapshot paths fail-closed | Нічого |
-| 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import pipeline готовий; successful import тепер не може пройти без fresh `LOCAL_ASSET_STATUS.txt/json` | Потрібен фактичний локальний UE 5.8 import |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Code `262f743`: **18/18 SUCCESS**; exact-head precheck + import/final snapshot paths fail-closed | Нічого |
+| 8 | Local UE 5.8 import result | 🟡 | 0% підтверджено | +0% | Import запускається лише на fetched exact remote HEAD і не може пройти без fresh `LOCAL_ASSET_STATUS.txt/json` | Потрібен фактичний локальний UE 5.8 import |
 | 9 | Live gameplay/runtime hookup | 🟡 | 0% підтверджено | +0% | Runtime PASS неможливий без успішного final `LOCAL_ASSET_STATUS`; early failures мають exact code | Потрібні live inbox/world/material/gameplay результати |
 | 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% підтверджено | +0% | Acceptance/cleanup contract готовий | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
 
@@ -33,7 +33,7 @@ Last fully verified tracker head before this status-only update: `090f8bbb9cb179
 | Завершено етапів | **7 / 10** | 🟢 |
 | Загальний прогрес | **70%** | 🟡 |
 | Залишилось | **30%** | 🟡 |
-| Source/code/CI частина | **100% на verified code head `cf3a0a54`** | 🟢 |
+| Source/code/CI частина | **100% на verified code head `262f743`** | 🟢 |
 | Local UE import acceptance | **0% підтверджено** | 🟡 |
 | Live runtime acceptance | **0% підтверджено** | 🟡 |
 | Direct visual acceptance | **0% підтверджено** | 🟡 |
@@ -57,6 +57,8 @@ Last fully verified tracker head before this status-only update: `090f8bbb9cb179
 | M16/M4 family | 🔴 | **0% READY** | Generic classifier є; dedicated verified payload не підтверджений | Потрібен factual production payload і весь UE/runtime/visual цикл |
 
 `25%` означає тільки підтверджений source/import support, а не готовність asset у грі.
+
+GitHub code search не знайшов tracked `M16`, `M4` або `M4A1` reference/payload у доступному індексі. Це не виключає локальний Fab/inbox payload, але без fresh `runtime_bindings.json` M16/M4 не можна переводити з 🔴 у READY.
 
 ## 3. OTHER LOCAL / FAB ASSET FAMILIES
 
@@ -93,12 +95,12 @@ Last fully verified tracker head before this status-only update: `090f8bbb9cb179
 | Local world runtime proof | 🟡 | fresh `local_world_runtime_validation.txt` | buildings/props/foliage/roads/water у live Oster runtime |
 | Gameplay evidence | 🟡 | fresh `R14_CURRENT_GAMEPLAY.log` | vehicles/input/FPS/runtime ownership |
 | Material evidence | 🟡 | fresh `PASS45_STRICT_MATERIAL_GATE.log` | material/dependency PASS/GAP |
-| Final consolidated status | 🟡 | fresh `LOCAL_ASSET_STATUS.txt/json` | current-run import/runtime verdict; import і runtime PASS тепер fail-closed на відсутній snapshot |
+| Final consolidated status | 🟡 | fresh `LOCAL_ASSET_STATUS.txt/json` | current-run import/runtime verdict; import і runtime PASS fail-closed на відсутній snapshot |
 | Visual inspection | 🟡 | пряме спостереження в UE/game | останній acceptance перед READY/cleanup |
 
 Свіжого локального runtime FAIL зараз не підтверджено, бо fresh локального прогону немає. Відомий червоний content gap: **M16/M4 dedicated production payload не підтверджений**.
 
-## 5. LOCAL_ASSET_STATUS SNAPSHOT
+## 5. LOCAL_ASSET_STATUS / EXACT-HEAD CONTRACT
 
 `COLLECT_LOCAL_ASSET_STATUS.py` використовує schema `oster-conflict-local-asset-status-v3` і розділяє три factual runtime scopes:
 
@@ -110,7 +112,22 @@ Last fully verified tracker head before this status-only update: `090f8bbb9cb179
 
 Це закриває stale-runtime false green: старі `local_inbox_runtime_validation.txt`, `local_world_runtime_validation.txt`, material log або runtime evidence більше не можуть зробити свіжий import-only snapshot зеленим.
 
-Після `cf3a0a54` fail-closed діє також на **сам import snapshot**:
+### Exact remote HEAD before import
+
+Після `262f743` `:ingest_all_assets` спочатку виконує `:verify_current_asset_source`, а вже потім дозволяє UE importer:
+
+- Git відсутній → code `66`;
+- current branch не визначений → code `67`;
+- `git fetch origin <current branch>` не пройшов → code `68`;
+- local або remote HEAD не визначений → code `69`;
+- `local HEAD != origin/<current branch>` → code `70`;
+- тільки exact match дозволяє `IMPORT_ALL_LOCAL_INBOX_UE58.cmd`.
+
+Тобто fresh snapshot більше не може бути отриманий після asset import, виконаного на завідомо застарілому локальному HEAD.
+
+### Fresh snapshot after import
+
+Fail-closed діє також на сам import snapshot:
 
 - перед кожним збором старі `LOCAL_ASSET_STATUS.txt` і `.json` видаляються;
 - відсутній collector → code `62`;
@@ -119,7 +136,7 @@ Last fully verified tracker head before this status-only update: `090f8bbb9cb179
 - collector завершився без `.txt` або `.json` → code `65`;
 - якщо asset importer повернув `0`, але snapshot code не `0`, `:ingest_all_assets` теж повертає nonzero і не називає import успішним.
 
-Тобто етап 8 більше не може отримати фальшивий зелений import із застарілим або відсутнім consolidated snapshot.
+Тобто етап 8 не може отримати фальшивий зелений import із застарілим кодом, застарілим snapshot або відсутнім consolidated snapshot.
 
 Окремий final-runtime guard лишається чинним: canonical runtime verifier повертає nonzero і переписує automated evidence у FAIL, якщо фінальний `LOCAL_ASSET_STATUS` не вдалося реально записати. Runtime PASS без обов'язкового consolidated snapshot неможливий.
 
@@ -163,23 +180,27 @@ Direct visual acceptance автоматично не підвищується: `
 | `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt` | consolidated human report | 🟡 NOT GENERATED YET |
 | `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json` | consolidated machine report | 🟡 NOT GENERATED YET |
 
-Повторний пошук у connected conversation/Library після code checkpoint `cf3a0a54` не знайшов fresh `LOCAL_ASSET_STATUS` або перелічені current-run UE reports. Це не доказ їх відсутності на локальному диску Windows; це означає лише, що вони ще не доступні цьому робочому процесу.
+Повторний пошук у connected conversation/Library не знайшов fresh `LOCAL_ASSET_STATUS` або перелічені current-run UE reports. Це не доказ їх відсутності на локальному диску Windows; це означає лише, що вони ще не доступні цьому робочому процесу.
 
 Історичний локальний доказ від 2026-08-26 підтверджує тодішній UE import PASS для HMMWV, M2 і BTR-4 та `production_import_success.txt=PASS`, але він **не використовується** для закриття `LOCAL-UE-ASSET-001`, бо не є fresh current-head доказом PR #98.
 
 ## 7. ЗАКРИТО В ЦЬОМУ CHECKPOINT
 
-- 🟢 знайдено і закрито пропуск: successful import більше не може повернути success, якщо fresh consolidated snapshot не створився;
-- 🟢 старі `LOCAL_ASSET_STATUS.txt/json` видаляються перед кожним новим collection, тому stale snapshot не може маскувати збій нового запуску;
-- 🟢 `START_HERE.cmd` має окремі fail-closed snapshot codes `62/63/64/65`;
-- 🟢 regression-guard перевіряє видалення stale snapshot, обидва output-файли, `SNAPSHOT_RC` і всі чотири fail-closed codes;
-- 🟢 code checkpoint `cf3a0a54`: **18/18 SUCCESS**, failed/cancelled = **0/18**;
-- 🟢 runtime evidence verifier також fail-closed на помилці фінального `LOCAL_ASSET_STATUS`;
+- 🟢 знайдено і закрито пропуск №1: successful import більше не може повернути success, якщо fresh consolidated snapshot не створився;
+- 🟢 старі `LOCAL_ASSET_STATUS.txt/json` видаляються перед кожним новим collection, тому stale snapshot не маскує збій нового запуску;
+- 🟢 `START_HERE.cmd` має fail-closed snapshot codes `62/63/64/65`;
+- 🟢 знайдено і закрито пропуск №2: UE asset ingest більше не запускається до exact fetch/HEAD comparison;
+- 🟢 exact-source precheck має codes `66/67/68/69/70` і блокує stale local branch до import;
+- 🟢 regression-guard перевіряє exact-head precheck **до** importer, stale snapshot deletion, обидва output-файли, `SNAPSHOT_RC` і всі fail-closed codes;
+- 🟢 code checkpoint `262f743`: **18/18 SUCCESS**, failed/cancelled = **0/18**;
+- 🟢 runtime evidence verifier fail-closed на помилці фінального `LOCAL_ASSET_STATUS`;
 - 🟢 aggregate importer очищає stale global/sub-import PASS sentinels і записує required production GAP як `UNBOUND`, тому vehicle/exact-weapon failure не губиться;
 - 🟢 `IMPORT_ALL_LOCAL_INBOX_UE58.cmd` лишається одним фактичним 8-step шляхом: LFS → audit → extract → SHA-256 dedupe → exact M249/Remington staging → UE build → project/Fab import → live weapon binding normalization;
 - 🟢 current `fix/pass45-asset-*` branch дозволений canonical gameplay launcher для pre-merge strict runtime acceptance;
 - 🟢 forward-ported verifier chains Pass15/19/20/22/23/33/37/38 не залежать від фізично видалених per-pass launchers і зберігають чинні runtime/material/weapon/FPS fail-closed gates;
+- 🟢 current branch порівняно з base: **ahead 52 / behind 0**, merge-base = `main@a1ad0e2`; diff лишився в межах тих самих 17 файлів;
 - 🟢 current `main` досі `a1ad0e2`; PR #98 mergeable, Draft і unmerged;
+- 🟢 GitHub search не дав підстав прибрати M16/M4 content gap; local/Fab payload все ще має бути доведений fresh manifest;
 - 🟢 повторний connected evidence search не знайшов fresh current-run UE/runtime reports;
 - 🟢 historical 2026-08-26 HMMWV/M2/BTR-4 import PASS лишається тільки baseline.
 
@@ -189,7 +210,7 @@ Direct visual acceptance автоматично не підвищується: `
 
 **Завдання:** виконати current full asset/runtime path на фактичному локальному UE 5.8 проекті та отримати fresh `LOCAL_ASSET_STATUS`.
 
-Після code checkpoint `cf3a0a54` і import, і canonical runtime evidence fail-closed на відсутньому fresh consolidated snapshot. Source-side дірок, які дозволяють підняти етап 8 без фактичного UE запуску, після цього аудиту не знайдено.
+Після code checkpoint `262f743` source-side acceptance path має три окремі fail-closed бар'єри перед підняттям прогресу: exact remote HEAD перед import → mandatory fresh import snapshot → mandatory final runtime snapshot. Додаткових source-side шляхів, які дозволяють підняти етап 8 без фактичного UE запуску, після цього аудиту не знайдено.
 
 Результат цього checkpoint:
 
