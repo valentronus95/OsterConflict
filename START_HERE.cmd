@@ -14,6 +14,15 @@ set "WEAPON_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\w
 set "LOCAL_INBOX_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_inbox_runtime_validation.txt"
 set "LOCAL_WORLD_RUNTIME_REPORT=%~dp0OsterConflict\Saved\AutomationReports\ProductionModels\local_world_runtime_validation.txt"
 
+rem The old PASS45 linked worktree was only an implementation workspace. Before removing it, rescue
+rem every asset family that Unreal/Fab may have written there but Git never tracked, without overwriting main.
+call :consolidate_legacy_worktree
+if errorlevel 1 (
+  echo [STOP] Не вдалося безпечно прибрати стару OsterConflict_PASS45 після перенесення assets.
+  pause
+  exit /b %ERRORLEVEL%
+)
+
 :menu
 cls
 echo ============================================================
@@ -64,6 +73,56 @@ if errorlevel 1 (
 )
 
 goto menu
+
+:consolidate_legacy_worktree
+for %%I in ("%~dp0..\OsterConflict_PASS45") do set "LEGACY_WORKTREE=%%~fI"
+if not exist "%LEGACY_WORKTREE%" exit /b 0
+
+echo [CLEANUP] Знайдено старий linked worktree: %LEGACY_WORKTREE%
+echo [CLEANUP] Спочатку забираю з нього всі локальні UE/Fab assets, яких ще немає в main...
+call :copy_missing_tree "%LEGACY_WORKTREE%\OsterConflict\Content" "%~dp0OsterConflict\Content"
+if errorlevel 1 exit /b %ERRORLEVEL%
+call :copy_missing_tree "%LEGACY_WORKTREE%\OsterConflict\Plugins" "%~dp0OsterConflict\Plugins"
+if errorlevel 1 exit /b %ERRORLEVEL%
+call :copy_missing_tree "%LEGACY_WORKTREE%\OsterConflict\AudioSources" "%~dp0OsterConflict\AudioSources"
+if errorlevel 1 exit /b %ERRORLEVEL%
+call :copy_missing_tree "%LEGACY_WORKTREE%\OsterConflict\SourceAssets" "%~dp0OsterConflict\SourceAssets"
+if errorlevel 1 exit /b %ERRORLEVEL%
+call :copy_missing_tree "%LEGACY_WORKTREE%\OsterConflict\SourceReferences" "%~dp0OsterConflict\SourceReferences"
+if errorlevel 1 exit /b %ERRORLEVEL%
+call :copy_missing_tree "%LEGACY_WORKTREE%\models_game_OC" "%~dp0models_game_OC"
+if errorlevel 1 exit /b %ERRORLEVEL%
+
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git не знайдений. Assets перенесені, але linked worktree не видаляю навмання.
+  exit /b 60
+)
+
+echo [CLEANUP] Assets врятовані. Видаляю старий linked worktree і його папку...
+git -C "%~dp0" worktree remove --force "%LEGACY_WORKTREE%" >nul 2>nul
+if errorlevel 1 (
+  rem The registration may already be stale. The requested directory is obsolete after the asset rescue above.
+  if exist "%LEGACY_WORKTREE%" rmdir /s /q "%LEGACY_WORKTREE%"
+)
+git -C "%~dp0" worktree prune >nul 2>nul
+if exist "%LEGACY_WORKTREE%" (
+  echo [STOP] Windows не дозволив видалити %LEGACY_WORKTREE%.
+  exit /b 61
+)
+echo [CLEANUP] PASS: OsterConflict_PASS45 прибрано; лишається один локальний проект OsterConflict.
+exit /b 0
+
+:copy_missing_tree
+if not exist "%~1" exit /b 0
+if not exist "%~2" mkdir "%~2" >nul 2>nul
+robocopy "%~1" "%~2" /E /XC /XN /XO /R:1 /W:1 /NFL /NDL /NJH /NJS /NP >nul
+set "ROBO_RC=%ERRORLEVEL%"
+if %ROBO_RC% GEQ 8 (
+  echo [STOP] Не вдалося перенести assets: %~1 ^> %~2 ^(robocopy=%ROBO_RC%^)
+  exit /b %ROBO_RC%
+)
+exit /b 0
 
 :ingest_all_assets
 if not exist "%ALL_ASSET_IMPORT%" (
