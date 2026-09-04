@@ -43,31 +43,92 @@ def main() -> int:
     weapon_report = read_required(weapon_report_path, "weapon dependency report")
     errors: list[str] = []
 
-    # Baseline deployment must occur once for the character and must not revive the vehicle-possession teleport bug.
-    require(gameplay, "PASS7_MUSEUM_BASES_READY", errors, "Museum BASE readiness")
+    # One canonical acceptance verifier replaces the old pile of per-pass BAT/CMD log scanners.
+    required_runtime = (
+        "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
+        "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
+        "PASS14_HOST_TRAVEL_BEGIN",
+        "PASS14_FRONTEND_TRAVEL_HANDOFF_READY",
+        "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
+        "PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY",
+        "PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY",
+        "PASS44_COMBAT_VEHICLE_SEEDS_COMPACT_READY",
+        "PASS44_COMPACT_PLAYABLE_AREA_READY",
+        "PASS44_TACTICAL_MAP_COMPACT_BOUNDS_READY",
+        "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
+        "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+        "PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED",
+        "PASS45_MUSEUM_R138_COLLISION_ONLY_READY",
+        "PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY",
+        "PASS45_MUSEUM_LAYER_VALIDATION_READY",
+        "PASS42_BASE_RACK_GROUNDED_READY",
+        "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
+        "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
+        "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY",
+        "PASS45_BTR4_PROPORTIONAL_VISUAL_READY",
+        "PASS45_M2_MOUNT_ALIGNMENT_READY",
+        "PASS45_VEHICLE_ENTER_TRANSFORM_READY",
+        "PASS45_VEHICLE_EXIT_TRANSFORM_READY",
+        "PASS45_M2_GUNNER_PITCH_CONTRACT_READY",
+        "PASS45_GUNNER_EXIT_TRANSFORM_READY",
+        "PASS31_GAMEPLAY_INPUT_READY",
+        "PASS41_INPUT_RECOVERY_POLL_BUDGET_READY",
+        "PASS36_LOWCPU_FOLIAGE_RUNTIME_READY",
+        "PASS36_WEAPON_MATERIAL_AUDIT_READY",
+        "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+        "PASS40_UI_STABILIZER_BUDGET_READY",
+        "PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY",
+        "PASS14_PERF_SAMPLE",
+        "PASS14_PERF_30FPS_READY",
+        "PASS7_MUSEUM_BASES_READY",
+    )
+    for marker in required_runtime:
+        require(gameplay, marker, errors, "runtime evidence")
+
     require_any(
         gameplay,
         ("PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE", "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE"),
         errors,
         "initial BASE deployment evidence",
     )
-    forbid(gameplay, "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL", errors, "BASE recovery failure")
+    if "PASS31_GAMEPLAY_INPUT_READY" in gameplay and not any(
+        "PASS31_GAMEPLAY_INPUT_READY" in line and "moveIgnored=0" in line and "lookIgnored=0" in line
+        for line in gameplay.splitlines()
+    ):
+        errors.append("gameplay input stayed ignored after possession")
 
-    # A strict acceptance run is incomplete until the tester actually enters and exits a vehicle.
-    require(gameplay, "PASS45_VEHICLE_ENTER_TRANSFORM_READY", errors, "driver enter transform evidence")
-    require(gameplay, "PASS45_VEHICLE_EXIT_TRANSFORM_READY", errors, "driver exit transform evidence")
-    forbid(gameplay, "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL", errors, "driver enter transform failure")
-    forbid(gameplay, "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL", errors, "driver exit transform failure")
+    forbidden_runtime = (
+        "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL",
+        "PASS44_ACTUAL_PAWN_MUSEUM_BASE_FAIL",
+        "PASS44_COMPACT_PLAYABLE_AREA_FAIL",
+        "PASS37_BASE_DEPLOYMENT_RECOVERY_FAIL",
+        "PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_FAIL",
+        "PASS45_MUSEUM_R138_COLLISION_ONLY_FAIL",
+        "PASS45_MUSEUM_LAYER_VALIDATION_FAIL",
+        "PASS45_LANDMARK_SEPARATION_VALIDATION_FAIL",
+        "PASS42_BASE_RACK_GROUNDING_INCOMPLETE",
+        "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
+        "PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL",
+        "PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP",
+        "PASS45_PRODUCTION_VEHICLE_CONTENT_GAP",
+        "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL",
+        "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL",
+        "PASS45_GUNNER_EXIT_TRANSFORM_FAIL",
+        "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
+        "PASS15_EMERGENCY_PERF_PROFILE_APPLIED",
+        "PASS10_FOLIAGE_RUNTIME_FAIL",
+        "PASS14_PERF_BELOW_TARGET",
+    )
+    for marker in forbidden_runtime:
+        forbid(gameplay, marker, errors, "runtime failure")
 
-    # The M2 vertical-aim regression cannot be accepted without an actual gunner session and exit.
-    require(gameplay, "PASS45_M2_GUNNER_PITCH_CONTRACT_READY", errors, "M2 gunner pitch evidence")
-    require(gameplay, "PASS45_GUNNER_EXIT_TRANSFORM_READY", errors, "gunner exit transform evidence")
-    forbid(gameplay, "PASS45_GUNNER_EXIT_TRANSFORM_FAIL", errors, "gunner exit transform failure")
-
-    # Production authored materials must pass the separate headless gate after the gameplay run.
-    require(material, "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY", errors, "vehicle material readiness")
-    require(material, "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY", errors, "production material bypass")
-    require(material, "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY", errors, "weapon material readiness")
+    # Authored production materials/dependencies remain a separate headless gate.
+    for marker in (
+        "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
+        "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
+        "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
+    ):
+        require(material, marker, errors, "material readiness")
     for marker in (
         "PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL",
         "PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP",
@@ -76,15 +137,18 @@ def main() -> int:
     ):
         forbid(material, marker, errors, "material/content gap")
 
-    # The weapon report itself must prove exact slot/material/runtime-material/texture dependency inspection.
-    require(weapon_report, "PASS45 dependency contract:", errors, "weapon dependency report header")
-    require(weapon_report, "SUMMARY=11/11 production weapon classes PASS", errors, "weapon dependency summary")
-    require(weapon_report, "materialGaps=0", errors, "zero material gaps")
-    require(weapon_report, "unexpectedOverrides=0", errors, "zero material overrides")
-    require(weapon_report, "authoredMaterial=", errors, "authored material paths")
-    require(weapon_report, "runtimeMaterial=", errors, "runtime material paths")
-    require(weapon_report, "textureCount=", errors, "used texture counts")
-    require(weapon_report, "textures=", errors, "used texture paths")
+    # Exact production weapon dependency report.
+    for marker in (
+        "PASS45 dependency contract:",
+        "SUMMARY=11/11 production weapon classes PASS",
+        "materialGaps=0",
+        "unexpectedOverrides=0",
+        "authoredMaterial=",
+        "runtimeMaterial=",
+        "textureCount=",
+        "textures=",
+    ):
+        require(weapon_report, marker, errors, "weapon dependency report")
     forbid(weapon_report, "placeholder=1", errors, "placeholder weapon material")
     forbid(weapon_report, "RESULT=FAIL", errors, "weapon runtime result")
 
@@ -114,14 +178,13 @@ def main() -> int:
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
         "PRODUCTION_VEHICLE_MATERIALS=PASS\n"
         "PRODUCTION_WEAPON_MATERIALS=PASS\n"
-        "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n",
+        "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
+        "PERFORMANCE_30FPS_GATE=PASS\n",
         encoding="utf-8",
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
-    print("- initial BASE deployment is character-only and no recovery failure was logged")
-    print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
-    print("- authored HMMWV/M2/BTR and weapon material gates passed with exact dependency reporting")
-    print("- visual acceptance remains PENDING until screenshots/direct observation satisfy the TZ")
+    print("- all canonical runtime, material, interaction and 30 FPS gates passed")
+    print("- visual acceptance remains PENDING until direct observation satisfies the TZ")
     print("Evidence:", EVIDENCE_OUT)
     return 0
 
