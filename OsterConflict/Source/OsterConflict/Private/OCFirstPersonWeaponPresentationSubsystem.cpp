@@ -60,8 +60,9 @@ void UOCFirstPersonWeaponPresentationSubsystem::OnWorldBeginPlay(UWorld& InWorld
     const bool bRifleLocomotionPackReady = RifleIdleAnimation && RifleADSIdleAnimation &&
         RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation &&
         RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation;
-    UE_LOG(LogTemp, bRifleLocomotionPackReady ? Display : Warning,
-        TEXT("PASS45_FP_RIFLE_LOCOMOTION_CONTENT_BRIDGE hip_idle=%d ads_idle=%d directional_hip=%d directional_ads=%d runtime_acceptance=0"),
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_FP_RIFLE_LOCOMOTION_CONTENT_BRIDGE ready=%d hip_idle=%d ads_idle=%d directional_hip=%d directional_ads=%d runtime_acceptance=0"),
+        bRifleLocomotionPackReady ? 1 : 0,
         RifleIdleAnimation ? 1 : 0,
         RifleADSIdleAnimation ? 1 : 0,
         (RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation) ? 1 : 0,
