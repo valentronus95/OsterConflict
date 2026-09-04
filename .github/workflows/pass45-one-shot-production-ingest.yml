@@ -1,0 +1,74 @@
+name: Pass45 one-shot production ingest patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pass45-one-shot-production-ingest.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch unified production model ingest
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          prod_path = Path('OsterConflict/Scripts/import_production_vehicle_assets.py')
+          prod = prod_path.read_text(encoding='utf-8')
+
+          needle = 'import unreal\n\n\nPROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))'
+          replacement = 'import unreal\n\nfrom generate_btr4_game_visual import build_btr4_glb\n\n\nPROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))'
+          if needle not in prod:
+              raise SystemExit('production importer import anchor missing')
+          prod = prod.replace(needle, replacement, 1)
+
+          needle = '    attempt("BTR4", BTR_SOURCE, lambda: import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME), gaps, imported)'
+          replacement = '''    try:\n        if BTR_SOURCE.exists():\n            imported.append(import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME))\n            log("BTR4 local FBX source imported.")\n        else:\n            authored_btr = CACHE_ROOT / "btr4_bucephalus_oc_authored.glb"\n            build_btr4_glb(authored_btr)\n            imported.append(import_glb_combined(authored_btr, BTR_DEST, BTR_NAME))\n            log(f"BTR4 local FBX missing; generated and imported Oster-authored fallback: {authored_btr}")\n    except Exception as exc:\n        gaps.append(f"BTR4_IMPORT_FAILED={exc}")\n        unreal.log_error(f"[OC Production Import] BTR4 import/fallback failed but other independent assets will continue: {exc}")'''
+          if needle not in prod:
+              raise SystemExit('BTR4 import anchor missing')
+          prod = prod.replace(needle, replacement, 1)
+          prod_path.write_text(prod, encoding='utf-8')
+
+          all_path = Path('OsterConflict/Scripts/import_all_project_assets.py')
+          all_text = all_path.read_text(encoding='utf-8')
+
+          needle = 'import import_all_local_inbox_assets as inbox\n'
+          replacement = 'import import_all_local_inbox_assets as inbox\nimport import_production_vehicle_assets as production\n'
+          if needle not in all_text:
+              raise SystemExit('all-project importer import anchor missing')
+          all_text = all_text.replace(needle, replacement, 1)
+
+          needle = '    # Run the normal models_game_OC import first in this SAME Unreal process.\n    inbox.main()\n\n    if not BINDINGS.is_file():'
+          replacement = '''    # Run the normal models_game_OC import first in this SAME Unreal process.\n    inbox.main()\n\n    # Then import the canonical production vehicle set in the same one-pass pipeline. HMMWV and M2\n    # use the hydrated repository sources; BTR4 uses the local FBX when available and otherwise\n    # generates the Oster-authored fallback so the project does not keep a green/proxy shell.\n    try:\n        production.main()\n    except Exception as exc:\n        inbox.warn(f"Production vehicle ingest gap; continuing the independent Fab/inbox catalog: {type(exc).__name__}: {exc}")\n\n    if not BINDINGS.is_file():'''
+          if needle not in all_text:
+              raise SystemExit('all-project main anchor missing')
+          all_text = all_text.replace(needle, replacement, 1)
+          all_path.write_text(all_text, encoding='utf-8')
+          PY
+
+          python -m py_compile \
+            OsterConflict/Scripts/import_production_vehicle_assets.py \
+            OsterConflict/Scripts/import_all_project_assets.py \
+            OsterConflict/Scripts/generate_btr4_game_visual.py
+
+      - name: Commit patch and remove one-shot workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/pass45-one-shot-production-ingest.yml
+          git add OsterConflict/Scripts/import_production_vehicle_assets.py OsterConflict/Scripts/import_all_project_assets.py
+          git commit -m "Pass45: auto-import HMMWV M2 and authored BTR4 fallback"
+          git push origin HEAD:main
