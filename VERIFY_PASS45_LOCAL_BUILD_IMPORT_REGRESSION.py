@@ -170,21 +170,26 @@ require(
 for marker in (
     'set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"',
     'set "ASSET_STATUS_TEXT=%~dp0OsterConflict\\Saved\\AssetStatus\\LOCAL_ASSET_STATUS.txt"',
+    'set "ASSET_STATUS_JSON=%~dp0OsterConflict\\Saved\\AssetStatus\\LOCAL_ASSET_STATUS.json"',
     'set "ASSET_RC=%ERRORLEVEL%"',
     "call :write_asset_snapshot",
+    'set "SNAPSHOT_RC=%ERRORLEVEL%"',
     ":write_asset_snapshot",
     'if defined ASSET_RC set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"',
     'if defined RUNTIME_RC set "PASS45_RUNTIME_RC=%RUNTIME_RC%"',
+    'if exist "%ASSET_STATUS_TEXT%" del /q "%ASSET_STATUS_TEXT%"',
+    'if exist "%ASSET_STATUS_JSON%" del /q "%ASSET_STATUS_JSON%"',
     '%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"',
     'set "PASS45_ASSET_IMPORT_RC="',
     'set "PASS45_RUNTIME_RC="',
+    'if not "%SNAPSHOT_RC%"=="0"',
     "[ASSET STATUS] Import snapshot:",
     "[ASSET STATUS] Runtime snapshot:",
 ):
     require(marker in start_here, f"START_HERE asset snapshot route lost {marker}")
 require(
-    start_here.index('set "ASSET_RC=%ERRORLEVEL%"') < start_here.index("call :write_asset_snapshot") < start_here.index('if not "%ASSET_RC%"=="0"'),
-    "START_HERE must snapshot the import result before branching on ASSET_RC",
+    start_here.index('set "ASSET_RC=%ERRORLEVEL%"') < start_here.index("call :write_asset_snapshot") < start_here.index('set "SNAPSHOT_RC=%ERRORLEVEL%"') < start_here.index('if not "%ASSET_RC%"=="0"'),
+    "START_HERE must snapshot the import result and capture snapshot status before branching on ASSET_RC",
 )
 require(
     start_here.index('if defined ASSET_RC set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"') < start_here.index('set "PASS45_ASSET_IMPORT_RC="'),
@@ -193,6 +198,24 @@ require(
 require(
     start_here.index('if defined RUNTIME_RC set "PASS45_RUNTIME_RC=%RUNTIME_RC%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"') < start_here.index('set "PASS45_RUNTIME_RC="'),
     "START_HERE must expose the exact runtime exit code only while the collector runs",
+)
+require(
+    start_here.index('if exist "%ASSET_STATUS_TEXT%" del /q "%ASSET_STATUS_TEXT%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"'),
+    "START_HERE must delete the old text snapshot before collecting a fresh one",
+)
+require(
+    start_here.index('if exist "%ASSET_STATUS_JSON%" del /q "%ASSET_STATUS_JSON%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"'),
+    "START_HERE must delete the old JSON snapshot before collecting a fresh one",
+)
+for exit_code in ("exit /b 62", "exit /b 63", "exit /b 64", "exit /b 65"):
+    require(exit_code in start_here, f"START_HERE lost fail-closed asset snapshot code {exit_code}")
+require(
+    'if not exist "%ASSET_STATUS_TEXT%" (' in start_here and 'if not exist "%ASSET_STATUS_JSON%" (' in start_here,
+    "START_HERE no longer verifies that both fresh LOCAL_ASSET_STATUS outputs exist",
+)
+require(
+    start_here.index('if not "%ASSET_RC%"=="0"') < start_here.index('if not "%SNAPSHOT_RC%"=="0"') < start_here.index("[ASSET STATUS] Import snapshot:"),
+    "successful import may bypass the fail-closed snapshot result",
 )
 require(
     start_here.count("call :write_asset_snapshot") >= 9,
@@ -232,6 +255,8 @@ print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- stale aggregate PASS is cleared before a fresh import run")
 print("- import-only LOCAL_ASSET_STATUS cannot reuse stale runtime/material/evidence PASS")
+print("- stale LOCAL_ASSET_STATUS files are deleted before every fresh collection")
+print("- successful import fails closed unless fresh LOCAL_ASSET_STATUS txt/json both exist")
 print("- final runtime snapshot preserves IMPORT_RESULT_CODE=0 plus exact RUNTIME_RESULT_CODE")
 print("- final runtime PASS fails closed if LOCAL_ASSET_STATUS cannot be written")
 print("- every early full-runtime failure refreshes LOCAL_ASSET_STATUS with exact RUNTIME_RESULT_CODE")
