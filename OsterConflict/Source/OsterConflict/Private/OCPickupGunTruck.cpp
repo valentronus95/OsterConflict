@@ -202,10 +202,11 @@ AOCPickupGunTruck::AOCPickupGunTruck()
 
 void AOCPickupGunTruck::ApplyVehicleStyle()
 {
+    const bool bRequiresHMMWV = ShouldUseHMMWVProductionVisual();
     bool bUsingProductionVehicle = false;
     bool bUsingHMMWV = false;
 
-    if (Chassis && ShouldUseHMMWVProductionVisual())
+    if (Chassis && bRequiresHMMWV)
     {
         if (UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA")))
@@ -215,7 +216,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
-    if (!bUsingProductionVehicle && Chassis)
+    // An explicit HMMWV may never silently turn into a pickup because its production shell is missing.
+    // The ordinary pickup class can still use its own exact pickup asset.
+    if (!bUsingProductionVehicle && Chassis && !bRequiresHMMWV)
     {
         if (UStaticMesh* PickupMesh = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup")))
@@ -226,10 +229,22 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
 
     if (!bUsingProductionVehicle && Chassis)
     {
-        Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
+        if (bRequiresHMMWV)
+        {
+            DisableVisualProxy(Chassis);
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_HMMWV_PRODUCTION_VISUAL_GAP exact_hmmwv=0 pickup_substitution=0 primitive_chassis_visible=0 runtime_acceptance=0"));
+        }
+        else
+        {
+            // Preserve legacy collision sizing for the optional pickup, but never claim it as production-ready.
+            Chassis->SetRelativeScale3D(FVector(4.85f, 1.94f, 0.58f));
+        }
     }
 
-    if (bUsingProductionVehicle)
+    // Once an explicit production identity is requested, its old pickup/blockout parts must stay retired even
+    // when the exact production shell is missing. This makes the content gap visible instead of showing a fake truck.
+    if (bUsingProductionVehicle || bRequiresHMMWV)
     {
         UStaticMeshComponent* SourceOnlyPickupParts[] =
         {
@@ -267,7 +282,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
-    if (!bUsingMountedGunAsset)
+    // A real machine-gun fallback remains acceptable for the optional pickup, but not for the explicit
+    // HMMWV+M2 identity. The HMMWV must fail closed rather than impersonating an M2 with another gun.
+    if (!bUsingMountedGunAsset && !bRequiresHMMWV)
     {
         if (UStaticMesh* RealMachineGunFallback = LoadObject<UStaticMesh>(nullptr,
             TEXT("/Game/R13/Weapons/machinegun.machinegun")))
@@ -278,7 +295,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
                 bUsingMountedGunAsset = true;
                 if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(72.5f, 0.0f, 18.0f));
                 UE_LOG(LogTemp, Warning,
-                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback."));
+                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback for pickup only."));
             }
         }
     }
@@ -288,7 +305,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     if (!bUsingMountedGunAsset)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("Gun truck mounted-gun visual missing: import SM_M2_Browning or restore the R13 machinegun fallback asset."));
+            bRequiresHMMWV
+                ? TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 runtime_acceptance=0")
+                : TEXT("Gun truck mounted-gun visual missing: import SM_M2_Browning or restore the R13 machinegun fallback asset."));
     }
 
     InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
