@@ -30,10 +30,11 @@ FORBIDDEN_MANUAL_WRAPPERS = (
     "VALIDATE_SILPO_UE58.cmd",
     "OsterConflict/TRY_PRODUCTION_VEHICLES_UE58.cmd",
     "OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd",
+    "FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd",
 )
 for rel in FORBIDDEN_MANUAL_WRAPPERS:
     if (ROOT / rel).exists():
-        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete manual wrapper returned: {rel}")
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete/redundant manual wrapper returned: {rel}")
 
 main = MAIN.read_text(encoding="utf-8")
 entry = ENTRY.read_text(encoding="utf-8")
@@ -63,10 +64,21 @@ for marker in (
     'call "%MATERIAL_GATE%"',
     'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py',
     'PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED',
-    'VISUAL ACCEPTANCE IS STILL PENDING',
+    'set "ASSET_FINALIZER=%~dp0OsterConflict\\Scripts\\finalize_asset_acceptance.py"',
+    '"%ASSET_FINALIZER%" --preflight',
+    'FINALIZE PENDING',
+    'Visual acceptance не записано',
+    'choice /C YN',
+    '"%ASSET_FINALIZER%" --accept-visual',
 ):
     if marker not in entry:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing START_HERE marker {marker!r}")
+
+preflight_pos = entry.find('"%ASSET_FINALIZER%" --preflight')
+choice_pos = entry.find('choice /C YN', preflight_pos)
+manual_pos = entry.find('"%ASSET_FINALIZER%" --accept-visual', choice_pos)
+if -1 in (preflight_pos, choice_pos, manual_pos) or not preflight_pos < choice_pos < manual_pos:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: manual visual acceptance is not gated after automated preflight")
 
 if 'TRY_PRODUCTION_VEHICLES_UE58.cmd' in entry:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: normal launcher still runs obsolete TRY vehicle wrapper")
@@ -96,5 +108,6 @@ print("MAIN RUNTIME ACCEPTANCE LAUNCHER SOURCE CONTRACT PASS")
 print("- START_HERE.cmd is the only user-facing launcher/test entrypoint")
 print("- obsolete manual runtime/test wrappers are physically absent")
 print("- RUN_R14_CURRENT_GAMEPLAY.cmd remains the single internal gameplay execution route")
+print("- automated evidence preserves visual=PENDING; manual visual PASS is reachable only after non-destructive finalization preflight and explicit Y/N confirmation")
 print("- strict material, interaction and performance evidence is verified without extra acceptance wrappers")
 print("STATUS: SOURCE VERIFIED ONLY; local Windows UE 5.8 execution is still required")
