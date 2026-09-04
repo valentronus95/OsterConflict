@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
+PREPARE = ROOT / "OsterConflict" / "Scripts" / "prepare_all_local_inbox_assets.ps1"
 BASE_IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_all_local_inbox_assets.py"
 WEAPON_NORMALIZER = ROOT / "OsterConflict" / "Scripts" / "normalize_local_weapon_categories.py"
 ENTRYPOINT = ROOT / "START_HERE.cmd"
@@ -26,6 +27,7 @@ def require(condition: bool, message: str) -> None:
 
 
 finalizer = read(FINALIZER)
+prepare = read(PREPARE)
 base_importer = read(BASE_IMPORTER)
 weapon_normalizer = read(WEAPON_NORMALIZER)
 entrypoint = read(ENTRYPOINT)
@@ -72,6 +74,26 @@ for marker in (
     "refresh_consolidated_status(head)",
 ):
     require(marker in finalizer, f"finalizer lost fail-closed marker: {marker}")
+
+for marker in (
+    'if ($item.depth -gt 4)',
+    "status='NESTED_DEPTH_LIMIT'",
+    "error='nested_zip_depth_limit_exceeded'",
+    "$unsafeCount = @($manifest.archives | Where-Object { $_.status -ne 'EXTRACTED' }).Count",
+    "if ($unsafeCount -gt 0) { $manifest.status = 'UNSAFE_ARCHIVE_PRESENT' }",
+    "if ($unsafeCount -gt 0) { exit 40 }",
+):
+    require(marker in prepare, f"prepare intake lost nested-ZIP fail-closed marker: {marker}")
+
+depth_pos = prepare.find('if ($item.depth -gt 4)')
+depth_record_pos = prepare.find("status='NESTED_DEPTH_LIMIT'", depth_pos)
+depth_continue_pos = prepare.find("continue", depth_pos)
+unsafe_count_pos = prepare.find("$unsafeCount = @($manifest.archives | Where-Object { $_.status -ne 'EXTRACTED' }).Count")
+require(
+    -1 not in (depth_pos, depth_record_pos, depth_continue_pos, unsafe_count_pos)
+    and depth_pos < depth_record_pos < depth_continue_pos < unsafe_count_pos,
+    "nested ZIP depth limit may still be skipped without entering the unsafe archive count",
+)
 
 for marker in (
     "Fail closed on every source row the importer itself explicitly classified as UNBOUND",
@@ -249,6 +271,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 ASSET FINALIZATION GUARD: PASS")
+print("- nested ZIP depth overflow is recorded as unsafe and cannot silently disappear")
 print("- START_HERE remains the single user-facing launcher and owns finalization after full runtime")
 print("- base importer promotes every explicit source_status UNBOUND row before computing all_models_bound")
 print("- weapon normalization cannot upgrade factual import/load UNBOUND rows from filename matching")
