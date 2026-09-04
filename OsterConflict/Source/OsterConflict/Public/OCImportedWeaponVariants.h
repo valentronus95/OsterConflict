@@ -102,6 +102,16 @@ public:
     virtual void BeginPlay() override;
 };
 
+/** User-added Fab revolver. Kept as its own pistol identity and mechanical action family. */
+UCLASS()
+class OSTERCONFLICT_API AOCWeapon_Revolver : public AOCWeaponBase
+{
+    GENERATED_BODY()
+public:
+    AOCWeapon_Revolver();
+    virtual void BeginPlay() override;
+};
+
 /** User-added Fab RPG model. Kept distinct from OC_RPG1, M72 LAW and RPG-26. */
 UCLASS()
 class OSTERCONFLICT_API AOCWeapon_FabRPG : public AOCAntiArmorLauncher

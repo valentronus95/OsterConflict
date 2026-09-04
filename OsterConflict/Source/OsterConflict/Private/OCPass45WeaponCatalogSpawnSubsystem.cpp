@@ -40,6 +40,7 @@ namespace
         { FName(TEXT("IMP_BALLISTA")), AOCWeapon_FnBallista::StaticClass() },
         { FName(TEXT("IMP_KAR98K")), AOCWeapon_Kar98k::StaticClass() },
         { FName(TEXT("IMP_MAKAROV")), AOCWeapon_Makarov::StaticClass() },
+        { FName(TEXT("IMP_REVOLVER")), AOCWeapon_Revolver::StaticClass() },
         { FName(TEXT("IMP_TOMMY")), AOCWeapon_TommyGun::StaticClass() },
         { FName(TEXT("IMP_M72")), AOCWeapon_M72LAW::StaticClass() },
         { FName(TEXT("IMP_RPG26")), AOCWeapon_RPG26::StaticClass() },

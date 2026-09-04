@@ -145,6 +145,11 @@ namespace
             Out = {{ FName(TEXT("/Game/makarov-pistol")), FabRoot }, { TEXT("makarov") }, 16.2f};
             return true;
         }
+        if (DisplayName.Equals(TEXT("Revolver"), ESearchCase::IgnoreCase))
+        {
+            Out = {{ FabRoot }, { TEXT("revolver") }, 28.0f};
+            return true;
+        }
         if (DisplayName.Equals(TEXT("Thompson M1A1"), ESearchCase::IgnoreCase))
         {
             Out = {{ FName(TEXT("/Game/tommy-gun")), FabRoot }, { TEXT("tommy"), TEXT("thompson") }, 81.0f};

@@ -54,6 +54,7 @@ enum class EOCWeaponActionType : uint8
     DelayedBlowback UMETA(DisplayName="Delayed Blowback"),
     Blowback UMETA(DisplayName="Blowback"),
     ShortRecoil UMETA(DisplayName="Short Recoil"),
+    Revolver UMETA(DisplayName="Revolver"),
     BoltAction UMETA(DisplayName="Bolt Action"),
     PumpAction UMETA(DisplayName="Pump Action"),
     LeverAction UMETA(DisplayName="Lever Action"),
