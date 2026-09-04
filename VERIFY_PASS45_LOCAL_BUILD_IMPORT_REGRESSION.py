@@ -112,6 +112,10 @@ for marker in (
     "local_world_runtime_validation.txt",
     "LOCAL_ASSET_STATUS.json",
     "LOCAL_ASSET_STATUS.txt",
+    "IMPORT_RESULT_CODE=",
+    '"import_result_code": import_result',
+    'import_stage = "FAIL"',
+    "PASS45_ASSET_IMPORT_RC",
     "PENDING_MANUAL_OBSERVATION",
 ):
     require(marker in asset_status_collector, f"local asset status collector lost {marker}")
@@ -126,16 +130,22 @@ require(
 for marker in (
     'set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"',
     'set "ASSET_STATUS_TEXT=%~dp0OsterConflict\\Saved\\AssetStatus\\LOCAL_ASSET_STATUS.txt"',
-    "set \"ASSET_RC=%ERRORLEVEL%\"",
+    'set "ASSET_RC=%ERRORLEVEL%"',
     "call :write_asset_snapshot",
     ":write_asset_snapshot",
+    'set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"',
     '%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"',
+    'set "PASS45_ASSET_IMPORT_RC="',
     "[ASSET STATUS] Import snapshot:",
 ):
     require(marker in start_here, f"START_HERE import-stage asset snapshot lost {marker}")
 require(
     start_here.index('set "ASSET_RC=%ERRORLEVEL%"') < start_here.index("call :write_asset_snapshot") < start_here.index('if not "%ASSET_RC%"=="0"'),
     "START_HERE must snapshot the import result before branching on ASSET_RC",
+)
+require(
+    start_here.index('set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"') < start_here.index('%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"') < start_here.index('set "PASS45_ASSET_IMPORT_RC="'),
+    "START_HERE must expose the exact import exit code only while the collector runs",
 )
 
 # Status must remain factual: source fix exists, but a later local build/import must verify it.
@@ -165,5 +175,6 @@ print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- stale aggregate PASS is cleared before a fresh import run")
 print("- START_HERE emits LOCAL_ASSET_STATUS immediately after import, including failed ingest")
+print("- failed asset import is recorded as LOCAL_UE_IMPORT=FAIL with exact IMPORT_RESULT_CODE")
 print("- canonical runtime evidence refreshes the consolidated LOCAL_ASSET_STATUS snapshot")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
