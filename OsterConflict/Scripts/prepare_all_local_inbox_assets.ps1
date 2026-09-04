@@ -178,7 +178,12 @@ while ($archiveQueue.Count -gt 0) {
     $item = $archiveQueue.Dequeue()
     $archive = $item.file
     if ($item.depth -gt 4) {
-        Write-Warning ('[ALL INBOX] Nested ZIP depth limit reached: ' + $archive.FullName)
+        $depthHash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        $manifest.archives += [ordered]@{
+            archive=$archive.FullName; sha256=$depthHash; status='NESTED_DEPTH_LIMIT';
+            error='nested_zip_depth_limit_exceeded'; depth=$item.depth; parent=$item.parent
+        }
+        Write-Host ('[ALL INBOX] STOP nested ZIP depth limit exceeded: ' + $archive.FullName) -ForegroundColor Red
         continue
     }
 
