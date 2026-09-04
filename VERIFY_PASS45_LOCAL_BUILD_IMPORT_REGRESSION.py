@@ -7,6 +7,7 @@ IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_asset
 AGGREGATE_IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_all_project_assets.py"
 ASSET_STATUS_COLLECTOR = ROOT / "COLLECT_LOCAL_ASSET_STATUS.py"
 RUNTIME_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+START_HERE = ROOT / "START_HERE.cmd"
 LEDGER = ROOT / "OSTER_CONFLICT_WORK_LEDGER.md"
 
 errors = []
@@ -29,6 +30,7 @@ importer = read(IMPORTER)
 aggregate_importer = read(AGGREGATE_IMPORTER)
 asset_status_collector = read(ASSET_STATUS_COLLECTOR)
 runtime_evidence = read(RUNTIME_EVIDENCE)
+start_here = read(START_HERE)
 ledger = read(LEDGER)
 
 # Local UE 5.8.1 / MSVC 14.51 factual build rejected the FVector2D table when it was constexpr.
@@ -98,8 +100,9 @@ require(
     "aggregate importer no longer makes production GAP status fail-visible",
 )
 
-# One local snapshot must consolidate the otherwise scattered Saved/ and Logs evidence after the
-# canonical runtime evidence pass. It is diagnostic only and must never promote visual acceptance.
+# One local snapshot must consolidate the otherwise scattered Saved/ and Logs evidence. The import
+# wrapper must emit it immediately after ingest even when Unreal/import exits non-zero; runtime evidence
+# may later overwrite it with the fuller gameplay/material state. Neither route may promote visual acceptance.
 for marker in (
     "def collect_snapshot(",
     "runtime_bindings.json",
@@ -119,6 +122,20 @@ require(
 require(
     "asset_status.collect_snapshot" in runtime_evidence,
     "canonical runtime evidence verifier no longer writes the consolidated local asset snapshot",
+)
+for marker in (
+    'set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"',
+    'set "ASSET_STATUS_TEXT=%~dp0OsterConflict\\Saved\\AssetStatus\\LOCAL_ASSET_STATUS.txt"',
+    "set \"ASSET_RC=%ERRORLEVEL%\"",
+    "call :write_asset_snapshot",
+    ":write_asset_snapshot",
+    '%ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"',
+    "[ASSET STATUS] Import snapshot:",
+):
+    require(marker in start_here, f"START_HERE import-stage asset snapshot lost {marker}")
+require(
+    start_here.index('set "ASSET_RC=%ERRORLEVEL%"') < start_here.index("call :write_asset_snapshot") < start_here.index('if not "%ASSET_RC%"=="0"'),
+    "START_HERE must snapshot the import result before branching on ASSET_RC",
 )
 
 # Status must remain factual: source fix exists, but a later local build/import must verify it.
@@ -147,5 +164,6 @@ print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy"
 print("- deprecated auto_detect_mesh_type cannot silently return")
 print("- aggregate asset PASS is blocked by fresh vehicle/exact-weapon GAP sentinels")
 print("- stale aggregate PASS is cleared before a fresh import run")
-print("- canonical runtime evidence emits one consolidated LOCAL_ASSET_STATUS snapshot")
+print("- START_HERE emits LOCAL_ASSET_STATUS immediately after import, including failed ingest")
+print("- canonical runtime evidence refreshes the consolidated LOCAL_ASSET_STATUS snapshot")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
