@@ -1,0 +1,89 @@
+name: complete local character and weapon pools once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-all-local-consumers-a-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch character import and runtime pools
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # Character glTF must be allowed to arrive as SkeletalMesh. A static statue is never a valid player skin.
+          p = Path('OsterConflict/Scripts/import_all_local_inbox_assets.py')
+          text = p.read_text(encoding='utf-8-sig')
+          old = '''    if ext in (".glb", ".gltf"):\n        # Interchange static import is deterministic and retains authored materials/textures. If a file was\n        # classified as a human but arrives as glTF, we inspect the resulting class below and fail visible if\n        # UE cannot preserve it as a SkeletalMesh. A static human statue is not accepted as a playable skin.\n        path = import_glb_combined(source, destination, stable_name(source))\n        return [path]\n'''
+          new = '''    if ext in (".glb", ".gltf") and category == "CHARACTER_SKIN":\n        # Let UE Interchange inspect skin/joint data instead of forcing StaticMesh. Acceptance below still\n        # requires an actual SkeletalMesh on the active Quantum skeleton, so a statue cannot sneak through.\n        task = unreal.AssetImportTask()\n        task.set_editor_property("filename", str(source))\n        task.set_editor_property("destination_path", destination)\n        task.set_editor_property("destination_name", stable_name(source))\n        task.set_editor_property("automated", True)\n        task.set_editor_property("replace_existing", True)\n        task.set_editor_property("replace_existing_settings", True)\n        task.set_editor_property("save", True)\n        task.set_editor_property("async_", False)\n        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])\n        return [str(x).split(".", 1)[0] for x in list(task.get_editor_property("imported_object_paths") or [])]\n\n    if ext in (".glb", ".gltf"):\n        path = import_glb_combined(source, destination, stable_name(source))\n        return [path]\n'''
+          if old not in text:
+              raise SystemExit('character glTF import marker not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    if isinstance(asset, unreal.StaticMesh):\n        bindings["static_assets"].append({"path": asset_path, "category": category, "source": source})\n        source_status.append({"source": source, "category": category, "status": "BOUND", "binding": "STATIC_RUNTIME_POOL", "asset": asset_path})\n        return\n'''
+          new = '''    if isinstance(asset, unreal.StaticMesh):\n        if category == "CHARACTER_SKIN":\n            source_status.append({"source": source, "category": category, "status": "UNBOUND", "reason": "character_imported_as_static_mesh", "asset": asset_path})\n            return\n        bindings["static_assets"].append({"path": asset_path, "category": category, "source": source})\n        source_status.append({"source": source, "category": category, "status": "BOUND", "binding": "STATIC_RUNTIME_POOL", "asset": asset_path})\n        return\n'''
+          if old not in text:
+              raise SystemExit('StaticMesh classification marker not found')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          # Central API returns every mesh in a category, not just the first one.
+          p = Path('OsterConflict/Source/OsterConflict/Public/OCLocalInboxRuntimeSubsystem.h')
+          text = p.read_text(encoding='utf-8-sig')
+          marker = '    static UStaticMesh* LoadFirstStaticMeshForCategory(const FString& Category);\n'
+          addition = marker + '    static void GetAssetObjectPathsForCategory(const FString& Category, TArray<FString>& OutPaths);\n'
+          if 'GetAssetObjectPathsForCategory' not in text:
+              if marker not in text:
+                  raise SystemExit('runtime subsystem header marker missing')
+              text = text.replace(marker, addition, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCLocalInboxRuntimeSubsystem.cpp')
+          text = p.read_text(encoding='utf-8-sig')
+          marker = '''UStaticMesh* UOCLocalInboxRuntimeSubsystem::LoadFirstStaticMeshForCategory(const FString& Category)\n{'''
+          implementation = '''void UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(const FString& Category, TArray<FString>& OutPaths)\n{\n    OutPaths.Reset();\n    TSharedPtr<FJsonObject> Root;\n    if (!LoadBindingRoot(Root)) return;\n\n    const TCHAR* Fields[] = { TEXT("static_assets"), TEXT("skeletal_assets") };\n    for (const TCHAR* Field : Fields)\n    {\n        const TArray<TSharedPtr<FJsonValue>>* Values = GetArray(Root, Field);\n        if (!Values) continue;\n        for (const TSharedPtr<FJsonValue>& Value : *Values)\n        {\n            FString Path;\n            FString EntryCategory;\n            bool bCompatible = false;\n            if (!ReadEntry(Value, Path, EntryCategory, bCompatible)) continue;\n            if (!EntryCategory.Equals(Category, ESearchCase::IgnoreCase)) continue;\n            OutPaths.AddUnique(Path);\n        }\n    }\n}\n\n'''
+          if 'void UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory' not in text:
+              if marker not in text:
+                  raise SystemExit('runtime subsystem cpp marker missing')
+              text = text.replace(marker, implementation + marker, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          # Every model in a weapon family participates in the live selection pool.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCLocalInboxWeaponOverrideSubsystem.cpp')
+          text = p.read_text(encoding='utf-8-sig')
+          old = '''    auto TryCategory = [&](const TCHAR* Category, const float LengthCm)\n    {\n        FString Path;\n        if (!UOCLocalInboxRuntimeSubsystem::ResolveFirstAssetObjectPathForCategory(Category, Path)) return false;\n        OutObjectPath = MoveTemp(Path);\n        OutDesiredLengthCm = LengthCm;\n        OutCategory = Category;\n        return true;\n    };\n'''
+          new = '''    auto TryCategory = [&](const TCHAR* Category, const float LengthCm)\n    {\n        TArray<FString> Paths;\n        UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(Category, Paths);\n        if (Paths.IsEmpty()) return false;\n        const uint32 Seed = GetTypeHash(Weapon->GetName());\n        OutObjectPath = Paths[Seed % static_cast<uint32>(Paths.Num())];\n        OutDesiredLengthCm = LengthCm;\n        OutCategory = Category;\n        return true;\n    };\n'''
+          if old not in text:
+              raise SystemExit('weapon category resolver marker missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          # All compatible human skins participate in live character selection, not only four fixed profiles.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCProductionCharacterAssetsSubsystem.cpp')
+          text = p.read_text(encoding='utf-8-sig')
+          old = '''        Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);\n        ApplyGear(Character);\n        ApplyAnimation(Character);\n'''
+          new = '''        Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);\n\n        const int32 LocalSkinCount = UOCLocalInboxRuntimeSubsystem::GetCompatibleCharacterSkinCount();\n        if (LocalSkinCount > 0)\n        {\n            const int32 Seed = FMath::Max(1, Visual->GetAppearance().VariantSeed);\n            const int32 SkinIndex = (Seed - 1) % LocalSkinCount;\n            if (USkeletalMesh* LocalSkin = UOCLocalInboxRuntimeSubsystem::LoadCompatibleCharacterSkin(SkinIndex))\n            {\n                if (USkeletalMeshComponent* Body = Character.GetMesh())\n                {\n                    if (Body->GetSkeletalMeshAsset() != LocalSkin) Body->SetSkeletalMeshAsset(LocalSkin);\n                }\n            }\n        }\n\n        ApplyGear(Character);\n        ApplyAnimation(Character);\n'''
+          if old not in text:
+              raise SystemExit('character live application marker missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          Path('.github/workflows/patch-all-local-consumers-a-once.yml').unlink()
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Scripts/import_all_local_inbox_assets.py OsterConflict/Source/OsterConflict/Public/OCLocalInboxRuntimeSubsystem.h OsterConflict/Source/OsterConflict/Private/OCLocalInboxRuntimeSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCLocalInboxWeaponOverrideSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCProductionCharacterAssetsSubsystem.cpp .github/workflows/patch-all-local-consumers-a-once.yml
+          git commit -m "Pass45: connect every local human and weapon variant pool"
+          git push origin main
