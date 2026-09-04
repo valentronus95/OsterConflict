@@ -110,7 +110,11 @@ def collect_snapshot(
     binding_pass = _marker(texts["runtime_bindings_success"], "PASS45_LOCAL_INBOX_IMPORT_BINDING=PASS")
     all_models_bound = bool(bindings.get("all_models_bound"))
 
-    if import_result is not None and import_result != 0:
+    # Import sentinels/manifests can survive an older local run. Never mint a current import PASS
+    # unless the caller supplies an explicit current import result code of zero.
+    if import_result is None:
+        import_stage = "PENDING_CURRENT_RUN"
+    elif import_result != 0:
         import_stage = "FAIL"
     elif all((vehicle_status == "PASS", weapon_status == "PASS", binding_pass, all_models_bound)):
         import_stage = "PASS"
