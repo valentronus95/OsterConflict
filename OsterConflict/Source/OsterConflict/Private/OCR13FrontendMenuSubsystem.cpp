@@ -33,8 +33,8 @@ namespace
         if (!Block) return nullptr;
         Block->SetText(Text);
         Block->SetColorAndOpacity(FSlateColor(bBright
-            ? FLinearColor(0.94f, 0.93f, 0.89f, 1.0f)
-            : FLinearColor(0.69f, 0.69f, 0.66f, 1.0f)));
+            ? FLinearColor(0.96f, 0.97f, 0.98f, 1.0f)
+            : FLinearColor(0.56f, 0.61f, 0.66f, 1.0f)));
         FSlateFontInfo Font = Block->GetFont();
         Font.Size = FontSize;
         Block->SetFont(Font);
@@ -56,29 +56,31 @@ namespace
 
         USizeBox* Size = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
         UButton* Button = Tree->ConstructWidget<UButton>(UButton::StaticClass());
-        UTextBlock* Text = R13FrontendMakeMenuText(Tree, Label, 16, true);
+        UTextBlock* Text = R13FrontendMakeMenuText(Tree, Label, 14, true);
         if (!Size || !Button || !Text) return nullptr;
 
-        Size->SetHeightOverride(50.0f);
-        Size->SetWidthOverride(420.0f);
+        Size->SetHeightOverride(44.0f);
+        Size->SetWidthOverride(360.0f);
         Text->SetJustification(ETextJustify::Center);
-        R13FrontendApplyTypeface(Text, FName(TEXT("Regular")), 45);
+        R13FrontendApplyTypeface(Text, FName(TEXT("Regular")), 65);
         Button->IsFocusable = true;
         Button->AddChild(Text);
         Size->SetContent(Button);
 
+        // PASS45 frontend refresh: compact tactical controls with one stable style. This changes only
+        // presentation; the static Slate hierarchy and deferred action fence remain untouched.
         FButtonStyle Style = Button->GetStyle();
-        Style.Normal.TintColor = FSlateColor(FLinearColor(0.04f, 0.04f, 0.04f, 0.08f));
-        Style.Hovered.TintColor = FSlateColor(FLinearColor(0.16f, 0.16f, 0.16f, 0.20f));
-        Style.Pressed.TintColor = FSlateColor(FLinearColor(0.20f, 0.20f, 0.20f, 0.28f));
-        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.03f, 0.03f, 0.03f, 0.05f));
-        Style.NormalPadding = FMargin(1.0f);
-        Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
+        Style.Normal.TintColor = FSlateColor(FLinearColor(0.025f, 0.035f, 0.045f, 0.88f));
+        Style.Hovered.TintColor = FSlateColor(FLinearColor(0.055f, 0.125f, 0.175f, 0.96f));
+        Style.Pressed.TintColor = FSlateColor(FLinearColor(0.075f, 0.165f, 0.225f, 1.0f));
+        Style.Disabled.TintColor = FSlateColor(FLinearColor(0.02f, 0.025f, 0.03f, 0.45f));
+        Style.NormalPadding = FMargin(10.0f, 1.0f);
+        Style.PressedPadding = FMargin(10.0f, 2.0f, 10.0f, 0.0f);
         Button->SetStyle(Style);
 
         if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Size))
         {
-            Slot->SetPadding(FMargin(0.0f, 5.0f, 0.0f, 5.0f));
+            Slot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 4.0f));
             Slot->SetHorizontalAlignment(HAlign_Left);
         }
         return Button;
@@ -91,25 +93,24 @@ namespace
         if (!Field) return nullptr;
         Field->SetHintText(Hint);
         Field->SetText(FText::FromString(Value));
+        Field->SetMinimumDesiredWidth(360.0f);
 
-        // Pass 24: use an explicit game-owned dark style instead of the editor/default white field look.
-        // Keeping all brushes resource-stable while tinting them avoids constructing transient Slate resources
-        // during the main-menu -> server-setup transition.
+        // Keep brushes resource-stable while moving the old editor-white look to a compact tactical field.
         FEditableTextBoxStyle FieldStyle = Field->GetWidgetStyle();
-        FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f));
-        FieldStyle.ForegroundColor = FSlateColor(FLinearColor(0.93f, 0.93f, 0.91f, 1.0f));
+        FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.025f, 0.034f, 0.043f, 0.98f));
+        FieldStyle.ForegroundColor = FSlateColor(FLinearColor(0.92f, 0.94f, 0.96f, 1.0f));
         FieldStyle.FocusedForegroundColor = FSlateColor(FLinearColor::White);
-        FieldStyle.ReadOnlyForegroundColor = FSlateColor(FLinearColor(0.62f, 0.62f, 0.60f, 1.0f));
-        FieldStyle.BackgroundImageNormal.TintColor = FSlateColor(FLinearColor(0.055f, 0.062f, 0.072f, 1.0f));
-        FieldStyle.BackgroundImageHovered.TintColor = FSlateColor(FLinearColor(0.075f, 0.085f, 0.098f, 1.0f));
-        FieldStyle.BackgroundImageFocused.TintColor = FSlateColor(FLinearColor(0.085f, 0.098f, 0.115f, 1.0f));
-        FieldStyle.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.040f, 0.046f, 0.054f, 1.0f));
-        FieldStyle.Padding = FMargin(14.0f, 10.0f);
+        FieldStyle.ReadOnlyForegroundColor = FSlateColor(FLinearColor(0.55f, 0.59f, 0.63f, 1.0f));
+        FieldStyle.BackgroundImageNormal.TintColor = FSlateColor(FLinearColor(0.028f, 0.040f, 0.052f, 1.0f));
+        FieldStyle.BackgroundImageHovered.TintColor = FSlateColor(FLinearColor(0.040f, 0.070f, 0.090f, 1.0f));
+        FieldStyle.BackgroundImageFocused.TintColor = FSlateColor(FLinearColor(0.045f, 0.105f, 0.145f, 1.0f));
+        FieldStyle.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.020f, 0.028f, 0.035f, 1.0f));
+        FieldStyle.Padding = FMargin(12.0f, 8.0f);
         Field->SetWidgetStyle(FieldStyle);
 
         if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Field))
         {
-            Slot->SetPadding(FMargin(0.0f, 5.0f));
+            Slot->SetPadding(FMargin(0.0f, 4.0f));
         }
         return Field;
     }
@@ -211,10 +212,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
     EnsureFrontend(Root, PC);
 
-    // Pass 26: a UButton::OnClicked delegate fires inside Slate's mouse-up routing. Merely setting
-    // a flag and consuming it later in the same engine frame is not a strong enough lifetime fence.
-    // Every frontend action now waits until at least the following engine frame before it is allowed
-    // to touch widget visibility, input modes, travel, settings or quit/disconnect state.
     const bool bDeferredActionReady = PendingActionEarliestFrame != 0 && GFrameCounter >= PendingActionEarliestFrame;
     if (bDeferredActionReady)
     {
@@ -234,9 +231,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
         if (PendingPage != INDEX_NONE)
         {
-            // Pass 29: runtime repeatedly crashed inside Slate immediately after the main-menu START
-            // path changed the live widget hierarchy. Page transitions are now forbidden in the R13
-            // startup shell. Keep the frontend structurally static and route actions directly instead.
             const int32 BlockedPage = PendingPage;
             PendingPage = INDEX_NONE;
             UE_LOG(LogTemp, Error, TEXT("PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED page=%d"), BlockedPage);
@@ -315,7 +309,7 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
         const bool bSettingsOverGameplay = bPauseMenuActive && bLiveGameplay;
         if (UBorder* SettingsPanel = Cast<UBorder>(Root->GetWidgetFromName(TEXT("SettingsPanel"))))
         {
-            SettingsPanel->SetBrushColor(FLinearColor(0.045f, 0.055f, 0.066f, 1.0f));
+            SettingsPanel->SetBrushColor(FLinearColor(0.035f, 0.045f, 0.055f, 0.98f));
         }
         SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);
         return;
@@ -373,14 +367,9 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     bPresentationStateValid = false;
     BuildFrontend(Root, PC);
 
-    // Pass 26: legacy-layer suppression mutates widget state. Do it once for a newly built root,
-    // not on every world Tick while Slate is painting/processing input.
     SuppressLegacyFrontendLayers(Root);
     UE_LOG(LogTemp, Display, TEXT("PASS26_LEGACY_FRONTEND_SUPPRESSED_ONCE"));
 
-    // -Frontend belongs only to the startup shell. The same process keeps its command line after
-    // `open ?listen`, so the newly created listen/client controller used to resurrect the main menu
-    // over Deployment and produced a second START. Deployment owns all pre-spawn choices after travel.
     if (PC->GetNetMode() != NM_Standalone && PC->IsFrontendMenuVisible() &&
         PC->IsDeploymentPanelVisible() && PC->GetPawn() == nullptr)
     {
@@ -408,9 +397,6 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        // Pass 27: keep the native frontend attached to its original WidgetTree. Detaching a widget
-        // after UUserWidget::RebuildWidget has already produced Slate children creates an avoidable
-        // structural lifetime edge; collapsed + disabled is sufficient to suppress it.
     }
 
     UBorder* Blocker = Tree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_MenuWorldBlocker"));
@@ -429,12 +415,12 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     {
         Background->SetBrushFromTexture(Texture, false);
     }
-    Background->SetColorAndOpacity(FLinearColor::White);
+    Background->SetColorAndOpacity(FLinearColor(0.82f, 0.86f, 0.90f, 1.0f));
     Background->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     Background->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Background), 71);
 
-    Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.40f));
+    Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.52f));
     Shade->SetVisibility(ESlateVisibility::Collapsed);
     Shade->SetIsEnabled(false);
     R13FrontendFillCanvas(Canvas->AddChildToCanvas(Shade), 72);
@@ -442,14 +428,13 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     MenuGradientLayers.Reset();
     struct FGradientStrip { float Width; float Alpha; };
     const FGradientStrip GradientStrips[] = {
-        { 420.0f, 0.23f }, { 520.0f, 0.15f }, { 620.0f, 0.09f },
-        { 730.0f, 0.05f }, { 850.0f, 0.02f },
+        { 470.0f, 0.62f }, { 620.0f, 0.34f }, { 790.0f, 0.16f }, { 980.0f, 0.06f },
     };
     for (int32 Index = UE_ARRAY_COUNT(GradientStrips) - 1; Index >= 0; --Index)
     {
         UBorder* Gradient = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
         if (!Gradient) continue;
-        Gradient->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, GradientStrips[Index].Alpha));
+        Gradient->SetBrushColor(FLinearColor(0.006f, 0.010f, 0.014f, GradientStrips[Index].Alpha));
         Gradient->SetVisibility(ESlateVisibility::Collapsed);
         Gradient->SetIsEnabled(false);
         R13FrontendPlaceGradientStrip(Canvas->AddChildToCanvas(Gradient), 0.0f, GradientStrips[Index].Width, 73 + Index);
@@ -459,39 +444,39 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     Panel->SetContent(Box);
     Panel->SetIsEnabled(true);
     Panel->SetVisibility(ESlateVisibility::Visible);
-    Panel->SetBrushColor(FLinearColor::Transparent);
-    Panel->SetPadding(FMargin(0.0f));
+    Panel->SetBrushColor(FLinearColor(0.014f, 0.020f, 0.027f, 0.78f));
+    Panel->SetPadding(FMargin(24.0f));
     if (UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Panel))
     {
         PanelSlot->SetAnchors(FAnchors(0.0f, 0.0f));
         PanelSlot->SetAlignment(FVector2D::ZeroVector);
-        PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));
-        PanelSlot->SetSize(FVector2D(470.0f, 760.0f));
+        PanelSlot->SetPosition(FVector2D(72.0f, 72.0f));
+        PanelSlot->SetSize(FVector2D(420.0f, 690.0f));
         PanelSlot->SetZOrder(810);
     }
 
-    UTextBlock* BrandOster = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "BrandOster", "OSTER"), 50, true);
-    UTextBlock* BrandConflict = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "BrandConflict", "CONFLICT"), 64, true);
-    UTextBlock* Title = R13FrontendMakeMenuText(Tree, FText::GetEmpty(), 32, true);
-    UTextBlock* Subtitle = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"), 14, false);
+    UTextBlock* BrandOster = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "BrandOster", "OSTER"), 22, false);
+    UTextBlock* BrandConflict = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "BrandConflict", "CONFLICT"), 42, true);
+    UTextBlock* Title = R13FrontendMakeMenuText(Tree, FText::GetEmpty(), 24, true);
+    UTextBlock* Subtitle = R13FrontendMakeMenuText(Tree, NSLOCTEXT("OCR13Frontend", "Subtitle", "ОСТЕР  •  ТАКТИЧНИЙ FPS"), 12, false);
     if (!BrandOster || !BrandConflict || !Title || !Subtitle) return;
 
-    R13FrontendApplyTypeface(BrandOster, FName(TEXT("Light")), 180);
-    R13FrontendApplyTypeface(BrandConflict, FName(TEXT("Bold")), 18);
-    R13FrontendApplyTypeface(Title, FName(TEXT("Bold")), 18);
-    R13FrontendApplyTypeface(Subtitle, FName(TEXT("Regular")), 70);
+    R13FrontendApplyTypeface(BrandOster, FName(TEXT("Light")), 260);
+    R13FrontendApplyTypeface(BrandConflict, FName(TEXT("Bold")), 45);
+    R13FrontendApplyTypeface(Title, FName(TEXT("Bold")), 35);
+    R13FrontendApplyTypeface(Subtitle, FName(TEXT("Regular")), 90);
 
-    Box->AddChildToVerticalBox(BrandOster)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, -6.0f));
-    Box->AddChildToVerticalBox(BrandConflict)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
-    Box->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 7.0f));
-    Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 24.0f));
+    Box->AddChildToVerticalBox(BrandOster)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, -2.0f));
+    Box->AddChildToVerticalBox(BrandConflict)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 5.0f));
+    Box->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 5.0f));
+    Box->AddChildToVerticalBox(Subtitle)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
 
-    UButton* Primary = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Start", "СТАРТ"));
+    UButton* Primary = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Start", "ГРАТИ"));
     UButton* Secondary = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Back", "НАЗАД"));
-    UButton* Network = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Network", "МЕРЕЖЕВА ГРА"));
+    UButton* Network = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Network", "ПІДКЛЮЧИТИСЯ"));
 
     UVerticalBox* Fields = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("R13_FrontendFields"));
-    UTextBlock* Status = R13FrontendMakeMenuText(Tree, FText::GetEmpty(), 12, false);
+    UTextBlock* Status = R13FrontendMakeMenuText(Tree, FText::GetEmpty(), 11, false);
     if (!Fields || !Status) return;
 
     const UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get();
@@ -509,11 +494,11 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
         Tree, Fields, NSLOCTEXT("OCR13Frontend", "DifficultyHint", "Складність: Easy / Normal / Hard / Veteran"), TEXT("Normal"));
     if (!Username || !Address || !MaxPlayers || !Bots || !Difficulty) return;
 
-    Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 5.0f));
-    Box->AddChildToVerticalBox(Fields)->SetPadding(FMargin(0.0f, 5.0f));
+    Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 4.0f));
+    Box->AddChildToVerticalBox(Fields)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 8.0f));
 
     UButton* Settings = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Settings", "НАЛАШТУВАННЯ"));
-    UButton* Quit = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИЙТИ З ГРИ"));
+    UButton* Quit = R13FrontendMakeMenuButton(Tree, Box, NSLOCTEXT("OCR13Frontend", "Quit", "ВИХІД"));
     if (!Primary || !Secondary || !Network || !Settings || !Quit) return;
 
     Primary->OnClicked.AddDynamic(this, &UOCR13FrontendMenuSubsystem::OnPrimaryClicked);
@@ -545,7 +530,7 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     QuitButton = Quit;
 
     ApplyPage();
-    UE_LOG(LogTemp, Display, TEXT("PASS27_FRONTEND_WIDGETTREE_OWNED"));
+    UE_LOG(LogTemp, Display, TEXT("PASS45_FRONTEND_REFRESH_READY static_widget_tree=1 unsafe_page_mutation=0 main_fields_inline=1 runtime_acceptance=0"));
 }
 
 void UOCR13FrontendMenuSubsystem::ApplyPage()
@@ -558,12 +543,12 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
     {
         const bool bMainPage = Page == 0;
         MenuPanel->SetBrushColor(bMainPage
-            ? FLinearColor::Transparent
-            : FLinearColor(0.025f, 0.030f, 0.036f, 0.96f));
-        MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(22.0f));
+            ? FLinearColor(0.014f, 0.020f, 0.027f, 0.78f)
+            : FLinearColor(0.014f, 0.020f, 0.027f, 0.94f));
+        MenuPanel->SetPadding(bMainPage ? FMargin(24.0f) : FMargin(24.0f));
         R13FrontendSetPanelGeometry(MenuPanel.Get(),
-            bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 106.0f),
-            bMainPage ? FVector2D(470.0f, 760.0f) : FVector2D(500.0f, 700.0f));
+            bMainPage ? FVector2D(72.0f, 72.0f) : FVector2D(72.0f, 84.0f),
+            bMainPage ? FVector2D(420.0f, 690.0f) : FVector2D(430.0f, 690.0f));
     }
 
     if (Page == 0)
@@ -571,13 +556,23 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
         if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Visible);
         if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Visible);
         TitleText->SetVisibility(ESlateVisibility::Collapsed);
-        SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "MainSubtitle", "ОСТЕР  •  ГОЛОВНЕ МЕНЮ"));
+        SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "MainSubtitle", "ОСТЕР  •  ТАКТИЧНИЙ FPS"));
         SubtitleText->SetVisibility(ESlateVisibility::Visible);
-        FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
-        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainStart", "СТАРТ"));
-        R13FrontendSetButtonLabel(NetworkButton.Get(), NSLOCTEXT("OCR13Frontend", "MainNetwork", "МЕРЕЖЕВА ГРА"));
+
+        // Pass45: keep the hierarchy immutable but expose identity/address inline. Network no longer
+        // relies on an invisible default field, and START keeps its safe direct-host route.
+        FieldsBox->SetVisibility(ESlateVisibility::Visible);
+        UsernameEntry->SetVisibility(ESlateVisibility::Visible);
+        AddressEntry->SetVisibility(ESlateVisibility::Visible);
+        MaxPlayersEntry->SetVisibility(ESlateVisibility::Collapsed);
+        BotsEntry->SetVisibility(ESlateVisibility::Collapsed);
+        BotDifficultyEntry->SetVisibility(ESlateVisibility::Collapsed);
+        StatusText->SetText(NSLOCTEXT("OCR13Frontend", "MainStatus", "ЛОКАЛЬНО: 16 ГРАВЦІВ • БОТИ: 0"));
+
+        R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "MainStart", "ГРАТИ"));
+        R13FrontendSetButtonLabel(NetworkButton.Get(), NSLOCTEXT("OCR13Frontend", "MainNetwork", "ПІДКЛЮЧИТИСЯ"));
         R13FrontendSetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "MainSettings", "НАЛАШТУВАННЯ"));
-        R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "MainQuit", "ВИЙТИ З ГРИ"));
+        R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "MainQuit", "ВИХІД"));
         R13FrontendSetButtonState(PrimaryButton.Get(), true);
         R13FrontendSetButtonState(SecondaryButton.Get(), false);
         R13FrontendSetButtonState(NetworkButton.Get(), true);
@@ -636,32 +631,31 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 
     if (MenuPanel.IsValid())
     {
-        MenuPanel->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.74f));
-        MenuPanel->SetPadding(FMargin(28.0f));
-        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(105.0f, 155.0f), FVector2D(520.0f, 365.0f));
+        MenuPanel->SetBrushColor(FLinearColor(0.010f, 0.015f, 0.020f, 0.92f));
+        MenuPanel->SetPadding(FMargin(24.0f));
+        R13FrontendSetPanelGeometry(MenuPanel.Get(), FVector2D(72.0f, 120.0f), FVector2D(420.0f, 360.0f));
     }
 
     if (BrandOsterText.IsValid()) BrandOsterText->SetVisibility(ESlateVisibility::Collapsed);
     if (BrandConflictText.IsValid()) BrandConflictText->SetVisibility(ESlateVisibility::Collapsed);
     TitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseTitle", "МЕНЮ ГРИ"));
     TitleText->SetVisibility(ESlateVisibility::Visible);
-    SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseSubtitle", "ГРУ ПРИЗУПИНЕНО"));
+    SubtitleText->SetText(NSLOCTEXT("OCR13Frontend", "PauseSubtitle", "ПАУЗА"));
     SubtitleText->SetVisibility(ESlateVisibility::Visible);
     FieldsBox->SetVisibility(ESlateVisibility::Collapsed);
 
-    R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseContinue", "ПРОДОВЖИТИ ГРУ"));
+    R13FrontendSetButtonLabel(PrimaryButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseContinue", "ПРОДОВЖИТИ"));
     R13FrontendSetButtonState(PrimaryButton.Get(), true);
     R13FrontendSetButtonState(SecondaryButton.Get(), false);
     R13FrontendSetButtonState(NetworkButton.Get(), false);
     R13FrontendSetButtonLabel(SettingsButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseSettings", "НАЛАШТУВАННЯ"));
-    R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseLeave", "ВИЙТИ В ГОЛОВНЕ МЕНЮ"));
+    R13FrontendSetButtonLabel(QuitButton.Get(), NSLOCTEXT("OCR13Frontend", "PauseLeave", "В ГОЛОВНЕ МЕНЮ"));
     R13FrontendSetButtonState(SettingsButton.Get(), true);
     R13FrontendSetButtonState(QuitButton.Get(), true);
 }
 
 void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay)
 {
-    // Pass 26: do not invalidate the same Slate visibility tree every Tick when nothing changed.
     if (bPresentationStateValid && bLastShowMenu == bShowMenu &&
         bLastShowBackdrop == bShowBackdrop && bLastDimGameplay == bDimGameplay)
     {
@@ -684,7 +678,7 @@ void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool
     if (MenuBackground.IsValid()) MenuBackground->SetVisibility(BackdropVisibility);
     if (MenuShade.IsValid())
     {
-        MenuShade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.40f));
+        MenuShade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.52f));
         MenuShade->SetVisibility(ShadeVisibility);
     }
     for (const TWeakObjectPtr<UBorder>& Gradient : MenuGradientLayers)
@@ -711,7 +705,6 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        // Pass 27: never detach the root-owned legacy frontend after Slate has been built.
     }
 
     if (UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root"))))
@@ -773,10 +766,6 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
     if (Page == 0)
     {
-        // Pass 29: START no longer turns the already-live Slate tree into a different page. The
-        // repeated crash is synchronized with that structural transition, not with compilation.
-        // Start the local hosted session directly from the stable main menu using the already-created
-        // default/saved fields (16 max, 0 bots, Normal unless later changed by a dedicated safe UI).
         bPendingHostedStart = true;
         ArmDeferredActionFence();
         UE_LOG(LogTemp, Display, TEXT("PASS29_MAIN_START_DIRECT_HOST_QUEUED"));
@@ -801,16 +790,12 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
-    // Pass 29: no runtime page mutation exists in the startup shell anymore. Secondary is retained
-    // only for compatibility with old constructed widgets and must never alter the live Slate tree.
     UE_LOG(LogTemp, Display, TEXT("PASS29_SECONDARY_IGNORED_STATIC_FRONTEND"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
     if (bPauseMenuActive || bLocalTravelPending || HasPendingFrontendAction()) return;
-    // Pass 29: keep the startup Slate hierarchy immutable. Network uses the saved/default address
-    // already present in AddressEntry instead of opening the crash-prone structural page transition.
     bPendingNetworkConnect = true;
     ArmDeferredActionFence();
     UE_LOG(LogTemp, Display, TEXT("PASS29_NETWORK_DIRECT_CONNECT_QUEUED"));
@@ -875,8 +860,6 @@ void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
     SetPresentationVisibility(true, true, false);
     ForceMenuInput();
 
-    // Production host route. No LocationTest and no AutoDeploy: after server creation the human
-    // remains controller-only in Deployment until TEAM -> SQUAD -> ROLE -> SPAWN -> У БІЙ is committed.
     const FString Travel = FString::Printf(
         TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Name=%s?Bots=%d?Population=%d?BotFill=0?MaxPlayers=%d?BotDifficulty=%s?PerfProfile=LowCPU?R13Gameplay=1"),
         *Username, Bots, Bots, MaxPlayers, *Difficulty);
@@ -891,9 +874,6 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC || !MenuBox.IsValid()) return;
 
-    // Pass 25: OnClicked fires on mouse release. Re-applying SetInputMode every world Tick
-    // can reset Slate mouse capture between press and release, leaving every button visually
-    // present but inert. Arm UI input once per menu/controller lifecycle instead.
     if (bMenuInputArmed) return;
 
     PC->ResetIgnoreMoveInput();
