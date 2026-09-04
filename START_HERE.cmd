@@ -10,6 +10,7 @@ set "MATERIAL_GATE=%~dp0OsterConflict\RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 set "EVIDENCE_VERIFY=%~dp0VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 set "ASSET_STATUS_COLLECTOR=%~dp0COLLECT_LOCAL_ASSET_STATUS.py"
 set "ASSET_STATUS_TEXT=%~dp0OsterConflict\Saved\AssetStatus\LOCAL_ASSET_STATUS.txt"
+set "ASSET_STATUS_JSON=%~dp0OsterConflict\Saved\AssetStatus\LOCAL_ASSET_STATUS.json"
 set "PROJECT_DIR=%~dp0OsterConflict"
 set "GAMEPLAY_LOG=%~dp0Logs\R14_CURRENT_GAMEPLAY.log"
 set "MATERIAL_LOG=%~dp0Logs\PASS45_STRICT_MATERIAL_GATE.log"
@@ -138,18 +139,23 @@ if not exist "%ALL_ASSET_IMPORT%" (
 call "%ALL_ASSET_IMPORT%"
 set "ASSET_RC=%ERRORLEVEL%"
 call :write_asset_snapshot
+set "SNAPSHOT_RC=%ERRORLEVEL%"
 if not "%ASSET_RC%"=="0" (
   echo [STOP] Локальні моделі/HUD/скіни не завершили повний ingest. Код: %ASSET_RC%
   if exist "%ASSET_STATUS_TEXT%" echo [ASSET STATUS] Зведення: %ASSET_STATUS_TEXT%
   exit /b %ASSET_RC%
 )
-if exist "%ASSET_STATUS_TEXT%" echo [ASSET STATUS] Import snapshot: %ASSET_STATUS_TEXT%
+if not "%SNAPSHOT_RC%"=="0" (
+  echo [STOP] Asset import завершився, але current LOCAL_ASSET_STATUS не створено. Код snapshot: %SNAPSHOT_RC%
+  exit /b %SNAPSHOT_RC%
+)
+echo [ASSET STATUS] Import snapshot: %ASSET_STATUS_TEXT%
 exit /b 0
 
 :write_asset_snapshot
 if not exist "%ASSET_STATUS_COLLECTOR%" (
-  echo [WARN] Відсутній collector локального asset-статусу: %ASSET_STATUS_COLLECTOR%
-  exit /b 0
+  echo [STOP] Відсутній collector локального asset-статусу: %ASSET_STATUS_COLLECTOR%
+  exit /b 62
 )
 set "ASSET_PY_CMD="
 where py >nul 2>nul
@@ -159,20 +165,30 @@ if not defined ASSET_PY_CMD (
   if not errorlevel 1 set "ASSET_PY_CMD=python"
 )
 if not defined ASSET_PY_CMD (
-  echo [WARN] Python 3 не знайдений; LOCAL_ASSET_STATUS snapshot не створено.
-  exit /b 0
+  echo [STOP] Python 3 не знайдений; LOCAL_ASSET_STATUS snapshot не створено.
+  exit /b 63
 )
 set "PASS45_SOURCE_SHA=unknown"
 for /f "delims=" %%H in ('git -C "%~dp0" rev-parse HEAD 2^>nul') do set "PASS45_SOURCE_SHA=%%H"
 if defined ASSET_RC set "PASS45_ASSET_IMPORT_RC=%ASSET_RC%"
 if defined RUNTIME_RC set "PASS45_RUNTIME_RC=%RUNTIME_RC%"
+if exist "%ASSET_STATUS_TEXT%" del /q "%ASSET_STATUS_TEXT%" >nul 2>nul
+if exist "%ASSET_STATUS_JSON%" del /q "%ASSET_STATUS_JSON%" >nul 2>nul
 %ASSET_PY_CMD% "%ASSET_STATUS_COLLECTOR%"
 set "ASSET_STATUS_RC=%ERRORLEVEL%"
 set "PASS45_ASSET_IMPORT_RC="
 set "PASS45_RUNTIME_RC="
 if not "%ASSET_STATUS_RC%"=="0" (
-  echo [WARN] Не вдалося створити LOCAL_ASSET_STATUS snapshot.
-  exit /b 0
+  echo [STOP] Не вдалося створити LOCAL_ASSET_STATUS snapshot. Collector code: %ASSET_STATUS_RC%
+  exit /b 64
+)
+if not exist "%ASSET_STATUS_TEXT%" (
+  echo [STOP] Collector завершився без LOCAL_ASSET_STATUS.txt.
+  exit /b 65
+)
+if not exist "%ASSET_STATUS_JSON%" (
+  echo [STOP] Collector завершився без LOCAL_ASSET_STATUS.json.
+  exit /b 65
 )
 exit /b 0
 
