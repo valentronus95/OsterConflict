@@ -1,6 +1,7 @@
 #include "OCPickupGunTruck.h"
 
 #include "OCDamageTypes.h"
+#include "OCLocalInboxRuntimeSubsystem.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -179,6 +180,20 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         {
             bUsingHMMWV = ApplyProportionalVehicleMesh(Chassis, HMMWV, 465.0f, TOptional<float>(-86.0f));
             bUsingProductionVehicle = bUsingHMMWV;
+        }
+    }
+
+    // If the user put a pickup/technical/Hilux model in models_game_OC, use it on the actual drivable
+    // gun-truck before falling back to the old packaged pickup. It is no longer a passive file in an inbox.
+    if (!bUsingProductionVehicle && Chassis)
+    {
+        if (UStaticMesh* LocalPickup = UOCLocalInboxRuntimeSubsystem::LoadFirstStaticMeshForCategory(TEXT("PICKUP")))
+        {
+            bUsingProductionVehicle = ApplyProportionalVehicleMesh(Chassis, LocalPickup, 485.0f, TOptional<float>());
+            if (bUsingProductionVehicle)
+            {
+                UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_PICKUP_RUNTIME_BOUND asset=%s"), *LocalPickup->GetPathName());
+            }
         }
     }
 
