@@ -63,6 +63,19 @@ For PASS45, `_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md` and `_DOCS/PASS45
 12. Assistant-owned Git operations are performed by the assistant whenever connected tooling permits them. Do not offload remote Git/PR/CI work to the user.
 13. Local uncommitted user `Changes` are outside remote mutation scope unless the user explicitly asks and factual local access exists.
 
+## Branch discipline — binding
+
+- For one active TZ, keep exactly **one canonical work branch** plus `main`.
+- For PASS45, the only canonical work branch is `fix/pass45-runtime-rejection-material-closure-20260826` until PR #94 is accepted and merged.
+- Do **not** create separate remote branches for audits, checkpoints, backups, asset intake, individual weapons, individual fixes, verifier changes or temporary experiments.
+- Git history is the rollback mechanism. Do not keep remote `backup/*`, `tmp-*`, duplicate pass/fix branches or similar branch clutter after their unique work has been reconciled.
+- Before retiring an existing branch, verify whether it contains commits or assets not present in the canonical work branch. Transfer only unique required production/provenance work; never merge an old branch wholesale merely to preserve it.
+- A new TZ may use a new branch only when the user creates/requests that branch. The assistant does not create an additional TZ branch on its own.
+- Normal delivery cadence is: `work on canonical branch -> push coherent batch -> run only applicable critical checks -> merge to main as soon as the batch satisfies its factual acceptance gates`.
+- Runtime/visual/audio changes that require UE evidence are not considered accepted merely because GitHub CI is green. Do not move known runtime-rejected work into `main` solely to reduce branch count.
+- After an accepted TZ branch is merged, retire that work branch instead of leaving it as a permanent backup.
+- Third-party/raw source downloads are temporary intake, not final game content. Accepted shipping assets must be imported into the Unreal project under `OsterConflict/Content/...` with required provenance retained; do not create a permanent remote branch just to warehouse source archives.
+
 ## Runtime/content non-regression
 
 - One runtime responsibility has one current mutating owner.
