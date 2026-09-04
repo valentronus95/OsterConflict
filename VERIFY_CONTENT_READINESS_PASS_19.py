@@ -63,15 +63,18 @@ for needle in ("PASS19_PLAYABLE_WEAPON_SET_READY", "PASS19_PLAYABLE_WEAPON_SET_F
     require(runtime_evidence, needle, "canonical Pass19 runtime evidence")
 forbid(start_here, "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd", "retired Pass15 acceptance launcher")
 
-# Pass 44 supersedes the old all-or-nothing ensure_sources_exist() rule. Every production source remains real,
-# but an absent BTR is a named content gap and must not prevent an available HMMWV or M2 from importing.
+# Current production intake keeps HMMWV/M2 independent and gives BTR-4 two factual paths: local user FBX
+# when present, otherwise the Oster-authored generated fallback. A failure in one family cannot hide another.
 for needle in (
     "ukrainian_hmmwv_mk_19.glb",
     "m2_50cal_machinegun_cc0.glb",
     "BTR4_Bucephalus.fbx",
     'attempt("HMMWV"',
     'attempt("M2"',
-    'attempt("BTR4"',
+    "if BTR_SOURCE.exists():",
+    "build_btr4_glb(authored_btr)",
+    "BTR4 local FBX missing; generated and imported Oster-authored fallback",
+    "BTR4_IMPORT_FAILED=",
     "other independent assets will continue",
     "CONTENT_GAP=",
 ):
@@ -82,7 +85,7 @@ for needle in (
     'set "HMMWV_IMPORTED=0"',
     'set "M2_IMPORTED=0"',
     'set "BTR_IMPORTED=0"',
-    "Continuing independent intake for any available source files",
+    "Continuing independent intake for available source files",
     "CONTENT GAP: BTR-4 production source/import is still unavailable",
 ):
     require(vehicle_cmd, needle, "independent production vehicle command truth")
@@ -96,13 +99,13 @@ for needle in (
     require(vehicle_fresh, needle, "fresh-load authored material truth")
 
 require(m2_launcher, "source_kind=downloaded", "real M2 source requirement")
-require(btr_launcher, "source_kind=local_user_fbx", "real BTR4 source requirement")
+require(btr_launcher, "source_kind=local_user_fbx", "exact local BTR4 source requirement")
 
 print("CONTENT READINESS PASS 19 + PASS 44 INDEPENDENT INTAKE CONTRACT PASS")
 print("- generic weapon fallback meshes do not impersonate production art")
 print("- Pass 7 remains strict exact-production certification")
 print("- Pass 19 separately proves an 11-class playable real-mesh rack")
 print("- Pass19 runtime acceptance is carried by START_HERE + canonical Pass45 evidence, not a deleted CMD")
-print("- HMMWV/M2/BTR4 each still require a real source, but missing BTR cannot block available HMMWV/M2")
+print("- HMMWV/M2 remain independent real-source imports; BTR4 may use local FBX or the authored generated fallback")
 print("- imported vehicle meshes must reopen with authored materials, not Default/BasicShape placeholders")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime and exact asset intake remain required")
