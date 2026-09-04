@@ -31,12 +31,24 @@ function Get-Category([string]$Text) {
     if ($v -match 'm249|minimi') { return 'M249' }
     if ($v -match 'remington|870') { return 'REMINGTON870' }
     if ($v -match 'm16|m4a1|(^|[^a-z0-9])m4([^a-z0-9]|$)') { return 'M16_M4' }
-    if ($v -match 'ak.?47|rifle|weapon|gun|pistol|shotgun|smg|sniper|launcher|rocket') { return 'WEAPON_OTHER' }
+    if ($v -match 'ak.?47|(^|[^a-z0-9])akm([^a-z0-9]|$)') { return 'AK47' }
+    if ($v -match '(^|[^a-z0-9])mp5([^a-z0-9]|$)') { return 'MP5' }
+    if ($v -match 'm?1911') { return 'M1911' }
+    if ($v -match 'm700|remington.?700') { return 'M700' }
+    if ($v -match '(^|[^a-z0-9])m14([^a-z0-9]|$)') { return 'M14' }
+    if ($v -match 'mac.?10') { return 'MAC10' }
+    if ($v -match 'tec.?9') { return 'TEC9' }
+    if ($v -match 'lever|winchester') { return 'LEVER_ACTION' }
+    if ($v -match 'rpg|launcher|rocket') { return 'LAUNCHER' }
+    if ($v -match 'rifle|weapon|gun|pistol|shotgun|smg|sniper') { return 'WEAPON_OTHER' }
     if ($v -match 'pickup|pick.?up|technical|hilux|truck') { return 'PICKUP' }
     if ($v -match 'skin|character|soldier|human|mannequin|uniform|operator|fighter|персона|солдат|скін|людин') { return 'CHARACTER_SKIN' }
-    if ($v -match 'building|house|home|museum|silpo|stadium|culture|college|street|town|village|будин|музей|стадіон|вулиц') { return 'BUILDING_WORLD' }
-    if ($v -match 'tree|foliage|grass|bush|vegetation|plant|дерев|кущ|трава') { return 'FOLIAGE' }
-    if ($v -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|мебл|проп|паркан') { return 'PROP' }
+    if ($v -match 'tree|foliage|grass|bush|vegetation|plant|flower|mushroom|treestump|дерев|кущ|трава') { return 'FOLIAGE' }
+    if ($v -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|light|bench|ladder|plank|wheel|whell|bowl|cauldron|kettle|mug|spoon|bucket|pot|sack|cart|axe|boat|well|torch|hay|log|stone|мебл|проп|паркан') { return 'PROP' }
+    if ($v -match 'river|canal|stream|pond|waterway') { return 'WATER_WORLD' }
+    if ($v -match 'road|sidewalk|pavement|pathway') { return 'ROAD_WORLD' }
+    if ($v -match 'terrain|ground|landscape|mud|moss|field') { return 'GROUND_WORLD' }
+    if ($v -match 'building|house|home|hut|roof|wall|porch|balcony|shed|hovel|tower|museum|silpo|stadium|culture|college|street|town|village|будин|музей|стадіон|вулиц') { return 'BUILDING_WORLD' }
     return 'UNCLASSIFIED'
 }
 
