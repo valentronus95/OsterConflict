@@ -1,0 +1,40 @@
+name: one-shot loose UE package intake patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-loose-ue-packages-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch loose UE package intake and remove workflow
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('OsterConflict/Scripts/prepare_all_local_inbox_assets.ps1')
+          text = p.read_text(encoding='utf-8-sig')
+          needle = """    $record = [ordered]@{ source=$file.FullName; category=$category; extension=$ext; archive=$null }\n    $manifest.loose_sources += $record\n    if ($modelExtensions -contains $ext) { $manifest.raw_models += $record }\n"""
+          replacement = """    $record = [ordered]@{ source=$file.FullName; category=$category; extension=$ext; archive=$null }\n    $manifest.loose_sources += $record\n\n    # Loose UE-ready packages obey the same rule as ZIP content: deploy them into the real project\n    # while preserving their /Game-relative path. Dropping a .uasset beside a ZIP must not leave it inert.\n    if ($uePackageExtensions -contains $ext) {\n        $deploy = Get-DeployTarget -SourcePath $file.FullName -StageRoot $Inbox\n        if ($deploy) {\n            $copyResult = Copy-PackageFile -Source $file.FullName -DeployInfo $deploy -Conflicts $conflicts\n            $manifest.ue_packages += [ordered]@{\n                source=$file.FullName; archive=$null; category=$category; extension=$ext;\n                deploy_kind=$deploy.kind; target=$deploy.target; package_relative=$deploy.package_relative; result=$copyResult\n            }\n        }\n        continue\n    }\n\n    if ($modelExtensions -contains $ext) { $manifest.raw_models += $record }\n"""
+          if 'Loose UE-ready packages obey the same rule' not in text:
+              if needle not in text:
+                  raise SystemExit('loose-source marker not found')
+              text = text.replace(needle, replacement, 1)
+          p.write_text(text, encoding='utf-8', newline='\r\n')
+          Path('.github/workflows/patch-loose-ue-packages-once.yml').unlink()
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Scripts/prepare_all_local_inbox_assets.ps1 .github/workflows/patch-loose-ue-packages-once.yml
+          git commit -m "Pass45: deploy loose UE packages from local inbox"
+          git push origin main
