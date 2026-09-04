@@ -8,6 +8,7 @@ set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "INBOX=%REPO_ROOT%\models_game_OC"
 set "AUDIT=%PROJECT_DIR%Scripts\audit_local_model_inbox.ps1"
 set "PREPARE=%PROJECT_DIR%Scripts\prepare_all_local_inbox_assets.ps1"
+set "PREPARE_WEAPONS=%PROJECT_DIR%Scripts\prepare_local_weapon_sources.ps1"
 set "IMPORTER=%PROJECT_DIR%Scripts\import_all_project_assets.py"
 set "SUCCESS=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
 set "MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
@@ -48,6 +49,10 @@ if not exist "%PREPARE%" (
   echo [STOP] Відсутній розпаковувач локальних моделей: %PREPARE%
   exit /b 53
 )
+if not exist "%PREPARE_WEAPONS%" (
+  echo [STOP] Відсутній staging точних M249/Remington 870: %PREPARE_WEAPONS%
+  exit /b 53
+)
 if not exist "%IMPORTER%" (
   echo [STOP] Відсутній єдиний UE importer локальних + Unreal/Fab моделей: %IMPORTER%
   exit /b 54
@@ -62,7 +67,7 @@ echo OSTER CONFLICT - ВСІ МОДЕЛІ ПРОЕКТУ
 echo models_game_OC + Unreal/Fab/Marketplace Content -> UE import/catalog -> runtime binding
 echo ============================================================
 
-echo [1/5] Дотягую реальні Git LFS payloads для всіх уже доданих model packs...
+echo [1/6] Дотягую реальні Git LFS payloads для всіх уже доданих model packs...
 where git >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Git не знайдено в PATH.
@@ -87,15 +92,19 @@ if errorlevel 1 (
   exit /b 49
 )
 
-echo [2/5] Перевіряю локальні ZIP...
+echo [2/6] Перевіряю локальні ZIP...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [3/5] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
+echo [3/6] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
-echo [4/5] Збираю актуальний OsterConflictEditor перед імпортом...
+echo [4/6] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PROJECT_DIR%"
+if errorlevel 1 exit /b !ERRORLEVEL!
+
+echo [5/6] Збираю актуальний OsterConflictEditor перед імпортом...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
 set "BUILD_RC=!ERRORLEVEL!"
 if not "!BUILD_RC!"=="0" (
@@ -103,7 +112,7 @@ if not "!BUILD_RC!"=="0" (
   exit /b !BUILD_RC!
 )
 
-echo [5/5] Імпортую models_game_OC і додаю ВСІ mesh assets із Unreal/Fab/Marketplace packs у runtime catalog...
+echo [6/6] Імпортую models_game_OC, HMMWV/M2/BTR4, M249/Remington і ВСІ mesh assets із Unreal/Fab/Marketplace packs...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORTER%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
@@ -125,5 +134,5 @@ if errorlevel 1 (
   exit /b 56
 )
 
-echo [ALL PROJECT ASSETS] PASS: локальні та Unreal/Fab mesh assets зібрані в один runtime catalog.
+echo [ALL PROJECT ASSETS] PASS: локальні, production та Unreal/Fab mesh assets зібрані в один runtime catalog.
 exit /b 0
