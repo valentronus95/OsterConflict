@@ -1,147 +1,186 @@
 # OSTER CONFLICT — ASSET STATUS
 
-Date: 2026-09-04
-Branch: `fix/pass45-asset-import-fail-closed-20260904`
-Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`
-Current exact-head code checkpoint before this status-only update: `1eaaea569ea61144e84bbae384da923c5173222a`
-PR: #98 (Draft, unmerged)
-Exact-head GitHub CI on `1eaaea56`: **9/9 SUCCESS**
+Date: 2026-09-04  
+Branch: `fix/pass45-asset-import-fail-closed-20260904`  
+Base: `main@a1ad0e200611911102c48180956d82f73d0d8fc3`  
+Last verified code checkpoint: `31b679558a9c752a6e9291f30a97755daf720577`  
+PR: #98 — Draft, unmerged  
+GitHub CI on the last verified checkpoint: **9/9 SUCCESS**
 
-## 1. Current summary
+## 1. ГОЛОВНА ТАБЛИЦЯ ПРОГРЕСУ
 
-This file is the human-readable asset checkpoint. It tracks what is actually finished, what exists only as source/import logic, what still needs the user's local UE 5.8 machine, and what is a real content gap.
+Індикатори:
 
-Do not call an asset `READY` merely because a source file, importer, `.uasset` path, GitHub CI check, or Fab package exists. Runtime and visual acceptance remain separate factual gates.
+- 🟢 `ГОТОВО` — пункт фактично закритий.
+- 🟡 `ОЧІКУЄ / ЧАСТКОВО` — код готовий, але бракує локального UE/runtime/visual доказу.
+- 🔴 `ПРОБЛЕМА / CONTENT GAP` — відсутній потрібний asset або є фактичний провал.
 
-### Progress calculation
+Кожен із 10 етапів = **10% загального прогресу**.
 
-Progress below uses ten fixed integration stages with equal checkpoint weight. It is a progress indicator, not an estimate of time/effort.
+| № | Етап | Індикатор | Виконано в етапі | Вклад у загальний прогрес | Що вже зроблено | Що лишилось / проблема |
+|---:|---|:---:|---:|---:|---|---|
+| 1 | Local inbox / intake contract | 🟢 | 100% | +10% | `models_game_OC` lifecycle і safe local-only policy визначені | Нічого |
+| 2 | Prepare / extract / classify | 🟢 | 100% | +10% | ZIP/loose sources безпечно розпаковуються і класифікуються | Нічого |
+| 3 | Exact duplicate removal | 🟢 | 100% | +10% | SHA-256 dedupe працює до UE import | Нічого |
+| 4 | Fab / Marketplace / project discovery | 🟢 | 100% | +10% | Скануються `/Game` і project/plugin content mounts | Нічого |
+| 5 | Production import logic | 🟢 | 100% | +10% | Є import paths для HMMWV, M2, BTR-4, M249, Remington 870 | Нічого по коду |
+| 6 | Fail-closed aggregate result | 🟢 | 100% | +10% | GAP/exception блокує фальшивий PASS; stale PASS markers видаляються | Нічого |
+| 7 | GitHub source / regression CI | 🟢 | 100% | +10% | Exact-head source checks пройшли 9/9 | Нічого |
+| 8 | Local UE 5.8 import result | 🟡 | 0% | +0% | Importer і `LOCAL_ASSET_STATUS` collector готові | Потрібен фактичний прогін на локальному UE 5.8 |
+| 9 | Live gameplay/runtime hookup | 🟡 | 0% | +0% | Runtime validators і canonical evidence route готові | Потрібні live inbox/world/material/gameplay результати |
+| 10 | Direct visual acceptance + ZIP cleanup | 🟡 | 0% | +0% | Правила acceptance/cleanup визначені | Треба побачити assets у грі; ZIP видаляти тільки після PASS |
 
-| Stage | State | Meaning |
-|---|---|---|
-| 1. Local inbox/intake contract | DONE | `models_game_OC` lifecycle and safe local-only policy defined |
-| 2. Safe prepare/extract/classify | DONE | supported sources are prepared and classified before UE import |
-| 3. Exact duplicate removal | DONE | SHA-256 duplicate removal runs before UE import |
-| 4. Fab/Marketplace/project content discovery | DONE | project + plugin content mounts are scanned instead of relying on a fixed pack list |
-| 5. Production import logic | DONE | HMMWV, M2, BTR-4, exact M249 and Remington 870 import paths exist |
-| 6. Fail-closed aggregate result | DONE | required production GAP/exception blocks aggregate PASS; stale PASS sentinels are cleared |
-| 7. Exact-head GitHub source CI | DONE | all nine applicable checks on `1eaaea56` completed SUCCESS |
-| 8. Local UE 5.8 import result | PENDING | collector is READY, but factual import result still requires the actual local UE project |
-| 9. Live gameplay/runtime hookup | PENDING | requires local inbox/world/material/runtime results from actual gameplay |
-| 10. Direct visual acceptance + source archive cleanup | PENDING | requires visual check; source ZIP may be deleted only after validated success |
+### ЗАГАЛЬНИЙ ПРОГРЕС
 
-**Checkpoint progress: 7/10 = 70%.**
+| Показник | Значення | Індикатор |
+|---|---:|:---:|
+| Завершено етапів | **7 / 10** | 🟢 |
+| Загальний прогрес | **70%** | 🟡 |
+| Залишилось | **30%** | 🟡 |
+| Source/code/CI частина | **100%** | 🟢 |
+| Local UE import acceptance | **0% підтверджено** | 🟡 |
+| Live runtime acceptance | **0% підтверджено** | 🟡 |
+| Direct visual acceptance | **0% підтверджено** | 🟡 |
+| Фактичних failed GitHub checks на останньому verified checkpoint | **0** | 🟢 |
 
-**Source/CI portion of the current asset checkpoint: 100%.**
+**Поточний стан: 🟡 70% — кодова частина закрита, решта блокується відсутністю локального UE/runtime/visual доказу, а не незакритим GitHub-кодом.**
 
-**Local UE/runtime/visual acceptance portion: pending; GitHub cannot prove it.**
+## 2. PRODUCTION ASSET MATRIX
 
-### What advanced in this pass without falsely increasing the percentage
+Для кожного production asset використовується 4 фактичні ворота:
 
-`COLLECT_LOCAL_ASSET_STATUS.py` now consolidates the scattered local evidence after the canonical runtime evidence pass into:
+1. source/import support;
+2. UE import result;
+3. live runtime hookup;
+4. direct visual acceptance.
+
+Відсоток нижче — кількість фактично підтверджених воріт, а не оцінка часу.
+
+| Asset | Індикатор | Підтверджено | Поточний стан | Чого бракує |
+|---|:---:|---:|---|---|
+| HMMWV | 🟡 | **25%** | Import support готовий | Fresh UE import, live vehicle use, scale/orientation/material visual proof |
+| M2 Browning | 🟡 | **25%** | Import support готовий | Fresh UE import, HMMWV mount runtime, pitch/muzzle/material visual proof |
+| BTR-4 | 🟡 | **25%** | Import/fallback support готовий | Fresh UE result, live use, proportions/orientation/material visual proof |
+| M249 | 🟡 | **25%** | Exact-source importer готовий | Перевірити exact local payload, UE result, runtime, visual |
+| Remington 870 | 🟡 | **25%** | Exact-source importer готовий | Перевірити exact local payload, UE result, runtime, visual |
+| M16/M4 family | 🔴 | **0% READY** | Generic classifier є, dedicated verified payload нема | Потрібен фактичний production payload і весь UE/runtime/visual цикл |
+
+`25%` тут означає лише: **код/import support існує**. Це не означає, що asset уже реально працює в грі.
+
+## 3. OTHER LOCAL / FAB ASSET FAMILIES
+
+| Family | Intake support | Runtime state | Індикатор | Що потрібно для зеленого |
+|---|---|---|:---:|---|
+| AK-47 | supported | PENDING | 🟡 | `runtime_bindings.json` + gameplay load |
+| MP5 | supported | PENDING | 🟡 | manifest + gameplay load |
+| M1911 | supported | PENDING | 🟡 | manifest + gameplay load |
+| M700 | supported | PENDING | 🟡 | manifest + gameplay + visual calibration |
+| M14 | supported | PENDING | 🟡 | manifest + gameplay load |
+| MAC-10 | supported | PENDING | 🟡 | manifest + gameplay load |
+| TEC-9 | supported | PENDING | 🟡 | manifest + gameplay load |
+| Lever Action | supported | PENDING | 🟡 | manifest + gameplay + visual calibration |
+| Other weapon/launcher assets | supported/classified | PENDING | 🟡 | exact bound asset paths + runtime |
+| Pickups / vehicle props | supported/classified | PENDING | 🟡 | live placement/load proof |
+| Buildings | supported/classified | PENDING | 🟡 | `local_world_runtime_validation.txt` |
+| Props / furniture / fences | supported/classified | PENDING | 🟡 | live world validation |
+| Foliage / trees / grass | supported/classified | PENDING | 🟡 | live placement + visual proof |
+| Roads / sidewalks | supported/classified | PENDING | 🟡 | live placement + visual proof |
+| Ground / terrain | supported/classified | PENDING | 🟡 | live placement + visual proof |
+| Water / river assets | supported/classified | PENDING | 🟡 | live placement + visual proof |
+| Character skins | skeletal import supported | PENDING | 🟡 | compatible skeleton count + live character proof |
+| HUD/UI textures/widgets | supported | PENDING | 🟡 | manifest + actual HUD usage |
+| Fab/Marketplace/project-plugin meshes | automatic mount discovery | PENDING | 🟡 | exact discovered/bound/failure counts |
+
+## 4. ЩО САМЕ ЗАРАЗ БЛОКУЄ НАСТУПНІ 30%
+
+| Блокер | Індикатор | Чого немає зараз | Що дасть результат |
+|---|:---:|---|---|
+| Fresh local UE import manifest | 🟡 | `runtime_bindings.json` поточного запуску | точні discovered/imported/bound/unbound counts |
+| Production vehicles import result | 🟡 | fresh `production_import_success.txt` | статус HMMWV/M2/BTR-4 |
+| Exact weapons import result | 🟡 | fresh `production_weapon_import_result.txt` | статус M249/Remington |
+| Local inbox runtime proof | 🟡 | `local_inbox_runtime_validation.txt` | чи реально відкриваються bound assets у gameplay |
+| Local world runtime proof | 🟡 | `local_world_runtime_validation.txt` | чи buildings/props/foliage/roads/water реально підключені до Остра |
+| Gameplay evidence | 🟡 | fresh `R14_CURRENT_GAMEPLAY.log` | vehicles/input/FPS/runtime ownership |
+| Material evidence | 🟡 | fresh `PASS45_STRICT_MATERIAL_GATE.log` | production material/dependency PASS/GAP |
+| Visual inspection | 🟡 | пряме спостереження в UE/game | останній acceptance перед READY/cleanup |
+
+Наразі **червоного runtime FAIL не підтверджено**, бо свіжого локального UE-прогону ще немає. Червоним позначений тільки відомий `M16/M4` content gap, де немає verified dedicated payload.
+
+## 5. ЄДИНИЙ ЛОКАЛЬНИЙ STATUS SNAPSHOT
+
+`COLLECT_LOCAL_ASSET_STATUS.py` уже підключений до canonical runtime evidence verifier і запускається **як при PASS, так і при FAIL**.
+
+Після фактичного локального прогону він створює:
 
 - `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt`
 - `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json`
 
-The snapshot contains prepared counts, bound/unbound counts, category counts, HMMWV/M2/BTR status, M249/Remington status, local inbox/world runtime status, material/evidence state, exact GAP reasons and the list of still-missing local evidence files.
+У snapshot входять:
 
-This removes manual report hunting but does **not** convert stage 8 or stage 9 to DONE before a real local run.
+- prepared counts;
+- discovered/imported/bound/unbound counts;
+- category counts;
+- HMMWV / M2 / BTR-4 status;
+- M249 / Remington status;
+- local inbox/world runtime status;
+- material/evidence state;
+- exact GAP reasons;
+- список відсутніх evidence files.
 
-## 2. Required production asset matrix
+Це прибирає ручне полювання по `Saved` і логах, але не підміняє сам UE runtime proof.
 
-Legend:
+## 6. LOCAL FILES, ЯКИХ ЩЕ НЕМАЄ В GITHUB / LIBRARY
 
-- `SOURCE READY` — source/import contract exists, but no current local UE proof in GitHub.
-- `RUNTIME PENDING` — must be loaded/used by the live game before acceptance.
-- `CONTENT GAP` — a required exact payload is not verified available.
-- `READY` — only after factual local UE/runtime/visual evidence.
+| File/report | Для чого | Стан |
+|---|---|:---:|
+| `OsterConflict/Saved/LocalModelInbox/prepared_sources.json` | prepared sources | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/LocalModelInbox/runtime_bindings.json` | bound/unbound/categories/GAPs | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/LocalModelInbox/runtime_bindings_success.txt` | aggregate binding PASS | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/ProductionAssetImportCache/production_import_success.txt` | HMMWV/M2/BTR state | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/ProductionAssetImportCache/production_weapon_import_result.txt` | M249/Remington state | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/AutomationReports/ProductionModels/local_inbox_runtime_validation.txt` | live inbox proof | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/AutomationReports/ProductionModels/local_world_runtime_validation.txt` | live world proof | 🟡 NOT AVAILABLE |
+| `Logs/R14_CURRENT_GAMEPLAY.log` | gameplay/runtime/FPS proof | 🟡 NOT AVAILABLE |
+| `Logs/PASS45_STRICT_MATERIAL_GATE.log` | material/dependency proof | 🟡 NOT AVAILABLE |
+| `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt` | consolidated human report | 🟡 NOT GENERATED YET |
+| `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json` | consolidated machine report | 🟡 NOT GENERATED YET |
 
-| Asset | Canonical UE target | Source/import state | Current factual state | What is missing |
-|---|---|---|---|---|
-| HMMWV | `/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA` | Import logic present | SOURCE READY / RUNTIME PENDING | fresh local UE status, live vehicle use, scale/orientation/material visual proof |
-| M2 Browning | `/Game/Production/Weapons/M2/SM_M2_Browning` | Import logic present | SOURCE READY / RUNTIME PENDING | fresh local UE status, live HMMWV mount, pitch/muzzle/material visual proof |
-| BTR-4 | `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus` | FBX import or authored fallback logic present | SOURCE READY / RUNTIME PENDING | fresh local UE result, live use, proportions/orientation/material visual proof |
-| M249 | `/Game/Production/Weapons/M249/SM_M249` | exact local-source importer present | RUNTIME PENDING / possible CONTENT GAP | local `weapon_sources.json` + fresh production weapon result; exact source must exist if canonical asset is absent |
-| Remington 870 | `/Game/Production/Weapons/Remington870/SM_Remington870` | exact local-source importer present | RUNTIME PENDING / possible CONTENT GAP | local `weapon_sources.json` + fresh production weapon result; exact source must exist if canonical asset is absent |
-| M16/M4 family | discovered/classified when payload exists | generic intake recognizes the family | CONTENT GAP | no verified dedicated payload may be claimed READY yet |
+## 7. ЗАКРИТО В PR #98
 
-## 3. Other local/Fab asset families
+- 🟢 aggregate importer fail-closed для production vehicle/exact-weapon GAP;
+- 🟢 stale global/sub-import PASS sentinels очищаються перед fresh run;
+- 🟢 required production failures записуються як `UNBOUND`;
+- 🟢 старі Pass38/Pass37/Pass33 залежності від видаленого `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd` прибрані;
+- 🟢 `COLLECT_LOCAL_ASSET_STATUS.py` збирає один `.txt` + `.json` snapshot;
+- 🟢 snapshot створюється і після runtime PASS, і після runtime FAIL;
+- 🟢 source/regression CI останнього verified checkpoint пройшов 9/9.
 
-The importer currently recognizes and catalogs these families. Their **counts and actual bound assets are unknown until the fresh local runtime manifest is produced**.
+## 8. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
 
-| Family | Intake support | Runtime acceptance now | Missing evidence |
-|---|---|---|---|
-| AK-47 | supported | PENDING | current `runtime_bindings.json` + gameplay load |
-| MP5 | supported | PENDING | current `runtime_bindings.json` + gameplay load |
-| M1911 | supported | PENDING | current `runtime_bindings.json` + gameplay load |
-| M700 | supported | PENDING | current `runtime_bindings.json` + gameplay load/visual calibration |
-| M14 | supported | PENDING | current `runtime_bindings.json` + gameplay load |
-| MAC-10 | supported | PENDING | current `runtime_bindings.json` + gameplay load |
-| TEC-9 | supported | PENDING | current `runtime_bindings.json` + gameplay load |
-| Lever Action | supported | PENDING | current `runtime_bindings.json` + gameplay load/visual calibration |
-| Other weapon/launcher assets | supported/classified | PENDING | current manifest must show bound asset paths |
-| Pickups/vehicle props | supported/classified | PENDING | live runtime placement/load proof |
-| Buildings | supported/classified | PENDING | `local_world_runtime_validation.txt` |
-| Props/furniture/fences | supported/classified | PENDING | `local_world_runtime_validation.txt` |
-| Foliage/trees/grass | supported/classified | PENDING | live world placement + visual proof |
-| Roads/sidewalks | supported/classified | PENDING | live world placement + visual proof |
-| Ground/terrain | supported/classified | PENDING | live world placement + visual proof |
-| Water/river assets | supported/classified | PENDING | live world placement + visual proof |
-| Character skins | skeletal import supported | PENDING | compatible Quantum skeleton count from current manifest + live character proof |
-| HUD/UI textures/widgets | supported | PENDING | current manifest + actual HUD usage proof |
-| Fab/Marketplace/project-plugin meshes | automatic content-mount discovery implemented | PENDING | current local discovered/bound/failure counts from `runtime_bindings.json` |
+### 🟡 `LOCAL-UE-ASSET-001`
 
-## 4. Exact data currently missing from GitHub
+**Завдання:** виконати current full asset/runtime path на фактичному локальному UE 5.8 проекті та отримати свіжий `LOCAL_ASSET_STATUS` snapshot.
 
-These are local UE-generated facts. A Library/conversation search on this checkpoint did not find current copies of these reports. Until they are fresh for the current project state, individual imported/bound counts remain `UNKNOWN`, not guessed.
+Після цього можна буде без припущень:
 
-| Local file/report | What it proves | Current availability to GitHub/Library |
-|---|---|---|
-| `OsterConflict/Saved/LocalModelInbox/prepared_sources.json` | what local inbox sources were prepared | NOT AVAILABLE |
-| `OsterConflict/Saved/LocalModelInbox/runtime_bindings.json` | exact bound/unbound assets, categories, counts and failures | NOT AVAILABLE |
-| `OsterConflict/Saved/LocalModelInbox/runtime_bindings_success.txt` | aggregate local/Fab binding PASS for the fresh run | NOT AVAILABLE |
-| `OsterConflict/Saved/ProductionAssetImportCache/production_import_success.txt` | HMMWV + M2 + BTR production state | NOT AVAILABLE |
-| `OsterConflict/Saved/ProductionAssetImportCache/production_weapon_import_result.txt` | exact M249 + Remington state | NOT AVAILABLE |
-| `OsterConflict/Saved/AutomationReports/ProductionModels/local_inbox_runtime_validation.txt` | bound local models actually load in gameplay | NOT AVAILABLE |
-| `OsterConflict/Saved/AutomationReports/ProductionModels/local_world_runtime_validation.txt` | world assets are actually connected to live Oster runtime | NOT AVAILABLE |
-| `Logs/R14_CURRENT_GAMEPLAY.log` | live gameplay markers, vehicles, input, FPS, runtime owner state | NOT AVAILABLE |
-| `Logs/PASS45_STRICT_MATERIAL_GATE.log` | current material/dependency gate | NOT AVAILABLE |
+1. заповнити точні `prepared / discovered / imported / bound / unbound` цифри;
+2. перевести фактично підтверджені assets із 🟡 у 🟢;
+3. фактичні помилки перевести в 🔴 з конкретною причиною;
+4. закрити етап 8 і підняти загальний прогрес із **70% до 80%**, якщо local UE import PASS;
+5. потім закрити live runtime етап 9 до **90%**;
+6. після direct visual acceptance і safe source cleanup закрити етап 10 до **100%**.
 
-After the canonical runtime evidence verifier runs, these facts are also summarized automatically in `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt` and `.json`.
+## 9. CONTINUATION RULE
 
-## 5. What is already closed in PR #98
-
-- aggregate importer no longer hides production vehicle or exact-weapon GAPs;
-- stale global/sub-import PASS sentinels are deleted before fresh runs;
-- required production failures are written into `runtime_bindings.json` as `UNBOUND` and block aggregate PASS;
-- the obsolete Pass38, Pass37 and Pass33 verifier chains were forward-ported away from the physically deleted `RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd`;
-- one consolidated local asset status collector now records counts, states, missing files and exact GAP reasons after canonical runtime evidence;
-- regression coverage requires the collector to preserve both machine-readable `.json` and human-readable `.txt` output and to keep direct visual acceptance pending;
-- exact-head source CI on `1eaaea56` completed SUCCESS for all nine applicable workflows.
-
-## 6. First unfinished checkpoint
-
-**LOCAL-UE-ASSET-001 — run the current full asset/runtime path on the actual UE 5.8 project and obtain the fresh `LOCAL_ASSET_STATUS` snapshot.**
-
-This is the first point where the remaining result depends on the user's local Unreal installation and local downloaded/Fab/model payloads rather than GitHub source.
-
-Expected result after that run:
-
-1. populate exact counts: prepared / discovered / imported / bound / unbound;
-2. promote each proven asset from `RUNTIME PENDING` to `READY`;
-3. leave exact failures as `CONTENT GAP` with the real reason;
-4. perform direct visual acceptance for HMMWV, M2, BTR-4, M249, Remington and world assets;
-5. delete source ZIPs only for assets that completed the full validated lifecycle.
-
-## 7. Continuation rule
-
-Every future asset pass must update this file with:
+Кожен наступний asset-pass повинен оновити цю таблицю, а не писати прогрес лише текстом:
 
 - current branch/head/PR;
-- completed stage count and percentage;
-- exact asset rows changed in this pass;
-- new factual GAPs;
-- first unfinished checkpoint;
-- what local evidence is still missing.
+- 🟢 / 🟡 / 🔴 для кожного етапу;
+- загальний % виконання;
+- скільки % лишилось;
+- exact asset rows, які змінилися;
+- factual GAPs;
+- перший незакритий checkpoint;
+- чого конкретно не вистачає для наступних +10%.
 
-Do not restart completed stages and do not replace missing local evidence with source-only assumptions.
+Не повторювати завершені етапи й не підміняти відсутній локальний UE доказ source-only припущенням.
