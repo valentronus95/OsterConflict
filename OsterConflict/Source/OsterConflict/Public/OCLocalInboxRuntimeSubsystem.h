@@ -30,6 +30,7 @@ public:
         bool bRequireSkeletal = false, bool bRequireCharacterCompatible = false);
 
     static UStaticMesh* LoadFirstStaticMeshForCategory(const FString& Category);
+    static void GetAssetObjectPathsForCategory(const FString& Category, TArray<FString>& OutPaths);
     static USkeletalMesh* LoadCompatibleCharacterSkin(int32 Index);
     static int32 GetCompatibleCharacterSkinCount();
     static UTexture2D* LoadHUDTexture();

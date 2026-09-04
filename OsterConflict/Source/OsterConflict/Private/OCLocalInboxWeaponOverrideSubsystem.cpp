@@ -133,9 +133,11 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
 
     auto TryCategory = [&](const TCHAR* Category, const float LengthCm)
     {
-        FString Path;
-        if (!UOCLocalInboxRuntimeSubsystem::ResolveFirstAssetObjectPathForCategory(Category, Path)) return false;
-        OutObjectPath = MoveTemp(Path);
+        TArray<FString> Paths;
+        UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(Category, Paths);
+        if (Paths.IsEmpty()) return false;
+        const uint32 Seed = GetTypeHash(Weapon->GetName());
+        OutObjectPath = Paths[Seed % static_cast<uint32>(Paths.Num())];
         OutDesiredLengthCm = LengthCm;
         OutCategory = Category;
         return true;

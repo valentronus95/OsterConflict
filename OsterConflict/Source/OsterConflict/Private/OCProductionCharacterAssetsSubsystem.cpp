@@ -181,6 +181,21 @@ void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
         if (!Visual) continue;
 
         Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);
+
+        const int32 LocalSkinCount = UOCLocalInboxRuntimeSubsystem::GetCompatibleCharacterSkinCount();
+        if (LocalSkinCount > 0)
+        {
+            const int32 Seed = FMath::Max(1, Visual->GetAppearance().VariantSeed);
+            const int32 SkinIndex = (Seed - 1) % LocalSkinCount;
+            if (USkeletalMesh* LocalSkin = UOCLocalInboxRuntimeSubsystem::LoadCompatibleCharacterSkin(SkinIndex))
+            {
+                if (USkeletalMeshComponent* Body = Character.GetMesh())
+                {
+                    if (Body->GetSkeletalMeshAsset() != LocalSkin) Body->SetSkeletalMeshAsset(LocalSkin);
+                }
+            }
+        }
+
         ApplyGear(Character);
         ApplyAnimation(Character);
     }

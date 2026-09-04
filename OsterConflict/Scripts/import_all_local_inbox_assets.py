@@ -140,10 +140,22 @@ def import_generic(source: Path, destination: str, category: str):
             except Exception: skeleton = None
         return import_character_fbx(source, destination, skeleton)
 
+    if ext in (".glb", ".gltf") and category == "CHARACTER_SKIN":
+        # Let UE Interchange inspect skin/joint data instead of forcing StaticMesh. Acceptance below still
+        # requires an actual SkeletalMesh on the active Quantum skeleton, so a statue cannot sneak through.
+        task = unreal.AssetImportTask()
+        task.set_editor_property("filename", str(source))
+        task.set_editor_property("destination_path", destination)
+        task.set_editor_property("destination_name", stable_name(source))
+        task.set_editor_property("automated", True)
+        task.set_editor_property("replace_existing", True)
+        task.set_editor_property("replace_existing_settings", True)
+        task.set_editor_property("save", True)
+        task.set_editor_property("async_", False)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+        return [str(x).split(".", 1)[0] for x in list(task.get_editor_property("imported_object_paths") or [])]
+
     if ext in (".glb", ".gltf"):
-        # Interchange static import is deterministic and retains authored materials/textures. If a file was
-        # classified as a human but arrives as glTF, we inspect the resulting class below and fail visible if
-        # UE cannot preserve it as a SkeletalMesh. A static human statue is not accepted as a playable skin.
         path = import_glb_combined(source, destination, stable_name(source))
         return [path]
 
@@ -180,6 +192,9 @@ def classify_loaded_asset(asset_path, source, category, quantum_skeleton_path, b
         return
 
     if isinstance(asset, unreal.StaticMesh):
+        if category == "CHARACTER_SKIN":
+            source_status.append({"source": source, "category": category, "status": "UNBOUND", "reason": "character_imported_as_static_mesh", "asset": asset_path})
+            return
         bindings["static_assets"].append({"path": asset_path, "category": category, "source": source})
         source_status.append({"source": source, "category": category, "status": "BOUND", "binding": "STATIC_RUNTIME_POOL", "asset": asset_path})
         return

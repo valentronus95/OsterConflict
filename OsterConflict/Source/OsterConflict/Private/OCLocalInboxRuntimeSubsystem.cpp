@@ -145,6 +145,29 @@ bool UOCLocalInboxRuntimeSubsystem::ResolveFirstAssetObjectPathForCategory(const
     return false;
 }
 
+void UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(const FString& Category, TArray<FString>& OutPaths)
+{
+    OutPaths.Reset();
+    TSharedPtr<FJsonObject> Root;
+    if (!LoadBindingRoot(Root)) return;
+
+    const TCHAR* Fields[] = { TEXT("static_assets"), TEXT("skeletal_assets") };
+    for (const TCHAR* Field : Fields)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Values = GetArray(Root, Field);
+        if (!Values) continue;
+        for (const TSharedPtr<FJsonValue>& Value : *Values)
+        {
+            FString Path;
+            FString EntryCategory;
+            bool bCompatible = false;
+            if (!ReadEntry(Value, Path, EntryCategory, bCompatible)) continue;
+            if (!EntryCategory.Equals(Category, ESearchCase::IgnoreCase)) continue;
+            OutPaths.AddUnique(Path);
+        }
+    }
+}
+
 UStaticMesh* UOCLocalInboxRuntimeSubsystem::LoadFirstStaticMeshForCategory(const FString& Category)
 {
     TSharedPtr<FJsonObject> Root;
