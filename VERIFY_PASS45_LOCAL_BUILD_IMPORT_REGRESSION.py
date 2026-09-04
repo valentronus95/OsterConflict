@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 TACTICAL = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTacticalMapVisual.cpp"
 IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
+AGGREGATE_IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_all_project_assets.py"
 LEDGER = ROOT / "OSTER_CONFLICT_WORK_LEDGER.md"
 
 errors = []
@@ -23,6 +24,7 @@ def require(condition: bool, message: str) -> None:
 
 tactical = read(TACTICAL)
 importer = read(IMPORTER)
+aggregate_importer = read(AGGREGATE_IMPORTER)
 ledger = read(LEDGER)
 
 # Local UE 5.8.1 / MSVC 14.51 factual build rejected the FVector2D table when it was constexpr.
@@ -57,6 +59,33 @@ require(
     "HMMWV/M2 GLB intake no longer explicitly disables skeletal import",
 )
 
+# Aggregate asset intake may keep cataloging unrelated packs after a production gap, but it must
+# never mint the global success sentinel unless vehicle + exact-weapon sub-importers reported PASS.
+require(
+    "def _run_required_ingest(" in aggregate_importer,
+    "aggregate importer no longer records required production ingest results",
+)
+require(
+    "production.SUCCESS_SENTINEL" in aggregate_importer,
+    "aggregate importer does not gate on production vehicle STATUS sentinel",
+)
+require(
+    "production_weapons.SUCCESS_SENTINEL" in aggregate_importer,
+    "aggregate importer does not gate on exact production weapon STATUS sentinel",
+)
+require(
+    'bindings.setdefault("unbound_models", []).extend(required_ingest_failures)' in aggregate_importer,
+    "required production GAPs are not preserved as aggregate unbound failures",
+)
+require(
+    '"required_production_ingest_failures": len(required_ingest_failures)' in aggregate_importer,
+    "aggregate binding summary lost required production failure accounting",
+)
+require(
+    "aggregate asset PASS is blocked" in aggregate_importer,
+    "aggregate importer no longer makes production GAP status fail-visible",
+)
+
 # Status must remain factual: source fix exists, but a later local build/import must verify it.
 require(
     "LOCAL UE BUILD REJECTED" in ledger,
@@ -81,4 +110,5 @@ print("PASS45 LOCAL BUILD/IMPORT REGRESSION: PASS")
 print("- UE 5.8 FVector2D tactical-road table is no longer constexpr")
 print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy")
 print("- deprecated auto_detect_mesh_type cannot silently return")
+print("- aggregate asset PASS is blocked by vehicle/exact-weapon GAP sentinels")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
