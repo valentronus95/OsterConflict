@@ -117,28 +117,55 @@ def collect_snapshot(
     else:
         import_stage = "PENDING_OR_GAP"
 
-    inbox_runtime = "PASS" if _marker(texts["local_inbox_runtime"], "PASS45_LOCAL_INBOX_RUNTIME=PASS") else "PENDING_OR_GAP"
-    world_runtime = "PASS" if _marker(texts["local_world_runtime"], "PASS45_LOCAL_WORLD_RUNTIME=PASS") else "PENDING_OR_GAP"
-    if runtime_result is not None and runtime_result != 0:
-        runtime_stage = "FAIL"
-    elif inbox_runtime == "PASS" and world_runtime == "PASS":
-        runtime_stage = "PASS"
-    else:
-        runtime_stage = "PENDING_OR_GAP"
-
-    material_stage = "PASS" if all(
-        _marker(texts["material_log"], marker)
-        for marker in (
-            "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
-            "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
+    # Runtime/material/evidence files can survive from an older local launch. An import-only snapshot
+    # must never promote those stale files to PASS. Only a current explicit runtime_result authorizes
+    # interpretation of runtime evidence for this snapshot.
+    if runtime_result is None:
+        runtime_scope = "IMPORT_ONLY"
+        inbox_runtime = "PENDING_CURRENT_RUN"
+        world_runtime = "PENDING_CURRENT_RUN"
+        runtime_stage = "PENDING_CURRENT_RUN"
+        material_stage = "PENDING_CURRENT_RUN"
+        evidence_stage = "PENDING_CURRENT_RUN"
+    elif runtime_result != 0:
+        runtime_scope = "CURRENT_RUN_FAILED"
+        inbox_runtime = (
+            "PASS" if _marker(texts["local_inbox_runtime"], "PASS45_LOCAL_INBOX_RUNTIME=PASS")
+            else "PENDING_OR_GAP"
         )
-    ) else "PENDING_OR_GAP"
+        world_runtime = (
+            "PASS" if _marker(texts["local_world_runtime"], "PASS45_LOCAL_WORLD_RUNTIME=PASS")
+            else "PENDING_OR_GAP"
+        )
+        runtime_stage = "FAIL"
+        # A failure can occur before material/evidence gates. Do not reuse old PASS markers here.
+        material_stage = "NOT_PASSED_CURRENT_RUN"
+        evidence_stage = "NOT_PASSED_CURRENT_RUN"
+    else:
+        runtime_scope = "CURRENT_RUN_COMPLETED"
+        inbox_runtime = (
+            "PASS" if _marker(texts["local_inbox_runtime"], "PASS45_LOCAL_INBOX_RUNTIME=PASS")
+            else "FAIL_OR_GAP"
+        )
+        world_runtime = (
+            "PASS" if _marker(texts["local_world_runtime"], "PASS45_LOCAL_WORLD_RUNTIME=PASS")
+            else "FAIL_OR_GAP"
+        )
+        runtime_stage = "PASS" if inbox_runtime == "PASS" and world_runtime == "PASS" else "FAIL_OR_GAP"
 
-    evidence_stage = (
-        "PASS" if _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS")
-        else "FAIL" if _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=FAIL")
-        else "MISSING"
-    )
+        material_stage = "PASS" if all(
+            _marker(texts["material_log"], marker)
+            for marker in (
+                "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
+                "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
+            )
+        ) else "FAIL_OR_GAP"
+
+        evidence_stage = (
+            "PASS" if _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS")
+            else "FAIL" if _marker(texts["runtime_evidence"], "PASS45_RUNTIME_AUTOMATED_EVIDENCE=FAIL")
+            else "MISSING"
+        )
 
     binding_summary = dict(bindings.get("summary") or {})
     binding_summary.setdefault("static_assets", len(bindings.get("static_assets", []) or []))
@@ -152,10 +179,11 @@ def collect_snapshot(
     source_status_counts = Counter(str(row.get("status") or "UNKNOWN") for row in source_status)
 
     report = {
-        "schema": "oster-conflict-local-asset-status-v2",
+        "schema": "oster-conflict-local-asset-status-v3",
         "source_sha": source_sha,
         "import_result_code": import_result,
         "runtime_result_code": runtime_result,
+        "runtime_scope": runtime_scope,
         "stages": {
             "local_ue_import": import_stage,
             "live_runtime_hookup": runtime_stage,
@@ -190,6 +218,7 @@ def collect_snapshot(
         f"SOURCE_SHA={source_sha}",
         f"IMPORT_RESULT_CODE={import_result if import_result is not None else 'UNKNOWN'}",
         f"RUNTIME_RESULT_CODE={runtime_result if runtime_result is not None else 'UNKNOWN'}",
+        f"RUNTIME_SCOPE={runtime_scope}",
         "",
         "STAGES",
         f"LOCAL_UE_IMPORT={import_stage}",
@@ -201,6 +230,10 @@ def collect_snapshot(
         "PRODUCTION",
         f"HMMWV_M2_BTR_STATUS={vehicle_status}",
         f"M249_REMINGTON870_STATUS={weapon_status}",
+        "",
+        "RUNTIME",
+        f"LOCAL_INBOX={inbox_runtime}",
+        f"LOCAL_WORLD={world_runtime}",
         "",
         "PREPARED",
     ]
