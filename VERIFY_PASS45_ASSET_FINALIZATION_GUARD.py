@@ -3,9 +3,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
-ENTRYPOINT = ROOT / "FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd"
+ENTRYPOINT = ROOT / "START_HERE.cmd"
 COLLECTOR = ROOT / "COLLECT_LOCAL_ASSET_STATUS.py"
 IMPORT_CMD = ROOT / "OsterConflict" / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
+LEGACY_FINALIZE_CMD = ROOT / "FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd"
 
 errors: list[str] = []
 
@@ -28,7 +29,9 @@ collector = read(COLLECTOR)
 import_cmd = read(IMPORT_CMD)
 
 for marker in (
-    '"--accept-visual" not in sys.argv[1:]',
+    'preflight_only = "--preflight" in args',
+    'accept_visual = "--accept-visual" in args',
+    'preflight_only == accept_visual',
     'git_output("rev-parse", "HEAD")',
     "verify_exact_remote_head(head)",
     'git_output("fetch", "origin", branch)',
@@ -48,7 +51,7 @@ for marker in (
     "M16/M4 production content gap is still open",
     'prepared_status not in {"PASS", "NO_INBOX"}',
     'status != "EXTRACTED"',
-    'INBOX.rglob("*.zip")',
+    'p.suffix.lower() == ".zip"',
     "sha256(path)",
     "digest not in accepted_hashes",
     "source ZIP cleanup refused",
@@ -65,16 +68,14 @@ if main_pos < 0:
     errors.append("finalizer main() is missing")
 else:
     call_positions = [
-        finalizer.find("verify_exact_remote_head(head)", main_pos),
-        finalizer.find("verify_clean_acceptance_source()", main_pos),
-        finalizer.find("verify_current_automated_status(current, head)", main_pos),
-        finalizer.find("preflight_source_zips(accepted_hashes)", main_pos),
+        finalizer.find("run_preflight()", main_pos),
+        finalizer.find("if preflight_only:", main_pos),
         finalizer.find("write_manual_acceptance(head)", main_pos),
         finalizer.find("path.unlink()", main_pos),
     ]
     require(
         all(pos >= 0 for pos in call_positions) and call_positions == sorted(call_positions),
-        "final acceptance ordering no longer proves remote/source/runtime/ZIP state before manual PASS or deletion",
+        "finalizer can mutate acceptance/ZIP state before preflight completes",
     )
 
 require(
@@ -85,20 +86,31 @@ require(
     'relative(path)' in finalizer and 'sha256' in finalizer,
     "cleanup report must preserve exact path/hash evidence",
 )
-require(
-    'prepared_status not in {"PASS", "NO_INBOX"}' in finalizer,
-    "Fab-only/no-inbox projects must not be blocked from zero-ZIP cleanup after full acceptance",
-)
 
 for marker in (
-    "FINAL ASSET ACCEPTANCE",
-    "успішного ПОВНОГО RUNTIME-ТЕСТУ",
-    "власними очима перевірили assets",
+    "Єдиний користувацький launcher/test entrypoint: START_HERE.cmd",
+    'set "ASSET_FINALIZER=%~dp0OsterConflict\\Scripts\\finalize_asset_acceptance.py"',
+    '"%ASSET_FINALIZER%" --preflight',
+    "FINALIZE PENDING",
+    "ZIP не видалялись",
     "choice /C YN",
-    "--accept-visual",
-    "Непідтверджені ZIP не видаляються",
+    '"%ASSET_FINALIZER%" --accept-visual',
+    "PASS45 FULL ASSET LIFECYCLE ACCEPTED",
+    "SOURCE ZIP CLEANUP: PASS",
 ):
-    require(marker in entrypoint, f"manual finalization entrypoint lost marker: {marker}")
+    require(marker in entrypoint, f"START_HERE finalization route lost marker: {marker}")
+
+preflight_pos = entrypoint.find('"%ASSET_FINALIZER%" --preflight')
+choice_pos = entrypoint.find('choice /C YN', preflight_pos)
+accept_pos = entrypoint.find('"%ASSET_FINALIZER%" --accept-visual', choice_pos)
+require(
+    -1 not in (preflight_pos, choice_pos, accept_pos) and preflight_pos < choice_pos < accept_pos,
+    "START_HERE must pass non-destructive preflight before asking for manual visual acceptance or cleanup",
+)
+require(
+    not LEGACY_FINALIZE_CMD.exists(),
+    "second user-facing FINALIZE_ASSET_ACCEPTANCE_AND_CLEANUP.cmd returned; START_HERE must stay the single entrypoint",
+)
 
 for marker in (
     '"oster-conflict-local-asset-status-v4"',
@@ -155,7 +167,9 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 ASSET FINALIZATION GUARD: PASS")
-print("- direct visual PASS requires explicit human confirmation after exact-remote current automated PASS")
+print("- START_HERE remains the single user-facing launcher and owns finalization after full runtime")
+print("- preflight is non-destructive and runs before the human visual confirmation")
+print("- direct visual PASS requires explicit confirmation after exact-remote current automated PASS")
 print("- M16/M4 content gap must be closed by a fresh bound payload before 100% finalization")
 print("- Fab-only/no-inbox runs can finalize with zero source ZIPs after the automated gates pass")
 print("- manual/cleanup records are exact-source scoped and fresh ingest invalidates them")
