@@ -1,0 +1,100 @@
+name: one-shot local asset runtime proof patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-local-runtime-proof-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Make model HUD and world proof fail closed
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # 1) Every UE package that is actually a mesh must become a runtime mesh binding.
+          p = Path('OsterConflict/Scripts/import_all_local_inbox_assets.py')
+          text = p.read_text(encoding='utf-8-sig')
+          old = '''    # First register UE-ready packages that were copied into Content while preserving package names.\n    unreal.AssetRegistryHelpers.get_asset_registry().scan_paths_synchronous(["/Game"], True)\n    for item in prepared.get("ue_packages", []):\n        if str(item.get("extension", "")).lower() != ".uasset":\n            continue\n        asset_path = object_path_from_content_file(item.get("target", ""))\n        if not asset_path:\n            continue\n        source = item.get("source", "")\n        category = item.get("category") or category_for(source)\n        before = len(bindings["source_status"])\n        classify_loaded_asset(asset_path, source, category, quantum_skeleton_path, bindings, bindings["source_status"])\n        if len(bindings["source_status"]) > before:\n            seen_source_asset.add(source)\n'''
+          new = '''    # First register UE-ready packages that were copied into Content while preserving package names.\n    # Mesh-looking .uasset files are acceptance-owned individually. A material may be a dependency,\n    # but a StaticMeshes/Meshes/SM_/SK_/SKM_ source is not allowed to disappear silently.\n    expected_ue_model_sources = set()\n    unreal.AssetRegistryHelpers.get_asset_registry().scan_paths_synchronous(["/Game"], True)\n    for item in prepared.get("ue_packages", []):\n        if str(item.get("extension", "")).lower() != ".uasset":\n            continue\n        source = item.get("source", "")\n        target = item.get("target", "")\n        hint = (str(source) + " " + str(target)).replace("\\\\", "/").lower()\n        expects_runtime_model = (\n            "/staticmeshes/" in hint or "/meshes/" in hint or\n            re.search(r"(?:^|/)(?:sm_|sk_|skm_)[^/]*\\.uasset$", hint) is not None\n        )\n        if expects_runtime_model:\n            expected_ue_model_sources.add(str(source))\n\n        asset_path = object_path_from_content_file(target)\n        category = item.get("category") or category_for(source)\n        if not asset_path:\n            if expects_runtime_model:\n                bindings["source_status"].append({"source": str(source), "category": category, "status": "UNBOUND", "reason": "ue_model_package_path_unresolved"})\n            continue\n\n        before = len(bindings["source_status"])\n        classify_loaded_asset(asset_path, source, category, quantum_skeleton_path, bindings, bindings["source_status"])\n        if len(bindings["source_status"]) > before:\n            seen_source_asset.add(source)\n        elif expects_runtime_model:\n            bindings["source_status"].append({"source": str(source), "category": category, "status": "UNBOUND", "reason": "ue_model_package_not_loadable_as_runtime_mesh", "asset": asset_path})\n'''
+          if old not in text:
+              raise SystemExit('UE package registration block not found')
+          text = text.replace(old, new, 1)
+          old = '''    model_sources = {str(item.get("source", "")) for item in prepared.get("raw_models", [])}\n'''
+          new = '''    model_sources = {str(item.get("source", "")) for item in prepared.get("raw_models", [])}\n    model_sources.update(expected_ue_model_sources)\n'''
+          if old not in text:
+              raise SystemExit('model_sources marker not found')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          # 2) A supplied HUD must not merely exist in the manifest; it must instantiate in gameplay.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCLocalInboxRuntimeSubsystem.cpp')
+          text = p.read_text(encoding='utf-8-sig')
+          marker = '''    bool bHUDBound = false;\n'''
+          insert = '''    const TArray<TSharedPtr<FJsonValue>>* HUDTextures = GetArray(Root, TEXT("hud_textures"));\n    const TArray<TSharedPtr<FJsonValue>>* HUDWidgets = GetArray(Root, TEXT("hud_widget_classes"));\n    const bool bHUDExpected = (HUDTextures && !HUDTextures->IsEmpty()) || (HUDWidgets && !HUDWidgets->IsEmpty());\n\n    bool bHUDBound = false;\n'''
+          if 'const bool bHUDExpected' not in text:
+              if marker not in text:
+                  raise SystemExit('HUD runtime marker not found')
+              text = text.replace(marker, insert, 1)
+          text = text.replace('const bool bPass = bManifestBound && LoadFailures == 0;',
+                              'const bool bPass = bManifestBound && LoadFailures == 0 && (!bHUDExpected || bHUDBound);', 1)
+          text = text.replace('TEXT("PASS45_LOCAL_INBOX_RUNTIME_FAIL manifest_bound=%d load_failures=%d static_loaded=%d skeletal_loaded=%d"),\n            bManifestBound ? 1 : 0, LoadFailures, StaticLoaded, SkeletalLoaded);',
+                              'TEXT("PASS45_LOCAL_INBOX_RUNTIME_FAIL manifest_bound=%d load_failures=%d static_loaded=%d skeletal_loaded=%d hud_expected=%d hud_bound=%d"),\n            bManifestBound ? 1 : 0, LoadFailures, StaticLoaded, SkeletalLoaded, bHUDExpected ? 1 : 0, bHUDBound ? 1 : 0);', 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          # 3) World pools get their own runtime acceptance file when the full test requests proof.
+          p = Path('OsterConflict/Source/OsterConflict/Private/OCLocalInboxWorldAssetsSubsystem.cpp')
+          text = p.read_text(encoding='utf-8-sig')
+          if '#include "Misc/CommandLine.h"' not in text:
+              text = text.replace('#include "Misc/FileHelper.h"\n', '#include "Misc/CommandLine.h"\n#include "Misc/FileHelper.h"\n#include "Misc/Parse.h"\n', 1)
+          marker = '''    FString BindingManifestPath()\n    {\n        return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("LocalModelInbox"), TEXT("runtime_bindings.json"));\n    }\n'''
+          insert = marker + '''\n    FString WorldRuntimeReportPath()\n    {\n        return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("AutomationReports"), TEXT("ProductionModels"),\n            TEXT("local_world_runtime_validation.txt"));\n    }\n\n    void WriteWorldReport(const bool bPass, const FString& Detail)\n    {\n        if (!FParse::Param(FCommandLine::Get(), TEXT("ValidateLocalInbox"))) return;\n        const FString Path = WorldRuntimeReportPath();\n        IFileManager::Get().MakeDirectory(*FPaths::GetPath(Path), true);\n        const FString Text = FString::Printf(TEXT("PASS45_LOCAL_WORLD_RUNTIME=%s\\n%s\\n"),\n            bPass ? TEXT("PASS") : TEXT("FAIL"), *Detail);\n        FFileHelper::SaveStringToFile(Text, *Path);\n    }\n'''
+          if 'WorldRuntimeReportPath' not in text:
+              if marker not in text:
+                  raise SystemExit('world manifest helper marker not found')
+              text = text.replace(marker, insert, 1)
+          text = text.replace('''        UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WORLD_ASSETS_READY supplied_world_assets=0"));\n        return;''',
+                              '''        UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WORLD_ASSETS_READY supplied_world_assets=0"));\n        WriteWorldReport(true, TEXT("supplied_world_assets=0"));\n        return;''', 1)
+          text = text.replace('''        UE_LOG(LogTemp, Display,\n            TEXT("PASS45_LOCAL_WORLD_ASSETS_READY supplied=%d loaded_pool_entries=%d visible_pool_entries=%d replaced_instances=%d sectors=%d"),\n            AllAssets.Num(), TotalLoadedAssets, TotalUsedAssets, TotalReplaced, SectorCount);''',
+                              '''        UE_LOG(LogTemp, Display,\n            TEXT("PASS45_LOCAL_WORLD_ASSETS_READY supplied=%d loaded_pool_entries=%d visible_pool_entries=%d replaced_instances=%d sectors=%d"),\n            AllAssets.Num(), TotalLoadedAssets, TotalUsedAssets, TotalReplaced, SectorCount);\n        WriteWorldReport(true, FString::Printf(TEXT("supplied=%d loaded_pool_entries=%d visible_pool_entries=%d replaced_instances=%d sectors=%d"),\n            AllAssets.Num(), TotalLoadedAssets, TotalUsedAssets, TotalReplaced, SectorCount));''', 1)
+          text = text.replace('''        UE_LOG(LogTemp, Error,\n            TEXT("PASS45_LOCAL_WORLD_ASSETS_FAIL supplied=%d loaded_pool_entries=%d replaced_instances=%d sectors=%d"),\n            AllAssets.Num(), TotalLoadedAssets, TotalReplaced, SectorCount);''',
+                              '''        UE_LOG(LogTemp, Error,\n            TEXT("PASS45_LOCAL_WORLD_ASSETS_FAIL supplied=%d loaded_pool_entries=%d replaced_instances=%d sectors=%d"),\n            AllAssets.Num(), TotalLoadedAssets, TotalReplaced, SectorCount);\n        WriteWorldReport(false, FString::Printf(TEXT("supplied=%d loaded_pool_entries=%d replaced_instances=%d sectors=%d"),\n            AllAssets.Num(), TotalLoadedAssets, TotalReplaced, SectorCount));''', 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+
+          # 4) The full runtime test requires both the general manifest proof and real world placement proof.
+          p = Path('START_HERE.cmd')
+          text = p.read_text(encoding='utf-8-sig')
+          marker = 'set "LOCAL_INBOX_RUNTIME_REPORT=%~dp0OsterConflict\\Saved\\AutomationReports\\ProductionModels\\local_inbox_runtime_validation.txt"\n'
+          if 'LOCAL_WORLD_RUNTIME_REPORT' not in text:
+              if marker not in text:
+                  raise SystemExit('START_HERE local runtime report marker not found')
+              text = text.replace(marker, marker + 'set "LOCAL_WORLD_RUNTIME_REPORT=%~dp0OsterConflict\\Saved\\AutomationReports\\ProductionModels\\local_world_runtime_validation.txt"\n', 1)
+          marker = 'if exist "%LOCAL_INBOX_RUNTIME_REPORT%" del /q "%LOCAL_INBOX_RUNTIME_REPORT%" >nul 2>nul\n'
+          if 'if exist "%LOCAL_WORLD_RUNTIME_REPORT%"' not in text:
+              text = text.replace(marker, marker + 'if exist "%LOCAL_WORLD_RUNTIME_REPORT%" del /q "%LOCAL_WORLD_RUNTIME_REPORT%" >nul 2>nul\n', 1)
+          marker = 'echo [MODEL INBOX] PASS: усі прив\'язані моделі реально відкрились у gameplay runtime.\n\n'
+          addition = '''echo [MODEL INBOX] PASS: усі прив'язані моделі реально відкрились у gameplay runtime.\n\nif not exist "%LOCAL_WORLD_RUNTIME_REPORT%" (\n  echo [STOP] Не отримано runtime proof, що world-моделі реально підключені до Остра.\n  exit /b 37\n)\nfindstr /L /C:"PASS45_LOCAL_WORLD_RUNTIME=PASS" "%LOCAL_WORLD_RUNTIME_REPORT%" >nul\nif errorlevel 1 (\n  echo [STOP] World assets не пройшли live placement proof.\n  type "%LOCAL_WORLD_RUNTIME_REPORT%"\n  exit /b 38\n)\necho [WORLD ASSETS] PASS: будівлі/пропи/рослинність/дороги/вода підключені до live Oster runtime.\n\n'''
+          if '[WORLD ASSETS] PASS:' not in text:
+              if marker not in text:
+                  raise SystemExit('START_HERE world proof insertion marker not found')
+              text = text.replace(marker, addition, 1)
+          p.write_text(text, encoding='utf-8', newline='\r\n')
+
+          Path('.github/workflows/patch-local-runtime-proof-once.yml').unlink()
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OsterConflict/Scripts/import_all_local_inbox_assets.py OsterConflict/Source/OsterConflict/Private/OCLocalInboxRuntimeSubsystem.cpp OsterConflict/Source/OsterConflict/Private/OCLocalInboxWorldAssetsSubsystem.cpp START_HERE.cmd .github/workflows/patch-local-runtime-proof-once.yml
+          git commit -m "Pass45: fail closed until every local model reaches live runtime"
+          git push origin main
