@@ -5,7 +5,6 @@
 #include "OCAntiArmorLauncher.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
-#include "OCWorldSectorOster.h"
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -41,6 +40,26 @@ namespace
         { FName(TEXT("IMP_M72")), AOCWeapon_M72LAW::StaticClass() },
         { FName(TEXT("IMP_RPG26")), AOCWeapon_RPG26::StaticClass() },
     };
+
+    const FName CoreRackIds[] =
+    {
+        FName(TEXT("OC_AR1")),
+        FName(TEXT("OC_SMG1")),
+        FName(TEXT("OC_PST1")),
+        FName(TEXT("OC_SNP1")),
+        FName(TEXT("OC_SG1")),
+        FName(TEXT("OC_LMG1")),
+        FName(TEXT("OC_RPG1")),
+    };
+
+    bool IsCoreRackId(const FName WeaponId)
+    {
+        for (const FName CoreId : CoreRackIds)
+        {
+            if (CoreId == WeaponId) return true;
+        }
+        return false;
+    }
 }
 
 bool UOCPass45WeaponCatalogSpawnSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -58,60 +77,134 @@ void UOCPass45WeaponCatalogSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>();
     if (!GameMode || GameMode->IsFrontendOnlySession() || !GameMode->IsSandboxMode()) return;
 
+    // Do not create a second automatic weapon rack. The existing admin action is the trigger/owner.
+    // We only watch briefly for its compact seven-weapon core rack, then append the imported identities once.
     InWorld.GetTimerManager().SetTimer(
         SpawnTimer,
         this,
-        &UOCPass45WeaponCatalogSpawnSubsystem::EnsureCompleteWeaponRack,
-        0.90f,
-        false);
+        &UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack,
+        0.50f,
+        true,
+        0.50f);
 }
 
 void UOCPass45WeaponCatalogSpawnSubsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(SpawnTimer);
+    ScanPass = 0;
+    bRackCompleted = false;
     Super::Deinitialize();
 }
 
-void UOCPass45WeaponCatalogSpawnSubsystem::EnsureCompleteWeaponRack()
+void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
 {
     UWorld* World = GetWorld();
-    if (!World || !World->GetAuthGameMode<AOCGameMode>()) return;
+    if (!World || bRackCompleted) return;
 
-    TSet<FName> ExistingIds;
-    for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
+    ++ScanPass;
+    if (ScanPass > 120)
     {
-        const AOCWeaponBase* Weapon = *It;
-        if (Weapon && !Weapon->IsActorBeingDestroyed()) ExistingIds.Add(Weapon->GetWeaponId());
+        World->GetTimerManager().ClearTimer(SpawnTimer);
+        UE_LOG(LogTemp, Verbose,
+            TEXT("PASS45_COMPLETE_WEAPON_RACK_WATCH_STOPPED reason=no_admin_request scans=%d duplicate_auto_rack=0"),
+            ScanPass);
+        return;
     }
 
-    const FVector Anchor = AOCWorldSectorOster::MuseumAnchor() + FVector(-1100.0f, -1850.0f, 95.0f);
-    const FRotator Facing(0.0f, 90.0f, 0.0f);
+    const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
+    if (!GameMode || !GameMode->IsSandboxMode()) return;
+
+    TArray<AOCWeaponBase*> WorldPickups;
+    for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
+    {
+        AOCWeaponBase* Weapon = *It;
+        if (Weapon && !Weapon->IsActorBeingDestroyed() && Weapon->IsWorldPickup())
+        {
+            WorldPickups.Add(Weapon);
+        }
+    }
+
+    constexpr float CoreClusterRadiusCm = 720.0f;
+    FVector RackCenter = FVector::ZeroVector;
+    bool bFoundAdminCoreRack = false;
+
+    for (AOCWeaponBase* Candidate : WorldPickups)
+    {
+        if (!Candidate || !IsCoreRackId(Candidate->GetWeaponId())) continue;
+
+        TSet<FName> CoreIds;
+        FVector Sum = FVector::ZeroVector;
+        int32 Count = 0;
+        for (AOCWeaponBase* Nearby : WorldPickups)
+        {
+            if (!Nearby || !IsCoreRackId(Nearby->GetWeaponId())) continue;
+            if (FVector::DistSquared2D(Candidate->GetActorLocation(), Nearby->GetActorLocation()) >
+                FMath::Square(CoreClusterRadiusCm)) continue;
+
+            CoreIds.Add(Nearby->GetWeaponId());
+            Sum += Nearby->GetActorLocation();
+            ++Count;
+        }
+
+        if (CoreIds.Num() == UE_ARRAY_COUNT(CoreRackIds) && Count >= UE_ARRAY_COUNT(CoreRackIds))
+        {
+            RackCenter = Sum / static_cast<float>(Count);
+            bFoundAdminCoreRack = true;
+            break;
+        }
+    }
+
+    if (!bFoundAdminCoreRack) return;
+
+    constexpr float FullRackRadiusCm = 1450.0f;
+    TSet<FName> LocalIds;
+    for (AOCWeaponBase* Weapon : WorldPickups)
+    {
+        if (!Weapon) continue;
+        if (FVector::DistSquared2D(RackCenter, Weapon->GetActorLocation()) <= FMath::Square(FullRackRadiusCm))
+        {
+            LocalIds.Add(Weapon->GetWeaponId());
+        }
+    }
+
     FActorSpawnParameters Params;
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
     int32 Spawned = 0;
-    int32 MissingVisualContent = 0;
-    for (int32 Index = 0; Index < UE_ARRAY_COUNT(WeaponCatalog); ++Index)
+    int32 SpawnFailures = 0;
+    int32 MissingOrdinal = 0;
+    for (const FWeaponCatalogEntry& Entry : WeaponCatalog)
     {
-        const FWeaponCatalogEntry& Entry = WeaponCatalog[Index];
-        if (ExistingIds.Contains(Entry.WeaponId)) continue;
+        if (LocalIds.Contains(Entry.WeaponId)) continue;
 
-        const int32 Column = Index % 5;
-        const int32 Row = Index / 5;
-        const FVector Location = Anchor + FVector(Column * 180.0f, Row * 190.0f, 0.0f);
-        AOCWeaponBase* Weapon = World->SpawnActor<AOCWeaponBase>(Entry.WeaponClass, Location, Facing, Params);
+        const int32 Column = MissingOrdinal % 5;
+        const int32 Row = MissingOrdinal / 5;
+        const FVector Location = RackCenter + FVector(
+            -360.0f + Column * 180.0f,
+            430.0f + Row * 190.0f,
+            45.0f);
+        ++MissingOrdinal;
+
+        AOCWeaponBase* Weapon = World->SpawnActor<AOCWeaponBase>(
+            Entry.WeaponClass,
+            Location,
+            FRotator::ZeroRotator,
+            Params);
         if (!Weapon)
         {
-            ++MissingVisualContent;
+            ++SpawnFailures;
             continue;
         }
 
-        Weapon->DropToWorldServer(Location, Facing);
-        ExistingIds.Add(Entry.WeaponId);
+        Weapon->DropToWorldServer(Location, FRotator::ZeroRotator);
+        LocalIds.Add(Entry.WeaponId);
         ++Spawned;
     }
 
+    bRackCompleted = true;
+    World->GetTimerManager().ClearTimer(SpawnTimer);
+
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_COMPLETE_WEAPON_CATALOG_READY total_declared=%d existing_before=%d spawned=%d spawn_failures=%d duplicate_weapon_ids=0 sandbox_only=1 runtime_acceptance=0"),
-        UE_ARRAY_COUNT(WeaponCatalog), ExistingIds.Num() - Spawned, Spawned, MissingVisualContent);
+        TEXT("PASS45_COMPLETE_WEAPON_RACK_READY total_declared=%d local_distinct=%d appended=%d spawn_failures=%d admin_core_trigger=1 duplicate_auto_rack=0 duplicate_weapon_ids=0 runtime_acceptance=0"),
+        UE_ARRAY_COUNT(WeaponCatalog), LocalIds.Num(), Spawned, SpawnFailures);
 }
