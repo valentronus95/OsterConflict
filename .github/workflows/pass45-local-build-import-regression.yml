@@ -6,6 +6,7 @@ on:
       - 'START_HERE.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/Scripts/prepare_all_local_inbox_assets.ps1'
       - 'OsterConflict/Scripts/import_all_local_inbox_assets.py'
       - 'OsterConflict/Scripts/normalize_local_weapon_categories.py'
       - 'OsterConflict/Scripts/finalize_asset_acceptance.py'
