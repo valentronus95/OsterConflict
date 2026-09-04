@@ -6,6 +6,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $ProjectDir = [System.IO.Path]::GetFullPath($ProjectDir)
+$RepoRoot = Split-Path -Parent $ProjectDir
+$LocalModelInbox = Join-Path $RepoRoot 'models_game_OC'
 $SourceRoot = Join-Path $ProjectDir 'SourceAssets\Production'
 $CacheRoot = Join-Path $ProjectDir 'Saved\LocalProductionSourceIntake'
 
@@ -108,7 +110,7 @@ function Expand-ArchiveSafe {
         Remove-Item -LiteralPath $Destination -Recurse -Force
     }
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    Write-Host ('[SOURCE] Expanding local model archive: ' + $Archive.FullName)
+    Write-Host ('[SOURCE] Expanding audited local model archive: ' + $Archive.FullName)
     Expand-Archive -LiteralPath $Archive.FullName -DestinationPath $Destination -Force
 }
 
@@ -120,14 +122,12 @@ function Find-BtrFbxInNamedArchive {
 
     if (-not $Archive -or -not (Test-Path -LiteralPath $Stage)) { return $null }
 
-    $targeted = Find-FirstMatchingFile -Roots @($Stage) -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus).*\.fbx$'
+    $targeted = Find-FirstMatchingFile -Roots @($Stage) -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus|буцеф).*\.fbx$'
     if ($targeted) { return $targeted }
 
-    # Pass 44: the user's local archive is explicitly named btr-4e-bucephalus.zip, but many downloaded
-    # model packs call the mesh itself source.fbx/model.fbx/untitled.fbx. The old filename-only rule found
-    # the correct archive and then ignored its only FBX. Trust the BTR-labelled archive context, not a generic
-    # FBX from unrelated test archives.
-    if ($Archive.Name -match '(?i)(btr.?4|bucephalus)') {
+    # The archive context is authoritative for a generic source.fbx/model.fbx filename only when
+    # the archive itself is clearly BTR-4/Bucephalus-labelled. Never take a generic FBX from an unrelated ZIP.
+    if ($Archive.Name -match '(?i)(btr.?4|bucephalus|буцеф)') {
         $genericFbx = Get-ChildItem -LiteralPath $Stage -Recurse -File -Filter '*.fbx' -ErrorAction SilentlyContinue |
             Sort-Object Length -Descending |
             Select-Object -First 1
@@ -147,18 +147,19 @@ if ($missing.Count -eq 0) {
 }
 
 Write-Host ('[SOURCE] Missing local production source(s): ' + ($missing -join ', '))
-Write-Host '[SOURCE] Searching previously downloaded model files and archives. Nothing is uploaded or committed.'
+Write-Host '[SOURCE] Searching the dedicated models_game_OC inbox first, then existing local download locations. Nothing is uploaded or committed.'
 
 $searchRoots = @(
+    $LocalModelInbox,
     $SourceRoot,
     (Join-Path $env:USERPROFILE 'Downloads'),
     (Join-Path $env:USERPROFILE 'Desktop'),
     (Join-Path $env:USERPROFILE 'Documents')
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique
 
-$hmmwv = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee).*\.glb$'
-$m2 = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|50.?cal).*\.glb$'
-$btr = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus).*\.fbx$'
+$hmmwv = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee|hummer).*\.glb$'
+$m2 = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|browning|50.?cal).*\.glb$'
+$btr = Find-FirstMatchingFile -Roots $searchRoots -ExactName 'BTR4_Bucephalus.fbx' -Regex '(?i)(btr.?4|bucephalus|буцеф).*\.fbx$'
 
 Copy-IfMissing -Target $HmmwvTarget -Source $hmmwv
 Copy-IfMissing -Target $M2Target -Source $m2
@@ -173,7 +174,15 @@ if ($missing.Count -gt 0) {
     )
 
     $archives = @()
-    foreach ($root in $searchRoots) {
+
+    # The dedicated inbox is explicit user intent. Inspect every ZIP there, not only archives whose
+    # filenames happen to contain an old hard-coded vehicle keyword.
+    if (Test-Path -LiteralPath $LocalModelInbox) {
+        $archives += Get-ChildItem -LiteralPath $LocalModelInbox -Recurse -File -Filter '*.zip' -ErrorAction SilentlyContinue
+    }
+
+    # Outside the inbox remain conservative: only known/preferred production-model archive names are considered.
+    foreach ($root in ($searchRoots | Where-Object { $_ -ne $LocalModelInbox })) {
         foreach ($name in $preferredNames) {
             $candidate = Join-Path $root $name
             if (Test-Path -LiteralPath $candidate) {
@@ -182,7 +191,7 @@ if ($missing.Count -gt 0) {
         }
 
         $archives += Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.zip' -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match '(?i)(oster|vehicle|model|модел|btr|hmmwv|m2)' }
+            Where-Object { $_.Name -match '(?i)(oster|vehicle|model|модел|btr|hmmwv|m2|browning)' }
     }
 
     $archives = $archives | Sort-Object FullName -Unique
@@ -212,8 +221,8 @@ if ($missing.Count -gt 0) {
         }
 
         $roots = @($stage)
-        Copy-IfMissing -Target $HmmwvTarget -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee).*\.glb$')
-        Copy-IfMissing -Target $M2Target -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|50.?cal).*\.glb$')
+        Copy-IfMissing -Target $HmmwvTarget -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'ukrainian_hmmwv_mk_19.glb' -Regex '(?i)(hmmwv|humvee|hummer).*\.glb$')
+        Copy-IfMissing -Target $M2Target -Source (Find-FirstMatchingFile -Roots $roots -ExactName 'm2_50cal_machinegun_cc0.glb' -Regex '(?i)(m2|browning|50.?cal).*\.glb$')
         if (-not (Test-Path -LiteralPath $BtrTarget)) {
             Copy-IfMissing -Target $BtrTarget -Source (Find-BtrFbxInNamedArchive -Archive $archive -Stage $stage)
         }
@@ -232,9 +241,9 @@ if ($missing.Count -gt 0) {
     foreach ($textureName in $BtrTextures) {
         Write-Host ('  ' + (Join-Path $BtrTextureTarget $textureName))
     }
-    Write-Host '[SOURCE] Available models may still be imported independently; missing models remain explicit content gaps.'
+    Write-Host '[SOURCE] Other inbox models remain in the inventory for their own gameplay/world integration pass; they are never silently called READY.'
     exit 20
 }
 
-Write-Host '[SOURCE] PASS: required production model sources and BTR textures are now available locally.'
+Write-Host '[SOURCE] PASS: required production vehicle model sources and BTR textures are now available locally.'
 exit 0
