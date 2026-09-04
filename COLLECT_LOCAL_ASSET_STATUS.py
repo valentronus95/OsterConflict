@@ -102,6 +102,8 @@ def collect_snapshot(
     source_sha = source_sha or os.environ.get("PASS45_SOURCE_SHA", "unknown")
     if import_result is None:
         import_result = _env_int("PASS45_ASSET_IMPORT_RC")
+    if runtime_result is None:
+        runtime_result = _env_int("PASS45_RUNTIME_RC")
 
     vehicle_status = _kv_status(texts["production_vehicles"])
     weapon_status = _kv_status(texts["production_weapons"])
@@ -117,7 +119,12 @@ def collect_snapshot(
 
     inbox_runtime = "PASS" if _marker(texts["local_inbox_runtime"], "PASS45_LOCAL_INBOX_RUNTIME=PASS") else "PENDING_OR_GAP"
     world_runtime = "PASS" if _marker(texts["local_world_runtime"], "PASS45_LOCAL_WORLD_RUNTIME=PASS") else "PENDING_OR_GAP"
-    runtime_stage = "PASS" if inbox_runtime == "PASS" and world_runtime == "PASS" else "PENDING_OR_GAP"
+    if runtime_result is not None and runtime_result != 0:
+        runtime_stage = "FAIL"
+    elif inbox_runtime == "PASS" and world_runtime == "PASS":
+        runtime_stage = "PASS"
+    else:
+        runtime_stage = "PENDING_OR_GAP"
 
     material_stage = "PASS" if all(
         _marker(texts["material_log"], marker)
@@ -239,6 +246,9 @@ def collect_snapshot(
 
 
 if __name__ == "__main__":
-    json_path, text_path = collect_snapshot(import_result=_env_int("PASS45_ASSET_IMPORT_RC"))
+    json_path, text_path = collect_snapshot(
+        import_result=_env_int("PASS45_ASSET_IMPORT_RC"),
+        runtime_result=_env_int("PASS45_RUNTIME_RC"),
+    )
     print(f"LOCAL ASSET STATUS JSON: {json_path}")
     print(f"LOCAL ASSET STATUS TEXT: {text_path}")
