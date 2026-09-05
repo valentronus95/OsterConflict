@@ -8,6 +8,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 #include "Styling/CoreStyle.h"
 #include "TimerManager.h"
 #include "Widgets/Layout/SBorder.h"
@@ -32,11 +33,19 @@ void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
     const bool bLocalPlayer = PC && PC->IsLocalController();
     const bool bFrontendVisible = bLocalPlayer && PC->IsFrontendMenuVisible();
     const bool bSettingsVisible = bLocalPlayer && PC->IsSettingsVisible();
+    const bool bDeploymentFlagVisible = bLocalPlayer && PC->IsDeploymentPanelVisible();
     const bool bDeploymentVisible = bLocalPlayer && !bFrontendVisible && !bSettingsVisible &&
-        (PC->IsDeploymentPanelVisible() || PC->GetPawn() == nullptr);
+        (bDeploymentFlagVisible || PC->GetPawn() == nullptr);
     const bool bBlockingMenuVisible = bLocalPlayer &&
-        (bFrontendVisible || bSettingsVisible || PC->IsDeploymentPanelVisible() || PC->GetPawn() == nullptr);
+        (bFrontendVisible || bSettingsVisible || bDeploymentFlagVisible || PC->GetPawn() == nullptr);
     const bool bGameplayReady = bLocalPlayer && !bBlockingMenuVisible && PC->GetPawn() != nullptr;
+
+    // The actual freeze was not a Windows title-bar problem. World timers and delayed content owners
+    // were still allowed to run while Slate was serving the frontend/deployment flow. Pause the world
+    // while a blocking UI owns the screen, but keep this subsystem and the deployment-flow subsystem
+    // tickable while paused. Slate, Alt+Tab and the native minimize/maximize/close buttons then keep
+    // receiving messages while gameplay timers remain suspended.
+    ApplyMenuPause(*World, bBlockingMenuVisible);
 
     // The museum owner used to schedule a one-shot synchronous package-loading rebuild at +0.75 s.
     // A one-time clear had an OnWorldBeginPlay ordering race, so keep suppressing that timer for
@@ -63,6 +72,39 @@ void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
     else
     {
         RemoveDeploymentBackdrop();
+    }
+}
+
+void UOCPass45DeploymentStabilitySubsystem::ApplyMenuPause(UWorld& World, const bool bShouldPause)
+{
+    const bool bPaused = UGameplayStatics::IsGamePaused(&World);
+
+    if (bShouldPause)
+    {
+        if (!bPaused)
+        {
+            if (UGameplayStatics::SetGamePaused(&World, true))
+            {
+                bMenuPauseOwned = true;
+                UE_LOG(LogTemp, Display,
+                    TEXT("PASS45_MENU_WORLD_PAUSED blocking_ui=1 world_timers=0 slate_responsive=1 native_window_responsive=1"));
+            }
+        }
+        return;
+    }
+
+    if (bMenuPauseOwned && bPaused)
+    {
+        if (UGameplayStatics::SetGamePaused(&World, false))
+        {
+            bMenuPauseOwned = false;
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_MENU_WORLD_RESUMED blocking_ui=0 gameplay_ready=1"));
+        }
+    }
+    else if (!bPaused)
+    {
+        bMenuPauseOwned = false;
     }
 }
 
@@ -179,6 +221,15 @@ void UOCPass45DeploymentStabilitySubsystem::RemoveDeploymentBackdrop()
 
 void UOCPass45DeploymentStabilitySubsystem::Deinitialize()
 {
+    if (UWorld* World = GetWorld())
+    {
+        if (bMenuPauseOwned && UGameplayStatics::IsGamePaused(World))
+        {
+            UGameplayStatics::SetGamePaused(World, false);
+        }
+    }
+    bMenuPauseOwned = false;
+
     if (MuseumPreloadHandle.IsValid())
     {
         MuseumPreloadHandle->CancelHandle();
