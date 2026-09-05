@@ -36,25 +36,59 @@ if errorlevel 3 (
   set "OC_QUICK_NORMAL=1"
   set "OC_RHI_COMPAT=1"
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
+  set "QUICK_RC=!ERRORLEVEL!"
   set "OC_RHI_COMPAT="
   set "OC_QUICK_NORMAL="
+  if not "!QUICK_RC!"=="0" (
+    echo.
+    echo ============================================================
+    echo [STOP] SAFE запуск завершився помилкою. code=!QUICK_RC!
+    echo Лог: %~dp0Logs\R14_CURRENT_GAMEPLAY.log
+    echo Вікно залишено відкритим спеціально, щоб помилка не зникала.
+    echo ============================================================
+    pause
+  )
   goto menu
 )
 if errorlevel 2 (
   call :prepare_materials_strict
   set "STRICT_PREP_RC=!ERRORLEVEL!"
-  if not "!STRICT_PREP_RC!"=="0" goto menu
+  if not "!STRICT_PREP_RC!"=="0" (
+    echo.
+    echo [STOP] Повний runtime-тест зупинено. code=!STRICT_PREP_RC!
+    pause
+    goto menu
+  )
   set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
+  set "RUNTIME_RC=!ERRORLEVEL!"
   set "OC_RHI_COMPAT="
+  if not "!RUNTIME_RC!"=="0" (
+    echo.
+    echo ============================================================
+    echo [STOP] Повний runtime-тест завершився помилкою. code=!RUNTIME_RC!
+    echo Вікно залишено відкритим спеціально, щоб результат не зникав.
+    echo ============================================================
+    pause
+  )
   goto menu
 )
 if errorlevel 1 (
   set "OC_QUICK_NORMAL=1"
   set "OC_RHI_COMPAT=0"
   call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"
+  set "QUICK_RC=!ERRORLEVEL!"
   set "OC_RHI_COMPAT="
   set "OC_QUICK_NORMAL="
+  if not "!QUICK_RC!"=="0" (
+    echo.
+    echo ============================================================
+    echo [STOP] Звичайний запуск завершився помилкою. code=!QUICK_RC!
+    echo Лог: %~dp0Logs\R14_CURRENT_GAMEPLAY.log
+    echo Вікно залишено відкритим спеціально, щоб помилка не зникала.
+    echo ============================================================
+    pause
+  )
   goto menu
 )
 
