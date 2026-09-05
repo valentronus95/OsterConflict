@@ -29,6 +29,7 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
+    virtual bool IsTickableWhenPaused() const override { return true; }
 
     /**
      * Called by the small reconciliation watcher. Selection buttons are optimistic for responsive UI,
