@@ -4,7 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCPass45DeploymentStabilitySubsystem.generated.h"
 
-class FStreamableHandle;
+struct FStreamableHandle;
 class SWidget;
 class UWorld;
 
