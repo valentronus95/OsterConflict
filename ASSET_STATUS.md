@@ -3,7 +3,7 @@
 Date: 2026-09-05  
 Canonical PASS45 branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
 Canonical PR: **#94 OPEN / UNMERGED**  
-Latest code-repair checkpoint before this status commit: `386b84fa5282bef0552ab3e42fe50e1baaa7e666`  
+Latest code-repair checkpoint before this status commit: `3c0f29959da2e0c83f076251d925b4f6fd2c7364`  
 Base/current main: `a1ad0e200611911102c48180956d82f73d0d8fc3`  
 Factual asset progress: **70%**  
 First unfinished asset checkpoint: `LOCAL-UE-ASSET-001`
@@ -28,45 +28,73 @@ The canonical Python runner now dispatches `call`, the batch path and arguments 
 
 ## 3. LATEST FACTUAL LOCAL UE 5.8 BATCH RUN — 2026-09-05
 
-The first real run after the Windows batch-dispatch fix reported **41 tracked Changes** and preserved them.
+The newest run reported **43 tracked Changes** and preserved them.
 
 Observed stage results:
 
-- `ALL local/Fab assets: prepare + import + runtime bindings` — **FAIL code=1**, PowerShell `ParserError` surfaced;
+- `ALL local/Fab assets: prepare + import + runtime bindings` — **FAIL code=1**;
 - `Stein weapon materials + fresh-load` — **PASS**;
 - `M700/Lever manual-action audio + fresh-load` — **PASS**;
 - `Remington 870 skeletal pump + fresh-load` — **FAIL code=11**;
-- `HMMWV + M2 + BTR-4 production intake` — **FAIL native code 0xFFFFFFFF / -1**;
+- `HMMWV + M2 + BTR-4 production intake` — **FAIL code=-1**;
 - `Final OsterConflictEditor C++ build` — **FAIL code=6**;
 - `Every required weapon opens in fresh UE` — **PASS**;
 - `Strict authored material/dependency gate` — **FAIL code=11**;
 - gameplay runtime did **not** start because five preflight blockers remained.
 
-The old `aqProf.dll`, `VtuneApi.dll` and `VtuneApi32e.dll` lines are optional profiler-DLL diagnostics and are not accepted as the cause of these failures.
+### 3.1 ALL local/Fab assets — exact cause confirmed and repaired
 
-### Confirmed build cause
+The apparent `Missing closing '}'`, `UnexpectedToken` and `Array index expression` errors were cascading parser symptoms, not a genuinely missing brace at the final reported line.
 
-UE 5.8/MSVC rejected `OCPickupGunTruck.cpp` because a `UE_LOG` format argument was selected through a ternary `?:` expression. UE 5.8 compile-time format validation requires a literal `TCHAR` format array. The two messages are now emitted from separate `UE_LOG` calls.
+A dedicated `windows-latest` CI job running the actual **Windows PowerShell 5.1 parser** reproduced the defect and exposed the root cause: `audit_local_model_inbox.ps1` and `prepare_all_local_inbox_assets.ps1` contained literal Ukrainian text in files stored as UTF-8 without BOM. Windows PowerShell 5.1 interpreted that source as ANSI, converted the Cyrillic to mojibake and then parsed the damaged strings as code.
 
-### PowerShell path repair
+Repair:
 
-`IMPORT_ALL_LOCAL_INBOX_UE58.cmd` passed `%~dp0` directly as a quoted PowerShell `-ProjectDir`; that value ends in `\`. It now uses a dot-qualified `%~dp0.` path, matching the already-safe production-vehicle recovery wrapper. This repair remains **CODED_UNTESTED** until the next local rerun.
+- both affected scripts are now ASCII-only source;
+- Ukrainian filename/category matching is preserved through .NET regex `\uXXXX` escapes;
+- `audit_local_model_inbox.ps1` uses explicit final `if/else` status assignment;
+- `prepare_all_local_inbox_assets.ps1` no longer uses `.NET Core`-only `Path.GetRelativePath`; it uses a Windows PowerShell 5.1 / .NET Framework compatible prefix/substr relative-path calculation;
+- the safe ZIP helper call again uses its declared `-Destination` parameter;
+- GitHub workflow `Pass 45 local build import regression` now includes a real `windows-powershell51-parse` job so this class of parser regression is caught before another local UE run.
 
-### Diagnostics repair
+On checkpoint `3c0f29959da2e0c83f076251d925b4f6fd2c7364`, both the source regression verifier and the Windows PowerShell 5.1 parser job completed **SUCCESS**.
 
-The batch reporter now:
+### 3.2 Final C++ build — exact cause confirmed and repaired
 
-- suppresses `aqProf/Vtune` noise from the primary cause list;
-- emits context around `ParserError` instead of only `CategoryInfo`;
-- normalizes Windows unsigned `4294967295` to `-1`;
-- prints more failure lines per stage;
-- vehicle import and strict material wrappers now copy their fail markers and log tails into the single packet report.
+The latest local compile failure pointed to:
 
-### Remaining factual blockers
+`OCPass45StreetInfrastructureSubsystem.cpp(117,49)`
 
-- Remington `code=11` means the wrapper reached the **production import commandlet failure** path; the exact UE/Python cause still requires the next current-head log output;
-- vehicle `-1` means the production import commandlet terminated without a valid success sentinel; the exact crash/import cause still requires the next current-head log output;
-- strict material `code=11` means its required success sentinel was absent. Because this stage followed a failed C++ build in the same run, do not diagnose it independently until the build is clean on the rerun.
+The code passed `*World` into two `TActorIterator` constructors. UE 5.8 expects `UWorld*`; dereferencing produced a `UWorld&` that MSVC could not convert.
+
+Both iterators now receive `World` directly:
+
+- `TActorIterator<AStaticMeshActor> Existing(World)`;
+- `TActorIterator<AOCWorldSectorOster> It(World)`.
+
+This exact regression is now guarded by `VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py`. The source guard is green; factual UE 5.8 compilation remains pending the next local run.
+
+### 3.3 Reporter noise — repaired
+
+`GPUReshape`, `PixWinPlugin`, `RenderDocPlugin`, `WinPixGpuCapturer.dll`, `aqProf.dll` and VTune diagnostics are optional developer/profiler/capture startup chatter. They are not accepted as the primary cause of PASS45 commandlet failure.
+
+The packet reporter now scans the full log and prioritizes:
+
+- `PASS45_*_FAIL` / `PASS45_*_GAP`;
+- `[STOP]` / `[ERROR]`;
+- Python `Traceback` / `RuntimeError`;
+- PowerShell `ParserError` / `UnexpectedToken`;
+- compiler `error Cxxxx` / fatal errors / `Result: Failed`.
+
+The optional profiler/capture lines are filtered from the primary cause list, and Windows native `0xFFFFFFFF` is displayed as signed `-1`.
+
+### 3.4 Remington / vehicle / strict material — still factual pending, not guessed
+
+The latest Remington `code=11`, vehicle `code=-1` and strict-material `code=11` occurred in a run where the current C++ source failed to compile. Therefore those UE-dependent stages could have executed against stale compiled modules.
+
+Do **not** convert the PIX/RenderDoc/GPUReshape chatter into a diagnosis. Do **not** claim these three causes are fixed yet.
+
+The next current-head run will rebuild through the aggregate local/Fab stage before subsequent production commandlets. If these stages still fail after a clean current-source build, the repaired packet reporter and wrapper log tails must expose the exact UE/Python fail marker for the next targeted fix.
 
 No runtime or visual acceptance is claimed from this run.
 
@@ -112,8 +140,8 @@ Next valid local cycle:
 3. do not Discard/Reset/Stash the user's unrelated local `Changes`;
 4. launch only `START_HERE.cmd`;
 5. choose `2. ПОВНИЙ RUNTIME-ТЕСТ (ПАКЕТНИЙ)`;
-6. use the new single report first;
-7. for any remaining Remington/vehicle/material failure, use the exact fail marker and log tail now surfaced by the packet report;
+6. use the single report first;
+7. if current C++ build is clean but Remington/vehicle/material still fail, use only their new exact fail markers/log tails as the next blockers;
 8. consume fresh `LOCAL_ASSET_STATUS.txt/json` when generated.
 
 Acceptance path:
