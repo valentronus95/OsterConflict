@@ -2,6 +2,7 @@
 
 #include "OCGameMode.h"
 #include "OCLocalInboxRuntimeSubsystem.h"
+#include "OCPlayerController.h"
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
 #include "OCWeaponBase.h"
@@ -12,7 +13,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "GameFramework/PlayerController.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "TimerManager.h"
@@ -106,9 +106,19 @@ void UOCCharacterShowcaseSubsystem::TrySpawnShowcase()
     if (bShowcaseReady || bShowcaseBlocked) return;
 
     UWorld* World = GetWorld();
-    APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
-    AOCPlayerState* PlayerState = PC ? PC->GetPlayerState<AOCPlayerState>() : nullptr;
-    if (!World || !PC || !PlayerState || PlayerState->GetTeamId() == EOCTeam::None) return;
+    AOCPlayerController* PC = World ? Cast<AOCPlayerController>(World->GetFirstPlayerController()) : nullptr;
+    if (!World || !PC || !PC->IsLocalController()) return;
+
+    // Do not synchronously load five skeletal meshes while the player is still using frontend/deployment UI.
+    // That path was able to seize the game thread immediately after TEAM selection, which also made the native
+    // minimize/close buttons and Alt+Tab appear dead. The showcase belongs in the spawned base, not in the menu.
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() || PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        return;
+    }
+
+    AOCPlayerState* PlayerState = PC->GetPlayerState<AOCPlayerState>();
+    if (!PlayerState || PlayerState->GetTeamId() == EOCTeam::None) return;
 
     AOCTeamSpawnPoint* TeamBase = nullptr;
     for (TActorIterator<AOCTeamSpawnPoint> It(World); It; ++It)
@@ -235,6 +245,6 @@ void UOCCharacterShowcaseSubsystem::TrySpawnShowcase()
     bShowcaseReady = true;
     World->GetTimerManager().ClearTimer(RetryTimer);
     UE_LOG(LogTemp, Display,
-        TEXT("CHARACTER_SHOWCASE_READY count=5 distinct_models=5 spacing_cm=150 ai=0 base_team=%d weapons=AR,Pistol,Shotgun,Sniper,LMG hand_socket_fallbacks=%d"),
+        TEXT("CHARACTER_SHOWCASE_READY count=5 distinct_models=5 spacing_cm=150 ai=0 base_team=%d weapons=AR,Pistol,Shotgun,Sniper,LMG hand_socket_fallbacks=%d deferred_until_spawned_gameplay=1"),
         static_cast<int32>(PlayerState->GetTeamId()), HandSocketFallbacks);
 }
