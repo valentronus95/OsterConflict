@@ -184,6 +184,9 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
             Shade->SetVisibility(ESlateVisibility::Collapsed);
             FillCanvas(Canvas->AddChildToCanvas(Shade), 9189);
             BackdropShade = Shade;
+            // SetPresentationVisible() may have cached "visible" before this late-created widget existed.
+            // Invalidate the cache so the new full-screen shade is applied immediately in this same tick.
+            bPresentationVisibilityValid = false;
         }
     }
 
