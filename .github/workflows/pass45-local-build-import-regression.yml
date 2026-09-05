@@ -5,6 +5,8 @@ on:
     paths:
       - 'START_HERE.cmd'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPlayerController.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLocalInboxWeaponOverrideSubsystem.cpp'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
       - 'OsterConflict/Scripts/prepare_all_local_inbox_assets.ps1'
       - 'OsterConflict/Scripts/import_all_local_inbox_assets.py'
@@ -13,6 +15,7 @@ on:
       - 'OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd'
       - 'COLLECT_LOCAL_ASSET_STATUS.py'
       - 'VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py'
+      - 'VERIFY_PASS45_SANDBOX_WEAPON_RACK.py'
       - 'VERIFY_PASS45_ASSET_SOURCE_CLEAN_GUARD.py'
       - 'VERIFY_PASS45_ASSET_FINALIZATION_GUARD.py'
       - 'OSTER_CONFLICT_WORK_LEDGER.md'
@@ -31,6 +34,8 @@ jobs:
           python-version: '3.12'
       - name: Verify local UE build/import regression guards
         run: python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
+      - name: Verify sandbox all-weapons rack
+        run: python VERIFY_PASS45_SANDBOX_WEAPON_RACK.py
       - name: Verify asset source clean guard
         run: python VERIFY_PASS45_ASSET_SOURCE_CLEAN_GUARD.py
       - name: Verify manual visual acceptance and ZIP cleanup guard
