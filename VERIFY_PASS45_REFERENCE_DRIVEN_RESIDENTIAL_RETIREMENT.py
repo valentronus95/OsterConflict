@@ -4,14 +4,22 @@ ROOT = Path(__file__).resolve().parent
 GAME_MODE = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp"
 WORLD_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp"
 WORLD_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h"
+VALIDATOR_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCReferenceDrivenResidentialValidationSubsystem.cpp"
+VALIDATOR_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCReferenceDrivenResidentialValidationSubsystem.h"
+EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
+STRICT = ROOT / "VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py"
 
-for path in (GAME_MODE, WORLD_CPP, WORLD_H):
+for path in (GAME_MODE, WORLD_CPP, WORLD_H, VALIDATOR_CPP, VALIDATOR_H, EVIDENCE, STRICT):
     if not path.is_file():
         raise SystemExit(f"PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL missing={path.relative_to(ROOT)}")
 
 game_mode = GAME_MODE.read_text(encoding="utf-8")
 world_cpp = WORLD_CPP.read_text(encoding="utf-8")
 world_h = WORLD_H.read_text(encoding="utf-8")
+validator_cpp = VALIDATOR_CPP.read_text(encoding="utf-8")
+validator_h = VALIDATOR_H.read_text(encoding="utf-8")
+evidence = EVIDENCE.read_text(encoding="utf-8")
+strict = STRICT.read_text(encoding="utf-8")
 
 forbidden_game_mode = {
     'generic_enterable_house_spawn': 'SpawnActor<AOCEnterableHouse>',
@@ -66,4 +74,61 @@ for token in required_game_mode:
 if 'Private generic residences are intentionally omitted' not in world_h:
     raise SystemExit('PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL missing_header_truth')
 
-print('PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=PASS generic_house_spawn=0 procedural_residential_grids=0 generic_private_fences=0 reference_poi_fences_retained=1')
+# Gate E runtime validator is observation-only. It scans the final world once after startup and rejects any
+# resurrection of procedural residential/fence instances or the specifically rejected village/tower/shack family.
+for token in (
+    'UOCReferenceDrivenResidentialValidationSubsystem : public UWorldSubsystem',
+    'ValidateReferenceDrivenResidentialWorld',
+):
+    if token not in validator_h:
+        raise SystemExit(f"PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL missing_validator_header={token}")
+
+for token in (
+    'ValidationDelaySeconds = 2.0f',
+    'PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_SCHEDULED',
+    'PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_READY',
+    'PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_FAIL',
+    'AdvancedVillagePack',
+    'OCEnterableHouse',
+    'SteepRoof',
+    'Shack',
+    'Tower',
+    'Name == TEXT("Buildings")',
+    'Name == TEXT("ResidentialRoofs")',
+    'Name == TEXT("ResidentialDetails")',
+    'Name == TEXT("WoodFences")',
+    'Name == TEXT("MetalFences")',
+    'Name == TEXT("LightSheetFences")',
+    'GenericBuildingInstances == 0',
+    'GenericRoofInstances == 0',
+    'GenericDetailInstances == 0',
+    'GenericPrivateFenceInstances == 0',
+    'RejectedNamedActors == 0',
+    'RejectedMeshComponents == 0',
+):
+    if token not in validator_cpp:
+        raise SystemExit(f"PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL missing_runtime_validator_contract={token}")
+
+for forbidden in (
+    'Destroy(',
+    'RemoveInstance(',
+    'SetVisibility(',
+    'SetHiddenInGame(',
+    'SetMaterial(',
+    'SetStaticMesh(',
+    'SpawnActor<',
+):
+    if forbidden in validator_cpp:
+        raise SystemExit(f"PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL mutating_validator={forbidden}")
+
+for token in (
+    'PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_READY',
+    'PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_FAIL',
+    'REFERENCE_DRIVEN_RESIDENTIAL_RUNTIME_CONTRACT=PASS',
+):
+    if token not in evidence:
+        raise SystemExit(f"PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL evidence_not_wired={token}")
+    if token not in strict:
+        raise SystemExit(f"PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=FAIL strict_harness_not_wired={token}")
+
+print('PASS45_REFERENCE_RESIDENTIAL_RETIREMENT=PASS generic_house_spawn=0 procedural_residential_grids=0 generic_private_fences=0 runtime_gate_e_fail_visible=1 reference_poi_fences_retained=1')

@@ -8,6 +8,7 @@ set "REPORT_DIR=%PROJECT_DIR%Saved\AutomationReports\ProductionModels"
 set "SUCCESS_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_automation_success.txt"
 set "WEAPON_RUNTIME_REPORT=%REPORT_DIR%\weapon_runtime_validation.txt"
 set "WEAPON_RUNTIME_SENTINEL=%REPORT_DIR%\production_weapon_runtime_success.txt"
+set "STEIN_REIMPORT_CMD=%PROJECT_DIR%PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd"
 set "UE_ROOT="
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat" (
@@ -51,6 +52,10 @@ if not exist "%UE_EDITOR%" (
     echo ERROR: UnrealEditor.exe not found: %UE_EDITOR%
     exit /b 5
 )
+if not exist "%STEIN_REIMPORT_CMD%" (
+    echo ERROR: Pass45 Stein authored-material reimport command is missing: %STEIN_REIMPORT_CMD%
+    exit /b 6
+)
 
 if exist "%REPORT_DIR%" rmdir /s /q "%REPORT_DIR%"
 if exist "%SUCCESS_SENTINEL%" del /q "%SUCCESS_SENTINEL%" >nul 2>nul
@@ -64,7 +69,7 @@ echo UE:      %UE_ROOT%
 echo Project: %UPROJECT%
 echo.
 
-echo [1/4] Building OsterConflictEditor Development Win64...
+echo [1/5] Building OsterConflictEditor Development Win64...
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%UPROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -75,7 +80,7 @@ if not "%BUILD_RC%"=="0" (
 )
 
 echo.
-echo [2/4] Running OsterConflict.ProductionModels automation tests...
+echo [2/5] Running OsterConflict.ProductionModels automation tests...
 "%UE_CMD%" "%UPROJECT%" -unattended -nop4 -nosplash -nullrhi -stdout ^
     -ExecCmds="Automation RunTest OsterConflict.ProductionModels;Quit" ^
     -ReportExportPath="%REPORT_DIR%"
@@ -105,7 +110,17 @@ echo.
 echo PASS: production asset automation checks passed.
 echo Report: %REPORT_DIR%
 echo.
-echo [3/4] Running headless production-weapon runtime gate...
+echo [3/5] Reimporting Stein authored textures/materials with the Pass45 texture-first contract...
+call "%STEIN_REIMPORT_CMD%"
+set "STEIN_RC=%ERRORLEVEL%"
+if not "%STEIN_RC%"=="0" (
+    echo.
+    echo ERROR: Pass45 Stein authored-material reimport failed with code %STEIN_RC%.
+    exit /b %STEIN_RC%
+)
+
+echo.
+echo [4/5] Running headless production-weapon authored-material runtime gate...
 set "VISUAL_MAP=/Game/Maps/OsterConflict_Runtime?Mode=Sandbox?SandboxAdminAll=1?Bots=0?Population=0?BotFill=0?AutoDeploy=1"
 if exist "%WEAPON_RUNTIME_REPORT%" del /q "%WEAPON_RUNTIME_REPORT%" >nul 2>nul
 if exist "%WEAPON_RUNTIME_SENTINEL%" del /q "%WEAPON_RUNTIME_SENTINEL%" >nul 2>nul
@@ -123,22 +138,54 @@ if not "%WEAPON_RUNTIME_RC%"=="0" (
 )
 
 if not exist "%WEAPON_RUNTIME_REPORT%" goto :weapon_runtime_failed
-if not exist "%WEAPON_RUNTIME_SENTINEL%" goto :weapon_runtime_failed
-findstr /L /C:"R14_PRODUCTION_WEAPONS=PASS" "%WEAPON_RUNTIME_SENTINEL%" >nul || goto :weapon_runtime_failed
 
-echo PASS: all declared production weapon actors passed the runtime mesh/fallback gate.
+rem Gate every canonical weapon whose source/content actually exists in this repository.
+rem Missing Remington870/M249 production payload is an explicit CONTENT GAP, never READY and never a fake material repair.
+call :require_weapon_pass "AK-47" || goto :weapon_runtime_failed
+call :require_weapon_pass "MP5" || goto :weapon_runtime_failed
+call :require_weapon_pass "M1911" || goto :weapon_runtime_failed
+call :require_weapon_pass "M700" || goto :weapon_runtime_failed
+call :require_weapon_pass "M14" || goto :weapon_runtime_failed
+call :require_weapon_pass "MAC-10" || goto :weapon_runtime_failed
+call :require_weapon_pass "TEC-9" || goto :weapon_runtime_failed
+call :require_weapon_pass "Lever Action .45-70" || goto :weapon_runtime_failed
+call :require_weapon_pass "Anti-Armor Launcher" || goto :weapon_runtime_failed
+
+if exist "%PROJECT_DIR%Content\Production\Weapons\Remington870\SM_Remington870.uasset" (
+    call :require_weapon_pass "Remington 870" || goto :weapon_runtime_failed
+) else (
+    echo CONTENT GAP: Remington 870 exact production payload is absent; it is not counted READY.
+)
+
+if exist "%PROJECT_DIR%Content\Production\Weapons\M249\SM_M249.uasset" (
+    call :require_weapon_pass "M249" || goto :weapon_runtime_failed
+) else (
+    echo CONTENT GAP: M249 exact production payload is absent; it is not counted READY.
+)
+
+echo PASS: every repository-available canonical weapon passed mesh + authored material + runtime material dependency checks.
+echo CONTENT GAP weapons remain explicitly not READY until their exact production payload exists.
 echo Report: %WEAPON_RUNTIME_REPORT%
 echo.
-echo [4/4] Launching standalone Sandbox visual check...
+echo [5/5] Launching standalone Sandbox visual check...
 start "Oster Conflict - R14 Production Model Visual Check" "%UE_EDITOR%" "%UPROJECT%" "%VISUAL_MAP%" -game -NoFrontend -ValidateProductionWeapons -log -windowed -ResX=1600 -ResY=900
 
 echo.
 echo ============================================================
-echo R14 AUTOMATION + WEAPON RUNTIME GATE PASS. Visual Sandbox launched.
-echo Check weapon hand placement, ADS, fire/reload presentation, HMMWV scale/materials,
-echo M2 pivot+muzzle and BTR-4 shell/materials before marking PR #15 ready.
-echo Grip profiles remain UNCALIBRATED until each exact weapon is visually approved.
+echo R14 AUTOMATION + AVAILABLE-WEAPON MATERIAL GATE PASS. Visual Sandbox launched.
+echo Check the rack in rendered gameplay: authored appearance is mandatory and white/default slots fail.
+echo Also check HMMWV scale/materials, M2 pivot+muzzle and BTR-4 shell/materials.
+echo This command does NOT promote Pass45 to VERIFIED RUNTIME by itself.
 echo ============================================================
+exit /b 0
+
+:require_weapon_pass
+set "REQUIRED_WEAPON_LABEL=%~1"
+findstr /L /B /C:"%REQUIRED_WEAPON_LABEL% |" "%WEAPON_RUNTIME_REPORT%" | findstr /L /C:"RESULT=PASS" >nul
+if errorlevel 1 (
+    echo ERROR: repository-available weapon failed authored-material runtime gate: %REQUIRED_WEAPON_LABEL%
+    exit /b 1
+)
 exit /b 0
 
 :test_failed
@@ -150,7 +197,7 @@ exit /b 11
 
 :weapon_runtime_failed
 echo.
-echo ERROR: R14 production-weapon runtime gate did not pass.
+echo ERROR: R14 repository-available production-weapon authored-material gate did not pass.
 echo Report:   %WEAPON_RUNTIME_REPORT%
 echo Sentinel: %WEAPON_RUNTIME_SENTINEL%
 if exist "%WEAPON_RUNTIME_REPORT%" type "%WEAPON_RUNTIME_REPORT%"

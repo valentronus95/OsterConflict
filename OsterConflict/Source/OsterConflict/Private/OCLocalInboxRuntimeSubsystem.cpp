@@ -162,8 +162,7 @@ void UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(const FString
             FString EntryCategory;
             bool bCompatible = false;
             if (!ReadEntry(Value, Path, EntryCategory, bCompatible)) continue;
-            if (!EntryCategory.Equals(Category, ESearchCase::IgnoreCase)) continue;
-            OutPaths.AddUnique(Path);
+            if (EntryCategory.Equals(Category, ESearchCase::IgnoreCase)) OutPaths.AddUnique(Path);
         }
     }
 }
@@ -194,6 +193,7 @@ int32 UOCLocalInboxRuntimeSubsystem::GetCompatibleCharacterSkinCount()
     if (!LoadBindingRoot(Root)) return 0;
     const TArray<TSharedPtr<FJsonValue>>* Values = GetArray(Root, TEXT("skeletal_assets"));
     if (!Values) return 0;
+
     int32 Count = 0;
     for (const TSharedPtr<FJsonValue>& Value : *Values)
     {
@@ -215,6 +215,7 @@ USkeletalMesh* UOCLocalInboxRuntimeSubsystem::LoadCompatibleCharacterSkin(const 
     if (!LoadBindingRoot(Root)) return nullptr;
     const TArray<TSharedPtr<FJsonValue>>* Values = GetArray(Root, TEXT("skeletal_assets"));
     if (!Values) return nullptr;
+
     int32 CompatibleIndex = 0;
     for (const TSharedPtr<FJsonValue>& Value : *Values)
     {
@@ -260,11 +261,21 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
     if (bBindingsApplied) return;
     bBindingsApplied = true;
 
+    // Normal gameplay is lazy by design. The old path synchronously LoadObject()'d the entire
+    // local/Fab manifest on the game thread 0.45s after startup, which could freeze window input.
+    // Full manifest traversal is a PASS45 validation operation only.
+    if (!bValidateLocalInbox)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_LOCAL_INBOX_RUNTIME_LAZY_READY validation=0 preload_all=0 game_thread_manifest_walk=0"));
+        return;
+    }
+
     TSharedPtr<FJsonObject> Root;
     if (!LoadBindingRoot(Root))
     {
         UE_LOG(LogTemp, Warning, TEXT("PASS45_LOCAL_INBOX_RUNTIME_GAP manifest_missing=%s"), *BindingManifestPath());
-        if (bValidateLocalInbox) WriteRuntimeReport(false, TEXT("runtime_bindings.json missing"));
+        WriteRuntimeReport(false, TEXT("runtime_bindings.json missing"));
         return;
     }
 
@@ -340,23 +351,17 @@ void UOCLocalInboxRuntimeSubsystem::ApplyRuntimeBindings()
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_LOCAL_INBOX_RUNTIME_READY static=%d skeletal=%d hud_bound=%d all_models_bound=1"),
             StaticLoaded, SkeletalLoaded, bHUDBound ? 1 : 0);
-        if (bValidateLocalInbox)
-        {
-            WriteRuntimeReport(true, FString::Printf(TEXT("static=%d skeletal=%d hud_bound=%d load_failures=0"),
-                StaticLoaded, SkeletalLoaded, bHUDBound ? 1 : 0));
-            SpawnValidationShowcase();
-        }
+        WriteRuntimeReport(true, FString::Printf(TEXT("static=%d skeletal=%d hud_bound=%d load_failures=0"),
+            StaticLoaded, SkeletalLoaded, bHUDBound ? 1 : 0));
+        SpawnValidationShowcase();
     }
     else
     {
         UE_LOG(LogTemp, Error,
             TEXT("PASS45_LOCAL_INBOX_RUNTIME_FAIL manifest_bound=%d load_failures=%d static_loaded=%d skeletal_loaded=%d hud_expected=%d hud_bound=%d"),
             bManifestBound ? 1 : 0, LoadFailures, StaticLoaded, SkeletalLoaded, bHUDExpected ? 1 : 0, bHUDBound ? 1 : 0);
-        if (bValidateLocalInbox)
-        {
-            WriteRuntimeReport(false, FString::Printf(TEXT("manifest_bound=%d load_failures=%d"),
-                bManifestBound ? 1 : 0, LoadFailures));
-        }
+        WriteRuntimeReport(false, FString::Printf(TEXT("manifest_bound=%d load_failures=%d"),
+            bManifestBound ? 1 : 0, LoadFailures));
     }
 }
 

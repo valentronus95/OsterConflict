@@ -1,31 +1,21 @@
 #include "OCBTR.h"
 
+#include "OCCharacter.h"
 #include "OCDamageTypes.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
 {
-    FQuat ResolveLongAxisToForward(const FVector& NativeSize)
-    {
-        FVector NativeForward = FVector::ForwardVector;
-        if (NativeSize.Y >= NativeSize.X && NativeSize.Y >= NativeSize.Z)
-        {
-            NativeForward = FVector::RightVector;
-        }
-        else if (NativeSize.Z >= NativeSize.X && NativeSize.Z >= NativeSize.Y)
-        {
-            NativeForward = FVector::UpVector;
-        }
-        return FQuat::FindBetweenNormals(NativeForward, FVector::ForwardVector);
-    }
-
     bool ApplyProportionalGroundedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
         float DesiredLengthCm, float GroundZCm)
     {
@@ -38,10 +28,23 @@ namespace
             return false;
         }
 
-        const float UniformScale = DesiredLengthCm / NativeLength;
-        const FQuat AxisCorrection = ResolveLongAxisToForward(NativeSize);
-        const FVector CorrectedOrigin = AxisCorrection.RotateVector(Bounds.Origin);
-        const FVector CorrectedExtent = AxisCorrection.RotateVector(Bounds.BoxExtent).GetAbs();
+        // PASS45 item 30: the canonical BTR source is authored with +X as the nose/forward axis.
+        // Do not guess another longest axis or its sign at runtime. If import transposes that contract,
+        // reject the production presentation instead of confidently driving a BTR backwards.
+        const bool bCanonicalPositiveXForward =
+            NativeSize.X >= NativeSize.Y && NativeSize.X >= NativeSize.Z;
+        if (!bCanonicalPositiveXForward)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_BTR4_FORWARD_AXIS_FAIL native_cm=%s expected_long_axis=X canonical_forward=+X production_visible=0"),
+                *NativeSize.ToCompactString());
+            return false;
+        }
+
+        const float UniformScale = DesiredLengthCm / NativeSize.X;
+        const FQuat AxisCorrection = FQuat::Identity;
+        const FVector CorrectedOrigin = Bounds.Origin;
+        const FVector CorrectedExtent = Bounds.BoxExtent.GetAbs();
 
         FVector Location = -CorrectedOrigin * UniformScale;
         Location.Z = GroundZCm - (CorrectedOrigin.Z - CorrectedExtent.Z) * UniformScale;
@@ -52,6 +55,9 @@ namespace
         Component->SetRelativeLocation(Location);
         Component->EmptyOverrideMaterials();
 
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BTR4_FORWARD_AXIS_READY canonical_forward=+X runtime_axis_correction=identity native_cm=%s"),
+            *NativeSize.ToCompactString());
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_BTR4_PROPORTIONAL_VISUAL_READY native_cm=%s uniform_scale=%.4f desired_length_cm=%.1f axis_correction=%s nonuniform_stretch=0"),
             *NativeSize.ToCompactString(), UniformScale, DesiredLengthCm, *AxisCorrection.Rotator().ToCompactString());
@@ -104,6 +110,15 @@ AOCBTR::AOCBTR()
     BarrelMesh->SetRelativeLocation(FVector(118.0f, 0.0f, 0.0f));
     BarrelMesh->SetRelativeScale3D(FVector(2.35f, 0.11f, 0.11f));
     TurretBaseMesh->SetRelativeScale3D(FVector(1.05f, 1.05f, 0.34f));
+
+    // Remote weapon station optic: unlike the HMMWV open-ring camera, the BTR operator looks
+    // through a sensor that follows both the turret yaw hierarchy and the barrel pitch hierarchy.
+    if (GunnerCameraPivot && BarrelPivot)
+    {
+        GunnerCameraPivot->SetupAttachment(BarrelPivot);
+        GunnerCameraPivot->SetRelativeLocation(FVector(64.0f, -36.0f, 35.0f));
+        GunnerCameraPivot->SetRelativeRotation(FRotator::ZeroRotator);
+    }
 
     UpperHull = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("UpperHull"));
     NoseArmor = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NoseArmor"));
@@ -169,6 +184,39 @@ AOCBTR::AOCBTR()
     }
 }
 
+void AOCBTR::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    AOCCharacter* CurrentGunner = GetGunnerCharacter();
+    AOCCharacter* PreviousGunner = ActiveOpticGunner.Get();
+    if (PreviousGunner != CurrentGunner)
+    {
+        if (PreviousGunner && PreviousGunner->IsLocallyControlled())
+        {
+            if (APlayerController* PC = Cast<APlayerController>(PreviousGunner->GetController()))
+            {
+                if (PC->PlayerCameraManager)
+                {
+                    PC->PlayerCameraManager->UnlockFOV();
+                }
+            }
+        }
+        ActiveOpticGunner = CurrentGunner;
+    }
+
+    if (CurrentGunner && CurrentGunner->IsLocallyControlled())
+    {
+        if (APlayerController* PC = Cast<APlayerController>(CurrentGunner->GetController()))
+        {
+            if (PC->PlayerCameraManager)
+            {
+                PC->PlayerCameraManager->SetFOV(BTRRemoteOpticFieldOfView);
+            }
+        }
+    }
+}
+
 bool AOCBTR::CanHullAcceptDamage(const FDamageEvent& DamageEvent) const
 {
     const UClass* DamageClass = DamageEvent.DamageTypeClass;
@@ -214,13 +262,122 @@ void AOCBTR::ApplyVehicleStyle()
 
         UE_LOG(LogTemp, Display,
             TEXT("BTR gameplay vehicle uses production BTR-4 Bucephalus visual shell with preserved native proportions; visual proxies disabled."));
+
+        const bool bRemoteOpticHierarchyReady = GunnerCameraPivot && BarrelPivot &&
+            GunnerCameraPivot->GetAttachParent() == BarrelPivot;
+        if (bRemoteOpticHierarchyReady)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_BTR4_REMOTE_OPTIC_READY owner=GunnerCameraPivot parent=BarrelPivot follows_yaw=1 follows_pitch=1 locked_fov=%.1f open_ring_view=0"),
+                BTRRemoteOpticFieldOfView);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_BTR4_REMOTE_OPTIC_FAIL parent=BarrelPivot follows_yaw=0 follows_pitch=0"));
+        }
+
+        ValidateProductionBTR4MaterialState(TEXT("ApplyVehicleStyle"));
     }
-    else if (Chassis)
+    else
     {
-        Chassis->SetRelativeScale3D(FVector(6.15f, 2.45f, 0.72f));
+        // Exact BTR-4 is the only valid visual owner. Missing/invalid production content may not fall back to
+        // the old cube/cylinder APC because that creates a second visual truth and hides the real content gap.
+        DisableVisualProxy(Chassis);
+        UStaticMeshComponent* ProxyParts[] =
+        {
+            UpperHull.Get(), NoseArmor.Get(), RearArmor.Get(),
+            WheelExtraFL.Get(), WheelExtraFR.Get(), WheelExtraRL.Get(), WheelExtraRR.Get(),
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+        };
+        for (UStaticMeshComponent* Component : ProxyParts)
+        {
+            DisableVisualProxy(Component);
+        }
+        for (UStaticMeshComponent* Wheel : WheelVisuals)
+        {
+            DisableVisualProxy(Wheel);
+        }
+        DisableVisualProxy(TurretBaseMesh);
+        DisableVisualProxy(BarrelMesh);
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_BTR4_PRODUCTION_VISUAL_GAP exact_btr4=0 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 runtime_acceptance=0"));
     }
 
     InteriorCamera->SetRelativeLocation(bUsingBTR4 ? FVector(145.0f, -58.0f, 112.0f) : FVector(130.0f, -52.0f, 105.0f));
     ThirdPersonSpringArm->TargetArmLength = bUsingBTR4 ? 900.0f : 820.0f;
     ThirdPersonSpringArm->SetRelativeLocation(bUsingBTR4 ? FVector(-110.0f, 0.0f, 245.0f) : FVector(-80.0f, 0.0f, 220.0f));
+}
+
+void AOCBTR::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+    ValidateProductionBTR4MaterialState(TEXT("PossessedBy"));
+}
+
+void AOCBTR::UnPossessed()
+{
+    Super::UnPossessed();
+    ValidateProductionBTR4MaterialState(TEXT("UnPossessed"));
+}
+
+void AOCBTR::PawnClientRestart()
+{
+    Super::PawnClientRestart();
+    ValidateProductionBTR4MaterialState(TEXT("PawnClientRestart"));
+}
+
+bool AOCBTR::ValidateProductionBTR4MaterialState(const TCHAR* Phase)
+{
+    if (!Chassis)
+    {
+        return false;
+    }
+
+    UStaticMesh* Mesh = Chassis->GetStaticMesh();
+    const FString MeshPath = Mesh ? Mesh->GetPathName() : FString();
+    if (!MeshPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/")))
+    {
+        return false;
+    }
+
+    const int32 MaterialSlots = Chassis->GetNumMaterials();
+    bool bAllAuthored = MaterialSlots > 0;
+    FString InvalidSlots;
+
+    for (int32 Slot = 0; Slot < MaterialSlots; ++Slot)
+    {
+        UMaterialInterface* Material = Chassis->GetMaterial(Slot);
+        const FString MaterialPath = Material ? Material->GetPathName() : FString();
+        const bool bDefaultOrPrimitive = !Material ||
+            MaterialPath.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial")) ||
+            MaterialPath.Contains(TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
+        const bool bBTRAuthored = MaterialPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/"));
+        if (bDefaultOrPrimitive || !bBTRAuthored)
+        {
+            bAllAuthored = false;
+            if (!InvalidSlots.IsEmpty()) InvalidSlots += TEXT(",");
+            InvalidSlots += FString::Printf(TEXT("%d:%s"), Slot, Material ? *MaterialPath : TEXT("NULL"));
+        }
+    }
+
+    const TCHAR* SafePhase = Phase ? Phase : TEXT("Unknown");
+    if (bAllAuthored)
+    {
+        Chassis->SetVisibility(true, true);
+        Chassis->SetHiddenInGame(false, true);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BTR4_MATERIAL_STATE_READY phase=%s slots=%d mesh=%s default_material=0 primitive_material=0"),
+            SafePhase, MaterialSlots, *MeshPath);
+        return true;
+    }
+
+    // Fail closed. A missing/DefaultMaterial production BTR is not allowed to become the familiar
+    // bright-white vehicle after possession just because Unreal can render an emergency material.
+    Chassis->SetVisibility(false, true);
+    Chassis->SetHiddenInGame(true, true);
+    UE_LOG(LogTemp, Error,
+        TEXT("PASS45_BTR4_MATERIAL_STATE_FAIL phase=%s slots=%d invalid=%s mesh=%s production_visible=0"),
+        SafePhase, MaterialSlots, *InvalidSlots, *MeshPath);
+    return false;
 }

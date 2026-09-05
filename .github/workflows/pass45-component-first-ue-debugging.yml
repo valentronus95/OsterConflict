@@ -1,0 +1,29 @@
+name: Pass 45 component-first UE debugging
+
+# Historical/local UE diagnostic bundle. Ordinary PASS45 development uses
+# batch-first remote preparation and production/path-scoped critical gates.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify component/local UE debugging diagnostics on demand
+        run: |
+          python VERIFY_PASS45_COMPONENT_FIRST_UE_DEBUGGING.py
+          python VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py
+          python VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py
+          python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
+      - name: Diagnostic bundle complete
+        run: |
+          echo "PASS45 LOCAL UE DIAGNOSTICS: PASS"
+          echo "user_local_execution_requested=0"
+          echo "item16_checked=0 runtime_acceptance=0 merge_permitted=0"

@@ -1,0 +1,22 @@
+name: Pass 45 item16 UE58 frame-rate compatibility
+
+# Local/pilot compatibility diagnostic. Production development no longer
+# reruns this automatically for every item16 source edit.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify UE58 frame-rate compatibility on demand
+        run: |
+          python -m py_compile PASS45_M700_DERIVED_BOLT_TRANSLATION_UE58_PILOT_COMPAT.py PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py
+          python VERIFY_PASS45_ITEM16_UE58_FRAME_RATE_COMPAT.py

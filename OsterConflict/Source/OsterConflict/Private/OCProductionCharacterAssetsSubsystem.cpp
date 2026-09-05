@@ -4,7 +4,6 @@
 #include "OCCharacterVisualComponent.h"
 #include "OCCharacterVisualProfile.h"
 #include "OCGameMode.h"
-#include "OCLocalInboxRuntimeSubsystem.h"
 
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -74,19 +73,6 @@ namespace
         default: return FName(TEXT("OC_Gear_Standard"));
         }
     }
-
-    void ApplyLocalSkinIfAvailable(UOCCharacterVisualProfile* Profile, int32 SkinIndex)
-    {
-        if (!Profile) return;
-        if (USkeletalMesh* LocalSkin = UOCLocalInboxRuntimeSubsystem::LoadCompatibleCharacterSkin(SkinIndex))
-        {
-            Profile->ThirdPersonBodyMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(LocalSkin->GetPathName()));
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS45_LOCAL_CHARACTER_SKIN_BOUND faction=%s index=%d mesh=%s skeleton=%s"),
-                *Profile->DisplayName.ToString(), SkinIndex, *LocalSkin->GetPathName(),
-                LocalSkin->GetSkeleton() ? *LocalSkin->GetSkeleton()->GetPathName() : TEXT("<none>"));
-        }
-    }
 }
 
 bool UOCProductionCharacterAssetsSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -134,20 +120,6 @@ void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
     RangersProfile = MakeProfile(EOCFactionArchetype::USRangers, TEXT("US Rangers Style"));
     InsurgentsProfile = MakeProfile(EOCFactionArchetype::Insurgents, TEXT("Insurgents"));
 
-    // User-added human models stop being passive files. Every skin that the intake proved compatible with
-    // the active Quantum skeleton is assigned to live faction profiles. When fewer than four are supplied,
-    // cycle the verified skins rather than falling back to a cube/proxy for the remaining factions.
-    const int32 LocalSkinCount = UOCLocalInboxRuntimeSubsystem::GetCompatibleCharacterSkinCount();
-    if (LocalSkinCount > 0)
-    {
-        ApplyLocalSkinIfAvailable(UAProfile, 0 % LocalSkinCount);
-        ApplyLocalSkinIfAvailable(MaskedProfile, 1 % LocalSkinCount);
-        ApplyLocalSkinIfAvailable(RangersProfile, 2 % LocalSkinCount);
-        ApplyLocalSkinIfAvailable(InsurgentsProfile, 3 % LocalSkinCount);
-        UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_CHARACTER_SKIN_POOL_READY compatible_skins=%d live_factions=4"),
-            LocalSkinCount);
-    }
-
     VestMesh = LoadObject<USkeletalMesh>(nullptr,
         TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Bulletproof_Bege.SKM_Bulletproof_Bege"));
     DropsMesh = LoadObject<USkeletalMesh>(nullptr,
@@ -181,21 +153,6 @@ void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
         if (!Visual) continue;
 
         Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);
-
-        const int32 LocalSkinCount = UOCLocalInboxRuntimeSubsystem::GetCompatibleCharacterSkinCount();
-        if (LocalSkinCount > 0)
-        {
-            const int32 Seed = FMath::Max(1, Visual->GetAppearance().VariantSeed);
-            const int32 SkinIndex = (Seed - 1) % LocalSkinCount;
-            if (USkeletalMesh* LocalSkin = UOCLocalInboxRuntimeSubsystem::LoadCompatibleCharacterSkin(SkinIndex))
-            {
-                if (USkeletalMeshComponent* Body = Character.GetMesh())
-                {
-                    if (Body->GetSkeletalMeshAsset() != LocalSkin) Body->SetSkeletalMeshAsset(LocalSkin);
-                }
-            }
-        }
-
         ApplyGear(Character);
         ApplyAnimation(Character);
     }

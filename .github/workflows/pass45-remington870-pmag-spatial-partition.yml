@@ -1,0 +1,41 @@
+name: Pass 45 Remington 870 Pmag spatial partition audit
+
+on:
+  pull_request:
+    paths:
+      - 'PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py'
+      - 'VERIFY_PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py'
+      - 'PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py'
+      - 'PASS45_REMINGTON870_PUMP_IDENTITY_VISUAL_AUDIT.py'
+      - 'PASS45_REMINGTON870_STRUCTURE_AUDIT.py'
+      - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
+      - 'PASS45_REMINGTON870_SOURCE_ACQUIRE.py'
+      - '.github/workflows/pass45-remington870-pmag-spatial-partition.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile partition audit
+        run: python -m py_compile PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py VERIFY_PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py
+      - name: Verify fail-closed partition contract
+        run: python VERIFY_PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py
+      - name: Generate exact-donor spatial partition evidence
+        run: |
+          mkdir -p _pass45_pmag_partition
+          python PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.py --output _pass45_pmag_partition/PASS45_REMINGTON870_PMAG_SPATIAL_PARTITION_AUDIT.json
+      - name: Upload partition evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-remington870-pmag-spatial-partition-evidence
+          path: _pass45_pmag_partition/
+          if-no-files-found: error
+          retention-days: 14

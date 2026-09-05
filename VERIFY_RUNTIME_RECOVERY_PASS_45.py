@@ -55,14 +55,27 @@ foliage = text(SRC / "OCFoliageRuntimeGuardSubsystem.cpp")
 foliage_h = text(PUB / "OCFoliageRuntimeGuardSubsystem.h")
 budget = text(SRC / "OCWorldRenderBudgetPass17Subsystem.cpp")
 world = text(SRC / "OCWorldSectorOster.cpp")
+world_h = text(PUB / "OCWorldSectorOster.h")
 trees = text(SRC / "OCR145MuseumTreeLayoutSubsystem.cpp")
 weapon_preflight = text(SCRIPTS / "verify_required_weapon_assets.py")
 pass43 = text(ROOT / "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py")
 pass23 = text(ROOT / "VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py")
 
 req("PASS 45 RUNTIME RECOVERY TZ" in tz, "canonical Pass 45 corrective TZ is missing")
-req("RUNTIME REJECTED" in tz and "CODED_UNTESTED" in tz,
-    "Pass45 TZ must remain runtime-rejected/source-untested until factual UE acceptance")
+req(
+    "RUNTIME REJECTED" in tz
+    and "RUNTIME ACCEPTANCE DEFERRED" in tz
+    and all(
+        flag in tz
+        for flag in (
+            "runtime_acceptance=0",
+            "item16_checked=0",
+            "merge_permitted=0",
+            "user_local_execution_requested=0",
+        )
+    ),
+    "Pass45 TZ must remain runtime-rejected/acceptance-deferred until factual UE acceptance",
+)
 req("2026-08-25" in manifest and "RUNTIME REJECTED" in manifest,
     "latest Pass45 rejected runtime evidence manifest is missing classification/date")
 req("RUNTIME REJECTED" in ledger and "Pass 45" in ledger,
@@ -89,7 +102,7 @@ for path, label in (
 ):
     absent(path, label)
 
-# RHI A/B: normal DX11/SM5/no-HDR with normal threading, explicit compatibility-only -norhithread.
+# RHI A/B: strict acceptance remains fullscreen; only START_HERE quick normal is windowed so a bad startup cannot trap desktop focus.
 req('set "RHI_FLAGS=-d3d11 -sm5 -nohdr"' in launcher, "normal RHI-thread baseline is missing")
 req('if /I "%OC_RHI_COMPAT%"=="1"' in launcher, "explicit RHI compatibility selector is missing")
 req('set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"' in launcher, "no-RHI-thread compatibility route is missing")
@@ -99,8 +112,14 @@ req("-d3d12" not in launcher.lower() and "-sm6" not in launcher.lower(),
     "Pass45 normal gameplay must not re-enable D3D12/SM6 during recovery")
 req("-nullrhi" in launcher and "-run=pythonscript" in launcher,
     "isolated weapon preflight must remain NullRHI")
-req("-fullscreen" in launcher and "-windowed" not in launcher.lower(),
-    "normal recovery launcher must not force windowed mode")
+launcher_parts = launcher.split(":quick_normal_game", 1)
+req(len(launcher_parts) == 2, "canonical launcher is missing explicit quick-normal section")
+strict_launcher = launcher_parts[0] if launcher_parts else launcher
+quick_launcher = launcher_parts[1] if len(launcher_parts) == 2 else ""
+req("-fullscreen" in strict_launcher and "-windowed" not in strict_launcher.lower(),
+    "strict recovery/acceptance launcher must remain fullscreen")
+req("-windowed" in quick_launcher.lower() and "-ResX=1280" in quick_launcher and "-ResY=720" in quick_launcher,
+    "quick normal recovery route must stay windowed and desktop-recoverable")
 req("t.MaxFPS 60" in launcher and "PASS45_NORMAL_DISPLAY_THERMAL_GUARD" in launcher,
     "normal recovery launcher must keep the explicit 60 FPS thermal guard")
 
@@ -175,12 +194,16 @@ for needle in (
 req("LastValidatedPawnByController" not in spawn_guard_h + spawn_guard,
     "legacy arbitrary-pawn BASE revalidation cache returned")
 
-# Production vehicle visuals preserve mesh proportions and M2 is grounded to its mount plane.
+# Production vehicle visuals preserve mesh proportions. Exact M2 must keep its authored receiver/mount pivot;
+# the runtime-rejected bounds-grounding/longest-axis heuristic may not return.
 for needle in (
     "PASS45_HMMWV_PROPORTIONAL_VISUAL_READY", "nonuniform_stretch=0",
-    "PASS45_M2_MOUNT_ALIGNMENT_READY", "bottom_on_mount=1",
+    "PASS45_M2_AUTHORED_PIVOT_READY", "m2_authored_pivot=1",
+    "bounds_recenter=0", "longest_axis_guess=0",
 ):
     req(needle in pickup, f"HMMWV/M2 corrective transform contract missing: {needle}")
+req("AddGroundedTurretVisual(this, M2Parent, M2, 165.0f" not in pickup,
+    "runtime-rejected exact-M2 bounds grounding returned")
 for needle in ("PASS45_BTR4_PROPORTIONAL_VISUAL_READY", "nonuniform_stretch=0"):
     req(needle in btr, f"BTR4 corrective transform contract missing: {needle}")
 for forbidden in ("DesiredSizeCm.X / NativeSize.X", "DesiredSizeCm.Y / NativeSize.Y", "DesiredSizeCm.Z / NativeSize.Z"):
@@ -281,20 +304,30 @@ req("130000" not in budget, "historical 1300 m source-family cull distance retur
 req('TEXT("GrassMown"),              0,  16000' in budget, "ground-cover cull was not reduced")
 req('TEXT("ResidentialDetails"),  6000,  24000' in budget, "residential detail cull was not reduced")
 
-# Primitive source trees stay audit-visible but hidden from normal gameplay; verified pine stays real, oak stays unverified.
-for family in (
+# PASS45 item 26: primitive Cylinder/Sphere tree authoring is physically gone; tracked authored trees own vegetation.
+primitive_tree_names = (
     "TreeTrunks", "TreeCrowns", "SovietPoplarTrunks", "SovietPoplarCrowns",
     "BirchTrunks", "BirchCrowns", "PineTrunks", "PineCrowns",
+)
+for family in primitive_tree_names:
+    req(f'TEXT("{family}")' not in world and family not in world_h,
+        f"rejected primitive tree authoring returned: {family}")
+req("/Engine/BasicShapes/Cylinder" not in world and "/Engine/BasicShapes/Sphere" not in world,
+    "Cylinder/Sphere tree source authoring returned")
+for needle in (
+    "AuthoredDeciduousTrees", "AuthoredPine01Trees", "AuthoredPine03Trees",
+    "HillTree_02", "ScotsPine_01", "ScotsPineTall_01", "AddGroundedTree",
 ):
-    req(f'TEXT("{family}")' in foliage, f"foliage guard does not own primitive family retirement: {family}")
-req("RetireSourceTreeProxies" in foliage and "bTreeProxyRetirementObserved" in foliage_h,
-    "primitive tree retirement path is incomplete")
-req("PASS45_PRIMITIVE_TREE_PROXIES_RETIRED" in foliage and "cylinder_sphere_visible=0" in foliage,
-    "primitive tree visual retirement evidence missing")
-req("oak_asset_verified=0" in foliage, "Pass45 must not invent a verified oak asset")
-req(has_all(trees, ["SM_Pine_Tree_01", "SM_Pine_Tree_03"]), "known real pine assets are no longer referenced")
-req("/Engine/BasicShapes/Cylinder" in world and "/Engine/BasicShapes/Sphere" in world,
-    "historical source proxy authoring unexpectedly vanished before primary-authoring migration")
+    req(needle in world + world_h, f"authored vegetation source contract missing: {needle}")
+for needle in (
+    "PASS45_AUTHORED_TREE_FAMILY_READY", "primitive_tree_components=0", "authored_tree_components=3",
+    "basicshape_tree_meshes=0", "oak_asset_verified=0",
+):
+    req(needle in foliage, f"authored vegetation runtime guard missing: {needle}")
+req("RetireSourceTreeProxies" not in foliage + foliage_h and "bTreeProxyRetirementObserved" not in foliage_h,
+    "late-hide primitive tree retirement path must be physically retired after primary-authoring migration")
+req(has_all(trees, ["SM_Pine_Tree_01", "SM_Pine_Tree_03"]), "known real Museum pine assets are no longer referenced")
+req("SM_Oak" not in world + trees + foliage, "Pass45 must not invent an unverified oak asset")
 
 # Every required weapon gets mesh -> material -> texture dependency truth in fresh NullRHI preflight.
 for needle in (
@@ -324,7 +357,9 @@ print("- latest runtime rejection remains authoritative and retired mutating own
 print("- R13.7 is the one visible Museum exterior; R13.8 is hidden collision/interactivity only")
 print("- VehicleBase owns production-material preservation at source; validation layer is read-only")
 print("- driver/gunner transform evidence proves ordinary vehicle possession cannot silently respawn at Museum")
+print("- exact M2 uses its authored receiver/mount pivot; bounds/longest-axis recenter is rejected")
 print("- M2 default gunner pitch is direct/non-inverted")
-print("- compact reference tactical topology / render budget / bounded foliage contracts remain")
+print("- compact reference tactical topology / render budget / authored vegetation contracts remain")
 print("- all required weapons emit mesh/material/texture dependency truth")
+print("- strict acceptance remains fullscreen; quick normal is windowed only for desktop recovery")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")

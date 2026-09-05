@@ -44,23 +44,36 @@ echo [PASS45 MATERIAL] Running headless authored material/dependency gate...
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (
   echo [PASS45 MATERIAL] FAIL: Unreal headless gate exited with code %RC%.
+  if exist "%MATERIAL_LOG%" (
+    findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON" /C:"PASS45_PRODUCTION_VEHICLE_" /C:"Fatal error:" /C:"Unhandled Exception:" /C:"LogTemp: Error:" "%MATERIAL_LOG%"
+    echo [PASS45 MATERIAL] Last 60 log lines:
+    powershell -NoProfile -Command "Get-Content -LiteralPath $env:MATERIAL_LOG -Tail 60" 2>nul
+  )
   echo Log: %MATERIAL_LOG%
   exit /b %RC%
 )
 
 if not exist "%WEAPON_REPORT%" (
   echo [PASS45 MATERIAL] FAIL: weapon dependency report is missing.
+  if exist "%MATERIAL_LOG%" powershell -NoProfile -Command "Get-Content -LiteralPath $env:MATERIAL_LOG -Tail 60" 2>nul
   exit /b 10
 )
 if not exist "%WEAPON_SENTINEL%" (
-  echo [PASS45 MATERIAL] FAIL: production weapon success sentinel is missing.
+  echo [PASS45 MATERIAL] FAIL: required-available weapon success sentinel is missing.
+  if exist "%MATERIAL_LOG%" (
+    findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON" /C:"PASS45_AUTHORED_WEAPON" /C:"PASS45_WEAPON_DEPENDENCY" /C:"PASS45_PRODUCTION_VEHICLE_" /C:"LogTemp: Error:" "%MATERIAL_LOG%"
+    echo [PASS45 MATERIAL] Last 60 log lines:
+    powershell -NoProfile -Command "Get-Content -LiteralPath $env:MATERIAL_LOG -Tail 60" 2>nul
+  )
   exit /b 11
 )
 
-findstr /L /C:"R14_PRODUCTION_WEAPONS=PASS" "%WEAPON_SENTINEL%" >nul || goto :weapon_fail
+findstr /L /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS=PASS" "%WEAPON_SENTINEL%" >nul || goto :weapon_fail
 findstr /L /C:"PASS45_AUTHORED_WEAPON_MATERIALS=PASS" "%WEAPON_SENTINEL%" >nul || goto :weapon_fail
 findstr /L /C:"PASS45_WEAPON_DEPENDENCY_REPORT=PASS" "%WEAPON_SENTINEL%" >nul || goto :weapon_fail
-findstr /C:"PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY" "%MATERIAL_LOG%" >nul || goto :weapon_fail
+findstr /L /C:"PASS45_EXACT_PRODUCTION_CONTENT_GAPS=" "%WEAPON_SENTINEL%" >nul || goto :weapon_fail
+findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY" "%MATERIAL_LOG%" >nul || goto :weapon_fail
+findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%MATERIAL_LOG%" >nul && goto :weapon_fail
 
 findstr /C:"PASS45_PRODUCTION_VEHICLE_MATERIAL_OVERRIDE_FAIL" "%MATERIAL_LOG%" >nul && goto :vehicle_fail
 findstr /C:"PASS45_PRODUCTION_VEHICLE_MATERIAL_GAP" "%MATERIAL_LOG%" >nul && goto :vehicle_fail
@@ -68,17 +81,21 @@ findstr /C:"PASS45_PRODUCTION_VEHICLE_CONTENT_GAP" "%MATERIAL_LOG%" >nul && goto
 findstr /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%MATERIAL_LOG%" >nul || goto :vehicle_fail
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" "%MATERIAL_LOG%" >nul || goto :vehicle_fail
 
-echo [PASS45 MATERIAL] PASS: weapon authored materials/dependencies and HMMWV/M2/BTR material slots validated.
+echo [PASS45 MATERIAL] PASS: required available weapon visuals/material dependencies and HMMWV/M2/BTR material slots validated.
+findstr /L /C:"PASS45_EXACT_PRODUCTION_CONTENT_GAPS=" "%WEAPON_SENTINEL%"
+echo [PASS45 MATERIAL] Exact weapon payload gaps remain CONTENT GAP and are not called production-ready.
 echo Weapon report: %WEAPON_REPORT%
 echo Runtime log:   %MATERIAL_LOG%
 exit /b 0
 
 :weapon_fail
-echo [PASS45 MATERIAL] FAIL: exact weapon authored material/dependency gate did not pass.
+echo [PASS45 MATERIAL] FAIL: required available weapon authored material/dependency gate did not pass.
+echo Exact production payload gaps are allowed only when the explicit real fallback passes the same material/texture checks.
 echo Sentinel: %WEAPON_SENTINEL%
 echo Report:   %WEAPON_REPORT%
 echo Log:      %MATERIAL_LOG%
 if exist "%WEAPON_REPORT%" type "%WEAPON_REPORT%"
+if exist "%MATERIAL_LOG%" findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON" /C:"PASS45_AUTHORED_WEAPON" /C:"PASS45_WEAPON_DEPENDENCY" "%MATERIAL_LOG%"
 exit /b 12
 
 :vehicle_fail

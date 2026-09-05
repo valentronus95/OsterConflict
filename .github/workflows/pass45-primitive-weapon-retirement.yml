@@ -1,0 +1,45 @@
+name: Pass 45 primitive weapon retirement
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponBase.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp'
+      - 'VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-primitive-weapon-retirement.yml'
+  push:
+    branches:
+      - main
+      - 'fix/pass45-runtime-rejection-*'
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponBase.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAntiArmorLauncher.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp'
+      - 'VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-primitive-weapon-retirement.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify primitive weapon retirement contracts
+        run: python VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py

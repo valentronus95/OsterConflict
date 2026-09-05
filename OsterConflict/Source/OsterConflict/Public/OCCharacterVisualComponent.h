@@ -8,6 +8,7 @@
 class AOCCharacter;
 class UOCCharacterVisualProfile;
 class USkeletalMeshComponent;
+class USoundBase;
 class UStaticMeshComponent;
 
 /**
@@ -62,7 +63,10 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Profiles") TObjectPtr<UOCCharacterVisualProfile> USRangersProfile;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Profiles") TObjectPtr<UOCCharacterVisualProfile> InsurgentsProfile;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Proxy") bool bEnableSourceOnlyProxy = true;
+    // Pass45 Gate K: production gameplay fails closed when production character content is unavailable.
+    // Source-only Engine BasicShape proxies may be explicitly enabled for isolated developer diagnostics,
+    // but they must never be the default runtime presentation path.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Proxy") bool bEnableSourceOnlyProxy = false;
 
     UFUNCTION(NetMulticast, Unreliable)
     void MulticastCharacterAction(EOCCharacterActionEvent Event, int32 EventSeed);
@@ -70,6 +74,7 @@ protected:
 private:
     TWeakObjectPtr<AOCCharacter> CharacterOwner;
     TWeakObjectPtr<USkeletalMeshComponent> FirstPersonArms;
+    UPROPERTY(Transient) TObjectPtr<USoundBase> GrenadeThrowSound;
     FOCCharacterAppearance CurrentAppearance;
     EOCFactionArchetype LastAppliedFaction = EOCFactionArchetype::UASpecialUnit;
     int32 LastAppliedSeed = 0;

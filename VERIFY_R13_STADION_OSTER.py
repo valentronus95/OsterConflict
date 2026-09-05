@@ -101,6 +101,12 @@ for needle in (
     'TEXT("StadionOsterHouses02")',
     'TEXT("StadionOsterTrees01")',
     'TEXT("StadionOsterTrees04")',
+    "/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02",
+    "/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01",
+    "PASS45_STADIUM_TREE_INTAKE_WIRED",
+    "primary_authoring=1",
+    "late_mutation=0",
+    "runtime_acceptance=0",
     'TEXT("StadionOsterFences01")',
     'TEXT("StadionOsterFences03")',
     "RemoveInstancesNear",
@@ -108,6 +114,13 @@ for needle in (
     "AddPathPolyline",
 ):
     require(stadium_cpp, needle, "authoritative stadium owner")
+
+for retired_tree_path in (
+    "/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01",
+    "/Game/AdvancedVillagePack/Meshes/SM_Tree_Var04.SM_Tree_Var04",
+):
+    if retired_tree_path in stadium_cpp:
+        fail(f"authoritative stadium owner retained retired tree authoring {retired_tree_path!r}")
 
 for forbidden in (
     "StadiumDelaySeconds",

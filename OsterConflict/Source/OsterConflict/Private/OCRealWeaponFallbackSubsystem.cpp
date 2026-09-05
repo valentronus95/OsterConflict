@@ -3,8 +3,10 @@
 #include "OCWeaponBase.h"
 
 #include "Components/MeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
@@ -18,29 +20,129 @@ namespace
     const FName MaterialAuditCompleteTag(TEXT("OC_WeaponMaterialAuditComplete"));
     const FName AuthoredMaterialGapTag(TEXT("OC_WeaponAuthoredMaterialGap"));
     const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
+    const FName PrimitiveVisualRetiredTag(TEXT("OC_PrimitiveWeaponVisualRetired"));
     constexpr int32 RequiredRackWeaponCountPerTeam = 11;
     constexpr int32 MaxExpectedRackWeapons = 22;
     constexpr int32 MaxRefreshPasses = 12;
 
     bool HasProductionVisual(const AOCWeaponBase& Weapon)
     {
-        TArray<UActorComponent*> Components;
-        Weapon.GetComponents(Components);
-        for (const UActorComponent* Component : Components)
+        // A tag alone is not renderable evidence. Pass45 2026-08-27 runtime showed actors where a tagged
+        // production component existed in source truth while the player saw no weapon after the primitive
+        // retirement pass. Require an assigned real mesh before suppressing the explicit real fallback path.
+        TArray<UStaticMeshComponent*> StaticComponents;
+        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
+        for (const UStaticMeshComponent* Component : StaticComponents)
         {
-            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;
+            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag) &&
+                IsValid(Component->GetStaticMesh()))
+            {
+                return true;
+            }
+        }
+
+        TArray<USkeletalMeshComponent*> SkeletalComponents;
+        Weapon.GetComponents<USkeletalMeshComponent>(SkeletalComponents);
+        for (const USkeletalMeshComponent* Component : SkeletalComponents)
+        {
+            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag) &&
+                IsValid(Component->GetSkeletalMeshAsset()))
+            {
+                return true;
+            }
         }
         return false;
+    }
+
+    bool IsRejectedPrimitiveMesh(const UStaticMeshComponent* Component)
+    {
+        if (!IsValid(Component) || !IsValid(Component->GetStaticMesh())) return false;
+        const FString MeshPath = Component->GetStaticMesh()->GetPathName();
+        return MeshPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase);
+    }
+
+    int32 HideRejectedPrimitiveVisuals(AOCWeaponBase& Weapon)
+    {
+        TArray<UStaticMeshComponent*> StaticComponents;
+        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
+        int32 HiddenCount = 0;
+        for (UStaticMeshComponent* Component : StaticComponents)
+        {
+            if (!IsRejectedPrimitiveMesh(Component)) continue;
+
+            const bool bWasRendered = Component->IsVisible();
+            // Retire only the rejected BasicShape component. Propagating this state to children can hide a
+            // valid authored weapon presentation that is attached below the source-only physics/visual root.
+            Component->SetVisibility(false, false);
+            Component->SetHiddenInGame(true, false);
+            Component->SetCastShadow(false);
+            Component->SetCanEverAffectNavigation(false);
+            if (bWasRendered) ++HiddenCount;
+        }
+
+        if (!Weapon.ActorHasTag(PrimitiveVisualRetiredTag))
+        {
+            Weapon.Tags.AddUnique(PrimitiveVisualRetiredTag);
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_PRIMITIVE_WEAPON_VISUAL_RETIRED weapon=%s hidden_basicshape_components=%d collision_authority_preserved=1"),
+                *Weapon.GetWeaponDisplayName(), HiddenCount);
+        }
+        return HiddenCount;
+    }
+
+    bool HasVisibleRejectedPrimitive(const AOCWeaponBase& Weapon)
+    {
+        TArray<UStaticMeshComponent*> StaticComponents;
+        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
+        for (const UStaticMeshComponent* Component : StaticComponents)
+        {
+            if (IsRejectedPrimitiveMesh(Component) && Component->IsVisible())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool IsPlaceholderTexture(const UTexture* Texture)
+    {
+        if (!Texture) return true;
+        const FString Path = Texture->GetPathName();
+        const FString Name = Texture->GetName();
+        return Path.Contains(TEXT("DefaultTexture"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WhiteSquareTexture"), ESearchCase::IgnoreCase) ||
+            Name.Equals(TEXT("DefaultTexture"), ESearchCase::IgnoreCase) ||
+            Name.Equals(TEXT("WhiteSquareTexture"), ESearchCase::IgnoreCase);
     }
 
     bool IsMissingOrDefaultMaterial(const UMaterialInterface* Material)
     {
         if (!Material) return true;
         const FString Path = Material->GetPathName();
-        return Path.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial"), ESearchCase::IgnoreCase) ||
+        const bool bPlaceholderMaterial =
+            Path.Contains(TEXT("/Engine/EngineMaterials/DefaultMaterial"), ESearchCase::IgnoreCase) ||
             Path.Contains(TEXT("/Engine/BasicShapes/BasicShapeMaterial"), ESearchCase::IgnoreCase) ||
+            Path.Contains(TEXT("WorldGridMaterial"), ESearchCase::IgnoreCase) ||
             Material->GetName().Equals(TEXT("DefaultMaterial"), ESearchCase::IgnoreCase) ||
             Material->GetName().Equals(TEXT("BasicShapeMaterial"), ESearchCase::IgnoreCase);
+        if (bPlaceholderMaterial) return true;
+
+        // Item 18 requires authored material -> real texture dependencies. A non-default material object with
+        // zero render textures is still a factual content gap and must never produce MATERIAL_AUDIT_READY.
+        TArray<UTexture*> UsedTextures;
+        Material->GetUsedTextures(
+            UsedTextures,
+            EMaterialQualityLevel::High,
+            true,
+            ERHIFeatureLevel::SM5,
+            true);
+        if (UsedTextures.IsEmpty()) return true;
+
+        for (const UTexture* Texture : UsedTextures)
+        {
+            if (IsPlaceholderTexture(Texture)) return true;
+        }
+        return false;
     }
 }
 
@@ -69,7 +171,7 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
         0.50f,
         true,
-        0.05f);
+        0.0f);
 }
 
 void UOCRealWeaponFallbackSubsystem::Deinitialize()
@@ -151,11 +253,22 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     int32 RackWeapons = 0;
     int32 RackAudited = 0;
     int32 RackGapWeapons = 0;
+    int32 RackVisiblePrimitiveWeapons = 0;
 
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
         AOCWeaponBase* Weapon = *It;
         if (!IsValid(Weapon) || Weapon->IsActorBeingDestroyed()) continue;
+
+        // Pass45 source invariant: even when production/fallback content is missing, BasicShape must be invisible.
+        HideRejectedPrimitiveVisuals(*Weapon);
+        if (HasVisibleRejectedPrimitive(*Weapon))
+        {
+            if (Weapon->ActorHasTag(RuntimeBaseRackTag)) ++RackVisiblePrimitiveWeapons;
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL weapon=%s basicshape_visible=1 runtime_acceptance=0"),
+                *Weapon->GetWeaponDisplayName());
+        }
 
         if (Weapon->ActorHasTag(RuntimeBaseRackTag)) ++RackWeapons;
 
@@ -169,7 +282,21 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
         if (Weapon->ActorHasTag(RealFallbackTag) || HasProductionVisual(*Weapon)) continue;
 
         const FString Name = Weapon->GetWeaponDisplayName();
-        if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
+        if (Name.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
+        {
+            // The current-head runtime can fail to resolve the skeletal AK while the committed package still contains
+            // an authored static AK sibling. Prefer that exact real AK over either a BasicShape or an invisible actor.
+            UStaticMesh* AuthoredAKFallback = LoadObject<UStaticMesh>(
+                nullptr, TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
+            ApplyRealFallback(*Weapon, AuthoredAKFallback, 88.0f, TEXT("committed AK-47 static sibling"));
+        }
+        else if (Name.Equals(TEXT("MP5"), ESearchCase::IgnoreCase))
+        {
+            // Stein MP5 fresh-load is a factual 2026-08-27 content gap. Keep gameplay visible with a tracked real SMG;
+            // never call this exact production readiness.
+            ApplyRealFallback(*Weapon, GenericSMG.Get(), 68.0f, TEXT("R13 real SMG temporary MP5 fallback"));
+        }
+        else if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
         {
             ApplyRealFallback(*Weapon, GenericMachineGun.Get(), 104.0f, TEXT("R13 generic machinegun"));
         }
@@ -188,6 +315,13 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     }
 
     const bool bRackCountValid = RackWeapons >= RequiredRackWeaponCountPerTeam && RackWeapons <= MaxExpectedRackWeapons;
+    if (bRackCountValid && RackVisiblePrimitiveWeapons == 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_PRIMITIVE_WEAPON_RUNTIME_READY rack_weapons=%d visible_basicshape_weapons=0 content_readiness_separate=1"),
+            RackWeapons);
+    }
+
     const bool bRackAuditComplete = bRackCountValid && RackAudited == RackWeapons;
 
     if (bRackAuditComplete)
@@ -234,8 +368,10 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     float DesiredLengthCm,
     const TCHAR* FallbackLabel)
 {
-    USceneComponent* RootComponent = Weapon.GetRootComponent();
-    if (!IsValid(&Weapon) || Weapon.IsActorBeingDestroyed() || !IsValid(Mesh) || !IsValid(RootComponent))
+    USceneComponent* PhysicsRoot = Weapon.GetRootComponent();
+    USceneComponent* VisualRoot = Weapon.GetWeaponVisualRoot();
+    if (!IsValid(&Weapon) || Weapon.IsActorBeingDestroyed() || !IsValid(Mesh) ||
+        !IsValid(PhysicsRoot) || !IsValid(VisualRoot))
     {
         return false;
     }
@@ -250,9 +386,17 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     for (UStaticMeshComponent* Existing : StaticComponents)
     {
         if (!IsValid(Existing) || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
-        Existing->SetVisibility(false, true);
-        Existing->SetHiddenInGame(true, true);
-        Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        // Suppress only the legacy/source component itself. A production/recovered presentation may be attached
+        // beneath it and must retain independent inventory/first-person visibility authority.
+        Existing->SetVisibility(false, false);
+        Existing->SetHiddenInGame(true, false);
+        Existing->SetCastShadow(false);
+        Existing->SetCanEverAffectNavigation(false);
+        // The BasicShape root remains invisible collision/physics authority for pickup/drop. Do not disable it.
+        if (Existing != PhysicsRoot)
+        {
+            Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        }
     }
 
     const FName ComponentName = MakeUniqueObjectName(
@@ -262,22 +406,24 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(&Weapon, ComponentName);
     if (!IsValid(Visual)) return false;
 
-    Visual->SetupAttachment(RootComponent);
+    Visual->SetupAttachment(VisualRoot);
     Visual->SetStaticMesh(Mesh);
-    Visual->SetRelativeLocation(FVector::ZeroVector);
+    Visual->SetRelativeLocation(-Bounds.Origin * (DesiredLengthCm / NativeLength));
     Visual->SetRelativeRotation(FRotator::ZeroRotator);
     Visual->SetRelativeScale3D(FVector(DesiredLengthCm / NativeLength));
     Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Visual->SetGenerateOverlapEvents(false);
     Visual->SetCanEverAffectNavigation(false);
     Visual->SetCastShadow(false);
+    Visual->SetHiddenInGame(false, true);
+    Visual->SetVisibility(true, true);
     Visual->ComponentTags.Add(RealFallbackComponentTag);
     Weapon.AddInstanceComponent(Visual);
     Visual->RegisterComponent();
 
     Weapon.Tags.AddUnique(RealFallbackTag);
     UE_LOG(LogTemp, Warning,
-        TEXT("Weapon '%s' exact production visual is unavailable; primitive hidden and %s real-mesh fallback applied. exact_production=0 playable_fallback=1"),
+        TEXT("PASS45_REAL_WEAPON_FALLBACK_READY weapon=%s fallback=%s exact_production=0 playable_fallback=1 primitive_visible=0 visual_root_unscaled=1 physics_root_preserved=1"),
         *Weapon.GetWeaponDisplayName(), FallbackLabel);
     return true;
 }

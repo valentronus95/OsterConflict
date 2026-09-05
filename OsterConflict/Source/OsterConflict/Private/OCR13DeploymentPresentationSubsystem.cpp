@@ -178,7 +178,8 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
         UBorder* Shade = NewObject<UBorder>(Root, TEXT("R13_DeploymentBackdropShade"));
         if (Shade)
         {
-            Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.16f));
+            // Deterministic opaque deployment background. Never expose a half-loaded world-view behind the flow UI.
+            Shade->SetBrushColor(FLinearColor(0.012f, 0.016f, 0.020f, 1.0f));
             Shade->SetIsEnabled(false);
             Shade->SetVisibility(ESlateVisibility::Collapsed);
             FillCanvas(Canvas->AddChildToCanvas(Shade), 9189);

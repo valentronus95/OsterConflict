@@ -1,0 +1,57 @@
+{
+  "derivative_recipe": "ffmpeg -map_metadata -1 -vn -ac 1 -ar 48000 -c:a pcm_s16le",
+  "donors": {
+    "bolt": {
+      "derivative_audio": {
+        "channels": 1,
+        "duration_s": 6.5,
+        "frames": 312000,
+        "sample_rate_hz": 48000,
+        "sample_width_bytes": 2
+      },
+      "derivative_bytes": 624078,
+      "derivative_file": "bolt_action_cc0_preview_donor.wav",
+      "derivative_sha256": "5e64820d532c11e91af3eedf96ab34a38df7b3dd066b0b1c9d67b3fe3f34c8a7",
+      "identity_scope": "bolt-action-family donor; Mosin-Nagant source, not M700 identity",
+      "runtime_ready": false,
+      "source_author": "rammbostein",
+      "source_family": "real bolt-action rifle action",
+      "source_license": "CC0",
+      "source_page": "https://freesound.org/people/rammbostein/sounds/263459/",
+      "source_title": "Mosin Nagant Bolt.wav",
+      "transport_bytes": 59508,
+      "transport_kind": "freesound_public_preview_pinned",
+      "transport_sha256": "d9f4ee7633275f911f3521b5b7b319d634022944aafb9e7f51660a8a342d3040",
+      "transport_url": "https://cdn.freesound.org/previews/263/263459_4174990-lq.mp3",
+      "ue_import_pending": true
+    },
+    "lever": {
+      "derivative_audio": {
+        "channels": 1,
+        "duration_s": 0.958333,
+        "frames": 46000,
+        "sample_rate_hz": 48000,
+        "sample_width_bytes": 2
+      },
+      "derivative_bytes": 92078,
+      "derivative_file": "lever_action_cc0_preview_donor.wav",
+      "derivative_sha256": "417ba38e5e87b53ef3711784f821f1b3fc303ac8d4df19d9eda80fb776881542",
+      "identity_scope": "lever-action-family donor; not exact Stein/Marlin/Model-1894 identity",
+      "runtime_ready": false,
+      "source_author": "C-V",
+      "source_family": "real .22 lever-action rifle action",
+      "source_license": "CC0",
+      "source_page": "https://freesound.org/people/C-V/sounds/523401/",
+      "source_title": "Lever action cocking.wav",
+      "transport_bytes": 7536,
+      "transport_kind": "freesound_public_preview_pinned",
+      "transport_sha256": "ae257485c6d55f4a4587f99389882cf74eae6779db807eaa0aa0f968e711f965",
+      "transport_url": "https://cdn.freesound.org/previews/523/523401_8956746-lq.mp3",
+      "ue_import_pending": true
+    }
+  },
+  "item16_checked": false,
+  "runtime_ready": false,
+  "schema": 1,
+  "ue_import_pending": true
+}

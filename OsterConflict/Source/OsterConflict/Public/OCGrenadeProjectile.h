@@ -21,13 +21,17 @@ public:
 
     void InitializeGrenadeServer(EOCGrenadeType NewType, const FVector& InitialVelocity);
 
+    /** Read-only presentation access for the imported Fab visual bridge. Gameplay authority remains here. */
+    EOCGrenadeType GetGrenadeType() const { return GrenadeType; }
+    UStaticMeshComponent* GetGrenadeMeshComponent() const { return GrenadeMesh; }
+
 protected:
     UPROPERTY(VisibleAnywhere) TObjectPtr<USphereComponent> Collision;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> GrenadeMesh;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Grenade|Audio") TObjectPtr<UOCWorldAudioComponent> WorldAudioComponent;
 
-    UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Grenade")
+    UPROPERTY(ReplicatedUsing=OnRep_GrenadeType, VisibleInstanceOnly, BlueprintReadOnly, Category="Grenade")
     EOCGrenadeType GrenadeType = EOCGrenadeType::Fragmentation;
 
     UPROPERTY(EditDefaultsOnly, Category="Grenade") float FuseSeconds = 3.25f;
@@ -41,7 +45,15 @@ protected:
 
 private:
     FTimerHandle FuseTimerHandle;
+
+    UFUNCTION()
+    void OnRep_GrenadeType();
+
+    void RefreshGrenadePresentation();
     void DetonateServer();
     void ApplyFlashServer();
     void ApplyBoundedPhysicsImpulseServer(float Radius, float Strength);
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastDetonationVFX(EOCGrenadeType Type, FVector_NetQuantize Location);
 };

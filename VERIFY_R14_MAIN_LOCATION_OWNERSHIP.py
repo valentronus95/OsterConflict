@@ -24,6 +24,7 @@ required_files = [
     ROOT / "START_HERE.cmd",
     ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd",
     ROOT / "RUN_R14_MAIN_SANDBOX_TEST.cmd",
+    ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
     ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd",
 ]
 
@@ -119,19 +120,23 @@ if separation_path.is_file():
             )
 
 launcher_path = ROOT / "START_HERE.cmd"
+main_acceptance_path = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
 if launcher_path.is_file():
     launcher = launcher_path.read_text(encoding="utf-8", errors="replace")
 
-    # START_HERE remains the only user-facing entry point. Historical acceptance wrappers
-    # (including Pass 21) are internal and must not be hard-coded as the current full-test route.
+    # START_HERE remains the only user-facing entry point. The current full-test route first enters the
+    # Pass45 strict acceptance owner, which then delegates to playflow/performance and finally to the one
+    # gameplay launcher. A verifier that still demands a direct START_HERE -> playflow call is stale.
     if "OSTER CONFLICT - ГОЛОВНИЙ ЗАПУСК" not in launcher:
         errors.append("START_HERE.cmd is not the canonical user launcher")
     if "ЗВИЧАЙНА ГРА" not in launcher or "ПОВНИЙ RUNTIME-ТЕСТ" not in launcher:
         errors.append("START_HERE.cmd is missing the supported normal/full runtime launch modes")
     if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in launcher:
         errors.append("START_HERE.cmd does not route normal playtest to RUN_R14_CURRENT_GAMEPLAY.cmd")
-    if 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' not in launcher:
-        errors.append("START_HERE.cmd does not route full runtime test to the current Pass 29-33 acceptance wrapper")
+    if 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"' not in launcher:
+        errors.append("START_HERE.cmd does not route full runtime test to the current Pass45 strict acceptance wrapper")
+    if 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"' in launcher:
+        errors.append("START_HERE.cmd bypasses the current Pass45 strict acceptance owner by calling playflow directly")
     if 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' in launcher:
         errors.append("START_HERE.cmd regressed to the obsolete Pass 21 acceptance wrapper")
     if 'RUN_R14_MAIN_SANDBOX_TEST.cmd' in launcher:
@@ -140,6 +145,13 @@ if launcher_path.is_file():
         errors.append("START_HERE.cmd is missing the current D3D11 safe-renderer route")
     if "Launch R11 local listen-server visual test" in launcher:
         errors.append("START_HERE.cmd regressed to the legacy R11 playtest route")
+
+if main_acceptance_path.is_file():
+    main_acceptance = main_acceptance_path.read_text(encoding="utf-8", errors="replace")
+    if 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' not in main_acceptance:
+        errors.append("Pass45 strict acceptance wrapper no longer delegates to playflow/performance")
+    if 'RUN_R14_CURRENT_GAMEPLAY.cmd' not in main_acceptance:
+        errors.append("Pass45 strict acceptance wrapper no longer records the single gameplay launcher contract")
 
 if errors:
     print("R14 MAIN LOCATION OWNERSHIP: FAIL")
@@ -150,5 +162,5 @@ if errors:
 print("R14 MAIN LOCATION OWNERSHIP: PASS")
 print("Museum, Silpo, Culture House and Stadium are bound to separate current-main site owners.")
 print("Culture House uses Hranovskoho 3 and cannot inherit Museum/Silpo coordinates.")
-print("START_HERE.cmd is the single user entry point with normal/full runtime routes on the D3D11 safe renderer.")
+print("START_HERE.cmd is the single user entry point; full runtime enters Pass45 strict acceptance before playflow/gameplay.")
 print("Legacy R13 mixed-location owners are absent; the R14.6 separation validator no longer depends on retired synthetic north-civic geometry.")

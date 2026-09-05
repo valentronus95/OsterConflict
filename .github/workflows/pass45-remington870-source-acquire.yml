@@ -1,0 +1,122 @@
+name: Pass 45 Remington 870 source acquisition
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - 'PASS45_REMINGTON870_SOURCE_ACQUIRE.py'
+      - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
+      - '.github/workflows/pass45-remington870-source-acquire.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  acquire-pinned-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact Oster head without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Enable Git LFS
+        shell: bash
+        run: |
+          set -euo pipefail
+          git lfs version
+          git lfs install --local
+
+      - name: Acquire exact pinned Remington 870 donor
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT_DIR='SOURCE_ASSETS/PASS45/Remington870'
+          python PASS45_REMINGTON870_SOURCE_ACQUIRE.py --out-dir "$OUT_DIR"
+          cat "$OUT_DIR/MANIFEST.json"
+
+      - name: Stage and verify LFS pointer plus fail-closed manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT_DIR='SOURCE_ASSETS/PASS45/Remington870'
+          ASSET="$OUT_DIR/remington_870_8siandude_ccby4.glb"
+          MANIFEST="$OUT_DIR/MANIFEST.json"
+          git add "$OUT_DIR"
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          root = Path('SOURCE_ASSETS/PASS45/Remington870')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          asset = root / manifest['source_asset_file']
+          if manifest.get('runtime_ready') is not False:
+              raise SystemExit('manifest falsely claims runtime_ready')
+          if manifest.get('ue58_import_pending') is not True:
+              raise SystemExit('manifest falsely clears ue58_import_pending')
+          if manifest.get('item16_checked') is not False:
+              raise SystemExit('manifest falsely closes PASS45 item16')
+          if manifest.get('source_sha256') != '147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2':
+              raise SystemExit('unexpected pinned source sha256')
+          if manifest.get('source_bytes') != 20621580:
+              raise SystemExit('unexpected pinned source size')
+          attr = subprocess.check_output(['git', 'check-attr', 'filter', '--', str(asset)], text=True).strip()
+          if not attr.endswith('filter: lfs'):
+              raise SystemExit(f'{asset}: Git LFS filter is not active: {attr}')
+          pointer = subprocess.check_output(['git', 'show', f':{asset.as_posix()}'], text=True)
+          required = (
+              'version https://git-lfs.github.com/spec/v1',
+              'oid sha256:147aa6a0b167ba3f0806ad19a1cb6cc8790a0d541079f54d2e0fa8cf829954a2',
+              'size 20621580',
+          )
+          missing = [needle for needle in required if needle not in pointer]
+          if missing:
+              raise SystemExit(f'{asset}: invalid LFS pointer; missing {missing}')
+          print('PASS45_REMINGTON870_LFS_POINTER_OK runtime_ready=0 ue58_import_pending=1 item16_checked=0')
+          PY
+
+      - name: Verify source-intake guard against staged acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET='SOURCE_ASSETS/PASS45/Remington870/remington_870_8siandude_ccby4.glb'
+          POINTER_TMP="${RUNNER_TEMP}/remington870-lfs-pointer.txt"
+          git show ":${ASSET}" > "$POINTER_TMP"
+          cp "$POINTER_TMP" "$ASSET"
+          python VERIFY_PASS45_REMINGTON870_SOURCE_INTAKE.py
+
+      - name: Commit only if canonical head is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_HEAD="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f1)"
+          if [[ "$REMOTE_HEAD" != "$GITHUB_SHA" ]]; then
+            echo "PASS45_REMINGTON870_ACQUIRE_HEAD_MOVED expected=$GITHUB_SHA actual=$REMOTE_HEAD"
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo 'PASS45_REMINGTON870_ACQUIRE_NO_CHANGES'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'content(pass45): acquire pinned Remington 870 source'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Preserve acquisition manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-remington870-source-acquisition
+          path: SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json
+          if-no-files-found: error
+          retention-days: 3

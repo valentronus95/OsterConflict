@@ -1,9 +1,14 @@
 #include "OCSmokeCloud.h"
 
 #include "Components/SceneComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
-#include "UObject/ConstructorHelpers.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+
+namespace
+{
+    constexpr const TCHAR* Pass45SmokeNiagaraPath =
+        TEXT("/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop");
+}
 
 AOCSmokeCloud::AOCSmokeCloud()
 {
@@ -14,33 +19,63 @@ AOCSmokeCloud::AOCSmokeCloud()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    const FVector Offsets[] = {
-        FVector(0,0,80), FVector(150,20,105), FVector(-145,-35,115), FVector(45,170,90),
-        FVector(-30,-165,100), FVector(225,-120,125), FVector(-215,110,120), FVector(95,-245,95),
-        FVector(-105,245,110), FVector(285,70,100), FVector(-275,-85,120), FVector(20,20,185)
-    };
-    for (int32 Index=0; Index<UE_ARRAY_COUNT(Offsets); ++Index)
-    {
-        UStaticMeshComponent* Puff = CreateDefaultSubobject<UStaticMeshComponent>(*FString::Printf(TEXT("SmokePuff_%02d"), Index));
-        Puff->SetupAttachment(SceneRoot);
-        Puff->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Puff->SetCastShadow(false);
-        if (SphereMesh.Succeeded()) Puff->SetStaticMesh(SphereMesh.Object);
-        Puff->SetRelativeLocation(Offsets[Index]);
-        const float Scale = 2.7f + static_cast<float>(Index % 4) * 0.42f;
-        Puff->SetRelativeScale3D(FVector(Scale, Scale, Scale * 0.78f));
-        Puffs.Add(Puff);
-    }
+    SmokeVFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SmokeVFX"));
+    SmokeVFX->SetupAttachment(SceneRoot);
+    SmokeVFX->SetAutoActivate(false);
+    SmokeVFX->SetIsReplicated(false);
+
+    // Pass45 runtime evidence rejected Engine BasicShape spheres as a smoke substitute.
+    // The imported Niagara system is the sole visible presentation owner; load failure stays visually fail-closed.
 }
 
 void AOCSmokeCloud::BeginPlay()
 {
     Super::BeginPlay();
     SetLifeSpan(LifetimeSeconds);
+
+    if (GetNetMode() == NM_DedicatedServer)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_SMOKE_VFX_SERVER_SKIP gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
+        return;
+    }
+
+    UNiagaraSystem* SmokeSystem = LoadObject<UNiagaraSystem>(nullptr, Pass45SmokeNiagaraPath);
+    if (!SmokeSystem)
+    {
+        SmokeVFX->DeactivateImmediate();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+            Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
+        return;
+    }
+
+    SmokeVFX->SetAsset(SmokeSystem);
+    SmokeVFX->Activate(true);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+        Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
+
+    // Automated runtime readiness proves only that the authored Niagara payload loaded and was activated in a
+    // real gameplay client. It deliberately does NOT claim exact visual/gameplay expansion synchronization or
+    // that smoke scale/look/performance was visually accepted.
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 expansion_s=%.1f exact_visual_sync=0 manual_visual_acceptance=0"),
+        Pass45SmokeNiagaraPath, SmokeExpansionSeconds);
 }
 
 bool AOCSmokeCloud::ContainsPoint(const FVector& WorldPoint) const
 {
-    return FVector::DistSquared2D(GetActorLocation(), WorldPoint) <= FMath::Square(SmokeRadiusCm);
+    // No Tick is required. Game-time age makes each visibility query observe the same bounded expansion curve.
+    // This prevents a full-size invisible occlusion volume from existing before the authored smoke has had time
+    // to develop. The 3 s source default is deliberately not labelled visually calibrated until local UE 5.8.
+    const float SafeExpansionSeconds = FMath::Max(0.05f, SmokeExpansionSeconds);
+    const float ExpansionAlpha = FMath::Clamp(GetGameTimeSinceCreation() / SafeExpansionSeconds, 0.0f, 1.0f);
+    const float EffectiveRadiusCm = SmokeRadiusCm * ExpansionAlpha;
+    const float EffectiveHalfHeightCm = SmokeHalfHeightCm * ExpansionAlpha;
+
+    const FVector Delta = WorldPoint - GetActorLocation();
+    if (FMath::Abs(Delta.Z) > EffectiveHalfHeightCm) return false;
+    return FVector2D(Delta.X, Delta.Y).SizeSquared() <= FMath::Square(EffectiveRadiusCm);
 }

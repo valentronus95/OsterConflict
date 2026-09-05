@@ -173,17 +173,21 @@ for forbidden in (
     if forbidden in spawn:
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 4 FAIL: superseded Museum BASE returned: {forbidden}")
 
+# Block 0 replaces the historical single CellsPerBatch value with explicit Full/LowCPU budgets.
+# Full and LowCPU retain the same playable bounds; only density/batching/culls differ.
 for needle in (
     "PopulateBatch",
     "PopulationBatchTimer",
+    "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch",
+    "full_playable_bounds=1",
 ):
-    require(foliage, needle, "batched dense foliage")
-batch_match = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage)
-if not batch_match:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: foliage batch-size contract is missing")
-batch_size = int(batch_match.group(1))
-if not 1 <= batch_size <= 96:
-    raise SystemExit(f"RUNTIME ACCEPTANCE PASS 4 FAIL: foliage batch size {batch_size} exceeds accepted non-blocking ceiling 96")
+    require(foliage, needle, "batched Block0 dense foliage")
+full_batch = re.search(r"constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;", foliage)
+low_batch = re.search(r"constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;", foliage)
+if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: Full foliage batch contract is missing or exceeds 32")
+if not low_batch or not 1 <= int(low_batch.group(1)) <= 48:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: LowCPU foliage batch contract is missing or exceeds 48")
 
 if "'if (UVerticalBoxSlot* Slot'," in r10 or "'if (UCanvasPanelSlot* Slot'," in r10 or "'if (UHorizontalBoxSlot* Slot'," in r10:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: R10 global Slot false-positive tokens returned")
@@ -194,5 +198,5 @@ print("- normal gameplay hard-gates required real/playable weapon meshes in a fr
 print("- authored materials and their fresh-loadable texture dependencies are independently audited")
 print("- white/default/missing dependencies remain explicit non-production gaps")
 print("- no unverified M16/M4 payload is invented")
-print("- Windows Git LFS/source recovery, tracer/muzzle, Museum BASE and batched foliage contracts remain intact")
+print("- Windows Git LFS/source recovery, tracer/muzzle, Museum BASE and Block0 profile-batched foliage contracts remain intact")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")

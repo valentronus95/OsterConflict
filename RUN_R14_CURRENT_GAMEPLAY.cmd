@@ -25,8 +25,6 @@ rem Pass 45: keep DX11/SM5/no-HDR, but stop making -norhithread the only normal 
 rem The explicit START_HERE compatibility route sets OC_RHI_COMPAT=1 for A/B crash/performance diagnosis.
 set "RHI_FLAGS=-d3d11 -sm5 -nohdr"
 set "RHI_MODE=dx11_sm5_rhi_thread"
-set "LOCAL_INBOX_FLAG="
-if /I "%OC_VALIDATE_LOCAL_INBOX%"=="1" set "LOCAL_INBOX_FLAG=-ValidateLocalInbox"
 if /I "%OC_RHI_COMPAT%"=="1" (
   set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"
   set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"
@@ -34,8 +32,6 @@ if /I "%OC_RHI_COMPAT%"=="1" (
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
-if exist "%WEAPON_PREFLIGHT_LOG%" del /q "%WEAPON_PREFLIGHT_LOG%" >nul 2>nul
-if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
 
 if not exist "%BUILD_BAT%" (
   echo [ERROR] UE 5.8 Build.bat not found: %BUILD_BAT%
@@ -47,15 +43,22 @@ if not exist "%EDITOR%" (
   pause
   exit /b 3
 )
-if not exist "%EDITOR_CMD%" (
-  echo [ERROR] UnrealEditor-Cmd.exe not found: %EDITOR_CMD%
-  pause
-  exit /b 4
-)
 if not exist "%PROJECT%" (
   echo [ERROR] Project not found: %PROJECT%
   pause
   exit /b 5
+)
+
+rem START_HERE option 1/3 deliberately uses this canonical launcher in lightweight mode.
+rem It must not hydrate LFS, run commandlet weapon preflight, import vehicles/materials, or promote runtime acceptance.
+if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game
+
+if exist "%WEAPON_PREFLIGHT_LOG%" del /q "%WEAPON_PREFLIGHT_LOG%" >nul 2>nul
+if exist "%WEAPON_SENTINEL%" del /q "%WEAPON_SENTINEL%" >nul 2>nul
+if not exist "%EDITOR_CMD%" (
+  echo [ERROR] UnrealEditor-Cmd.exe not found: %EDITOR_CMD%
+  pause
+  exit /b 4
 )
 if not exist "%WEAPON_VERIFY%" (
   echo [ERROR] Required weapon preflight script is missing: %WEAPON_VERIFY%
@@ -100,7 +103,7 @@ if /I "%CURRENT_BRANCH%"=="main" (
 
 if "%IS_ACCEPTANCE%"=="1" if /I "%CURRENT_BRANCH%"=="main" (
   echo [ACCEPTANCE] Running strict runtime acceptance from current main.
-  echo [ACCEPTANCE] The launcher will reject missing Museum / weapon / vehicle READY evidence after the game closes.
+  echo [ACCEPTANCE] The launcher will reject missing Museum / required-available weapon / vehicle READY evidence after the game closes.
 )
 
 echo [PRECHECK] Fetching origin/%FETCH_BRANCH% so a stale local build cannot be tested...
@@ -269,7 +272,7 @@ echo Source: %LOCAL_HEAD%
 echo.
 echo [PASS45] PASS45_RHI_MODE mode=%RHI_MODE% flags=%RHI_FLAGS%
 echo [PASS45] PASS45_NORMAL_DISPLAY_THERMAL_GUARD fullscreen=1 max_fps=60 render_scale_mutation=0
-start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% %LOCAL_INBOX_FLAG% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not "%GAME_RC%"=="0" (
@@ -298,9 +301,17 @@ if "%IS_ACCEPTANCE%"=="1" (
     exit /b 22
   )
 
-  findstr /C:"PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
+  findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%PLAYTEST_LOG%" >nul
   if not errorlevel 1 (
-    echo [STOP] Production weapon runtime validation failed. Generic fallback weapons are playable but do not satisfy exact production-art acceptance.
+    echo [STOP] Required weapon rack validation failed. Every class needs either its exact production visual or an explicit real-mesh fallback.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 23
+  )
+
+  findstr /C:"PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP" "%PLAYTEST_LOG%" >nul
+  if not errorlevel 1 (
+    echo [STOP] One or more required rack weapon visuals still have missing/default authored materials.
     echo Log: %PLAYTEST_LOG%
     pause
     exit /b 23
@@ -315,10 +326,18 @@ if "%IS_ACCEPTANCE%"=="1" (
     exit /b 24
   )
 
-  findstr /C:"PASS7_PRODUCTION_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
+  findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" "%PLAYTEST_LOG%" >nul
   if errorlevel 1 (
-    echo [STOP] No exact production weapon READY marker was recorded for the Museum 11-weapon rack.
-    echo Complete the actual gameplay deployment and remain in the runtime long enough for validation.
+    echo [STOP] No required-available weapon READY marker was recorded for the Museum 11-class rack.
+    echo Exact production gaps may use explicit real fallbacks, but primitive-only or missing visuals are not accepted.
+    echo Log: %PLAYTEST_LOG%
+    pause
+    exit /b 25
+  )
+
+  findstr /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" "%PLAYTEST_LOG%" >nul
+  if errorlevel 1 (
+    echo [STOP] Rack material audit never reached READY. White/default materials remain a Pass45 failure.
     echo Log: %PLAYTEST_LOG%
     pause
     exit /b 25
@@ -334,8 +353,10 @@ if "%IS_ACCEPTANCE%"=="1" (
   )
 
   echo [ACCEPTANCE] PASS7_PRODUCTION_VEHICLES_READY found.
-  echo [ACCEPTANCE] PASS7_PRODUCTION_WEAPONS_READY found.
+  echo [ACCEPTANCE] PASS45_REQUIRED_AVAILABLE_WEAPONS_READY found.
+  echo [ACCEPTANCE] PASS36_WEAPON_MATERIAL_AUDIT_READY found.
   echo [ACCEPTANCE] PASS7_MUSEUM_BASES_READY found.
+  echo [ACCEPTANCE] Exact weapon payload gaps, if any, remain CONTENT GAP and are not called production-ready.
   echo [ACCEPTANCE] Automated runtime evidence gates passed. Visual/UI checklist still requires direct observation.
 )
 
@@ -348,4 +369,44 @@ echo RHI mode: %RHI_MODE%
 echo Log: %PLAYTEST_LOG%
 echo ============================================================
 pause
+exit /b %GAME_RC%
+
+:quick_normal_game
+set "CURRENT_BRANCH=unknown"
+set "LOCAL_HEAD=unknown"
+where git >nul 2>nul
+if not errorlevel 1 (
+  for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%B"
+  for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "LOCAL_HEAD=%%H"
+  for /f "delims=" %%D in ('git status --porcelain --untracked-files=all 2^>nul') do echo [LOCAL CHANGE] %%D
+)
+
+echo.
+echo [QUICK NORMAL] Incremental C++ build only. Asset reimport is skipped.
+echo [QUICK NORMAL] LFS hydration, weapon commandlet preflight, production vehicle import and acceptance gates are skipped.
+echo [QUICK NORMAL] Branch: %CURRENT_BRANCH%
+echo [QUICK NORMAL] Source: %LOCAL_HEAD%
+echo [QUICK NORMAL] Renderer: %RHI_MODE% ^(%RHI_FLAGS%^)
+echo [QUICK NORMAL] Windowed 1280x720 recovery mode, max 60 FPS.
+call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
+set "BUILD_RC=%ERRORLEVEL%"
+if not "%BUILD_RC%"=="0" (
+  echo [ERROR] UE build failed with exit code %BUILD_RC%.
+  echo UBT log: %LOCALAPPDATA%\UnrealBuildTool\Log.txt
+  exit /b %BUILD_RC%
+)
+
+echo.
+echo [QUICK NORMAL] Launching current Oster runtime directly. No asset importer runs before this process.
+start /wait "Oster Conflict Quick Normal" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1280 -ResY=720 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+set "GAME_RC=%ERRORLEVEL%"
+echo.
+echo ============================================================
+echo QUICK NORMAL FINISHED - exit code %GAME_RC%
+echo Branch: %CURRENT_BRANCH%
+echo Source: %LOCAL_HEAD%
+echo RHI mode: %RHI_MODE%
+echo Log: %PLAYTEST_LOG%
+echo Runtime acceptance: NOT RUN
+ echo ============================================================
 exit /b %GAME_RC%

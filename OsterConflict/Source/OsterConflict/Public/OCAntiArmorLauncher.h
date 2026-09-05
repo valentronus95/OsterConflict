@@ -13,4 +13,5 @@ public:
         bool bAiming, bool bMoving, FHitResult& OutHit, bool& bOutDamagedActor, bool& bOutFatalHit) override;
 private:
     double LastLauncherFireTime = -1000.0;
+    int32 LauncherAudioEventCounter = 0;
 };

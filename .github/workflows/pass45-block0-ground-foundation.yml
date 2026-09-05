@@ -1,0 +1,46 @@
+name: Pass 45 Block0 ground and grass foundation
+
+on:
+  push:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
+      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'RUN_PASS45_BLOCK0_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
+      - 'VERIFY_PASS45_BLOCK0_RUNTIME_HANDOFF.py'
+      - 'PASS45_BLOCK_EXECUTION_PLAN.md'
+      - '.github/workflows/pass45-block0-ground-foundation.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBlock0GroundFoundationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp'
+      - 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd'
+      - 'RUN_PASS45_BLOCK0_RUNTIME_ACCEPTANCE.cmd'
+      - 'VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py'
+      - 'VERIFY_PASS45_BLOCK0_RUNTIME_HANDOFF.py'
+      - 'PASS45_BLOCK_EXECUTION_PLAN.md'
+      - '.github/workflows/pass45-block0-ground-foundation.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Block0 authored ground and strict spatial grass contracts
+        run: python VERIFY_PASS45_BLOCK0_GROUND_FOUNDATION.py
+      - name: Verify isolated Block0 UE58 evidence handoff
+        run: python VERIFY_PASS45_BLOCK0_RUNTIME_HANDOFF.py
