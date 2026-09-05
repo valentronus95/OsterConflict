@@ -166,8 +166,21 @@ def git(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def cmd_call(path: Path) -> list[str]:
-    return ["cmd.exe", "/d", "/s", "/c", f'call "{path}"']
+def cmd_batch(path: Path, *args: str) -> list[str]:
+    """Build a cmd.exe argv list without embedding quoted command strings.
+
+    On Windows, subprocess.list2cmdline escapes embedded quotes inside one `/c`
+    argument as `\"...\"`. cmd.exe then treats those characters as part of the
+    command name. Keep `call`, the batch path and every argument as separate argv
+    elements so Python performs normal per-argument quoting only where required.
+    """
+    comspec = os.environ.get("COMSPEC") or "cmd.exe"
+    return [comspec, "/d", "/c", "call", str(path), *[str(arg) for arg in args]]
+
+
+def missing_command() -> list[str]:
+    comspec = os.environ.get("COMSPEC") or "cmd.exe"
+    return [comspec, "/d", "/c", "exit", "/b", "127"]
 
 
 def resolve_engine() -> tuple[Path, Path, Path]:
@@ -283,10 +296,17 @@ def main() -> int:
     )
     preflight: list[Stage] = []
     for name, label, path in wrapper_specs:
-        command = cmd_call(path) if path.is_file() else ["cmd.exe", "/d", "/c", "exit", "127"]
+        command = cmd_batch(path) if path.is_file() else missing_command()
         preflight.append(Stage(name, label, command, LOG_ROOT / f"{name}.log"))
 
-    build_cmd = ["cmd.exe", "/d", "/s", "/c", f'call "{build_bat}" OsterConflictEditor Win64 Development -Project="{PROJECT}" -WaitMutex']
+    build_cmd = cmd_batch(
+        build_bat,
+        "OsterConflictEditor",
+        "Win64",
+        "Development",
+        f"-Project={PROJECT}",
+        "-WaitMutex",
+    )
     preflight.append(Stage("final_build", "Final OsterConflictEditor C++ build", build_cmd, LOG_ROOT / "final_build.log"))
 
     try:
@@ -298,7 +318,7 @@ def main() -> int:
     preflight.append(Stage("required_weapon_assets", "Every required weapon opens in fresh UE", weapon_cmd, LOG_ROOT / "required_weapon_assets.log"))
 
     material_gate = PROJECT_DIR / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
-    preflight.append(Stage("strict_material_gate", "Strict authored material/dependency gate", cmd_call(material_gate) if material_gate.is_file() else ["cmd.exe", "/d", "/c", "exit", "127"], LOG_ROOT / "strict_material_gate.log"))
+    preflight.append(Stage("strict_material_gate", "Strict authored material/dependency gate", cmd_batch(material_gate) if material_gate.is_file() else missing_command(), LOG_ROOT / "strict_material_gate.log"))
 
     print("\n[PREFLIGHT] Проганяю ВСІ незалежні етапи...")
     for stage in preflight:
