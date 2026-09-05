@@ -7,9 +7,9 @@
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
 
+#include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
-#include "Engine/SkeletalMeshActor.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
