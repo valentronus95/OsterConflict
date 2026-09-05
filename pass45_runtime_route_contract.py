@@ -114,8 +114,8 @@ def validate_runtime_route() -> dict[str, str]:
     ):
         require(finalizer, marker, "manual finalizer")
     for marker in (
-        "verify_clean_acceptance_source",
-        "git lfs pull origin",
+        "DIRTY_ACCEPTANCE_SOURCE",
+        "lfs pull origin",
         "import_all_project_assets.py",
         "normalize_local_weapon_categories.py",
     ):
