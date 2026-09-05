@@ -9,6 +9,7 @@ IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_asset
 BATCH_RUNTIME = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 ASSET_WRAPPER = ROOT / "OsterConflict" / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
 ASSET_AUDIT = ROOT / "OsterConflict" / "Scripts" / "audit_local_model_inbox.ps1"
+ASSET_PREPARE = ROOT / "OsterConflict" / "Scripts" / "prepare_all_local_inbox_assets.ps1"
 LEDGER = ROOT / "OSTER_CONFLICT_WORK_LEDGER.md"
 
 errors = []
@@ -33,6 +34,7 @@ importer = read(IMPORTER)
 batch_runtime = read(BATCH_RUNTIME)
 asset_wrapper = read(ASSET_WRAPPER)
 asset_audit = read(ASSET_AUDIT)
+asset_prepare = read(ASSET_PREPARE)
 ledger = read(LEDGER)
 
 # Local UE 5.8.1 / MSVC 14.51 factual build rejected the FVector2D table when it was constexpr.
@@ -132,7 +134,20 @@ require(
     "PowerShell trailing-backslash quoting regression returned in asset intake",
 )
 
-# Windows PowerShell 5.1 parser path: keep final status assignment as explicit if/else.
+# Windows PowerShell 5.1 reads UTF-8-without-BOM source as ANSI. Keep these two launcher scripts ASCII-only
+# and preserve Ukrainian filename matching through .NET regex \uXXXX escapes instead of literal Cyrillic.
+require(
+    asset_audit.isascii(),
+    "audit_local_model_inbox.ps1 contains non-ASCII source and can be mojibake-parsed by Windows PowerShell 5.1",
+)
+require(
+    asset_prepare.isascii(),
+    "prepare_all_local_inbox_assets.ps1 contains non-ASCII source and can be mojibake-parsed by Windows PowerShell 5.1",
+)
+require(
+    "\\u0431\\u0443\\u0446\\u0435\\u0444" in asset_audit and "\\u0431\\u0443\\u0446\\u0435\\u0444" in asset_prepare,
+    "ASCII-safe Ukrainian category regex escapes are missing",
+)
 require(
     "$inventory.status = if (" not in asset_audit,
     "PowerShell parser-sensitive inline if assignment returned in local asset audit",
@@ -140,6 +155,18 @@ require(
 require(
     "$inventory.status = 'UNSAFE_ARCHIVE_PRESENT'" in asset_audit and "$inventory.status = 'PASS'" in asset_audit,
     "local asset audit no longer has explicit PASS/unsafe status assignment",
+)
+require(
+    "[System.IO.Path]::GetRelativePath" not in asset_prepare,
+    "PowerShell 5.1/.NET Framework-incompatible Path.GetRelativePath returned in local inbox preparation",
+)
+require(
+    "Substring($root.Length)" in asset_prepare,
+    "PowerShell 5.1-safe relative package path calculation is missing",
+)
+require(
+    "Expand-SafeZip -Archive $archive -Destination $stage" in asset_prepare,
+    "local inbox safe ZIP helper is not invoked through its declared Destination parameter",
 )
 
 # Batch summaries must surface actionable failures instead of optional UE profiler/capture diagnostics.
@@ -190,6 +217,6 @@ print("- UE_LOG format strings cannot regress to ternary TEXT selection")
 print("- street TActorIterator calls keep UWorld* instead of invalid UWorld&")
 print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy")
 print("- Windows batch dispatch cannot regress to embedded escaped command quotes")
-print("- PowerShell paths and final audit status remain Windows PowerShell 5.1-safe")
+print("- PowerShell paths, encoding, APIs and audit status remain Windows PowerShell 5.1-safe")
 print("- batch summaries suppress profiler/PIX/RenderDoc noise and prioritize real failures")
 print("- factual local build rejection remains recorded; fixes are CODED_UNTESTED until rerun")
