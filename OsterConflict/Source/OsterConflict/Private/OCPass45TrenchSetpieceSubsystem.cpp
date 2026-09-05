@@ -87,7 +87,7 @@ void UOCPass45TrenchSetpieceSubsystem::Tick(float DeltaTime)
     if (ElapsedSeconds < BuildDelaySeconds) return;
     bFinished = true;
 
-    for (TActorIterator<AStaticMeshActor> Existing(*World); Existing; ++Existing)
+    for (TActorIterator<AStaticMeshActor> Existing(World); Existing; ++Existing)
     {
         if (Existing->ActorHasTag(AuthoredTrenchTag))
         {
@@ -121,7 +121,7 @@ void UOCPass45TrenchSetpieceSubsystem::Tick(float DeltaTime)
     int32 BaseCount = 0;
     int32 SpawnedCount = 0;
     int32 RubbleSpawnedCount = 0;
-    for (TActorIterator<AOCTeamSpawnPoint> It(*World); It; ++It)
+    for (TActorIterator<AOCTeamSpawnPoint> It(World); It; ++It)
     {
         AOCTeamSpawnPoint* Spawn = *It;
         if (!Spawn || !Spawn->IsBaseSpawn()) continue;
