@@ -1,6 +1,7 @@
 #include "OCBlock0GroundFoundationSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -8,6 +9,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -188,14 +190,56 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (!InWorld.IsGameWorld()) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    // Never synchronously load the AdvancedVillage/KiteDemo ground packages while Slate owns
+    // frontend/deployment input. Poll a tiny readiness predicate and perform the authored swap only
+    // after a real gameplay pawn exists and all blocking menus have closed.
+    InWorld.GetTimerManager().SetTimer(
+        GameplayReadyTimer,
+        this,
+        &UOCBlock0GroundFoundationSubsystem::TryApplyWhenGameplayReady,
+        0.25f,
+        true,
+        0.50f);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_BLOCK0_GROUND_LOAD_DEFERRED_READY menu_safe=1 synchronous_startup_loads=0 poll_s=0.25 runtime_acceptance=0"));
+}
+
+void UOCBlock0GroundFoundationSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    }
+    Super::Deinitialize();
+}
+
+void UOCBlock0GroundFoundationSubsystem::TryApplyWhenGameplayReady()
+{
+    if (bGroundAttemptFinished) return;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld()) return;
+
+    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        return;
+    }
+
+    World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    bGroundAttemptFinished = true;
+
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
-    for (TActorIterator<AOCWorldSectorOster> It(&InWorld); It; ++It)
+    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         Sector = *It;
         ++SectorCount;
@@ -230,5 +274,5 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=1 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 delayed_ground_mutation_required=0 runtime_acceptance=0"));
+        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=0 gameplay_deferred=1 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 runtime_acceptance=0"));
 }
