@@ -12,7 +12,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Templates/IsSame.h"
+
+#include <type_traits>
 
 namespace
 {
@@ -194,7 +195,7 @@ namespace
         if (!Visual) return false;
 
         Visual->SetupAttachment(VisualRoot);
-        if constexpr (TIsSame<TComponent, UStaticMeshComponent>::Value)
+        if constexpr (std::is_same_v<TComponent, UStaticMeshComponent>)
         {
             Visual->SetStaticMesh(Mesh);
         }
@@ -220,7 +221,7 @@ namespace
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_LOCAL_IMPORTED_WEAPON_READY weapon=%s asset=%s desired_length_cm=%.1f mesh_kind=%s production_visual=1 temporary_fallback_retired=1 runtime_acceptance=0"),
             *Weapon.GetWeaponDisplayName(), *Mesh->GetPathName(), DesiredLength,
-            TIsSame<TComponent, USkeletalMeshComponent>::Value ? TEXT("skeletal") : TEXT("static"));
+            std::is_same_v<TComponent, USkeletalMeshComponent> ? TEXT("skeletal") : TEXT("static"));
         return true;
     }
 
