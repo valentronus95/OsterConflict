@@ -2,12 +2,14 @@
 
 #include "OCGameMode.h"
 #include "OCPass45LocalAssetResolver.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -30,8 +32,6 @@ namespace
 
     UStaticMesh* ResolveEnterableHouseMesh()
     {
-        // The named Krushelnytska private house must remain a house. Never use the five-storey apartment
-        // pack as a visual fallback merely because it also contains the word "building".
         if (UStaticMesh* Mesh = OCPass45FindLocalStaticMeshStrict(
             { FName(TEXT("/Game/Modular_Rural_Cabin")) },
             { TEXT("cabin"), TEXT("house"), TEXT("home") }))
@@ -73,7 +73,6 @@ namespace
         const FVector Size = Bounds.BoxExtent * 2.0f;
         if (Size.X <= 1.0f || Size.Y <= 1.0f || Size.Z <= 1.0f) return FTransform::Identity;
 
-        // Keep the imported house plausible for the compact private-house lot without non-uniform stretching.
         constexpr float TargetMaxFootprintCm = 1400.0f;
         constexpr float TargetMaxHeightCm = 900.0f;
         const float FootprintScale = TargetMaxFootprintCm / FMath::Max(Size.X, Size.Y);
@@ -156,9 +155,48 @@ void UOCPass45ImportedResidentialUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWo
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    InWorld.GetTimerManager().SetTimer(
+        GameplayReadyTimer,
+        this,
+        &UOCPass45ImportedResidentialUpgradeSubsystem::TryUpgradeWhenGameplayReady,
+        0.25f,
+        true,
+        0.75f);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_IMPORTED_RESIDENTIAL_LOAD_DEFERRED_READY menu_safe=1 resolver_scans_during_deployment=0 runtime_acceptance=0"));
+}
+
+void UOCPass45ImportedResidentialUpgradeSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    }
+    Super::Deinitialize();
+}
+
+void UOCPass45ImportedResidentialUpgradeSubsystem::TryUpgradeWhenGameplayReady()
+{
+    if (bUpgradeFinished) return;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld()) return;
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        return;
+    }
+
+    World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    bUpgradeFinished = true;
+
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
-    for (TActorIterator<AOCWorldSectorOster> It(&InWorld); It; ++It)
+    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         Sector = *It;
         ++SectorCount;
@@ -180,9 +218,6 @@ void UOCPass45ImportedResidentialUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWo
         return;
     }
 
-    // Pass45 intentionally retired the old procedural residential grid. Reuse the existing zero-instance
-    // Buildings owner for one named, reference-specific private house instead of resurrecting that grid or
-    // spawning a second world owner.
     if (Buildings->GetInstanceCount() == 0)
     {
         UStaticMesh* HouseMesh = ResolveEnterableHouseMesh();
