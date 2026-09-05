@@ -283,7 +283,7 @@ def configure_pipeline() -> object:
     mesh_pipeline.set_editor_property("import_skeletal_meshes", True)
     mesh_pipeline.set_editor_property(
         "combine_skeletal_meshes_behavior",
-        unreal.InterchangeCombineSkeletalMeshesBehavior.ALL,
+        unreal.InterchangeCombineSkeletalMeshesBehavior.BY_SKELETON,
     )
     mesh_pipeline.set_editor_property("create_physics_asset", False)
     mesh_pipeline.set_editor_property("collision", False)
