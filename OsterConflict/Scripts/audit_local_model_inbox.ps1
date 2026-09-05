@@ -155,7 +155,14 @@ foreach ($archive in $archives) {
     $inventory.archives += $record
 }
 
-$inventory.status = if ($inventory.unsafe_archive_count -gt 0) { 'UNSAFE_ARCHIVE_PRESENT' } else { 'PASS' }
+# Keep this explicit for Windows PowerShell 5.1 parser compatibility. Do not rely on
+# assigning an if-statement as a value in the local launcher environment.
+if ($inventory.unsafe_archive_count -gt 0) {
+    $inventory.status = 'UNSAFE_ARCHIVE_PRESENT'
+}
+else {
+    $inventory.status = 'PASS'
+}
 $inventory | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
 Write-Host ('[MODEL INBOX] Inventory report: ' + $ReportPath)
 
