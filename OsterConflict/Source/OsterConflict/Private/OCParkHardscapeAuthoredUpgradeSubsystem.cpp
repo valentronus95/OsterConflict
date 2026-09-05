@@ -1,6 +1,7 @@
 #include "OCParkHardscapeAuthoredUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -212,6 +213,15 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
+    }
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        ElapsedSeconds = 0.0f;
+        return;
     }
 
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
