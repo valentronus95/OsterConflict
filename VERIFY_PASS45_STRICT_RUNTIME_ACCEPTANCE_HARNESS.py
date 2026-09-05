@@ -1,117 +1,27 @@
 #!/usr/bin/env python3
-from pathlib import Path
+from pass45_runtime_route_contract import require, validate_runtime_route
 
-ROOT = Path(__file__).resolve().parent
-ENTRY = ROOT / "START_HERE.cmd"
-NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
-MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
-EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
-FINALIZER = ROOT / "OsterConflict" / "Scripts" / "finalize_asset_acceptance.py"
-errors = []
+route = validate_runtime_route()
+normal = route["normal"]
+material = route["material"]
+evidence = route["evidence"]
+finalizer = route["finalizer"]
+batch = route["batch"]
 
-
-def read(path: Path) -> str:
-    if not path.is_file():
-        errors.append(f"missing file: {path.relative_to(ROOT)}")
-        return ""
-    return path.read_text(encoding="utf-8", errors="replace")
-
-
-def req(condition: bool, message: str) -> None:
-    if not condition:
-        errors.append(message)
-
-
-entry = read(ENTRY)
-normal = read(NORMAL)
-material = read(MATERIAL)
-evidence = read(EVIDENCE)
-finalizer = read(FINALIZER)
-
-req('Єдиний користувацький launcher/test entrypoint: START_HERE.cmd.' in entry,
-    "START_HERE no longer declares the single user-facing launcher/test contract")
-req('set "OC_FORCE_ACCEPTANCE=1"' in entry, "START_HERE no longer enables strict acceptance mode")
-req('call "%CURRENT_GAMEPLAY%"' in entry, "START_HERE no longer delegates gameplay to RUN_R14_CURRENT_GAMEPLAY.cmd")
-req('call "%MATERIAL_GATE%"' in entry, "START_HERE no longer runs the strict material gate")
-req('VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py' in entry, "START_HERE no longer runs the canonical evidence verifier")
-req('TRY_PRODUCTION_VEHICLES_UE58.cmd' not in entry, "obsolete TRY vehicle wrapper returned to START_HERE")
-req('RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd' not in entry, "redundant strict acceptance wrapper returned")
-req('RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' not in entry, "redundant playflow acceptance wrapper returned")
-req("-fullscreen" in normal and 't.MaxFPS 60' in normal,
-    "normal gameplay route lost Pass45 fullscreen/60 FPS recovery contract")
-
-for needle in (
-    "-ValidateProductionWeapons",
-    "-ValidateProductionWeaponsHeadless",
-    "PASS45_AUTHORED_WEAPON_MATERIALS=PASS",
-    "PASS45_WEAPON_DEPENDENCY_REPORT=PASS",
-    "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY",
-    "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
-    "PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY",
-):
-    req(needle in material, f"strict material gate missing: {needle}")
-
-for marker in (
-    "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
-    "PASS45_VEHICLE_ENTER_TRANSFORM_READY",
-    "PASS45_VEHICLE_EXIT_TRANSFORM_READY",
-    "PASS45_M2_GUNNER_PITCH_CONTRACT_READY",
-    "PASS45_GUNNER_EXIT_TRANSFORM_READY",
-    "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
-    "PASS14_PERF_30FPS_READY",
-    "SUMMARY=11/11 production weapon classes PASS",
-):
-    req(marker in evidence, f"Pass45 evidence verifier missing required marker: {marker}")
-
-for marker in (
-    "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL",
-    "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL",
-    "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL",
-    "PASS45_GUNNER_EXIT_TRANSFORM_FAIL",
-    "PASS14_PERF_BELOW_TARGET",
-    "placeholder=1",
-    "RESULT=FAIL",
-):
-    req(marker in evidence, f"Pass45 evidence verifier does not reject failure marker: {marker}")
-
-req("VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION" in evidence,
-    "automated evidence no longer preserves visual acceptance as pending")
-req("PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS" in evidence,
-    "evidence output lacks explicit automated-only PASS status")
-
-for marker in (
-    '"%ASSET_FINALIZER%" --preflight',
-    "FINALIZE PENDING",
-    "Visual acceptance не записано",
-    "choice /C YN",
-    '"%ASSET_FINALIZER%" --accept-visual',
-):
-    req(marker in entry, f"START_HERE lost manual visual-acceptance boundary marker: {marker}")
-for marker in (
-    'preflight_only = "--preflight" in args',
-    'accept_visual = "--accept-visual" in args',
-    "run_preflight()",
-    "write_manual_acceptance(head)",
-):
-    req(marker in finalizer, f"finalizer lost manual-only acceptance marker: {marker}")
-
-preflight_pos = entry.find('"%ASSET_FINALIZER%" --preflight')
-choice_pos = entry.find('choice /C YN', preflight_pos)
-accept_pos = entry.find('"%ASSET_FINALIZER%" --accept-visual', choice_pos)
-req(
-    -1 not in (preflight_pos, choice_pos, accept_pos) and preflight_pos < choice_pos < accept_pos,
-    "START_HERE can complete visual acceptance without preflight plus explicit human Y/N confirmation",
-)
-
-if errors:
-    print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: FAIL")
-    for error in errors:
-        print("[FAIL]", error)
-    raise SystemExit(1)
+require(normal, "-fullscreen", "fullscreen runtime contract")
+require(normal, "t.MaxFPS 60", "60 FPS cap contract")
+for marker in ("-ValidateProductionWeapons", "-ValidateProductionWeaponsHeadless", "PASS45_AUTHORED_WEAPON_MATERIALS=PASS", "PASS45_WEAPON_DEPENDENCY_REPORT=PASS", "PASS45_PRODUCTION_WEAPON_VISUALS_VALIDATED_READY", "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY"):
+    require(material, marker, "strict material gate")
+for marker in ("PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE", "PASS45_VEHICLE_ENTER_TRANSFORM_READY", "PASS45_VEHICLE_EXIT_TRANSFORM_READY", "PASS45_M2_GUNNER_PITCH_CONTRACT_READY", "PASS45_GUNNER_EXIT_TRANSFORM_READY", "PASS14_PERF_30FPS_READY", "SUMMARY=11/11 production weapon classes PASS", "PASS45_RUNTIME_AUTOMATED_EVIDENCE=PASS", "VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION"):
+    require(evidence, marker, "strict runtime evidence")
+for marker in ("PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERY_FAIL", "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL", "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL", "PASS45_GUNNER_EXIT_TRANSFORM_FAIL", "PASS14_PERF_BELOW_TARGET", "placeholder=1", "RESULT=FAIL"):
+    require(evidence, marker, "fail-closed evidence")
+for marker in ('preflight_only = "--preflight" in args', 'accept_visual = "--accept-visual" in args', "run_preflight()", "write_manual_acceptance(head)"):
+    require(finalizer, marker, "manual finalizer")
+for marker in ('$env:OC_FORCE_ACCEPTANCE = "1"', 'Invoke-Stage "Strict authored material/dependency gate"', "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py", '@($Finalizer, "--preflight")', '@($Finalizer, "--accept-visual")'):
+    require(batch, marker, "packet strict acceptance owner")
 
 print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
-print("- START_HERE.cmd is the only user-facing launcher/test entrypoint")
-print("- RUN_R14_CURRENT_GAMEPLAY.cmd is the one internal gameplay route")
-print("- strict material, interaction and performance evidence is centralized")
-print("- automated evidence leaves visual acceptance pending; manual PASS requires finalizer preflight and explicit human confirmation")
+print("- START_HERE delegates; packet runner owns strict acceptance and finalization")
+print("- automated evidence cannot silently become manual visual acceptance")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 playtest still required")
