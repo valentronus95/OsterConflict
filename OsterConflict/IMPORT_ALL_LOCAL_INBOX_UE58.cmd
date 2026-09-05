@@ -3,6 +3,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
 set "PROJECT_DIR=%~dp0"
+rem %~dp0 ends in a backslash. Use a dot-qualified path for native PowerShell argument parsing.
+set "PS_PROJECT_DIR=%~dp0."
 set "REPO_ROOT=%~dp0.."
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "INBOX=%REPO_ROOT%\models_game_OC"
@@ -139,11 +141,11 @@ if errorlevel 1 (
 )
 
 echo [2/8] Інвентаризую ВСІ локальні ZIP, не тільки стару production-п'ятірку...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PS_PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [3/8] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PS_PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [4/8] Прибираю ТОЧНІ дублікати зі списку імпорту за SHA-256; файли користувача не видаляю...
@@ -151,7 +153,7 @@ echo [4/8] Прибираю ТОЧНІ дублікати зі списку ім
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [5/8] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PROJECT_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PS_PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [6/8] Збираю актуальний OsterConflictEditor перед імпортом...
