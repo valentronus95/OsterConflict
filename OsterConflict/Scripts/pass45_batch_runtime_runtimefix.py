@@ -30,17 +30,34 @@ def _patched_subprocess_run(*popenargs, **kwargs):
         command = positional[0]
 
     if _is_game_runtime(command):
-        rewritten = [str(item) for item in command if str(item).lower() != "-fullscreen"]
+        rewritten: list[str] = []
+        for raw_item in command:
+            item = str(raw_item)
+            lowered_item = item.lower()
+            if lowered_item == "-fullscreen":
+                continue
+            if lowered_item.startswith("-resx="):
+                rewritten.append("-ResX=1280")
+                continue
+            if lowered_item.startswith("-resy="):
+                rewritten.append("-ResY=720")
+                continue
+            rewritten.append(item)
+
         lowered = [item.lower() for item in rewritten]
         if "-windowed" not in lowered:
             rewritten.append("-windowed")
+        if not any(item.lower().startswith("-resx=") for item in rewritten):
+            rewritten.append("-ResX=1280")
+        if not any(item.lower().startswith("-resy=") for item in rewritten):
+            rewritten.append("-ResY=720")
         if not any(item.lower().startswith("-winx=") for item in rewritten):
-            rewritten.append("-WinX=80")
+            rewritten.append("-WinX=40")
         if not any(item.lower().startswith("-winy=") for item in rewritten):
-            rewritten.append("-WinY=60")
+            rewritten.append("-WinY=40")
 
         print(
-            "[RUNTIME WINDOW] Запускаю у звичайному вікні 1600x900: його можна згорнути, "
+            "[RUNTIME WINDOW] Запускаю у звичайному вікні 1280x720: його можна згорнути, "
             "перемкнути Alt+Tab і зробити скріншот.",
             flush=True,
         )
