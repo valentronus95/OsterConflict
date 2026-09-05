@@ -3,11 +3,11 @@
 Date: 2026-09-05  
 Branch: `fix/pass45-asset-import-fail-closed-20260904`  
 Base/current main: `a1ad0e200611911102c48180956d82f73d0d8fc3`  
-Last fully verified branch checkpoint: `95e190a1cbdb55b65473a2b82fa0e0c507d58f6f` — **19/19 SUCCESS**  
-Last code-changing checkpoint: `13a49efaaee04eaf1cb786cc4604099e927038a7` — **19/19 SUCCESS**  
+Last fully verified branch checkpoint: `0042d2b408561096d60201c203461f674a6322ad` — **19/19 SUCCESS**  
+Last code-changing checkpoint: `0042d2b408561096d60201c203461f674a6322ad` — **19/19 SUCCESS**  
 PR: #98 — Draft, unmerged, mergeable  
-Branch relation at verified checkpoint: **ahead 96 / behind 0**, merge-base = current `main@a1ad0e2`  
-Changed-file scope: **28 files**, intentional asset/runtime/finalization scope  
+Branch relation at verified checkpoint: **ahead 102 / behind 0**, merge-base = current `main@a1ad0e2`  
+Changed-file scope: **31 files**, intentional asset/runtime/finalization/sandbox-test scope  
 Fresh connected local UE/runtime evidence: **not found**
 
 ## 1. ГОЛОВНИЙ ПРОГРЕС ТЗ
@@ -22,7 +22,7 @@ Fresh connected local UE/runtime evidence: **not found**
 | 4 | Fab / Marketplace / project discovery | DONE | +10% | `/Game`, Content, Plugins/Fab/project discovery | Нічого по коду |
 | 5 | Production import logic | DONE | +10% | HMMWV, M2, BTR-4, M249, Remington 870 production paths | Нічого по коду |
 | 6 | Fail-closed aggregate/binding result | DONE | +10% | GAP/UNBOUND/import failure не можуть перетворитися на aggregate PASS | Нічого по коду |
-| 7 | Source/regression/finalization CI | DONE | +10% | exact HEAD/source freshness/runtime/finalization guards; `95e190a` = 19/19 SUCCESS | Нічого по GitHub-коду |
+| 7 | Source/regression/finalization CI | DONE | +10% | exact HEAD/source freshness/runtime/finalization/sandbox-rack guards; `0042d2b` = 19/19 SUCCESS | Нічого по GitHub-коду |
 | 8 | Local UE 5.8 import result | WAIT | +0% | pipeline готовий і fail-closed | Потрібен фактичний fresh local UE import |
 | 9 | Live gameplay/runtime hookup | WAIT | +0% | runtime/material/world/evidence gates готові | Потрібен factual full runtime PASS |
 | 10 | Direct visual acceptance + safe ZIP cleanup | WAIT | +0% | finalizer + manual Y/N + SHA-256 cleanup готові | Потрібен factual visual inspection після runtime PASS |
@@ -32,7 +32,7 @@ Fresh connected local UE/runtime evidence: **not found**
 - Завершено: **7 / 10 етапів**.
 - Загальний factual progress: **70%**.
 - Залишилось: **30%**.
-- Source/code/CI lifecycle: **100% реалізований**; current verified branch checkpoint `95e190a` має **19/19 SUCCESS**.
+- Source/code/CI lifecycle: **100% реалізований**; current verified branch checkpoint `0042d2b` має **19/19 SUCCESS**.
 - Local UE import acceptance: **0% підтверджено**.
 - Live runtime acceptance: **0% підтверджено**.
 - Direct visual acceptance/cleanup: **0% підтверджено**.
@@ -126,12 +126,13 @@ SHA-dedupe виконується до depth rejection, тому exact duplicate
 
 | Asset | Factual стан | Підтверджено | Що ще треба |
 |---|---|---|---|
-| HMMWV | WAIT | source/import support | fresh UE import + live use + visual proof |
-| M2 Browning | WAIT | source/import support | fresh UE import + mount/pitch/muzzle/material visual proof |
-| BTR-4 | WAIT | source/import support | fresh UE result + live use + visual proof |
-| M249 | WAIT | exact importer support | fresh source/UE/runtime/visual proof |
-| Remington 870 | WAIT | exact importer support | fresh source/UE/runtime/visual proof |
-| M16/M4 family | GAP | classifier/runtime category support | fresh manifest має довести actual bound `M16_M4 >= 1` |
+| HMMWV | WAIT | source/import/runtime hookup code | fresh UE import + live use + visual proof |
+| M2 Browning | WAIT | source/import/mounted-gun hookup code | fresh UE import + mount/pitch/muzzle/material visual proof |
+| BTR-4 | WAIT | `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus` hookup code | fresh UE result + live use + visual proof |
+| Pickup / technical | WAIT | local `PICKUP` binding + packaged fallback hookup code | fresh UE runtime + visual proof |
+| M249 | WAIT | exact importer + runtime category + sandbox rack support | fresh source/UE/runtime/visual proof |
+| Remington 870 | WAIT | exact importer + runtime category + sandbox rack support | fresh source/UE/runtime/visual proof |
+| M16/M4 family | GAP | classifier/runtime/rack category support | fresh manifest має довести actual bound `M16_M4 >= 1` |
 
 M16/M4 залишається **factual content GAP**, а не code-classifier GAP. Local/Fab payload може існувати, але лише fresh current-run `runtime_bindings.json` може це підтвердити.
 
@@ -139,7 +140,7 @@ M16/M4 залишається **factual content GAP**, а не code-classifier G
 
 ## 5. FRESH LOCAL EVIDENCE STATUS
 
-Повторний connected conversation/Library search на checkpoint після `95e190a` **не знайшов fresh current-head**:
+Connected conversation/Library search на current asset work **не знайшов fresh current-head**:
 
 - `OsterConflict/Saved/LocalModelInbox/prepared_sources.json`
 - `OsterConflict/Saved/LocalModelInbox/runtime_bindings.json`
@@ -154,7 +155,7 @@ M16/M4 залишається **factual content GAP**, а не code-classifier G
 - `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt`
 - `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json`
 
-Пошук повернув лише старі/сторонні матеріали. Вони current acceptance не підтверджують.
+Старі/сторонні матеріали current acceptance не підтверджують.
 
 ## 6. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
 
@@ -179,13 +180,20 @@ M16/M4 залишається **factual content GAP**, а не code-classifier G
 
 Після попереднього tracker checkpoint виконано без повторення DONE роботи:
 
-- current branch head `95e190a` звірено;
+- verified code checkpoint оновлено до `0042d2b`;
 - `main` лишився `a1ad0e2`;
-- branch relation на verified checkpoint: **ahead 96 / behind 0**;
+- branch relation на verified checkpoint: **ahead 102 / behind 0**;
 - PR #98 лишається Draft/unmerged/mergeable;
-- `95e190a` має **19/19 completed SUCCESS**, failed/cancelled = 0;
-- fresh current-head local UE/runtime evidence знову не знайдено;
-- progress тому лишається **70% factual**;
+- `0042d2b` має **19/19 completed SUCCESS**, failed/cancelled = 0;
+- `Spawn all weapons` більше не означає тільки 7 broad classes;
+- rack читає factual `runtime_bindings` і створює окремий actor для **кожного bound object path** у підтримуваних weapon categories;
+- rack охоплює `M16_M4`, AR15, AK74, AK47, MP5, M1911, M700, Remington 870, M249, M14, MAC-10, TEC-9, Lever Action, M72 та generic/fallback categories;
+- усі gameplay classes мають fallback pickup, якщо bound model для них відсутня;
+- forced `category + path index` обробляється weapon runtime override **до** normal category precedence, тому одна категорія більше не приховує іншу модель у sandbox rack;
+- rack створює ammo box поряд і пише factual spawn-count log `OC_SANDBOX_ALL_WEAPONS_SPAWNED`;
+- додано `VERIFY_PASS45_SANDBOX_WEAPON_RACK.py`, він входить у `RUN_ALL_VERIFY.py` та окремий Pass45 asset regression workflow;
+- F10 уже має окремі `Spawn gun truck` і `Spawn BTR`; production hookup code для BTR/HMMWV/pickup є;
+- fresh current-head local UE/runtime evidence все ще не знайдено, тому factual progress лишається **70%**;
 - перший реально незакритий пункт не змінився: `LOCAL-UE-ASSET-001`.
 
 ## 8. CONTINUATION RULE
