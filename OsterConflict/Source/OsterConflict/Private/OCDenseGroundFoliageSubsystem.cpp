@@ -1,6 +1,7 @@
 #include "OCDenseGroundFoliageSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -190,6 +191,17 @@ void UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady()
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+
+    // Loading KiteDemo/foliage packages is synchronous in BeginPopulation(). Never do that while the
+    // player is navigating frontend/deployment/settings UI. It starved the game thread, which made
+    // UI buttons, native window controls and Alt+Tab look frozen. Wait for a real spawned gameplay pawn.
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() || PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        return;
+    }
+
     World->GetTimerManager().ClearTimer(GameplayReadyTimer);
     if (!BeginPopulation(*World))
     {
@@ -304,7 +316,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo deferred_until_spawned_gameplay=1"),
         ActiveGridStep,
         ActiveCellsPerBatch,
         GrassCullEnd,
