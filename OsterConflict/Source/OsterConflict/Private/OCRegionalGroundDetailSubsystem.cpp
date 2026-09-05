@@ -1,6 +1,7 @@
 #include "OCRegionalGroundDetailSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -98,14 +99,15 @@ void UOCRegionalGroundDetailSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Tree content upgrade also executes at world begin-play. Defer this one-shot detail pass slightly so it reads
-    // the final imported tree family transforms without adding a permanent tick owner.
+    // Retry cheaply until the local player leaves deployment. This prevents the KiteDemo leaf package and
+    // hundreds of traces from stealing the game thread while the deployment UI/window controls are in use.
     InWorld.GetTimerManager().SetTimer(
         PopulateTimerHandle,
         this,
         &UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail,
-        0.30f,
-        false);
+        0.25f,
+        true,
+        0.50f);
 }
 
 void UOCRegionalGroundDetailSubsystem::Deinitialize()
@@ -121,6 +123,16 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
 {
     UWorld* World = GetWorld();
     if (!World || !World->IsGameWorld()) return;
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        return;
+    }
+
+    World->GetTimerManager().ClearTimer(PopulateTimerHandle);
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
