@@ -304,10 +304,16 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     DisableVisualProxy(BarrelMesh);
     if (!bUsingMountedGunAsset)
     {
-        UE_LOG(LogTemp, Error,
-            bRequiresHMMWV
-                ? TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 runtime_acceptance=0")
-                : TEXT("Gun truck mounted-gun visual missing: import SM_M2_Browning or restore the R13 machinegun fallback asset."));
+        if (bRequiresHMMWV)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 runtime_acceptance=0"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("Gun truck mounted-gun visual missing: import SM_M2_Browning or restore the R13 machinegun fallback asset."));
+        }
     }
 
     InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
