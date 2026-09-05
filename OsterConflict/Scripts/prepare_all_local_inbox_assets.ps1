@@ -81,7 +81,16 @@ function Expand-SafeZip([System.IO.FileInfo]$Archive, [string]$Destination) {
 }
 
 function Get-DeployTarget([string]$SourcePath, [string]$StageRoot) {
-    $relative = [System.IO.Path]::GetRelativePath($StageRoot, $SourcePath).Replace('\', '/')
+    # Path.GetRelativePath is unavailable in Windows PowerShell 5.1 / .NET Framework.
+    $root = [System.IO.Path]::GetFullPath($StageRoot)
+    if (-not $root.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $root += [System.IO.Path]::DirectorySeparatorChar
+    }
+    $sourceFull = [System.IO.Path]::GetFullPath($SourcePath)
+    if (-not $sourceFull.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $null
+    }
+    $relative = $sourceFull.Substring($root.Length).Replace('\', '/')
     $parts = $relative.Split('/')
 
     $contentIndex = [Array]::IndexOf($parts, 'Content')
@@ -199,7 +208,7 @@ while ($archiveQueue.Count -gt 0) {
     try {
         if (-not (Test-Path -LiteralPath $marker)) {
             if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
-            Expand-SafeZip -Archive $archive -DestinationPath $stage -Force
+            Expand-SafeZip -Archive $archive -Destination $stage
             Set-Content -LiteralPath $marker -Value $hash -Encoding ASCII
         }
     }
