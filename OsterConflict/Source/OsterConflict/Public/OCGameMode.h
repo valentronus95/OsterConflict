@@ -7,8 +7,6 @@
 #include "OCBotTypes.h"
 #include "OCLobbyTypes.h"
 #include "OCCharacterVisualTypes.h"
-#include "OCPlayerController.h"
-#include "Engine/World.h"
 #include "OCGameMode.generated.h"
 
 class AOCCharacter;
@@ -41,17 +39,7 @@ public:
     void HandleCapturePointOwnerChanged(AOCCapturePoint* Point, EOCTeam PreviousOwner, EOCTeam NewOwner);
     bool CanDealDamage(const AController* InstigatorController, const AActor* VictimActor) const;
     bool IsSandboxMode() const { return bSandboxMode; }
-    bool IsFrontendOnlySession() const
-    {
-        if (bFrontendOnlySession) return true;
-        const UWorld* World = GetWorld();
-        const AOCPlayerController* PC = World
-            ? Cast<AOCPlayerController>(World->GetFirstPlayerController())
-            : nullptr;
-        return PC && PC->IsLocalController() &&
-            (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-             PC->IsSettingsVisible() || !PC->GetPawn());
-    }
+    bool IsFrontendOnlySession() const { return bFrontendOnlySession; }
     /** Server-owned Sandbox admin policy. Sandbox mode by itself never grants admin rights. */
     bool CanUseSandboxAdmin(const AController* Controller) const;
 
@@ -100,7 +88,7 @@ protected:
 private:
     int32 FallbackPlayerNumber = 1;
     bool bSandboxMode = false;
-    /** Standalone Frontend is UI-only; deployment/settings also defer heavyweight world consumers until gameplay. */
+    /** Standalone Frontend is UI-only; it must not spawn match world/bots behind the menu. */
     bool bFrontendOnlySession = false;
     /** Explicit development/test server switch. Ignored in Shipping builds. */
     bool bAllowSandboxAdminAll = false;
