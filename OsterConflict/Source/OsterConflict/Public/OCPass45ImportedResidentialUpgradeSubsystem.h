@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "TimerManager.h"
 #include "OCPass45ImportedResidentialUpgradeSubsystem.generated.h"
 
 /**
@@ -16,4 +17,11 @@ class OSTERCONFLICT_API UOCPass45ImportedResidentialUpgradeSubsystem : public UW
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+    virtual void Deinitialize() override;
+
+private:
+    void TryUpgradeWhenGameplayReady();
+
+    FTimerHandle GameplayReadyTimer;
+    bool bUpgradeFinished = false;
 };
