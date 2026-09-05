@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 TACTICAL = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTacticalMapVisual.cpp"
 IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
+BATCH_RUNTIME = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 LEDGER = ROOT / "OSTER_CONFLICT_WORK_LEDGER.md"
 
 errors = []
@@ -23,6 +24,7 @@ def require(condition: bool, message: str) -> None:
 
 tactical = read(TACTICAL)
 importer = read(IMPORTER)
+batch_runtime = read(BATCH_RUNTIME)
 ledger = read(LEDGER)
 
 # Local UE 5.8.1 / MSVC 14.51 factual build rejected the FVector2D table when it was constexpr.
@@ -57,6 +59,30 @@ require(
     "HMMWV/M2 GLB intake no longer explicitly disables skeletal import",
 )
 
+# Windows cmd.exe dispatch must keep call/path/args as separate argv elements.
+# Embedding call + quoted path inside one /c argument makes Python escape quotes as \"...\",
+# which cmd.exe then treats as part of the executable name.
+require(
+    'def cmd_batch(path: Path, *args: str) -> list[str]:' in batch_runtime,
+    "PASS45 batch runtime is missing the argv-safe Windows batch helper",
+)
+require(
+    'return [comspec, "/d", "/c", "call", str(path), *[str(arg) for arg in args]]' in batch_runtime,
+    "PASS45 batch runtime no longer dispatches batch path/args as separate argv elements",
+)
+require(
+    'f\'call "{path}"\'' not in batch_runtime,
+    "regression returned: batch runtime embeds quoted command path in one cmd /c argument",
+)
+require(
+    'build_cmd = cmd_batch(' in batch_runtime,
+    "UE Build.bat is not routed through the argv-safe batch helper",
+)
+require(
+    'cmd_batch(material_gate)' in batch_runtime,
+    "strict material gate is not routed through the argv-safe batch helper",
+)
+
 # Status must remain factual: source fix exists, but a later local build/import must verify it.
 require(
     "LOCAL UE BUILD REJECTED" in ledger,
@@ -81,4 +107,5 @@ print("PASS45 LOCAL BUILD/IMPORT REGRESSION: PASS")
 print("- UE 5.8 FVector2D tactical-road table is no longer constexpr")
 print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy")
 print("- deprecated auto_detect_mesh_type cannot silently return")
+print("- Windows batch dispatch cannot regress to embedded escaped command quotes")
 print("- factual local build rejection remains recorded; fix is CODED_UNTESTED")
