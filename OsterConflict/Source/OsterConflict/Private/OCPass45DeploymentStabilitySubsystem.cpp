@@ -3,8 +3,10 @@
 #include "OCPlayerController.h"
 #include "OCR137MuseumPhotoModelSubsystem.h"
 
+#include "Engine/AssetManager.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Styling/CoreStyle.h"
 #include "TimerManager.h"
@@ -20,23 +22,35 @@ bool UOCPass45DeploymentStabilitySubsystem::ShouldCreateSubsystem(UObject* Outer
 
 void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
 {
+    (void)DeltaTime;
+
     UWorld* World = GetWorld();
     if (!World || !World->IsGameWorld()) return;
     if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // The R13.7 museum owner schedules a synchronous package-loading rebuild about 0.75 s
-    // after world begin play. That work can block the game thread while Deployment is on
-    // screen, which also makes Slate, Alt+Tab and the native title-bar buttons look dead.
-    // Retire that one legacy timer before it can fire. Existing world/museum content is
-    // preserved; this subsystem does not destroy or replace any scene content.
-    if (!bMuseumStartupRetired)
-    {
-        RetireSynchronousMuseumStartup();
-    }
-
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    const bool bDeploymentVisible = PC && PC->IsLocalController() &&
-        PC->IsDeploymentPanelVisible() && !PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible();
+    const bool bLocalPlayer = PC && PC->IsLocalController();
+    const bool bDeploymentVisible = bLocalPlayer && PC->IsDeploymentPanelVisible() &&
+        !PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible();
+    const bool bBlockingMenuVisible = bLocalPlayer &&
+        (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() || PC->IsSettingsVisible());
+    const bool bGameplayReady = bLocalPlayer && !bBlockingMenuVisible && PC->GetPawn() != nullptr;
+
+    // The museum owner used to schedule a one-shot synchronous package load at +0.75 s.
+    // Clearing it only once had an OnWorldBeginPlay ordering race: the museum subsystem could
+    // schedule the timer after our first clear. Keep suppressing it for the entire menu phase.
+    // This guarantees that Slate and the native Windows message pump are not starved by that load.
+    if (!bMuseumBuildReleased)
+    {
+        if (!bGameplayReady)
+        {
+            SuppressSynchronousMuseumStartup(*World);
+        }
+        else
+        {
+            ReleaseMuseumBuildToGameplay(*World);
+        }
+    }
 
     if (bDeploymentVisible)
     {
@@ -48,19 +62,87 @@ void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
     }
 }
 
-void UOCPass45DeploymentStabilitySubsystem::RetireSynchronousMuseumStartup()
+void UOCPass45DeploymentStabilitySubsystem::SuppressSynchronousMuseumStartup(UWorld& World)
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
-
     UOCR137MuseumPhotoModelSubsystem* MuseumSubsystem =
-        World->GetSubsystem<UOCR137MuseumPhotoModelSubsystem>();
+        World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>();
     if (!MuseumSubsystem) return;
 
-    World->GetTimerManager().ClearAllTimersForObject(MuseumSubsystem);
-    bMuseumStartupRetired = true;
+    // Deliberately repeat this while menus are active. It closes the startup-order race instead
+    // of assuming that one early ClearAllTimersForObject happened after the museum scheduled itself.
+    World.GetTimerManager().ClearAllTimersForObject(MuseumSubsystem);
+
+    if (!bMuseumSuppressionLogged)
+    {
+        bMuseumSuppressionLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_DEPLOYMENT_MUSEUM_SYNC_LOAD_SUPPRESSED menu_phase=1 repeated_guard=1 synchronous_package_loads_during_deployment=0"));
+    }
+}
+
+void UOCPass45DeploymentStabilitySubsystem::ReleaseMuseumBuildToGameplay(UWorld& World)
+{
+    UOCR137MuseumPhotoModelSubsystem* MuseumSubsystem =
+        World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>();
+    if (!MuseumSubsystem) return;
+
+    // Kill any legacy one-shot timer one final time. From here on the authoritative museum build
+    // is owned by this guarded path and its packages are loaded asynchronously first.
+    World.GetTimerManager().ClearAllTimersForObject(MuseumSubsystem);
+    bMuseumBuildReleased = true;
+
+    TArray<FSoftObjectPath> MuseumAssets;
+    MuseumAssets.Reserve(15);
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_8m.Wall_8m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Window_4m.Wall_Window_4m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Door_Windows_8m.Wall_Door_Windows_8m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Top_4m.Wall_Top_4m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Bottom_Extender_4m.Bottom_Extender_4m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Porch_4x4m.Porch_4x4m")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Window_Frame_Part.Window_Frame_Part")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Metal_Roof.Metal_Roof")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Wood_Planks_Painted_Blue.Wood_Planks_Painted_Blue")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/LevelContent/Architecture/SM_1Meter_01.SM_1Meter_01")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_2_Inst.M_Concrete_2_Inst")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02")));
+    MuseumAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/Vegetation_Debris_002/SM_Vegetation_Debris_002.SM_Vegetation_Debris_002")));
+
+    MuseumPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        MuseumAssets,
+        FStreamableDelegate::CreateUObject(this,
+            &UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad));
+
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_DEPLOYMENT_MUSEUM_SYNC_LOAD_RETIRED startup_timer=0 synchronous_package_loads_during_deployment=0 source_world_preserved=1"));
+        TEXT("PASS45_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d menu_phase=0 gameplay_pawn=1"), MuseumAssets.Num());
+
+    // RequestAsyncLoad may return no handle when everything is already resident. In that case
+    // execute the build immediately; LoadObject calls inside it are cache hits rather than disk loads.
+    if (!MuseumPreloadHandle.IsValid())
+    {
+        CompleteMuseumBuildAfterAsyncLoad();
+    }
+}
+
+void UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad()
+{
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld())
+    {
+        MuseumPreloadHandle.Reset();
+        return;
+    }
+
+    if (UOCR137MuseumPhotoModelSubsystem* MuseumSubsystem =
+        World->GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_MUSEUM_ASYNC_PRELOAD_READY menu_phase=0 synchronous_startup_load=0"));
+        MuseumSubsystem->RunAuthoritativeBuildNow(*World);
+    }
+
+    MuseumPreloadHandle.Reset();
 }
 
 void UOCPass45DeploymentStabilitySubsystem::EnsureDeploymentBackdrop()
@@ -93,6 +175,11 @@ void UOCPass45DeploymentStabilitySubsystem::RemoveDeploymentBackdrop()
 
 void UOCPass45DeploymentStabilitySubsystem::Deinitialize()
 {
+    if (MuseumPreloadHandle.IsValid())
+    {
+        MuseumPreloadHandle->CancelHandle();
+        MuseumPreloadHandle.Reset();
+    }
     RemoveDeploymentBackdrop();
     Super::Deinitialize();
 }
