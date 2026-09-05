@@ -2,6 +2,7 @@
 
 #include "OCGameMode.h"
 #include "OCPass45LocalAssetResolver.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -89,12 +90,19 @@ void UOCPass45StreetInfrastructureSubsystem::Tick(float DeltaTime)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        ElapsedSeconds = 0.0f;
+        return;
+    }
+
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
     if (ElapsedSeconds < UpgradeDelaySeconds) return;
     bFinished = true;
 
-    // TActorIterator expects the UWorld pointer. Passing *World forces an invalid
-    // UWorld& conversion in UE 5.8/MSVC and breaks the editor build.
     for (TActorIterator<AStaticMeshActor> Existing(World); Existing; ++Existing)
     {
         if (Existing->ActorHasTag(AuthoredPoleTag)) return;
