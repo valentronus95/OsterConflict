@@ -90,6 +90,15 @@ if not "!RESULT!"=="0" (
     if not exist "%SUCCESS_SENTINEL%" (
         echo.
         echo ERROR: production import commandlet failed with code !RESULT! and wrote no result sentinel.
+        echo [DIAG] Exact importer/crash evidence from UE log:
+        if exist "%IMPORT_LOG%" (
+            findstr /C:"PASS45_PRODUCTION" /C:"PASS45_BTR" /C:"LogPython: Error:" /C:"Python script executed with errors" /C:"Fatal error:" /C:"Unhandled Exception:" "%IMPORT_LOG%"
+            echo.
+            echo [DIAG] Last 80 UE log lines:
+            powershell -NoProfile -Command "Get-Content -LiteralPath $env:IMPORT_LOG -Tail 80" 2>nul
+        ) else (
+            echo [DIAG] ProductionVehicleImport.log was not created.
+        )
         echo Log: %IMPORT_LOG%
         exit /b !RESULT!
     )
