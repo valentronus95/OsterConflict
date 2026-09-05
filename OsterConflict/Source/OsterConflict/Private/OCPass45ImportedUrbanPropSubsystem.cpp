@@ -2,12 +2,14 @@
 
 #include "OCGameMode.h"
 #include "OCPass45LocalAssetResolver.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -179,9 +181,50 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    // This layer resolves and loads more than twenty prop packages. It must never run while the
+    // deployment/menu owns Slate input, otherwise the game thread can stop pumping native window messages.
+    InWorld.GetTimerManager().SetTimer(
+        GameplayReadyTimer,
+        this,
+        &UOCPass45ImportedUrbanPropSubsystem::TryBuildWhenGameplayReady,
+        0.25f,
+        true,
+        0.75f);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_IMPORTED_URBAN_PROP_LOAD_DEFERRED_READY menu_safe=1 synchronous_startup_loads=0 runtime_acceptance=0"));
+}
+
+void UOCPass45ImportedUrbanPropSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    }
+    Super::Deinitialize();
+}
+
+void UOCPass45ImportedUrbanPropSubsystem::TryBuildWhenGameplayReady()
+{
+    if (bBuildFinished) return;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld()) return;
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        return;
+    }
+
+    World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    bBuildFinished = true;
+
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
-    for (TActorIterator<AOCWorldSectorOster> It(&InWorld); It; ++It)
+    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         Sector = *It;
         ++SectorCount;
@@ -212,7 +255,6 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     UStaticMesh* PylonMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Mega_Street_Props_Pack/Street_Props_Pack_V1/Mesh/SM_Pylons.SM_Pylons"));
 
-    const TCHAR* RoadsideRoot = TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/");
     UStaticMesh* CementBagMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Ind_Con_Bag_Cement_Closed_01/SM_Ind_Con_Bag_Cement_Closed_01.SM_Ind_Con_Bag_Cement_Closed_01"));
     UStaticMesh* DebrisBucketMesh = LoadObject<UStaticMesh>(nullptr,
@@ -239,7 +281,6 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D/Urb_Str_Bollard_Metal_Worn_01/SM_Urb_Str_Bollard_Metal_Worn_01.SM_Urb_Str_Bollard_Metal_Worn_01"));
     UStaticMesh* ShrubMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/Scene_RoadsideConstruction/Assets/MS/3D_Plants/Urb_Str_Shrub_Common_Set_01/SM_Urb_Str_Shrub_Common_Set_01_A.SM_Urb_Str_Shrub_Common_Set_01_A"));
-    (void)RoadsideRoot;
 
     UStaticMesh* SardineCanMesh = ResolveSardineCan();
     UStaticMesh* CherryJuiceMesh = ResolveCherryJuice();
@@ -286,8 +327,6 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     if (Sidewalks && Sidewalks->GetInstanceCount() > 0 && Sidewalks->GetStaticMesh())
     {
-        // Sidewalks remain the single authoritative road-edge topology. Every imported worksite layer derives
-        // from those transforms, so expanding the prop vocabulary never creates a parallel procedural city.
         BusStopsAdded = AddAnchoredPropLayer(Sector, Sidewalks, BusStopMesh,
             FName(TEXT("Pass45ImportedBusStops")), 285.0f, 5, FVector(0.0f, 90.0f, 0.0f), 90.0f, true);
         RoadSignsAdded = AddAnchoredPropLayer(Sector, Sidewalks, RoadSignMesh,
@@ -302,7 +341,6 @@ void UOCPass45ImportedUrbanPropSubsystem::OnWorldBeginPlay(UWorld& InWorld)
             FName(TEXT("Pass45ImportedDebrisBuckets")), 46.0f, 10, FVector(-210.0f, 145.0f, 0.0f), -20.0f, false);
         CableWheelsAdded = AddAnchoredPropLayer(Sector, Sidewalks, CableWheelMesh,
             FName(TEXT("Pass45ImportedCableWheels")), 125.0f, 12, FVector(260.0f, -160.0f, 0.0f), 90.0f, true);
-
         JerseyBarriersAdded = AddAnchoredPropLayer(Sector, Sidewalks, JerseyBarrierMesh,
             FName(TEXT("Pass45RoadsideJerseyBarriers")), 90.0f, 13, FVector(300.0f, -180.0f, 0.0f), 90.0f, true);
         GravelPilesAdded = AddAnchoredPropLayer(Sector, Sidewalks, GravelPileMesh,
