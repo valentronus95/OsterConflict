@@ -101,6 +101,12 @@ FAIL_PATTERNS = (
     "PASS14_PERF_BELOW_TARGET",
 )
 
+DECISIVE = re.compile(
+    r"(?:\[STOP\]|\[ERROR\]|Traceback|RuntimeError|ParserError|FullyQualifiedErrorId|UnexpectedToken|"
+    r"PASS45_[A-Z0-9_]*(?:FAIL|GAP)|PASS7_[A-Z0-9_]*FAIL|fatal error|error C\d+|Result:\s*Failed)",
+    re.IGNORECASE,
+)
+
 INTERESTING = re.compile(
     r"(?:\[STOP\]|\[ERROR\]|Traceback|RuntimeError|ParserError|CategoryInfo|FullyQualifiedErrorId|"
     r"PASS45_[A-Z0-9_]*(?:FAIL|GAP)|PASS7_[A-Z0-9_]*FAIL|error(?:\s+code|\s*:)|failed)",
@@ -108,7 +114,10 @@ INTERESTING = re.compile(
 )
 
 HARMLESS_UE_DIAGNOSTIC = re.compile(
-    r"Failed to load '(?:aqProf\.dll|VtuneApi\.dll|VtuneApi32e\.dll)' \(GetLastError=126\)",
+    r"(?:Failed to load '(?:aqProf\.dll|VtuneApi\.dll|VtuneApi32e\.dll|WinPixGpuCapturer\.dll)' \(GetLastError=126\)|"
+    r"File 'WinPixGpuCapturer\.dll' does not exist|"
+    r"PixWinPlugin: PIX capture plugin failed to initialize|"
+    r"LogModuleManager: InternalLoadLibrary: '(?:GPUReshape|PixWinPlugin|RenderDocPlugin)')",
     re.IGNORECASE,
 )
 
@@ -143,6 +152,19 @@ def _append_unique(found: list[str], value: str, limit: int) -> None:
         found.append(line)
 
 
+def _collect_context(lines: list[str], pattern: re.Pattern[str], found: list[str], limit: int) -> None:
+    for index, raw in enumerate(lines):
+        line = raw.strip()
+        if not line or HARMLESS_UE_DIAGNOSTIC.search(line) or not pattern.search(line):
+            continue
+        start = max(0, index - 2)
+        end = min(len(lines), index + 4)
+        for context in lines[start:end]:
+            _append_unique(found, context, limit)
+        if len(found) >= limit:
+            return
+
+
 def extract_issues(path: Path, limit: int = 16) -> list[str]:
     text = decode(path)
     if not text:
@@ -150,22 +172,17 @@ def extract_issues(path: Path, limit: int = 16) -> list[str]:
     lines = text.splitlines()
     found: list[str] = []
 
-    # Parser/runtime failures need their surrounding line/character context, not just CategoryInfo.
-    for index, raw in enumerate(lines):
-        line = raw.strip()
-        if not line or HARMLESS_UE_DIAGNOSTIC.search(line):
-            continue
-        if INTERESTING.search(line):
-            start = max(0, index - 2)
-            end = min(len(lines), index + 4)
-            for context in lines[start:end]:
-                _append_unique(found, context, limit)
-            if len(found) >= limit:
-                break
+    # First collect fail-closed markers, parser diagnostics and compiler errors from the
+    # entire stage log. Do not let optional profiler/capture plugin chatter consume the limit.
+    _collect_context(lines, DECISIVE, found, limit)
 
-    # UE commandlets often print the decisive fail-closed line only at shutdown.
+    # If the stage did not emit a decisive marker, fall back to generic failure wording.
     if len(found) < min(limit, 8):
-        for raw in lines[-12:]:
+        _collect_context(lines, INTERESTING, found, limit)
+
+    # UE commandlets often print the decisive wrapper summary only at shutdown.
+    if len(found) < min(limit, 8):
+        for raw in lines[-16:]:
             _append_unique(found, raw, limit)
 
     return found[:limit]
