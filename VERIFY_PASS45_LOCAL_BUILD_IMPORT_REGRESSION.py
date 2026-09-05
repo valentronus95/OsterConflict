@@ -4,9 +4,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 TACTICAL = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCTacticalMapVisual.cpp"
 PICKUP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCPickupGunTruck.cpp"
+STREET = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCPass45StreetInfrastructureSubsystem.cpp"
 IMPORTER = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
 BATCH_RUNTIME = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 ASSET_WRAPPER = ROOT / "OsterConflict" / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"
+ASSET_AUDIT = ROOT / "OsterConflict" / "Scripts" / "audit_local_model_inbox.ps1"
 LEDGER = ROOT / "OSTER_CONFLICT_WORK_LEDGER.md"
 
 errors = []
@@ -26,9 +28,11 @@ def require(condition: bool, message: str) -> None:
 
 tactical = read(TACTICAL)
 pickup = read(PICKUP)
+street = read(STREET)
 importer = read(IMPORTER)
 batch_runtime = read(BATCH_RUNTIME)
 asset_wrapper = read(ASSET_WRAPPER)
+asset_audit = read(ASSET_AUDIT)
 ledger = read(LEDGER)
 
 # Local UE 5.8.1 / MSVC 14.51 factual build rejected the FVector2D table when it was constexpr.
@@ -46,7 +50,6 @@ require(
 )
 
 # UE 5.8 compile-time format validation requires UE_LOG format arguments to be TCHAR arrays.
-# A conditional/ternary expression selecting TEXT(...) triggered C2338/C2938 locally.
 require(
     'PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0' in pickup,
     "HMMWV/M2 fail-closed log marker was lost while fixing UE_LOG formatting",
@@ -58,6 +61,21 @@ require(
 require(
     '? TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP' not in pickup,
     "UE 5.8 C2338 regression returned: UE_LOG format string must not be selected by ternary expression",
+)
+
+# UE 5.8 TActorIterator constructors take UWorld*, not a dereferenced UWorld&.
+require(
+    'TActorIterator<AStaticMeshActor> Existing(World)' in street,
+    "street infrastructure static-mesh iterator does not receive UWorld*",
+)
+require(
+    'TActorIterator<AOCWorldSectorOster> It(World)' in street,
+    "street infrastructure sector iterator does not receive UWorld*",
+)
+require(
+    'TActorIterator<AStaticMeshActor> Existing(*World)' not in street and
+    'TActorIterator<AOCWorldSectorOster> It(*World)' not in street,
+    "UE 5.8 iterator regression returned: TActorIterator receives dereferenced UWorld",
 )
 
 # Local UE 5.8 Interchange rejected the deprecated bAutoDetectMeshType property for GLB HMMWV/M2 intake.
@@ -114,10 +132,28 @@ require(
     "PowerShell trailing-backslash quoting regression returned in asset intake",
 )
 
-# Batch summaries must surface actionable failures instead of optional UE profiler DLL warnings.
+# Windows PowerShell 5.1 parser path: keep final status assignment as explicit if/else.
+require(
+    "$inventory.status = if (" not in asset_audit,
+    "PowerShell parser-sensitive inline if assignment returned in local asset audit",
+)
+require(
+    "$inventory.status = 'UNSAFE_ARCHIVE_PRESENT'" in asset_audit and "$inventory.status = 'PASS'" in asset_audit,
+    "local asset audit no longer has explicit PASS/unsafe status assignment",
+)
+
+# Batch summaries must surface actionable failures instead of optional UE profiler/capture diagnostics.
 require(
     'HARMLESS_UE_DIAGNOSTIC' in batch_runtime and 'aqProf\\.dll' in batch_runtime,
     "batch runtime no longer filters harmless UE profiler DLL diagnostics",
+)
+require(
+    'WinPixGpuCapturer\\.dll' in batch_runtime and 'PixWinPlugin' in batch_runtime and 'RenderDocPlugin' in batch_runtime,
+    "batch runtime no longer filters non-causal PIX/RenderDoc startup diagnostics",
+)
+require(
+    'DECISIVE = re.compile(' in batch_runtime and '_collect_context(lines, DECISIVE' in batch_runtime,
+    "batch runtime no longer prioritizes fail-closed/compiler/parser diagnostics",
 )
 require(
     'ParserError' in batch_runtime and 'index - 2' in batch_runtime,
@@ -151,8 +187,9 @@ if errors:
 print("PASS45 LOCAL BUILD/IMPORT REGRESSION: PASS")
 print("- UE 5.8 FVector2D tactical-road table is no longer constexpr")
 print("- UE_LOG format strings cannot regress to ternary TEXT selection")
+print("- street TActorIterator calls keep UWorld* instead of invalid UWorld&")
 print("- HMMWV/M2 Interchange intake uses the current UE 5.8 static-mesh policy")
 print("- Windows batch dispatch cannot regress to embedded escaped command quotes")
-print("- PowerShell project paths cannot regress to quoted trailing-backslash arguments")
-print("- batch summaries suppress harmless profiler-DLL noise and preserve real failure context")
+print("- PowerShell paths and final audit status remain Windows PowerShell 5.1-safe")
+print("- batch summaries suppress profiler/PIX/RenderDoc noise and prioritize real failures")
 print("- factual local build rejection remains recorded; fixes are CODED_UNTESTED until rerun")
