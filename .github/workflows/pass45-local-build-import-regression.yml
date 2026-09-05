@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'START_HERE.cmd'
+      - 'RUN_PASS45_BATCH_RUNTIME_TEST.cmd'
+      - 'OsterConflict/Scripts/run_pass45_batch_runtime_test.ps1'
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCPlayerController.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCLocalInboxWeaponOverrideSubsystem.cpp'
