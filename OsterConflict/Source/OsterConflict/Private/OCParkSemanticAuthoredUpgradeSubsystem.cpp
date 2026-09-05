@@ -1,6 +1,7 @@
 #include "OCParkSemanticAuthoredUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -126,8 +127,6 @@ namespace
             if (bNativeLongAxisY) Rotation.Yaw -= 90.0f;
             const FQuat RotationQuat = Rotation.Quaternion();
 
-            // Source benches are 180 x 55 x 120 cm Cube placeholders. Preserve their factual centerline and ground
-            // contact, but keep the authored bench's native proportions instead of deforming it into the proxy box.
             const FVector OldScaledOrigin(
                 OldBounds.Origin.X * OldScale.X,
                 OldBounds.Origin.Y * OldScale.Y,
@@ -195,6 +194,15 @@ void UOCParkSemanticAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
+    }
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        ElapsedSeconds = 0.0f;
+        return;
     }
 
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
