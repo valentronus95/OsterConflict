@@ -1,7 +1,7 @@
 # OSTER CONFLICT — PASS 45 RUNTIME RECOVERY TZ
 
 Date opened: 2026-08-24  
-Execution policy compacted: 2026-09-04  
+Execution policy compacted: 2026-09-05  
 Target: Unreal Engine 5.8.x / Windows  
 Canonical project: `OsterConflict/OsterConflict.uproject`  
 Active branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
@@ -132,6 +132,25 @@ Unknown external license/provenance remains **DO NOT IMPORT** and uses `_DOCS/TH
 - Update history at a meaningful checkpoint, not after every microscopic edit.
 - Do not spend a cycle changing only status wording unless it prevents a factual execution error.
 - Parallel chats must reconcile the newest branch HEAD before writing and must not replay already committed work.
+
+### 3.7 ONE PASS45 WORK BRANCH ONLY — HARD RULE
+
+For the entire lifetime of this TZ there is exactly **one canonical PASS45 work branch**:
+
+`fix/pass45-runtime-rejection-material-closure-20260826`
+
+Binding rules:
+
+- all PASS45 code, asset-intake, launcher, verifier, documentation, checkpoint and runtime-recovery work is committed directly to this branch;
+- **do not create another PASS45 remote branch** for audit, checkpoint, backup, temporary work, asset intake, individual fixes, experiments or CI repair;
+- **do not open another PASS45 PR** while PR #94 is the active canonical PR;
+- parallel chats must write to the same canonical branch after reconciling its newest HEAD;
+- if accidental PASS45 work appears on another branch, first transfer only genuinely unique non-regressive work into the canonical branch, then close the duplicate PR and retire/delete the duplicate branch;
+- an old branch may be inspected as evidence, but it is never resumed as a second active work line;
+- a new work branch is allowed only for a **new TZ** or when the user explicitly orders a branch change;
+- `main` remains the integration target, not a second development branch. PR #94 merges to `main` only after the factual acceptance gates in this TZ pass.
+
+This rule overrides any older branch-per-fix, branch-per-pass, branch-per-asset or branch-per-checkpoint convention.
 
 ## 4. Non-regression rules that remain critical
 
