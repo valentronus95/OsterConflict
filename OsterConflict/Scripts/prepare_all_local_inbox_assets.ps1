@@ -24,8 +24,10 @@ $uePackageExtensions = @('.uasset', '.umap', '.uexp', '.ubulk', '.uptnl')
 
 function Get-Category([string]$Text) {
     $v = $Text.ToLowerInvariant()
+    # Keep source ASCII-only because Windows PowerShell 5.1 treats UTF-8-without-BOM as ANSI.
+    # .NET regex understands \uXXXX escapes, so Ukrainian filename matching is preserved.
     if ($v -match 'hud|heads.?up|crosshair|reticle|minimap|health.?bar|ammo.?ui|overlay|interface|compass|scope.?ui') { return 'HUD_UI' }
-    if ($v -match 'btr.?4|bucephal|буцеф') { return 'BTR4' }
+    if ($v -match 'btr.?4|bucephal|\u0431\u0443\u0446\u0435\u0444') { return 'BTR4' }
     if ($v -match 'hmmwv|humvee|hummer') { return 'HMMWV' }
     if ($v -match '(^|[^a-z0-9])m2([^a-z0-9]|$)|browning|50.?cal') { return 'M2' }
     if ($v -match 'm249|minimi') { return 'M249' }
@@ -42,13 +44,13 @@ function Get-Category([string]$Text) {
     if ($v -match 'rpg|launcher|rocket') { return 'LAUNCHER' }
     if ($v -match 'rifle|weapon|gun|pistol|shotgun|smg|sniper') { return 'WEAPON_OTHER' }
     if ($v -match 'pickup|pick.?up|technical|hilux|truck') { return 'PICKUP' }
-    if ($v -match 'skin|character|soldier|human|mannequin|uniform|operator|fighter|персона|солдат|скін|людин') { return 'CHARACTER_SKIN' }
-    if ($v -match 'tree|foliage|grass|bush|vegetation|plant|flower|mushroom|treestump|дерев|кущ|трава') { return 'FOLIAGE' }
-    if ($v -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|light|bench|ladder|plank|wheel|whell|bowl|cauldron|kettle|mug|spoon|bucket|pot|sack|cart|axe|boat|well|torch|hay|log|stone|мебл|проп|паркан') { return 'PROP' }
+    if ($v -match 'skin|character|soldier|human|mannequin|uniform|operator|fighter|\u043f\u0435\u0440\u0441\u043e\u043d\u0430|\u0441\u043e\u043b\u0434\u0430\u0442|\u0441\u043a\u0456\u043d|\u043b\u044e\u0434\u0438\u043d') { return 'CHARACTER_SKIN' }
+    if ($v -match 'tree|foliage|grass|bush|vegetation|plant|flower|mushroom|treestump|\u0434\u0435\u0440\u0435\u0432|\u043a\u0443\u0449|\u0442\u0440\u0430\u0432\u0430') { return 'FOLIAGE' }
+    if ($v -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|light|bench|ladder|plank|wheel|whell|bowl|cauldron|kettle|mug|spoon|bucket|pot|sack|cart|axe|boat|well|torch|hay|log|stone|\u043c\u0435\u0431\u043b|\u043f\u0440\u043e\u043f|\u043f\u0430\u0440\u043a\u0430\u043d') { return 'PROP' }
     if ($v -match 'river|canal|stream|pond|waterway') { return 'WATER_WORLD' }
     if ($v -match 'road|sidewalk|pavement|pathway') { return 'ROAD_WORLD' }
     if ($v -match 'terrain|ground|landscape|mud|moss|field') { return 'GROUND_WORLD' }
-    if ($v -match 'building|house|home|hut|roof|wall|porch|balcony|shed|hovel|tower|museum|silpo|stadium|culture|college|street|town|village|будин|музей|стадіон|вулиц') { return 'BUILDING_WORLD' }
+    if ($v -match 'building|house|home|hut|roof|wall|porch|balcony|shed|hovel|tower|museum|silpo|stadium|culture|college|street|town|village|\u0431\u0443\u0434\u0438\u043d|\u043c\u0443\u0437\u0435\u0439|\u0441\u0442\u0430\u0434\u0456\u043e\u043d|\u0432\u0443\u043b\u0438\u0446') { return 'BUILDING_WORLD' }
     return 'UNCLASSIFIED'
 }
 
@@ -197,7 +199,7 @@ while ($archiveQueue.Count -gt 0) {
     try {
         if (-not (Test-Path -LiteralPath $marker)) {
             if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
-            Expand-SafeZip -Archive $archive -Destination $stage
+            Expand-SafeZip -Archive $archive -DestinationPath $stage -Force
             Set-Content -LiteralPath $marker -Value $hash -Encoding ASCII
         }
     }
