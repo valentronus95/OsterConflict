@@ -1,6 +1,7 @@
 #include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -479,6 +480,18 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
+    }
+
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return;
+
+    // These six package loads are synchronous. Never execute them while Slate owns frontend/deployment/settings
+    // interaction, otherwise the Windows message pump starves and native minimize/close/Alt+Tab appear dead.
+    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
+        PC->IsSettingsVisible() || !PC->GetPawn())
+    {
+        ElapsedSeconds = 0.0f;
+        return;
     }
 
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
