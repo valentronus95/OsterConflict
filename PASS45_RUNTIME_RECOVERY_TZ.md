@@ -152,6 +152,25 @@ Binding rules:
 
 This rule overrides any older branch-per-fix, branch-per-pass, branch-per-asset or branch-per-checkpoint convention.
 
+### 3.8 USER GIT WORKFLOW — GITHUB DESKTOP IS AUTHORITATIVE
+
+The user works with the local repository through **GitHub Desktop**. This is the default user-facing Git workflow for PASS45.
+
+Binding rules:
+
+- instructions given to the user for branch selection, Fetch, Pull, Commit, Push, viewing Changes, History or PR-related local workflow must be described in **GitHub Desktop UI terms first**;
+- do not assume the user is working from Git Bash, PowerShell, CMD or another terminal Git client;
+- terminal Git commands are used only when GitHub Desktop does not expose the required operation or when the user explicitly requests command-line instructions;
+- the selected local branch in GitHub Desktop must remain `fix/pass45-runtime-rejection-material-closure-20260826` for PASS45 work;
+- local files shown under **Changes** in GitHub Desktop are user-local work and must not be discarded, reset, stashed, overwritten or silently absorbed into remote maintenance work;
+- never instruct the user to press **Discard changes**, perform a destructive reset, delete local files, or switch branches in a way that risks the current Changes unless the user explicitly orders that destructive action after the risk is stated;
+- remote GitHub maintenance must assume the user's local GitHub Desktop worktree can contain legitimate uncommitted Changes;
+- when synchronization is needed, distinguish clearly between **Fetch origin**, **Pull origin**, **Push origin**, and **Commit**; do not describe them as interchangeable actions;
+- if a remote branch is retired, GitHub Desktop may continue displaying a stale `origin/...` reference until the next fetch/prune. That visual residue does not make it an active PASS45 branch;
+- all PASS45 continuation instructions must preserve the user's GitHub Desktop workflow and the single canonical branch rule above.
+
+This rule is binding for all later PASS45 chats and overrides older terminal-first instructions.
+
 ## 4. Non-regression rules that remain critical
 
 These are the minimum hard rules that must survive all acceleration work:
