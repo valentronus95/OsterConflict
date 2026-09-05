@@ -62,8 +62,20 @@ pass43 = text(ROOT / "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py")
 pass23 = text(ROOT / "VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py")
 
 req("PASS 45 RUNTIME RECOVERY TZ" in tz, "canonical Pass 45 corrective TZ is missing")
-req("RUNTIME REJECTED" in tz and "CODED_UNTESTED" in tz,
-    "Pass45 TZ must remain runtime-rejected/source-untested until factual UE acceptance")
+req(
+    "RUNTIME REJECTED" in tz
+    and "RUNTIME ACCEPTANCE DEFERRED" in tz
+    and all(
+        flag in tz
+        for flag in (
+            "runtime_acceptance=0",
+            "item16_checked=0",
+            "merge_permitted=0",
+            "user_local_execution_requested=0",
+        )
+    ),
+    "Pass45 TZ must remain runtime-rejected/acceptance-deferred until factual UE acceptance",
+)
 req("2026-08-25" in manifest and "RUNTIME REJECTED" in manifest,
     "latest Pass45 rejected runtime evidence manifest is missing classification/date")
 req("RUNTIME REJECTED" in ledger and "Pass 45" in ledger,

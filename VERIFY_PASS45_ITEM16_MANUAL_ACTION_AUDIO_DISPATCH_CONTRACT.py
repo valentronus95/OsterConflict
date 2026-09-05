@@ -73,13 +73,19 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
     authored_start = "bAuthoredManualActionStarted = PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay);"
     authored_ready = "PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY"
 
+    profile_pos = presentation.find(profile_resolve)
+    action_pos = presentation.find("const bool bActionCycling = Weapon->IsActionCycling();")
+    if profile_pos < 0:
+        errors.append("manual-action route missing authored animation profile resolution")
+    elif action_pos < 0 or profile_pos > action_pos:
+        errors.append("authored animation profile must be resolved before manual-action transition")
+
     if action_block:
         for marker, label in (
             (edge_gate, "authoritative action-cycle rising-edge gate"),
             ("const EOCWeaponActionType ActionType = Weapon->GetWeaponActionType();", "manual-action type resolution"),
             ("if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())", "weapon-audio component lookup"),
             (dispatch, "ManualActionCycle audio dispatch"),
-            (profile_resolve, "authored animation profile resolution"),
             (authored_guard, "authored manual-action guard"),
             (authored_start, "authored moving-part animation start"),
             (authored_ready, "authored moving-part READY evidence"),
@@ -97,14 +103,13 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
         positions = [
             action_block.find(edge_gate),
             action_block.find(dispatch),
-            action_block.find(profile_resolve),
             action_block.find(authored_guard),
             action_block.find(authored_start),
             action_block.find(authored_ready),
         ]
         if any(position < 0 for position in positions) or positions != sorted(positions):
             errors.append(
-                "manual-action same-transition order drifted: rising edge -> audio dispatch -> profile -> authored start -> READY"
+                "manual-action same-transition order drifted: rising edge -> audio dispatch -> authored guard/start -> READY"
             )
 
         # This block is presentation-only. It must observe the replicated gameplay gate,
@@ -216,6 +221,17 @@ def main() -> int:
             audio,
             runtime,
             "dispatch",
+        ),
+        (
+            "missing pre-resolved authored profile",
+            presentation.replace(
+                "const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);",
+                "// removed authored profile resolution",
+                1,
+            ),
+            audio,
+            runtime,
+            "profile resolution",
         ),
         (
             "missing authored moving-part start",
