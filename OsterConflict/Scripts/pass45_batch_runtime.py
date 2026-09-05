@@ -165,31 +165,23 @@ def _collect_context(lines: list[str], pattern: re.Pattern[str], found: list[str
             return
 
 
-def extract_issues(path: Path, limit: int = 16) -> list[str]:
+def extract_issues(path: Path, limit: int = 20) -> list[str]:
     text = decode(path)
     if not text:
         return []
     lines = text.splitlines()
     found: list[str] = []
 
-    # First collect fail-closed markers, parser diagnostics and compiler errors from the
-    # entire stage log. Do not let optional profiler/capture plugin chatter consume the limit.
     _collect_context(lines, DECISIVE, found, limit)
-
-    # If the stage did not emit a decisive marker, fall back to generic failure wording.
-    if len(found) < min(limit, 8):
+    if len(found) < min(limit, 10):
         _collect_context(lines, INTERESTING, found, limit)
-
-    # UE commandlets often print the decisive wrapper summary only at shutdown.
-    if len(found) < min(limit, 8):
-        for raw in lines[-16:]:
+    if len(found) < min(limit, 10):
+        for raw in lines[-20:]:
             _append_unique(found, raw, limit)
-
     return found[:limit]
 
 
 def normalize_windows_returncode(value: int) -> int:
-    # Windows may expose native 0xFFFFFFFF as Python integer 4294967295. Show the signed cause.
     if os.name == "nt" and value > 0x7FFFFFFF:
         return value - 0x100000000
     return value
@@ -218,13 +210,6 @@ def git(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def cmd_batch(path: Path, *args: str) -> list[str]:
-    """Build a cmd.exe argv list without embedding quoted command strings.
-
-    On Windows, subprocess.list2cmdline escapes embedded quotes inside one `/c`
-    argument as `\"...\"`. cmd.exe then treats those characters as part of the
-    command name. Keep `call`, the batch path and every argument as separate argv
-    elements so Python performs normal per-argument quoting only where required.
-    """
     comspec = os.environ.get("COMSPEC") or "cmd.exe"
     return [comspec, "/d", "/c", "call", str(path), *[str(arg) for arg in args]]
 
@@ -265,9 +250,10 @@ def report(branch: str, head_before: str, remote_head: str, preflight: list[Stag
     for stage in preflight:
         lines.append(f"{stage.name}: {'PASS' if stage.rc == 0 else 'FAIL'} code={stage.rc} log={stage.log_path}")
         lines.extend(f"  > {item}" for item in stage.issues)
-    lines += ["", f"preflight_failure_count={sum(stage.rc != 0 for stage in preflight)}", ""]
+    preflight_failures = [stage for stage in preflight if stage.rc != 0]
+    lines += ["", f"preflight_failure_count={len(preflight_failures)}", ""]
     if runtime_rc is None:
-        lines.append("RUNTIME: NOT STARTED - preflight blockers exist")
+        lines.append("RUNTIME: NOT STARTED - hard build blocker exists")
     else:
         lines += [f"RUNTIME: exit_code={runtime_rc} log={GAME_LOG}", f"runtime_missing_marker_count={len(missing)}"]
         lines.extend(f"  MISSING {item}" for item in missing)
@@ -285,8 +271,10 @@ def report(branch: str, head_before: str, remote_head: str, preflight: list[Stag
     lines.extend(f"  {item}" for item in dirty_after or ["NONE"])
     lines += ["", "FORMAL ACCEPTANCE BLOCKERS"]
     lines.extend(f"  {item}" for item in formal_blockers or ["NONE"])
-    if any(stage.rc != 0 for stage in preflight):
-        status = "PREFLIGHT_FAIL"
+    if preflight_failures and runtime_rc is None:
+        status = "PREFLIGHT_HARD_BUILD_FAIL"
+    elif preflight_failures:
+        status = "PREFLIGHT_DIAGNOSTIC_FAIL_RUNTIME_EXECUTED"
     elif runtime_rc not in (None, 0) or missing or runtime_failures or any(stage.rc != 0 for stage in post):
         status = "RUNTIME_OR_POSTCHECK_FAIL"
     elif formal_blockers:
@@ -304,7 +292,7 @@ def main() -> int:
     print("=" * 68)
     print("OSTER CONFLICT - PASS45 ПАКЕТНИЙ RUNTIME-ТЕСТ")
     print("=" * 68)
-    print("Один запуск збирає ВСІ проблеми. На першій помилці більше не зупиняємось.")
+    print("Один запуск збирає ВСІ проблеми. Після успішного C++ build content-gates більше не блокують gameplay runtime.")
     print("Локальні Changes не видаляються, не stash і не reset.")
     print()
 
@@ -338,18 +326,6 @@ def main() -> int:
         print(f"[STOP] {exc}")
         return 5
 
-    wrapper_specs = (
-        ("all_local_assets", "ALL local/Fab assets: prepare + import + runtime bindings", PROJECT_DIR / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"),
-        ("stein_materials", "Stein weapon materials + fresh-load", PROJECT_DIR / "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd"),
-        ("manual_action_audio", "M700/Lever manual-action audio + fresh-load", PROJECT_DIR / "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd"),
-        ("remington870", "Remington 870 skeletal pump + fresh-load", PROJECT_DIR / "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd"),
-        ("production_vehicles", "HMMWV + M2 + BTR-4 production intake", PROJECT_DIR / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd"),
-    )
-    preflight: list[Stage] = []
-    for name, label, path in wrapper_specs:
-        command = cmd_batch(path) if path.is_file() else missing_command()
-        preflight.append(Stage(name, label, command, LOG_ROOT / f"{name}.log"))
-
     build_cmd = cmd_batch(
         build_bat,
         "OsterConflictEditor",
@@ -358,7 +334,31 @@ def main() -> int:
         f"-Project={PROJECT}",
         "-WaitMutex",
     )
-    preflight.append(Stage("final_build", "Final OsterConflictEditor C++ build", build_cmd, LOG_ROOT / "final_build.log"))
+    build_stage = Stage("final_build", "Current-source OsterConflictEditor C++ build", build_cmd, LOG_ROOT / "final_build.log")
+    preflight: list[Stage] = [build_stage]
+
+    print("\n[PREFLIGHT] Спочатку збираю current-source C++ модуль...")
+    run(build_stage)
+    if build_stage.rc != 0:
+        dirty_mid = tracked_changes()
+        report(branch, head_before, remote_head, preflight, None, [], [], [], dirty_before, dirty_mid, formal_blockers)
+        print("\n" + "=" * 68)
+        print("[STOP] Current-source C++ build не пройшов. UE commandlet-и не запускаю на старій DLL.")
+        for item in build_stage.issues[:12]:
+            print(f"   > {item}")
+        print(f"ЄДИНИЙ ЗВІТ: {REPORT}")
+        return 20
+
+    wrapper_specs = (
+        ("all_local_assets", "ALL local/Fab assets: prepare + import + runtime bindings", PROJECT_DIR / "IMPORT_ALL_LOCAL_INBOX_UE58.cmd"),
+        ("stein_materials", "Stein weapon materials + fresh-load", PROJECT_DIR / "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd"),
+        ("manual_action_audio", "M700/Lever manual-action audio + fresh-load", PROJECT_DIR / "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd"),
+        ("remington870", "Remington 870 skeletal pump + fresh-load", PROJECT_DIR / "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd"),
+        ("production_vehicles", "HMMWV + M2 + BTR-4 production intake", PROJECT_DIR / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd"),
+    )
+    for name, label, path in wrapper_specs:
+        command = cmd_batch(path) if path.is_file() else missing_command()
+        preflight.append(Stage(name, label, command, LOG_ROOT / f"{name}.log"))
 
     try:
         WEAPON_SENTINEL.unlink(missing_ok=True)
@@ -371,8 +371,8 @@ def main() -> int:
     material_gate = PROJECT_DIR / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
     preflight.append(Stage("strict_material_gate", "Strict authored material/dependency gate", cmd_batch(material_gate) if material_gate.is_file() else missing_command(), LOG_ROOT / "strict_material_gate.log"))
 
-    print("\n[PREFLIGHT] Проганяю ВСІ незалежні етапи...")
-    for stage in preflight:
+    print("\n[PREFLIGHT] C++ чистий. Проганяю всі content/asset diagnostics...")
+    for stage in preflight[1:]:
         run(stage)
         if stage.name == "required_weapon_assets" and stage.rc == 0 and not WEAPON_SENTINEL.is_file():
             stage.rc = 91
@@ -385,19 +385,15 @@ def main() -> int:
     if dirty_mid != dirty_before:
         formal_blockers.append("tracked_worktree_changed_during_preflight=1")
 
-    blockers = [stage for stage in preflight if stage.rc != 0]
-    if blockers:
-        report(branch, head_before, remote_head, preflight, None, [], [], [], dirty_before, dirty_mid, formal_blockers)
-        print("\n" + "=" * 68)
-        print(f"[STOP] Знайдено {len(blockers)} preflight проблем. Гру поки не запускаю.")
-        for stage in blockers:
+    soft_blockers = [stage for stage in preflight[1:] if stage.rc != 0]
+    if soft_blockers:
+        print("\n[WARN] Content/asset diagnostics мають FAIL, але C++ build чистий. Gameplay runtime НЕ блокую.")
+        for stage in soft_blockers:
             print(f" - {stage.label}: code={stage.rc}")
-            for item in stage.issues[:6]:
+            for item in stage.issues[:12]:
                 print(f"   > {item}")
-        print(f"ЄДИНИЙ ЗВІТ: {REPORT}")
-        return 20
 
-    print("\n[RUNTIME] Preflight чистий. Запускаю ОДИН gameplay runtime.")
+    print("\n[RUNTIME] Current-source build чистий. Запускаю ОДИН gameplay runtime незалежно від content-gate FAIL.")
     print("START -> TEAM/SQUAD/ROLE -> BASE -> У БІЙ. F10 -> Spawn all weapons.")
     print("Перевір HMMWV/BTR/M2, зброю, побудь у gameplay >=20 сек і нормально вийди.")
     try:
@@ -452,11 +448,13 @@ def main() -> int:
         formal_blockers.append("tracked_worktree_changed_during_test=1")
 
     report(branch, head_before, remote_head, preflight, runtime_rc, missing, runtime_failures, post, dirty_before, dirty_after, formal_blockers)
+    preflight_failures = [stage for stage in preflight if stage.rc != 0]
     post_failures = [stage for stage in post if stage.rc != 0]
-    failed = runtime_rc != 0 or bool(missing or runtime_failures or post_failures)
+    failed = bool(preflight_failures) or runtime_rc != 0 or bool(missing or runtime_failures or post_failures)
 
     print("\n" + "=" * 68)
     print("PASS45 ПАКЕТНИЙ РЕЗУЛЬТАТ")
+    print(f"Preflight FAIL: {len(preflight_failures)}")
     print(f"Runtime exit: {runtime_rc}")
     print(f"Missing READY: {len(missing)}")
     print(f"Runtime FAIL: {len(runtime_failures)}")
@@ -464,7 +462,7 @@ def main() -> int:
     print(f"Formal blockers: {len(formal_blockers)}")
     print(f"ЄДИНИЙ ЗВІТ: {REPORT}")
     if failed:
-        print("[FAIL] Усі знайдені проблеми вже зібрані одним списком у звіті.")
+        print("[FAIL] Runtime уже виконано; всі preflight/runtime/post проблеми зібрані одним списком.")
         return 30
     if formal_blockers:
         print("[DIAGNOSTIC PASS] Runtime чистий, formal acceptance заблокований tracked Changes.")
