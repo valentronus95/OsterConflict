@@ -47,11 +47,13 @@ namespace
         {
             if (Border == RootPanel)
             {
-                Border->SetBrushColor(FLinearColor(0.008f, 0.012f, 0.016f, 0.87f));
+                // The flow panel itself must also be opaque. The old 0.87 alpha was visible in the user's
+                // deployment screenshots even when the backdrop happened to exist.
+                Border->SetBrushColor(FLinearColor(0.008f, 0.012f, 0.016f, 1.0f));
             }
             else
             {
-                Border->SetBrushColor(FLinearColor(0.030f, 0.036f, 0.041f, 0.76f));
+                Border->SetBrushColor(FLinearColor(0.030f, 0.036f, 0.041f, 1.0f));
             }
         }
         else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
@@ -151,12 +153,12 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
     if (!Root) return;
     if (StyledFlowPanel.IsValid() && BackdropBlur.IsValid() && BackdropShade.IsValid() && bStyleApplied) return;
 
-    UBorder* FlowPanel = FindObjectFast<UBorder>(Root, TEXT("R13_DeploymentFlowPanel"));
-    if (!FlowPanel) return;
-
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
 
+    // Build the full-screen opaque backdrop independently of the dynamically-created flow panel.
+    // Previously FindObjectFast(R13_DeploymentFlowPanel) ran first; when it missed the late widget we returned
+    // before creating any backdrop, which is exactly why the world kept showing through the deployment menu.
     if (!BackdropBlur.IsValid())
     {
         UBackgroundBlur* Blur = NewObject<UBackgroundBlur>(Root, TEXT("R13_DeploymentBackdropBlur"));
@@ -178,16 +180,21 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
         UBorder* Shade = NewObject<UBorder>(Root, TEXT("R13_DeploymentBackdropShade"));
         if (Shade)
         {
-            // Deterministic opaque deployment background. Never expose a half-loaded world-view behind the flow UI.
             Shade->SetBrushColor(FLinearColor(0.012f, 0.016f, 0.020f, 1.0f));
             Shade->SetIsEnabled(false);
+            Shade->SetRenderOpacity(1.0f);
             Shade->SetVisibility(ESlateVisibility::Collapsed);
             FillCanvas(Canvas->AddChildToCanvas(Shade), 9189);
             BackdropShade = Shade;
-            // SetPresentationVisible() may have cached "visible" before this late-created widget existed.
-            // Invalidate the cache so the new full-screen shade is applied immediately in this same tick.
             bPresentationVisibilityValid = false;
         }
+    }
+
+    UBorder* FlowPanel = FindObjectFast<UBorder>(Root, TEXT("R13_DeploymentFlowPanel"));
+    if (!FlowPanel)
+    {
+        // The backdrop is already owned and can be shown this tick; styling the late flow panel can wait.
+        return;
     }
 
     StyledFlowPanel = FlowPanel;
@@ -202,6 +209,7 @@ void UOCR13DeploymentPresentationSubsystem::ApplyWidgetStyle(UBorder* FlowPanel)
 {
     if (!FlowPanel) return;
     FlowPanel->SetPadding(FMargin(28.0f));
+    FlowPanel->SetRenderOpacity(1.0f);
     RestyleWidgetRecursive(FlowPanel, FlowPanel);
     FlowPanel->InvalidateLayoutAndVolatility();
 }
