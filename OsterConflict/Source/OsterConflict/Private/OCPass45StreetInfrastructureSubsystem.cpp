@@ -93,7 +93,9 @@ void UOCPass45StreetInfrastructureSubsystem::Tick(float DeltaTime)
     if (ElapsedSeconds < UpgradeDelaySeconds) return;
     bFinished = true;
 
-    for (TActorIterator<AStaticMeshActor> Existing(*World); Existing; ++Existing)
+    // TActorIterator expects the UWorld pointer. Passing *World forces an invalid
+    // UWorld& conversion in UE 5.8/MSVC and breaks the editor build.
+    for (TActorIterator<AStaticMeshActor> Existing(World); Existing; ++Existing)
     {
         if (Existing->ActorHasTag(AuthoredPoleTag)) return;
     }
@@ -114,7 +116,7 @@ void UOCPass45StreetInfrastructureSubsystem::Tick(float DeltaTime)
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
-    for (TActorIterator<AOCWorldSectorOster> It(*World); It; ++It)
+    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
     {
         Sector = *It;
         ++SectorCount;
