@@ -23,7 +23,9 @@ function Get-Category([string]$Text) {
     $value = $Text.ToLowerInvariant()
     $categories = New-Object System.Collections.Generic.List[string]
 
-    if ($value -match 'btr.?4|bucephal|буцеф') { $categories.Add('BTR4') }
+    # Keep source ASCII-only because Windows PowerShell 5.1 treats UTF-8-without-BOM as ANSI.
+    # .NET regex understands \uXXXX escapes, so Ukrainian filename matching is preserved.
+    if ($value -match 'btr.?4|bucephal|\u0431\u0443\u0446\u0435\u0444') { $categories.Add('BTR4') }
     if ($value -match 'hmmwv|humvee|hummer') { $categories.Add('HMMWV') }
     if ($value -match '(^|[^a-z0-9])m2([^a-z0-9]|$)|browning|50.?cal') { $categories.Add('M2') }
     if ($value -match 'm249|minimi') { $categories.Add('M249') }
@@ -52,10 +54,10 @@ function Get-Category([string]$Text) {
     if ($value -match 'light[ _.-]?machine[ _.-]?gun|machine[ _.-]?gun|(^|[^a-z0-9])lmg([^a-z0-9]|$)|rpk|pkm') { $categories.Add('LMG_GENERIC') }
     if ($value -match 'rifle|carbine|weapon|gun') { $categories.Add('WEAPON_OTHER') }
     if ($value -match 'pickup|pick.?up|technical|hilux|truck') { $categories.Add('PICKUP') }
-    if ($value -match 'skin|character|soldier|human|mannequin|uniform|operator|fighter|персона|солдат|скін|людин') { $categories.Add('CHARACTER_SKIN') }
-    if ($value -match 'building|house|home|hut|roof|wall|porch|balcony|shed|tower|museum|silpo|stadium|culture|college|street|town|village|будин|музей|стадіон|вулиц') { $categories.Add('BUILDING_WORLD') }
-    if ($value -match 'tree|foliage|grass|bush|vegetation|plant|flower|дерев|кущ|трава') { $categories.Add('FOLIAGE') }
-    if ($value -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|bench|ladder|plank|wheel|bucket|sack|cart|axe|boat|well|torch|hay|log|stone|мебл|проп|паркан') { $categories.Add('PROP') }
+    if ($value -match 'skin|character|soldier|human|mannequin|uniform|operator|fighter|\u043f\u0435\u0440\u0441\u043e\u043d\u0430|\u0441\u043e\u043b\u0434\u0430\u0442|\u0441\u043a\u0456\u043d|\u043b\u044e\u0434\u0438\u043d') { $categories.Add('CHARACTER_SKIN') }
+    if ($value -match 'building|house|home|hut|roof|wall|porch|balcony|shed|tower|museum|silpo|stadium|culture|college|street|town|village|\u0431\u0443\u0434\u0438\u043d|\u043c\u0443\u0437\u0435\u0439|\u0441\u0442\u0430\u0434\u0456\u043e\u043d|\u0432\u0443\u043b\u0438\u0446') { $categories.Add('BUILDING_WORLD') }
+    if ($value -match 'tree|foliage|grass|bush|vegetation|plant|flower|\u0434\u0435\u0440\u0435\u0432|\u043a\u0443\u0449|\u0442\u0440\u0430\u0432\u0430') { $categories.Add('FOLIAGE') }
+    if ($value -match 'prop|furniture|chair|table|barrel|crate|fence|bridge|lamp|bench|ladder|plank|wheel|bucket|sack|cart|axe|boat|well|torch|hay|log|stone|\u043c\u0435\u0431\u043b|\u043f\u0440\u043e\u043f|\u043f\u0430\u0440\u043a\u0430\u043d') { $categories.Add('PROP') }
     if ($value -match 'hud|heads.?up|crosshair|reticle|minimap|health.?bar|ammo.?ui|overlay|interface|compass|scope.?ui') { $categories.Add('HUD_UI') }
 
     if ($categories.Count -eq 0) { $categories.Add('UNCLASSIFIED') }
@@ -155,8 +157,6 @@ foreach ($archive in $archives) {
     $inventory.archives += $record
 }
 
-# Keep this explicit for Windows PowerShell 5.1 parser compatibility. Do not rely on
-# assigning an if-statement as a value in the local launcher environment.
 if ($inventory.unsafe_archive_count -gt 0) {
     $inventory.status = 'UNSAFE_ARCHIVE_PRESENT'
 }
