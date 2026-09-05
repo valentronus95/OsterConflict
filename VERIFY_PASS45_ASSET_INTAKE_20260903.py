@@ -23,14 +23,10 @@ def req(condition: bool, message: str) -> None:
         errors.append(message)
 
 
-def has_any(text: str, *markers: str) -> bool:
-    return any(marker in text for marker in markers)
-
-
 spec = read("_DOCS/PASS45_ASSET_INTAKE_2026-09-03.md")
 auditor = read("PASS45_ASSET_INTAKE_20260903.py")
 launcher = read("OsterConflict/RUN_PASS45_ASSET_INTAKE_20260903.cmd")
-history = read("PASS45_RUNTIME_RECOVERY_HISTORY.md")
+tz = read("PASS45_RUNTIME_RECOVERY_TZ.md")
 
 for marker in (
     "QUARANTINED / NOT PRODUCTION / NOT RUNTIME-ACCEPTED",
@@ -97,34 +93,30 @@ for line in launcher.splitlines():
         f"launcher contains forbidden direct mutation/execution command: {line.strip()}",
     )
 
-# History checks intentionally validate current semantics rather than one frozen sentence.
-# Rewording the living checkpoint must not fail CI when the invariant is unchanged.
+# Current acceptance state belongs to the compact canonical TZ. HISTORY is archival
+# and may be reworded/compacted without breaking executable safety checks.
 for marker in (
-    "asset-intake-20260903",
-    "22/36 = 61.1%",
-    "item 16",
-    "one consolidated current-head weapon runtime acceptance",
+    "22/36 = 61.1% complete, 38.9% remaining",
+    "First factual open checklist item remains **item 16**",
+    "PR #94 remains **OPEN / UNMERGED**",
+    "runtime_acceptance=0",
+    "item16_checked=0",
+    "merge_permitted=0",
+    "user_local_execution_requested=0",
+    "RUNTIME REJECTED",
+    "Batch first, not micro-task first",
+    "one weapon -> local test -> fix -> another weapon -> local test -> ...",
 ):
-    req(marker in history, f"history missing checkpoint invariant: {marker}")
+    req(marker in tz, f"canonical TZ missing current checkpoint invariant: {marker}")
 
-req(
-    has_any(
-        history,
-        "Do **not** run the expensive full UE 5.8 gameplay acceptance after every small weapon tweak.",
-        "Do **not** run the expensive full UE 5.8 runtime acceptance after every tiny weapon tweak.",
-    ),
-    "history must preserve bounded-before-consolidated weapon runtime cadence",
-)
-
-history_lower = history.lower()
-req(
-    "pr #94" in history_lower and "open / unmerged" in history_lower,
-    "history must preserve PR #94 OPEN / UNMERGED state",
-)
 req("items 37+" in spec.lower(), "spec must explicitly preserve frozen 36-item architecture")
 req(
-    "no checklist items 37+" in history_lower,
-    "history must preserve frozen 36-item architecture",
+    "Historical investigation, old checkpoints, rejected experiments and detailed chronology belong in:" in tz,
+    "canonical TZ must keep history archival rather than executable current truth",
+)
+req(
+    "A historical verifier never outranks newer runtime truth or a newer user requirement." in tz,
+    "canonical authority rule for stale verifiers is missing",
 )
 
 if errors:
@@ -135,6 +127,8 @@ if errors:
 
 print("PASS45 ASSET INTAKE CONTRACT: PASS")
 print("quarantine_only=1")
+print("current_state_owner=PASS45_RUNTIME_RECOVERY_TZ.md")
+print("history_is_archival=1")
 print("runtime_acceptance=0")
 print("item16_checked=0")
 print("merge_permitted=0")

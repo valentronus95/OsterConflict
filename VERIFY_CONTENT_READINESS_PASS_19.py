@@ -23,7 +23,8 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 pass19 = read(SRC / "Private" / "OCContentReadinessPass19Subsystem.cpp")
-strict = read(SRC / "Private" / "OCProductionVehicleRuntimeValidationSubsystem.cpp")
+vehicle_validation = read(SRC / "Private" / "OCProductionVehicleRuntimeValidationSubsystem.cpp")
+catalog = read(SRC / "Private" / "OCPass45WeaponCatalogSpawnSubsystem.cpp")
 launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
 vehicle_import = read(ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py")
 vehicle_cmd = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
@@ -36,18 +37,38 @@ require(fallback, 'RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"))
 require(fallback, "exact_production=0 playable_fallback=1", "fallback truth log")
 forbid(fallback, "Visual->ComponentTags.Add(ProductionVisualTag);", "generic fallback pretending to be production")
 
+# Vehicle validator now owns vehicles only. Weapon completeness/exact-visual truth
+# moved to the single current full-catalog owner; do not resurrect a second weapon gate here.
+require(
+    vehicle_validation,
+    "UOCPass45WeaponCatalogSpawnSubsystem is the single current owner of the complete weapon catalog and exact-visual validation.",
+    "vehicle-to-weapon ownership delegation",
+)
 for needle in (
     "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
     "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
-    "OC_ProductionWeaponVisual",
-    "OC_RealFallbackWeaponVisual",
-    "exactProductionReadyNotClaimed=1",
-    "validation_only=1 mutation=0",
 ):
-    require(strict, needle, "required-available weapon runtime gate")
-forbid(strict, "PASS7_PRODUCTION_WEAPONS_READY", "obsolete all-exact rack readiness")
-forbid(strict, "PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL", "obsolete all-exact rack failure")
+    forbid(vehicle_validation, needle, "obsolete weapon gate in vehicle validator")
 
+for needle in (
+    "const FWeaponCatalogEntry WeaponCatalog[]",
+    "constexpr int32 CoreRackEntryCount = 7",
+    "OC_ProductionWeaponVisual",
+    "PASS45_COMPLETE_WEAPON_RACK_READY",
+    "PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY",
+    "PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP",
+    "missing_ids=0",
+    "missing_exact_visuals=0",
+    "duplicate_weapon_ids=0",
+    "wrong_identity_substitution=0",
+    "runtime_acceptance=0",
+    "AOCWeapon_M4A1::StaticClass()",
+    "AOCWeapon_AR15::StaticClass()",
+):
+    require(catalog, needle, "current full weapon-catalog owner")
+
+# The older Pass19 11-class focused recovery rack remains a compatibility route,
+# but it no longer owns the complete PASS45 catalog.
 for needle in (
     "AllRequiredRackWeaponClassesMask", "OC_RuntimeBaseWeaponRack", "OC_ProductionWeaponVisual",
     "OC_RealFallbackWeaponVisual", "AOCWeapon_M14", "AOCWeapon_Mac10", "AOCWeapon_Tec9",
@@ -55,7 +76,7 @@ for needle in (
     "ExactProductionCount + RealFallbackCount", "SetActorHiddenInGame(false)",
     "PASS19_PLAYABLE_WEAPON_SET_READY", "PASS19_PLAYABLE_WEAPON_SET_FAIL",
 ):
-    require(pass19, needle, "playable weapon readiness")
+    require(pass19, needle, "focused playable weapon readiness")
 
 require(launcher, "PASS19_PLAYABLE_WEAPON_SET_READY", "focused launcher playable gate")
 require(launcher, "PASS19_PLAYABLE_WEAPON_SET_FAIL", "focused launcher failure gate")
@@ -140,8 +161,8 @@ require(btr_launcher, "source_kind=local_user_fbx", "dedicated local BTR4 source
 
 print("CONTENT READINESS PASS 19 + PASS45 BTR R3 MATERIAL/AXIS INTAKE CONTRACT PASS")
 print("- generic weapon fallback meshes do not impersonate production art")
-print("- Gate F validates exact production OR explicit real fallback while exact payload gaps stay CONTENT GAP")
-print("- Pass 19 separately proves an 11-class playable real-mesh rack")
+print("- full weapon-catalog exact-visual validation is owned only by OCPass45WeaponCatalogSpawnSubsystem")
+print("- Pass 19 separately preserves its focused 11-class playable real-mesh compatibility rack")
 print("- HMMWV/M2 remain independent external-source imports")
 print("- BTR canonical runtime intake is repository-authored +X-forward with explicit glTF +Y-up/internal +Z-up provenance")
 print("- imported vehicle meshes must reopen under R3 with authored non-placeholder materials and complete BTR axis provenance")

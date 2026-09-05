@@ -30,6 +30,8 @@ profiles = read("OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationPro
 validator = read("OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp")
 presentation = read("OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp")
 start_here = read("START_HERE.cmd")
+batch_cmd = read("OsterConflict/PASS45_BATCH_RUNTIME.cmd")
+batch = read("OsterConflict/Scripts/pass45_batch_runtime.py")
 
 SKELETAL_OBJECT = "/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870"
 PUMP_OBJECT = "/Game/Production/Weapons/Remington870/AN_Remington870_PumpCycle.AN_Remington870_PumpCycle"
@@ -131,13 +133,38 @@ for needle in (
 ):
     req(needle in presentation, f"existing manual-action bridge invariant missing: {needle}")
 
+# The full runtime route is batch-owned now. START_HERE must not abort on the
+# first weapon-specific importer; the batch executes Remington as one independent
+# preflight stage, records its result, then reports every preflight failure together.
 for needle in (
-    'PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd',
+    'ПОВНИЙ RUNTIME-ТЕСТ ^(ПАКЕТНИЙ^)',
+    'OsterConflict\\PASS45_BATCH_RUNTIME.cmd',
+    'PASS45_BATCH_RUNTIME_REPORT.txt',
+):
+    req(needle in start_here, f"START_HERE batch route missing: {needle}")
+
+for needle in (
+    'pass45_batch_runtime.py',
+    '%PY_CMD% "%BATCH_SCRIPT%"',
+):
+    req(needle in batch_cmd, f"batch wrapper contract missing: {needle}")
+
+for needle in (
+    '("remington870", "Remington 870 skeletal pump + fresh-load", PROJECT_DIR / "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd")',
+    'for stage in preflight:',
+    'run(stage)',
+    'blockers = [stage for stage in preflight if stage.rc != 0]',
+    'preflight_failure_count=',
+    'RUNTIME: NOT STARTED - preflight blockers exist',
+    'PASS45_BATCH_RUNTIME_REPORT.txt',
+):
+    req(needle in batch, f"batch Remington/aggregate contract missing: {needle}")
+
+for forbidden in (
     'REMINGTON_STRICT_RC',
-    'Remington 870 skeletal pump production intake',
     'exit /b 27',
 ):
-    req(needle in start_here, f"START_HERE strict route missing Remington intake: {needle}")
+    req(forbidden not in start_here, f"obsolete fail-fast Remington route returned to START_HERE: {forbidden}")
 
 if errors:
     print("PASS45 REMINGTON870 PRODUCTION WIRING: FAIL")
@@ -148,6 +175,6 @@ if errors:
 print(
     "PASS45 REMINGTON870 PRODUCTION WIRING: PASS "
     "exact_donor_derivative=1 full_weapon_single_skeletal=1 pilot_first=1 fresh_load_gate=1 "
-    "runtime_owner_skeletal=1 pump_profile_wired=1 validator_skeletal=1 start_here_full_route=1 "
-    "runtime_acceptance=0 item16_checked=0"
+    "runtime_owner_skeletal=1 pump_profile_wired=1 validator_skeletal=1 batch_full_route=1 "
+    "fail_fast_start_here=0 runtime_acceptance=0 item16_checked=0"
 )
