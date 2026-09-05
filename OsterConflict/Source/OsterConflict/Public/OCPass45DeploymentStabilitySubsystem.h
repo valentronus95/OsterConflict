@@ -4,12 +4,14 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCPass45DeploymentStabilitySubsystem.generated.h"
 
+class FStreamableHandle;
 class SWidget;
+class UWorld;
 
 /**
  * Keeps the pre-deployment shell responsive and visually opaque.
- * It also retires the legacy synchronous R13.7 museum startup timer before it can
- * block the game thread while the player is still choosing team/squad/role/spawn.
+ * Heavy museum packages are suppressed while any frontend/deployment/settings UI is active,
+ * then preloaded asynchronously after a real gameplay pawn exists.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCPass45DeploymentStabilitySubsystem : public UTickableWorldSubsystem
@@ -25,8 +27,12 @@ public:
 private:
     void EnsureDeploymentBackdrop();
     void RemoveDeploymentBackdrop();
-    void RetireSynchronousMuseumStartup();
+    void SuppressSynchronousMuseumStartup(UWorld& World);
+    void ReleaseMuseumBuildToGameplay(UWorld& World);
+    void CompleteMuseumBuildAfterAsyncLoad();
 
     TSharedPtr<SWidget> DeploymentBackdrop;
-    bool bMuseumStartupRetired = false;
+    TSharedPtr<FStreamableHandle> MuseumPreloadHandle;
+    bool bMuseumSuppressionLogged = false;
+    bool bMuseumBuildReleased = false;
 };
