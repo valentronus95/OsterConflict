@@ -1,182 +1,208 @@
-# Asset Status
+# OSTER CONFLICT — ASSET STATUS
 
-Canonical inventory for Oster Conflict / PASS45. This file tracks every asset pack, model family, donor source, external UE sample/project, and user-added import that is currently evidenced by the canonical branch, prior local `git status`, Content Browser screenshots, explicit user import/download reports, or existing project audits.
+Date: 2026-09-05  
+Branch: `fix/pass45-asset-import-fail-closed-20260904`  
+Base/current main: `a1ad0e200611911102c48180956d82f73d0d8fc3`  
+Last fully verified branch checkpoint: `0042d2b408561096d60201c203461f674a6322ad` — **19/19 SUCCESS**  
+Last code-changing checkpoint: `0042d2b408561096d60201c203461f674a6322ad` — **19/19 SUCCESS**  
+PR: #98 — Draft, unmerged, mergeable  
+Branch relation at verified checkpoint: **ahead 102 / behind 0**, merge-base = current `main@a1ad0e2`  
+Changed-file scope: **31 files**, intentional asset/runtime/finalization/sandbox-test scope  
+Fresh connected local UE/runtime evidence: **not found**
 
-## Rules
+## 1. ГОЛОВНИЙ ПРОГРЕС ТЗ
 
-- This file is the single current asset inventory. New observed imports are added here immediately.
-- A directory/root row covers **all files recursively under that import root**, including meshes, materials, textures, animations, sounds and Blueprints. We do not create thousands of meaningless rows for each texture file.
-- Nothing may disappear from this inventory silently. If a resource is replaced, the old owner is marked `RETIRED/REMOVE` and then physically removed when safe; Git history is rollback.
-- `✅` = the fact stated in that column is fully verified.
-- `🟡` = present/known or wired, but exact local package identity or required UE 5.8 runtime acceptance is still pending.
-- `❌` = not yet integrated, missing, blocked, or explicitly scheduled for retirement.
-- `Git` = verified on canonical PASS45 branch. `LOCAL` = evidenced by local git-status/Content Browser/user import. `REPORT` = explicitly reported by the user but its exact ignored local package path is not remotely enumerable.
-- GitHub cannot enumerate ignored local `.uasset` payloads on the user's `C:` drive. Those assets stay in this ledger from local evidence instead of being falsely declared absent.
+Кожен із 10 етапів = 10% factual progress.
 
-## Vehicles and mounted weapons
+| № | Етап | Стан | Вклад | Що закрито | Що лишилось |
+|---:|---|---|---:|---|---|
+| 1 | Local inbox / intake contract | DONE | +10% | `models_game_OC`, local-only lifecycle, ZIP/loose/Fab intake | Нічого |
+| 2 | Prepare / extract / classify | DONE | +10% | safe ZIP extraction, nested ZIP accounting, package conflict protection | Нічого по коду |
+| 3 | Exact duplicate removal | DONE | +10% | SHA-256 dedupe до import; duplicate nested ZIP не дає false failure | Нічого |
+| 4 | Fab / Marketplace / project discovery | DONE | +10% | `/Game`, Content, Plugins/Fab/project discovery | Нічого по коду |
+| 5 | Production import logic | DONE | +10% | HMMWV, M2, BTR-4, M249, Remington 870 production paths | Нічого по коду |
+| 6 | Fail-closed aggregate/binding result | DONE | +10% | GAP/UNBOUND/import failure не можуть перетворитися на aggregate PASS | Нічого по коду |
+| 7 | Source/regression/finalization CI | DONE | +10% | exact HEAD/source freshness/runtime/finalization/sandbox-rack guards; `0042d2b` = 19/19 SUCCESS | Нічого по GitHub-коду |
+| 8 | Local UE 5.8 import result | WAIT | +0% | pipeline готовий і fail-closed | Потрібен фактичний fresh local UE import |
+| 9 | Live gameplay/runtime hookup | WAIT | +0% | runtime/material/world/evidence gates готові | Потрібен factual full runtime PASS |
+| 10 | Direct visual acceptance + safe ZIP cleanup | WAIT | +0% | finalizer + manual Y/N + SHA-256 cleanup готові | Потрібен factual visual inspection після runtime PASS |
 
-| Present | Integration | Asset / pack | Evidence / current owner |
+### ФАКТИЧНЕ ВИКОНАННЯ
+
+- Завершено: **7 / 10 етапів**.
+- Загальний factual progress: **70%**.
+- Залишилось: **30%**.
+- Source/code/CI lifecycle: **100% реалізований**; current verified branch checkpoint `0042d2b` має **19/19 SUCCESS**.
+- Local UE import acceptance: **0% підтверджено**.
+- Live runtime acceptance: **0% підтверджено**.
+- Direct visual acceptance/cleanup: **0% підтверджено**.
+
+Шлях: **70% → local UE import PASS = 80% → live runtime PASS = 90% → manual visual acceptance + safe ZIP cleanup = 100%.**
+
+## 2. ОСТАННІЙ DEEP AUDIT — ЗАКРИТІ ПРОПУСКИ
+
+Перевірений ланцюг:
+
+`prepare ZIP → base import/binding → weapon normalization → collector → runtime evidence attribution → finalizer/cleanup`.
+
+### 2.1 Explicit `UNBOUND` більше не може сховатися
+
+Раніше `source_status=UNBOUND` не завжди переносився в `unbound_models`, тому нестандартно названа mesh `.uasset` теоретично могла лишити `all_models_bound=true`.
+
+Тепер:
+
+- кожен explicit `source_status=UNBOUND` обов'язково стає blocker;
+- dedupe unbound rows зберігається;
+- `all_models_bound` рахується тільки після reconciliation;
+- regression guard фіксує цей порядок.
+
+### 2.2 Weapon normalizer більше не «лікує» import failure назвою файла
+
+Раніше factual `asset_load_failed/UNBOUND` міг бути переписаний у `BOUND`, якщо filename підходив під regex зброї.
+
+Тепер factual `UNBOUND` ніколи не підвищується до `BOUND` лише класифікацією назви. Після normalization усі explicit `UNBOUND` повторно reconciled до blocker list.
+
+### 2.3 Collector незалежно перевіряє consistency bindings
+
+`LOCAL_UE_IMPORT=PASS` тепер одночасно вимагає:
+
+- explicit current `import_result=0`;
+- production vehicle PASS;
+- production weapon PASS;
+- binding success sentinel;
+- `all_models_bound=true`;
+- `unbound_models=[]`;
+- `source_status_counts.UNBOUND=0`.
+
+Пошкоджений aggregate flag сам PASS не дає.
+
+### 2.4 Runtime evidence прив'язаний до exact source SHA
+
+`AUTOMATED_RUNTIME_EVIDENCE=PASS` можливий тільки якщо evidence містить exact `SOURCE_SHA=<current snapshot SHA>`. PASS іншого HEAD стає `STALE_SOURCE`.
+
+### 2.5 Nested ZIP більше не може мовчки зникнути
+
+Nested ZIP глибше дозволеного ліміту тепер:
+
+- записується як `NESTED_DEPTH_LIMIT`;
+- має `error=nested_zip_depth_limit_exceeded`;
+- входить у unsafe count;
+- переводить manifest у `UNSAFE_ARCHIVE_PRESENT`;
+- завершує prepare кодом `40`.
+
+SHA-dedupe виконується до depth rejection, тому exact duplicate вже обробленого archive не створює false failure.
+
+## 3. FINALIZER — НЕЗАЛЕЖНИЙ FAIL-CLOSED КОНТРАКТ
+
+До manual acceptance/cleanup finalizer окремо вимагає:
+
+- schema `oster-conflict-local-asset-status-v4`;
+- `source_sha == current HEAD`;
+- `import_result_code == 0`;
+- `runtime_result_code == 0`;
+- `runtime_scope == CURRENT_RUN_COMPLETED`;
+- import/runtime/material/evidence stages = PASS;
+- production vehicles/weapons = PASS;
+- `all_models_bound=true`;
+- `unbound=[]`;
+- summary `unbound_models=0`;
+- `source_status_counts.UNBOUND=0`;
+- factual `M16_M4 >= 1`;
+- prepared status `PASS` або factual `NO_INBOX`;
+- no package conflicts;
+- ZIP cleanup лише для manifest-proven SHA-256.
+
+Також перевірено:
+
+- `NO_INBOX` створює новий порожній manifest і не успадковує stale archive rows;
+- unknown/unproven ZIP блокує cleanup **до першого видалення**;
+- Fab-only/`NO_INBOX` може завершити zero-ZIP cleanup після інших PASS gates;
+- fresh ingest анулює старі manual visual/cleanup records;
+- dirty tracked runtime/source блокує import до UE execution;
+- exact local HEAD перевіряється проти `origin/<branch>` до import і перед final acceptance;
+- stale consolidated snapshot не може пережити fresh collection.
+
+## 4. PRODUCTION ASSET MATRIX
+
+| Asset | Factual стан | Підтверджено | Що ще треба |
 |---|---|---|---|
-| ✅ | 🟡 | HMMWV UA | `Content/Production/Vehicles/HMMWV/SM_HMMWV_UA`; `AOCHMMWVGunTruck`; UE acceptance pending |
-| ✅ | 🟡 | M2 Browning .50 | `Content/Production/Weapons/M2/SM_M2_Browning`; mounted on HMMWV and gun-truck paths; UE acceptance pending |
-| ✅ LOCAL | 🟡 | BTR-4 Bucephalus | local-only `Content/Production/Vehicles/BTR4/`; source `BTR4_Bucephalus.fbx`; `AOCBTR`; UE acceptance pending |
-| ✅ | 🟡 | Vehicle Variety Pack | `Content/VehicleVarietyPack/`; exact pickup mesh used by `AOCPickupGunTruck`; UE acceptance pending |
-| ✅ | 🟡 | Pickup + M2 gun truck | `AOCPickupGunTruck`; pickup shell + production M2; UE acceptance pending |
-| 🟡 REPORT | ❌ | Additional user-added pickup model | user-reported Fab pickup; exact local package identity still to be reconciled against VehicleVarietyPack/current Content |
+| HMMWV | WAIT | source/import/runtime hookup code | fresh UE import + live use + visual proof |
+| M2 Browning | WAIT | source/import/mounted-gun hookup code | fresh UE import + mount/pitch/muzzle/material visual proof |
+| BTR-4 | WAIT | `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus` hookup code | fresh UE result + live use + visual proof |
+| Pickup / technical | WAIT | local `PICKUP` binding + packaged fallback hookup code | fresh UE runtime + visual proof |
+| M249 | WAIT | exact importer + runtime category + sandbox rack support | fresh source/UE/runtime/visual proof |
+| Remington 870 | WAIT | exact importer + runtime category + sandbox rack support | fresh source/UE/runtime/visual proof |
+| M16/M4 family | GAP | classifier/runtime/rack category support | fresh manifest має довести actual bound `M16_M4 >= 1` |
 
-## Firearms and launchers
+M16/M4 залишається **factual content GAP**, а не code-classifier GAP. Local/Fab payload може існувати, але лише fresh current-run `runtime_bindings.json` може це підтвердити.
 
-| Present | Integration | Asset / identity | Evidence / current state |
-|---|---|---|---|
-| ✅ | 🟡 | AK-47 with animations | `Content/AK-47/`; runtime weapon/animation path exists; UE acceptance pending |
-| ✅ LOCAL | 🟡 | AK-74M | `Content/ak-74m/`; `IMP_AK74M`; exact local model bridge |
-| ✅ LOCAL | 🟡 | AR-15 | `Content/ar15-rifle/`; `IMP_AR15` |
-| ✅ LOCAL | 🟡 | M4A1 | `Content/assault-rifle-m4a1/`; `IMP_M4A1` |
-| ✅ LOCAL | 🟡 | Colt M1911 | `Content/colt-m1911/`; local exact-model path plus existing pistol identity |
-| ✅ | 🟡 | Raw Stein M1911 source | `Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/1911/`; historical source/reimport path |
-| ✅ LOCAL | 🟡 | Makarov PM | `Content/makarov-pistol/`; `IMP_MAKAROV` |
-| ✅ LOCAL | 🟡 | FN Ballista | `Content/fn-ballista-sniper-rifle/`; `IMP_BALLISTA` |
-| ✅ LOCAL | 🟡 | Kar98k | `Content/kar98k-free-model/`; `IMP_KAR98K` |
-| ✅ LOCAL | 🟡 | Shotgun / Remington path | `Content/shotgun/`; current Remington/manual-action integration still awaits final visual acceptance |
-| ✅ LOCAL | 🟡 | Thompson / Tommy Gun | `Content/tommy-gun/`; `IMP_TOMMY` |
-| ✅ LOCAL | 🟡 | M72 LAW | `Content/law-light-anti-tank-weapon-m72/`; `IMP_M72`; projectile launcher gameplay wired |
-| ✅ LOCAL | 🟡 | RPG-26 | `Content/rpg-26-grenade-launcher-low-poly/`; `IMP_RPG26`; projectile launcher gameplay wired |
-| 🟡 REPORT | 🟡 | New Fab RPG added 2026-09-04 | distinct gameplay identity `IMP_FAB_RPG`; Fab-only exact-model resolver prevents RPG-26 substitution; UE visual/runtime acceptance pending |
-| 🟡 REPORT | 🟡 | AKS-74U | distinct gameplay identity `IMP_AKS74U`; local/Fab exact-token visual bridge and sandbox catalog spawn wired; UE visual/runtime acceptance pending |
-| 🟡 REPORT | 🟡 | Revolver | distinct gameplay identity `IMP_REVOLVER`; dedicated `Revolver` mechanical action metadata, Fab exact-token visual resolver and sandbox catalog entry wired; UE visual/runtime acceptance pending |
-| 🟡 REPORT | ❌ | Additional pistol pack | user-reported Fab import; reconcile against M1911/Makarov/Revolver before creating another gameplay identity |
-| 🟡 REPORT | ❌ | FPS Weapon Bundle | user-reported Fab import; exact contained weapon inventory still needs local package enumeration |
-| ✅ | 🟡 | M14 | existing gameplay/imported weapon identity; final UE acceptance pending |
-| ✅ | 🟡 | MAC-10 | existing gameplay/imported weapon identity; final UE acceptance pending |
-| ✅ | 🟡 | TEC-9 | existing gameplay/imported weapon identity; final UE acceptance pending |
-| ✅ | 🟡 | Lever Action | existing gameplay/imported weapon identity; final manual-action visual calibration pending |
-| ✅ | 🟡 | MP5 / core SMG | existing core gameplay identity; exact visual acceptance pending |
-| ✅ | 🟡 | M700 / core sniper | existing core gameplay identity; bolt calibration/acceptance pending |
-| ✅ | 🟡 | M249 / core LMG | existing core gameplay identity; exact production model gap remains where applicable |
-| ✅ | 🟡 | Core assault rifle | existing core gameplay identity; exact production visual validation pending |
-| ✅ | 🟡 | Core pistol | existing core gameplay identity; exact production visual validation pending |
-| ✅ | 🟡 | Core shotgun | existing core gameplay identity; exact production visual validation pending |
-| ✅ | 🟡 | Core anti-armor launcher | existing `OC_RPG1` identity; remains distinct from M72, RPG-26 and the new Fab RPG |
+Інші local/Fab families: AK-47, MP5, M1911, M700, M14, MAC-10, TEC-9, Lever Action, інша зброя, pickups, buildings, props/furniture/fences, foliage, roads, terrain, water, character skins, HUD/UI — intake support є, factual runtime/visual proof ще PENDING.
 
-## Grenades
+## 5. FRESH LOCAL EVIDENCE STATUS
 
-| Present | Integration | Asset | Evidence / current state |
-|---|---|---|---|
-| ✅ LOCAL | 🟡 | Frag grenade A | one of the two user-downloaded explosive grenade models; Fab resolver supports distinct frag visuals; exact package name recorded when locally visible |
-| ✅ LOCAL | 🟡 | Frag grenade B | second distinct explosive grenade model; must remain visually distinct from Frag A |
-| ✅ LOCAL | 🟡 | M18 smoke grenade | user-downloaded Fab smoke grenade; smoke gameplay/VFX path exists; exact model acceptance pending |
-| ✅ LOCAL | 🟡 | Flash grenade | local `Content/Fab/Flash_Grenade/` evidence including `flash.uasset` / FlashGrenade assets; exact runtime visual acceptance pending |
-| ✅ | ❌ | Legacy R13 grenade body | `/Game/R13/Weapons/grenade`; old shared body only; retire as active shared visual after all four new models pass UE validation |
+Connected conversation/Library search на current asset work **не знайшов fresh current-head**:
 
-## Characters, hands and animation
+- `OsterConflict/Saved/LocalModelInbox/prepared_sources.json`
+- `OsterConflict/Saved/LocalModelInbox/runtime_bindings.json`
+- `OsterConflict/Saved/LocalModelInbox/runtime_bindings_success.txt`
+- `OsterConflict/Saved/ProductionAssetImportCache/production_import_success.txt`
+- `OsterConflict/Saved/ProductionAssetImportCache/production_weapon_import_result.txt`
+- `OsterConflict/Saved/AutomationReports/ProductionModels/local_inbox_runtime_validation.txt`
+- `OsterConflict/Saved/AutomationReports/ProductionModels/local_world_runtime_validation.txt`
+- `Logs/R14_CURRENT_GAMEPLAY.log`
+- `Logs/PASS45_STRICT_MATERIAL_GATE.log`
+- `Logs/PASS45_RUNTIME_ACCEPTANCE_EVIDENCE.txt`
+- `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt`
+- `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json`
 
-| Present | Integration | Asset / pack | Evidence / current state |
-|---|---|---|---|
-| ✅ | 🟡 | Quantum Modular Character / QuantumCharacter | `Content/QuantumCharacter/`; production body and `SKM_Arms` are wired; Quantum idle/walk/run/fall are skeleton-checked at runtime; UE acceptance pending |
-| ✅ LOCAL | 🟡 | FPSArms3D donor | `SourceAssets/ThirdParty/Gameplay/FPSArms3D/`; first-person arms donor retained, not a second runtime owner |
-| ✅ LOCAL | 🟡 | FPSAssetKit donor | `SourceAssets/ThirdParty/Gameplay/FPSAssetKit/`; donor inventory retained locally |
-| ✅ | 🟡 | Sample Animation Pack / Free Animation Pack | `Content/SampleAnimationPack/`; rifle hip + ADS idle and forward/back/left/right locomotion are now selected from local movement direction for long-gun FP arms; UE skeleton/visual acceptance pending |
-| 🟡 LOCAL PROJECT | ❌ | Game Animation Sample | separate local UE project; inventory/integration into OsterConflict not complete |
-| 🟡 REPORT | ❌ | Additional Fab character packs | user reported several character packs; exact package names must be appended when locally enumerated |
+Старі/сторонні матеріали current acceptance не підтверджують.
 
-## Buildings and world packs
+## 6. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
 
-| Present | Integration | Asset / pack | Evidence / current state |
-|---|---|---|---|
-| ✅ | 🟡 | Advanced Village Pack | `Content/AdvancedVillagePack/`; usable house content is now a strict fallback candidate for the named Krushelnytska private house; broader selected runtime use remains pending UE acceptance |
-| ✅ LOCAL | 🟡 | Five-story post-Soviet apartment building | `Content/fivestory-building-appartament-of-post-soviet/`; building bridge exists but it is explicitly barred from impersonating the Krushelnytska private house; intentional apartment placement still pending |
-| ✅ | 🟡 | Modular Rural Cabin | `Content/Modular_Rural_Cabin/`; strict house/cabin mesh now feeds the existing zero-instance `Buildings` owner at the named Krushelnytska anchor, with uniform bounds fit and no generic residential grid resurrection; UE acceptance pending |
-| 🟡 REPORT | ❌ | Modular Urban Houses | user-added pack; exact local root must be reconciled and buildings placed intentionally |
-| 🟡 REPORT | ❌ | Unfinished / construction building pack | previously visible/imported building content; exact current package root pending reconciliation |
-| ✅ | 🟡 | Open World Demo Collection / KiteDemo | `Content/KiteDemo/`; foliage/trees used, ground/rocks only partially integrated |
-| ✅ LOCAL | ❌ | Deko Matrix Demo | `Content/Deko_MatrixDemo/`; imported locally, not a current production world owner |
-| 🟡 REPORT | ❌ | City Streets Props / city-street environment content | user-added pack; exact local root/runtime use pending |
+### `LOCAL-UE-ASSET-001`
 
-## Street props, fortifications and surfaces
+Наступна factual робота:
 
-| Present | Integration | Asset / pack | Evidence / current state |
-|---|---|---|---|
-| ✅ | 🟡 | Mega Street Props Pack | `Content/Mega_Street_Props_Pack/`; park benches/fences plus runtime bins, lamps, bicycle stands, flower pots, bus stops, road signs, barriers and pylons are wired intentionally; UE acceptance pending |
-| ✅ | 🟡 | Street Props Pack Vol.1 | `Content/Street_Props_Pack_V1/` and mirrored V1 content under Mega pack; flower pots/bins plus exact `SM_Bus_stop`, `SM_Sign_1`, `SM_Barrier` and `SM_Pylons` now feed the runtime city/park prop layer; UE acceptance pending |
-| ✅ | 🟡 | Street Props Pack Vol.2 | tracked exact root `Content/Mega_Street_Props_Pack/Street_Props_pack_V2/`; `SM_Lamp_1` and `SM_Bicycle_Stand_1` are runtime park props; UE acceptance pending |
-| ✅ LOCAL | 🟡 | Military Trenches Barrier Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Barrier_Sandbag_Canvas_Square_01_yd0kbfl/High/`; runtime bridge written, UE validation pending |
-| ✅ LOCAL | 🟡 | Military Trenches Pile Sandbag | `Content/Fab/Megascans/3D/Military_Trenches_Pile_Sandbag_Canvas_01_yd0tae2/High/`; runtime bridge written, UE validation pending |
-| ✅ LOCAL | 🟡 | PO-2 fence | `Content/po-2-fence/`; available local fence model |
-| ✅ LOCAL | 🟡 | Pripyat chain-link fence | `Content/pripyat-chainlink-fence/`; available local fence model |
-| ✅ LOCAL | 🟡 | Pripyat light poles | `Content/pripyat-light-poles/`; street-pole runtime bridge exists, UE validation pending |
-| ✅ LOCAL | 🟡 | Telephone pole scene | `Content/telephone-pole-scene/`; road-side infrastructure bridge exists, UE validation pending |
-| 🟡 REPORT | ❌ | Additional chain-link fence pack | user-reported Fab import; reconcile exact root against Pripyat/PO-2 packs |
-| 🟡 REPORT | ❌ | Additional fences pack | user-reported Fab import; exact root/integration pending |
-| 🟡 REPORT | 🟡 | Rubble pack | strict `rubble` local resolver now feeds decorative debris into the existing team-base trench setpiece owner; UE visual/runtime acceptance pending |
-| ✅ | 🟡 | Sidewalk 01 | tracked `Scene_RoadsideConstruction/.../SM_Urb_Roa_Sidewalk_01`; current world-surface owner replaces source Sidewalks while preserving topology; UE acceptance pending |
-| 🟡 REPORT | ❌ | Realistic Asphalt Material PBR | separate user-added surface pack; exact local root/material cutover pending |
-| 🟡 REPORT | ❌ | Tileable Pine Forest Road | user-added road/surface pack; exact local root/runtime placement pending |
-| ✅ | 🟡 | Roadside Construction | tracked `Content/Scene_RoadsideConstruction/`; road/sidewalk surfaces plus cement bags, debris buckets, cable wheels, Jersey barriers, gravel piles, wheelbarrows, toolboxes, pallets, orange barrels, metal barricades, traffic cones, bollards and common shrubs now feed the authoritative Sidewalks-based runtime dressing layer; UE acceptance pending |
-| 🟡 REPORT | ❌ | Free Furniture Pack | user-added furniture pack; exact local root and interior placement pending |
+1. локальна гілка має бути синхронізована з current PR head;
+2. запускати тільки `START_HERE.cmd`;
+3. вибрати `2. ПОВНИЙ RUNTIME-ТЕСТ`;
+4. pipeline виконає prepare/import/binding/runtime/material/evidence/finalization preflight;
+5. fresh `LOCAL_ASSET_STATUS.txt/json` визначить factual result.
 
-## Vegetation and terrain
+Результат:
 
-| Present | Integration | Asset / pack | Evidence / current state |
-|---|---|---|---|
-| ✅ | 🟡 | KiteDemo foliage + trees | `Content/KiteDemo/Environments/Foliage` + trees; already used by world logic, integrated acceptance still part of final UE pass |
-| ✅ | 🟡 | KiteDemo ground tiles + rocks | present; only partial integration |
-| ✅ | 🟡 | PN Foliage Collection | `Content/PN_FoliageCollection/`; integrated fallback/world vegetation path |
-| ✅ | 🟡 | Megaplant Library | `Content/Megaplant_Library/`; candidate/partial use |
-| ✅ LOCAL | 🟡 | Megaplant Tree Ginkgo | `Content/Megaplant_Library/Tree_Ginkgo/`; local import |
-| 🟡 REPORT | ❌ | Temperate Vegetation: Foliage Collection | user-added vegetation pack; exact current local root/integration pending |
+- import PASS → **70% → 80%**;
+- runtime PASS → **80% → 90%**;
+- manual visual PASS + hash-proven ZIP cleanup → **90% → 100%**;
+- GAP/UNBOUND/stale source/missing M16-M4 лишає відповідний етап незакритим.
 
-## UI and interaction
+## 7. CHECKPOINT CONTINUATION — 2026-09-05
 
-| Present | Integration | Asset / project | Evidence / current state |
-|---|---|---|---|
-| ✅ LOCAL | 🟡 | Easy Crosshair / CrosshairFreePack | `Content/CrosshairFreePack/`; HUD bridge written, UE validation pending |
-| 🟡 LOCAL PROJECT | ❌ | SuperSimpleFPSPack | separate local project/sample; exact useful HUD/content inventory still pending |
-| 🟡 LOCAL PROJECT | ❌ | InteractionSystem / InteractionSystem2 | separate local project; current Oster doors/gates/lights remain authoritative; only useful non-duplicate content should be reused |
+Після попереднього tracker checkpoint виконано без повторення DONE роботи:
 
-## VFX and audio
+- verified code checkpoint оновлено до `0042d2b`;
+- `main` лишився `a1ad0e2`;
+- branch relation на verified checkpoint: **ahead 102 / behind 0**;
+- PR #98 лишається Draft/unmerged/mergeable;
+- `0042d2b` має **19/19 completed SUCCESS**, failed/cancelled = 0;
+- `Spawn all weapons` більше не означає тільки 7 broad classes;
+- rack читає factual `runtime_bindings` і створює окремий actor для **кожного bound object path** у підтримуваних weapon categories;
+- rack охоплює `M16_M4`, AR15, AK74, AK47, MP5, M1911, M700, Remington 870, M249, M14, MAC-10, TEC-9, Lever Action, M72 та generic/fallback categories;
+- усі gameplay classes мають fallback pickup, якщо bound model для них відсутня;
+- forced `category + path index` обробляється weapon runtime override **до** normal category precedence, тому одна категорія більше не приховує іншу модель у sandbox rack;
+- rack створює ammo box поряд і пише factual spawn-count log `OC_SANDBOX_ALL_WEAPONS_SPAWNED`;
+- додано `VERIFY_PASS45_SANDBOX_WEAPON_RACK.py`, він входить у `RUN_ALL_VERIFY.py` та окремий Pass45 asset regression workflow;
+- F10 уже має окремі `Spawn gun truck` і `Spawn BTR`; production hookup code для BTR/HMMWV/pickup є;
+- fresh current-head local UE/runtime evidence все ще не знайдено, тому factual progress лишається **70%**;
+- перший реально незакритий пункт не змінився: `LOCAL-UE-ASSET-001`.
 
-| Present | Integration | Asset / source | Evidence / current state |
-|---|---|---|---|
-| ✅ | 🟡 | Fire / Explosion VFX | `Content/Fire_EXP_Vol01_Free/`; wired; included in final UE acceptance |
-| ✅ | 🟡 | Smoke VFX | `Content/PotaVFX_Smoke/`; wired; included in final UE acceptance |
-| ✅ LOCAL | 🟡 | HardLines shotgun audio | `SourceAssets/ThirdParty/Gameplay/HardLines/`; mechanical/weapon audio donor |
-| ✅ LOCAL | 🟡 | HardLines footsteps | same donor root; final routing/audibility pending |
-| ✅ LOCAL | 🟡 | BorderRun vehicle engine audio | `SourceAssets/ThirdParty/Gameplay/BorderRun/`; vehicle audio donor |
-| 🟡 LOCAL | 🟡 | Forest_Ambience.mp3 | known local ambient source; final SoundWave/runtime acceptance pending |
-| 🟡 LOCAL | 🟡 | fire.wav | known local source; final SoundWave/runtime acceptance pending |
-| ✅ | 🟡 | AK fire/reload audio | existing weapon audio path; final integrated audibility acceptance pending |
-| ✅ LOCAL | ❌ | OpenGameArt donor content | `SourceAssets/ThirdParty/Gameplay/OpenGameArt/`; inventory/use only where provenance and exact purpose are valid |
+## 8. CONTINUATION RULE
 
-## Miscellaneous props
+Наступний pass:
 
-| Present | Integration | Asset / root | Evidence / current state |
-|---|---|---|---|
-| ✅ LOCAL | 🟡 | Sardine can | `Content/konserva-sardines/`; strict local mesh resolver now places sparse no-collision cans on existing park benches; UE visual acceptance pending |
-| ✅ LOCAL | 🟡 | Ukrainian cherry juice | `Content/ukrainian-cherry-juice-nash-sik/`; strict local mesh resolver now places sparse no-collision juice props on existing park benches; UE visual acceptance pending |
-| ✅ | 🟡 | R13 content root | `Content/R13/`; existing weapons/world/runtime content, individual owners tracked above |
-| ✅ | 🟡 | Raw content root | `Content/Raw/`; source/import staging content, must not become a duplicate runtime owner |
-
-## Mandatory reconciliation queue
-
-These items are already in the inventory and may not be forgotten merely because Git ignores their payload:
-
-1. Record exact local package/model names for the **new Fab RPG**, AKS-74U, revolver and rubble mesh after UE exposes them, and enumerate the still-unresolved additional pistol, FPS Weapon Bundle and all additional character packs. The RPG, AKS-74U, revolver and rubble runtime bridges are already coded and no longer wait on exact folder names.
-2. Resolve the exact local roots for Modular Urban Houses, City Streets Props, the separate Realistic Asphalt PBR pack, forest road, Free Furniture, Temperate Vegetation and the additional fence packs. Street Props Vol.2 is no longer in this unresolved set because its tracked root is now verified.
-3. Bind the four new grenade models as **Frag A / Frag B / Smoke / Flash**, then retire the legacy shared R13 grenade visual from active use.
-4. Continue intentional building/world placement: the named Krushelnytska private house is now wired through the existing `Buildings` owner; apartment/urban-house/construction-building imports still need factual locations and must not revive the retired generic residential grid.
-5. Run one integrated UE 5.8 current-head acceptance after the broad asset batch is ready; only then promote runtime/visual/audio rows from `🟡` to `✅`.
-
-## Current truth
-
-- The asset inventory itself is now centralized here.
-- All currently known user-added/imported roots and explicitly reported packs/models are represented, including ignored local content that GitHub cannot list directly.
-- Duplicate donor-root rows were removed; each donor stays represented by its functional row(s) instead of being counted twice under a second generic root entry.
-- AKS-74U, the newly added Fab RPG and the revolver now have distinct gameplay IDs/catalog entries and strict local visual resolution. They remain `🟡` until UE 5.8 proves the local models selected and rendered correctly.
-- The rubble pack is now an optional strict local asset in the existing trench-setpiece owner, not a second competing world subsystem.
-- The named Krushelnytska private-house slot now uses the existing `Buildings` owner and a strict Rural-Cabin/Advanced-Village house resolver; the five-storey apartment is forbidden as a private-house substitution and the old generic residential grid stays retired.
-- `Scene_RoadsideConstruction` now supplies authored road/sidewalk surfaces plus a broader exact worksite vocabulary: cement bags, debris buckets, cable wheels, Jersey barriers, gravel piles, wheelbarrows, toolboxes, pallets, orange barrels, metal barricades, traffic cones, bollards and shrubs.
-- First-person long-gun arms now select Sample Animation Pack hip/ADS idle plus forward/back/left/right locomotion by actual local movement direction, with skeleton compatibility still fail-closed until UE acceptance.
-- The existing park/city prop layer adds imported bins, lamps, bicycle stands, flower pots, bus stops, road signs, barriers, pylons and construction dressing. Every road-side layer derives from the authoritative `Sidewalks` topology rather than inventing another road layout.
-- The sardine-can and Ukrainian cherry-juice imports now have strict local runtime bridges and are used as sparse bench-top detail instead of remaining dead Content Browser payload.
-- This does **not** pretend that every local ignored `.uasset` has been byte-enumerated remotely. Exact local identities that Git cannot see remain visibly marked `LOCAL/REPORT` until factual reconciliation.
-- Formal PASS45 progress remains separate from asset-integration progress.
+- не повторює DONE 1–7;
+- спочатку звіряє current branch/head/main/PR/CI;
+- читає fresh consolidated `LOCAL_ASSET_STATUS` першим, якщо він з'явився;
+- individual logs читаються тільки для конкретного FAIL/GAP;
+- progress підвищується лише за factual local UE/runtime/manual evidence;
+- PR #98 не merge до local UE/runtime acceptance.

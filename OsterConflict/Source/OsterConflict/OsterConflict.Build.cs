@@ -30,7 +30,8 @@ public class OsterConflict : ModuleRules
             "SlateCore",
             "MoviePlayer",
             "Niagara",
-            "AssetRegistry"
+            "AssetRegistry",
+            "Json"
         });
     }
 }
