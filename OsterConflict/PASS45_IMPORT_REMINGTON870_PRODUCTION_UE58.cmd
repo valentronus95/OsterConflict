@@ -72,8 +72,20 @@ echo [2/3] Production import: повний Remington як один skeletal weap
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%IMPORT_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%IMPORT_LOG%"
 set "IMPORT_RC=!ERRORLEVEL!"
 if not "!IMPORT_RC!"=="0" (
+  echo.
+  echo ============================================================
   echo [STOP] Remington production import не пройшов. code=!IMPORT_RC!
+  echo [DIAG] Точна причина з UE логу:
+  if exist "%IMPORT_LOG%" (
+    findstr /C:"PASS45_REMINGTON870_PRODUCTION_IMPORT_FAIL" /C:"LogPython: Error:" /C:"Python script executed with errors" "%IMPORT_LOG%"
+    echo.
+    echo [DIAG] Останні 60 рядків:
+    powershell -NoProfile -Command "Get-Content -LiteralPath $env:IMPORT_LOG -Tail 60" 2>nul
+  ) else (
+    echo [DIAG] Import log не створився.
+  )
   echo Log: %IMPORT_LOG%
+  echo ============================================================
   exit /b 11
 )
 if not exist "%IMPORT_SENTINEL%" (
