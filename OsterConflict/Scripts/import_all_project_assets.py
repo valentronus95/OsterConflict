@@ -1,7 +1,12 @@
 import json
+import sys
 from pathlib import Path
 
 import unreal
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 import import_all_local_inbox_assets as inbox
 import import_local_production_weapon_assets as production_weapons
