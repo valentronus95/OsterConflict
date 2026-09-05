@@ -56,9 +56,16 @@ def _patched_subprocess_run(*popenargs, **kwargs):
         if not any(item.lower().startswith("-winy=") for item in rewritten):
             rewritten.append("-WinY=40")
 
+        # Runtime acceptance currently values a responsive Windows message pump over RHI-thread A/B purity.
+        # Keep the diagnostic/game window actually usable while the remaining startup owners are being retired.
+        if "-norhithread" not in [item.lower() for item in rewritten]:
+            rewritten.append("-norhithread")
+        if "-nosplash" not in [item.lower() for item in rewritten]:
+            rewritten.append("-nosplash")
+
         print(
-            "[RUNTIME WINDOW] Запускаю у звичайному вікні 1280x720: його можна згорнути, "
-            "перемкнути Alt+Tab і зробити скріншот.",
+            "[RUNTIME WINDOW] Стабільне вікно 1280x720: Alt+Tab/minimize/close мають працювати; "
+            "startup splash вимкнено; RHI thread тимчасово OFF для цього пакетного runtime.",
             flush=True,
         )
 
