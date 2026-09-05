@@ -102,8 +102,13 @@ FAIL_PATTERNS = (
 )
 
 INTERESTING = re.compile(
-    r"(?:\[STOP\]|\[ERROR\]|Traceback|RuntimeError|PASS45_[A-Z0-9_]*(?:FAIL|GAP)|"
-    r"PASS7_[A-Z0-9_]*FAIL|error(?:\s+code|\s*:)|failed)",
+    r"(?:\[STOP\]|\[ERROR\]|Traceback|RuntimeError|ParserError|CategoryInfo|FullyQualifiedErrorId|"
+    r"PASS45_[A-Z0-9_]*(?:FAIL|GAP)|PASS7_[A-Z0-9_]*FAIL|error(?:\s+code|\s*:)|failed)",
+    re.IGNORECASE,
+)
+
+HARMLESS_UE_DIAGNOSTIC = re.compile(
+    r"Failed to load '(?:aqProf\.dll|VtuneApi\.dll|VtuneApi32e\.dll)' \(GetLastError=126\)",
     re.IGNORECASE,
 )
 
@@ -130,18 +135,47 @@ def decode(path: Path) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
+def _append_unique(found: list[str], value: str, limit: int) -> None:
+    line = value.strip()
+    if not line or HARMLESS_UE_DIAGNOSTIC.search(line) or line in found:
+        return
+    if len(found) < limit:
+        found.append(line)
+
+
 def extract_issues(path: Path, limit: int = 16) -> list[str]:
     text = decode(path)
+    if not text:
+        return []
+    lines = text.splitlines()
     found: list[str] = []
-    for raw in text.splitlines():
+
+    # Parser/runtime failures need their surrounding line/character context, not just CategoryInfo.
+    for index, raw in enumerate(lines):
         line = raw.strip()
-        if line and INTERESTING.search(line) and line not in found:
-            found.append(line)
-        if len(found) >= limit:
-            break
-    if not found and text:
-        found = [x.strip() for x in text.splitlines()[-8:] if x.strip()]
+        if not line or HARMLESS_UE_DIAGNOSTIC.search(line):
+            continue
+        if INTERESTING.search(line):
+            start = max(0, index - 2)
+            end = min(len(lines), index + 4)
+            for context in lines[start:end]:
+                _append_unique(found, context, limit)
+            if len(found) >= limit:
+                break
+
+    # UE commandlets often print the decisive fail-closed line only at shutdown.
+    if len(found) < min(limit, 8):
+        for raw in lines[-12:]:
+            _append_unique(found, raw, limit)
+
     return found[:limit]
+
+
+def normalize_windows_returncode(value: int) -> int:
+    # Windows may expose native 0xFFFFFFFF as Python integer 4294967295. Show the signed cause.
+    if os.name == "nt" and value > 0x7FFFFFFF:
+        return value - 0x100000000
+    return value
 
 
 def run(stage: Stage) -> Stage:
@@ -150,7 +184,7 @@ def run(stage: Stage) -> Stage:
     try:
         with stage.log_path.open("wb") as output:
             proc = subprocess.run(stage.command, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT, check=False)
-        stage.rc = int(proc.returncode)
+        stage.rc = normalize_windows_returncode(int(proc.returncode))
     except Exception as exc:
         stage.rc = 126
         stage.log_path.write_text(f"{type(exc).__name__}: {exc}\n", encoding="utf-8")
@@ -341,7 +375,7 @@ def main() -> int:
         print(f"[STOP] Знайдено {len(blockers)} preflight проблем. Гру поки не запускаю.")
         for stage in blockers:
             print(f" - {stage.label}: code={stage.rc}")
-            for item in stage.issues[:3]:
+            for item in stage.issues[:6]:
                 print(f"   > {item}")
         print(f"ЄДИНИЙ ЗВІТ: {REPORT}")
         return 20
@@ -354,7 +388,7 @@ def main() -> int:
     except OSError:
         pass
     runtime_cmd = [str(editor), str(PROJECT), "/Game/Maps/OsterConflict_Runtime", "-game", "-Frontend", "-d3d11", "-sm5", "-nohdr", "-NoScreenMessages", "-log", f"-abslog={GAME_LOG}", "-fullscreen", "-ResX=1600", "-ResY=900", "-ExecCmds=t.MaxFPS 60", "-culture=uk-UA"]
-    runtime_rc = int(subprocess.run(runtime_cmd, cwd=ROOT, check=False).returncode)
+    runtime_rc = normalize_windows_returncode(int(subprocess.run(runtime_cmd, cwd=ROOT, check=False).returncode))
     game_text = decode(GAME_LOG)
     missing = [marker for marker in REQUIRED_RUNTIME_MARKERS if marker not in game_text]
     if "PASS45_INITIAL_BASE_DEPLOYMENT_" not in game_text:
