@@ -33,6 +33,7 @@ M2_NAME = "SM_M2_Browning"
 BTR_NAME = "SM_BTR4_Bucephalus"
 
 HMMWV_CANONICAL_ROTATION = [0.0, -0.7071067811865476, 0.0, 0.7071067811865476]
+M2_AUTHORED_MATERIAL_NAME = "M_M2_OC_Authored"
 
 
 def log(message):
@@ -127,6 +128,59 @@ def make_hmmwv_without_mk19(source, destination):
     chunks[json_index][1] = json.dumps(document, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     Path(destination).parent.mkdir(parents=True, exist_ok=True)
     _write_glb(destination, chunks)
+
+
+def make_m2_authored_material_ready(source, destination):
+    """Preserve M2 geometry and existing authored materials; fill only missing material bindings.
+
+    The local CC0 M2 has previously imported with WorldGridMaterial when its glTF primitive
+    did not carry a usable material binding. That is not a production material. This stages
+    the same source geometry and gives otherwise-unbound primitives one explicit dark-metal
+    PBR material so a fresh UE load cannot silently fall back to WorldGridMaterial.
+    """
+    chunks = _read_glb(source)
+    json_index = next((i for i, chunk in enumerate(chunks) if chunk[0] == 0x4E4F534A), None)
+    if json_index is None:
+        fail(f"M2 GLB has no JSON chunk: {source}")
+
+    document = json.loads(chunks[json_index][1].decode("utf-8").rstrip("\x00 "))
+    materials = document.setdefault("materials", [])
+    authored_index = next(
+        (index for index, material in enumerate(materials)
+         if str(material.get("name") or "") == M2_AUTHORED_MATERIAL_NAME),
+        None,
+    )
+    if authored_index is None:
+        authored_index = len(materials)
+        materials.append({
+            "name": M2_AUTHORED_MATERIAL_NAME,
+            "pbrMetallicRoughness": {
+                "baseColorFactor": [0.12, 0.13, 0.13, 1.0],
+                "metallicFactor": 0.82,
+                "roughnessFactor": 0.46,
+            },
+        })
+
+    patched = 0
+    primitive_count = 0
+    for mesh in document.get("meshes", []):
+        for primitive in mesh.get("primitives", []):
+            primitive_count += 1
+            material_index = primitive.get("material")
+            if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
+                primitive["material"] = authored_index
+                patched += 1
+
+    if primitive_count <= 0:
+        fail("M2 GLB contains no mesh primitives.")
+
+    chunks[json_index][1] = json.dumps(document, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    Path(destination).parent.mkdir(parents=True, exist_ok=True)
+    _write_glb(destination, chunks)
+    log(
+        f"M2 authored-material guard staged source={source.name} primitives={primitive_count} "
+        f"patched_missing_material_bindings={patched} fallback_material={M2_AUTHORED_MATERIAL_NAME}"
+    )
 
 
 def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes):
@@ -301,8 +355,13 @@ def main():
         make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
         return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
 
+    def import_m2():
+        staged_m2 = CACHE_ROOT / "M2" / "m2_50cal_machinegun_oc_material_ready.glb"
+        make_m2_authored_material_ready(M2_SOURCE, staged_m2)
+        return import_glb_combined(staged_m2, M2_DEST, M2_NAME)
+
     attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported, provenance, "canonical_glb_no_mk19")
-    attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported, provenance, "canonical_glb")
+    attempt("M2", M2_SOURCE, import_m2, gaps, imported, provenance, "canonical_glb_authored_material_guard")
 
     try:
         imported.append(import_btr4(provenance))
