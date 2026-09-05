@@ -131,6 +131,68 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
 {
     if (!Weapon) return false;
 
+    const FString ForcedCategoryPrefix(TEXT("OC_FORCE_WEAPON_CATEGORY_"));
+    const FString ForcedPathIndexPrefix(TEXT("OC_FORCE_WEAPON_PATH_INDEX_"));
+    FString ForcedCategory;
+    int32 ForcedPathIndex = INDEX_NONE;
+    for (const FName& Tag : Weapon->Tags)
+    {
+        const FString TagText = Tag.ToString();
+        if (TagText.StartsWith(ForcedCategoryPrefix, ESearchCase::CaseSensitive))
+        {
+            ForcedCategory = TagText.Mid(ForcedCategoryPrefix.Len());
+        }
+        else if (TagText.StartsWith(ForcedPathIndexPrefix, ESearchCase::CaseSensitive))
+        {
+            ForcedPathIndex = FCString::Atoi(*TagText.Mid(ForcedPathIndexPrefix.Len()));
+        }
+    }
+
+    if (!ForcedCategory.IsEmpty())
+    {
+        TArray<FString> ForcedPaths;
+        UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(ForcedCategory, ForcedPaths);
+        if (!ForcedPaths.IsEmpty())
+        {
+            const int32 SafePathIndex = ForcedPaths.IsValidIndex(ForcedPathIndex) ? ForcedPathIndex : 0;
+            OutObjectPath = ForcedPaths[SafePathIndex];
+            OutCategory = ForcedCategory;
+
+            if (Cast<AOCWeapon_M14>(Weapon)) OutDesiredLengthCm = 112.0f;
+            else if (Cast<AOCWeapon_Mac10>(Weapon)) OutDesiredLengthCm = 30.0f;
+            else if (Cast<AOCWeapon_Tec9>(Weapon)) OutDesiredLengthCm = 32.0f;
+            else if (Cast<AOCWeapon_LeverAction>(Weapon)) OutDesiredLengthCm = 105.0f;
+            else if (Cast<AOCAntiArmorLauncher>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("M72"), ESearchCase::IgnoreCase) ? 78.0f : 105.0f;
+            else if (Cast<AOCWeapon_Shotgun>(Weapon)) OutDesiredLengthCm = 100.0f;
+            else if (Cast<AOCWeapon_LMG>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("M249"), ESearchCase::IgnoreCase) ? 104.0f : 105.0f;
+            else if (Cast<AOCWeapon_Sniper>(Weapon))
+            {
+                if (ForcedCategory.Equals(TEXT("BALLISTA"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 118.0f;
+                else if (ForcedCategory.Equals(TEXT("KAR98"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 111.0f;
+                else if (ForcedCategory.Equals(TEXT("SNIPER_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 115.0f;
+                else OutDesiredLengthCm = 112.0f;
+            }
+            else if (Cast<AOCWeapon_Pistol>(Weapon))
+            {
+                if (ForcedCategory.Equals(TEXT("MAKAROV"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 22.0f;
+                else if (ForcedCategory.Equals(TEXT("PISTOL_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 24.0f;
+                else OutDesiredLengthCm = 23.0f;
+            }
+            else if (Cast<AOCWeapon_SMG>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("MP5"), ESearchCase::IgnoreCase) ? 68.0f : 62.0f;
+            else if (Cast<AOCWeapon_AssaultRifle>(Weapon))
+            {
+                if (ForcedCategory.Equals(TEXT("AK74"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 94.0f;
+                else if (ForcedCategory.Equals(TEXT("AK47"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 88.0f;
+                else if (ForcedCategory.Equals(TEXT("ASSAULT_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 98.0f;
+                else if (ForcedCategory.Equals(TEXT("RIFLE_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 105.0f;
+                else OutDesiredLengthCm = 100.0f;
+            }
+            else OutDesiredLengthCm = 100.0f;
+
+            return true;
+        }
+    }
+
     auto TryCategory = [&](const TCHAR* Category, const float LengthCm)
     {
         TArray<FString> Paths;
