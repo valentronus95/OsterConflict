@@ -1,208 +1,102 @@
 # OSTER CONFLICT — ASSET STATUS
 
 Date: 2026-09-05  
-Branch: `fix/pass45-asset-import-fail-closed-20260904`  
+Canonical PASS45 branch: `fix/pass45-runtime-rejection-material-closure-20260826`  
+Canonical PR: **#94 OPEN / UNMERGED**  
+Current branch checkpoint after consolidation: `afeea2b9660d0745cf819b0c4dd9989ed00db550`  
 Base/current main: `a1ad0e200611911102c48180956d82f73d0d8fc3`  
-Last fully verified branch checkpoint: `0042d2b408561096d60201c203461f674a6322ad` — **19/19 SUCCESS**  
-Last code-changing checkpoint: `0042d2b408561096d60201c203461f674a6322ad` — **19/19 SUCCESS**  
-PR: #98 — Draft, unmerged, mergeable  
-Branch relation at verified checkpoint: **ahead 102 / behind 0**, merge-base = current `main@a1ad0e2`  
-Changed-file scope: **31 files**, intentional asset/runtime/finalization/sandbox-test scope  
-Fresh connected local UE/runtime evidence: **not found**
+Factual asset progress: **70%**  
+First unfinished asset checkpoint: `LOCAL-UE-ASSET-001`
 
-## 1. ГОЛОВНИЙ ПРОГРЕС ТЗ
+## 1. SINGLE-BRANCH AUTHORITY
 
-Кожен із 10 етапів = 10% factual progress.
+PASS45 now has one work branch only:
 
-| № | Етап | Стан | Вклад | Що закрито | Що лишилось |
-|---:|---|---|---:|---|---|
-| 1 | Local inbox / intake contract | DONE | +10% | `models_game_OC`, local-only lifecycle, ZIP/loose/Fab intake | Нічого |
-| 2 | Prepare / extract / classify | DONE | +10% | safe ZIP extraction, nested ZIP accounting, package conflict protection | Нічого по коду |
-| 3 | Exact duplicate removal | DONE | +10% | SHA-256 dedupe до import; duplicate nested ZIP не дає false failure | Нічого |
-| 4 | Fab / Marketplace / project discovery | DONE | +10% | `/Game`, Content, Plugins/Fab/project discovery | Нічого по коду |
-| 5 | Production import logic | DONE | +10% | HMMWV, M2, BTR-4, M249, Remington 870 production paths | Нічого по коду |
-| 6 | Fail-closed aggregate/binding result | DONE | +10% | GAP/UNBOUND/import failure не можуть перетворитися на aggregate PASS | Нічого по коду |
-| 7 | Source/regression/finalization CI | DONE | +10% | exact HEAD/source freshness/runtime/finalization/sandbox-rack guards; `0042d2b` = 19/19 SUCCESS | Нічого по GitHub-коду |
-| 8 | Local UE 5.8 import result | WAIT | +0% | pipeline готовий і fail-closed | Потрібен фактичний fresh local UE import |
-| 9 | Live gameplay/runtime hookup | WAIT | +0% | runtime/material/world/evidence gates готові | Потрібен factual full runtime PASS |
-| 10 | Direct visual acceptance + safe ZIP cleanup | WAIT | +0% | finalizer + manual Y/N + SHA-256 cleanup готові | Потрібен factual visual inspection після runtime PASS |
+`fix/pass45-runtime-rejection-material-closure-20260826`
 
-### ФАКТИЧНЕ ВИКОНАННЯ
+`fix/pass45-asset-import-fail-closed-20260904` is a duplicate work line and is retired. Its PR #98 is not an independent authority and must not be resumed.
 
-- Завершено: **7 / 10 етапів**.
-- Загальний factual progress: **70%**.
-- Залишилось: **30%**.
-- Source/code/CI lifecycle: **100% реалізований**; current verified branch checkpoint `0042d2b` має **19/19 SUCCESS**.
-- Local UE import acceptance: **0% підтверджено**.
-- Live runtime acceptance: **0% підтверджено**.
-- Direct visual acceptance/cleanup: **0% підтверджено**.
+The binding branch rule is now written directly into `PASS45_RUNTIME_RECOVERY_TZ.md`: no second PASS45 branch/PR for audit, checkpoint, asset intake, temporary work, CI repair or individual fixes. Parallel chats use the same canonical branch.
 
-Шлях: **70% → local UE import PASS = 80% → live runtime PASS = 90% → manual visual acceptance + safe ZIP cleanup = 100%.**
+## 2. WHAT WAS CARRIED FROM THE DUPLICATE ASSET BRANCH
 
-## 2. ОСТАННІЙ DEEP AUDIT — ЗАКРИТІ ПРОПУСКИ
+The duplicate asset branch had only **6 unique commits** relative to the common ancestor but was **1039 commits behind** the current canonical PASS45 branch. Therefore it was not safe to merge or replace the canonical branch wholesale.
 
-Перевірений ланцюг:
+Useful factual information was carried here instead of restoring older code:
 
-`prepare ZIP → base import/binding → weapon normalization → collector → runtime evidence attribution → finalizer/cleanup`.
+- the latest local packet run reported **41 tracked Changes** and correctly did not reset/stash/discard them;
+- seven preflight stages returned `code=1` with the same Windows dispatch signature;
+- even UE `Build.bat` failed with the same signature;
+- this proved one common launcher/quoting defect in that obsolete packet implementation, not seven independent UE/content failures;
+- the visible error form was an executable path treated as a literal command containing escaped quotes, e.g. `\"C:\\...\\command.cmd\"`;
+- the old packet run therefore stopped before gameplay and cannot count as current runtime acceptance;
+- factual asset progress remains **70%** until a fresh current-head UE 5.8 run passes.
 
-### 2.1 Explicit `UNBOUND` більше не може сховатися
+The duplicate branch's PowerShell packet owner is **not** copied over the newer canonical implementation. The canonical branch already owns packet runtime through:
 
-Раніше `source_status=UNBOUND` не завжди переносився в `unbound_models`, тому нестандартно названа mesh `.uasset` теоретично могла лишити `all_models_bound=true`.
+- `START_HERE.cmd` option `2. ПОВНИЙ RUNTIME-ТЕСТ (ПАКЕТНИЙ)`;
+- `OsterConflict/PASS45_BATCH_RUNTIME.cmd`;
+- `OsterConflict/Scripts/pass45_batch_runtime.py`.
 
-Тепер:
+That newer Python orchestrator is the authority and preserves the user's local tracked Changes while collecting one batch report.
 
-- кожен explicit `source_status=UNBOUND` обов'язково стає blocker;
-- dedupe unbound rows зберігається;
-- `all_models_bound` рахується тільки після reconciliation;
-- regression guard фіксує цей порядок.
+## 3. CURRENT FACTUAL ASSET PROGRESS
 
-### 2.2 Weapon normalizer більше не «лікує» import failure назвою файла
+| Stage | State | Progress |
+|---|---|---:|
+| 1. Local inbox / intake contract | DONE | 10% |
+| 2. Prepare / extract / classify | DONE | 10% |
+| 3. Exact duplicate removal | DONE | 10% |
+| 4. Fab / Marketplace / project discovery | DONE | 10% |
+| 5. Production import logic | DONE | 10% |
+| 6. Fail-closed aggregate/binding result | DONE | 10% |
+| 7. Source/regression/finalization guards | DONE | 10% |
+| 8. Fresh local UE 5.8 import on current canonical HEAD | WAIT | 0% |
+| 9. Live gameplay/runtime hookup | WAIT | 0% |
+| 10. Direct visual acceptance + safe ZIP cleanup | WAIT | 0% |
 
-Раніше factual `asset_load_failed/UNBOUND` міг бути переписаний у `BOUND`, якщо filename підходив під regex зброї.
+Current factual total: **70%**. Remaining: **30%**.
 
-Тепер factual `UNBOUND` ніколи не підвищується до `BOUND` лише класифікацією назви. Після normalization усі explicit `UNBOUND` повторно reconciled до blocker list.
+No stale run, old branch CI, source-only proof or local launcher mismatch may raise this percentage.
 
-### 2.3 Collector незалежно перевіряє consistency bindings
+## 4. PRODUCTION ASSET BOUNDARY
 
-`LOCAL_UE_IMPORT=PASS` тепер одночасно вимагає:
+Code/import/runtime hookup exists for the current production families, including HMMWV, M2 Browning, BTR-4, pickup/technical, M249, Remington 870 and the broader weapon/local-Fab intake path.
 
-- explicit current `import_result=0`;
-- production vehicle PASS;
-- production weapon PASS;
-- binding success sentinel;
-- `all_models_bound=true`;
-- `unbound_models=[]`;
-- `source_status_counts.UNBOUND=0`.
+Still required factually:
 
-Пошкоджений aggregate flag сам PASS не дає.
+- fresh UE 5.8 import result on the canonical branch;
+- current runtime binding evidence;
+- gameplay/runtime acceptance;
+- direct visual acceptance;
+- cleanup only after manifest/SHA-proven acceptance.
 
-### 2.4 Runtime evidence прив'язаний до exact source SHA
+M16/M4 remains a factual content gap until a fresh current-run binding snapshot proves at least one bound `M16_M4` asset.
 
-`AUTOMATED_RUNTIME_EVIDENCE=PASS` можливий тільки якщо evidence містить exact `SOURCE_SHA=<current snapshot SHA>`. PASS іншого HEAD стає `STALE_SOURCE`.
+## 5. FIRST REAL UNFINISHED CHECKPOINT — `LOCAL-UE-ASSET-001`
 
-### 2.5 Nested ZIP більше не може мовчки зникнути
+Next valid local cycle:
 
-Nested ZIP глибше дозволеного ліміту тепер:
+1. keep the user on `fix/pass45-runtime-rejection-material-closure-20260826`;
+2. synchronize that same branch to its current remote HEAD without creating another work branch;
+3. do not discard/reset/stash unrelated local `Changes` as part of acceptance;
+4. launch only `START_HERE.cmd`;
+5. choose `2. ПОВНИЙ RUNTIME-ТЕСТ (ПАКЕТНИЙ)`;
+6. read `Logs/PASS45_BATCH_RUNTIME_REPORT.txt` first;
+7. inspect only the concrete failing stage logs;
+8. consume fresh `LOCAL_ASSET_STATUS.txt/json` when generated.
 
-- записується як `NESTED_DEPTH_LIMIT`;
-- має `error=nested_zip_depth_limit_exceeded`;
-- входить у unsafe count;
-- переводить manifest у `UNSAFE_ARCHIVE_PRESENT`;
-- завершує prepare кодом `40`.
+Acceptance path:
 
-SHA-dedupe виконується до depth rejection, тому exact duplicate вже обробленого archive не створює false failure.
+- fresh local UE import PASS: **70% → 80%**;
+- live runtime PASS: **80% → 90%**;
+- direct visual PASS + hash-proven cleanup: **90% → 100%**.
 
-## 3. FINALIZER — НЕЗАЛЕЖНИЙ FAIL-CLOSED КОНТРАКТ
+## 6. CONTINUATION RULE
 
-До manual acceptance/cleanup finalizer окремо вимагає:
-
-- schema `oster-conflict-local-asset-status-v4`;
-- `source_sha == current HEAD`;
-- `import_result_code == 0`;
-- `runtime_result_code == 0`;
-- `runtime_scope == CURRENT_RUN_COMPLETED`;
-- import/runtime/material/evidence stages = PASS;
-- production vehicles/weapons = PASS;
-- `all_models_bound=true`;
-- `unbound=[]`;
-- summary `unbound_models=0`;
-- `source_status_counts.UNBOUND=0`;
-- factual `M16_M4 >= 1`;
-- prepared status `PASS` або factual `NO_INBOX`;
-- no package conflicts;
-- ZIP cleanup лише для manifest-proven SHA-256.
-
-Також перевірено:
-
-- `NO_INBOX` створює новий порожній manifest і не успадковує stale archive rows;
-- unknown/unproven ZIP блокує cleanup **до першого видалення**;
-- Fab-only/`NO_INBOX` може завершити zero-ZIP cleanup після інших PASS gates;
-- fresh ingest анулює старі manual visual/cleanup records;
-- dirty tracked runtime/source блокує import до UE execution;
-- exact local HEAD перевіряється проти `origin/<branch>` до import і перед final acceptance;
-- stale consolidated snapshot не може пережити fresh collection.
-
-## 4. PRODUCTION ASSET MATRIX
-
-| Asset | Factual стан | Підтверджено | Що ще треба |
-|---|---|---|---|
-| HMMWV | WAIT | source/import/runtime hookup code | fresh UE import + live use + visual proof |
-| M2 Browning | WAIT | source/import/mounted-gun hookup code | fresh UE import + mount/pitch/muzzle/material visual proof |
-| BTR-4 | WAIT | `/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus` hookup code | fresh UE result + live use + visual proof |
-| Pickup / technical | WAIT | local `PICKUP` binding + packaged fallback hookup code | fresh UE runtime + visual proof |
-| M249 | WAIT | exact importer + runtime category + sandbox rack support | fresh source/UE/runtime/visual proof |
-| Remington 870 | WAIT | exact importer + runtime category + sandbox rack support | fresh source/UE/runtime/visual proof |
-| M16/M4 family | GAP | classifier/runtime/rack category support | fresh manifest має довести actual bound `M16_M4 >= 1` |
-
-M16/M4 залишається **factual content GAP**, а не code-classifier GAP. Local/Fab payload може існувати, але лише fresh current-run `runtime_bindings.json` може це підтвердити.
-
-Інші local/Fab families: AK-47, MP5, M1911, M700, M14, MAC-10, TEC-9, Lever Action, інша зброя, pickups, buildings, props/furniture/fences, foliage, roads, terrain, water, character skins, HUD/UI — intake support є, factual runtime/visual proof ще PENDING.
-
-## 5. FRESH LOCAL EVIDENCE STATUS
-
-Connected conversation/Library search на current asset work **не знайшов fresh current-head**:
-
-- `OsterConflict/Saved/LocalModelInbox/prepared_sources.json`
-- `OsterConflict/Saved/LocalModelInbox/runtime_bindings.json`
-- `OsterConflict/Saved/LocalModelInbox/runtime_bindings_success.txt`
-- `OsterConflict/Saved/ProductionAssetImportCache/production_import_success.txt`
-- `OsterConflict/Saved/ProductionAssetImportCache/production_weapon_import_result.txt`
-- `OsterConflict/Saved/AutomationReports/ProductionModels/local_inbox_runtime_validation.txt`
-- `OsterConflict/Saved/AutomationReports/ProductionModels/local_world_runtime_validation.txt`
-- `Logs/R14_CURRENT_GAMEPLAY.log`
-- `Logs/PASS45_STRICT_MATERIAL_GATE.log`
-- `Logs/PASS45_RUNTIME_ACCEPTANCE_EVIDENCE.txt`
-- `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.txt`
-- `OsterConflict/Saved/AssetStatus/LOCAL_ASSET_STATUS.json`
-
-Старі/сторонні матеріали current acceptance не підтверджують.
-
-## 6. ПЕРШИЙ НЕЗАКРИТИЙ CHECKPOINT
-
-### `LOCAL-UE-ASSET-001`
-
-Наступна factual робота:
-
-1. локальна гілка має бути синхронізована з current PR head;
-2. запускати тільки `START_HERE.cmd`;
-3. вибрати `2. ПОВНИЙ RUNTIME-ТЕСТ`;
-4. pipeline виконає prepare/import/binding/runtime/material/evidence/finalization preflight;
-5. fresh `LOCAL_ASSET_STATUS.txt/json` визначить factual result.
-
-Результат:
-
-- import PASS → **70% → 80%**;
-- runtime PASS → **80% → 90%**;
-- manual visual PASS + hash-proven ZIP cleanup → **90% → 100%**;
-- GAP/UNBOUND/stale source/missing M16-M4 лишає відповідний етап незакритим.
-
-## 7. CHECKPOINT CONTINUATION — 2026-09-05
-
-Після попереднього tracker checkpoint виконано без повторення DONE роботи:
-
-- verified code checkpoint оновлено до `0042d2b`;
-- `main` лишився `a1ad0e2`;
-- branch relation на verified checkpoint: **ahead 102 / behind 0**;
-- PR #98 лишається Draft/unmerged/mergeable;
-- `0042d2b` має **19/19 completed SUCCESS**, failed/cancelled = 0;
-- `Spawn all weapons` більше не означає тільки 7 broad classes;
-- rack читає factual `runtime_bindings` і створює окремий actor для **кожного bound object path** у підтримуваних weapon categories;
-- rack охоплює `M16_M4`, AR15, AK74, AK47, MP5, M1911, M700, Remington 870, M249, M14, MAC-10, TEC-9, Lever Action, M72 та generic/fallback categories;
-- усі gameplay classes мають fallback pickup, якщо bound model для них відсутня;
-- forced `category + path index` обробляється weapon runtime override **до** normal category precedence, тому одна категорія більше не приховує іншу модель у sandbox rack;
-- rack створює ammo box поряд і пише factual spawn-count log `OC_SANDBOX_ALL_WEAPONS_SPAWNED`;
-- додано `VERIFY_PASS45_SANDBOX_WEAPON_RACK.py`, він входить у `RUN_ALL_VERIFY.py` та окремий Pass45 asset regression workflow;
-- F10 уже має окремі `Spawn gun truck` і `Spawn BTR`; production hookup code для BTR/HMMWV/pickup є;
-- fresh current-head local UE/runtime evidence все ще не знайдено, тому factual progress лишається **70%**;
-- перший реально незакритий пункт не змінився: `LOCAL-UE-ASSET-001`.
-
-## 8. CONTINUATION RULE
-
-Наступний pass:
-
-- не повторює DONE 1–7;
-- спочатку звіряє current branch/head/main/PR/CI;
-- читає fresh consolidated `LOCAL_ASSET_STATUS` першим, якщо він з'явився;
-- individual logs читаються тільки для конкретного FAIL/GAP;
-- progress підвищується лише за factual local UE/runtime/manual evidence;
-- PR #98 не merge до local UE/runtime acceptance.
+- Do not create a new PASS45 branch.
+- Do not create a new PASS45 PR while #94 is active.
+- Do not resume PR #98 or its asset branch.
+- Do not repeat DONE stages 1–7.
+- Do not merge PR #94 to `main` before factual integrated UE 5.8 acceptance.
+- Local user `Changes` remain untouched by remote GitHub work.
