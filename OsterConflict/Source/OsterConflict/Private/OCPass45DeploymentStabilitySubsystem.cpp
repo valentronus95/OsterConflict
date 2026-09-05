@@ -30,16 +30,17 @@ void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
 
     AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
     const bool bLocalPlayer = PC && PC->IsLocalController();
-    const bool bDeploymentVisible = bLocalPlayer && PC->IsDeploymentPanelVisible() &&
-        !PC->IsFrontendMenuVisible() && !PC->IsSettingsVisible();
+    const bool bFrontendVisible = bLocalPlayer && PC->IsFrontendMenuVisible();
+    const bool bSettingsVisible = bLocalPlayer && PC->IsSettingsVisible();
+    const bool bDeploymentVisible = bLocalPlayer && !bFrontendVisible && !bSettingsVisible &&
+        (PC->IsDeploymentPanelVisible() || PC->GetPawn() == nullptr);
     const bool bBlockingMenuVisible = bLocalPlayer &&
-        (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() || PC->IsSettingsVisible());
+        (bFrontendVisible || bSettingsVisible || PC->IsDeploymentPanelVisible() || PC->GetPawn() == nullptr);
     const bool bGameplayReady = bLocalPlayer && !bBlockingMenuVisible && PC->GetPawn() != nullptr;
 
-    // The museum owner used to schedule a one-shot synchronous package load at +0.75 s.
-    // Clearing it only once had an OnWorldBeginPlay ordering race: the museum subsystem could
-    // schedule the timer after our first clear. Keep suppressing it for the entire menu phase.
-    // This guarantees that Slate and the native Windows message pump are not starved by that load.
+    // The museum owner used to schedule a one-shot synchronous package-loading rebuild at +0.75 s.
+    // A one-time clear had an OnWorldBeginPlay ordering race, so keep suppressing that timer for
+    // the whole pre-game/menu phase. This protects both Slate input and the native Windows message pump.
     if (!bMuseumBuildReleased)
     {
         if (!bGameplayReady)
@@ -52,6 +53,9 @@ void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
         }
     }
 
+    // Deployment-state detection deliberately has a no-pawn fallback. The R13 flow can be visible
+    // for a frame before the old controller deployment flag settles; without this fallback the world
+    // could bleed through even though the deployment widget itself was already on screen.
     if (bDeploymentVisible)
     {
         EnsureDeploymentBackdrop();
@@ -68,8 +72,8 @@ void UOCPass45DeploymentStabilitySubsystem::SuppressSynchronousMuseumStartup(UWo
         World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>();
     if (!MuseumSubsystem) return;
 
-    // Deliberately repeat this while menus are active. It closes the startup-order race instead
-    // of assuming that one early ClearAllTimersForObject happened after the museum scheduled itself.
+    // Repeat while menus are active. This closes the startup-order race instead of assuming a
+    // single ClearAllTimersForObject happened after the museum subsystem scheduled itself.
     World.GetTimerManager().ClearAllTimersForObject(MuseumSubsystem);
 
     if (!bMuseumSuppressionLogged)
@@ -159,7 +163,7 @@ void UOCPass45DeploymentStabilitySubsystem::EnsureDeploymentBackdrop()
 
     GEngine->GameViewport->AddViewportWidgetContent(DeploymentBackdrop.ToSharedRef(), 490);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_DEPLOYMENT_OPAQUE_BACKDROP_READY alpha=1 viewport_z=490 world_bleedthrough=0 hit_test_blocking=0"));
+        TEXT("PASS45_DEPLOYMENT_OPAQUE_BACKDROP_READY alpha=1 viewport_z=490 world_bleedthrough=0 hit_test_blocking=0 no_pawn_fallback=1"));
 }
 
 void UOCPass45DeploymentStabilitySubsystem::RemoveDeploymentBackdrop()
