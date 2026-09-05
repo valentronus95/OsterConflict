@@ -33,8 +33,12 @@ for token, label in [
     ('PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE', 'deferred connect execute marker'),
     ('if (!MenuBox.IsValid() || LastAppliedPage == Page) return;', 'legacy page dedupe guard'),
     ('LastAppliedPage = Page;', 'legacy page applied state'),
-    ('FLinearColor(0.025f, 0.030f, 0.036f, 0.96f)', 'opaque server/network panel style retained'),
-    ('FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f))', 'dark field background retained'),
+    ('Panel->SetBrushColor(FLinearColor(0.014f, 0.020f, 0.027f, 0.78f))', 'current opaque tactical panel style'),
+    ('FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.025f, 0.034f, 0.043f, 0.98f))', 'current dark field background'),
+    ('USizeBox* Size = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());', 'supported field width wrapper'),
+    ('Size->SetWidthOverride(360.0f);', 'supported fixed field width'),
+    ('Size->SetContent(Field);', 'field hosted by width wrapper'),
+    ('Parent->AddChildToVerticalBox(Size)', 'width wrapper attached to field parent'),
     ('PASS14_HOST_TRAVEL_BEGIN', 'host travel compatibility marker'),
 ]:
     need(cpp, token, label)
@@ -93,5 +97,6 @@ if pass29_static:
 else:
     print('- frontend navigation is deferred out of Slate input callbacks')
 print('- server host/network travel remains deferred to world Tick')
-print('- TakeWidget focus churn remains removed and field styling contracts remain intact')
+print('- editable fields use SizeBox width ownership instead of an unsupported UEditableTextBox width API')
+print('- current tactical panel/field styling is checked structurally instead of freezing obsolete historical colors')
 print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 click-through runtime confirmation is still required')

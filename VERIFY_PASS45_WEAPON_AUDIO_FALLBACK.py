@@ -91,14 +91,19 @@ for forbidden in (
     req(forbidden not in fallback_block,
         f"audio presentation fallback illegally mutates gameplay/authority contract: {forbidden}")
 
+# The compact TZ owns current acceptance state/policy. Detailed audio markers are owned
+# by the source contract above and runtime verifiers, not duplicated into the compact TZ.
 for needle in (
-    "repository weapon-audio fallback",
-    "PASS45_WEAPON_AUDIO_FALLBACK_READY",
-    "AUDIO CONTENT GAP",
     "RUNTIME REJECTED",
-    "2026-08-27",
+    "22/36 = 61.1% complete, 38.9% remaining",
+    "runtime_acceptance=0",
+    "item16_checked=0",
+    "merge_permitted=0",
+    "Batch first, not micro-task first",
+    "weapon models/mechanics/audio",
+    "A historical verifier never outranks newer runtime truth or a newer user requirement.",
 ):
-    req(needle in tz, f"canonical Pass45 TZ lost current audio truth: {needle}")
+    req(needle in tz, f"canonical Pass45 TZ lost current execution truth: {needle}")
 
 if errors:
     print("PASS45 WEAPON AUDIO FALLBACK: FAIL")
@@ -110,6 +115,6 @@ print("PASS45 WEAPON AUDIO FALLBACK: PASS")
 print("- exact AK project audio is preferred when no assigned profile supplies the event")
 print("- other silent weapons receive a repository-owned factual shot fallback instead of disappearing acoustically")
 print("- assigned authored event sets still win; fallback is event-local and presentation-only")
-print("- pump action reuses tracked shotgun-cock audio; bolt/lever source routes now target repository-owned CC0 action-family donor SoundWaves")
+print("- pump action reuses tracked shotgun-cock audio; bolt/lever source routes target repository-owned CC0 action-family donor SoundWaves")
 print("- donor SoundWave UE import, audibility, timing, per-weapon mix and authored manual-action animations remain runtime/content acceptance work")
 print("STATUS: SOURCE-CODED; local UE 5.8 load/audibility/mix/content-quality acceptance remains pending")

@@ -89,11 +89,12 @@ namespace
     UEditableTextBox* R13FrontendMakeField(UWidgetTree* Tree, UVerticalBox* Parent, const FText& Hint, const FString& Value)
     {
         if (!Tree || !Parent) return nullptr;
+        USizeBox* Size = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
         UEditableTextBox* Field = Tree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass());
-        if (!Field) return nullptr;
+        if (!Size || !Field) return nullptr;
         Field->SetHintText(Hint);
         Field->SetText(FText::FromString(Value));
-        Field->SetMinimumDesiredWidth(360.0f);
+        Size->SetWidthOverride(360.0f);
 
         // Keep brushes resource-stable while moving the old editor-white look to a compact tactical field.
         FEditableTextBoxStyle FieldStyle = Field->GetWidgetStyle();
@@ -107,8 +108,9 @@ namespace
         FieldStyle.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.020f, 0.028f, 0.035f, 1.0f));
         FieldStyle.Padding = FMargin(12.0f, 8.0f);
         Field->SetWidgetStyle(FieldStyle);
+        Size->SetContent(Field);
 
-        if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Field))
+        if (UVerticalBoxSlot* Slot = Parent->AddChildToVerticalBox(Size))
         {
             Slot->SetPadding(FMargin(0.0f, 4.0f));
         }

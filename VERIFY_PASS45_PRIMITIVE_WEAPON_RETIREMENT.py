@@ -136,13 +136,18 @@ for needle in (
 ):
     req(needle in runtime_evidence, f'strict runtime evidence gate missing primitive marker: {needle}')
 
+# The compact canonical TZ intentionally stores policy/current state, not every historical
+# runtime marker. Concrete primitive evidence is owned by source + the runtime evidence verifier above.
 for needle in (
-    'visible primitive weapon/pickup geometry',
-    'PASS45_PRIMITIVE_WEAPON_RUNTIME_READY',
-    'PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL',
     'RUNTIME REJECTED',
+    '22/36 = 61.1% complete, 38.9% remaining',
+    'runtime_acceptance=0',
+    'item16_checked=0',
+    'merge_permitted=0',
+    'Batch first, not micro-task first',
+    'A historical verifier never outranks newer runtime truth or a newer user requirement.',
 ):
-    req(needle in tz, f'canonical Pass45 TZ lost primitive retirement truth: {needle}')
+    req(needle in tz, f'canonical Pass45 TZ lost current execution truth: {needle}')
 
 if errors:
     print('PASS45 PRIMITIVE WEAPON RETIREMENT: FAIL')
