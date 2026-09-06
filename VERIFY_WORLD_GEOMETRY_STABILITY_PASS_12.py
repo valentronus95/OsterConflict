@@ -144,7 +144,19 @@ for needle in (
     "Component->SetMaterial(0, AuthoredMaterial);",
     "ground_top_z_preserved=1",
     "playable_footprint_preserved=1",
-    "ElapsedSeconds < 0.75f",
+    "BuildSurfacePreloadPaths",
+    "RequestAsyncLoad",
+    "PreloadHandle->HasLoadCompleted()",
+    "PreparationStage == 0",
+    "PreparationStage == 1",
+    "PreparationStage == 2",
+    "PreparationStage == 3",
+    "PreparationStage == 4",
+    "PreparationStage == 5",
+    "GAME_RECOVERY_SURFACE_STAGE_READY",
+    "one_family_per_tick=1",
+    "pre_spawn=1",
+    "sync_package_loads=0",
     "PASS45_AUTHORED_GROUND_SURFACE_READY",
     "PASS45_AUTHORED_ROAD_SURFACE_READY",
     "PASS45_AUTHORED_PARK_PATH_SURFACE_READY",
@@ -154,7 +166,8 @@ for needle in (
     "topology_preserved=1",
     "pass12_baseline_deadline_s=12",
 ):
-    require(surface_upgrade, needle, "item31 authored surface upgrade")
+    require(surface_upgrade, needle, "item31 staged authored surface upgrade")
+forbid(surface_upgrade, "ElapsedSeconds < 0.75f", "retired single-frame surface startup budget")
 
 cube_family = function_slice(
     surface_upgrade,
@@ -332,8 +345,8 @@ for needle in (
 print("WORLD GEOMETRY STABILITY PASS12/PASS45 ITEM31 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers remain cancelled and identity validation stays mutation-free")
 print("- Pass45 daylight remains component-owned: 120000 lux + AutoExposure=True + extended EV100 range")
-print("- playable Ground upgrades before baseline to tracked SM_Plane_1x1 + KiteDemo M_Ground_Grass2 with XY/top-Z preserved")
-print("- Roads/Sidewalks/ParkPaths/Fences upgrade before baseline to tracked authored meshes with packaged materials")
+print("- playable Ground and authored ISM families are async-preloaded and upgraded one family per tick before spawn")
+print("- Roads/Sidewalks/ParkPaths/Fences preserve packaged materials while staged materialization avoids one-frame startup work")
 print("- Pass12 validates Ground plus four authored ISM surface families at 12s, 16s and 20s")
 print("- no unrelated late source owner may mutate Ground/Roads/Sidewalks/ParkPaths/Fences materials")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence still required")

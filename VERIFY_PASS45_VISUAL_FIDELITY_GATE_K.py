@@ -127,21 +127,22 @@ for needle in (
     require(foliage_guard, needle, "runtime obsolete-proxy destruction")
 forbid(foliage_guard, "PASS10_GROUND_COVER_PROXY_RETIRED", "obsolete hide-only foliage evidence")
 
-# Ground, Roads/Sidewalks, the five source-owned ParkPaths and visible general Fences must be converted to committed
-# authored surfaces before Gate K. Ground preserves its playable XY footprint and top-Z; ISM families preserve
-# bounds/orientation rather than blindly stretching a replacement asset.
+# Ground, Roads/Sidewalks, the five source-owned ParkPaths and visible general Fences are preloaded while deployment
+# owns the screen and then materialized one authored family per tick before possession. This staged contract replaces
+# the obsolete single-frame 0.75-second mutation window while preserving the same fail-closed final visual truth.
 for needle in (
     "UOCAuthoredWorldSurfaceUpgradeSubsystem",
-    "Before visual acceptance and before the Pass12 12-second stability baseline",
-    "SM_Plane_1x1 + KiteDemo M_Ground_Grass2",
-    "top-Z",
-    "five central-park path transforms",
-    "ParkPaths",
-    "SM_Stonepath_Var01",
-    "ParkDetails remains reserved",
-    "visible Fences family",
+    "UTickableWorldSubsystem",
+    "pre-spawn world preparation",
+    "async",
+    "one authored surface family per tick before possession",
+    "player is never used as a loading screen",
+    "IsWorldSurfaceReady",
+    "GetWorldSurfaceProgress",
+    "TSharedPtr<FStreamableHandle> PreloadHandle;",
+    "PreparationStage",
 ):
-    require(surface_h, needle, "authored world upgrade header")
+    require(surface_h, needle, "staged authored world upgrade header")
 for needle in (
     "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
     "/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2",
@@ -163,8 +164,6 @@ for needle in (
     'FindISM(Sector, TEXT("ParkPaths"))',
     "ExistingParkPaths->GetInstanceCount() != 5",
     "RemainingInSidewalks != 0",
-    # The runtime-created path remains as backward compatibility for older maps, but canonical current source
-    # must enter the ExistingParkPaths path instead of relying on migration.
     'NewObject<UInstancedStaticMeshComponent>(Sector, TEXT("ParkPaths"))',
     "SourceIndices.Num() != 5",
     "SourceTransforms.Num() != 5",
@@ -178,7 +177,20 @@ for needle in (
     "Component->SetStaticMesh(AuthoredMesh);",
     "Component->EmptyOverrideMaterials();",
     "UpdateInstanceTransform",
-    "ElapsedSeconds < 0.75f",
+    "BuildSurfacePreloadPaths",
+    "RequestAsyncLoad",
+    "PreloadHandle->HasLoadCompleted()",
+    "PreparationStage == 0",
+    "PreparationStage == 1",
+    "PreparationStage == 2",
+    "PreparationStage == 3",
+    "PreparationStage == 4",
+    "PreparationStage == 5",
+    "GAME_RECOVERY_SURFACE_STAGE_READY",
+    "GAME_RECOVERY_SURFACE_PREP_FINISH",
+    "one_family_per_tick=1",
+    "pre_spawn=1",
+    "sync_package_loads=0",
     'FindISM(Sector, TEXT("Fences"))',
     "PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP",
     "PASS45_AUTHORED_WORLD_SURFACE_FAIL",
@@ -193,7 +205,8 @@ for needle in (
     "basicshape_material_overrides=0",
     "topology_preserved=1",
 ):
-    require(surface, needle, "authored Ground/Roads/Sidewalks/ParkPaths/Fences upgrade")
+    require(surface, needle, "staged authored Ground/Roads/Sidewalks/ParkPaths/Fences upgrade")
+forbid(surface, "ElapsedSeconds < 0.75f", "retired single-frame authored-world mutation window")
 forbid(surface, 'FindISM(Sector, TEXT("ParkDetails"))', "ParkDetails must not own the authored park-path replacement")
 
 # Canonical current source owns exactly five ParkPaths: four central alleys + the CultureParkNorth link.
@@ -387,7 +400,7 @@ print("PASS45 VISUAL FIDELITY GATE K SOURCE TRUTH PASS")
 print("- obsolete ground-cover/debug presentation is physically removed at runtime")
 print("- Central Park semantic ownership is primary/fail-closed: legacy mixed buckets=0; exact groups=1/1/4/1/2/14 (23 total)")
 print("- park central/north/college ground owners are direct source families; old ParkGeometry remains quarantine-only")
-print("- playable Ground upgrades from Cube + BasicShape MID to tracked SM_Plane_1x1 + KiteDemo M_Ground_Grass2 before Pass12 baseline")
+print("- playable Ground and authored ISM families are async-preloaded and materialized one family per tick before possession")
 print("- Ground playable footprint and top-Z are preserved by bounds-aware replacement")
 print("- Roads/Sidewalks upgrade from Cube topology to tracked RoadsideConstruction authored surfaces before Pass12 baseline")
 print("- canonical source owns exactly five ParkPaths and zero central-park path proxies remain in Sidewalks")
