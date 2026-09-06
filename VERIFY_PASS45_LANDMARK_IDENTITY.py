@@ -125,15 +125,22 @@ for needle in (
 ):
     require(silpo_identity, needle, "Silpo facade identity/sign")
 
-# One coordinated startup window owns the three location builds. The validator observes; it does not repair.
+# GAME_RECOVERY owns staged pre-spawn startup. The validator observes; it does not repair.
 for needle in (
     'World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>()',
     'World.GetSubsystem<UOCR140SilpoPhotoModelSubsystem>()',
     'World.GetSubsystem<UOCR143SilpoFacadeIdentitySubsystem>()',
     'World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>()',
-    'PASS45_LANDMARK_STARTUP_COORDINATED_READY',
+    'GAME_RECOVERY_WORLD_PREP_BEGIN',
+    'pre_spawn=1 tick_when_paused=1 staged_materialization=1',
+    'GAME_RECOVERY_WORLD_PREP_TIMERS_CANCELLED',
+    'duplicate_startup_timers=0',
+    'GAME_RECOVERY_WORLD_READY',
+    'pre_spawn=1 post_spawn_landmark_materialization=0',
 ):
     require(coordinator, needle, "landmark startup coordinator")
+forbid(coordinator, 'PASS45_LANDMARK_STARTUP_COORDINATED_READY',
+       "retired landmark startup compatibility marker")
 
 for needle in (
     'MuseumOwnerTag(TEXT("R137_MuseumPhotoModel"))',
@@ -178,8 +185,7 @@ for needle in (
 ):
     require(runtime_launcher, needle, "focused landmark runtime launcher")
 
-# The canonical TZ is semantic authority. Guard current separation/reference/screenshot obligations rather than
-# freezing old prose that can legitimately be reworded while preserving the same acceptance contract.
+# The canonical Pass45 TZ remains semantic authority for detailed historical identity obligations.
 for needle in (
     'Source-close Museum/Culture House/Silpo identity ownership',
     'Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts.',
@@ -195,6 +201,6 @@ print("- Museum retains the Solonyna-house identity and cannot encode the six-co
 print("- Culture House owns the six-column authored facade on its separate canonical geo anchor")
 print("- Culture House refuses unexpected R13 ownership fail-closed; no late actor destruction may hide a startup/source regression")
 print("- Silpo shell and visible Сільпо facade identity are both tied to the canonical Silpo site")
-print("- startup is coordinated; separation/identity validation is observation-only and cannot repair late")
+print("- GAME_RECOVERY staged startup owns readiness; separation/identity validation is observation-only and cannot repair late")
 print("- strict runtime acceptance requires authored Museum/Culture shells plus landmark separation and Silpo facade identity")
 print("STATUS: SOURCE CONTRACT ONLY; current-head local UE 5.8 screenshots remain mandatory")
