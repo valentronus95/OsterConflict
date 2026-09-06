@@ -11,6 +11,7 @@ def read(path: Path) -> str:
 
 
 pickup = read(SRC / "OCPickupGunTruck.cpp")
+pickup_h = read(PUB / "OCPickupGunTruck.h")
 armed = read(SRC / "OCArmedVehicleBase.cpp")
 armed_h = read(PUB / "OCArmedVehicleBase.h")
 character = read(SRC / "OCCharacter.cpp")
@@ -30,15 +31,42 @@ for needle in (
 ):
     req(needle in pickup, f"missing production HMMWV/M2 contract: {needle}")
 
+# GAME_RECOVERY points 5/10: HMMWV/M2/pickup presentation must not perform first-use blocking package loads.
+# The actor owns one bounded async request, then all presentation selection uses ResolveObject only.
+for needle in (
+    "FSoftObjectPath VehiclePath",
+    "FSoftObjectPath M2Path",
+    "RequestAsyncLoad",
+    "FStreamableDelegate::CreateUObject(this, &AOCPickupGunTruck::HandlePresentationAssetsLoaded)",
+    "PresentationLoadHandle->HasLoadCompleted()",
+    "VehiclePath.ResolveObject()",
+    "M2Path.ResolveObject()",
+    "FallbackGunPath.ResolveObject()",
+    "GAME_RECOVERY_GUNTRUCK_PRELOAD_BEGIN",
+    "GAME_RECOVERY_GUNTRUCK_PRELOAD_WAIT",
+    "GAME_RECOVERY_GUNTRUCK_PRELOAD_READY",
+    "sync_runtime_loads=0",
+):
+    req(needle in pickup, f"async gun-truck presentation contract missing: {needle}")
+for needle in (
+    "HandlePresentationAssetsLoaded",
+    "TSharedPtr<FStreamableHandle> PresentationLoadHandle",
+    "bPresentationLoadRequested",
+    "bPresentationLoadFailed",
+):
+    req(needle in pickup_h, f"gun-truck preload owner declaration missing: {needle}")
+req("LoadObject<UStaticMesh>" not in pickup,
+    "gun-truck/HMMWV/M2 path still contains blocking UStaticMesh LoadObject")
+
 # Exact HMMWV identity is fail-closed. A missing HMMWV shell may not become a pickup, and a missing M2
 # may not be represented by another machine gun. This protects the user's one-owner/no-duplicate identity rule.
 for needle in (
     "const bool bRequiresHMMWV = ShouldUseHMMWVProductionVisual();",
-    "!bUsingProductionVehicle && Chassis && !bRequiresHMMWV",
+    "!bUsingProductionVehicle && Chassis && !bRequiresHMMWV && VehicleMesh",
     "PASS45_HMMWV_PRODUCTION_VISUAL_GAP",
     "pickup_substitution=0",
     "primitive_chassis_visible=0",
-    "!bUsingMountedGunAsset && !bRequiresHMMWV",
+    "!bUsingMountedGunAsset && !bRequiresHMMWV && FallbackGunMesh",
     "PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP",
     "other_gun_substitution=0",
 ):
@@ -47,7 +75,7 @@ for needle in (
 # 2026-08-27 runtime rejection: exact M2 floated above the HMMWV after bounds/longest-axis correction.
 # The imported M2 has an authored receiver/mount pivot; exact production must use it unchanged.
 for needle in (
-    "AddAuthoredPivotTurretVisual(this, M2Parent, M2, 165.0f",
+    "AddAuthoredPivotTurretVisual(this, M2Parent, M2Mesh, 165.0f",
     "Visual->SetRelativeLocation(FVector::ZeroVector);",
     "Visual->SetRelativeRotation(FRotator::ZeroRotator);",
     "bounds_recenter=0",
@@ -56,9 +84,9 @@ for needle in (
 ):
     req(needle in pickup, f"exact M2 authored-pivot guard missing: {needle}")
 
-exact_m2_call = pickup.find("AddAuthoredPivotTurretVisual(this, M2Parent, M2, 165.0f")
+exact_m2_call = pickup.find("AddAuthoredPivotTurretVisual(this, M2Parent, M2Mesh, 165.0f")
 req(exact_m2_call >= 0, "exact M2 does not use authored-pivot helper")
-req("AddGroundedTurretVisual(this, M2Parent, M2, 165.0f" not in pickup,
+req("AddGroundedTurretVisual(this, M2Parent, M2Mesh, 165.0f" not in pickup,
     "exact M2 regressed to bounds-grounding/longest-axis heuristic")
 
 for needle in (
@@ -115,7 +143,8 @@ if errors:
 
 print("PASS45 HMMWV M2 HIERARCHY: PASS")
 print("- real HMMWV and authored M2 remain production owners")
-print("- explicit HMMWV/M2 identity now fails closed instead of substituting a pickup or another gun")
+print("- HMMWV/M2/pickup presentation now uses bounded async loading; blocking UStaticMesh LoadObject is forbidden")
+print("- explicit HMMWV/M2 identity fails closed instead of substituting a pickup or another gun")
 print("- exact M2 uses its authored receiver/mount pivot; bounds recenter and longest-axis guessing are forbidden")
 print("- TurretPivot owns yaw; BarrelPivot owns pitch/M2/muzzle; GunnerCameraPivot owns the mounted view")
 print("- HMMWV yaw is continuous and no longer limited by the generic +/-170-degree stop")
