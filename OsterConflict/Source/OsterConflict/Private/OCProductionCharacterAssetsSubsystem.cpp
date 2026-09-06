@@ -8,18 +8,29 @@
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "UObject/UObjectGlobals.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
     constexpr const TCHAR* BodyPath = TEXT("/Game/QuantumCharacter/Mesh/SKM_QuantumCharacter.SKM_QuantumCharacter");
     constexpr const TCHAR* ArmsPath = TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Arms.SKM_Arms");
+    constexpr const TCHAR* VestPath = TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Bulletproof_Bege.SKM_Bulletproof_Bege");
+    constexpr const TCHAR* DropsPath = TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Drops_1_Bege.SKM_Drops_1_Bege");
+    constexpr const TCHAR* HolsterPath = TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Holster_Hard_Bege.SKM_Holster_Hard_Bege");
+    constexpr const TCHAR* CapPath = TEXT("/Game/QuantumCharacter/Mesh/Modules/SM_Cap_Bege.SM_Cap_Bege");
+    constexpr const TCHAR* IdlePath = TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Idle.A_MM_Idle");
+    constexpr const TCHAR* WalkPath = TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Walk_Fwd.A_MM_Walk_Fwd");
+    constexpr const TCHAR* RunPath = TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Run_Fwd.A_MM_Run_Fwd");
+    constexpr const TCHAR* FallPath = TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Fall_Loop.A_MM_Fall_Loop");
+    constexpr const TCHAR* GrenadeThrowSoundPath = TEXT("/Game/R13/Audio/snd_throw1.snd_throw1");
 
     void AddSkeletalGear(AOCCharacter& Character, USkeletalMeshComponent* Body,
         USkeletalMesh* Mesh, const FName BaseComponentName)
@@ -73,6 +84,29 @@ namespace
         default: return FName(TEXT("OC_Gear_Standard"));
         }
     }
+
+    TArray<FSoftObjectPath> BuildCharacterPreloadPaths()
+    {
+        const TCHAR* Paths[] =
+        {
+            BodyPath,
+            ArmsPath,
+            VestPath,
+            DropsPath,
+            HolsterPath,
+            CapPath,
+            IdlePath,
+            WalkPath,
+            RunPath,
+            FallPath,
+            GrenadeThrowSoundPath
+        };
+
+        TArray<FSoftObjectPath> Result;
+        Result.Reserve(UE_ARRAY_COUNT(Paths));
+        for (const TCHAR* Path : Paths) Result.Emplace(Path);
+        return Result;
+    }
 }
 
 bool UOCProductionCharacterAssetsSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -86,6 +120,11 @@ void UOCProductionCharacterAssetsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
 
+    bInitialized = true;
+    bEligible = false;
+    bPreloadRequested = false;
+    bPreloadComplete = false;
+
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
@@ -94,10 +133,81 @@ void UOCProductionCharacterAssetsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    bEligible = true;
+    BeginPreload();
+}
+
+void UOCProductionCharacterAssetsSubsystem::BeginPreload()
+{
+    if (!bEligible || bPreloadRequested) return;
+    bPreloadRequested = true;
+
+    const TArray<FSoftObjectPath> Paths = BuildCharacterPreloadPaths();
+    PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(Paths, FStreamableDelegate());
+    if (!PreloadHandle.IsValid())
+    {
+        bPreloadComplete = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_CHARACTER_PRELOAD_FAIL handle=0 sync_spawn_loads=0"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_CHARACTER_PRELOAD_BEGIN assets=%d pre_spawn=1 async=1"), Paths.Num());
+}
+
+void UOCProductionCharacterAssetsSubsystem::Tick(float DeltaTime)
+{
+    (void)DeltaTime;
+    if (!bEligible || bPreloadComplete) return;
+    if (!bPreloadRequested)
+    {
+        BeginPreload();
+        return;
+    }
+    if (!PreloadHandle.IsValid() || !PreloadHandle->HasLoadCompleted()) return;
+
     BuildProfiles();
-    InWorld.GetTimerManager().SetTimer(
-        RefreshTimer, this, &UOCProductionCharacterAssetsSubsystem::ApplyToCharacters,
-        0.20f, true, 0.05f);
+    bPreloadComplete = true;
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            RefreshTimer, this, &UOCProductionCharacterAssetsSubsystem::ApplyToCharacters,
+            0.20f, true, 0.01f);
+    }
+
+    const bool bBodyReady = FSoftObjectPath(BodyPath).ResolveObject() != nullptr;
+    const bool bArmsReady = FSoftObjectPath(ArmsPath).ResolveObject() != nullptr;
+    UE_LOG(LogTemp, bBodyReady && bArmsReady ? Display : Error,
+        TEXT("GAME_RECOVERY_CHARACTER_PRELOAD_FINISH body=%d arms=%d profiles=%d sync_spawn_loads=0 pre_spawn=1"),
+        bBodyReady ? 1 : 0,
+        bArmsReady ? 1 : 0,
+        UAProfile ? 1 : 0);
+}
+
+TStatId UOCProductionCharacterAssetsSubsystem::GetStatId() const
+{
+    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCProductionCharacterAssetsSubsystem, STATGROUP_Tickables);
+}
+
+float UOCProductionCharacterAssetsSubsystem::GetCharacterAssetsProgress() const
+{
+    if (!bInitialized) return 0.0f;
+    if (!bEligible || bPreloadComplete) return 1.0f;
+    if (!bPreloadRequested || !PreloadHandle.IsValid()) return 0.05f;
+    return PreloadHandle->HasLoadCompleted() ? 0.90f : 0.35f;
+}
+
+void UOCProductionCharacterAssetsSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(RefreshTimer);
+    if (PreloadHandle.IsValid()) PreloadHandle->CancelHandle();
+    PreloadHandle.Reset();
+    AnimationStateByCharacter.Reset();
+    bEligible = false;
+    bPreloadComplete = true;
+    Super::Deinitialize();
 }
 
 void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
@@ -120,31 +230,22 @@ void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
     RangersProfile = MakeProfile(EOCFactionArchetype::USRangers, TEXT("US Rangers Style"));
     InsurgentsProfile = MakeProfile(EOCFactionArchetype::Insurgents, TEXT("Insurgents"));
 
-    VestMesh = LoadObject<USkeletalMesh>(nullptr,
-        TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Bulletproof_Bege.SKM_Bulletproof_Bege"));
-    DropsMesh = LoadObject<USkeletalMesh>(nullptr,
-        TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Drops_1_Bege.SKM_Drops_1_Bege"));
-    HolsterMesh = LoadObject<USkeletalMesh>(nullptr,
-        TEXT("/Game/QuantumCharacter/Mesh/Modules/SKM_Holster_Hard_Bege.SKM_Holster_Hard_Bege"));
-    CapMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/QuantumCharacter/Mesh/Modules/SM_Cap_Bege.SM_Cap_Bege"));
+    // Packages are already resident through PreloadHandle. ResolveObject is deliberately non-blocking here.
+    VestMesh = Cast<USkeletalMesh>(FSoftObjectPath(VestPath).ResolveObject());
+    DropsMesh = Cast<USkeletalMesh>(FSoftObjectPath(DropsPath).ResolveObject());
+    HolsterMesh = Cast<USkeletalMesh>(FSoftObjectPath(HolsterPath).ResolveObject());
+    CapMesh = Cast<UStaticMesh>(FSoftObjectPath(CapPath).ResolveObject());
 
-    // These sequences ship with QuantumCharacter itself, so unlike the separate sample animation
-    // pack they can be compatibility-checked against the production character skeleton at runtime.
-    IdleAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Idle.A_MM_Idle"));
-    WalkAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Walk_Fwd.A_MM_Walk_Fwd"));
-    RunAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Run_Fwd.A_MM_Run_Fwd"));
-    FallAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Fall_Loop.A_MM_Fall_Loop"));
+    IdleAnimation = Cast<UAnimSequence>(FSoftObjectPath(IdlePath).ResolveObject());
+    WalkAnimation = Cast<UAnimSequence>(FSoftObjectPath(WalkPath).ResolveObject());
+    RunAnimation = Cast<UAnimSequence>(FSoftObjectPath(RunPath).ResolveObject());
+    FallAnimation = Cast<UAnimSequence>(FSoftObjectPath(FallPath).ResolveObject());
 }
 
 void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
 {
     UWorld* World = GetWorld();
-    if (!World || !UAProfile) return;
+    if (!World || !UAProfile || !bPreloadComplete) return;
 
     for (TActorIterator<AOCCharacter> It(World); It; ++It)
     {
