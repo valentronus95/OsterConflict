@@ -23,6 +23,7 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
     virtual bool IsTickable() const override { return !bFinished; }
+    virtual bool IsTickableWhenPaused() const override { return true; }
 
 private:
     bool DestroySourceGroundCoverProxies();
