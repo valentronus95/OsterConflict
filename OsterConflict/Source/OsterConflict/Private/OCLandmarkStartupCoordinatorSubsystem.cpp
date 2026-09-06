@@ -1,6 +1,7 @@
 #include "OCLandmarkStartupCoordinatorSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCGameRecoveryStadiumActivationSubsystem.h"
 #include "OCR137MuseumPhotoModelSubsystem.h"
 #include "OCR138MuseumInteractiveArchitectureSubsystem.h"
 #include "OCR139MuseumMainDoorReplacementSubsystem.h"
@@ -144,6 +145,17 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
     // deployment screen absorbs preparation and the player is not used as a loading screen.
     CancelHistoricalStageTimers(World);
 
+    // GAME_RECOVERY item 6/10: the canonical stadium used to be quarantined because its historical owner
+    // synchronously loaded a deep mesh/material dependency chain during OnWorldBeginPlay. A concrete recovery
+    // subclass now preloads that exact presentation asynchronously. Do not release landmark readiness until the
+    // authoritative stadium actor exists, otherwise the player can still spawn into the old empty stadium gap.
+    UOCGameRecoveryStadiumActivationSubsystem* Stadium =
+        World.GetSubsystem<UOCGameRecoveryStadiumActivationSubsystem>();
+    if (!Stadium || !Stadium->IsStadiumPresentationReady())
+    {
+        return;
+    }
+
     if (StartupStageIndex == 0)
     {
         if (World.GetNetMode() == NM_DedicatedServer)
@@ -161,7 +173,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
 
         ++StartupStageIndex;
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE stage=1/%d museum_exterior_ready=1"), TotalStartupStages);
+            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE stage=1/%d museum_exterior_ready=1 stadium_ready=1"), TotalStartupStages);
         return;
     }
 
@@ -239,11 +251,11 @@ bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
     if (!bStartupComplete)
     {
         UE_LOG(LogTemp, Verbose,
-            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE stage=%d/%d"), StartupStageIndex, TotalStartupStages);
+            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE stage=%d/%d stadium_ready=1"), StartupStageIndex, TotalStartupStages);
         return false;
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 post_spawn_landmark_materialization=0"), TotalStartupStages);
+        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 stadium_ready=1 post_spawn_landmark_materialization=0"), TotalStartupStages);
     return true;
 }
