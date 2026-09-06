@@ -9,13 +9,19 @@
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
+    const TCHAR* ProductionBTR4Path =
+        TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus");
+
     bool ApplyProportionalGroundedBTRMesh(UStaticMeshComponent* Component, UStaticMesh* Mesh,
         float DesiredLengthCm, float GroundZCm)
     {
@@ -231,12 +237,31 @@ float AOCBTR::ModifyHullDamage(float DamageAmount, const FDamageEvent&) const
 void AOCBTR::ApplyVehicleStyle()
 {
     bool bUsingBTR4 = false;
-    if (Chassis)
+    UStaticMesh* ProductionBTR4 = Cast<UStaticMesh>(FSoftObjectPath(ProductionBTR4Path).ResolveObject());
+    if (Chassis && ProductionBTR4)
     {
-        if (UStaticMesh* ProductionBTR4 = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus")))
+        bUsingBTR4 = ApplyProportionalGroundedBTRMesh(Chassis, ProductionBTR4, 776.0f, -98.0f);
+        bProductionVisualLoadFailed = false;
+    }
+    else if (!bProductionVisualLoadRequested)
+    {
+        bProductionVisualLoadRequested = true;
+        ProductionVisualLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+            FSoftObjectPath(ProductionBTR4Path),
+            FStreamableDelegate::CreateUObject(this, &AOCBTR::HandleProductionVisualLoaded));
+
+        if (ProductionVisualLoadHandle.IsValid())
         {
-            bUsingBTR4 = ApplyProportionalGroundedBTRMesh(Chassis, ProductionBTR4, 776.0f, -98.0f);
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_BEGIN asset=%s async=1 sync_runtime_loads=0 blockout_substitution=0"),
+                ProductionBTR4Path);
+        }
+        else
+        {
+            bProductionVisualLoadFailed = true;
+            UE_LOG(LogTemp, Error,
+                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL asset=%s request_handle=0 resolved=0 sync_runtime_loads=0 blockout_substitution=0"),
+                ProductionBTR4Path);
         }
     }
 
@@ -281,8 +306,8 @@ void AOCBTR::ApplyVehicleStyle()
     }
     else
     {
-        // Exact BTR-4 is the only valid visual owner. Missing/invalid production content may not fall back to
-        // the old cube/cylinder APC because that creates a second visual truth and hides the real content gap.
+        // Exact BTR-4 is the only valid visual owner. While its async load is pending, or if it fails,
+        // the old cube/cylinder APC stays hidden. A blocking LoadObject fallback is deliberately forbidden.
         DisableVisualProxy(Chassis);
         UStaticMeshComponent* ProxyParts[] =
         {
@@ -300,13 +325,44 @@ void AOCBTR::ApplyVehicleStyle()
         }
         DisableVisualProxy(TurretBaseMesh);
         DisableVisualProxy(BarrelMesh);
-        UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BTR4_PRODUCTION_VISUAL_GAP exact_btr4=0 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 runtime_acceptance=0"));
+
+        const bool bLoadPending = ProductionVisualLoadHandle.IsValid() &&
+            !ProductionVisualLoadHandle->HasLoadCompleted() && !bProductionVisualLoadFailed;
+        if (bLoadPending)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_WAIT exact_btr4=0 pending=1 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 sync_runtime_loads=0"));
+        }
+        else if (bProductionVisualLoadRequested)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_BTR4_PRODUCTION_VISUAL_GAP exact_btr4=0 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 sync_runtime_loads=0 runtime_acceptance=0"));
+        }
     }
 
     InteriorCamera->SetRelativeLocation(bUsingBTR4 ? FVector(145.0f, -58.0f, 112.0f) : FVector(130.0f, -52.0f, 105.0f));
     ThirdPersonSpringArm->TargetArmLength = bUsingBTR4 ? 900.0f : 820.0f;
     ThirdPersonSpringArm->SetRelativeLocation(bUsingBTR4 ? FVector(-110.0f, 0.0f, 245.0f) : FVector(-80.0f, 0.0f, 220.0f));
+}
+
+void AOCBTR::HandleProductionVisualLoaded()
+{
+    UStaticMesh* ProductionBTR4 = Cast<UStaticMesh>(FSoftObjectPath(ProductionBTR4Path).ResolveObject());
+    if (!ProductionBTR4)
+    {
+        bProductionVisualLoadFailed = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL asset=%s request_handle=1 resolved=0 sync_runtime_loads=0 blockout_substitution=0"),
+            ProductionBTR4Path);
+        ApplyVehicleStyle();
+        return;
+    }
+
+    bProductionVisualLoadFailed = false;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_READY asset=%s async=1 resolved=1 sync_runtime_loads=0 runtime_acceptance=0"),
+        *ProductionBTR4->GetPathName());
+    ApplyVehicleStyle();
 }
 
 void AOCBTR::PossessedBy(AController* NewController)

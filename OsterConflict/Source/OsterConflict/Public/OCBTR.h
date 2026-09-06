@@ -7,6 +7,7 @@
 class AController;
 class AOCCharacter;
 class UStaticMeshComponent;
+struct FStreamableHandle;
 
 /** S11 armoured personnel carrier prototype. Small-arms and vehicle-gun damage cannot destroy its hull. */
 UCLASS()
@@ -29,6 +30,11 @@ protected:
 
 private:
     bool ValidateProductionBTR4MaterialState(const TCHAR* Phase);
+    void HandleProductionVisualLoaded();
+
+    TSharedPtr<FStreamableHandle> ProductionVisualLoadHandle;
+    bool bProductionVisualLoadRequested = false;
+    bool bProductionVisualLoadFailed = false;
 
     // PASS45 item 30: unlike the open HMMWV ring, BTR gunner gameplay is a remote optic.
     // The inherited gunner camera pivot is re-parented to BarrelPivot so the sensor follows

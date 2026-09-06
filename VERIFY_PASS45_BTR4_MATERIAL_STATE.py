@@ -44,6 +44,26 @@ require("DisableVisualProxy(Chassis);" in btr_cpp,
 require("DisableVisualProxy(TurretBaseMesh);" in btr_cpp and "DisableVisualProxy(BarrelMesh);" in btr_cpp,
         "missing BTR production shell hides primitive turret/barrel visuals")
 
+# GAME_RECOVERY point 10: the production BTR must never perform a first-use blocking LoadObject.
+# Async streamable loading owns the package request; presentation only resolves an already-loaded object.
+require("struct FStreamableHandle;" in btr_h and "TSharedPtr<FStreamableHandle> ProductionVisualLoadHandle;" in btr_h,
+        "BTR owns an async production-visual streamable handle")
+require("void HandleProductionVisualLoaded();" in btr_h,
+        "BTR declares async production-visual completion callback")
+require("RequestAsyncLoad" in btr_cpp and "FStreamableDelegate::CreateUObject" in btr_cpp,
+        "BTR production shell uses asynchronous streamable loading")
+require("FSoftObjectPath(ProductionBTR4Path).ResolveObject()" in btr_cpp,
+        "BTR presentation resolves only an already-loaded production object")
+require("LoadObject<UStaticMesh>" not in btr_cpp,
+        "BTR runtime presentation contains no blocking UStaticMesh LoadObject")
+for marker in (
+    "GAME_RECOVERY_BTR4_ASYNC_LOAD_BEGIN",
+    "GAME_RECOVERY_BTR4_ASYNC_LOAD_READY",
+    "GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL",
+    "sync_runtime_loads=0",
+):
+    require(marker in btr_cpp, f"BTR async load source marker present: {marker}")
+
 require('MeshPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/"))' in btr_cpp,
         "material guard is scoped to production BTR-4 mesh")
 require('MaterialPath.StartsWith(TEXT("/Game/Production/Vehicles/BTR4/"))' in btr_cpp,
@@ -63,6 +83,7 @@ require('Chassis->SetVisibility(true, true);' in btr_cpp and 'Chassis->SetHidden
 
 print("PASS45 BTR4 MATERIAL STATE VERIFY PASS")
 print("- exact BTR-4 production shell is the single visual owner; blockout substitution is retired")
+print("- production shell package loading is async; runtime ApplyVehicleStyle has no blocking LoadObject")
 print("- production materials survive base tint bypass and are revalidated before/after possession")
 print("- null/default/BasicShape BTR material slots fail closed instead of rendering a white vehicle")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 rendered possession validation remains authoritative")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 rendered possession/performance validation remains authoritative")
