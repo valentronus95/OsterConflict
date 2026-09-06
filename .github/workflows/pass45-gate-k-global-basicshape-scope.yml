@@ -1,0 +1,34 @@
+name: Pass 45 Gate K global BasicShape scope
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCVisualFidelityGateKSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
+      - 'VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py'
+      - '.github/workflows/pass45-gate-k-global-basicshape-scope.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCVisualFidelityGateKSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'VERIFY_PASS45_GATE_K_RUNTIME_LOG.py'
+      - 'VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py'
+      - '.github/workflows/pass45-gate-k-global-basicshape-scope.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify global gameplay BasicShape scope, continuous late-spawn watch and runtime evidence binding
+        run: python VERIFY_PASS45_GATE_K_GLOBAL_BASICSHAPE_SCOPE.py

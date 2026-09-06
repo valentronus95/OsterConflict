@@ -24,6 +24,16 @@ struct FOCFirstPersonWeaponProfile
     FVector ADSArmsOffset = FVector(-2.0f, -3.0f, 1.5f);
     FRotator ADSArmsRotationOffset = FRotator::ZeroRotator;
 
+    /**
+     * Optional authored sight references. Iron-sight profiles use rear+front sockets; optic profiles
+     * may use one optic socket whose local forward axis is the intended sight line. Empty names mean
+     * the asset is not yet calibrated and must remain fail-visible rather than receiving fake READY status.
+     */
+    FName ADSRearSightSocket = NAME_None;
+    FName ADSFrontSightSocket = NAME_None;
+    FName ADSOpticSocket = NAME_None;
+    bool bADSCalibrated = false;
+
     FVector RecoilWeaponLocation = FVector(-4.5f, 0.0f, 1.4f);
     FRotator RecoilWeaponRotation = FRotator(-4.0f, 0.0f, 0.8f);
     FVector RecoilArmsLocation = FVector(-2.0f, 0.0f, 0.6f);
@@ -33,6 +43,10 @@ struct FOCFirstPersonWeaponProfile
     FRotator ReloadWeaponRotation = FRotator(-12.0f, 4.0f, 19.0f);
     FVector ReloadArmsLocation = FVector(-5.0f, 2.0f, -7.0f);
     FRotator ReloadArmsRotation = FRotator(-8.0f, 3.0f, 11.0f);
+
+    // Manual bolt/pump/lever motion is intentionally not a camera-space profile concern.
+    // Required production actions must come from the authored animation contract in
+    // OCWeaponAnimationProfiles; missing content preserves the baseline transform fail-closed.
 
     bool bGripCalibrated = false;
 };

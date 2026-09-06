@@ -1,0 +1,52 @@
+name: Pass 45 Park Primary Semantic Owners
+
+on:
+  push:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkGroundAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkGroundAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkHardscapeAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkHardscapeAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkGeometryOwnerNormalizationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkGeometryOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkSemanticOwnerNormalizationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkSemanticOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'VERIFY_PASS45_PARK_GEOMETRY_OWNER_NORMALIZATION.py'
+      - 'VERIFY_PASS45_PARK_SEMANTIC_OWNER_NORMALIZATION.py'
+      - 'VERIFY_PASS45_PARK_PRIMARY_SEMANTIC_OWNERS.py'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-park-primary-semantic-owners.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkGroundAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkGroundAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkHardscapeAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkHardscapeAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkGeometryOwnerNormalizationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkGeometryOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkSemanticOwnerNormalizationSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkSemanticOwnerNormalizationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'VERIFY_PASS45_PARK_GEOMETRY_OWNER_NORMALIZATION.py'
+      - 'VERIFY_PASS45_PARK_SEMANTIC_OWNER_NORMALIZATION.py'
+      - 'VERIFY_PASS45_PARK_PRIMARY_SEMANTIC_OWNERS.py'
+      - 'RUN_ALL_VERIFY.py'
+      - '.github/workflows/pass45-park-primary-semantic-owners.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify direct primary park semantic ownership
+        run: python VERIFY_PASS45_PARK_PRIMARY_SEMANTIC_OWNERS.py

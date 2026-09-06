@@ -1,0 +1,40 @@
+name: Pass 45 grenade throw animation gate
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h'
+      - 'OsterConflict/Content/R13/Audio/snd_throw1.uasset'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py'
+      - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - '.github/workflows/pass45-grenade-throw-animation-gate.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCCharacterVisualComponent.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCCharacterVisualComponent.h'
+      - 'OsterConflict/Content/R13/Audio/snd_throw1.uasset'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py'
+      - 'VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - '.github/workflows/pass45-grenade-throw-animation-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify grenade throw animation acceptance gate
+        run: python VERIFY_PASS45_GRENADE_THROW_ANIMATION_GATE.py

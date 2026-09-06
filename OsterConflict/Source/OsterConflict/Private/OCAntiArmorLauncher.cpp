@@ -1,6 +1,7 @@
 #include "OCAntiArmorLauncher.h"
 #include "OCAntiArmorProjectile.h"
 #include "OCCharacter.h"
+#include "OCWeaponAudioComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -10,12 +11,15 @@ AOCAntiArmorLauncher::AOCAntiArmorLauncher()
 {
     FOCWeaponTuning T;
     T.WeaponId=FName(TEXT("OC_RPG1")); T.DisplayName=TEXT("OC Anti-Armor Launcher");
-    T.WeaponClass=EOCWeaponClass::Launcher; T.PreferredSlot=EOCInventorySlot::Primary; T.AmmoType=EOCAmmoType::Rocket;
+    T.WeaponClass=EOCWeaponClass::Launcher; T.ActionType=EOCWeaponActionType::LauncherSingleShot;
+    T.PreferredSlot=EOCInventorySlot::Primary; T.AmmoType=EOCAmmoType::Rocket;
     T.Damage=620.0f; T.PelletsPerShot=1; T.RangeCm=18000.0f; T.RoundsPerMinute=18.0f;
     T.HipSpreadDegrees=1.7f; T.ADSSpreadDegrees=0.35f; T.MovingSpreadMultiplier=1.4f;
     T.RecoilPitchMin=4.0f; T.RecoilPitchMax=5.2f; T.RecoilYawMax=1.1f;
     T.MagazineSize=1; T.InitialReserveAmmo=4; T.MaxReserveAmmo=6; T.ReloadDuration=3.8f;
     T.bSupportsSemiAutomatic=true; T.bSupportsAutomatic=false;
+    T.bSupersonicAmmo=false;
+    T.AudioLoudnessScale=1.20f;
     ConfigureBuiltInTuning(T);
 }
 
@@ -23,12 +27,26 @@ void AOCAntiArmorLauncher::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Pass45 fail-closed visual rule: the source BasicShape launcher is collision/debug history only.
+    // Hide it before production loading so a missing or malformed production asset is an explicit CONTENT GAP,
+    // never another visible cylinder/box launcher in gameplay.
+    TArray<UStaticMeshComponent*> SourceStaticComponents;
+    GetComponents<UStaticMeshComponent>(SourceStaticComponents);
+    for (UStaticMeshComponent* Component : SourceStaticComponents)
+    {
+        if (!Component) continue;
+        Component->SetVisibility(false, true);
+        Component->SetHiddenInGame(true, true);
+        Component->SetCastShadow(false);
+        Component->SetCanEverAffectNavigation(false);
+    }
+
     UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr,
         TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern"));
     if (!ProductionMesh || !WeaponRoot)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("OC_RPG1 production launcher mesh unavailable; keeping source-only fallback visual."));
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=mesh_or_visual_root_missing primitive_visible=0 runtime_acceptance=0"));
         return;
     }
 
@@ -37,8 +55,8 @@ void AOCAntiArmorLauncher::BeginPlay()
     const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
     if (NativeLength <= 1.0f)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("OC_RPG1 production launcher mesh has invalid bounds; keeping source-only fallback visual."));
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=invalid_bounds primitive_visible=0 runtime_acceptance=0"));
         return;
     }
 
@@ -47,12 +65,13 @@ void AOCAntiArmorLauncher::BeginPlay()
         MakeUniqueObjectName(this, UStaticMeshComponent::StaticClass(), FName(TEXT("ProductionAntiArmorLauncher"))));
     if (!ProductionVisual)
     {
-        UE_LOG(LogTemp, Warning, TEXT("OC_RPG1 could not create production launcher component; fallback remains visible."));
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=component_allocation_failed primitive_visible=0 runtime_acceptance=0"));
         return;
     }
 
-    // The imported Kenney source is CC0 and already tracked in Raw/R13. Keep the gameplay actor,
-    // projectile and authoritative damage logic unchanged; only replace the source-only visual.
+    // The imported source is already tracked in the project. Authoritative projectile/damage gameplay stays
+    // unchanged while this real mesh becomes the only rendered launcher representation.
     constexpr float DesiredLauncherLengthCm = 105.0f;
     const float UniformScale = DesiredLauncherLengthCm / NativeLength;
     ProductionVisual->SetupAttachment(WeaponRoot);
@@ -70,31 +89,51 @@ void AOCAntiArmorLauncher::BeginPlay()
     AddInstanceComponent(ProductionVisual);
     ProductionVisual->RegisterComponent();
 
-    // Hide old BasicShape/source components only after the replacement component exists and is registered.
-    TArray<UStaticMeshComponent*> StaticComponents;
-    GetComponents<UStaticMeshComponent>(StaticComponents);
-    for (UStaticMeshComponent* Component : StaticComponents)
-    {
-        if (!Component || Component == ProductionVisual) continue;
-        Component->SetVisibility(false, true);
-        Component->SetHiddenInGame(true, true);
-    }
-
     UE_LOG(LogTemp, Display,
-        TEXT("OC_RPG1 now uses Kenney CC0 rocketlauncherModern production visual; first-person grip remains R14 visual-calibration pending."));
+        TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_READY weapon=OC_RPG1 asset=rocketlauncherModern primitive_visible=0 production_visual=1"));
 }
 
 bool AOCAntiArmorLauncher::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOrigin, const FVector& TraceDirection,
     bool, bool, FHitResult& OutHit, bool& bOutDamagedActor, bool& bOutFatalHit)
 {
     OutHit=FHitResult(); bOutDamagedActor=false; bOutFatalHit=false;
-    if(!HasAuthority()||!Shooter||IsWorldPickup()||AmmoInMagazine<=0||bIsReloading) return false;
+    if(!HasAuthority()||!Shooter||IsWorldPickup()||AmmoInMagazine<=0||bIsReloading||!GetWorld()) return false;
     const double Now=GetWorld()->GetTimeSeconds();
     if((Now-LastLauncherFireTime)<GetFireInterval()) return false;
-    LastLauncherFireTime=Now; --AmmoInMagazine;
-    FActorSpawnParameters Params; Params.Owner=Shooter; Params.Instigator=Shooter; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
     const FVector Dir=TraceDirection.GetSafeNormal();
-    GetWorld()->SpawnActor<AOCAntiArmorProjectile>(AOCAntiArmorProjectile::StaticClass(), TraceOrigin+Dir*90.0f, Dir.Rotation(), Params);
-    MulticastFireTraceFX(TraceOrigin, TraceOrigin+Dir*220.0f, false);
+    if (Dir.IsNearlyZero()) return false;
+
+    // Hit/aim intent still comes from the player's view ray, but the actual projectile, muzzle FX and shot audio
+    // must originate at the rendered production weapon. This removes the camera/under-barrel launch artifact.
+    const FVector MuzzleOrigin = ResolvePresentationMuzzleOrigin(TraceOrigin, Dir);
+    const FVector PresentationEnd = MuzzleOrigin + Dir * FMath::Min(Tuning.RangeCm, 2200.0f);
+
+    FActorSpawnParameters Params;
+    Params.Owner=Shooter;
+    Params.Instigator=Shooter;
+    Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    AOCAntiArmorProjectile* Projectile = GetWorld()->SpawnActor<AOCAntiArmorProjectile>(
+        AOCAntiArmorProjectile::StaticClass(), MuzzleOrigin + Dir * 8.0f, Dir.Rotation(), Params);
+    if (!Projectile)
+    {
+        UE_LOG(LogTemp, Error, TEXT("PASS45_LAUNCHER_SHOT_FAIL projectile spawn failed; ammo/recoil/audio not committed."));
+        return false;
+    }
+
+    LastLauncherFireTime=Now;
+    --AmmoInMagazine;
+    MulticastFireTraceFX(MuzzleOrigin, PresentationEnd, false);
+
+    const EOCAcousticEnvironment AcousticEnvironment = WeaponAudioComponent
+        ? WeaponAudioComponent->DetectEnvironmentAt(MuzzleOrigin)
+        : EOCAcousticEnvironment::Outdoor;
+    MulticastShotAudio(MuzzleOrigin, PresentationEnd, IsSuppressed(), Tuning.bSupersonicAmmo,
+        AcousticEnvironment, ++LauncherAudioEventCounter);
+
+    UE_LOG(LogTemp, Verbose,
+        TEXT("PASS45_LAUNCHER_CONFIRMED_SHOT muzzle=(%.1f,%.1f,%.1f) ammo=%d audio_event=%d"),
+        MuzzleOrigin.X, MuzzleOrigin.Y, MuzzleOrigin.Z, AmmoInMagazine, LauncherAudioEventCounter);
     return true;
 }

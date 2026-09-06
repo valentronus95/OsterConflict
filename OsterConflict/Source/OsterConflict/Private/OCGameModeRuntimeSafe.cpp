@@ -5,6 +5,7 @@
 #include "OCTeamSpawnPoint.h"
 #include "OCWorldSectorOster.h"
 
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
@@ -13,12 +14,24 @@ namespace
 {
     constexpr float MaxMuseumBaseDistanceCm = 4500.0f;
     constexpr float SpawnLiftCm = 80.0f;
+    const FName Pass45PreTickOsterSectorTag(TEXT("PASS45_PreTickOsterSector"));
 
     bool HasExplicitOption(const FString& Options, const TCHAR* Key)
     {
         FString Value = UGameplayStatics::ParseOption(Options, Key);
         Value.TrimStartAndEndInline();
         return !Value.IsEmpty();
+    }
+
+    void GatherLiveOsterSectors(UWorld* World, TArray<AOCWorldSectorOster*>& OutSectors)
+    {
+        OutSectors.Reset();
+        if (!World) return;
+        for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
+        {
+            AOCWorldSectorOster* Sector = *It;
+            if (IsValid(Sector) && !Sector->IsActorBeingDestroyed()) OutSectors.Add(Sector);
+        }
     }
 }
 
@@ -49,6 +62,109 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
             TargetPopulation,
             bAutoFillBots ? 1 : 0);
     }
+
+    if (IsFrontendOnlySession() || !HasAuthority() || !GetWorld())
+    {
+        return;
+    }
+
+    // PASS45 P0: UWorldSubsystem::OnWorldBeginPlay runs before AOCGameMode::BeginPlay. Block0 therefore needs
+    // the lightweight sector actor before the legacy SpawnOsterCenterSector() path runs. The sector constructor
+    // no longer synchronously resolves KiteDemo tree packages, so this ordering repair does not move the rejected
+    // HillTree_02 / ScotsPine startup dependency back into pre-tick initialization.
+    TArray<AOCWorldSectorOster*> ExistingSectors;
+    GatherLiveOsterSectors(GetWorld(), ExistingSectors);
+    if (ExistingSectors.Num() > 1)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PRETICK_OSTER_SECTOR_FAIL reason=preexisting_sector_count_%d authored_before_world_begin_play=0 runtime_acceptance=0"),
+            ExistingSectors.Num());
+        return;
+    }
+
+    AOCWorldSectorOster* Sector = ExistingSectors.Num() == 1 ? ExistingSectors[0] : nullptr;
+    if (!Sector)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        Sector = GetWorld()->SpawnActor<AOCWorldSectorOster>(
+            AOCWorldSectorOster::StaticClass(), FTransform::Identity, SpawnParams);
+    }
+
+    if (!IsValid(Sector))
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PRETICK_OSTER_SECTOR_FAIL reason=spawn_failed authored_before_world_begin_play=0 runtime_acceptance=0"));
+        return;
+    }
+
+    Sector->Tags.AddUnique(Pass45PreTickOsterSectorTag);
+    GatherLiveOsterSectors(GetWorld(), ExistingSectors);
+    if (ExistingSectors.Num() != 1)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PRETICK_OSTER_SECTOR_FAIL reason=post_spawn_sector_count_%d authored_before_world_begin_play=0 runtime_acceptance=0"),
+            ExistingSectors.Num());
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_PRETICK_OSTER_SECTOR_READY sector_count=1 authored_before_world_begin_play=1 heavy_tree_startup_loads=0 canonical_owner=OCGameModeRuntimeSafe runtime_acceptance=0"));
+}
+
+void AOCGameModeRuntimeSafe::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (IsFrontendOnlySession() || !HasAuthority() || !GetWorld())
+    {
+        return;
+    }
+
+    // The base GameMode still owns all normal gameplay population and currently calls SpawnOsterCenterSector(),
+    // which creates a second sector. Keep its non-sector work intact, but retire only that duplicate before the
+    // first gameplay tick so every runtime subsystem sees one canonical Oster sector after BeginPlay completes.
+    TArray<AOCWorldSectorOster*> Sectors;
+    GatherLiveOsterSectors(GetWorld(), Sectors);
+
+    AOCWorldSectorOster* CanonicalSector = nullptr;
+    for (AOCWorldSectorOster* Sector : Sectors)
+    {
+        if (Sector && Sector->ActorHasTag(Pass45PreTickOsterSectorTag))
+        {
+            CanonicalSector = Sector;
+            break;
+        }
+    }
+
+    int32 DuplicatesRetired = 0;
+    if (CanonicalSector)
+    {
+        for (AOCWorldSectorOster* Sector : Sectors)
+        {
+            if (Sector && Sector != CanonicalSector)
+            {
+                Sector->Destroy();
+                ++DuplicatesRetired;
+            }
+        }
+    }
+
+    TArray<AOCWorldSectorOster*> RemainingSectors;
+    GatherLiveOsterSectors(GetWorld(), RemainingSectors);
+    if (!CanonicalSector || RemainingSectors.Num() != 1 || RemainingSectors[0] != CanonicalSector)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_OSTER_SECTOR_SINGLE_OWNER_FAIL canonical_pretick_owner=%d sector_count=%d duplicates_retired=%d before_first_tick=0 runtime_acceptance=0"),
+            CanonicalSector ? 1 : 0,
+            RemainingSectors.Num(),
+            DuplicatesRetired);
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_OSTER_SECTOR_SINGLE_OWNER_READY canonical_pretick_owner=1 sector_count=1 duplicates_retired=%d before_first_tick=1 heavy_tree_startup_loads=0 runtime_acceptance=0"),
+        DuplicatesRetired);
 }
 
 void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)

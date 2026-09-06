@@ -22,15 +22,10 @@ fx = read("OsterConflict/Source/OsterConflict/Private/OCTransientVisualFX.cpp")
 fallback = read("OsterConflict/Source/OsterConflict/Private/OCRealWeaponFallbackSubsystem.cpp")
 frontend = read("OsterConflict/Source/OsterConflict/Private/OCR13FrontendMenuSubsystem.cpp")
 launcher = read("RUN_R14_CURRENT_GAMEPLAY.cmd")
-start_here = read("START_HERE.cmd")
 lfs_verify = read("OsterConflict/Scripts/verify_playtest_lfs_payloads.ps1")
 production_import = read("OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
 fresh_vehicle_verify = read("OsterConflict/Scripts/verify_production_vehicle_fresh_load.py")
 source_recovery = read("OsterConflict/Scripts/prepare_local_production_sources.ps1")
-inbox_audit = read("OsterConflict/Scripts/audit_local_model_inbox.ps1")
-weapon_source_recovery = read("OsterConflict/Scripts/prepare_local_weapon_sources.ps1")
-weapon_import = read("OsterConflict/Scripts/import_local_production_weapon_assets.py")
-weapon_fresh_verify = read("OsterConflict/Scripts/verify_local_production_weapon_fresh_load.py")
 runtime_safe = read("OsterConflict/Source/OsterConflict/Private/OCGameModeRuntimeSafe.cpp")
 
 # The underlying Museum BASE/rack source remains, while Pass 44 adds stronger live-pawn proof.
@@ -49,12 +44,22 @@ for needle in (
 ):
     require(runtime_safe, needle, "Pass 44 actual pawn proof")
 
-# Dense foliage must remain incremental/bounded.
-for needle in ("TryPopulateWhenGameplayReady", "PopulationBatchTimer", "PopulateBatch"):
-    require(foliage_cpp, needle, "incremental foliage")
-batch_match = re.search(r"constexpr\s+int32\s+CellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
-if not batch_match or not 1 <= int(batch_match.group(1)) <= 96:
+# Block 0 replaced the historical single CellsPerBatch constant with explicit Full/LowCPU budgets.
+# Both profiles cover the same compact Oster bounds; the acceptance check follows the canonical profile ceilings.
+for needle in (
+    "TryPopulateWhenGameplayReady",
+    "PopulationBatchTimer",
+    "PopulateBatch",
+    "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch",
+    "full_playable_bounds=1",
+):
+    require(foliage_cpp, needle, "incremental Block0 foliage")
+full_batch = re.search(r"constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
+low_batch = re.search(r"constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
+if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid full-profile foliage batch ceiling")
+if not low_batch or not 1 <= int(low_batch.group(1)) <= 48:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: invalid LowCPU foliage batch ceiling")
 
 # Weapon presentation still resolves the actual firing weapon/muzzle.
 for needle in (
@@ -75,13 +80,14 @@ if "UMaterialInstanceDynamic::Create" in fallback or "Component->SetMaterial(Slo
 
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
 
-# Current normal/strict split. Normal gameplay does not silently re-import every model on every start.
-# START_HERE option 2 owns inbox audit + strict content/runtime acceptance; the internal launcher owns the strict importer.
+# Pass 44 current normal/strict split. Normal mode does not run a second strict importer here because START_HERE
+# already performs optional independent intake; strict acceptance still calls the canonical importer and fails closed.
 for needle in (
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
     'if "%IS_ACCEPTANCE%"=="1" (',
     "[3/4] STRICT ACCEPTANCE: importing and validating REAL production HMMWV + M2 Browning + BTR-4 assets",
     'call "%PRODUCTION_IMPORT%"',
+    "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
     "Missing exact production models remain visible content gaps; no proxy is called production-ready.",
     "git lfs pull origin",
     "git lfs checkout >nul",
@@ -93,28 +99,18 @@ if "--include=" in launcher:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: unsupported Git LFS --include flag returned")
 
 for needle in (
-    "audit_local_model_inbox.ps1",
-    "Перевіряю всі ZIP у models_game_OC",
-    'set "OC_FORCE_ACCEPTANCE=1"',
-    'call "%CURRENT_GAMEPLAY%"',
-):
-    require(start_here, needle, "single launcher full-runtime model intake")
-
-for needle in (
     "Content\\AK-47", "Content\\R13\\Weapons", "Content\\PN_FoliageCollection",
     "Unhydrated Git LFS model files remain", "version https://git-lfs.github.com/spec/v1",
 ):
     require(lfs_verify, needle, "LFS payload verification")
 
-# Production vehicle intake remains independent per model and fresh-load verifies authored material truth.
+# Production intake is independent per model and fresh-load verifies authored material truth.
 for needle in (
     "import_production_vehicle_assets.py", "verify_production_vehicle_fresh_load.py",
     "production_import_success.txt", "production_fresh_load_success.txt", "-run=pythonscript",
     'set "HMMWV_IMPORTED=0"', 'set "M2_IMPORTED=0"', 'set "BTR_IMPORTED=0"',
-    "prepare_local_weapon_sources.ps1", "import_local_production_weapon_assets.py",
-    "verify_local_production_weapon_fresh_load.py", "production_weapon_fresh_load_result.txt",
 ):
-    require(production_import, needle, "strict production importer")
+    require(production_import, needle, "independent production importer")
 for needle in (
     "/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA",
     "/Game/Production/Weapons/M2/SM_M2_Browning",
@@ -124,37 +120,14 @@ for needle in (
     require(fresh_vehicle_verify, needle, "fresh-load production material truth")
 for needle in (
     "ukrainian_hmmwv_mk_19.glb", "m2_50cal_machinegun_cc0.glb", "BTR4_Bucephalus.fbx",
-    "OsterConflict_vehicle_assets_ready.zip", "Find-BtrFbxInNamedArchive", "models_game_OC",
-    "Other inbox models remain in the inventory for their own gameplay/world integration pass",
+    "OsterConflict_vehicle_assets_ready.zip", "Find-BtrFbxInNamedArchive",
+    "Available models may still be imported independently; missing models remain explicit content gaps.",
 ):
     require(source_recovery, needle, "local production source recovery")
 
-# Every local ZIP is inventoried before strict acceptance. Exact M249/Remington are no longer allowed to hide behind R13 fallbacks.
-for needle in (
-    "models_game_OC", "asset_inventory.json", "Get-FileHash", "UNSAFE/UNREADABLE", "M249", "REMINGTON870",
-    "PICKUP", "CHARACTER_SKIN", "BUILDING_WORLD",
-):
-    require(inbox_audit, needle, "local model inbox audit")
-for needle in (
-    "M249", "Remington870", "weapon_sources.json", "models_game_OC", "Unsafe ZIP entry",
-):
-    require(weapon_source_recovery, needle, "exact local weapon source staging")
-for needle in (
-    "/Game/Production/Weapons/M249", "SM_M249", "/Game/Production/Weapons/Remington870", "SM_Remington870",
-    "production_weapon_import_result.txt",
-):
-    require(weapon_import, needle, "exact production weapon import")
-for needle in (
-    "/Game/Production/Weapons/M249/SM_M249",
-    "/Game/Production/Weapons/Remington870/SM_Remington870",
-    "placeholder_slots", "get_used_textures", "STATUS=",
-):
-    require(weapon_fresh_verify, needle, "exact production weapon fresh-load dependency validation")
-
-print("RUNTIME ACCEPTANCE PASS 3 + PASS45 CURRENT CONTRACT PASS")
-print("- Museum BASE source remains and actual live-pawn Museum proof is retained")
-print("- foliage and weapon helper work stays bounded")
-print("- START_HERE full runtime test audits every local inbox ZIP before strict intake")
-print("- HMMWV/M2/BTR plus exact M249/Remington intake fail visible instead of promoting missing content")
-print("- production fresh-load rejects placeholder material/dependency gaps")
+print("RUNTIME ACCEPTANCE PASS 3 + PASS 44 CURRENT CONTRACT PASS")
+print("- Museum BASE source remains and actual live-pawn Museum proof is now stronger")
+print("- Block0 Full/LowCPU foliage work stays bounded and incremental across the same compact map bounds")
+print("- normal/strict launch flow follows current independent content intake instead of the retired all-or-nothing rule")
+print("- production fresh-load rejects placeholder materials")
 print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")

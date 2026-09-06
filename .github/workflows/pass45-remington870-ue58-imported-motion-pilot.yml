@@ -1,0 +1,41 @@
+name: Pass 45 Remington 870 UE58 imported motion pilot contract
+
+on:
+  push:
+    paths:
+      - 'PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
+      - 'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py'
+      - 'VERIFY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py'
+      - 'OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd'
+      - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
+      - '_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
+      - 'RUN_ALL_VERIFY.py'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - '.github/workflows/pass45-remington870-ue58-imported-motion-pilot.yml'
+  pull_request:
+    paths:
+      - 'PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
+      - 'PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py'
+      - 'VERIFY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py'
+      - 'OsterConflict/TRY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.cmd'
+      - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
+      - '_DOCS/PASS45_REMINGTON870_DONOR_MOTION_AUDIT_2026-09-01.md'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
+      - 'RUN_ALL_VERIFY.py'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - '.github/workflows/pass45-remington870-ue58-imported-motion-pilot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  remington870-ue58-imported-motion-pilot-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source without Git LFS payload download
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Verify isolated UE58 imported-motion pilot source contract
+        run: python VERIFY_PASS45_REMINGTON870_UE58_IMPORTED_MOTION_PILOT.py

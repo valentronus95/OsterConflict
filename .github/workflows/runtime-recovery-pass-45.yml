@@ -1,0 +1,41 @@
+name: Runtime recovery Pass 45
+
+on:
+  push:
+    branches:
+      - main
+      - fix/pass45-runtime-rejection-material-closure-20260826
+  pull_request:
+    paths:
+      - 'GAME_RECOVERY.md'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - 'START_HERE.cmd'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_RUNTIME_RECOVERY_PASS_45.py'
+      - 'VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py'
+      - 'VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py'
+      - 'VERIFY_PASS45_GRENADE_TYPE_PRESENTATION_LIFECYCLE.py'
+      - 'VERIFY_PASS45_GRENADE_SMOKE_PRIMITIVE_RETIREMENT.py'
+      - 'VERIFY_PASS45_BTR4_MATERIAL_STATE.py'
+      - 'VERIFY_PASS45_BTR4_AXIS_REMOTE_OPTIC.py'
+      - 'VERIFY_PASS45_HMMWV_M2_HIERARCHY.py'
+      - 'VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py'
+      - 'VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py'
+      - 'VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py'
+      - 'OsterConflict/Config/DefaultEngine.ini'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameRecoveryStadiumActivationSubsystem.cpp'
+  workflow_dispatch:
+
+jobs:
+  pass45-source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify current GAME_RECOVERY source contracts
+        run: python VERIFY_RUNTIME_RECOVERY_PASS_45.py

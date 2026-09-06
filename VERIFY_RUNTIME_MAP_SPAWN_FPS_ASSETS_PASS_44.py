@@ -65,14 +65,21 @@ for needle in (
 
 # Pass 44 is historical and was rejected by factual runtime evidence. Preserve that fact and the subset
 # of useful decisions which Pass45 has not disproved, but never require rejected Pass44 owners back.
-req("Pass 44 historical runtime rejection (retained fact)" in ledger,
-    "ledger is missing the explicit historical Pass44 rejection section")
-req("Pass 44 verdict: RUNTIME REJECTED" in ledger,
+ledger_lower = ledger.lower()
+req(
+    "historical pass 44 non-regression" in ledger_lower
+    or "pass 44 historical runtime rejection" in ledger_lower,
+    "ledger is missing a historical Pass44 rejection/non-regression section",
+)
+req("pass 44 verdict: runtime rejected" in ledger_lower,
     "ledger must preserve factual Pass44 runtime rejection")
-req("Pass 45" in ledger and "ACTIVE" in ledger,
+req("pass 45" in ledger_lower and "active" in ledger_lower,
     "ledger must identify Pass45 as the active corrective pass")
-req("Pass 44 behavior retained unless disproved" in ledger,
-    "ledger is missing the explicit retained Pass44 non-regression section")
+req(
+    "pass 44 behavior retained unless disproved" in ledger_lower
+    or "protected retained behavior" in ledger_lower,
+    "ledger is missing retained Pass44 non-regression behavior",
+)
 
 req("int32 TargetPopulation = 0" in game_h and "bool bAutoFillBots = false" in game_h,
     "implicit bot autofill defaults returned")

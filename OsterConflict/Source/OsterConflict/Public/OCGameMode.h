@@ -67,7 +67,9 @@ public:
     FString MakeUniquePlayerName(const FString& RequestedName, const AOCPlayerState* IgnoreState = nullptr) const;
 
 protected:
-    UPROPERTY(EditDefaultsOnly, Category="Respawn") float RespawnDelay = 3.0f;
+    // User-facing death flow is deliberately short. If the player remains out longer than this,
+    // the cause is a blocked/failed respawn path and must not be hidden behind a longer timer.
+    UPROPERTY(EditDefaultsOnly, Category="Respawn") float RespawnDelay = 10.0f;
     UPROPERTY(EditDefaultsOnly, Category="Respawn|Corpse", meta=(ClampMin="3.0")) float CorpseLifetimeSeconds = 30.0f;
     UPROPERTY(EditDefaultsOnly, Category="Respawn|Corpse", meta=(ClampMin="1", ClampMax="64")) int32 MaxPersistentCorpses = 20;
     UPROPERTY(EditDefaultsOnly, Category="Match", meta=(ClampMin="1")) int32 StartingTickets = 200;

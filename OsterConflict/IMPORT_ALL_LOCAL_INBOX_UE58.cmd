@@ -3,6 +3,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
 set "PROJECT_DIR=%~dp0"
+rem %~dp0 ends in a backslash. Use a dot-qualified path for native PowerShell argument parsing.
+set "PS_PROJECT_DIR=%~dp0."
 set "REPO_ROOT=%~dp0.."
 set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "INBOX=%REPO_ROOT%\models_game_OC"
@@ -15,6 +17,10 @@ set "NORMALIZE_WEAPONS=%PROJECT_DIR%Scripts\normalize_local_weapon_categories.py
 set "SUCCESS=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
 set "MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
+set "MANUAL_VISUAL_JSON=%PROJECT_DIR%Saved\AssetStatus\MANUAL_VISUAL_ACCEPTANCE.json"
+set "MANUAL_VISUAL_TEXT=%PROJECT_DIR%Saved\AssetStatus\MANUAL_VISUAL_ACCEPTANCE.txt"
+set "ZIP_CLEANUP_JSON=%PROJECT_DIR%Saved\AssetStatus\ACCEPTED_ZIP_CLEANUP.json"
+set "ZIP_CLEANUP_TEXT=%PROJECT_DIR%Saved\AssetStatus\ACCEPTED_ZIP_CLEANUP.txt"
 set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
 set "BUILD_BAT=%UE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UE_CMD="
@@ -80,6 +86,31 @@ if not exist "%NORMALIZE_WEAPONS%" (
   exit /b 57
 )
 
+rem Acceptance evidence must describe the committed GitHub source, not locally edited launchers/scripts/code.
+rem Ignore untracked local payloads and Content: those are exactly what this importer is supposed to ingest.
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [STOP] Git не знайдено в PATH.
+  exit /b 47
+)
+set "DIRTY_ACCEPTANCE_SOURCE="
+for /f "delims=" %%D in ('git -C "%REPO_ROOT%" status --porcelain --untracked-files=no -- START_HERE.cmd RUN_R14_CURRENT_GAMEPLAY.cmd COLLECT_LOCAL_ASSET_STATUS.py VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd OsterConflict/IMPORT_PRODUCTION_VEHICLES_UE58.cmd OsterConflict/RUN_PASS45_STRICT_MATERIAL_GATE.cmd OsterConflict/Scripts OsterConflict/Source 2^>nul') do (
+  echo [LOCAL SOURCE CHANGE] %%D
+  set "DIRTY_ACCEPTANCE_SOURCE=1"
+)
+if defined DIRTY_ACCEPTANCE_SOURCE (
+  echo [STOP] Є незакомічені зміни у tracked runtime/source файлах.
+  echo Asset acceptance не запускається, бо snapshot не може приписувати локально змінений код GitHub HEAD.
+  echo Локальні/untracked model payloads та Content цим guard не блокуються.
+  exit /b 59
+)
+
+rem Any fresh ingest invalidates earlier manual visual acceptance and ZIP-cleanup proof, even on the same Git SHA.
+rem The human gate must belong to the current asset lifecycle, not survive a new local/Fab import.
+if exist "%MANUAL_VISUAL_JSON%" del /q "%MANUAL_VISUAL_JSON%" >nul 2>nul
+if exist "%MANUAL_VISUAL_TEXT%" del /q "%MANUAL_VISUAL_TEXT%" >nul 2>nul
+if exist "%ZIP_CLEANUP_JSON%" del /q "%ZIP_CLEANUP_JSON%" >nul 2>nul
+if exist "%ZIP_CLEANUP_TEXT%" del /q "%ZIP_CLEANUP_TEXT%" >nul 2>nul
 if exist "%SUCCESS%" del /q "%SUCCESS%" >nul 2>nul
 if exist "%MANIFEST%" del /q "%MANIFEST%" >nul 2>nul
 if exist "%LOG%" del /q "%LOG%" >nul 2>nul
@@ -90,11 +121,6 @@ echo models_game_OC + Unreal/Fab/Marketplace Content -> dedupe -> UE import -> g
 echo ============================================================
 
 echo [1/8] Дотягую реальні Git LFS payloads для вже доданих model packs...
-where git >nul 2>nul
-if errorlevel 1 (
-  echo [STOP] Git не знайдено в PATH.
-  exit /b 47
-)
 git -C "%REPO_ROOT%" lfs version >nul 2>nul
 if errorlevel 1 (
   echo [STOP] Git LFS не встановлено; без нього .uasset можуть лишитися pointer-файлами.
@@ -115,11 +141,11 @@ if errorlevel 1 (
 )
 
 echo [2/8] Інвентаризую ВСІ локальні ZIP, не тільки стару production-п'ятірку...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PROJECT_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%AUDIT%" -ProjectDir "%PS_PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [3/8] Розпаковую локальні ZIP і переношу UE-ready assets у Content...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PROJECT_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE%" -ProjectDir "%PS_PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [4/8] Прибираю ТОЧНІ дублікати зі списку імпорту за SHA-256; файли користувача не видаляю...
@@ -127,7 +153,7 @@ echo [4/8] Прибираю ТОЧНІ дублікати зі списку ім
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [5/8] Шукаю і готую точні M249 та Remington 870 з models_game_OC...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PROJECT_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PREPARE_WEAPONS%" -ProjectDir "%PS_PROJECT_DIR%"
 if errorlevel 1 exit /b !ERRORLEVEL!
 
 echo [6/8] Збираю актуальний OsterConflictEditor перед імпортом...

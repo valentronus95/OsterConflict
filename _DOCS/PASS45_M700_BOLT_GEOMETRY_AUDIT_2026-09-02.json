@@ -1,0 +1,64 @@
+{
+  "schema": 4,
+  "status": "SOURCE_GEOMETRY_OWNERSHIP_EVIDENCE_ONLY",
+  "source": "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx",
+  "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
+  "source_sha256": "b7e003e01be8441e452730bc06c38c5e9752e523ae1b401ed2a6cc6cdca16840",
+  "source_size": 638732,
+  "inspection_converter": "Assimp -> glTF2 (CI inspection only)",
+  "target_nodes": {
+    "BOLT": 9,
+    "BOLT_STOP": 10
+  },
+  "joint_geometry": {
+    "BOLT": {
+      "weighted_vertex_count": 1317,
+      "dominant_vertex_count": 1317,
+      "full_weight_vertex_count": 1317,
+      "total_weight": 1317.0,
+      "bounds_min": [-0.04177349805831909, -0.2061440795660019, -0.015349957160651684],
+      "bounds_max": [0.009835673496127129, -0.010375850833952427, 0.03859996795654297],
+      "aabb_extent": [0.05160917155444622, 0.19576822873204947, 0.05394992511719465],
+      "aabb_volume": 0.000545079621104574,
+      "weighted_centroid": [-0.0071744996861285255, -0.08482244449060186, 0.02348025981929074],
+      "vertex_centroid": [-0.0071744996861285255, -0.08482244449060186, 0.02348025981929074]
+    },
+    "BOLT_STOP": {
+      "weighted_vertex_count": 60,
+      "dominant_vertex_count": 60,
+      "full_weight_vertex_count": 60,
+      "total_weight": 60.0,
+      "bounds_min": [0.013639390468597412, -0.10017985105514526, 0.02646854892373085],
+      "bounds_max": [0.01634027063846588, -0.044474367052316666, 0.03340078890323639],
+      "aabb_extent": [0.0027008801698684692, 0.0557054840028286, 0.006932239979505539],
+      "aabb_volume": 1.0429821045880485e-06,
+      "weighted_centroid": [0.015237036192168792, -0.06614286359399557, 0.029933542820314567],
+      "vertex_centroid": [0.015237036192168792, -0.06614286359399557, 0.029933542820314567]
+    }
+  },
+  "shared_weighted_vertex_count": 0,
+  "target_weighted_vertices_disjoint": true,
+  "bolt_stop_to_bolt_weighted_vertex_ratio": 0.04555808656036447,
+  "bolt_stop_to_bolt_aabb_volume_ratio": 0.0019134490892807594,
+  "weighted_centroid_distance": 0.029880571353111198,
+  "primitive_material_ownership": [
+    {
+      "node_index": 20,
+      "node_name": "FRAME_LOD0.001",
+      "skin_index": 0,
+      "mesh_index": 0,
+      "mesh_name": "FRAME_LOD0.465",
+      "primitive_index": 0,
+      "material_index": 0,
+      "material_name": "WPN_308SNIPER.001",
+      "weighted_vertex_count": {"BOLT": 1317, "BOLT_STOP": 60},
+      "shared_target_vertex_count": 0
+    }
+  ],
+  "classification": "DISTINCT_WEIGHTED_COMPONENTS_NO_SHARED_VERTICES",
+  "source_authored_stop_delta_safe_as_bolt_travel": false,
+  "source_authored_stop_delta_rejection_reason": "BOLT_STOP_IS_WEIGHTED_GEOMETRY_COMPONENT_NOT_PROVEN_TRAVEL_ENDPOINT",
+  "production_cutover": false,
+  "runtime_acceptance": false,
+  "item16_checked": false
+}

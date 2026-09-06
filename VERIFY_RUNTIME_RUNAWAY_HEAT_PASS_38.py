@@ -42,16 +42,24 @@ fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
+perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
+perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
+launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
+evidence = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
-# Current Museum startup has one coordinated startup window and explicitly reports no old recovery owners.
+# GAME_RECOVERY supersedes the historical single marker with explicit staged pre-spawn lifecycle evidence.
+# The old destructive recovery owners are already required absent above; do not resurrect their compatibility log.
 for needle in (
-    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
-    "delayed_stage_timers_cancelled=1",
-    "legacy_core_recovery=0",
-    "destructive_visibility_rebuild=0",
+    "GAME_RECOVERY_WORLD_PREP_BEGIN",
+    "pre_spawn=1 tick_when_paused=1 staged_materialization=1",
+    "GAME_RECOVERY_WORLD_PREP_TIMERS_CANCELLED",
+    "duplicate_startup_timers=0",
+    "GAME_RECOVERY_WORLD_READY",
+    "pre_spawn=1 post_spawn_landmark_materialization=0",
 ):
-    require(startup, needle, "coordinated landmark startup")
+    require(startup, needle, "staged landmark startup")
+forbid(startup, "PASS45_LANDMARK_STARTUP_COORDINATED_READY", "retired landmark compatibility marker")
 
 # Real-mesh fallback/material audit remains finite and truth-only.
 for needle in (
@@ -82,17 +90,57 @@ for needle in (
 ):
     require(runtime_safe, needle, "runtime-safe local bot suppression")
 
-# Acceptance must no longer demand logs from physically deleted recovery/palette owners.
+# Pass45 thermal recovery must be a real UE runtime contract, not just the string `t.MaxFPS 60` in a batch file.
+for needle in (
+    "bRecoveryRuntimeContractLogged",
+    "ValidatePass45RecoveryRuntimeContract",
+):
+    require(perf_h, needle, "thermal/display sampler state")
+for needle in (
+    '#include "HAL/IConsoleManager.h"',
+    'FindConsoleVariable(TEXT("t.MaxFPS"))',
+    'MaxFpsVariable->GetFloat()',
+    'FMath::IsNearlyEqual(RuntimeMaxFps, 60.0f, 0.5f)',
+    'PASS45_THERMAL_CAP_RUNTIME_READY',
+    'PASS45_THERMAL_CAP_RUNTIME_FAIL',
+    'quality_mutation=0 render_scale_mutation=0',
+):
+    require(perf, needle, "actual runtime thermal cap evidence")
+launcher_parts = launcher.split(":quick_normal_game", 1)
+if len(launcher_parts) != 2:
+    raise SystemExit("PASS38 VERIFY FAIL: canonical launcher is missing explicit quick-normal section")
+strict_launcher, quick_launcher = launcher_parts
+for needle in ('-fullscreen', 't.MaxFPS 60'):
+    require(strict_launcher, needle, "strict recovery launcher request")
+forbid(strict_launcher, '-windowed', "strict recovery route must not force windowed mode")
+require(quick_launcher, '-windowed', "quick normal route must remain desktop-recoverable")
+require(quick_launcher, 't.MaxFPS 60', "quick normal route must retain 60 FPS thermal cap")
+
+# Strict evidence must reject a run where the CVar request was overridden or never applied.
+for needle in (
+    'require(gameplay, "PASS45_THERMAL_CAP_RUNTIME_READY"',
+    'forbid(gameplay, "PASS45_THERMAL_CAP_RUNTIME_FAIL"',
+    '"THERMAL_CAP_RUNTIME_CONTRACT=PASS\\n"',
+):
+    require(evidence, needle, "strict thermal runtime evidence")
+
+# Acceptance follows the current staged GAME_RECOVERY world-ready marker and must not demand dead owners/markers.
 for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
     "PASS38_WEAPON_PALETTE_SCAN_STOPPED",
     "PASS44_WEAPON_PALETTE_MUTATION_DISABLED",
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
+    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+    "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
+    "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
 ):
     forbid(acceptance, marker, f"stale acceptance marker {marker}")
 for marker in (
-    "PASS45_LANDMARK_STARTUP_COORDINATED_READY",
+    "GAME_RECOVERY_WORLD_READY",
+    "PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED",
+    "PASS14_MAIN_START_OPENS_SERVER_SETUP",
+    "PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
     "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
     "PASS14_PERF_30FPS_READY",
@@ -100,9 +148,12 @@ for marker in (
     require(acceptance, marker, f"current runtime acceptance marker {marker}")
 
 print("RUNTIME RUNAWAY / HEAT PASS 38/45 FORWARD-PORTED SOURCE CONTRACT PASS")
-print("- destructive Museum recovery is physically deleted, not merely capped")
-print("- obsolete palette owner is physically deleted")
-print("- landmark startup is coordinated once and historical delayed stage timers are cancelled")
+print("- destructive Museum recovery and obsolete palette owner remain physically deleted")
+print("- landmark startup is staged before spawn, ticks while paused, cancels historical timers once and emits GAME_RECOVERY world-ready evidence")
+print("- runtime acceptance follows the current server-creation flow and no longer waits for dead Pass29/landmark compatibility markers")
 print("- weapon fallback/material audit remains finite and fail-visible")
 print("- normal local game defaults to zero filler bots unless explicitly requested")
-print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")
+print("- strict recovery remains fullscreen; quick normal is windowed only so a broken startup cannot trap the desktop")
+print("- both launch modes retain the 60 FPS cap, and UE runtime must confirm actual t.MaxFPS=60 with fail-visible evidence")
+print("- low-FPS/thermal recovery never lowers render scale to disguise the problem")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime remains authoritative")

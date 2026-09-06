@@ -19,6 +19,7 @@ enum class EOCWeaponAudioEvent : uint8
     ReloadCancel UMETA(DisplayName="Reload Cancel"),
     DryFire UMETA(DisplayName="Dry Fire"),
     FireModeSwitch UMETA(DisplayName="Fire Mode Switch"),
+    ManualActionCycle UMETA(DisplayName="Manual Action Cycle"),
     Equip UMETA(DisplayName="Equip"),
     Drop UMETA(DisplayName="Drop")
 };

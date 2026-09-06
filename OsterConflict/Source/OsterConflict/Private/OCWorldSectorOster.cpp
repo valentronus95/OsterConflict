@@ -5,8 +5,13 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "UObject/SoftObjectPath.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -49,6 +54,25 @@ namespace
         return Point.X >= MinPlayableX - PaddingCm && Point.X <= MaxPlayableX + PaddingCm &&
             Point.Y >= MinPlayableY - PaddingCm && Point.Y <= MaxPlayableY + PaddingCm;
     }
+
+    void AddGroundedTree(UInstancedStaticMeshComponent* Component, const FVector& GroundLocation,
+        const float DesiredHeightCm, const float YawDegrees, const float WidthScale)
+    {
+        if (!Component) return;
+        UStaticMesh* Mesh = Component->GetStaticMesh();
+        if (!Mesh) return;
+
+        const FBoxSphereBounds Bounds = Mesh->GetBounds();
+        const FVector NativeSize = Bounds.BoxExtent * 2.0f;
+        if (NativeSize.Z <= 10.0f) return;
+
+        const float HeightScale = FMath::Clamp(DesiredHeightCm / NativeSize.Z, 0.25f, 4.0f);
+        const FVector Scale(HeightScale * WidthScale, HeightScale * WidthScale, HeightScale);
+        const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+        FVector Location = GroundLocation;
+        Location.Z += -LocalBottom * HeightScale;
+        Component->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f), Location, Scale), true);
+    }
 }
 
 AOCWorldSectorOster::AOCWorldSectorOster()
@@ -74,6 +98,7 @@ AOCWorldSectorOster::AOCWorldSectorOster()
 
     Roads = MakeISM(TEXT("Roads"), TEXT("BlockAll"));
     Sidewalks = MakeISM(TEXT("Sidewalks"), TEXT("BlockAll"));
+    ParkPaths = MakeISM(TEXT("ParkPaths"), TEXT("BlockAll"));
     Buildings = MakeISM(TEXT("Buildings"), TEXT("BlockAll"));
     ResidentialRoofs = MakeISM(TEXT("ResidentialRoofs"), TEXT("BlockAll"));
     ResidentialDetails = MakeISM(TEXT("ResidentialDetails"), TEXT("NoCollision"));
@@ -85,21 +110,31 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     WoodFences = MakeISM(TEXT("WoodFences"), TEXT("BlockAll"));
     MetalFences = MakeISM(TEXT("MetalFences"), TEXT("BlockAll"));
     LightSheetFences = MakeISM(TEXT("LightSheetFences"), TEXT("BlockAll"));
-    TreeTrunks = MakeISM(TEXT("TreeTrunks"), TEXT("BlockAll"));
-    TreeCrowns = MakeISM(TEXT("TreeCrowns"), TEXT("NoCollision"));
-    SovietPoplarTrunks = MakeISM(TEXT("SovietPoplarTrunks"), TEXT("BlockAll"));
-    SovietPoplarCrowns = MakeISM(TEXT("SovietPoplarCrowns"), TEXT("NoCollision"));
-    BirchTrunks = MakeISM(TEXT("BirchTrunks"), TEXT("BlockAll"));
-    BirchCrowns = MakeISM(TEXT("BirchCrowns"), TEXT("NoCollision"));
-    PineTrunks = MakeISM(TEXT("PineTrunks"), TEXT("BlockAll"));
-    PineCrowns = MakeISM(TEXT("PineCrowns"), TEXT("NoCollision"));
+    AuthoredDeciduousTrees = MakeISM(TEXT("AuthoredDeciduousTrees"), TEXT("BlockAll"));
+    AuthoredPine01Trees = MakeISM(TEXT("AuthoredPine01Trees"), TEXT("BlockAll"));
+    AuthoredPine03Trees = MakeISM(TEXT("AuthoredPine03Trees"), TEXT("BlockAll"));
     GrassMown = MakeISM(TEXT("GrassMown"), TEXT("NoCollision"));
     GrassRough = MakeISM(TEXT("GrassRough"), TEXT("NoCollision"));
     GrassWetland = MakeISM(TEXT("GrassWetland"), TEXT("NoCollision"));
     StadiumGeometry = MakeISM(TEXT("StadiumGeometry"), TEXT("BlockAll"));
     StadiumDetails = MakeISM(TEXT("StadiumDetails"), TEXT("BlockAll"));
+
+    // PASS45 Gate K: legacy mixed/shared names remain zero-instance quarantine. Exact semantic owners are primary
+    // actor subobjects and receive all park/college instances directly during construction.
     ParkGeometry = MakeISM(TEXT("ParkGeometry"), TEXT("BlockAll"));
+    ParkCentralGround = MakeISM(TEXT("ParkCentralGround"), TEXT("BlockAll"));
+    ParkNorthCivicGround = MakeISM(TEXT("ParkNorthCivicGround"), TEXT("BlockAll"));
+    CollegeRecreationGround = MakeISM(TEXT("CollegeRecreationGround"), TEXT("BlockAll"));
     ParkDetails = MakeISM(TEXT("ParkDetails"), TEXT("BlockAll"));
+    ParkMemorialPlaza = MakeISM(TEXT("ParkMemorialPlaza"), TEXT("BlockAll"));
+    ParkMemorialSurface = MakeISM(TEXT("ParkMemorialSurface"), TEXT("BlockAll"));
+    ParkMemorialMonument = MakeISM(TEXT("ParkMemorialMonument"), TEXT("BlockAll"));
+    ParkMemorialApproach = MakeISM(TEXT("ParkMemorialApproach"), TEXT("BlockAll"));
+    ParkSkateFitness = MakeISM(TEXT("ParkSkateFitness"), TEXT("BlockAll"));
+    ParkSkateSurface = MakeISM(TEXT("ParkSkateSurface"), TEXT("BlockAll"));
+    ParkSkateRamps = MakeISM(TEXT("ParkSkateRamps"), TEXT("BlockAll"));
+    ParkBenches = MakeISM(TEXT("ParkBenches"), TEXT("BlockAll"));
+
     Waterways = MakeISM(TEXT("Waterways"), TEXT("NoCollision"));
     Bridges = MakeISM(TEXT("Bridges"), TEXT("BlockAll"));
     ReferenceMarkers = MakeISM(TEXT("ReferenceMarkers"), TEXT("NoCollision"));
@@ -116,17 +151,18 @@ AOCWorldSectorOster::AOCWorldSectorOster()
     KrushelnytskaStreetLabel->SetupAttachment(SceneRoot);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 
     if (CubeMesh.Succeeded())
     {
         Ground->SetStaticMesh(CubeMesh.Object);
         UInstancedStaticMeshComponent* CubeComponents[] =
         {
-            Roads, Sidewalks, Buildings, ResidentialRoofs, ResidentialDetails,
+            Roads, Sidewalks, ParkPaths, Buildings, ResidentialRoofs, ResidentialDetails,
             LandmarkBlocks, LandmarkRoofs, LandmarkWindows, LandmarkDetails,
-            Fences, WoodFences, MetalFences, LightSheetFences, StadiumGeometry, StadiumDetails, ParkGeometry, ParkDetails,
+            Fences, WoodFences, MetalFences, LightSheetFences, StadiumGeometry, StadiumDetails,
+            ParkGeometry, ParkCentralGround, ParkNorthCivicGround, CollegeRecreationGround,
+            ParkDetails, ParkMemorialPlaza, ParkMemorialSurface, ParkMemorialMonument,
+            ParkMemorialApproach, ParkSkateFitness, ParkSkateSurface, ParkSkateRamps, ParkBenches,
             GrassMown, GrassRough, GrassWetland,
             Waterways, Bridges, ReferenceMarkers
         };
@@ -135,19 +171,19 @@ AOCWorldSectorOster::AOCWorldSectorOster()
             Component->SetStaticMesh(CubeMesh.Object);
         }
     }
-    if (CylinderMesh.Succeeded())
+
+    // PASS45 P0 startup recovery: do not synchronously resolve the large KiteDemo tree packages from the
+    // native actor constructor/CDO. UE 5.8 was compiling HillTree_02/ScotsPine dependencies before the first
+    // rendered frame and could sit indefinitely in "Waiting for static meshes to be ready" after material errors.
+    // Exact tree identities remain owned by this actor, but their risky asset load is deferred/quarantined below.
+    UInstancedStaticMeshComponent* AuthoredTrees[] =
     {
-        TreeTrunks->SetStaticMesh(CylinderMesh.Object);
-        SovietPoplarTrunks->SetStaticMesh(CylinderMesh.Object);
-        BirchTrunks->SetStaticMesh(CylinderMesh.Object);
-        PineTrunks->SetStaticMesh(CylinderMesh.Object);
-    }
-    if (SphereMesh.Succeeded())
+        AuthoredDeciduousTrees, AuthoredPine01Trees, AuthoredPine03Trees
+    };
+    for (UInstancedStaticMeshComponent* Component : AuthoredTrees)
     {
-        TreeCrowns->SetStaticMesh(SphereMesh.Object);
-        SovietPoplarCrowns->SetStaticMesh(SphereMesh.Object);
-        BirchCrowns->SetStaticMesh(SphereMesh.Object);
-        PineCrowns->SetStaticMesh(SphereMesh.Object);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCullDistances(0, 90000);
     }
 
     // Pass 44 primary authoring: never create the old 2.4 km ground in the first place.
@@ -179,13 +215,12 @@ AOCWorldSectorOster::AOCWorldSectorOster()
         FVector(-33500.0f, 32000.0f, 720.0f));
 }
 
-
 void AOCWorldSectorOster::BeginPlay()
 {
     Super::BeginPlay();
 
-    // R11 visual foundation: the source-only world already has a useful layout, but R10 left every
-    // primitive on the engine default material. Give each semantic family a readable outdoor palette.
+    // R11 visual foundation: source-only blockout geometry still uses a readable outdoor palette.
+    // PASS45 authored trees keep their packaged materials and are never overwritten by BasicShapeMaterial.
     UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
@@ -198,9 +233,23 @@ void AOCWorldSectorOster::BeginPlay()
         Component->SetMaterial(0, MID);
     };
 
-    Tint(Ground,              FLinearColor(0.16f, 0.25f, 0.10f));
+    // Block 0 ordering guard: UWorldSubsystem::OnWorldBeginPlay may already have replaced Ground with the exact
+    // authored mesh/material. Never let this legacy source-palette step reclaim that authored state.
+    const bool bGroundStillSourceCube = Ground && Ground->GetStaticMesh() &&
+        Ground->GetStaticMesh()->GetPathName().Contains(TEXT("/Engine/BasicShapes/Cube"), ESearchCase::IgnoreCase);
+    if (bGroundStillSourceCube)
+    {
+        Tint(Ground, FLinearColor(0.16f, 0.25f, 0.10f));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_BLOCK0_SOURCE_GROUND_TINT_SKIPPED authored_ground_preserved=1 basicshape_material_reclaim=0 runtime_acceptance=0"));
+    }
+
     Tint(Roads,               FLinearColor(0.055f, 0.060f, 0.065f));
     Tint(Sidewalks,           FLinearColor(0.42f, 0.43f, 0.41f));
+    Tint(ParkPaths,           FLinearColor(0.40f, 0.39f, 0.34f));
     Tint(Buildings,           FLinearColor(0.58f, 0.49f, 0.34f));
     Tint(ResidentialRoofs,    FLinearColor(0.28f, 0.075f, 0.045f));
     Tint(ResidentialDetails,  FLinearColor(0.72f, 0.77f, 0.74f));
@@ -212,21 +261,27 @@ void AOCWorldSectorOster::BeginPlay()
     Tint(WoodFences,          FLinearColor(0.30f, 0.16f, 0.075f));
     Tint(MetalFences,         FLinearColor(0.18f, 0.21f, 0.22f));
     Tint(LightSheetFences,    FLinearColor(0.46f, 0.49f, 0.45f));
-    Tint(TreeTrunks,          FLinearColor(0.19f, 0.095f, 0.035f));
-    Tint(TreeCrowns,          FLinearColor(0.09f, 0.27f, 0.055f));
-    Tint(SovietPoplarTrunks,  FLinearColor(0.20f, 0.11f, 0.045f));
-    Tint(SovietPoplarCrowns,  FLinearColor(0.075f, 0.30f, 0.065f));
-    Tint(BirchTrunks,         FLinearColor(0.63f, 0.62f, 0.54f));
-    Tint(BirchCrowns,         FLinearColor(0.15f, 0.38f, 0.075f));
-    Tint(PineTrunks,          FLinearColor(0.17f, 0.085f, 0.035f));
-    Tint(PineCrowns,          FLinearColor(0.035f, 0.18f, 0.055f));
     Tint(GrassMown,           FLinearColor(0.18f, 0.34f, 0.095f));
     Tint(GrassRough,          FLinearColor(0.24f, 0.38f, 0.10f));
     Tint(GrassWetland,        FLinearColor(0.13f, 0.28f, 0.12f));
     Tint(StadiumGeometry,     FLinearColor(0.055f, 0.31f, 0.12f));
     Tint(StadiumDetails,      FLinearColor(0.82f, 0.82f, 0.76f));
+
+    // Zero-instance quarantine keeps legacy names stable without creating visible mixed/shared geometry.
     Tint(ParkGeometry,        FLinearColor(0.12f, 0.31f, 0.075f));
     Tint(ParkDetails,         FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialPlaza,   FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkSkateFitness,    FLinearColor(0.40f, 0.34f, 0.25f));
+
+    Tint(ParkCentralGround,   FLinearColor(0.12f, 0.31f, 0.075f));
+    Tint(ParkNorthCivicGround,FLinearColor(0.12f, 0.31f, 0.075f));
+    Tint(CollegeRecreationGround, FLinearColor(0.12f, 0.31f, 0.075f));
+    Tint(ParkMemorialSurface, FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialMonument,FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkMemorialApproach,FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkSkateSurface,    FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkSkateRamps,      FLinearColor(0.40f, 0.34f, 0.25f));
+    Tint(ParkBenches,         FLinearColor(0.40f, 0.34f, 0.25f));
     Tint(Waterways,           FLinearColor(0.055f, 0.22f, 0.36f));
     Tint(Bridges,             FLinearColor(0.32f, 0.31f, 0.29f));
 
@@ -246,6 +301,74 @@ void AOCWorldSectorOster::BeginPlay()
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED procedural_residential_grids=0 generic_private_fences=0 reference_specific_private_structures_required=1"));
+
+    // PASS45 item 27 / 2026-08-31 P0 startup recovery. The exact tree family remains single-owner under this actor,
+    // but UE 5.8 must never synchronously load these large KiteDemo packages from the constructor/CDO. The latest
+    // factual Quick Normal run reached HillTree_02 static-mesh compilation after incompatible material diagnostics
+    // and never produced a usable first frame. Default runtime therefore quarantines this family until its UE 5.8
+    // material/static-mesh compatibility is repaired. Developers may opt in with -Pass45LoadKiteDemoTrees; that path
+    // uses FStreamableManager and still carries runtime_acceptance=0 until direct visual evidence exists.
+    const FSoftObjectPath DeciduousTreePath(
+        TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02"));
+    const FSoftObjectPath Pine01TreePath(
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPine_01/ScotsPine_01.ScotsPine_01"));
+    const FSoftObjectPath Pine03TreePath(
+        TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"));
+    const bool bAllowDeferredKiteDemoTreeLoad =
+        FParse::Param(FCommandLine::Get(), TEXT("Pass45LoadKiteDemoTrees"));
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_REGIONAL_TREE_INTAKE_WIRED deciduous=HillTree_02 pine=ScotsPine_01 tall_pine=ScotsPineTall_01 families=3 instances=0 primary_authoring=1 late_mutation=0 async_initialization=1 startup_sync_tree_loads=0 opt_in=%d imported_materials=1 material_compatibility=pending runtime_acceptance=0"),
+        bAllowDeferredKiteDemoTreeLoad ? 1 : 0);
+
+    if (!bAllowDeferredKiteDemoTreeLoad)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_KITEDEMO_TREE_STARTUP_QUARANTINED assets=HillTree_02,ScotsPine_01,ScotsPineTall_01 constructor_sync_loads=0 reason=ue58_material_static_mesh_compile_blocker normal_game_can_render_first=1 runtime_acceptance=0"));
+    }
+    else
+    {
+        const TArray<FSoftObjectPath> TreePaths = { DeciduousTreePath, Pine01TreePath, Pine03TreePath };
+        const TWeakObjectPtr<AOCWorldSectorOster> WeakThis(this);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_KITEDEMO_TREE_ASYNC_LOAD_REQUESTED assets=3 constructor_sync_loads=0 main_thread_wait_requested=0 runtime_acceptance=0"));
+
+        UAssetManager::GetStreamableManager().RequestAsyncLoad(
+            TreePaths,
+            FStreamableDelegate::CreateLambda(
+                [WeakThis, DeciduousTreePath, Pine01TreePath, Pine03TreePath]()
+                {
+                    AOCWorldSectorOster* Sector = WeakThis.Get();
+                    if (!Sector) return;
+
+                    UStaticMesh* DeciduousMesh = Cast<UStaticMesh>(DeciduousTreePath.ResolveObject());
+                    UStaticMesh* Pine01Mesh = Cast<UStaticMesh>(Pine01TreePath.ResolveObject());
+                    UStaticMesh* Pine03Mesh = Cast<UStaticMesh>(Pine03TreePath.ResolveObject());
+                    if (!DeciduousMesh || !Pine01Mesh || !Pine03Mesh ||
+                        !Sector->AuthoredDeciduousTrees || !Sector->AuthoredPine01Trees || !Sector->AuthoredPine03Trees)
+                    {
+                        UE_LOG(LogTemp, Error,
+                            TEXT("PASS45_KITEDEMO_TREE_ASYNC_LOAD_CONTENT_GAP deciduous=%d pine01=%d pine03=%d runtime_acceptance=0"),
+                            DeciduousMesh ? 1 : 0,
+                            Pine01Mesh ? 1 : 0,
+                            Pine03Mesh ? 1 : 0);
+                        return;
+                    }
+
+                    Sector->AuthoredDeciduousTrees->SetStaticMesh(DeciduousMesh);
+                    Sector->AuthoredPine01Trees->SetStaticMesh(Pine01Mesh);
+                    Sector->AuthoredPine03Trees->SetStaticMesh(Pine03Mesh);
+                    Sector->BuildVegetation();
+
+                    const int32 TreeInstances =
+                        Sector->AuthoredDeciduousTrees->GetInstanceCount() +
+                        Sector->AuthoredPine01Trees->GetInstanceCount() +
+                        Sector->AuthoredPine03Trees->GetInstanceCount();
+                    UE_LOG(LogTemp, Display,
+                        TEXT("PASS45_KITEDEMO_TREE_ASYNC_LOAD_READY assets=3 instances=%d primary_authoring=1 secondary_owner=0 constructor_sync_loads=0 material_compatibility=pending runtime_acceptance=0"),
+                        TreeInstances);
+                }));
+    }
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] old_ground_2400m=0 far_legacy_base_geometry=0 peripheral_hydrography=0"));
@@ -325,17 +448,6 @@ void AOCWorldSectorOster::AddBoxRotated(UInstancedStaticMeshComponent* Component
     Component->AddInstance(Transform);
 }
 
-void AOCWorldSectorOster::AddCylinder(UInstancedStaticMeshComponent* Component, const FVector& Center,
-    float RadiusCm, float HeightCm)
-{
-    if (!Component) return;
-    if (!IsPointInsidePlayableAuthoringBounds(Center, RadiusCm)) return;
-    FTransform Transform;
-    Transform.SetLocation(Center);
-    Transform.SetScale3D(FVector(RadiusCm / 50.0f, RadiusCm / 50.0f, HeightCm / 100.0f));
-    Component->AddInstance(Transform);
-}
-
 void AOCWorldSectorOster::AddGableRoof(UInstancedStaticMeshComponent* Component, const FVector& Center,
     float WidthCm, float DepthCm, float RidgeZCm, float YawDegrees, float SlopeDegrees)
 {
@@ -362,7 +474,6 @@ void AOCWorldSectorOster::AddFacadeWindow(UInstancedStaticMeshComponent* Compone
     const float WindowYaw = BuildingYawDegrees + (bFrontFacade ? 0.0f : 90.0f);
     AddBox(Component, BuildingCenter + WorldOffset, SizeCm, WindowYaw);
 }
-
 
 void AOCWorldSectorOster::BuildGameplayBases()
 {
@@ -451,48 +562,16 @@ void AOCWorldSectorOster::BuildVerifiedReferenceMarkers()
 void AOCWorldSectorOster::BuildMuseumAndStadium()
 {
     const FVector Museum = MuseumAnchor();
-    const float MuseumYaw = 0.0f;
 
-    // Reference cues: red-brick single-storey wings, central wooden upper storey/gable,
-    // front glazed/porch projection, decorative roofline and mature garden trees.
-    AddBox(LandmarkBlocks, Museum + FVector(0, 0, 270), FVector(3400, 1750, 540), MuseumYaw);
-    AddBox(LandmarkBlocks, Museum + FVector(-2050, 120, 245), FVector(1100, 1500, 490), MuseumYaw);
-    AddBox(LandmarkBlocks, Museum + FVector(2050, 80, 245), FVector(1100, 1500, 490), MuseumYaw);
-    AddBox(LandmarkBlocks, Museum + FVector(50, 80, 720), FVector(1550, 1280, 420), MuseumYaw);
-
-    // Front porch / glazed bay and entrance platform.
-    AddBox(LandmarkDetails, Museum + FVector(1180, -1120, 250), FVector(1050, 620, 500), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(1180, -1510, 55), FVector(1450, 760, 110), MuseumYaw);
-    for (int32 Step = 0; Step < 4; ++Step)
-    {
-        AddBox(LandmarkDetails, Museum + FVector(1180, -1880 - Step * 120.0f, 22.0f + Step * 20.0f),
-            FVector(1550 - Step * 90.0f, 220, 35), MuseumYaw);
-    }
-
-    AddGableRoof(LandmarkRoofs, Museum + FVector(0, 0, 0), 3550, 1900, 1160, MuseumYaw, 30.0f);
-    AddGableRoof(LandmarkRoofs, Museum + FVector(-2050, 120, 0), 1250, 1650, 720, MuseumYaw, 24.0f);
-    AddGableRoof(LandmarkRoofs, Museum + FVector(2050, 80, 0), 1250, 1650, 720, MuseumYaw, 24.0f);
-    AddGableRoof(LandmarkRoofs, Museum + FVector(1180, -1120, 0), 1200, 760, 650, MuseumYaw, 28.0f);
-
-    // S16A silhouette details visible in multiple facade references: central front gable, chimney masses and trim bands.
-    AddBox(LandmarkDetails, Museum + FVector(0, -40, 1080), FVector(1500, 90, 95), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(-1520, 250, 970), FVector(190, 190, 520), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(1580, 180, 940), FVector(180, 180, 460), MuseumYaw);
-    AddBox(LandmarkDetails, Museum + FVector(0, -910, 525), FVector(3350, 55, 90), MuseumYaw);
-
-    // Front facade window rhythm from published photographs.
-    const float MuseumWindowX[] = { -2650.0f, -1850.0f, -650.0f, 100.0f, 750.0f, 2250.0f };
-    for (float X : MuseumWindowX)
-    {
-        AddFacadeWindow(LandmarkWindows, Museum, FVector(X, -885, 300), FVector(420, 24, 250), MuseumYaw, true);
-    }
-    AddFacadeWindow(LandmarkWindows, Museum, FVector(-420, -655, 770), FVector(330, 24, 260), MuseumYaw, true);
-    AddFacadeWindow(LandmarkWindows, Museum, FVector(70, -655, 770), FVector(330, 24, 260), MuseumYaw, true);
-    AddFacadeWindow(LandmarkWindows, Museum, FVector(560, -655, 770), FVector(330, 24, 260), MuseumYaw, true);
-
+    // PASS45 item 32: the old world-sector Museum Landmark* blockout is physically retired from canonical
+    // primary world construction. R13.7 is the authoritative visible authored exterior and fails closed when its
+    // committed modular content is unavailable. Keep only the three perimeter fence proxies until a verified
+    // authored site/fence replacement exists; the shared Landmark* families remain live for College/other sites.
     AddBox(Fences, Museum + FVector(0, -2500, 90), FVector(6000, 40, 180));
     AddBox(Fences, Museum + FVector(0, 2450, 90), FVector(6000, 40, 180));
     AddBox(Fences, Museum + FVector(-3000, 0, 90), FVector(40, 4900, 180));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_MUSEUM_LEGACY_BLOCKOUT_SOURCE_RETIRED legacy_landmark_blocks=0 legacy_landmark_roofs=0 legacy_landmark_windows=0 legacy_landmark_details=0 perimeter_fence_proxies=3 authoritative_presentation_owner=R137_MuseumPhotoModel runtime_compatibility_suppression=1 runtime_visual_acceptance=pending"));
 
     // Stadium: public 2021 sources show a rectangular artificial-turf pitch, perimeter fencing,
     // renewed track/apron, small stands and service/change facilities.
@@ -540,30 +619,43 @@ void AOCWorldSectorOster::BuildMuseumAndStadium()
 
 void AOCWorldSectorOster::BuildCentralPark()
 {
+    constexpr int32 ExpectedParkPaths = 5;
+    constexpr int32 ExpectedMemorialSurface = 1;
+    constexpr int32 ExpectedMemorialMonument = 1;
+    constexpr int32 ExpectedMemorialApproach = 4;
+    constexpr int32 ExpectedSkateSurface = 1;
+    constexpr int32 ExpectedSkateRamps = 2;
+    constexpr int32 ExpectedBenches = 14;
+    constexpr int32 ExpectedSemanticDetails =
+        ExpectedMemorialSurface + ExpectedMemorialMonument + ExpectedMemorialApproach +
+        ExpectedSkateSurface + ExpectedSkateRamps + ExpectedBenches;
+    static_assert(ExpectedParkPaths == 5, "Central Park must retain exactly five canonical ParkPaths proxies");
+    static_assert(ExpectedSemanticDetails == 23, "Central Park semantic detail contract must remain exactly 23 proxies");
+
     const FVector Park = ParkAnchor();
 
-    // City-park footprint centered on a documented park monument/reference coordinate.
-    AddBox(ParkGeometry, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));
+    // Gate K primary semantic ground ownership: the old shared ParkGeometry bucket stays empty.
+    AddBox(ParkCentralGround, Park + FVector(0, 0, 3), FVector(20500, 16000, 6));
 
-    // Main alleys and secondary diagonals seen across public city-park material.
-    AddBox(Sidewalks, Park + FVector(0, 0, 14), FVector(17800, 360, 18));
-    AddBox(Sidewalks, Park + FVector(0, -300, 14), FVector(360, 13200, 18));
-    AddBox(Sidewalks, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);
-    AddBox(Sidewalks, Park + FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f);
+    // Gate K: these five pedestrian paths are source-owned by ParkPaths, never mixed into Sidewalks.
+    AddBox(ParkPaths, Park + FVector(0, 0, 14), FVector(17800, 360, 18));
+    AddBox(ParkPaths, Park + FVector(0, -300, 14), FVector(360, 13200, 18));
+    AddBox(ParkPaths, Park + FVector(1800, 900, 14), FVector(11800, 260, 18), 31.0f);
+    AddBox(ParkPaths, Park + FVector(-2300, 1300, 14), FVector(9300, 240, 18), -28.0f);
 
-    // Civic center / memorial plaza block and stepped approach.
-    AddBox(ParkDetails, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
-    AddBox(ParkDetails, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
-    for (int32 Step = 0; Step < 4; ++Step)
+    // Gate K primary semantic owners. Legacy ParkDetails/ParkMemorialPlaza/ParkSkateFitness remain empty quarantine.
+    AddBox(ParkMemorialSurface, Park + FVector(-600, 200, 28), FVector(3100, 2500, 56));
+    AddBox(ParkMemorialMonument, Park + FVector(-600, 200, 230), FVector(260, 260, 400));
+    for (int32 Step = 0; Step < ExpectedMemorialApproach; ++Step)
     {
-        AddBox(ParkDetails, Park + FVector(-6100 + Step * 150.0f, -4900, 18 + Step * 14.0f),
+        AddBox(ParkMemorialApproach, Park + FVector(-6100 + Step * 150.0f, -4900, 18 + Step * 14.0f),
             FVector(1900 - Step * 120.0f, 260, 28), 0.0f);
     }
 
     // Small skate/active-recreation pad is present in recent public park coverage; placement is approximate.
-    AddBox(ParkDetails, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
-    AddBoxRotated(ParkDetails, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
-    AddBoxRotated(ParkDetails, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
+    AddBox(ParkSkateSurface, Park + FVector(6100, -4100, 18), FVector(4300, 2600, 36));
+    AddBoxRotated(ParkSkateRamps, Park + FVector(6100, -4100, 120), FVector(1200, 600, 35), FRotator(0, 0, 16));
+    AddBoxRotated(ParkSkateRamps, Park + FVector(7400, -3500, 95), FVector(950, 500, 30), FRotator(0, 90, -13));
 
     // The separate published "city park near culture house" point lies farther north. Keep it as a secondary
     // civic grove/reference instead of incorrectly using it as the whole central-park centroid (S09 behavior).
@@ -571,15 +663,73 @@ void AOCWorldSectorOster::BuildCentralPark()
     const FVector Mid = (Park + NorthCivic) * 0.5f;
     const FVector Delta = NorthCivic - Park;
     const float LinkYaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
-    AddBox(ParkGeometry, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));
-    AddBox(Sidewalks, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);
+    AddBox(ParkNorthCivicGround, NorthCivic + FVector(0,0,4), FVector(8500, 7200, 8));
+    AddBox(ParkPaths, Mid + FVector(0,0,15), FVector(Delta.Size2D(), 260, 18), LinkYaw);
 
-    // Benches along main alleys. Simple source-only proxies now; final assets arrive in art pass.
+    // Benches along main alleys. Their dedicated authored replacement remains separately guarded.
     for (int32 I = -3; I <= 3; ++I)
     {
-        AddBox(ParkDetails, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120));
-        AddBox(ParkDetails, Park + FVector(I * 1900.0f, 850.0f, 60.0f), FVector(180, 55, 120));
+        AddBox(ParkBenches, Park + FVector(I * 1900.0f, -850.0f, 60.0f), FVector(180, 55, 120));
+        AddBox(ParkBenches, Park + FVector(I * 1900.0f, 850.0f, 60.0f), FVector(180, 55, 120));
     }
+
+    const int32 ParkPathCount = ParkPaths ? ParkPaths->GetInstanceCount() : -1;
+    const int32 LegacyDetailsCount = ParkDetails ? ParkDetails->GetInstanceCount() : -1;
+    const int32 LegacyGeometryCount = ParkGeometry ? ParkGeometry->GetInstanceCount() : -1;
+    const int32 LegacyMemorialCount = ParkMemorialPlaza ? ParkMemorialPlaza->GetInstanceCount() : -1;
+    const int32 LegacySkateCount = ParkSkateFitness ? ParkSkateFitness->GetInstanceCount() : -1;
+    const int32 CentralGroundCount = ParkCentralGround ? ParkCentralGround->GetInstanceCount() : -1;
+    const int32 NorthGroundCount = ParkNorthCivicGround ? ParkNorthCivicGround->GetInstanceCount() : -1;
+    const int32 MemorialSurfaceCount = ParkMemorialSurface ? ParkMemorialSurface->GetInstanceCount() : -1;
+    const int32 MemorialMonumentCount = ParkMemorialMonument ? ParkMemorialMonument->GetInstanceCount() : -1;
+    const int32 MemorialApproachCount = ParkMemorialApproach ? ParkMemorialApproach->GetInstanceCount() : -1;
+    const int32 SkateSurfaceCount = ParkSkateSurface ? ParkSkateSurface->GetInstanceCount() : -1;
+    const int32 SkateRampsCount = ParkSkateRamps ? ParkSkateRamps->GetInstanceCount() : -1;
+    const int32 BenchCount = ParkBenches ? ParkBenches->GetInstanceCount() : -1;
+    const int32 SemanticDetailCount = MemorialSurfaceCount + MemorialMonumentCount + MemorialApproachCount +
+        SkateSurfaceCount + SkateRampsCount + BenchCount;
+
+    const bool bSemanticSplitValid =
+        ParkPathCount == ExpectedParkPaths &&
+        LegacyDetailsCount == 0 && LegacyGeometryCount == 0 && LegacyMemorialCount == 0 && LegacySkateCount == 0 &&
+        CentralGroundCount == 1 && NorthGroundCount == 1 &&
+        MemorialSurfaceCount == ExpectedMemorialSurface &&
+        MemorialMonumentCount == ExpectedMemorialMonument &&
+        MemorialApproachCount == ExpectedMemorialApproach &&
+        SkateSurfaceCount == ExpectedSkateSurface &&
+        SkateRampsCount == ExpectedSkateRamps &&
+        BenchCount == ExpectedBenches &&
+        SemanticDetailCount == ExpectedSemanticDetails;
+
+    if (!bSemanticSplitValid)
+    {
+        if (ParkPaths) ParkPaths->ClearInstances();
+        if (ParkGeometry) ParkGeometry->ClearInstances();
+        if (ParkCentralGround) ParkCentralGround->ClearInstances();
+        if (ParkNorthCivicGround) ParkNorthCivicGround->ClearInstances();
+        if (ParkDetails) ParkDetails->ClearInstances();
+        if (ParkMemorialPlaza) ParkMemorialPlaza->ClearInstances();
+        if (ParkMemorialSurface) ParkMemorialSurface->ClearInstances();
+        if (ParkMemorialMonument) ParkMemorialMonument->ClearInstances();
+        if (ParkMemorialApproach) ParkMemorialApproach->ClearInstances();
+        if (ParkSkateFitness) ParkSkateFitness->ClearInstances();
+        if (ParkSkateSurface) ParkSkateSurface->ClearInstances();
+        if (ParkSkateRamps) ParkSkateRamps->ClearInstances();
+        if (ParkBenches) ParkBenches->ClearInstances();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_REJECTED park_paths=%d legacy_details=%d legacy_geometry=%d legacy_memorial=%d legacy_skate=%d central_ground=%d north_ground=%d memorial_surface=%d memorial_monument=%d memorial_approach=%d skate_surface=%d skate_ramps=%d benches=%d total=%d expected=5/0/0/0/0/1/1/1/1/4/1/2/14/23 primary_authoring=1 normalization_bridge=0"),
+            ParkPathCount, LegacyDetailsCount, LegacyGeometryCount, LegacyMemorialCount, LegacySkateCount,
+            CentralGroundCount, NorthGroundCount, MemorialSurfaceCount, MemorialMonumentCount, MemorialApproachCount,
+            SkateSurfaceCount, SkateRampsCount, BenchCount, SemanticDetailCount);
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SOURCE_PARK_PATH_OWNERSHIP_READY component=ParkPaths park_path_instances=5 authored_in_sidewalks=0 canonical_source_owner=1 runtime_migration_required=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GATE_K_PARK_SEMANTIC_SPLIT_READY park_paths=5 legacy_details=0 legacy_geometry=0 legacy_memorial_plaza=0 legacy_skate_fitness=0 memorial_surface=1 memorial_monument=1 memorial_approach=4 skate_surface=1 skate_ramps=2 benches=14 total=23 primary_authoring=1 normalization_bridge=0 authored_detail_replacements=0 gate_k_complete=0 runtime_acceptance=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_PARK_PRIMARY_SEMANTIC_OWNERS_READY park_central_ground=1 park_north_civic_ground=1 memorial_surface=1 memorial_monument=1 memorial_approach=4 skate_surface=1 skate_ramps=2 benches=14 legacy_geometry=0 legacy_memorial_plaza=0 legacy_skate_fitness=0 primary_authoring=1 normalization_bridge=0 remaining_content_gap_instances=3 gate_k_complete=0 runtime_acceptance=0"));
 }
 
 void AOCWorldSectorOster::BuildCollegeSector()
@@ -631,99 +781,122 @@ void AOCWorldSectorOster::BuildCollegeSector()
     AddBox(LandmarkRoofs, College + FVector(4800, 6000, 1045), FVector(2220, 4420, 55), Yaw - 1.0f);
     AddBox(LandmarkBlocks, College + FVector(9000, 2600, 340), FVector(2600, 1500, 680), Yaw);
 
-    // Courtyard, sport/recreation strip and perimeter.
+    // Courtyard, sport/recreation strip and perimeter. The recreation ground has a dedicated primary owner.
     AddBox(Sidewalks, College + FVector(900, 5200, 12), FVector(8000, 5900, 18), Yaw);
-    AddBox(ParkGeometry, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);
+    AddBox(CollegeRecreationGround, College + FVector(-4900, 7000, 10), FVector(6100, 3300, 12), Yaw);
     AddBox(Fences, College + FVector(0, -2450, 110), FVector(10400, 45, 220), Yaw);
     AddBox(Fences, College + FVector(0, 9300, 110), FVector(11200, 45, 220), Yaw);
     AddBox(Fences, College + FVector(-5600, 3400, 110), FVector(45, 11700, 220), Yaw);
+
+    const int32 LegacyGeometryCount = ParkGeometry ? ParkGeometry->GetInstanceCount() : -1;
+    const int32 CentralGroundCount = ParkCentralGround ? ParkCentralGround->GetInstanceCount() : -1;
+    const int32 NorthGroundCount = ParkNorthCivicGround ? ParkNorthCivicGround->GetInstanceCount() : -1;
+    const int32 CollegeGroundCount = CollegeRecreationGround ? CollegeRecreationGround->GetInstanceCount() : -1;
+    const bool bGroundOwnersValid = LegacyGeometryCount == 0 && CentralGroundCount == 1 &&
+        NorthGroundCount == 1 && CollegeGroundCount == 1;
+    if (!bGroundOwnersValid)
+    {
+        if (ParkCentralGround) ParkCentralGround->ClearInstances();
+        if (ParkNorthCivicGround) ParkNorthCivicGround->ClearInstances();
+        if (CollegeRecreationGround) CollegeRecreationGround->ClearInstances();
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_PARK_GROUND_PRIMARY_OWNERS_REJECTED legacy_geometry=%d park_central_ground=%d park_north_civic_ground=%d college_recreation_ground=%d expected=0/1/1/1 primary_authoring=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"),
+            LegacyGeometryCount, CentralGroundCount, NorthGroundCount, CollegeGroundCount);
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_PARK_GROUND_PRIMARY_OWNERS_READY legacy_geometry=0 park_central_ground=1 park_north_civic_ground=1 college_recreation_ground=1 primary_authoring=1 normalization_bridge=0 authored_surface_upgrade_pending=1 gate_k_complete=0 runtime_acceptance=0"));
 }
 
 void AOCWorldSectorOster::BuildVegetation()
 {
-    enum class ETreeProxy : uint8 { Broadleaf, Poplar, Birch, Pine };
+    enum class ETreeFamily : uint8 { Deciduous, Pine };
 
-    auto AddTreeFamily = [this](const FVector& Base, float Scale, ETreeProxy Family)
+    const bool bTreeMeshesReady =
+        AuthoredDeciduousTrees && AuthoredDeciduousTrees->GetStaticMesh() &&
+        AuthoredPine01Trees && AuthoredPine01Trees->GetStaticMesh() &&
+        AuthoredPine03Trees && AuthoredPine03Trees->GetStaticMesh();
+
+    // Constructor/CDO call: build only the lightweight source ground-cover zoning. Never dereference KiteDemo tree
+    // bounds here. The exact tree meshes are either quarantined for normal runtime or initialized later by the same
+    // actor through the explicit opt-in async path after a first frame can be produced.
+    if (!bTreeMeshesReady)
+    {
+        auto AddGrassPatch = [this](UInstancedStaticMeshComponent* Family, const FVector& Center, const FVector& Size, float Yaw)
+        {
+            // Source-only placeholder: very thin instanced boxes mark vegetation zones. Final S16C uses foliage/PCG meshes.
+            AddBox(Family, Center + FVector(0,0,2.0f), FVector(Size.X, Size.Y, 4.0f), Yaw);
+        };
+
+        const FVector Park = ParkAnchor();
+        const FVector College = CollegeAnchor();
+        const FVector Stadium = StadiumAnchor();
+        AddGrassPatch(GrassMown, Park + FVector(0, 0, 0), FVector(19000, 14500, 4), 6.0f);
+        AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
+        AddGrassPatch(GrassMown, College + FVector(0, 5200, 0), FVector(12500, 7600, 4), 2.0f);
+
+        const FVector RoughPatches[] = {
+            FVector(-52000, 30000, 0), FVector(-52000,-25000,0), FVector(45000,30000,0),
+            FVector(42000,-35000,0), FVector(-15000,70000,0), FVector(16000,-65000,0)
+        };
+        for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
+            AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
+
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_TREE_STARTUP_DEFERRED_READY constructor_tree_meshes=0 ground_cover_only=1 tree_bounds_access=0 startup_sync_tree_loads=0 quarantine_default=1 runtime_acceptance=0"));
+        return;
+    }
+
+    const int32 ExistingTreeInstances =
+        AuthoredDeciduousTrees->GetInstanceCount() +
+        AuthoredPine01Trees->GetInstanceCount() +
+        AuthoredPine03Trees->GetInstanceCount();
+    if (ExistingTreeInstances > 0)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_TREE_ASYNC_INSTANCE_BUILD_SKIPPED existing_instances=%d duplicate_tree_authoring=0 runtime_acceptance=0"),
+            ExistingTreeInstances);
+        return;
+    }
+
+    auto AddAuthoredTree = [this](const FVector& Base, const float Scale, const ETreeFamily Family, const int32 Salt)
     {
         if (!IsPointInsidePlayableAuthoringBounds(Base, 600.0f)) return;
 
-        UInstancedStaticMeshComponent* Trunks = TreeTrunks;
-        UInstancedStaticMeshComponent* Crowns = TreeCrowns;
-        float TrunkRadius = 38.0f;
-        float TrunkHeight = 440.0f;
-        FVector CrownScale(2.4f, 2.4f, 2.1f);
-        float CrownZ = 520.0f;
-
-        switch (Family)
+        UInstancedStaticMeshComponent* Component = AuthoredDeciduousTrees;
+        float BaseHeightCm = 1650.0f;
+        if (Family == ETreeFamily::Pine)
         {
-            case ETreeProxy::Poplar:
-                Trunks = SovietPoplarTrunks; Crowns = SovietPoplarCrowns;
-                TrunkRadius = 34.0f; TrunkHeight = 720.0f; CrownScale = FVector(1.25f, 1.25f, 4.4f); CrownZ = 760.0f;
-                break;
-            case ETreeProxy::Birch:
-                Trunks = BirchTrunks; Crowns = BirchCrowns;
-                TrunkRadius = 27.0f; TrunkHeight = 520.0f; CrownScale = FVector(1.8f, 1.8f, 2.6f); CrownZ = 585.0f;
-                break;
-            case ETreeProxy::Pine:
-                Trunks = PineTrunks; Crowns = PineCrowns;
-                TrunkRadius = 32.0f; TrunkHeight = 610.0f; CrownScale = FVector(1.65f, 1.65f, 3.4f); CrownZ = 675.0f;
-                break;
-            default: break;
+            Component = (Salt & 1) == 0 ? AuthoredPine01Trees : AuthoredPine03Trees;
+            BaseHeightCm = 2150.0f;
         }
 
-        AddCylinder(Trunks, Base + FVector(0, 0, (TrunkHeight * 0.5f) * Scale), TrunkRadius * Scale, TrunkHeight * Scale);
-        if (Crowns)
-        {
-            FTransform Crown;
-            Crown.SetLocation(Base + FVector(0, 0, CrownZ * Scale));
-            Crown.SetScale3D(CrownScale * Scale);
-            Crowns->AddInstance(Crown);
-        }
+        const float Yaw = FMath::Fmod(
+            FMath::Abs(Base.X * 0.013f + Base.Y * 0.019f + static_cast<float>(Salt) * 47.0f), 360.0f);
+        const float WidthScale = 0.94f + 0.035f * static_cast<float>(FMath::Abs(Salt) % 5);
+        AddGroundedTree(Component, Base, BaseHeightCm * Scale, Yaw, WidthScale);
     };
 
-    auto AddGrassPatch = [this](UInstancedStaticMeshComponent* Family, const FVector& Center, const FVector& Size, float Yaw)
-    {
-        // Source-only placeholder: very thin instanced boxes mark vegetation zones. Final S16C uses foliage/PCG meshes.
-        AddBox(Family, Center + FVector(0,0,2.0f), FVector(Size.X, Size.Y, 4.0f), Yaw);
-    };
-
-    // S16B ground-cover zoning. Clean mown lawns are limited to maintained civic/sports spaces.
     const FVector Park = ParkAnchor();
     const FVector College = CollegeAnchor();
     const FVector Stadium = StadiumAnchor();
-    AddGrassPatch(GrassMown, Park + FVector(0, 0, 0), FVector(19000, 14500, 4), 6.0f);
-    AddGrassPatch(GrassMown, Stadium + FVector(0, 0, 0), FVector(14500, 9800, 4), 0.0f);
-    AddGrassPatch(GrassMown, College + FVector(0, 5200, 0), FVector(12500, 7600, 4), 2.0f);
-
-    // Road verges/private lots: irregular, partly mown grass rather than uniform golf-course lawn.
-    const FVector RoughPatches[] = {
-        FVector(-52000, 30000, 0), FVector(-52000,-25000,0), FVector(45000,30000,0),
-        FVector(42000,-35000,0), FVector(-15000,70000,0), FVector(16000,-65000,0)
-    };
-    for (int32 I=0; I<UE_ARRAY_COUNT(RoughPatches); ++I)
-        AddGrassPatch(GrassRough, RoughPatches[I], FVector(31000,22000,4), static_cast<float>((I%3)-1)*8.0f);
 
     // Pass 44 removes the old Desna/Oster wetland proxies outside the compact map. Water-edge vegetation
     // comes back only when a newer reference places that shoreline inside the battlefield.
 
-    // Museum garden: old broadleaf canopy seen in reference photos, with a few tall Soviet-era poplar silhouettes nearby.
-    for (int32 Index = 0; Index < 16; ++Index)
-    {
-        const float X = -4700.0f + static_cast<float>(Index % 8) * 1350.0f;
-        const float Y = 2500.0f + static_cast<float>(Index / 8) * 1750.0f;
-        const ETreeProxy Family = (Index==2 || Index==11) ? ETreeProxy::Poplar : ETreeProxy::Broadleaf;
-        AddTreeFamily(FVector(X, Y, 0), 0.88f + 0.07f * static_cast<float>(Index % 3), Family);
-    }
+    // PASS45 item 26: Museum vegetation has a dedicated R145 authored owner. Do not create a second generic
+    // tree grid here and do not fabricate an oak family that is not present in tracked content.
 
-    // Stadium perimeter: mixed mature rows, including tall poplar forms typical of Soviet-era town planting.
+    // Stadium perimeter: preserve the designed edge, but stop making unsupported poplar/birch species claims.
     for (int32 I = -6; I <= 6; ++I)
     {
-        const ETreeProxy Family = (I % 3 == 0) ? ETreeProxy::Poplar : ((I % 4 == 0) ? ETreeProxy::Birch : ETreeProxy::Broadleaf);
-        AddTreeFamily(Stadium + FVector(I * 1500.0f, 5700.0f + (I % 2) * 350.0f, 0), 0.9f, Family);
+        AddAuthoredTree(Stadium + FVector(I * 1500.0f, 5700.0f + (I % 2) * 350.0f, 0),
+            0.90f + 0.03f * static_cast<float>(FMath::Abs(I) % 3), ETreeFamily::Deciduous, I + 30);
     }
 
-    // Central park: Soviet-era urban palette is represented by broadleaf/linden-maple proxies,
-    // tall poplars, birch groups and occasional pine. Exact species placement remains reference-driven.
+    // Central park: authored deciduous planting with occasional verified pine/conifer assets. Exact deciduous
+    // species remain intentionally unspecified until a species-specific asset is actually imported.
     for (int32 Row = -3; Row <= 3; ++Row)
     {
         for (int32 Col = -4; Col <= 4; ++Col)
@@ -732,36 +905,29 @@ void AOCWorldSectorOster::BuildVegetation()
             const float JitterX = static_cast<float>(((Row * 7 + Col * 3) % 5) - 2) * 180.0f;
             const float JitterY = static_cast<float>(((Row * 5 + Col * 11) % 5) - 2) * 160.0f;
             const int32 Roll = FMath::Abs(Row * 9 + Col * 5) % 12;
-            ETreeProxy Family = ETreeProxy::Broadleaf;
-            if (Roll <= 2) Family = ETreeProxy::Poplar;
-            else if (Roll == 3 || Roll == 4) Family = ETreeProxy::Birch;
-            else if (Roll == 5) Family = ETreeProxy::Pine;
-            AddTreeFamily(Park + FVector(Col * 1850.0f + JitterX, Row * 1700.0f + JitterY, 0),
-                0.85f + 0.05f * static_cast<float>((Row + Col + 8) % 4), Family);
+            const ETreeFamily Family = Roll == 5 ? ETreeFamily::Pine : ETreeFamily::Deciduous;
+            const int32 Salt = (Row + 4) * 17 + (Col + 5);
+            AddAuthoredTree(Park + FVector(Col * 1850.0f + JitterX, Row * 1700.0f + JitterY, 0),
+                0.85f + 0.05f * static_cast<float>((Row + Col + 8) % 4), Family, Salt);
         }
     }
 
-    // College: official photos show tall conifers framing the facade, with mixed broadleaf planting around campus.
-    AddTreeFamily(College + FVector(-3800, -1100, 0), 1.2f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(3900, -950, 0), 1.15f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(-4600, 1500, 0), 1.0f, ETreeProxy::Pine);
-    AddTreeFamily(College + FVector(4700, 2100, 0), 0.9f, ETreeProxy::Birch);
+    // College: official photos support tall conifers framing the facade. Alternate two tracked authored pine
+    // meshes so the family does not read as one repeated primitive silhouette.
+    AddAuthoredTree(College + FVector(-3800, -1100, 0), 1.20f, ETreeFamily::Pine, 100);
+    AddAuthoredTree(College + FVector(3900, -950, 0), 1.15f, ETreeFamily::Pine, 101);
+    AddAuthoredTree(College + FVector(-4600, 1500, 0), 1.00f, ETreeFamily::Pine, 102);
+    AddAuthoredTree(College + FVector(4700, 2100, 0), 0.90f, ETreeFamily::Deciduous, 103);
 
-    // Street rows: not every street receives formal planting; selected corridors get old poplar/broadleaf rhythm.
+    // Selected street corridors retain mature authored deciduous rows. No poplar/birch/oak label is asserted
+    // because no verified species-specific asset exists in the tracked packs used by this source owner.
     for (int32 Index = -7; Index <= 7; ++Index)
     {
-        const ETreeProxy WestEast = (Index % 4 == 0) ? ETreeProxy::Poplar : ETreeProxy::Broadleaf;
-        AddTreeFamily(FVector(Index * 7000.0f, -11500.0f, 0), 0.75f, WestEast);
+        AddAuthoredTree(FVector(Index * 7000.0f, -11500.0f, 0), 0.75f, ETreeFamily::Deciduous, 200 + Index);
         if ((Index % 2) == 0)
-            AddTreeFamily(FVector(28500.0f, Index * 6500.0f, 0), 0.8f, (Index % 4 == 0) ? ETreeProxy::Poplar : ETreeProxy::Birch);
+            AddAuthoredTree(FVector(28500.0f, Index * 6500.0f, 0), 0.80f, ETreeFamily::Deciduous, 300 + Index);
     }
 
-    // Private yards: fruit-tree silhouettes are intentionally represented with smaller broadleaf proxies;
-    // exact species (apple/cherry/plum/walnut) will be assigned in the final foliage content pass.
-    for (int32 I=0; I<24; ++I)
-    {
-        const float X = -62000.0f + (I%8)*15000.0f;
-        const float Y = -48000.0f + (I/8)*42000.0f + ((I%3)-1)*1800.0f;
-        AddTreeFamily(FVector(X,Y,0), 0.55f + 0.05f*(I%3), ETreeProxy::Broadleaf);
-    }
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_SOURCE_AUTHORED_VEGETATION_READY deciduous_asset=HillTree_02 pine_assets=ScotsPine_01,ScotsPineTall_01 primitive_tree_components=0 cylinder_sphere_trees=0 oak_asset_verified=0"));
 }

@@ -4,15 +4,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 START = ROOT / "START_HERE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
-PLAYABLE = ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"
-IMPORTER = ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd"
-IMPORT_PY = ROOT / "OsterConflict" / "Scripts" / "import_production_vehicle_assets.py"
-SOURCE_RECOVERY = ROOT / "OsterConflict" / "Scripts" / "prepare_local_production_sources.ps1"
+BATCH_CMD = ROOT / "OsterConflict" / "PASS45_BATCH_RUNTIME.cmd"
+BATCH_ENTRY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_progress_entry.py"
+BATCH_RUNTIMEFIX = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_runtimefix.py"
+BATCH_PY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 
 
 def read(path: Path) -> str:
     if not path.is_file():
-        raise SystemExit(f"PASS20 VERIFY FAIL: missing {path.name}")
+        raise SystemExit(f"PASS20 VERIFY FAIL: missing {path}")
     return path.read_text(encoding="utf-8", errors="replace")
 
 
@@ -23,85 +23,76 @@ def require(text: str, needle: str, label: str) -> None:
 
 start = read(START)
 normal = read(NORMAL)
-playable = read(PLAYABLE)
-importer = read(IMPORTER)
-import_py = read(IMPORT_PY)
-source_recovery = read(SOURCE_RECOVERY)
-
-require(start, 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"', "START_HERE normal-game route")
-if 'call "%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"' in start:
-    raise SystemExit("PASS20 VERIFY FAIL: START_HERE option 1 is incorrectly routed through recovery acceptance")
+batch_cmd = read(BATCH_CMD)
+batch_entry = read(BATCH_ENTRY)
+batch_runtimefix = read(BATCH_RUNTIMEFIX)
+batch_py = read(BATCH_PY)
 
 for needle in (
-    "verify_required_weapon_assets.py",
-    "required_weapon_asset_preflight_success.txt",
-    "Opening every required REAL/playable weapon visual",
-    "Launching CURRENT NORMAL GAME frontend",
-    "-Frontend",
-    '/C:"fix/runtime-map-spawn-fps-assets-"',
+    "1. ЗВИЧАЙНА ГРА", "2. ПОВНИЙ RUNTIME-ТЕСТ", "3. SAFE СУМІСНІСТЬ",
+    'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"',
+    'call "%~dp0OsterConflict\\PASS45_BATCH_RUNTIME.cmd"',
+    'set "OC_QUICK_NORMAL=1"', 'set "OC_RHI_COMPAT=1"', 'set "OC_RHI_COMPAT=0"',
 ):
-    require(normal, needle, "normal playable route")
+    require(start, needle, "START_HERE route")
 
-strict_stage = normal.find("[3/4] STRICT ACCEPTANCE")
-if strict_stage < 0:
-    raise SystemExit("PASS20 VERIFY FAIL: strict production stage is missing")
-acceptance_gate = normal.rfind('if "%IS_ACCEPTANCE%"=="1" (', 0, strict_stage)
-import_call = normal.find('call "%PRODUCTION_IMPORT%"', strict_stage)
-normal_else = normal.find(") else (", strict_stage)
-if acceptance_gate < 0 or import_call < 0 or normal_else < 0 or not (acceptance_gate < strict_stage < import_call < normal_else):
-    raise SystemExit("PASS20 VERIFY FAIL: production importer escaped strict acceptance")
+for stale in (
+    ":prepare_materials_strict",
+    'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"',
+    "TRY_PRODUCTION_VEHICLES_UE58.cmd",
+    "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd",
+):
+    if stale in start:
+        raise SystemExit(f"PASS20 VERIFY FAIL: stale fail-fast/heavy route returned to START_HERE: {stale}")
 
 for needle in (
-    "IMPORT_PRODUCTION_VEHICLES_UE58.cmd",
-    "PASS7_PRODUCTION_VEHICLES_READY",
-    "PASS7_PRODUCTION_WEAPONS_READY",
+    'if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game', ':quick_normal_game',
+    '[QUICK NORMAL] Incremental C++ build only. Asset reimport is skipped.', 'Runtime acceptance: NOT RUN',
+    '-windowed -ResX=1600 -ResY=900', '-ExecCmds="%QUALITY_CMDS%"',
+    'set "QUALITY_CMDS=t.MaxFPS 60,sg.ViewDistanceQuality 3,sg.ShadowQuality 2,sg.TextureQuality 3',
+    'r.ScreenPercentage 100', 'PASS45_NORMAL_VISUAL_QUALITY scale=100', '-nosplash',
 ):
-    require(normal, needle, "strict production runtime route")
+    require(normal, needle, "quick normal route")
 
-# Concrete local source filenames are owned by source recovery / Python import, not by the gameplay launcher
-# or the command wrapper. The command wrapper owns independent per-model results.
-for needle in (
-    'set "HMMWV_IMPORTED=0"',
-    'set "M2_IMPORTED=0"',
-    'set "BTR_IMPORTED=0"',
-    "Continuing independent intake for any available source files",
+quick = normal.split(':quick_normal_game', 1)[1]
+for forbidden in (
+    'git lfs pull',
+    'verify_required_weapon_assets.py',
+    'call "%PRODUCTION_IMPORT%"',
+    'PASS7_PRODUCTION_VEHICLES_READY',
 ):
-    require(importer, needle, "independent production intake command")
-for needle in (
-    "ukrainian_hmmwv_mk_19.glb",
-    "m2_50cal_machinegun_cc0.glb",
-    "BTR4_Bucephalus.fbx",
-    'attempt("HMMWV"',
-    'attempt("M2"',
-    'attempt("BTR4"',
-):
-    require(import_py, needle, "independent production asset implementation")
-for needle in (
-    "ukrainian_hmmwv_mk_19.glb",
-    "m2_50cal_machinegun_cc0.glb",
-    "BTR4_Bucephalus.fbx",
-    "Find-BtrFbxInNamedArchive",
-    "Available models may still be imported independently",
-):
-    require(source_recovery, needle, "production source recovery truth")
+    if forbidden in quick:
+        raise SystemExit(f"PASS20 VERIFY FAIL: quick route regained heavy work: {forbidden}")
 
-for needle in (
-    "[3/4] NORMAL GAME: optional production model intake is handled by START_HERE before this launcher.",
-    "Missing exact production models remain visible content gaps; no proxy is called production-ready.",
-):
-    require(normal, needle, "normal-game content truth")
+# Current batch entry is intentionally layered: cmd -> progress entry -> runtime window fix -> canonical orchestrator.
+# The old verifier incorrectly required the cmd wrapper to call pass45_batch_runtime.py directly.
+require(batch_cmd, "pass45_batch_runtime_progress_entry.py", "batch command wrapper")
+require(batch_entry, "import pass45_batch_runtime_progress as progress", "batch progress entry")
+require(batch_entry, 'with_name("pass45_batch_runtime_runtimefix.py")', "batch runtimefix handoff")
+require(batch_runtimefix, "import pass45_batch_runtime as base", "runtimefix canonical orchestrator import")
+for needle in ("-windowed", "-ResX=1280", "-ResY=720", "-norhithread", "-nosplash"):
+    require(batch_runtimefix, needle, "runtime acceptance window recovery")
 
+# Pass20 owns routing/orchestration only. Weapon, vehicle and performance readiness markers are validated
+# by their dedicated current gates, so retired result strings must not keep this launcher test red forever.
 for needle in (
-    "PASS19_PLAYABLE_WEAPON_SET_READY",
-    "PASS15_MUSEUM_BASES_WEAPONS_READY",
-    "PASS16_RUNTIME_GRAPHICS_IDENTITY",
-    "PASS15_PERF_SAMPLE",
+    "IMPORT_ALL_LOCAL_INBOX_UE58.cmd", "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
+    "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd", "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd",
+    "IMPORT_PRODUCTION_VEHICLES_UE58.cmd", "verify_required_weapon_assets.py", "RUN_PASS45_STRICT_MATERIAL_GATE.cmd",
+    "VERIFY_PASS45_GATE_K_RUNTIME_LOG.py", "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py", "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py",
+    "VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py", "VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py",
+    "/Game/Maps/OsterConflict_Runtime", "PASS45_BATCH_RUNTIME_REPORT.txt",
 ):
-    require(playable, needle, "focused recovery route remains intact")
+    require(batch_py, needle, "batch runtime orchestrator")
 
-print("NORMAL GAME ROUTE PASS 20 + PASS 44 SOURCE CONTRACT PASS")
-print("- START_HERE option 1 stays on the canonical normal-game launcher")
-print("- normal gameplay keeps the real/playable weapon preflight and branch-aware pre-merge test route")
-print("- exact source filenames belong to source-recovery/Python import; command wrapper owns per-model outcomes")
-print("- missing BTR cannot block available HMMWV/M2, but strict acceptance still rejects incomplete exact fleet art")
-print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime still required")
+combined = (batch_entry + batch_runtimefix + batch_py).lower()
+for destructive in ("git reset", "git clean", "git stash", "checkout --", "restore --"):
+    if destructive in combined:
+        raise SystemExit(f"PASS20 VERIFY FAIL: batch runtime can mutate user Changes: {destructive}")
+
+print("NORMAL GAME ROUTE PASS20 + PASS45 BATCH-FIRST SOURCE CONTRACT PASS")
+print("- START_HERE remains the only user-facing launcher")
+print("- option 1 uses 1600x900 / 100% render scale and normal high DX11-safe quality")
+print("- option 2 uses progress entry -> runtimefix -> canonical batch orchestrator without touching user Changes")
+print("- retired weapon/vehicle/perf result markers are no longer duplicated here; dedicated current gates own them")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence remains factual")

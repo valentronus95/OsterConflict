@@ -19,6 +19,7 @@
 #include "OCDeployableTrap.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
+#include "CollisionShape.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -180,7 +181,6 @@ void AOCCharacter::Tick(float DeltaSeconds)
         const float TargetFOV = bIsAiming ? ADSFieldOfView : DefaultFieldOfView;
         FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(
             FirstPersonCamera->FieldOfView, TargetFOV, DeltaSeconds, ADSInterpSpeed));
-        RecoverLocalRecoil(DeltaSeconds);
     }
 }
 
@@ -433,7 +433,6 @@ void AOCCharacter::StartSprint()
     bIsSprinting = true;
     bIsAiming = false;
     ApplyMovementSpeed();
-    StopLocalFireFeedback();
 
     if (!HasAuthority())
     {
@@ -536,8 +535,6 @@ void AOCCharacter::EnterVehicleServer(AOCVehicleBase* Vehicle)
         return;
     }
 
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     StopServerFireTimer();
     CancelReviveServer();
     if (CurrentWeapon) CurrentWeapon->CancelReloadServer();
@@ -574,8 +571,6 @@ void AOCCharacter::EnterVehicleGunnerServer(AOCArmedVehicleBase* Vehicle, const 
         return;
     }
 
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     StopServerFireTimer();
     CancelReviveServer();
     if (CurrentWeapon) CurrentWeapon->CancelReloadServer();
@@ -697,9 +692,6 @@ void AOCCharacter::FirePressed()
         return;
     }
 
-    bLocalFireHeld = true;
-    StartLocalFireFeedback();
-
     if (HasAuthority())
     {
         ServerSetFireHeld_Implementation(true);
@@ -718,9 +710,6 @@ void AOCCharacter::FireReleased()
         else ServerSetVehicleGunnerFireHeld(false);
         return;
     }
-
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
 
     if (HasAuthority())
     {
@@ -761,13 +750,33 @@ void AOCCharacter::ServerReloadVehicleTurret_Implementation()
 
 void AOCCharacter::ServerSetFireHeld_Implementation(bool bHeld)
 {
-    StopServerFireTimer();
-    bServerFireHeld = bHeld;
-
     const AOCGameState* MatchState = GetWorld() ? GetWorld()->GetGameState<AOCGameState>() : nullptr;
-    if ((MatchState && MatchState->GetOCMatchPhase() == EOCMatchPhase::Ended) ||
-        !bServerFireHeld || !CurrentWeapon || bIsSprinting || (HealthComponent && !HealthComponent->IsAlive()))
+
+    // Trigger release stops automatic fire immediately, but an already accepted finite three-round burst owns the
+    // remaining pulses. Otherwise rapid release could turn Burst3 into an accidental semi-auto selector.
+    if (!bHeld)
     {
+        bServerFireHeld = false;
+        if (ServerBurstShotsRemaining <= 0)
+        {
+            GetWorldTimerManager().ClearTimer(ServerFireTimerHandle);
+        }
+        return;
+    }
+
+    // Do not restart or stack a burst while its authoritative sequence is still in flight.
+    if (ServerBurstShotsRemaining > 0)
+    {
+        return;
+    }
+
+    StopServerFireTimer();
+    bServerFireHeld = true;
+
+    if ((MatchState && MatchState->GetOCMatchPhase() == EOCMatchPhase::Ended) ||
+        !CurrentWeapon || bIsSprinting || (HealthComponent && !HealthComponent->IsAlive()))
+    {
+        StopServerFireTimer();
         return;
     }
 
@@ -775,28 +784,51 @@ void AOCCharacter::ServerSetFireHeld_Implementation(bool bHeld)
     {
         if (CurrentWeapon->GetAmmoInMagazine() <= 0)
         {
-            bServerFireHeld = false;
+            StopServerFireTimer();
             return;
         }
         CurrentWeapon->CancelReloadServer();
     }
 
+    const EOCFireMode FireMode = CurrentWeapon->GetCurrentFireMode();
+    if (FireMode == EOCFireMode::Burst3)
+    {
+        ServerBurstShotsRemaining = FMath::Min(3, CurrentWeapon->GetAmmoInMagazine());
+    }
+
     ServerHandleFirePulse();
 
-    if (bServerFireHeld && CurrentWeapon && CurrentWeapon->GetCurrentFireMode() == EOCFireMode::Automatic &&
-        CurrentWeapon->GetAmmoInMagazine() > 0)
+    if (!CurrentWeapon || CurrentWeapon->GetAmmoInMagazine() <= 0)
     {
-        const float Interval = FMath::Max(0.02f, CurrentWeapon->GetFireInterval());
+        return;
+    }
+
+    const float Interval = FMath::Max(0.02f, CurrentWeapon->GetFireInterval());
+    if (FireMode == EOCFireMode::Automatic && bServerFireHeld)
+    {
         GetWorldTimerManager().SetTimer(ServerFireTimerHandle, this, &AOCCharacter::ServerHandleFirePulse,
             Interval, true, Interval);
+    }
+    else if (FireMode == EOCFireMode::Burst3 && ServerBurstShotsRemaining > 0)
+    {
+        GetWorldTimerManager().SetTimer(ServerFireTimerHandle, this, &AOCCharacter::ServerHandleFirePulse,
+            Interval, true, Interval);
+        UE_LOG(LogTemp, Verbose,
+            TEXT("PASS45_BURST3_SEQUENCE_READY authoritative=1 finite_shots=3 release_cancel=0 remaining=%d"),
+            ServerBurstShotsRemaining);
+    }
+    else
+    {
+        bServerFireHeld = false;
     }
 }
 
 void AOCCharacter::ServerHandleFirePulse()
 {
     const AOCGameState* MatchState = GetWorld() ? GetWorld()->GetGameState<AOCGameState>() : nullptr;
+    const bool bBurstActive = ServerBurstShotsRemaining > 0;
     if (!HasAuthority() || (MatchState && MatchState->GetOCMatchPhase() == EOCMatchPhase::Ended) ||
-        !bServerFireHeld || !CurrentWeapon || !Controller || bIsSprinting ||
+        (!bServerFireHeld && !bBurstActive) || !CurrentWeapon || !Controller || bIsSprinting ||
         (HealthComponent && !HealthComponent->IsAlive()))
     {
         StopServerFireTimer();
@@ -811,11 +843,16 @@ void AOCCharacter::ServerHandleFirePulse()
     FHitResult Hit;
     bool bDamagedActor = false;
     bool bFatalHit = false;
+    const EOCFireMode FireMode = CurrentWeapon->GetCurrentFireMode();
     const bool bShotFired = CurrentWeapon->TryFireServer(
         this, ViewLocation, ViewRotation.Vector(), bIsAiming, bMoving, Hit, bDamagedActor, bFatalHit);
 
     if (bShotFired)
     {
+        if (FireMode == EOCFireMode::Burst3 && ServerBurstShotsRemaining > 0)
+        {
+            --ServerBurstShotsRemaining;
+        }
         if (CharacterVisualComponent) CharacterVisualComponent->BroadcastActionServer(EOCCharacterActionEvent::Fire);
         if (bDamagedActor) ClientConfirmHit(bFatalHit);
     }
@@ -823,6 +860,22 @@ void AOCCharacter::ServerHandleFirePulse()
     if (!bShotFired || CurrentWeapon->GetAmmoInMagazine() <= 0)
     {
         StopServerFireTimer();
+        return;
+    }
+
+    if (FireMode == EOCFireMode::Burst3)
+    {
+        if (ServerBurstShotsRemaining <= 0)
+        {
+            StopServerFireTimer();
+        }
+        return;
+    }
+
+    if (FireMode != EOCFireMode::Automatic)
+    {
+        GetWorldTimerManager().ClearTimer(ServerFireTimerHandle);
+        bServerFireHeld = false;
     }
 }
 
@@ -830,79 +883,7 @@ void AOCCharacter::StopServerFireTimer()
 {
     GetWorldTimerManager().ClearTimer(ServerFireTimerHandle);
     bServerFireHeld = false;
-}
-
-void AOCCharacter::StartLocalFireFeedback()
-{
-    StopLocalFireFeedback();
-
-    if (!IsLocallyControlled() || !CurrentWeapon || CurrentWeapon->GetAmmoInMagazine() <= 0)
-    {
-        return;
-    }
-
-    ApplyLocalShotFeedback();
-
-    if (CurrentWeapon->GetCurrentFireMode() == EOCFireMode::Automatic)
-    {
-        const float Interval = FMath::Max(0.02f, CurrentWeapon->GetFireInterval());
-        GetWorldTimerManager().SetTimer(LocalFireFeedbackTimerHandle, this, &AOCCharacter::ApplyLocalShotFeedback,
-            Interval, true, Interval);
-    }
-}
-
-void AOCCharacter::StopLocalFireFeedback()
-{
-    GetWorldTimerManager().ClearTimer(LocalFireFeedbackTimerHandle);
-}
-
-void AOCCharacter::ApplyLocalShotFeedback()
-{
-    if (!bLocalFireHeld || !IsLocallyControlled() || !CurrentWeapon || CurrentWeapon->GetAmmoInMagazine() <= 0)
-    {
-        StopLocalFireFeedback();
-        return;
-    }
-
-    const float PitchKick = FMath::FRandRange(CurrentWeapon->GetRecoilPitchMin(), CurrentWeapon->GetRecoilPitchMax());
-    const float YawKick = FMath::FRandRange(-CurrentWeapon->GetRecoilYawMax(), CurrentWeapon->GetRecoilYawMax());
-
-    AddControllerPitchInput(-PitchKick);
-    AddControllerYawInput(YawKick);
-    CurrentRecoilPitchOffset += PitchKick;
-    CurrentRecoilYawOffset += YawKick;
-    LastLocalShotTime = GetWorld()->GetTimeSeconds();
-
-    if (FireCameraShakeClass)
-    {
-        if (APlayerController* PC = Cast<APlayerController>(Controller))
-        {
-            PC->ClientStartCameraShake(FireCameraShakeClass, FMath::Clamp(UOCPlayerUserSettings::Get()->CameraShakeScale, 0.0f, 1.0f));
-        }
-    }
-}
-
-void AOCCharacter::RecoverLocalRecoil(float DeltaSeconds)
-{
-    if (!IsLocallyControlled() || !GetWorld() ||
-        GetWorld()->GetTimeSeconds() - LastLocalShotTime < RecoilRecoveryDelay)
-    {
-        return;
-    }
-
-    if (CurrentRecoilPitchOffset > KINDA_SMALL_NUMBER)
-    {
-        const float PitchStep = FMath::Min(CurrentRecoilPitchOffset, RecoilRecoverySpeed * DeltaSeconds);
-        AddControllerPitchInput(PitchStep);
-        CurrentRecoilPitchOffset -= PitchStep;
-    }
-
-    if (!FMath::IsNearlyZero(CurrentRecoilYawOffset, 0.001f))
-    {
-        const float NewYawOffset = FMath::FInterpTo(CurrentRecoilYawOffset, 0.0f, DeltaSeconds, RecoilRecoverySpeed);
-        AddControllerYawInput(NewYawOffset - CurrentRecoilYawOffset);
-        CurrentRecoilYawOffset = NewYawOffset;
-    }
+    ServerBurstShotsRemaining = 0;
 }
 
 void AOCCharacter::ReloadPressed()
@@ -918,9 +899,6 @@ void AOCCharacter::ReloadPressed()
     {
         return;
     }
-
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
 
     if (HasAuthority())
     {
@@ -948,9 +926,6 @@ void AOCCharacter::ServerReload_Implementation()
 
 void AOCCharacter::CycleFireModePressed()
 {
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
-
     if (HasAuthority())
     {
         ServerCycleFireMode_Implementation();
@@ -975,6 +950,24 @@ void AOCCharacter::ClientConfirmHit_Implementation(bool bFatalHit)
 {
     LastHitConfirmTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
     bLastHitFatal = bFatalHit;
+}
+
+void AOCCharacter::NotifyConfirmedWeaponShotPresentation()
+{
+    if (!IsLocallyControlled())
+    {
+        return;
+    }
+
+    if (FireCameraShakeClass)
+    {
+        if (APlayerController* PC = Cast<APlayerController>(Controller))
+        {
+            PC->ClientStartCameraShake(
+                FireCameraShakeClass,
+                FMath::Clamp(UOCPlayerUserSettings::Get()->CameraShakeScale, 0.0f, 1.0f));
+        }
+    }
 }
 
 void AOCCharacter::NotifyDamageReceived(const FVector& DamageOrigin)
@@ -1013,7 +1006,10 @@ float AOCCharacter::GetCrosshairGap() const
         }
     }
 
-    Gap += FMath::Clamp(CurrentRecoilPitchOffset * 1.5f, 0.0f, 8.0f);
+    if (CurrentWeapon)
+    {
+        Gap += FMath::Clamp(CurrentWeapon->GetConfirmedLocalRecoilPitchOffset() * 1.5f, 0.0f, 8.0f);
+    }
     return Gap;
 }
 
@@ -1093,8 +1089,6 @@ void AOCCharacter::InteractReleased()
 
 void AOCCharacter::DropWeaponPressed()
 {
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     if (!CurrentWeapon || (HealthComponent && !HealthComponent->IsAlive()))
     {
         return;
@@ -1112,8 +1106,6 @@ void AOCCharacter::DropWeaponPressed()
 
 void AOCCharacter::EquipPrimaryPressed()
 {
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     if (HasAuthority())
     {
         ServerEquipWeaponSlot_Implementation(EOCInventorySlot::Primary);
@@ -1126,8 +1118,6 @@ void AOCCharacter::EquipPrimaryPressed()
 
 void AOCCharacter::EquipSecondaryPressed()
 {
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     if (HasAuthority())
     {
         ServerEquipWeaponSlot_Implementation(EOCInventorySlot::Secondary);
@@ -1166,7 +1156,6 @@ void AOCCharacter::EquipSlotServer(EOCInventorySlot Slot)
     }
 
     StopServerFireTimer();
-    StopLocalFireFeedback();
     if (CurrentWeapon)
     {
         CurrentWeapon->CancelReloadServer();
@@ -1526,18 +1515,76 @@ void AOCCharacter::CycleTrapPressed()
 
 void AOCCharacter::ServerThrowSelectedGrenade_Implementation()
 {
-    if (!HealthComponent || !HealthComponent->IsAlive() || bInVehicle) return;
+    if (!HasAuthority() || !GetWorld() || !HealthComponent || !HealthComponent->IsAlive() || bInVehicle) return;
+
     int32* Count = SelectedGrenadeType == EOCGrenadeType::Fragmentation ? &FragGrenades :
         (SelectedGrenadeType == EOCGrenadeType::Smoke ? &SmokeGrenades : &FlashGrenades);
     if (!Count || *Count <= 0) return;
-    --(*Count);
-    const FVector Origin = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation()+FVector(0,0,60);
-    const FVector Forward = FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector();
-    FActorSpawnParameters Params; Params.Owner=this; Params.Instigator=this; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    if (AOCGrenadeProjectile* G = GetWorld()->SpawnActor<AOCGrenadeProjectile>(AOCGrenadeProjectile::StaticClass(), Origin+Forward*70.0f, Forward.Rotation(), Params))
+
+    const FVector ViewOrigin = FirstPersonCamera
+        ? FirstPersonCamera->GetComponentLocation()
+        : GetActorLocation() + FVector(0.0f, 0.0f, 60.0f);
+    const FVector Forward = (FirstPersonCamera ? FirstPersonCamera->GetForwardVector() : GetActorForwardVector()).GetSafeNormal();
+    const FVector DesiredSpawn = ViewOrigin + Forward * 85.0f;
+    const FCollisionShape ClearanceShape = FCollisionShape::MakeSphere(9.0f);
+
+    FCollisionQueryParams SweepParams(SCENE_QUERY_STAT(Pass45GrenadeSafeSpawn), false, this);
+    SweepParams.AddIgnoredActor(this);
+    if (CurrentWeapon) SweepParams.AddIgnoredActor(CurrentWeapon);
+    if (PrimaryWeapon && PrimaryWeapon != CurrentWeapon) SweepParams.AddIgnoredActor(PrimaryWeapon);
+    if (SecondaryWeapon && SecondaryWeapon != CurrentWeapon && SecondaryWeapon != PrimaryWeapon) SweepParams.AddIgnoredActor(SecondaryWeapon);
+
+    FHitResult SweepHit;
+    FVector SpawnLocation = DesiredSpawn;
+    const bool bSweepBlocked = GetWorld()->SweepSingleByChannel(
+        SweepHit, ViewOrigin, DesiredSpawn, FQuat::Identity, ECC_Visibility, ClearanceShape, SweepParams);
+
+    if (bSweepBlocked)
     {
-        G->InitializeGrenadeServer(SelectedGrenadeType, Forward*1350.0f + FVector::UpVector*190.0f);
+        if (SweepHit.bStartPenetrating)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_GRENADE_SAFE_SPAWN_REJECTED reason=start_penetrating inventory_consumed=0"));
+            return;
+        }
+        SpawnLocation = SweepHit.Location - Forward * 2.0f;
     }
+
+    if (GetWorld()->OverlapBlockingTestByChannel(
+        SpawnLocation, FQuat::Identity, ECC_Visibility, ClearanceShape, SweepParams))
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_GRENADE_SAFE_SPAWN_REJECTED reason=overlap inventory_consumed=0"));
+        return;
+    }
+
+    FActorSpawnParameters Params;
+    Params.Owner = this;
+    Params.Instigator = this;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+
+    AOCGrenadeProjectile* Grenade = GetWorld()->SpawnActor<AOCGrenadeProjectile>(
+        AOCGrenadeProjectile::StaticClass(), SpawnLocation, Forward.Rotation(), Params);
+    if (!Grenade)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_GRENADE_SPAWN_FAIL inventory_consumed=0 safe_sweep=1"));
+        return;
+    }
+
+    const FVector ThrowVelocity = Forward * 1350.0f + FVector::UpVector * 190.0f + GetVelocity();
+    Grenade->InitializeGrenadeServer(SelectedGrenadeType, ThrowVelocity);
+
+    // Inventory is transactional: commit only after the authoritative projectile exists.
+    --(*Count);
+    if (CharacterVisualComponent)
+    {
+        CharacterVisualComponent->BroadcastActionServer(EOCCharacterActionEvent::GrenadeThrow);
+    }
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GRENADE_THROW_COMMIT_READY safe_sweep=1 spawn_success=1 inventory_committed_after_spawn=1 inherited_velocity=1 presentation_event=1"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GRENADE_THROW_PRESENTATION_BRIDGE_READY event=GrenadeThrow authored_animation_pending=1 second_gameplay_timer=0"));
     ForceNetUpdate();
 }
 
@@ -1962,8 +2009,6 @@ void AOCCharacter::ApplyLifeStatePresentation()
 
 void AOCCharacter::HandleDowned()
 {
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     bIsAiming = false;
     bIsSprinting = false;
 
@@ -2006,8 +2051,6 @@ void AOCCharacter::HandleRevived()
 
 void AOCCharacter::HandleDeath()
 {
-    bLocalFireHeld = false;
-    StopLocalFireFeedback();
     bIsAiming = false;
     bIsSprinting = false;
 

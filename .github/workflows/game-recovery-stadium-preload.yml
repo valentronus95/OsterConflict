@@ -1,0 +1,18 @@
+name: Game Recovery Stadium Preload
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+  pull_request:
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Verify GAME_RECOVERY stadium async activation
+        run: python VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py

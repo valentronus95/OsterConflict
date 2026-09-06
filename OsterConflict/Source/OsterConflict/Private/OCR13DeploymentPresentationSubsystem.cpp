@@ -34,10 +34,10 @@ namespace
         if (UButton* Button = Cast<UButton>(Widget))
         {
             FButtonStyle Style = Button->GetStyle();
-            Style.Normal.TintColor = FSlateColor(FLinearColor(0.025f, 0.030f, 0.034f, 0.14f));
-            Style.Hovered.TintColor = FSlateColor(FLinearColor(0.17f, 0.19f, 0.20f, 0.34f));
-            Style.Pressed.TintColor = FSlateColor(FLinearColor(0.42f, 0.35f, 0.20f, 0.42f));
-            Style.Disabled.TintColor = FSlateColor(FLinearColor(0.018f, 0.022f, 0.026f, 0.11f));
+            Style.Normal.TintColor = FSlateColor(FLinearColor(0.060f, 0.072f, 0.084f, 0.72f));
+            Style.Hovered.TintColor = FSlateColor(FLinearColor(0.18f, 0.21f, 0.24f, 0.92f));
+            Style.Pressed.TintColor = FSlateColor(FLinearColor(0.42f, 0.31f, 0.12f, 0.95f));
+            Style.Disabled.TintColor = FSlateColor(FLinearColor(0.028f, 0.033f, 0.039f, 0.52f));
             Style.NormalPadding = FMargin(1.0f);
             Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
             Button->SetStyle(Style);
@@ -47,11 +47,11 @@ namespace
         {
             if (Border == RootPanel)
             {
-                Border->SetBrushColor(FLinearColor(0.008f, 0.012f, 0.016f, 0.87f));
+                Border->SetBrushColor(FLinearColor(0.008f, 0.012f, 0.016f, 0.94f));
             }
             else
             {
-                Border->SetBrushColor(FLinearColor(0.030f, 0.036f, 0.041f, 0.76f));
+                Border->SetBrushColor(FLinearColor(0.030f, 0.038f, 0.046f, 0.90f));
             }
         }
         else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
@@ -103,11 +103,19 @@ void UOCR13DeploymentPresentationSubsystem::Tick(float DeltaTime)
     }
 
     EnsurePresentation(Root);
-    SetPresentationVisible(PC->IsDeploymentPanelVisible() && !PC->IsSettingsVisible());
+
+    // Deployment owns its backdrop only while deployment itself is the active top-level screen.
+    // Previously the presentation layer ignored the frontend flag, so BACK could leave this high-Z
+    // shade sitting over the main menu even after the frontend became visible.
+    const bool bDeploymentOwnsScreen = PC->IsDeploymentPanelVisible() &&
+        !PC->IsSettingsVisible() && !PC->IsFrontendMenuVisible();
+    SetPresentationVisible(bDeploymentOwnsScreen);
 
     if (!bUpdateBudgetLogged)
     {
         bUpdateBudgetLogged = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_DEPLOYMENT_PRESENTATION_READY update_hz=10 frontend_exclusion=1 opaque_leak=0 flow_alpha=0.94 section_alpha=0.90"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY update_hz=10 root_scan=cache_miss visibility_writes=deduped style_writes=once_per_root"));
     }
@@ -120,9 +128,7 @@ UOCGameUIRootWidget* UOCR13DeploymentPresentationSubsystem::ResolveRoot(UWorld* 
     if (UOCGameUIRootWidget* ExistingRoot = ActiveRoot.Get())
     {
         if (ActiveController.Get() == PC && ExistingRoot->GetWorld() == World && ExistingRoot->GetOwningPlayer() == PC)
-        {
             return ExistingRoot;
-        }
     }
 
     ActiveRoot.Reset();
@@ -151,9 +157,6 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
     if (!Root) return;
     if (StyledFlowPanel.IsValid() && BackdropBlur.IsValid() && BackdropShade.IsValid() && bStyleApplied) return;
 
-    UBorder* FlowPanel = FindObjectFast<UBorder>(Root, TEXT("R13_DeploymentFlowPanel"));
-    if (!FlowPanel) return;
-
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
 
@@ -178,13 +181,18 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
         UBorder* Shade = NewObject<UBorder>(Root, TEXT("R13_DeploymentBackdropShade"));
         if (Shade)
         {
-            Shade->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.16f));
+            Shade->SetBrushColor(FLinearColor(0.005f, 0.008f, 0.011f, 0.76f));
             Shade->SetIsEnabled(false);
+            Shade->SetRenderOpacity(1.0f);
             Shade->SetVisibility(ESlateVisibility::Collapsed);
             FillCanvas(Canvas->AddChildToCanvas(Shade), 9189);
             BackdropShade = Shade;
+            bPresentationVisibilityValid = false;
         }
     }
+
+    UBorder* FlowPanel = FindObjectFast<UBorder>(Root, TEXT("R13_DeploymentFlowPanel"));
+    if (!FlowPanel) return;
 
     StyledFlowPanel = FlowPanel;
     if (!bStyleApplied)
@@ -197,7 +205,8 @@ void UOCR13DeploymentPresentationSubsystem::EnsurePresentation(UOCGameUIRootWidg
 void UOCR13DeploymentPresentationSubsystem::ApplyWidgetStyle(UBorder* FlowPanel)
 {
     if (!FlowPanel) return;
-    FlowPanel->SetPadding(FMargin(28.0f));
+    FlowPanel->SetPadding(FMargin(32.0f));
+    FlowPanel->SetRenderOpacity(1.0f);
     RestyleWidgetRecursive(FlowPanel, FlowPanel);
     FlowPanel->InvalidateLayoutAndVolatility();
 }
@@ -206,13 +215,15 @@ void UOCR13DeploymentPresentationSubsystem::SetPresentationVisible(const bool bV
 {
     if (bPresentationVisibilityValid && bLastPresentationVisible == bVisible) return;
 
-    const ESlateVisibility Visibility = bVisible
-        ? ESlateVisibility::SelfHitTestInvisible
-        : ESlateVisibility::Collapsed;
-
+    // Only write Slate visibility when ownership actually changes. Rewriting this state at 10 Hz was cheap
+    // individually, but it still invalidated the high-Z deployment subtree for no visual change.
+    const ESlateVisibility Visibility = bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
     if (BackdropBlur.IsValid()) BackdropBlur->SetVisibility(ESlateVisibility::Collapsed);
-    if (BackdropShade.IsValid()) BackdropShade->SetVisibility(Visibility);
-
+    if (BackdropShade.IsValid())
+    {
+        BackdropShade->SetRenderOpacity(1.0f);
+        BackdropShade->SetVisibility(Visibility);
+    }
     bPresentationVisibilityValid = true;
     bLastPresentationVisible = bVisible;
 }

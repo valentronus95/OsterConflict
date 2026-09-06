@@ -1,0 +1,38 @@
+name: Pass 45 Authored Park Ground
+
+on:
+  push:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkGroundAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkGroundAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Plane_1x1.uasset'
+      - 'OsterConflict/Content/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Grass_Inst.uasset'
+      - 'VERIFY_PASS45_AUTHORED_PARK_GROUND.py'
+      - '.github/workflows/pass45-authored-park-ground.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkGroundAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkGroundAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp'
+      - 'OsterConflict/Content/AdvancedVillagePack/Meshes/SM_Plane_1x1.uasset'
+      - 'OsterConflict/Content/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Grass_Inst.uasset'
+      - 'VERIFY_PASS45_AUTHORED_PARK_GROUND.py'
+      - '.github/workflows/pass45-authored-park-ground.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact authored park ground upgrade
+        run: python VERIFY_PASS45_AUTHORED_PARK_GROUND.py

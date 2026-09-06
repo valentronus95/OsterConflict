@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/NetSerialization.h"
@@ -24,6 +25,7 @@ public:
     AOCWeaponBase();
 
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     virtual bool TryFireServer(AOCCharacter* Shooter, const FVector& TraceOrigin, const FVector& TraceDirection,
@@ -41,18 +43,70 @@ public:
     /** Called locally by Character after inventory replication. */
     void ApplyInventoryPresentation(bool bActive, USceneComponent* ActiveAttachParent);
 
+    /** Stable unscaled visual attachment root. Real fallbacks must attach here, never to the scaled physics body. */
+    USceneComponent* GetWeaponVisualRoot() const { return WeaponRoot; }
+
+    /**
+     * Resolve the rendered muzzle from the active production visual while retaining camera-origin aim reconciliation.
+     * This deliberately uses the visible production component bounds instead of the camera as a muzzle surrogate.
+     * Asset-specific sockets can supersede this bounds fallback later without changing the firing contract.
+     */
+    FVector ResolvePresentationMuzzleOrigin(const FVector& AimOrigin, const FVector& AimDirection) const
+    {
+        const FVector Direction = AimDirection.GetSafeNormal();
+        if (Direction.IsNearlyZero())
+        {
+            return AimOrigin;
+        }
+
+        TArray<UPrimitiveComponent*> Components;
+        GetComponents<UPrimitiveComponent>(Components);
+        const FName ProductionTag(TEXT("OC_ProductionWeaponVisual"));
+        for (UPrimitiveComponent* Component : Components)
+        {
+            if (!Component || !Component->ComponentHasTag(ProductionTag) || !Component->IsVisible())
+            {
+                continue;
+            }
+
+            const FBoxSphereBounds Bounds = Component->Bounds;
+            const float ForwardExtent =
+                FMath::Abs(Direction.X) * Bounds.BoxExtent.X +
+                FMath::Abs(Direction.Y) * Bounds.BoxExtent.Y +
+                FMath::Abs(Direction.Z) * Bounds.BoxExtent.Z;
+            return Bounds.Origin + Direction * FMath::Max(2.0f, ForwardExtent);
+        }
+
+        return AimOrigin;
+    }
+
     /**
      * AActor exposes relative-transform setters but no matching getters in UE 5.8.
-     * Presentation code needs the exact transform of the authoritative weapon root so ADS/recoil
-     * offsets can be restored without accidentally mixing camera-relative and world-space values.
+     * The physical WeaponMesh is the current actor root so player drops can replicate rigid-body motion. The
+     * WeaponRoot branch intentionally remains as a compatibility fallback for any legacy or authored variant that
+     * still makes the visual root authoritative. This keeps first-person presentation and drop physics in one truth.
      */
     FVector GetActorRelativeLocation() const
     {
+        if (const USceneComponent* Root = GetRootComponent())
+        {
+            if (Root != WeaponRoot)
+            {
+                return Root->GetRelativeLocation();
+            }
+        }
         return WeaponRoot ? WeaponRoot->GetRelativeLocation() : GetActorLocation();
     }
 
     FRotator GetActorRelativeRotation() const
     {
+        if (const USceneComponent* Root = GetRootComponent())
+        {
+            if (Root != WeaponRoot)
+            {
+                return Root->GetRelativeRotation();
+            }
+        }
         return WeaponRoot ? WeaponRoot->GetRelativeRotation() : GetActorRotation();
     }
 
@@ -77,6 +131,27 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon")
     EOCFireMode GetCurrentFireMode() const { return CurrentFireMode; }
 
+    UFUNCTION(BlueprintPure, Category="Weapon|Action")
+    EOCWeaponActionType GetWeaponActionType() const { return Tuning.ActionType; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Action")
+    float GetManualActionCycleDuration() const { return FMath::Max(0.0f, Tuning.ManualActionCycleSeconds); }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Action")
+    bool IsActionCycling() const { return bActionCycling; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|FireMode")
+    bool SupportsFireMode(EOCFireMode Mode) const
+    {
+        switch (Mode)
+        {
+            case EOCFireMode::SemiAutomatic: return Tuning.bSupportsSemiAutomatic;
+            case EOCFireMode::Burst3: return Tuning.bSupportsBurst3;
+            case EOCFireMode::Automatic: return Tuning.bSupportsAutomatic;
+            default: return false;
+        }
+    }
+
     UFUNCTION(BlueprintPure, Category="Weapon")
     bool IsReloading() const { return bIsReloading; }
 
@@ -86,14 +161,18 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon")
     float GetADSSpreadDegrees() const { return Tuning.ADSSpreadDegrees; }
 
-    UFUNCTION(BlueprintPure, Category="Weapon")
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
     float GetRecoilPitchMin() const;
 
-    UFUNCTION(BlueprintPure, Category="Weapon")
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
     float GetRecoilPitchMax() const;
 
-    UFUNCTION(BlueprintPure, Category="Weapon")
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
     float GetRecoilYawMax() const;
+
+    /** Local owner-only recoil magnitude sourced exclusively from server-confirmed shot multicast events. */
+    UFUNCTION(BlueprintPure, Category="Weapon|Recoil")
+    float GetConfirmedLocalRecoilPitchOffset() const { return ConfirmedLocalRecoilPitchOffset; }
 
     UFUNCTION(BlueprintPure, Category="Weapon|Inventory")
     EOCInventorySlot GetPreferredSlot() const { return Tuning.PreferredSlot; }
@@ -123,9 +202,11 @@ public:
     UOCWeaponAudioComponent* GetWeaponAudioComponent() const { return WeaponAudioComponent; }
 
 protected:
+    /** Stable visual attach point. This intentionally remains separate from the physics root. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
     TObjectPtr<USceneComponent> WeaponRoot;
 
+    /** Hidden/source collision body; this is the intended physics authority for dropped weapons. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
     TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
@@ -150,6 +231,10 @@ protected:
 
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|State")
     bool bIsReloading = false;
+
+    /** Replicated post-shot gate for bolt/pump/lever actions. Presentation observes it; authority owns timing. */
+    UPROPERTY(ReplicatedUsing=OnRep_ActionCycling, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|Action")
+    bool bActionCycling = false;
 
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon|FireMode")
     EOCFireMode CurrentFireMode = EOCFireMode::Automatic;
@@ -182,6 +267,9 @@ protected:
     UFUNCTION()
     void OnRep_Attachments();
 
+    UFUNCTION()
+    void OnRep_ActionCycling();
+
     void ConfigureBuiltInTuning(const FOCWeaponTuning& NewTuning);
 
 private:
@@ -189,10 +277,24 @@ private:
     double LastServerDryFireTime = -1000.0;
     int32 ServerAudioEventCounter = 0;
     FTimerHandle ReloadTimerHandle;
+    FTimerHandle ManualActionTimerHandle;
+
+    /** Client-local, confirmed-shot recoil state. It is driven by server-accepted shot multicast, never held input. */
+    double LastConfirmedLocalShotTime = -1000.0;
+    float ConfirmedLocalRecoilPitchOffset = 0.0f;
+    float ConfirmedLocalRecoilYawOffset = 0.0f;
+    float ConfirmedRecoilRecoveryDelay = 0.10f;
+    float ConfirmedRecoilRecoverySpeed = 8.5f;
 
     UPROPERTY(Transient) TArray<TObjectPtr<UStaticMeshComponent>> SourceVisualParts;
     void BuildSourceOnlyWeaponVisual();
 
+    void ApplyConfirmedLocalShotRecoil();
+    void RecoverConfirmedLocalShotRecoil(float DeltaSeconds);
+    bool RequiresManualActionCycle() const;
+    void BeginManualActionCycleServer();
+    void FinishManualActionCycleServer();
+    void CancelManualActionCycleServer();
     float CalculateSpreadDegrees(bool bAiming, bool bMoving) const;
     float GetRecoilMultiplier() const;
     float GetADSSpreadMultiplier() const;

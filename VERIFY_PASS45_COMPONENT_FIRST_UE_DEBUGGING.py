@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Static contract for PASS45 batch-first UE acceptance and component-first recovery.
+
+The user-authoritative checkpoint defers PC-side weapon checking until the intended
+weapon batch is ready. CI therefore proves two distinct facts:
+
+1. ordinary preparation is remote-first and culminates in one consolidated weapon
+   acceptance window; and
+2. the narrow Lever launcher remains safe/self-validating for later corrective
+   debugging if a consolidated run actually identifies Lever as the failed component.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+errors: list[str] = []
+
+
+def read(rel: str) -> str:
+    path = ROOT / rel
+    if not path.is_file():
+        raise SystemExit(f"PASS45 COMPONENT-FIRST UE DEBUGGING: FAIL\n[FAIL] missing file: {rel}")
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def req(condition: bool, message: str) -> None:
+    if not condition:
+        errors.append(message)
+
+
+agents = read("AGENTS.md")
+protocol = read("_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md")
+ledger = read("OSTER_CONFLICT_WORK_LEDGER.md")
+history = read("PASS45_RUNTIME_RECOVERY_HISTORY.md")
+full_chain = read("OsterConflict/RUN_PASS45_ITEM16_LOCAL_UE58_EVIDENCE.cmd")
+lever_launcher = read("OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd")
+
+req(
+    "31. **Use batch-first user runtime acceptance and component-first corrective debugging; the user is not the first test environment.**" in agents,
+    "AGENTS.md rule 31 no longer binds batch-first acceptance/component-first recovery",
+)
+req(
+    "_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md" in agents,
+    "AGENTS.md does not bind the component-first protocol",
+)
+req(
+    "32. **User-facing status and required actions must be unmistakable and written in plain language.**" in agents,
+    "AGENTS.md lost the plain-language user handoff rule",
+)
+
+for needle in (
+    "Core rule — remote first, user runtime in batches",
+    "do **not** ask the user to test M700, Remington 870, Lever Action or another individual weapon",
+    "collect one consolidated defect list",
+    "rerun only failed components during corrective debugging",
+    "Level A — static / remote preflight",
+    "Level B — targeted component UE proof",
+    "Level C — consolidated weapon chain / gameplay acceptance",
+    "The full gameplay route is an acceptance gate, not a Python/asset-authoring debugger.",
+    "OsterConflict/TRY_PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT.cmd",
+    "Latest explicit user requirement supersedes the earlier instruction that made a Lever-only run the immediate next action",
+    "Lever-only is no longer the current user action",
+    "Deferred-acceptance continuation rule",
+    "ВІД ТЕБЕ ЗАРАЗ НІЧОГО НЕ ПОТРІБНО.",
+    "ПОТРІБНА ТВОЯ ПЕРЕВІРКА.",
+):
+    req(needle in protocol, f"batch/component protocol invariant missing: {needle}")
+
+for text, label in ((ledger, "ledger"), (history, "history")):
+    req("component-first" in text.lower(), f"{label} does not record component-first cadence")
+    req("22/36 = 61.1%" in text, f"{label} lost frozen PASS45 progress accounting")
+    req(
+        "user_local_execution_requested=0" in text,
+        f"{label} lost the explicit user-local execution pause",
+    )
+
+history_lower = history.lower()
+ledger_lower = ledger.lower()
+req(
+    "do not require or request pc-side checks" in history_lower,
+    "history no longer preserves the user's explicit no-PC-check instruction",
+)
+req(
+    "no pc-side checking" in ledger_lower
+    or "do not require/request pc-side checks" in ledger_lower
+    or "do not require or request pc-side checks" in ledger_lower,
+    "ledger no longer preserves the user's explicit no-PC-check instruction",
+)
+req(
+    "user-local execution is currently paused" in history_lower,
+    "history no longer marks local execution as paused",
+)
+req(
+    "user-local execution itself is now paused" in ledger_lower
+    or "user local checks paused" in ledger_lower,
+    "ledger no longer marks local execution as paused",
+)
+req(
+    "do **not** run or request `start_here.cmd -> 2. повний runtime-тест` now" in ledger_lower,
+    "ledger no longer blocks premature full gameplay requests while local execution is paused",
+)
+
+# The bounded chain remains canonical infrastructure even while it is not an
+# active user instruction. Preserve its fail-closed shape for a future factual
+# runtime pass without forcing living checkpoint docs to tell the user to run it.
+req(
+    "PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN_COMPLETE" in full_chain,
+    "full item-16 chain no longer retains its completion marker",
+)
+req(
+    "No full gameplay runtime is run by this orchestrator." in full_chain,
+    "full bounded item-16 chain lost its no-full-gameplay marker",
+)
+
+# The deferred Lever-only launcher remains a recovery tool, not today's action.
+# A zero commandlet exit is not sufficient because a technical repair can pass
+# before a later base-pilot assertion rejects the same component.
+for needle in (
+    "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_COMPAT.py",
+    "PASS45_LEVERACTION_UE58_RESAMPLE_GRID_READY initial_fps=30 compat_fps=60 compat_frames=52 source_frames=26 motion_end_frame=51 tail_pad_frames=1",
+    "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=after_set_bone_track_keys_before_sampling",
+    "PASS45_LEVERACTION_UE58_SEQUENCE_ENVELOPE_CONTRACT_ARMED motion_duration=0.850000 sequence_envelope=0.866667 tail_pad_frames=1",
+    "PASS45_LEVERACTION_UE58_MOTION_DURATION_RESTORED motion_duration=0.850000 sequence_envelope=0.866667 tail_pad_frames=1",
+    "PASS45_LEVERACTION_DERIVED_LEVER_UE58_PILOT_PASS",
+    "PASS45_LEVERACTION_UE58_ASSET_COMPILATION_BARRIER_END stage=post_pilot_before_commandlet_exit",
+    "source_authored_endpoint=0",
+    "pilot_angle_accepted=0",
+    "saved_packages=0",
+    "production_profile_changed=0",
+    "production_cutover=0",
+    "runtime_visual_acceptance=0",
+    "runtime_acceptance=0",
+    "item16_checked=0",
+):
+    req(needle in lever_launcher, f"Lever component launcher exact proof invariant missing: {needle}")
+
+req(
+    lever_launcher.count('findstr /L /C:') >= 14,
+    "Lever component launcher no longer performs the expected exact-marker postflight",
+)
+req(
+    "pilot_sequence_duration_mismatch" not in lever_launcher,
+    "Lever launcher contains a stale hard-coded duration-mismatch acceptance path",
+)
+
+lower_launcher = lever_launcher.lower()
+for forbidden in ("git pull", "git push", "git reset", "git clean", "git checkout", "gh "):
+    req(forbidden not in lower_launcher, f"Lever component launcher contains forbidden Git mutation: {forbidden}")
+
+if errors:
+    print("PASS45 COMPONENT-FIRST UE DEBUGGING: FAIL")
+    for error in errors:
+        print(f"[FAIL] {error}")
+    raise SystemExit(1)
+
+print("PASS45 COMPONENT-FIRST UE DEBUGGING: PASS")
+print("remote_first=1 consolidated_weapon_acceptance=1 component_only_after_actual_failure=1 deferred_lever_postflight_safe=1")
+print("user_local_execution_requested=0 deferred_local_component=LeverAction exact_postflight_checks=14 official_progress=22/36=61.1% runtime_acceptance=0 item16_checked=0 merge_permitted=0")

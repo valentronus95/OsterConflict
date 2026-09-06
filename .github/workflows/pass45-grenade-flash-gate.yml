@@ -1,0 +1,34 @@
+name: Pass 45 flash grenade acceptance gate
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCGrenadeProjectile.cpp'
+      - 'VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py'
+      - 'VERIFY_PASS45_GRENADE_FLASH_GATE.py'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - '.github/workflows/pass45-grenade-flash-gate.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCGrenadeProjectile.cpp'
+      - 'VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py'
+      - 'VERIFY_PASS45_GRENADE_FLASH_GATE.py'
+      - 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd'
+      - '.github/workflows/pass45-grenade-flash-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify flash grenade acceptance gate
+        run: python VERIFY_PASS45_GRENADE_FLASH_GATE.py

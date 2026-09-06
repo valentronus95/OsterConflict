@@ -6,10 +6,12 @@
 
 /**
  * Authoritative presentation owner for the hard-georeferenced Stadion Oster site.
- * Legacy sector geometry remains only as hidden collision/backstop where required; no second stadium presentation
- * owner may rebuild this site after BeginPlay.
+ *
+ * The authored implementation remains abstract so it cannot run its historical synchronous startup path directly.
+ * GAME_RECOVERY activates it only through a concrete derived subsystem after the complete stadium asset set has
+ * finished async preload. This preserves one visual owner while preventing the old game-thread package-load hitch.
  */
-UCLASS()
+UCLASS(Abstract)
 class OSTERCONFLICT_API UOCR13StadiumSurfaceSubsystem : public UWorldSubsystem
 {
     GENERATED_BODY()
@@ -18,7 +20,10 @@ public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
+protected:
+    /** Called only after GAME_RECOVERY has asynchronously resolved the full stadium presentation payload. */
+    void ApplyStadiumSurface(UWorld& World);
+
 private:
     bool bApplied = false;
-    void ApplyStadiumSurface(UWorld& World);
 };

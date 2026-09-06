@@ -4,7 +4,15 @@ on:
   pull_request:
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPass45StreetInfrastructureSubsystem.cpp'
       - 'OsterConflict/Scripts/import_production_vehicle_assets.py'
+      - 'OsterConflict/Scripts/pass45_batch_runtime.py'
+      - 'OsterConflict/Scripts/audit_local_model_inbox.ps1'
+      - 'OsterConflict/Scripts/prepare_all_local_inbox_assets.ps1'
+      - 'OsterConflict/Scripts/prepare_local_weapon_sources.ps1'
+      - 'OsterConflict/Scripts/prepare_local_production_sources.ps1'
+      - 'OsterConflict/IMPORT_ALL_LOCAL_INBOX_UE58.cmd'
       - 'VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py'
       - 'OSTER_CONFLICT_WORK_LEDGER.md'
       - 'PASS45_RUNTIME_RECOVERY_TZ.md'
@@ -22,3 +30,38 @@ jobs:
           python-version: '3.12'
       - name: Verify local UE build/import regression guards
         run: python VERIFY_PASS45_LOCAL_BUILD_IMPORT_REGRESSION.py
+
+  windows-powershell51-parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PASS45 asset scripts with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $scripts = @(
+            'OsterConflict/Scripts/audit_local_model_inbox.ps1',
+            'OsterConflict/Scripts/prepare_all_local_inbox_assets.ps1',
+            'OsterConflict/Scripts/prepare_local_weapon_sources.ps1',
+            'OsterConflict/Scripts/prepare_local_production_sources.ps1'
+          )
+          $failed = $false
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script).Path,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              Write-Host "[FAIL] $script" -ForegroundColor Red
+              $errors | ForEach-Object {
+                Write-Host ("  line={0} col={1} id={2} message={3}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.ErrorId, $_.Message)
+              }
+              $failed = $true
+            }
+            else {
+              Write-Host "[PASS] $script"
+            }
+          }
+          if ($failed) { exit 1 }

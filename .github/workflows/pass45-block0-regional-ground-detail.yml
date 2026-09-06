@@ -1,0 +1,26 @@
+name: Pass 45 Block0 regional ground detail
+
+on:
+  push:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCRegionalGroundDetailSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRegionalGroundDetailSubsystem.h'
+      - 'VERIFY_PASS45_BLOCK0_REGIONAL_GROUND_DETAIL.py'
+      - '.github/workflows/pass45-block0-regional-ground-detail.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCRegionalGroundDetailSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCRegionalGroundDetailSubsystem.h'
+      - 'VERIFY_PASS45_BLOCK0_REGIONAL_GROUND_DETAIL.py'
+      - '.github/workflows/pass45-block0-regional-ground-detail.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Block0 regional ground-detail surface and budget contracts
+        run: python VERIFY_PASS45_BLOCK0_REGIONAL_GROUND_DETAIL.py

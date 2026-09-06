@@ -5,8 +5,13 @@
 #include "OCFoliageRuntimeGuardSubsystem.generated.h"
 
 /**
- * Retires source-only visual proxies and proves that normal runtime vegetation is not owned by
- * primitive Cube/Cylinder/Sphere families. Real ground cover and verified real tree meshes are separate owners.
+ * Proves that normal runtime vegetation is owned by authored tree/foliage meshes and physically retires
+ * obsolete source ground-cover/debug presentation components. PASS45 items 26/31 do not allow hidden
+ * Cube/Cylinder/Sphere scenery to survive as player-facing runtime content.
+ *
+ * Block 0 also makes this guard the single strict runtime owner for factual grass distribution acceptance.
+ * Population completion/count alone is not enough: accepted DenseGrass instances must occupy the compact
+ * Oster footprint spatially before PASS10/PASS36 READY can be emitted.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCFoliageRuntimeGuardSubsystem : public UTickableWorldSubsystem
@@ -18,16 +23,25 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
     virtual bool IsTickable() const override { return !bFinished; }
+    virtual bool IsTickableWhenPaused() const override { return true; }
 
 private:
-    bool RetireSourceGroundCoverProxies();
-    bool RetireSourceTreeProxies();
-    bool ValidateDenseFoliage(int32 MinGrassInstances, int32& OutGrassInstances, int32& OutDenseGrassComponents) const;
+    bool DestroySourceGroundCoverProxies();
+    bool DestroyDeveloperVisualMarkers();
+    bool ValidateSourceAuthoredTrees();
+    bool ValidateDenseFoliage(
+        int32 MinGrassInstances,
+        int32& OutGrassInstances,
+        int32& OutDenseGrassComponents,
+        int32& OutOccupiedBins,
+        int32 OutQuadrantOccupied[4],
+        bool& bOutEdgeReach) const;
     void FailValidation(const FString& Reason);
 
     float ElapsedSeconds = 0.0f;
     float ValidationAccumulator = 0.0f;
     bool bFinished = false;
-    bool bProxyRetirementObserved = false;
-    bool bTreeProxyRetirementObserved = false;
+    bool bGroundProxyDestructionObserved = false;
+    bool bDeveloperMarkerDestructionObserved = false;
+    bool bAuthoredTreeValidationObserved = false;
 };

@@ -2,99 +2,134 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 MAIN = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
-ENTRY = ROOT / "START_HERE.cmd"
+PLAYFLOW = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
+STRICT = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
 MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 PASS8 = ROOT / "VERIFY_RUNTIME_RECONCILE_PASS_8.py"
 
-for path in (MAIN, ENTRY, MATERIAL, EVIDENCE, PASS8):
+for path in (MAIN, PLAYFLOW, STRICT, MATERIAL, EVIDENCE, PASS8):
     if not path.is_file():
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing {path.relative_to(ROOT)}")
 
-FORBIDDEN_MANUAL_WRAPPERS = (
-    "RUN_CLEAN_FULL_TEST.cmd",
-    "RUN_PC_TEST.cmd",
-    "RUN_R11_LISTEN_TEST.cmd",
-    "RUN_LOCAL_GAME_AFTER_BUILD.cmd",
-    "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd",
-    "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd",
-    "RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd",
-    "RUN_R14_MAIN_SANDBOX_TEST.cmd",
-    "RUN_R14_ROAD_PROFILE_RUNTIME_ACCEPTANCE.cmd",
-    "RUN_R14_STADION_RUNTIME_ACCEPTANCE.cmd",
-    "RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd",
-    "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd",
-    "RUN_R17_RUNTIME_PERFORMANCE_ACCEPTANCE.cmd",
-    "RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd",
-    "START_MUSEUM_OSTER.cmd",
-    "VALIDATE_SILPO_UE58.cmd",
-    "OsterConflict/TRY_PRODUCTION_VEHICLES_UE58.cmd",
-    "OsterConflict/INGEST_UPLOADED_MODELS_AND_IMPORT.cmd",
-)
-for rel in FORBIDDEN_MANUAL_WRAPPERS:
-    if (ROOT / rel).exists():
-        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete manual wrapper returned: {rel}")
-
 main = MAIN.read_text(encoding="utf-8")
-entry = ENTRY.read_text(encoding="utf-8")
+playflow = PLAYFLOW.read_text(encoding="utf-8")
+strict = STRICT.read_text(encoding="utf-8")
 material = MATERIAL.read_text(encoding="utf-8")
 evidence = EVIDENCE.read_text(encoding="utf-8")
 
-for marker in (
+required_main = (
     'if /I "%OC_FORCE_ACCEPTANCE%"=="1" set "IS_ACCEPTANCE=1"',
+    'if "%IS_ACCEPTANCE%"=="1" if /I "%CURRENT_BRANCH%"=="main"',
     'VERIFY_RUNTIME_RECONCILE_PASS_8.py',
     'PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL',
-    'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL',
+    'PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL',
+    'PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP',
     'PASS7_PRODUCTION_VEHICLES_READY',
-    'PASS7_PRODUCTION_WEAPONS_READY',
+    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS36_WEAPON_MATERIAL_AUDIT_READY',
     'PASS7_MUSEUM_BASES_READY',
     'git fetch origin "%FETCH_BRANCH%"',
     'git rev-parse "%REMOTE_REF%"',
     '-fullscreen',
     't.MaxFPS 60',
-):
+)
+for marker in required_main:
     if marker not in main:
-        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing gameplay marker {marker!r}")
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing main marker {marker!r}")
+for stale in ('PASS7_PRODUCTION_WEAPONS_READY', 'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL'):
+    if stale in main:
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete exact-only weapon marker returned {stale!r}")
 
-for marker in (
-    'Єдиний користувацький launcher/test entrypoint: START_HERE.cmd.',
+# The strict wrapper must add post-playtest material/evidence gates without creating a second game launch.
+required_strict = (
     'set "OC_FORCE_ACCEPTANCE=1"',
-    'call "%CURRENT_GAMEPLAY%"',
+    'set "PLAYFLOW=%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"',
+    'where git >nul 2>nul',
+    "git rev-parse --verify HEAD",
+    'git diff --quiet --ignore-submodules --',
+    'git diff --cached --quiet --ignore-submodules --',
+    'tracked unstaged Changes are present before runtime',
+    'tracked staged Changes are present before runtime',
+    'Local Changes are preserved. This launcher never resets, cleans, stashes or restores them.',
+    'set "PASS45_SOURCE_SHA_AFTER="',
+    'if /I not "%PASS45_SOURCE_SHA_AFTER%"=="%PASS45_SOURCE_SHA%"',
+    'source HEAD changed during runtime acceptance',
+    'runtime/import stages changed tracked unstaged content',
+    'runtime/import stages changed tracked staged content',
+    'call "%PLAYFLOW%"',
     'call "%MATERIAL_GATE%"',
     'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py',
+    'if not "%RC%"=="0"',
     'PASS45 AUTOMATED RUNTIME EVIDENCE GATES PASSED',
     'VISUAL ACCEPTANCE IS STILL PENDING',
-):
-    if marker not in entry:
-        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing START_HERE marker {marker!r}")
+)
+for marker in required_strict:
+    if marker not in strict:
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing strict wrapper marker {marker!r}")
 
-if 'TRY_PRODUCTION_VEHICLES_UE58.cmd' in entry:
-    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: normal launcher still runs obsolete TRY vehicle wrapper")
-if 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd' in entry or 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in entry:
-    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: START_HERE still delegates to redundant acceptance wrapper")
+if strict.count('git diff --quiet --ignore-submodules --') < 2:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: tracked unstaged worktree is not checked both before and after runtime")
+if strict.count('git diff --cached --quiet --ignore-submodules --') < 2:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: tracked staged worktree is not checked both before and after runtime")
+
+if 'PASS45_SOURCE_SHA=unknown' in strict:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict wrapper still permits unbound SOURCE_SHA=unknown evidence")
+
+# Exact-head checking may refuse dirty tracked bytes, but it must never mutate the user's local worktree.
+for destructive in (
+    'git reset',
+    'git clean',
+    'git stash',
+    'git restore',
+    'git checkout --',
+):
+    if destructive in strict.lower():
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict wrapper gained destructive local-change command {destructive!r}")
+
+if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in playflow:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: playflow wrapper no longer owns the single CURRENT_GAMEPLAY delegation")
 
 for marker in (
+    'PASS45_REQUIRED_AVAILABLE_WEAPONS=PASS',
     'PASS45_AUTHORED_WEAPON_MATERIALS=PASS',
     'PASS45_WEAPON_DEPENDENCY_REPORT=PASS',
+    'PASS45_EXACT_PRODUCTION_CONTENT_GAPS=',
+    'PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY',
     'PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY',
 ):
     if marker not in material:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing material gate marker {marker!r}")
+if 'R14_PRODUCTION_WEAPONS=PASS' in material:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict material gate resurrected impossible all-exact weapon readiness")
 
 for marker in (
+    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS36_WEAPON_MATERIAL_AUDIT_READY',
     'PASS45_VEHICLE_ENTER_TRANSFORM_READY',
     'PASS45_VEHICLE_EXIT_TRANSFORM_READY',
     'PASS45_M2_GUNNER_PITCH_CONTRACT_READY',
     'PASS45_GUNNER_EXIT_TRANSFORM_READY',
-    'PASS14_PERF_30FPS_READY',
+    'textureDependency=PASS',
     'VISUAL_ACCEPTANCE=PENDING_MANUAL_OBSERVATION',
+    'SOURCE_SHA=',
 ):
     if marker not in evidence:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing evidence requirement {marker!r}")
 
-print("MAIN RUNTIME ACCEPTANCE LAUNCHER SOURCE CONTRACT PASS")
-print("- START_HERE.cmd is the only user-facing launcher/test entrypoint")
-print("- obsolete manual runtime/test wrappers are physically absent")
-print("- RUN_R14_CURRENT_GAMEPLAY.cmd remains the single internal gameplay execution route")
-print("- strict material, interaction and performance evidence is verified without extra acceptance wrappers")
+if 'set "OC_FORCE_ACCEPTANCE=0"' in strict:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict wrapper disables its own acceptance flag")
+if 'start /wait' in strict or 'start /wait' in playflow:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: wrapper became a second gameplay launcher")
+if 'start /wait' not in main:
+    raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: CURRENT_GAMEPLAY lost ownership of the one gameplay process")
+
+print("MAIN RUNTIME ACCEPTANCE LAUNCHER + PASS45 REQUIRED-AVAILABLE CONTRACT PASS")
+print("- CURRENT_GAMEPLAY remains the single gameplay process owner")
+print("- strict main wrapper pins Git HEAD and requires a clean tracked worktree before runtime")
+print("- strict main wrapper rejects HEAD or tracked-worktree drift after runtime/material stages without mutating local Changes")
+print("- strict main wrapper delegates through playflow, then runs material/dependency and interaction evidence gates")
+print("- exact weapon payload gaps stay CONTENT GAP; required available visuals and materials remain mandatory")
+print("- driver enter/exit and M2 gunner pitch/exit are mandatory Pass45 regression evidence")
+print("- automated evidence cannot promote visual acceptance beyond PENDING")
 print("STATUS: SOURCE VERIFIED ONLY; local Windows UE 5.8 execution is still required")

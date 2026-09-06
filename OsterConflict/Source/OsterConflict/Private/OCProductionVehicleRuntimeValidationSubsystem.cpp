@@ -1,14 +1,10 @@
 #include "OCProductionVehicleRuntimeValidationSubsystem.h"
 
-#include "OCAntiArmorLauncher.h"
 #include "OCBTR.h"
 #include "OCGameMode.h"
 #include "OCHMMWVGunTruck.h"
 #include "OCPickupGunTruck.h"
-#include "OCWeaponBase.h"
-#include "OCWeaponVariants.h"
 
-#include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -19,15 +15,12 @@
 namespace
 {
     constexpr float ValidationDelaySeconds = 6.25f;
-    constexpr uint32 AllRequiredRackWeaponClassesMask = (1u << 11) - 1u;
 
     const TCHAR* HMMWVAssetPath = TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA");
     const TCHAR* PickupAssetPath = TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup");
     const TCHAR* M2AssetPath = TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning");
     const TCHAR* BTR4AssetPath = TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus");
     const FName ProductionM2Tag(TEXT("OC_ProductionM2"));
-    const FName RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"));
-    const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
 
     bool HasUsableBounds(const UStaticMesh* Mesh)
     {
@@ -71,45 +64,10 @@ namespace
         return false;
     }
 
-    bool WeaponUsesProductionVisual(AOCWeaponBase* Weapon)
-    {
-        if (!Weapon) return false;
-
-        TInlineComponentArray<UMeshComponent*> Components;
-        Weapon->GetComponents(Components);
-        for (const UMeshComponent* Component : Components)
-        {
-            if (Component && Component->ComponentHasTag(ProductionWeaponVisualTag) && Component->IsVisible())
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    uint32 RequiredRackWeaponClassBit(const AOCWeaponBase* Weapon)
-    {
-        if (!Weapon) return 0u;
-        if (Weapon->IsA<AOCWeapon_AssaultRifle>()) return 1u << 0;
-        if (Weapon->IsA<AOCWeapon_SMG>()) return 1u << 1;
-        if (Weapon->IsA<AOCWeapon_Pistol>()) return 1u << 2;
-        if (Weapon->IsA<AOCWeapon_Sniper>()) return 1u << 3;
-        if (Weapon->IsA<AOCWeapon_Shotgun>()) return 1u << 4;
-        if (Weapon->IsA<AOCWeapon_LMG>()) return 1u << 5;
-        if (Weapon->IsA<AOCWeapon_M14>()) return 1u << 6;
-        if (Weapon->IsA<AOCWeapon_Mac10>()) return 1u << 7;
-        if (Weapon->IsA<AOCWeapon_Tec9>()) return 1u << 8;
-        if (Weapon->IsA<AOCWeapon_LeverAction>()) return 1u << 9;
-        if (Weapon->IsA<AOCAntiArmorLauncher>()) return 1u << 10;
-        return 0u;
-    }
-
     void QuarantineInvalidVehicle(AActor* Actor, const TCHAR* Identity, bool bBodyReady, bool bWeaponReady)
     {
         if (!Actor) return;
 
-        // A production-validation failure must never continue presenting the constructor proxy as if it were the
-        // requested vehicle. Hide it and disable collision so the failed visual cannot become an invisible blocker.
         Actor->SetActorHiddenInGame(true);
         Actor->SetActorEnableCollision(false);
 
@@ -120,18 +78,6 @@ namespace
             bBodyReady ? 1 : 0,
             bWeaponReady ? 1 : 0,
             *Actor->GetActorLocation().ToCompactString());
-    }
-
-    void QuarantineInvalidRackWeapon(AOCWeaponBase* Weapon)
-    {
-        if (!Weapon) return;
-        Weapon->SetActorHiddenInGame(true);
-        Weapon->SetActorEnableCollision(false);
-        UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL actor=%s class=%s location=%s"),
-            *Weapon->GetName(),
-            *Weapon->GetClass()->GetName(),
-            *Weapon->GetActorLocation().ToCompactString());
     }
 }
 
@@ -229,8 +175,6 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
         }
     }
 
-    // Normal gameplay seeds explicit HMMWV and BTR spawn points. Zero actors is therefore a failed runtime proof,
-    // not a vacuous success. The optional production pickup remains valid when absent from current fleet balance.
     const bool bExpectedNormalFleetPresent = HMMWVGunTruckCount > 0 && BTRCount > 0 && GunTruckCount > 0;
     const bool bHMMWVRuntimePass = HMMWVGunTruckCount > 0 &&
         HMMWVGunTrucksUsingHMMWV == HMMWVGunTruckCount;
@@ -245,7 +189,7 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
     if (bVehiclePass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS7_PRODUCTION_VEHICLES_READY HMMWV=%d/%d M2=%d/%d BTR4=%d/%d pickup=%d/%d"),
+            TEXT("PASS7_PRODUCTION_VEHICLES_READY HMMWV=%d/%d M2=%d/%d BTR4=%d/%d pickup=%d/%d validation_owner=vehicles_only"),
             HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
             GunTrucksUsingM2, GunTruckCount,
             BTRsUsingProductionShell, BTRCount,
@@ -254,7 +198,7 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d"),
+            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d validation_owner=vehicles_only"),
             bHMMWVAssetReady ? 1 : 0, bPickupAssetReady ? 1 : 0, bM2AssetReady ? 1 : 0, bBTR4AssetReady ? 1 : 0,
             bExpectedNormalFleetPresent ? 1 : 0,
             HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
@@ -263,45 +207,6 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
             BTRsUsingProductionShell, BTRCount);
     }
 
-    int32 RackWeaponCount = 0;
-    int32 RackWeaponsUsingProductionVisual = 0;
-    uint32 RackWeaponClassMask = 0u;
-
-    for (TActorIterator<AOCWeaponBase> It(&World); It; ++It)
-    {
-        AOCWeaponBase* Weapon = *It;
-        if (!Weapon || !Weapon->ActorHasTag(RuntimeBaseRackTag)) continue;
-
-        ++RackWeaponCount;
-        RackWeaponClassMask |= RequiredRackWeaponClassBit(Weapon);
-        if (WeaponUsesProductionVisual(Weapon))
-        {
-            ++RackWeaponsUsingProductionVisual;
-        }
-        else
-        {
-            QuarantineInvalidRackWeapon(Weapon);
-        }
-    }
-
-    const bool bAllRequiredRackWeaponClassesPresent = RackWeaponClassMask == AllRequiredRackWeaponClassesMask;
-    const bool bWeaponRuntimePass = RackWeaponCount >= 11 && bAllRequiredRackWeaponClassesPresent &&
-        RackWeaponsUsingProductionVisual == RackWeaponCount;
-
-    if (bWeaponRuntimePass)
-    {
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS7_PRODUCTION_WEAPONS_READY rackWeapons=%d productionVisuals=%d requiredClasses=11/11 classMask=0x%X"),
-            RackWeaponCount, RackWeaponsUsingProductionVisual, RackWeaponClassMask);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL summary=1 rackWeapons=%d productionVisuals=%d requiredClassesComplete=%d classMask=0x%X expectedMask=0x%X"),
-            RackWeaponCount,
-            RackWeaponsUsingProductionVisual,
-            bAllRequiredRackWeaponClassesPresent ? 1 : 0,
-            RackWeaponClassMask,
-            AllRequiredRackWeaponClassesMask);
-    }
+    // Weapon-rack completeness is intentionally not checked here anymore.
+    // UOCPass45WeaponCatalogSpawnSubsystem is the single current owner of the complete weapon catalog and exact-visual validation.
 }
