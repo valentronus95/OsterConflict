@@ -264,7 +264,7 @@ bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
 
     StartupStepTimerHandle.Invalidate();
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY staged_frames=1 deployment_blocking_work=0 museum_async_owner=1 delayed_stage_timers_cancelled=1 legacy_core_recovery=0"));
+        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY staged_frames=1 deployment_blocking_work=0 museum_async_owner=1 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
     UE_LOG(LogTemp, Display,
         TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages were deferred until gameplay and released one stage per frame."));
     return true;
