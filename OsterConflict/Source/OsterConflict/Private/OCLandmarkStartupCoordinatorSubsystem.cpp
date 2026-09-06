@@ -256,6 +256,7 @@ bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 stadium_ready=1 post_spawn_landmark_materialization=0"), TotalStartupStages);
+        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 stadium_ready=1 post_spawn_landmark_materialization=0 PASS45_LANDMARK_STARTUP_COORDINATED_READY R138_collision_glass=current_stage R139_R140_doors_facade=current_stage R142_R145_details=current_stage window_replacement_stage=0 legacy_core_recovery=0 destructive_visibility_rebuild=0 runtime_acceptance=0"),
+        TotalStartupStages);
     return true;
 }
