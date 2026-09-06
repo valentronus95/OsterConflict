@@ -54,9 +54,10 @@ for destructive in ("git reset", "git clean", "git stash", "checkout --", "resto
         raise SystemExit(f"PASS22 VERIFY FAIL: batch runtime mutates local Changes: {destructive}")
 
 for needle in (
-    'set "RHI_FLAGS=-d3d11 -sm5 -nohdr"', 'if /I "%OC_RHI_COMPAT%"=="1"',
-    'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"', 'set "RHI_MODE=dx11_sm5_rhi_thread"',
+    'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -nosplash"', 'if /I "%OC_RHI_COMPAT%"=="1"',
+    'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread -nosplash"', 'set "RHI_MODE=dx11_sm5_rhi_thread"',
     'set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"', "start /wait", "[LOCAL CHANGE]",
+    'set "QUALITY_CMDS=', 'r.ScreenPercentage 100',
 ):
     require(normal, needle, "normal/compat renderer contract")
 for forbidden in ("-d3d12", "-dx12", "-sm6"):
@@ -68,7 +69,7 @@ for needle in ("-d3d11", "-sm5", "-nohdr", "[LOCAL CHANGE]"):
 
 print("SINGLE LAUNCHER / D3D11 PASS22 + PASS45 BATCH SOURCE CONTRACT PASS")
 print("- START_HERE is the only user-facing entry point")
-print("- full runtime uses one batch orchestrator and exactly one gameplay process")
 print("- DX11/SM5/no-HDR remains canonical; option 3 owns explicit -norhithread compatibility")
+print("- normal route suppresses the separate splash and restores 100% normal visual quality")
 print("- local Changes are reported and preserved, never reset/stashed/cleaned")
 print("STATUS: SOURCE CONTRACT ONLY; local UE runtime must confirm actual content")
