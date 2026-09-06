@@ -15,6 +15,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Sound/SoundBase.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -34,7 +35,9 @@ void UOCCharacterVisualComponent::BeginPlay()
     CharacterOwner = Cast<AOCCharacter>(GetOwner());
     if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
     {
-        GrenadeThrowSound = LoadObject<USoundBase>(nullptr, Pass45GrenadeThrowSoundPath);
+        // GAME RECOVERY: production character preparation preloads this package before possession.
+        // Never let actor BeginPlay turn into a disk-backed package load.
+        GrenadeThrowSound = Cast<USoundBase>(FSoftObjectPath(Pass45GrenadeThrowSoundPath).ResolveObject());
     }
     if (bEnableSourceOnlyProxy) BuildSourceOnlyProxy();
     RefreshPresentation(true);
@@ -122,7 +125,8 @@ void UOCCharacterVisualComponent::ApplyProfile(UOCCharacterVisualProfile* Profil
     bool bHasProductionBody = false;
     if (Profile && ThirdPersonMesh && !Profile->ThirdPersonBodyMesh.IsNull())
     {
-        if (USkeletalMesh* Loaded = Profile->ThirdPersonBodyMesh.LoadSynchronous())
+        // Preload is owned by UOCProductionCharacterAssetsSubsystem. Get() is intentionally non-blocking.
+        if (USkeletalMesh* Loaded = Profile->ThirdPersonBodyMesh.Get())
         {
             ThirdPersonMesh->SetSkeletalMeshAsset(Loaded);
             if (Profile->ThirdPersonAnimClass) ThirdPersonMesh->SetAnimInstanceClass(Profile->ThirdPersonAnimClass);
@@ -142,7 +146,7 @@ void UOCCharacterVisualComponent::ApplyProfile(UOCCharacterVisualProfile* Profil
         bool bHasProductionArms = false;
         if (Profile && !Profile->FirstPersonArmsMesh.IsNull())
         {
-            if (USkeletalMesh* Loaded = Profile->FirstPersonArmsMesh.LoadSynchronous())
+            if (USkeletalMesh* Loaded = Profile->FirstPersonArmsMesh.Get())
             {
                 Arms->SetSkeletalMeshAsset(Loaded);
                 if (Profile->FirstPersonAnimClass) Arms->SetAnimInstanceClass(Profile->FirstPersonAnimClass);
@@ -162,6 +166,7 @@ void UOCCharacterVisualComponent::BuildSourceOnlyProxy()
     AOCCharacter* Character = CharacterOwner.Get();
     if (!Character || ThirdPersonProxyParts.Num() > 0) return;
 
+    // Explicit developer-only diagnostics. Production runtime defaults bEnableSourceOnlyProxy=false.
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -237,6 +242,9 @@ void UOCCharacterVisualComponent::UpdateSourceOnlyProxy(bool bShowProxy)
 
 void UOCCharacterVisualComponent::ApplyProxyTint(EOCFactionArchetype Faction)
 {
+    // No production character should pay for Engine BasicShape material loading when proxies are disabled.
+    if (ThirdPersonProxyParts.IsEmpty() && FirstPersonProxyParts.IsEmpty()) return;
+
     FLinearColor Color;
     switch (Faction)
     {
@@ -277,6 +285,11 @@ void UOCCharacterVisualComponent::MulticastCharacterAction_Implementation(EOCCha
     if (Event == EOCCharacterActionEvent::GrenadeThrow)
     {
         AActor* Owner = GetOwner();
+        if (!GrenadeThrowSound && GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+        {
+            // Non-blocking retry only. GAME RECOVERY preloads this package before player spawn.
+            GrenadeThrowSound = Cast<USoundBase>(FSoftObjectPath(Pass45GrenadeThrowSoundPath).ResolveObject());
+        }
         if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer && GrenadeThrowSound && Owner)
         {
             const bool bLocalFirstPerson = CharacterOwner.IsValid() && CharacterOwner->IsLocallyControlled();
