@@ -1,6 +1,7 @@
 #include "OCDeploymentLoadingSubsystem.h"
 
 #include "OCPlayerController.h"
+#include "OCLandmarkStartupCoordinatorSubsystem.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -21,8 +22,6 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     WidgetTree->RootWidget = Canvas;
 
     UBorder* Scrim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DeploymentLoadingScrim"));
-    // The transition is intentionally fully blocking. A translucent scrim exposed the deployment panel changing
-    // underneath it and made the START -> spawn transition look like another broken intermediate screen.
     Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));
     UCanvasPanelSlot* ScrimSlot = Canvas->AddChildToCanvas(Scrim);
     ScrimSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
@@ -35,7 +34,7 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     CardSlot->SetAnchors(FAnchors(0.5f, 0.5f));
     CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
     CardSlot->SetPosition(FVector2D::ZeroVector);
-    CardSlot->SetSize(FVector2D(560.0f, 170.0f));
+    CardSlot->SetSize(FVector2D(560.0f, 205.0f));
 
     UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("DeploymentLoadingStack"));
     Card->SetContent(Stack);
@@ -46,7 +45,15 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     FSlateFontInfo TitleFont = Title->GetFont();
     TitleFont.Size = 22;
     Title->SetFont(TitleFont);
-    Stack->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
+    Stack->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+    StatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeploymentLoadingStatus"));
+    StatusText->SetText(FText::FromString(TEXT("ПІДГОТОВКА КАРТИ")));
+    StatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.75f, 0.78f, 1.0f)));
+    FSlateFontInfo StatusFont = StatusText->GetFont();
+    StatusFont.Size = 14;
+    StatusText->SetFont(StatusFont);
+    Stack->AddChildToVerticalBox(StatusText)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
 
     ProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("DeploymentLoadingProgress"));
     ProgressBar->SetPercent(0.0f);
@@ -75,6 +82,11 @@ void UOCDeploymentLoadingWidget::SetLoadingProgress(float NormalizedProgress)
     }
 }
 
+void UOCDeploymentLoadingWidget::SetLoadingStatus(const FText& Status)
+{
+    if (StatusText) StatusText->SetText(Status);
+}
+
 bool UOCDeploymentLoadingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
     if (!Super::ShouldCreateSubsystem(Outer)) return false;
@@ -101,13 +113,18 @@ void UOCDeploymentLoadingSubsystem::BeginDeployment(AOCPlayerController* Control
     if (Widget)
     {
         Widget->AddToViewport(5000);
-        Widget->SetLoadingProgress(0.0f);
+        Widget->SetLoadingProgress(0.02f);
+        Widget->SetLoadingStatus(FText::FromString(TEXT("ПІДГОТОВКА КАРТИ")));
         LoadingWidget = Widget;
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_DEPLOYMENT_LOADING_BEGIN wait_for_world_ready=1 spawn_before_ready=0"));
 }
 
 void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
 {
+    (void)DeltaTime;
     if (!bActive) return;
 
     AOCPlayerController* Controller = PendingController.Get();
@@ -117,43 +134,74 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
         return;
     }
 
+    UWorld* World = GetWorld();
+    const UOCLandmarkStartupCoordinatorSubsystem* Startup =
+        World ? World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>() : nullptr;
+    const bool bWorldReady = Startup == nullptr || Startup->IsWorldStartupReady();
+    const float WorldProgress = Startup ? Startup->GetStartupProgress() : 1.0f;
+
     const double Now = FPlatformTime::Seconds();
     const double Elapsed = FMath::Max(0.0, Now - StartTimeSeconds);
 
-    // Keep the 0% loading frame visible before the authoritative restart request. The opaque transition layer
-    // prevents the underlying deployment panel from visibly shifting while the server changes possession state.
-    if (!bReadySent && Elapsed >= 0.12)
+    // Do not use the player pawn as a loading screen. The ready/restart request is held until the
+    // critical landmark coordinator has completed its pre-spawn preparation while the opaque UI is up.
+    if (!bReadySent && bWorldReady && Elapsed >= 0.12)
     {
         bReadySent = true;
         Controller->UIReadyDeploy();
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_DEPLOYMENT_WORLD_READY ready_request_sent=1 elapsed=%.2f"), Elapsed);
     }
 
     float Progress = bReadySent
-        ? FMath::Min(0.92f, 0.14f + static_cast<float>(Elapsed) * 0.22f)
-        : FMath::Min(0.12f, static_cast<float>(Elapsed) * 0.95f);
+        ? FMath::Min(0.94f, 0.90f + static_cast<float>(Elapsed) * 0.01f)
+        : FMath::Clamp(0.03f + WorldProgress * 0.87f, 0.03f, 0.90f);
+
+    if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get())
+    {
+        Widget->SetLoadingProgress(Progress);
+        Widget->SetLoadingStatus(FText::FromString(bReadySent ? TEXT("ПОЯВА НА КАРТІ") : TEXT("ПІДГОТОВКА КАРТИ")));
+    }
 
     const bool bPossessedAndReleased = bReadySent && Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible();
     if (bPossessedAndReleased)
     {
         if (CompletionStartSeconds < 0.0) CompletionStartSeconds = Now;
         const float CompletionAlpha = FMath::Clamp(static_cast<float>((Now - CompletionStartSeconds) / 0.25), 0.0f, 1.0f);
-        Progress = FMath::Lerp(0.92f, 1.0f, CompletionAlpha);
+        Progress = FMath::Lerp(0.94f, 1.0f, CompletionAlpha);
+        if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get())
+        {
+            Widget->SetLoadingProgress(Progress);
+            Widget->SetLoadingStatus(FText::FromString(TEXT("ГОТОВО")));
+        }
         if (CompletionAlpha >= 1.0f)
         {
-            if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get()) Widget->SetLoadingProgress(1.0f);
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_DEPLOYMENT_COMPLETE world_ready_before_spawn=1 elapsed=%.2f"), Elapsed);
             FinishDeploymentTransition();
             return;
         }
     }
 
-    // Never trap input behind a dead overlay if the server refuses or fails to possess the player.
-    if (Elapsed >= 12.0)
+    // Fail closed: if world preparation cannot finish, return control to deployment instead of spawning
+    // into a half-built city. This is a safety timeout, not a fake progress completion.
+    if (!bReadySent && Elapsed >= 45.0)
     {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_DEPLOYMENT_TIMEOUT world_ready=0 progress=%.3f elapsed=%.2f"), WorldProgress, Elapsed);
         FinishDeploymentTransition();
         return;
     }
 
-    if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get()) Widget->SetLoadingProgress(Progress);
+    if (bReadySent && Elapsed >= 60.0)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_POSSESSION_TIMEOUT pawn=%d deployment_visible=%d elapsed=%.2f"),
+            Controller->GetPawn() != nullptr ? 1 : 0,
+            Controller->IsDeploymentPanelVisible() ? 1 : 0,
+            Elapsed);
+        FinishDeploymentTransition();
+    }
 }
 
 void UOCDeploymentLoadingSubsystem::FinishDeploymentTransition()

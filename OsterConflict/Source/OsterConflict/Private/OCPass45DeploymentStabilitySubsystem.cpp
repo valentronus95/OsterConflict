@@ -38,33 +38,22 @@ void UOCPass45DeploymentStabilitySubsystem::Tick(float DeltaTime)
         (bDeploymentFlagVisible || PC->GetPawn() == nullptr);
     const bool bBlockingMenuVisible = bLocalPlayer &&
         (bFrontendVisible || bSettingsVisible || bDeploymentFlagVisible || PC->GetPawn() == nullptr);
-    const bool bGameplayReady = bLocalPlayer && !bBlockingMenuVisible && PC->GetPawn() != nullptr;
+    const bool bWorldPreparationWindow = bDeploymentVisible && !bFrontendVisible && !bSettingsVisible;
 
-    // The actual freeze was not a Windows title-bar problem. World timers and delayed content owners
-    // were still allowed to run while Slate was serving the frontend/deployment flow. Pause the world
-    // while a blocking UI owns the screen, but keep this subsystem and the deployment-flow subsystem
-    // tickable while paused. Slate, Alt+Tab and the native minimize/maximize/close buttons then keep
-    // receiving messages while gameplay timers remain suspended.
+    // Keep gameplay timers paused while a blocking UI owns the screen. Both this subsystem and the
+    // landmark coordinator tick while paused, so preparation can advance without allowing old delayed
+    // world owners to race the menu or block the native Windows message pump.
     ApplyMenuPause(*World, bBlockingMenuVisible);
 
-    // The museum owner used to schedule a one-shot synchronous package-loading rebuild at +0.75 s.
-    // A one-time clear had an OnWorldBeginPlay ordering race, so keep suppressing that timer for
-    // the whole pre-game/menu phase. This protects both Slate input and the native Windows message pump.
-    if (!bMuseumBuildReleased)
+    if (!bMuseumPreparationStarted)
     {
-        if (!bGameplayReady)
+        SuppressSynchronousMuseumStartup(*World);
+        if (bWorldPreparationWindow)
         {
-            SuppressSynchronousMuseumStartup(*World);
-        }
-        else
-        {
-            ReleaseMuseumBuildToGameplay(*World);
+            BeginMuseumBuildPreparation(*World);
         }
     }
 
-    // Deployment-state detection deliberately has a no-pawn fallback. The R13 flow can be visible
-    // for a frame before the old controller deployment flag settles; without this fallback the world
-    // could bleed through even though the deployment widget itself was already on screen.
     if (bDeploymentVisible)
     {
         EnsureDeploymentBackdrop();
@@ -114,28 +103,24 @@ void UOCPass45DeploymentStabilitySubsystem::SuppressSynchronousMuseumStartup(UWo
         World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>();
     if (!MuseumSubsystem) return;
 
-    // Repeat while menus are active. This closes the startup-order race instead of assuming a
-    // single ClearAllTimersForObject happened after the museum subsystem scheduled itself.
     World.GetTimerManager().ClearAllTimersForObject(MuseumSubsystem);
 
     if (!bMuseumSuppressionLogged)
     {
         bMuseumSuppressionLogged = true;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_DEPLOYMENT_MUSEUM_SYNC_LOAD_SUPPRESSED menu_phase=1 repeated_guard=1 synchronous_package_loads_during_deployment=0"));
+            TEXT("GAME_RECOVERY_MUSEUM_SYNC_STARTUP_SUPPRESSED pre_spawn=1 synchronous_package_loads=0"));
     }
 }
 
-void UOCPass45DeploymentStabilitySubsystem::ReleaseMuseumBuildToGameplay(UWorld& World)
+void UOCPass45DeploymentStabilitySubsystem::BeginMuseumBuildPreparation(UWorld& World)
 {
     UOCR137MuseumPhotoModelSubsystem* MuseumSubsystem =
         World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>();
     if (!MuseumSubsystem) return;
 
-    // Kill any legacy one-shot timer one final time. From here on the authoritative museum build
-    // is owned by this guarded path and its packages are loaded asynchronously first.
     World.GetTimerManager().ClearAllTimersForObject(MuseumSubsystem);
-    bMuseumBuildReleased = true;
+    bMuseumPreparationStarted = true;
 
     TArray<FSoftObjectPath> MuseumAssets;
     MuseumAssets.Reserve(15);
@@ -161,10 +146,8 @@ void UOCPass45DeploymentStabilitySubsystem::ReleaseMuseumBuildToGameplay(UWorld&
             &UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad));
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d menu_phase=0 gameplay_pawn=1"), MuseumAssets.Num());
+        TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d pre_spawn=1 deployment_visible=1"), MuseumAssets.Num());
 
-    // RequestAsyncLoad may return no handle when everything is already resident. In that case
-    // execute the build immediately; LoadObject calls inside it are cache hits rather than disk loads.
     if (!MuseumPreloadHandle.IsValid())
     {
         CompleteMuseumBuildAfterAsyncLoad();
@@ -184,8 +167,11 @@ void UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad()
         World->GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_MUSEUM_ASYNC_PRELOAD_READY menu_phase=0 synchronous_startup_load=0"));
+            TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_READY pre_spawn=1 synchronous_disk_load=0"));
         MuseumSubsystem->RunAuthoritativeBuildNow(*World);
+        bMuseumBuildComplete = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_MUSEUM_BUILD_READY pre_spawn=1"));
     }
 
     MuseumPreloadHandle.Reset();
@@ -229,6 +215,8 @@ void UOCPass45DeploymentStabilitySubsystem::Deinitialize()
         }
     }
     bMenuPauseOwned = false;
+    bMuseumPreparationStarted = false;
+    bMuseumBuildComplete = false;
 
     if (MuseumPreloadHandle.IsValid())
     {

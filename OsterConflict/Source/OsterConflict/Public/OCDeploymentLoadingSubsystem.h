@@ -18,6 +18,7 @@ class OSTERCONFLICT_API UOCDeploymentLoadingWidget : public UUserWidget
 
 public:
     void SetLoadingProgress(float NormalizedProgress);
+    void SetLoadingStatus(const FText& Status);
 
 protected:
     virtual void NativeConstruct() override;
@@ -25,11 +26,13 @@ protected:
 private:
     UPROPERTY() TObjectPtr<UProgressBar> ProgressBar;
     UPROPERTY() TObjectPtr<UTextBlock> PercentText;
+    UPROPERTY() TObjectPtr<UTextBlock> StatusText;
 };
 
 /**
- * Keeps the deployment menu stable for one rendered frame, then sends the authoritative ready request while
- * a blocking 0-100% loading overlay remains visible until the player pawn has actually been possessed.
+ * Holds an opaque loading overlay until the critical world startup coordinator reports ready,
+ * then sends the authoritative deployment request. The subsystem continues ticking while the
+ * world is paused so the UI cannot deadlock behind its own pre-game pause.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCDeploymentLoadingSubsystem : public UTickableWorldSubsystem
@@ -41,6 +44,7 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
     virtual bool IsTickable() const override { return true; }
+    virtual bool IsTickableWhenPaused() const override { return true; }
 
     void BeginDeployment(AOCPlayerController* Controller);
 

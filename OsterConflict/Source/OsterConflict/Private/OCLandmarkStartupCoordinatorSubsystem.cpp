@@ -1,7 +1,6 @@
 #include "OCLandmarkStartupCoordinatorSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCR137MuseumPhotoModelSubsystem.h"
 #include "OCR138MuseumInteractiveArchitectureSubsystem.h"
 #include "OCR139MuseumMainDoorReplacementSubsystem.h"
@@ -19,6 +18,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformTime.h"
 #include "TimerManager.h"
 
 namespace
@@ -37,51 +37,55 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
 
+    bInitialized = false;
+    StartupStageIndex = 0;
+    bHistoricalTimersCancelled = false;
+    bStartupComplete = false;
+    NextStageWallTimeSeconds = 0.0;
+
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    StartupStageIndex = 0;
-    bHistoricalTimersCancelled = false;
-    bStartupComplete = false;
-    bDeferredLogWritten = false;
+    bInitialized = true;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_WORLD_PREP_BEGIN pre_spawn=1 tick_when_paused=1 staged_materialization=1"));
+}
 
-    // Wait one frame so every historical landmark subsystem has registered its old delayed timer.
-    // The first coordinator step cancels those timers before any authored package work is allowed.
-    ScheduleStartupStep(InWorld, 0.0f);
+void UOCLandmarkStartupCoordinatorSubsystem::Tick(float DeltaTime)
+{
+    (void)DeltaTime;
+    if (!bInitialized || bStartupComplete) return;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld()) return;
+
+    const double Now = FPlatformTime::Seconds();
+    if (Now < NextStageWallTimeSeconds) return;
+    NextStageWallTimeSeconds = Now + StageIntervalSeconds;
+
+    RunAuthoritativeStartup(*World);
+}
+
+TStatId UOCLandmarkStartupCoordinatorSubsystem::GetStatId() const
+{
+    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCLandmarkStartupCoordinatorSubsystem, STATGROUP_Tickables);
+}
+
+float UOCLandmarkStartupCoordinatorSubsystem::GetStartupProgress() const
+{
+    if (!bInitialized) return 0.0f;
+    if (bStartupComplete) return 1.0f;
+    return FMath::Clamp(static_cast<float>(StartupStageIndex) / static_cast<float>(TotalStartupStages), 0.0f, 0.99f);
 }
 
 void UOCLandmarkStartupCoordinatorSubsystem::Deinitialize()
 {
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(StartupStepTimerHandle);
-    }
-    StartupStepTimerHandle.Invalidate();
+    bInitialized = false;
+    NextStageWallTimeSeconds = 0.0;
     Super::Deinitialize();
-}
-
-void UOCLandmarkStartupCoordinatorSubsystem::ScheduleStartupStep(UWorld& World, const float DelaySeconds)
-{
-    TWeakObjectPtr<UWorld> WeakWorld(&World);
-    FTimerDelegate Delegate = FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
-    {
-        if (UWorld* DeferredWorld = WeakWorld.Get())
-        {
-            RunAuthoritativeStartup(*DeferredWorld);
-        }
-    });
-
-    World.GetTimerManager().ClearTimer(StartupStepTimerHandle);
-    if (DelaySeconds <= 0.0f)
-    {
-        World.GetTimerManager().SetTimerForNextTick(Delegate);
-        return;
-    }
-
-    World.GetTimerManager().SetTimer(StartupStepTimerHandle, Delegate, DelaySeconds, false);
 }
 
 void UOCLandmarkStartupCoordinatorSubsystem::CancelHistoricalStageTimers(UWorld& World)
@@ -118,20 +122,7 @@ void UOCLandmarkStartupCoordinatorSubsystem::CancelHistoricalStageTimers(UWorld&
 
     bHistoricalTimersCancelled = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LANDMARK_STARTUP_TIMERS_CANCELLED menu_safe=1 synchronous_next_tick_chain=0"));
-}
-
-bool UOCLandmarkStartupCoordinatorSubsystem::IsBlockingPreGameUI(UWorld& World) const
-{
-    if (World.GetNetMode() == NM_DedicatedServer) return false;
-
-    const AOCPlayerController* PC = Cast<AOCPlayerController>(World.GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return true;
-
-    return PC->IsFrontendMenuVisible() ||
-        PC->IsSettingsVisible() ||
-        PC->IsDeploymentPanelVisible() ||
-        PC->GetPawn() == nullptr;
+        TEXT("GAME_RECOVERY_WORLD_PREP_TIMERS_CANCELLED duplicate_startup_timers=0"));
 }
 
 bool UOCLandmarkStartupCoordinatorSubsystem::IsMuseumExteriorReady(UWorld& World) const
@@ -148,26 +139,11 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
 {
     if (bStartupComplete || !World.IsGameWorld()) return;
 
-    // This runs after every landmark subsystem's OnWorldBeginPlay, so one cancellation is enough and
-    // does not erase timers intentionally created by stages after their authoritative build runs.
+    // Cancel every historical delayed owner once, then own the whole landmark startup sequence here.
+    // Unlike the old implementation this coordinator keeps running while the world is paused, so the
+    // deployment screen absorbs preparation and the player is not used as a loading screen.
     CancelHistoricalStageTimers(World);
 
-    if (IsBlockingPreGameUI(World))
-    {
-        if (!bDeferredLogWritten)
-        {
-            bDeferredLogWritten = true;
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS45_LANDMARK_STARTUP_DEFERRED blocking_ui=1 game_thread_materialization=0 team_input_free=1"));
-        }
-        ScheduleStartupStep(World, DeferredStartupRetrySeconds);
-        return;
-    }
-
-    // On playable worlds the deployment-stability subsystem asynchronously preloads the R13.7 museum
-    // exterior before calling its existing build method. Never defeat that by calling the same package-
-    // loading build synchronously from this coordinator. Dedicated servers have no UI/message-pump risk
-    // and still need the collision-bearing exterior, so they retain the authoritative direct build.
     if (StartupStageIndex == 0)
     {
         if (World.GetNetMode() == NM_DedicatedServer)
@@ -179,17 +155,17 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         }
         else if (!IsMuseumExteriorReady(World))
         {
-            ScheduleStartupStep(World, DeferredStartupRetrySeconds);
+            // The deployment-stability subsystem owns asynchronous preload + R13.7 build on playable worlds.
             return;
         }
 
         ++StartupStageIndex;
-        ScheduleStartupStep(World, 0.0f);
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE stage=1/%d museum_exterior_ready=1"), TotalStartupStages);
         return;
     }
 
-    if (RunNextStartupStage(World)) return;
-    ScheduleStartupStep(World, 0.0f);
+    RunNextStartupStage(World);
 }
 
 bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
@@ -257,15 +233,17 @@ bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
     if (!bStartupComplete)
     {
         ++StartupStageIndex;
-        if (StartupStageIndex > 12) bStartupComplete = true;
+        if (StartupStageIndex >= TotalStartupStages) bStartupComplete = true;
     }
 
-    if (!bStartupComplete) return false;
+    if (!bStartupComplete)
+    {
+        UE_LOG(LogTemp, Verbose,
+            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE stage=%d/%d"), StartupStageIndex, TotalStartupStages);
+        return false;
+    }
 
-    StartupStepTimerHandle.Invalidate();
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY staged_frames=1 deployment_blocking_work=0 museum_async_owner=1 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
-    UE_LOG(LogTemp, Display,
-        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages were deferred until gameplay and released one stage per frame."));
+        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 post_spawn_landmark_materialization=0"), TotalStartupStages);
     return true;
 }
