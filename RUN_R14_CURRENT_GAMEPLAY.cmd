@@ -21,15 +21,15 @@ set "R147_ASSET_COMMIT=9fd1d2e450bfcaba668c28aff899986cc87668c4"
 set "IS_ACCEPTANCE=0"
 if /I "%OC_FORCE_ACCEPTANCE%"=="1" set "IS_ACCEPTANCE=1"
 
-rem Pass 45: keep DX11/SM5/no-HDR, but stop making -norhithread the only normal path.
-rem The explicit START_HERE compatibility route sets OC_RHI_COMPAT=1 for A/B crash/performance diagnosis.
-rem -nosplash keeps the UE/project startup splash from opening as a separate oversized borderless window before the real game window.
+rem Pass 45: keep the stable DX11/SM5/no-HDR route. Quality is restored through DX11-safe scalability,
+rem rather than the old diagnostic low-quality profile. -nosplash removes the separate oversized startup image.
 set "RHI_FLAGS=-d3d11 -sm5 -nohdr -nosplash"
 set "RHI_MODE=dx11_sm5_rhi_thread"
 if /I "%OC_RHI_COMPAT%"=="1" (
   set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread -nosplash"
   set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"
 )
+set "QUALITY_CMDS=t.MaxFPS 60,sg.ViewDistanceQuality 3,sg.ShadowQuality 2,sg.TextureQuality 3,sg.EffectsQuality 3,sg.FoliageQuality 2,sg.PostProcessQuality 3,sg.AntiAliasingQuality 3,sg.ShadingQuality 3,sg.GlobalIlluminationQuality 2,sg.ReflectionQuality 2,sg.LandscapeQuality 3,r.ScreenPercentage 100"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%PLAYTEST_LOG%" del /q "%PLAYTEST_LOG%" >nul 2>nul
@@ -86,8 +86,6 @@ if /I "%CURRENT_BRANCH%"=="main" (
   set "FETCH_BRANCH=main"
   set "REMOTE_REF=origin/main"
 ) else (
-  rem Runtime correction branches are explicitly testable before merge. The launcher must fetch/compare
-  rem that exact branch instead of forcing main and accidentally making pre-merge acceptance impossible.
   echo(%CURRENT_BRANCH%| findstr /B /I /C:"fix/runtime-acceptance-" /C:"fix/runtime-map-spawn-fps-assets-" /C:"fix/runtime-recovery-" /C:"fix/pass45-runtime-rejection-" /C:"fix/single-launcher-" /C:"fix/dx11-sm5-" >nul
   if errorlevel 1 (
     echo [STOP] Normal gameplay playtest is allowed only from main or an explicit runtime-fix branch.
@@ -135,7 +133,6 @@ if errorlevel 1 (
   exit /b 11
 )
 
-rem Hydrate the current branch LFS payloads using only commands supported by older Git LFS releases.
 echo [ASSETS] Hydrating real weapon and foliage files from Git LFS...
 git lfs version >nul 2>nul
 if errorlevel 1 (
@@ -263,17 +260,17 @@ echo [4/4] Launching CURRENT NORMAL GAME frontend...
 echo This is the normal TEAM gameplay route, not the Sandbox/Test Range route.
 echo Pass 45 renderer mode: %RHI_MODE%
 echo Renderer flags: %RHI_FLAGS%
-echo Display mode: fullscreen recovery route
+echo Visual profile: NORMAL HIGH, 100%% render scale
 echo Thermal recovery cap: 60 FPS
-echo D3D12/SM6 is temporarily disabled after the confirmed startup renderer crashes.
+echo D3D12/SM6 stays disabled after confirmed startup renderer crashes.
 echo Use START / LOCAL GAME in the game menu to enter the listen-server match.
 echo Branch: %CURRENT_BRANCH%
 echo Log: %PLAYTEST_LOG%
 echo Source: %LOCAL_HEAD%
 echo.
 echo [PASS45] PASS45_RHI_MODE mode=%RHI_MODE% flags=%RHI_FLAGS%
-echo [PASS45] PASS45_NORMAL_DISPLAY_THERMAL_GUARD fullscreen=1 max_fps=60 render_scale_mutation=0
-start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+echo [PASS45] PASS45_NORMAL_VISUAL_QUALITY scale=100 view=3 shadow=2 texture=3 effects=3 foliage=2 post=3 aa=3 shading=3 gi=2 reflection=2 landscape=3
+start /wait "Oster Conflict Current Gameplay" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -fullscreen -ResX=1600 -ResY=900 -ExecCmds="%QUALITY_CMDS%" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 
 if not "%GAME_RC%"=="0" (
@@ -388,7 +385,7 @@ echo [QUICK NORMAL] LFS hydration, weapon commandlet preflight, production vehic
 echo [QUICK NORMAL] Branch: %CURRENT_BRANCH%
 echo [QUICK NORMAL] Source: %LOCAL_HEAD%
 echo [QUICK NORMAL] Renderer: %RHI_MODE% ^(%RHI_FLAGS%^)
-echo [QUICK NORMAL] Windowed 1280x720 recovery mode, max 60 FPS.
+echo [QUICK NORMAL] Windowed 1600x900, NORMAL HIGH quality, 100%% render scale, max 60 FPS.
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -399,7 +396,8 @@ if not "%BUILD_RC%"=="0" (
 
 echo.
 echo [QUICK NORMAL] Launching current Oster runtime directly. No asset importer runs before this process.
-start /wait "Oster Conflict Quick Normal" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1280 -ResY=720 -ExecCmds="t.MaxFPS 60" -culture=uk-UA
+echo [PASS45] PASS45_NORMAL_VISUAL_QUALITY scale=100 view=3 shadow=2 texture=3 effects=3 foliage=2 post=3 aa=3 shading=3 gi=2 reflection=2 landscape=3
+start /wait "Oster Conflict Quick Normal" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -ExecCmds="%QUALITY_CMDS%" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
 echo.
 echo ============================================================
