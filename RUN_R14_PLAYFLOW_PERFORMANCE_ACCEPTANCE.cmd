@@ -17,21 +17,22 @@ echo grounded rack та >=30 FPS.
 echo.
 echo Послідовність:
 echo   1. У головному меню натисніть START.
-echo   2. Після travel оберіть TEAM / SQUAD / ROLE.
-echo   3. SPAWN виберіть BASE та натисніть У БІЙ.
-echo   4. Реальний pawn має опинитися біля Museum, не на далекому legacy edge spawn.
-echo   5. Museum має бути одним R13.7 visible exterior; R13.8 не повинен малювати другий shell.
-echo   6. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
-echo   7. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
-echo   8. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
+echo   2. На екрані СТВОРЕННЯ СЕРВЕРА задайте параметри та натисніть СТВОРИТИ СЕРВЕР.
+echo   3. Після travel оберіть TEAM / SQUAD / ROLE.
+echo   4. SPAWN виберіть BASE та натисніть У БІЙ.
+echo   5. Реальний pawn має опинитися біля Museum, не на далекому legacy edge spawn.
+echo   6. Museum має бути одним R13.7 visible exterior; R13.8 не повинен малювати другий shell.
+echo   7. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
+echo   8. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
+echo   9. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
 echo      Exact production payload gap дозволений лише з explicit real-mesh fallback; fallback не є production READY.
-echo   9. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
-echo  10. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
-echo  11. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
-echo  12. Перевірте WASD + mouse та M map.
-echo  13. Залишайтесь у gameplay не менше 20 секунд для FPS sample і bounded-lifecycle evidence.
-echo  14. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має лишитися FAIL.
-echo  15. Вийдіть з гри нормально. Це вікно перевірить runtime log.
+echo  10. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
+echo  11. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
+echo  12. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
+echo  13. Перевірте WASD + mouse та M map.
+echo  14. Залишайтесь у gameplay не менше 20 секунд для FPS sample і bounded-lifecycle evidence.
+echo  15. Якщо FPS стрімко падає або ноутбук різко нагрівається - закрийте гру; acceptance має лишитися FAIL.
+echo  16. Вийдіть з гри нормально. Це вікно перевірить runtime log.
 echo.
 
 set "OC_FORCE_ACCEPTANCE=1"
@@ -48,9 +49,10 @@ if not exist "%LOG%" (
 )
 
 for %%M in (
-    PASS29_MAIN_START_DIRECT_HOST_QUEUED
-    PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE
+    PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED
+    PASS14_MAIN_START_OPENS_SERVER_SETUP
     PASS14_HOST_TRAVEL_BEGIN
+    PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE
     PASS14_FRONTEND_TRAVEL_HANDOFF_READY
     PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY
     PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY
@@ -63,7 +65,7 @@ for %%M in (
     PASS45_BLOCK0_PRETICK_GROUND_READY
     PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY
     PASS45_REGIONAL_TREE_INTAKE_WIRED
-    PASS45_LANDMARK_STARTUP_COORDINATED_READY
+    GAME_RECOVERY_WORLD_READY
     PASS45_MUSEUM_R137_VISIBLE_OWNER_PRESERVED
     PASS45_MUSEUM_R138_COLLISION_ONLY_READY
     PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY
@@ -250,7 +252,8 @@ if errorlevel 1 (
 echo.
 echo [PASS] Block0 authored Ground READY was recorded with no Ground FAIL/CONTENT GAP.
 echo [PASS] Block0 spatial grass coverage and imported regional-tree intake were proved READY.
-echo [PASS] Frontend START/travel path is stable.
+echo [PASS] Frontend START -> server creation -> hosted travel path is stable.
+echo [PASS] Landmark coordinator finished all staged pre-spawn world preparation.
 echo [PASS] Normal local run did not silently auto-fill filler bots.
 echo [PASS] Primary world/gameplay/BASE/vehicle seeds remained inside compact central Oster.
 echo [PASS] Actual live pawn is within the Museum BASE acceptance radius.
@@ -267,8 +270,9 @@ echo [PASS] Tactical Map marker and character input passed.
 echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
+findstr /C:"PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED" /C:"PASS14_MAIN_START_OPENS_SERVER_SETUP" /C:"PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE" "%LOG%"
 findstr /C:"PASS45_BLOCK0_PRETICK_GROUND_READY" /C:"PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY" /C:"PASS45_REGIONAL_TREE_INTAKE_WIRED" "%LOG%"
-findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"PASS45_LANDMARK_STARTUP_COORDINATED_READY" "%LOG%"
+findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"GAME_RECOVERY_WORLD_READY" "%LOG%"
 findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
 findstr /C:"PASS45_HMMWV_PROPORTIONAL_VISUAL_READY" /C:"PASS45_BTR4_PROPORTIONAL_VISUAL_READY" /C:"PASS45_M2_MOUNT_ALIGNMENT_READY" "%LOG%"
