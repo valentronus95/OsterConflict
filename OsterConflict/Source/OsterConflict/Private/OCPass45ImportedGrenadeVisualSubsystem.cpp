@@ -26,6 +26,8 @@ namespace
     const TCHAR* TrackedFlashIdentityMaterialPath = TEXT("/Game/R13/Weapons/sand.sand");
     const TCHAR* TrackedFragExplosionVFXPath =
         TEXT("/Game/Fire_EXP_Vol01_Free/Niagara/EXP/NS_Sub_EXP_Small_002.NS_Sub_EXP_Small_002");
+    const TCHAR* TrackedSmokeVFXPath =
+        TEXT("/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop");
 
     enum class EImportedGrenadeVisualKind : uint8
     {
@@ -42,8 +44,6 @@ namespace
 
     bool IsRejectedGrenadeCandidate(const FString& Candidate)
     {
-        // Fab now also contains actual launchers. A path containing "grenade" must never be enough to make an
-        // RPG/grenade-launcher mesh become the hand-grenade body. Keep identity fail-closed instead of substituting.
         return Candidate.Contains(TEXT("grenade_launcher")) ||
             Candidate.Contains(TEXT("grenade-launcher")) ||
             Candidate.Contains(TEXT("grenadelauncher")) ||
@@ -197,12 +197,13 @@ namespace
     TArray<FSoftObjectPath> BuildGrenadePresentationPreloadPaths(const FGrenadeCatalogCache& Catalog)
     {
         TArray<FSoftObjectPath> Paths;
-        Paths.Reserve(5 + Catalog.Frag.Num() + Catalog.Smoke.Num() + Catalog.Flash.Num());
+        Paths.Reserve(6 + Catalog.Frag.Num() + Catalog.Smoke.Num() + Catalog.Flash.Num());
         Paths.Emplace(TrackedGrenadeVisualPath);
         Paths.Emplace(TrackedFragIdentityMaterialPath);
         Paths.Emplace(TrackedSmokeIdentityMaterialPath);
         Paths.Emplace(TrackedFlashIdentityMaterialPath);
         Paths.Emplace(TrackedFragExplosionVFXPath);
+        Paths.Emplace(TrackedSmokeVFXPath);
         AppendCandidatePaths(Catalog.Frag, Paths);
         AppendCandidatePaths(Catalog.Smoke, Paths);
         AppendCandidatePaths(Catalog.Flash, Paths);
@@ -241,8 +242,6 @@ namespace
             OutVariantIndex = 0;
         }
 
-        // GAME_RECOVERY: packages were async-loaded before deployment release. ResolveObject is a lookup only;
-        // never call FAssetData::GetAsset here because it may synchronously load the package on first throw.
         return Cast<UStaticMesh>((*Candidates)[OutVariantIndex].GetSoftObjectPath().ResolveObject());
     }
 
@@ -319,7 +318,7 @@ void UOCPass45ImportedGrenadeVisualSubsystem::BeginPresentationPreload()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_GRENADE_PRELOAD_BEGIN assets=%d tracked_assets=5 frag_variants=%d smoke_variants=%d flash_variants=%d pre_spawn=1 async=1 sync_first_use_loads=0"),
+        TEXT("GAME_RECOVERY_GRENADE_PRELOAD_BEGIN assets=%d tracked_assets=6 frag_variants=%d smoke_variants=%d flash_variants=%d pre_spawn=1 async=1 sync_first_use_loads=0"),
         Paths.Num(), Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num());
 }
 
@@ -334,7 +333,8 @@ bool UOCPass45ImportedGrenadeVisualSubsystem::IsGrenadePresentationReady() const
         FSoftObjectPath(TrackedFragIdentityMaterialPath).ResolveObject() != nullptr &&
         FSoftObjectPath(TrackedSmokeIdentityMaterialPath).ResolveObject() != nullptr &&
         FSoftObjectPath(TrackedFlashIdentityMaterialPath).ResolveObject() != nullptr &&
-        FSoftObjectPath(TrackedFragExplosionVFXPath).ResolveObject() != nullptr;
+        FSoftObjectPath(TrackedFragExplosionVFXPath).ResolveObject() != nullptr &&
+        FSoftObjectPath(TrackedSmokeVFXPath).ResolveObject() != nullptr;
 }
 
 float UOCPass45ImportedGrenadeVisualSubsystem::GetGrenadePresentationProgress() const
@@ -366,7 +366,7 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
     if (RefreshPass == 1)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_READY pre_spawn=1 mandatory_assets=5 package_loads_on_throw=0 package_loads_on_detonation=0"));
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_READY pre_spawn=1 mandatory_assets=6 package_loads_on_throw=0 package_loads_on_detonation=0"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d launcher_candidates_rejected=1 asset_registry_scans=1 local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
             Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num(), Catalog.Frag.Num() >= 2 ? 1 : 0);
@@ -397,8 +397,6 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
 
     if (RefreshPass == FastRefreshPasses)
     {
-        // Grenades are transient actors created throughout the match. Keep a cheap actor-only watch alive; the Fab
-        // AssetRegistry catalog is cached and every candidate package is already resident from the pre-spawn preload.
         World->GetTimerManager().SetTimer(
             RefreshTimer,
             this,

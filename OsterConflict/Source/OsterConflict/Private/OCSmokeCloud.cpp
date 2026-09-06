@@ -3,6 +3,7 @@
 #include "Components/SceneComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -41,27 +42,29 @@ void AOCSmokeCloud::BeginPlay()
         return;
     }
 
-    UNiagaraSystem* SmokeSystem = LoadObject<UNiagaraSystem>(nullptr, Pass45SmokeNiagaraPath);
+    // GAME_RECOVERY: the smoke Niagara package is async-preloaded before deployment release. ResolveObject is
+    // lookup-only; never synchronously load the package when the first smoke grenade detonates.
+    UNiagaraSystem* SmokeSystem = Cast<UNiagaraSystem>(FSoftObjectPath(Pass45SmokeNiagaraPath).ResolveObject());
     if (!SmokeSystem)
     {
         SmokeVFX->DeactivateImmediate();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_SMOKE_VFX_LOAD_FAIL asset=%s authored_niagara=0 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
-            Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_MISS asset=%s phase=smoke_vfx sync_package_loads=0 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 runtime_acceptance=0"),
+            Pass45SmokeNiagaraPath);
         return;
     }
 
     SmokeVFX->SetAsset(SmokeSystem);
     SmokeVFX->Activate(true);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f runtime_acceptance=0"),
+        TEXT("PASS45_SMOKE_VFX_DONOR_WIRED asset=%s authored_niagara=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 radius_cm=%.1f half_height_cm=%.1f expansion_s=%.1f lifetime_s=%.1f sync_package_loads=0 runtime_acceptance=0"),
         Pass45SmokeNiagaraPath, SmokeRadiusCm, SmokeHalfHeightCm, SmokeExpansionSeconds, LifetimeSeconds);
 
-    // Automated runtime readiness proves only that the authored Niagara payload loaded and was activated in a
-    // real gameplay client. It deliberately does NOT claim exact visual/gameplay expansion synchronization or
+    // Automated runtime readiness proves only that the authored Niagara payload was already resident and was activated
+    // in a real gameplay client. It deliberately does NOT claim exact visual/gameplay expansion synchronization or
     // that smoke scale/look/performance was visually accepted.
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 expansion_s=%.1f exact_visual_sync=0 manual_visual_acceptance=0"),
+        TEXT("PASS45_SMOKE_VFX_RUNTIME_READY asset=%s runtime_loaded=1 activated=1 primitive_visible=0 gameplay_occlusion=1 finite_volume=1 gameplay_volume_expands=1 expansion_s=%.1f exact_visual_sync=0 manual_visual_acceptance=0 sync_package_loads=0"),
         Pass45SmokeNiagaraPath, SmokeExpansionSeconds);
 }
 

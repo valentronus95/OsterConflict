@@ -7,6 +7,7 @@ HEADER = SRC / "Public" / "OCGrenadeProjectile.h"
 CPP = SRC / "Private" / "OCGrenadeProjectile.cpp"
 PRELOAD_HEADER = SRC / "Public" / "OCPass45ImportedGrenadeVisualSubsystem.h"
 PRELOAD_CPP = SRC / "Private" / "OCPass45ImportedGrenadeVisualSubsystem.cpp"
+SMOKE_CPP = SRC / "Private" / "OCSmokeCloud.cpp"
 DEPLOY_CPP = SRC / "Private" / "OCDeploymentLoadingSubsystem.cpp"
 HUD_CPP = SRC / "Private" / "OCHUD.cpp"
 
@@ -29,10 +30,10 @@ header = read(HEADER)
 cpp = read(CPP)
 preload_header = read(PRELOAD_HEADER)
 preload_cpp = read(PRELOAD_CPP)
+smoke_cpp = read(SMOKE_CPP)
 deploy_cpp = read(DEPLOY_CPP)
 hud_cpp = read(HUD_CPP)
 
-# Existing replicated type/presentation lifecycle.
 req('ReplicatedUsing=OnRep_GrenadeType' in header,
     'GrenadeType is not replication-notify driven')
 req('void OnRep_GrenadeType();' in header,
@@ -88,22 +89,27 @@ for required_path in (
     '/Game/R13/Weapons/greyLight.greyLight',
     '/Game/R13/Weapons/sand.sand',
     '/Game/Fire_EXP_Vol01_Free/Niagara/EXP/NS_Sub_EXP_Small_002.NS_Sub_EXP_Small_002',
+    '/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop',
 ):
     req(required_path in preload_cpp,
         f'pre-spawn grenade preload lost required asset: {required_path}')
 
 req('LoadObject<' not in cpp,
-    'grenade throw/detonation path still contains blocking LoadObject')
+    'fragmentation/flash grenade throw or detonation path still contains blocking LoadObject')
+req('LoadObject<' not in smoke_cpp,
+    'smoke grenade first detonation still contains blocking LoadObject')
 req('.GetAsset()' not in preload_cpp,
     'Fab grenade resolver still contains synchronous FAssetData::GetAsset')
-req('.ResolveObject()' in cpp and '.ResolveObject()' in preload_cpp,
+req('.ResolveObject()' in cpp and '.ResolveObject()' in preload_cpp and '.ResolveObject()' in smoke_cpp,
     'grenade first-use path is not lookup-only after preload')
 req('wait_for_grenades=1' in deploy_cpp and 'IsGrenadePresentationReady()' in deploy_cpp,
     'deployment can release the player before grenade preload is ready')
 req('grenade_assets_ready_before_spawn=1' in deploy_cpp,
     'deployment completion log does not prove grenade assets were ready before spawn')
+req('mandatory_assets=6' in preload_cpp and 'tracked_assets=6' in preload_cpp,
+    'grenade preloader does not account for frag and smoke Niagara payloads')
 
-# One detonation and bounded VFX lifetime.
+# One detonation and bounded fragmentation VFX lifetime.
 req('bool bDetonated = false;' in header,
     'grenade projectile has no duplicate detonation guard')
 req('if (!HasAuthority() || bDetonated) return;' in cpp and 'bDetonated = true;' in cpp,
@@ -118,6 +124,8 @@ req('Pass45FragExplosionVisualScale' in cpp,
     'fragmentation visual scale is not explicitly separated from damage radius')
 req('EOCWorldAudioEvent::ExplosionLarge' in cpp,
     'fragmentation grenade still uses only the small explosion audio event')
+req('sync_package_loads=0' in smoke_cpp,
+    'smoke VFX source does not expose lookup-only first-use evidence')
 
 # HUD was already wired; preserve it rather than rebuilding a second grenade HUD owner.
 req('GetSelectedGrenadeType()' in hud_cpp and 'GetSelectedGrenadeCount()' in hud_cpp,
@@ -133,8 +141,8 @@ if errors:
 
 print('PASS45 GRENADE TYPE PRESENTATION + GAME RECOVERY FIRST USE: PASS')
 print('- replicated grenade type presentation remains intact and fail-honest')
-print('- tracked grenade mesh/material/VFX plus discovered Fab grenade meshes are async-preloaded before deployment release')
-print('- throw/detonation paths contain no blocking LoadObject/GetAsset package load')
+print('- tracked grenade mesh/material/frag+smoke Niagara plus discovered Fab grenade meshes are async-preloaded before deployment release')
+print('- frag/smoke throw and detonation paths contain no blocking LoadObject/GetAsset package load')
 print('- HUD retains selected grenade type/count and throw control')
 print('- server detonation is one-shot; fragmentation Niagara has an explicit forced cleanup')
 print('STATUS: SOURCE/PRELOAD CLOSED; factual UE 5.8 first-throw/explosion acceptance remains required')
