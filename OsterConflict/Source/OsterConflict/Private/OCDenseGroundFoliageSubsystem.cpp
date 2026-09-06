@@ -1,16 +1,18 @@
 #include "OCDenseGroundFoliageSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "TimerManager.h"
+#include "HAL/PlatformTime.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -127,6 +129,33 @@ namespace
         }
         return nullptr;
     }
+
+    TArray<FSoftObjectPath> BuildFoliagePreloadPaths()
+    {
+        static const TCHAR* Paths[] =
+        {
+            TEXT("/Game/KiteDemo/Environments/Foliage/Grass/FieldGrass/SM_FieldGrass_01.SM_FieldGrass_01"),
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_01_mesh.grass_01_01_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var01.SM_GrassPatch_Var01"),
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_02_mesh.grass_01_02_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var02.SM_GrassPatch_Var02"),
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_04_mesh.grass_01_04_mesh"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_GrassPatch_Var03.SM_GrassPatch_Var03"),
+            TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_07_mesh.grass_01_07_mesh"),
+            TEXT("/Game/KiteDemo/Environments/Foliage/Ferns/SM_Fern_01.SM_Fern_01"),
+            TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_01.ground_01_01"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plant.SM_Plant"),
+            TEXT("/Game/KiteDemo/Environments/Foliage/Flowers/FieldScabious/SM_FieldScabious_01.SM_FieldScabious_01"),
+            TEXT("/Game/KiteDemo/Environments/Foliage/Flowers/Buttercup/SM_Buttercup_Patch_01.SM_Buttercup_Patch_01"),
+            TEXT("/Game/PN_FoliageCollection/Meshes/flowerMesh/flower_01_01.flower_01_01"),
+            TEXT("/Game/AdvancedVillagePack/Meshes/SM_Flower_Var01.SM_Flower_Var01")
+        };
+
+        TArray<FSoftObjectPath> Result;
+        Result.Reserve(UE_ARRAY_COUNT(Paths));
+        for (const TCHAR* Path : Paths) Result.Emplace(Path);
+        return Result;
+    }
 }
 
 bool UOCDenseGroundFoliageSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -140,9 +169,20 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
 
+    bEligible = false;
+    bPreloadRequested = false;
+    bPopulationStarted = false;
+    bPopulated = false;
+    PreloadHandle.Reset();
+
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
+    {
+        if (GameMode->IsFrontendOnlySession()) return;
+    }
 
+    bEligible = true;
     bLowCPUProfile = IsLowCPUProfile(InWorld);
     PopulationMinX = CompactMinX;
     PopulationMaxX = CompactMaxX;
@@ -150,6 +190,7 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     PopulationMaxY = CompactMaxY;
     ActiveGridStep = bLowCPUProfile ? LowCPUGridStepCm : FullGridStepCm;
     ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch;
+    EarliestPopulationWallTimeSeconds = FPlatformTime::Seconds() + 0.75;
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY bounds_m=960x940 x_m=[-780,180] y_m=[-120,820] profile=%s grid_m=%.1f cells_per_batch=%d museum_only=0 full_playable_bounds=1 content_intake=KiteDemo"),
@@ -157,72 +198,101 @@ void UOCDenseGroundFoliageSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         ActiveGridStep / 100.0f,
         ActiveCellsPerBatch);
 
-    // Allow the existing foliage runtime guard to retire source ground-cover proxies before planting traces begin.
-    InWorld.GetTimerManager().SetTimer(
-        GameplayReadyTimer,
-        this,
-        &UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady,
-        0.20f,
-        true,
-        0.75f);
+    RequestPreload();
+}
+
+void UOCDenseGroundFoliageSubsystem::RequestPreload()
+{
+    if (!bEligible || bPreloadRequested) return;
+    bPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths = BuildFoliagePreloadPaths();
+    PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate(),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryDenseFoliagePreload"));
+
+    if (!PreloadHandle.IsValid())
+    {
+        bPopulated = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_FOLIAGE_PRELOAD_FAIL handle=0 post_spawn_sync_loads=0"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_FOLIAGE_PRELOAD_BEGIN assets=%d pre_spawn=1 async=1"), Paths.Num());
+}
+
+void UOCDenseGroundFoliageSubsystem::Tick(float DeltaTime)
+{
+    (void)DeltaTime;
+    if (!bEligible || bPopulated) return;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld()) return;
+
+    if (!bPreloadRequested)
+    {
+        RequestPreload();
+        return;
+    }
+    if (!PreloadHandle.IsValid() || !PreloadHandle->HasLoadCompleted()) return;
+    if (FPlatformTime::Seconds() < EarliestPopulationWallTimeSeconds) return;
+
+    if (!bPopulationStarted)
+    {
+        if (!BeginPopulation(*World))
+        {
+            bPopulated = true;
+            UE_LOG(LogTemp, Error,
+                TEXT("GAME_RECOVERY_FOLIAGE_PREP_FINISH success=0 post_spawn_materialization=0"));
+        }
+        return;
+    }
+
+    PopulateBatch();
+}
+
+TStatId UOCDenseGroundFoliageSubsystem::GetStatId() const
+{
+    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCDenseGroundFoliageSubsystem, STATGROUP_Tickables);
+}
+
+float UOCDenseGroundFoliageSubsystem::GetWorldFoliageProgress() const
+{
+    if (!bEligible || bPopulated) return 1.0f;
+    if (!bPreloadRequested || !PreloadHandle.IsValid() || !PreloadHandle->HasLoadCompleted()) return 0.10f;
+    if (!bPopulationStarted) return 0.20f;
+
+    const int32 XCells = FMath::FloorToInt((PopulationMaxX - PopulationMinX) / ActiveGridStep) + 1;
+    const int32 YCells = FMath::FloorToInt((PopulationMaxY - PopulationMinY) / ActiveGridStep) + 1;
+    const int32 TotalCells = FMath::Max(1, XCells * YCells);
+    const float PopulationAlpha = FMath::Clamp(static_cast<float>(ProcessedCells) / static_cast<float>(TotalCells), 0.0f, 1.0f);
+    return 0.20f + 0.80f * PopulationAlpha;
 }
 
 void UOCDenseGroundFoliageSubsystem::Deinitialize()
 {
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(GameplayReadyTimer);
-        World->GetTimerManager().ClearTimer(PopulationBatchTimer);
-    }
+    if (PreloadHandle.IsValid()) PreloadHandle->CancelHandle();
+    PreloadHandle.Reset();
     GrassComponents.Reset();
     GroundPlants.Reset();
     Flowers.Reset();
     FoliageActor.Reset();
+    bEligible = false;
     Super::Deinitialize();
-}
-
-void UOCDenseGroundFoliageSubsystem::TryPopulateWhenGameplayReady()
-{
-    UWorld* World = GetWorld();
-    if (!World || bPopulated || bPopulationStarted) return;
-
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
-    {
-        if (GameMode->IsFrontendOnlySession()) return;
-    }
-
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-
-    // Loading KiteDemo/foliage packages is synchronous in BeginPopulation(). Never do that while the
-    // player is navigating frontend/deployment/settings UI. It starved the game thread, which made
-    // UI buttons, native window controls and Alt+Tab look frozen. Wait for a real spawned gameplay pawn.
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() || PC->IsSettingsVisible() || !PC->GetPawn())
-    {
-        return;
-    }
-
-    World->GetTimerManager().ClearTimer(GameplayReadyTimer);
-    if (!BeginPopulation(*World))
-    {
-        bPopulated = true;
-        return;
-    }
-
-    World->GetTimerManager().SetTimer(
-        PopulationBatchTimer,
-        this,
-        &UOCDenseGroundFoliageSubsystem::PopulateBatch,
-        0.050f,
-        true,
-        0.0f);
 }
 
 bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
 {
     if (bPopulationStarted || bPopulated) return false;
 
-    // Intake assets are selected first; already-accepted historical packs remain explicit fallbacks.
+    // All candidate packages were requested asynchronously before spawn. LoadObject below should resolve
+    // already-resident objects instead of turning the first gameplay frame into a package-loading stall.
     const TArray<const TCHAR*> GrassCandidates[] =
     {
         {
@@ -316,7 +386,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo deferred_until_spawned_gameplay=1"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo pre_spawn=1 async_preloaded=1"),
         ActiveGridStep,
         ActiveCellsPerBatch,
         GrassCullEnd,
@@ -330,11 +400,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
 {
     UWorld* World = GetWorld();
     AActor* Owner = FoliageActor.Get();
-    if (!World || !Owner || !bPopulationStarted || bPopulated)
-    {
-        if (World) World->GetTimerManager().ClearTimer(PopulationBatchTimer);
-        return;
-    }
+    if (!World || !Owner || !bPopulationStarted || bPopulated) return;
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OCDenseGroundFoliage), false);
     QueryParams.AddIgnoredActor(Owner);
@@ -481,13 +547,12 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
 
     if (CursorX > PopulationMaxX)
     {
-        World->GetTimerManager().ClearTimer(PopulationBatchTimer);
         bPopulationStarted = false;
         bPopulated = true;
         Owner->Tags.Add(Block0PopulationCompleteTag);
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 water_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 water_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0 pre_spawn=1"),
             GrassInstances,
             PlantInstances,
             FlowerInstances,
@@ -498,5 +563,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             CandidateRejectedBlocked,
             CandidateRejectedTrace,
             CandidateRejectedBounds);
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_FOLIAGE_PREP_FINISH success=1 post_spawn_materialization=0"));
     }
 }
