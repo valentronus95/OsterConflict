@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent
 START = ROOT / "START_HERE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 BATCH_CMD = ROOT / "OsterConflict" / "PASS45_BATCH_RUNTIME.cmd"
+BATCH_ENTRY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_progress_entry.py"
+BATCH_RUNTIMEFIX = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_runtimefix.py"
 BATCH_PY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 
 
@@ -22,6 +24,8 @@ def require(text: str, needle: str, label: str) -> None:
 start = read(START)
 normal = read(NORMAL)
 batch_cmd = read(BATCH_CMD)
+batch_entry = read(BATCH_ENTRY)
+batch_runtimefix = read(BATCH_RUNTIMEFIX)
 batch_py = read(BATCH_PY)
 
 for needle in (
@@ -32,7 +36,12 @@ for needle in (
 ):
     require(start, needle, "START_HERE route")
 
-for stale in (":prepare_materials_strict", 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"', "TRY_PRODUCTION_VEHICLES_UE58.cmd", "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd"):
+for stale in (
+    ":prepare_materials_strict",
+    'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"',
+    "TRY_PRODUCTION_VEHICLES_UE58.cmd",
+    "TRY_PASS45_STEIN_WEAPON_MATERIALS_UE58.cmd",
+):
     if stale in start:
         raise SystemExit(f"PASS20 VERIFY FAIL: stale fail-fast/heavy route returned to START_HERE: {stale}")
 
@@ -46,11 +55,24 @@ for needle in (
     require(normal, needle, "quick normal route")
 
 quick = normal.split(':quick_normal_game', 1)[1]
-for forbidden in ('git lfs pull', 'verify_required_weapon_assets.py', 'call "%PRODUCTION_IMPORT%"', 'PASS7_PRODUCTION_VEHICLES_READY'):
+for forbidden in (
+    'git lfs pull',
+    'verify_required_weapon_assets.py',
+    'call "%PRODUCTION_IMPORT%"',
+    'PASS7_PRODUCTION_VEHICLES_READY',
+):
     if forbidden in quick:
         raise SystemExit(f"PASS20 VERIFY FAIL: quick route regained heavy work: {forbidden}")
 
-require(batch_cmd, "pass45_batch_runtime.py", "batch command wrapper")
+# Current batch entry is intentionally layered: cmd -> progress entry -> runtime window fix -> canonical orchestrator.
+# The old verifier incorrectly required the cmd wrapper to call pass45_batch_runtime.py directly.
+require(batch_cmd, "pass45_batch_runtime_progress_entry.py", "batch command wrapper")
+require(batch_entry, "import pass45_batch_runtime_progress as progress", "batch progress entry")
+require(batch_entry, 'with_name("pass45_batch_runtime_runtimefix.py")', "batch runtimefix handoff")
+require(batch_runtimefix, "import pass45_batch_runtime as base", "runtimefix canonical orchestrator import")
+for needle in ("-windowed", "-ResX=1280", "-ResY=720", "-norhithread", "-nosplash"):
+    require(batch_runtimefix, needle, "runtime acceptance window recovery")
+
 for needle in (
     "IMPORT_ALL_LOCAL_INBOX_UE58.cmd", "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd", "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd",
@@ -62,13 +84,13 @@ for needle in (
 ):
     require(batch_py, needle, "batch runtime orchestrator")
 
+combined = (batch_entry + batch_runtimefix + batch_py).lower()
 for destructive in ("git reset", "git clean", "git stash", "checkout --", "restore --"):
-    if destructive in batch_py.lower():
+    if destructive in combined:
         raise SystemExit(f"PASS20 VERIFY FAIL: batch runtime can mutate user Changes: {destructive}")
 
 print("NORMAL GAME ROUTE PASS20 + PASS45 BATCH-FIRST SOURCE CONTRACT PASS")
 print("- START_HERE remains the only user-facing launcher")
 print("- option 1 uses 1600x900 / 100% render scale and normal high DX11-safe quality")
-print("- option 2 remains the full batch runtime path")
-print("- tracked local Changes are preserved")
+print("- option 2 uses progress entry -> runtimefix -> canonical batch orchestrator without touching user Changes")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence remains factual")
