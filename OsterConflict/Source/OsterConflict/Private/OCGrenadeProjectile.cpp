@@ -16,14 +16,17 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
-#include "UObject/UObjectGlobals.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
     constexpr float Pass45GrenadeDesiredLengthCm = 14.0f;
+    constexpr float Pass45FragExplosionVisualScale = 1.85f;
+    constexpr float Pass45FragExplosionCleanupSeconds = 2.80f;
     const TCHAR* Pass45GrenadeVisualPath = TEXT("/Game/R13/Weapons/grenade.grenade");
     const TCHAR* Pass45FragIdentityMaterialPath = TEXT("/Game/R13/Weapons/green.green");
     const TCHAR* Pass45SmokeIdentityMaterialPath = TEXT("/Game/R13/Weapons/greyLight.greyLight");
@@ -79,8 +82,8 @@ void AOCGrenadeProjectile::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Build presentation from the current replicated type. Exact per-type bodies remain an explicit content gap,
-    // but authored type-identity materials make the shared real body distinguishable without inventing geometry.
+    // GAME_RECOVERY grenade assets are async-preloaded by the world subsystem before deployment releases the player.
+    // Refresh is therefore lookup-only and never allowed to turn the first throw into a synchronous package load.
     RefreshGrenadePresentation();
 
     if (HasAuthority())
@@ -91,6 +94,8 @@ void AOCGrenadeProjectile::BeginPlay()
 
 void AOCGrenadeProjectile::RefreshGrenadePresentation()
 {
+    if (GetNetMode() == NM_DedicatedServer) return;
+
     if (!GrenadeMesh)
     {
         UE_LOG(LogTemp, Error,
@@ -102,14 +107,13 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
     GrenadeMesh->SetVisibility(false, true);
     GrenadeMesh->SetHiddenInGame(true, true);
 
-    // The repository still contains one tracked shared R13 grenade body. Keep exact-body truth explicit while
-    // using only tracked authored materials to make frag/smoke/flash readable in flight and on the ground.
-    UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr, Pass45GrenadeVisualPath);
+    // No LoadObject here. Missing residency is fail-visible instead of blocking the game thread on first use.
+    UStaticMesh* ProductionMesh = Cast<UStaticMesh>(FSoftObjectPath(Pass45GrenadeVisualPath).ResolveObject());
     if (!ProductionMesh)
     {
         GrenadeMesh->SetStaticMesh(nullptr);
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_FAIL asset=%s type=%d primitive_visible=0 gameplay_collision_preserved=1 runtime_acceptance=0"),
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_MISS asset=%s type=%d phase=throw_visual sync_package_loads=0 primitive_visible=0 runtime_acceptance=0"),
             Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType));
         return;
     }
@@ -135,7 +139,8 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
     GrenadeMesh->ComponentTags.AddUnique(FName(TEXT("OC_ProductionGrenadeVisual")));
 
     const TCHAR* IdentityMaterialPath = GetPass45GrenadeIdentityMaterialPath(GrenadeType);
-    UMaterialInterface* IdentityMaterial = LoadObject<UMaterialInterface>(nullptr, IdentityMaterialPath);
+    UMaterialInterface* IdentityMaterial =
+        Cast<UMaterialInterface>(FSoftObjectPath(IdentityMaterialPath).ResolveObject());
     const int32 MaterialSlotCount = ProductionMesh->GetStaticMaterials().Num();
     const bool bTypeIdentityMaterialReady = IdentityMaterial != nullptr && MaterialSlotCount > 0;
     if (bTypeIdentityMaterialReady)
@@ -151,7 +156,7 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL material=%s type=%d material_slots=%d shared_generic_body=1 exact_type_body=0 type_distinguishable=0 runtime_acceptance=0"),
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_MISS asset=%s type=%d phase=identity_material material_slots=%d sync_package_loads=0 runtime_acceptance=0"),
             IdentityMaterialPath, static_cast<int32>(GrenadeType), MaterialSlotCount);
     }
 
@@ -162,7 +167,7 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
         TEXT("PASS45_GRENADE_PRODUCTION_VISUAL_READY asset=%s type=%d primitive_visible=0 production_visual=1 shared_generic_body=1 type_identity_material=%d type_distinguishable=%d exact_type_body=0 type_specific_content_gap=1 runtime_acceptance=0"),
         Pass45GrenadeVisualPath, static_cast<int32>(GrenadeType), bTypeIdentityMaterialReady ? 1 : 0, bTypeIdentityMaterialReady ? 1 : 0);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GRENADE_PRESENTATION_TYPE_REFRESH type=%d replicated_type_refresh=1 shared_generic_body=1 type_identity_material=%d type_distinguishable=%d exact_type_body=0 type_specific_content_gap=1 runtime_acceptance=0"),
+        TEXT("PASS45_GRENADE_PRESENTATION_TYPE_REFRESH type=%d replicated_type_refresh=1 shared_generic_body=1 type_identity_material=%d type_distinguishable=%d exact_type_body=0 type_specific_content_gap=1 sync_package_loads=0 runtime_acceptance=0"),
         static_cast<int32>(GrenadeType), bTypeIdentityMaterialReady ? 1 : 0, bTypeIdentityMaterialReady ? 1 : 0);
 }
 
@@ -190,37 +195,66 @@ void AOCGrenadeProjectile::MulticastDetonationVFX_Implementation(EOCGrenadeType 
 {
     if (GetNetMode() == NM_DedicatedServer || Type != EOCGrenadeType::Fragmentation) return;
 
-    UNiagaraSystem* ExplosionSystem = LoadObject<UNiagaraSystem>(nullptr, Pass45FragExplosionVFXPath);
+    // The Niagara package is retained by the pre-spawn preload handle. ResolveObject is lookup-only.
+    UNiagaraSystem* ExplosionSystem = Cast<UNiagaraSystem>(FSoftObjectPath(Pass45FragExplosionVFXPath).ResolveObject());
     if (!ExplosionSystem)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_FRAG_EXPLOSION_VFX_LOAD_FAIL asset=%s authored_niagara=0 runtime_acceptance=0"),
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_MISS asset=%s phase=detonation_vfx sync_package_loads=0 runtime_acceptance=0"),
             Pass45FragExplosionVFXPath);
         return;
     }
 
-    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+    UNiagaraComponent* ExplosionComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
         this,
         ExplosionSystem,
         Location,
         FRotator::ZeroRotator,
-        FVector::OneVector,
+        FVector(Pass45FragExplosionVisualScale),
         true,
         true,
-        ENCPoolMethod::AutoRelease,
+        ENCPoolMethod::None,
         true);
 
+    if (ExplosionComponent && GetWorld())
+    {
+        TWeakObjectPtr<UNiagaraComponent> WeakExplosion(ExplosionComponent);
+        FTimerHandle CleanupHandle;
+        GetWorldTimerManager().SetTimer(
+            CleanupHandle,
+            FTimerDelegate::CreateLambda([WeakExplosion]()
+            {
+                if (UNiagaraComponent* Component = WeakExplosion.Get())
+                {
+                    Component->DeactivateImmediate();
+                    Component->DestroyComponent();
+                }
+            }),
+            Pass45FragExplosionCleanupSeconds,
+            false);
+    }
+
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_FRAG_EXPLOSION_VFX_DONOR_WIRED asset=%s authored_niagara=1 replicated_presentation=1 runtime_acceptance=0"),
-        Pass45FragExplosionVFXPath);
+        TEXT("GAME_RECOVERY_FRAG_EXPLOSION_VFX_READY asset=%s authored_niagara=1 replicated_presentation=1 visual_scale=%.2f forced_cleanup_s=%.2f looping_residue=0 sync_package_loads=0 runtime_acceptance=0"),
+        Pass45FragExplosionVFXPath, Pass45FragExplosionVisualScale, Pass45FragExplosionCleanupSeconds);
 }
 
 void AOCGrenadeProjectile::DetonateServer()
 {
-    if (!HasAuthority()) return;
+    if (!HasAuthority() || bDetonated) return;
+    bDetonated = true;
+    GetWorldTimerManager().ClearTimer(FuseTimerHandle);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_GRENADE_DETONATION_COMMIT type=%d one_explosion_event=1 duplicate_guard=1"),
+        static_cast<int32>(GrenadeType));
+
     if (WorldAudioComponent && GrenadeType != EOCGrenadeType::Smoke)
     {
-        WorldAudioComponent->PlayEventServer(EOCWorldAudioEvent::ExplosionSmall, GetActorLocation());
+        const EOCWorldAudioEvent AudioEvent = GrenadeType == EOCGrenadeType::Fragmentation
+            ? EOCWorldAudioEvent::ExplosionLarge
+            : EOCWorldAudioEvent::ExplosionSmall;
+        WorldAudioComponent->PlayEventServer(AudioEvent, GetActorLocation());
     }
 
     if (GrenadeType == EOCGrenadeType::Fragmentation)

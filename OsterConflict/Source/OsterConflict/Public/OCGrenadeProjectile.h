@@ -45,6 +45,7 @@ protected:
 
 private:
     FTimerHandle FuseTimerHandle;
+    bool bDetonated = false;
 
     UFUNCTION()
     void OnRep_GrenadeType();
