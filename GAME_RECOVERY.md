@@ -217,25 +217,28 @@
 
 ## Поточний checkpoint — 2026-09-06
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **20%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **36%**.
 
-### Зроблено
-- пункт 1 суттєво переведено на pre-spawn preparation: museum/landmark critical assets йдуть через async preload, startup coordinator працює staged і під paused deployment UI;
-- spawn утримується до фактичного `world ready`, а не випускає pawn у напівпорожню карту;
-- normal gameplay більше не проходить старий масовий local-inbox manifest `LoadObject()` через 0.45 с після старту; validation/intake шлях ізольовано від звичайної гри;
-- dense foliage вже async-preloaded і заселяється порціями, а не одним великим циклом;
-- deployment presentation більше не переписує high-Z Slate visibility кожні 0.1 с без зміни стану: visibility writes дедупліковані;
-- пункт 2 підготовлено в коді: respawn delay = **10 секунд**, додано recovery guard для завислого spectator/no-pawn, після possession відновлюється game input;
-- Gameplay Debugger вимкнено для звичайного gameplay activation;
-- пункт 8 підготовлено в коді: SettingsPanel примусово повертається в `enabled/visible` стан після R13 frontend, прибрано disabled washout, додано темний production-style для buttons/combo/checkbox/sliders;
-- frontend/deployment input source-contract перевірки на попередньому exact HEAD проходили; PR #94 лишається OPEN/UNMERGED.
+### 🟢 Зроблено / source-closed
+- пункт 1/10: критичний startup переведений на pre-spawn readiness; authored world surfaces materialize staged по кадрах, foliage async/staged, deployment чекає фактичний `world ready`;
+- пункт 2: у коді є 10-секундний respawn, recovery guard, відновлення input і вимкнення Gameplay Debugger для звичайної гри;
+- пункт 3: grenade mesh/material/VFX/audio preload виконується async до deployment release; first-use blocking loads прибрані, smoke/frag presentation та cleanup source-closed;
+- пункт 4: sandbox weapon arsenal стабілізований, physics dropping/helper/basic-shape visuals retired source-side;
+- пункт 5/10: production BTR-4, HMMWV/M2/gun-truck presentation переведені на preload/`ResolveObject()` без runtime `LoadObject()`; старі primitive/proxy visuals fail-closed;
+- пункт 8: SettingsPanel source-side повернутий у enabled/visible state і production styling;
+- exact HEAD `8712d4bfb4334cee84fc2cf5be192c7010862e87`: **101/101 CI workflow runs SUCCESS**; PR #94 лишається OPEN/UNMERGED.
 
-### Ще не ACCEPTED
-- пункт 1 ще потребує фактичної UE 5.8 перевірки першого spawn без >1 с freeze і без масового pop-in;
-- authored world-surface upgrade все ще виконує кілька великих ISM/component mutation етапів в одному Tick після preload, це треба рознести по кадрах;
-- пункт 2 потребує реальної перевірки `death -> 10 s -> respawn`, HUD та input;
-- пункт 8 потребує реальної перевірки всіх tabs/controls та Apply/Save/Cancel/Defaults, а також доведення layout до фінального вигляду;
-- гранати, arsenal, production БТР-4, стадіон/музей, HUD і фінальний runtime acceptance залишаються відкритими.
+### 🟡 У роботі
+- пункт 6: наступний safe-remote блок — звірити canonical stadium/museum/map owners і закрити перший фактичний source gap без дублювання вже наявних Pass45/R14 змін.
+
+### 🔴 Ще не ACCEPTED
+- фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
+- `death -> 10 s -> respawn` із HUD/input;
+- перший і повторний grenade throw/explosion у rendered runtime;
+- rendered weapon arsenal без helper/proxy/detached parts;
+- production BTR-4/HMMWV/M2 у фактичній грі;
+- stadium/museum/карта Остер, UI/settings interaction, HUD та весь пункт 11;
+- пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Продовжити пункт 1/10: staged materialization для `OCAuthoredWorldSurfaceUpgradeSubsystem`, щоб ground/roads/sidewalks/park paths/fences не мутувалися одним кадром. Після цього перейти до пункту 3: grenade first-use preload/HUD/explosion cleanup.
+Пункт 6: audit stadium/museum/canonical map ownership, потім виправити перший підтверджений source gap. Runtime acceptance не підміняти CI/source evidence.
