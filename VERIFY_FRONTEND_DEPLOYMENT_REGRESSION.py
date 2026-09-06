@@ -88,7 +88,10 @@ if 'ПЕРЕВІРКА ТОЧКИ ПОЯВИ' in text["deploy"]:
 for token in [
     'R13_DeploymentBackdropBlur',
     'Blur->SetBlurStrength(0.0f)',
-    'SetPresentationVisible(PC->IsDeploymentPanelVisible() && !PC->IsSettingsVisible())',
+    'const bool bDeploymentOwnsScreen = PC->IsDeploymentPanelVisible()',
+    '!PC->IsSettingsVisible() && !PC->IsFrontendMenuVisible()',
+    'PASS45_DEPLOYMENT_PRESENTATION_READY',
+    'SetPresentationVisible(bDeploymentOwnsScreen)',
 ]:
     if token not in text["deploy_present"]:
         fail(f"deployment presentation marker missing: {token}")
@@ -102,8 +105,6 @@ for token in [
     if token not in text["controller_h"]:
         fail(f"controller declaration missing: {token}")
 
-# Compatibility remains for old callers, but the current R13 flow deliberately bypasses the loading
-# interstitial that reproduced the permanent "spawn verification" state.
 for token in [
     'void AOCPlayerController::UIRequestSquad',
     'void AOCPlayerController::UIRequestRole',
@@ -114,4 +115,4 @@ for token in [
         fail(f"deployment compatibility marker missing: {token}")
 
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Frontend backdrop is authoritative, deployment BACK closes its owner state, and current R13 spawn commits directly through the ready/spawn RPC without the stuck loading interstitial.")
+print("Frontend backdrop is authoritative, deployment shade explicitly excludes frontend ownership, BACK closes deployment state, and R13 spawn commits directly without the stuck loading interstitial.")
