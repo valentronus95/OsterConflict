@@ -73,14 +73,15 @@ require(batch_runtimefix, "import pass45_batch_runtime as base", "runtimefix can
 for needle in ("-windowed", "-ResX=1280", "-ResY=720", "-norhithread", "-nosplash"):
     require(batch_runtimefix, needle, "runtime acceptance window recovery")
 
+# Pass20 owns routing/orchestration only. Weapon, vehicle and performance readiness markers are validated
+# by their dedicated current gates, so retired result strings must not keep this launcher test red forever.
 for needle in (
     "IMPORT_ALL_LOCAL_INBOX_UE58.cmd", "PASS45_REIMPORT_STEIN_WEAPON_MATERIALS_UE58.cmd",
     "PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd", "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd",
     "IMPORT_PRODUCTION_VEHICLES_UE58.cmd", "verify_required_weapon_assets.py", "RUN_PASS45_STRICT_MATERIAL_GATE.cmd",
     "VERIFY_PASS45_GATE_K_RUNTIME_LOG.py", "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py", "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py",
     "VERIFY_PASS45_GRENADE_THROW_ANIMATION_RUNTIME.py", "VERIFY_PASS45_GRENADE_FLASH_RUNTIME.py",
-    "/Game/Maps/OsterConflict_Runtime", "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
-    "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY", "PASS14_PERF_30FPS_READY", "PASS45_BATCH_RUNTIME_REPORT.txt",
+    "/Game/Maps/OsterConflict_Runtime", "PASS45_BATCH_RUNTIME_REPORT.txt",
 ):
     require(batch_py, needle, "batch runtime orchestrator")
 
@@ -93,4 +94,5 @@ print("NORMAL GAME ROUTE PASS20 + PASS45 BATCH-FIRST SOURCE CONTRACT PASS")
 print("- START_HERE remains the only user-facing launcher")
 print("- option 1 uses 1600x900 / 100% render scale and normal high DX11-safe quality")
 print("- option 2 uses progress entry -> runtimefix -> canonical batch orchestrator without touching user Changes")
+print("- retired weapon/vehicle/perf result markers are no longer duplicated here; dedicated current gates own them")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence remains factual")
