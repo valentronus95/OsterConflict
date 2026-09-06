@@ -6,12 +6,20 @@
 #include "Components/SceneComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
 {
+    const TCHAR* ProductionHMMWVPath = TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA");
+    const TCHAR* ProductionM2Path = TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning");
+    const TCHAR* ProductionPickupPath = TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup");
+    const TCHAR* PickupMachineGunFallbackPath = TEXT("/Game/R13/Weapons/machinegun.machinegun");
+
     FQuat ResolveLongAxisToForward(const FVector& NativeSize)
     {
         FVector NativeForward = FVector::ForwardVector;
@@ -203,28 +211,73 @@ AOCPickupGunTruck::AOCPickupGunTruck()
 void AOCPickupGunTruck::ApplyVehicleStyle()
 {
     const bool bRequiresHMMWV = ShouldUseHMMWVProductionVisual();
+    const FSoftObjectPath VehiclePath(bRequiresHMMWV ? ProductionHMMWVPath : ProductionPickupPath);
+    const FSoftObjectPath M2Path(ProductionM2Path);
+    const FSoftObjectPath FallbackGunPath(PickupMachineGunFallbackPath);
+
+    UStaticMesh* VehicleMesh = Cast<UStaticMesh>(VehiclePath.ResolveObject());
+    UStaticMesh* M2Mesh = Cast<UStaticMesh>(M2Path.ResolveObject());
+    UStaticMesh* FallbackGunMesh = bRequiresHMMWV ? nullptr : Cast<UStaticMesh>(FallbackGunPath.ResolveObject());
+
+    const bool bPrimaryPresentationReady = VehicleMesh && (M2Mesh || (!bRequiresHMMWV && FallbackGunMesh));
+    if (!bPrimaryPresentationReady && !bPresentationLoadRequested)
+    {
+        bPresentationLoadRequested = true;
+        TArray<FSoftObjectPath> PresentationPaths;
+        PresentationPaths.Add(VehiclePath);
+        PresentationPaths.Add(M2Path);
+        if (!bRequiresHMMWV) PresentationPaths.Add(FallbackGunPath);
+
+        PresentationLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+            PresentationPaths,
+            FStreamableDelegate::CreateUObject(this, &AOCPickupGunTruck::HandlePresentationAssetsLoaded));
+        if (!PresentationLoadHandle.IsValid())
+        {
+            bPresentationLoadFailed = true;
+            UE_LOG(LogTemp, Error,
+                TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_FAIL hmmwv=%d request_handle=0 sync_runtime_loads=0 assets=%d"),
+                bRequiresHMMWV ? 1 : 0, PresentationPaths.Num());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_BEGIN hmmwv=%d async=1 sync_runtime_loads=0 assets=%d"),
+                bRequiresHMMWV ? 1 : 0, PresentationPaths.Num());
+        }
+    }
+
+    const bool bLoadPending = PresentationLoadHandle.IsValid() &&
+        !PresentationLoadHandle->HasLoadCompleted() && !bPresentationLoadFailed;
+    if (!bPrimaryPresentationReady && bLoadPending)
+    {
+        if (bRequiresHMMWV) DisableVisualProxy(Chassis);
+        DisableVisualProxy(TurretBaseMesh);
+        DisableVisualProxy(BarrelMesh);
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_WAIT hmmwv=%d pending=1 sync_runtime_loads=0 runtime_acceptance=0"),
+            bRequiresHMMWV ? 1 : 0);
+        return;
+    }
+
+    // Re-resolve after async completion. These calls never load packages synchronously.
+    VehicleMesh = Cast<UStaticMesh>(VehiclePath.ResolveObject());
+    M2Mesh = Cast<UStaticMesh>(M2Path.ResolveObject());
+    FallbackGunMesh = bRequiresHMMWV ? nullptr : Cast<UStaticMesh>(FallbackGunPath.ResolveObject());
+
     bool bUsingProductionVehicle = false;
     bool bUsingHMMWV = false;
 
-    if (Chassis && bRequiresHMMWV)
+    if (Chassis && bRequiresHMMWV && VehicleMesh)
     {
-        if (UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA")))
-        {
-            bUsingHMMWV = ApplyProportionalVehicleMesh(Chassis, HMMWV, 465.0f, TOptional<float>(-86.0f));
-            bUsingProductionVehicle = bUsingHMMWV;
-        }
+        bUsingHMMWV = ApplyProportionalVehicleMesh(Chassis, VehicleMesh, 465.0f, TOptional<float>(-86.0f));
+        bUsingProductionVehicle = bUsingHMMWV;
     }
 
     // An explicit HMMWV may never silently turn into a pickup because its production shell is missing.
     // The ordinary pickup class can still use its own exact pickup asset.
-    if (!bUsingProductionVehicle && Chassis && !bRequiresHMMWV)
+    if (!bUsingProductionVehicle && Chassis && !bRequiresHMMWV && VehicleMesh)
     {
-        if (UStaticMesh* PickupMesh = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/VehicleVarietyPack/Meshes/SM_Pickup.SM_Pickup")))
-        {
-            bUsingProductionVehicle = ApplyProportionalVehicleMesh(Chassis, PickupMesh, 485.0f, TOptional<float>());
-        }
+        bUsingProductionVehicle = ApplyProportionalVehicleMesh(Chassis, VehicleMesh, 485.0f, TOptional<float>());
     }
 
     if (!bUsingProductionVehicle && Chassis)
@@ -233,7 +286,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         {
             DisableVisualProxy(Chassis);
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_HMMWV_PRODUCTION_VISUAL_GAP exact_hmmwv=0 pickup_substitution=0 primitive_chassis_visible=0 runtime_acceptance=0"));
+                TEXT("PASS45_HMMWV_PRODUCTION_VISUAL_GAP exact_hmmwv=0 pickup_substitution=0 primitive_chassis_visible=0 sync_runtime_loads=0 runtime_acceptance=0"));
         }
         else
         {
@@ -271,10 +324,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     bool bUsingMountedGunAsset = false;
     USceneComponent* M2Parent = BarrelPivot.Get();
     if (!M2Parent) M2Parent = TurretPivot.Get();
-    if (UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning")))
+    if (M2Mesh)
     {
-        if (AddAuthoredPivotTurretVisual(this, M2Parent, M2, 165.0f,
+        if (AddAuthoredPivotTurretVisual(this, M2Parent, M2Mesh, 165.0f,
             FName(TEXT("ProductionM2Browning")), FName(TEXT("OC_ProductionM2"))))
         {
             bUsingMountedGunAsset = true;
@@ -284,19 +336,15 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
 
     // A real machine-gun fallback remains acceptable for the optional pickup, but not for the explicit
     // HMMWV+M2 identity. The HMMWV must fail closed rather than impersonating an M2 with another gun.
-    if (!bUsingMountedGunAsset && !bRequiresHMMWV)
+    if (!bUsingMountedGunAsset && !bRequiresHMMWV && FallbackGunMesh)
     {
-        if (UStaticMesh* RealMachineGunFallback = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/R13/Weapons/machinegun.machinegun")))
+        if (AddGroundedTurretVisual(this, M2Parent, FallbackGunMesh, 145.0f,
+            FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
         {
-            if (AddGroundedTurretVisual(this, M2Parent, RealMachineGunFallback, 145.0f,
-                FName(TEXT("RealMountedMachineGunFallback")), FName(TEXT("OC_RealMountedGunFallback"))))
-            {
-                bUsingMountedGunAsset = true;
-                if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(72.5f, 0.0f, 18.0f));
-                UE_LOG(LogTemp, Warning,
-                    TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback for pickup only."));
-            }
+            bUsingMountedGunAsset = true;
+            if (MuzzlePoint) MuzzlePoint->SetRelativeLocation(FVector(72.5f, 0.0f, 18.0f));
+            UE_LOG(LogTemp, Warning,
+                TEXT("Exact M2 Browning asset unavailable; using real R13 machine-gun visual fallback for pickup only."));
         }
     }
 
@@ -307,7 +355,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (bRequiresHMMWV)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 runtime_acceptance=0"));
+                TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 sync_runtime_loads=0 runtime_acceptance=0"));
         }
         else
         {
@@ -335,4 +383,13 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     {
         UE_LOG(LogTemp, Display, TEXT("Pickup gun truck uses production pickup visual; blockout proxies disabled."));
     }
+}
+
+void AOCPickupGunTruck::HandlePresentationAssetsLoaded()
+{
+    bPresentationLoadFailed = false;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_READY hmmwv=%d async=1 sync_runtime_loads=0 runtime_acceptance=0"),
+        ShouldUseHMMWVProductionVisual() ? 1 : 0);
+    ApplyVehicleStyle();
 }
