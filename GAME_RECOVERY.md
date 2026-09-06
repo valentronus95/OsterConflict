@@ -180,3 +180,25 @@
 
 ## Definition of Done
 ТЗ закрите тільки коли ці пункти підтверджені фактичним UE 5.8 runtime, а не лише компіляцією/CI/source inspection.
+
+---
+
+## Поточний checkpoint — 2026-09-06
+
+**Статус:** ТЗ у роботі. Загальний прогрес: **10%**.
+
+### Виконано в першому циклі
+- пункт 1 переведено на pre-spawn world preparation: deployment більше не повинен відправляти гравця в недобудований світ;
+- museum critical assets запускаються через async preload ще під час `Розгортання`, а не після появи pawn;
+- Museum/Silpo/Culture startup coordinator тепер працює staged і `tick when paused`, тому підготовка може йти під opaque deployment UI;
+- loading progress прив'язаний до фактичної готовності world startup, а не лише до таймера;
+- spawn request утримується до `world ready`; при провалі readiness діє fail-closed timeout замість навмисного spawn у напівпорожню карту;
+- respawn delay уже встановлений на **10 секунд**.
+
+### Ще не ACCEPTED
+- потрібна фактична UE 5.8 перевірка першого spawn: без 20-секундного freeze та масового pop-in;
+- треба перевірити інші startup/first-use owners на blocking `LoadObject`/важкі component loops;
+- пункти 2–9, крім respawn delay, залишаються відкритими.
+
+### Наступний пункт
+Продовжити пункт 1: знайти й прибрати решту post-spawn blocking startup owners, після чого перейти до death/spectator/Gameplay Debugger.
