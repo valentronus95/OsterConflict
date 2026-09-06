@@ -44,7 +44,8 @@ importer = read(IMPORTER)
 main_launcher = read(MAIN_LAUNCHER)
 runtime_launcher = read(RUNTIME_LAUNCHER)
 
-# Host setup state remains available, but Pass 29 may bypass the crash-prone live server-setup page.
+# Host setup state remains available. The current recovery flow keeps the real server-creation page and defers
+# page/action mutations by one frame so Slate input stays stable instead of hard-switching inside OnClicked.
 for needle in ("StartHostedGameplay", "MaxPlayersEntry", "BotsEntry", "BotDifficultyEntry"):
     require(header, needle, "frontend host setup header")
 
@@ -54,19 +55,20 @@ if pass29_static:
         'if (Page == 0)', 'PASS29_MAIN_START_DIRECT_HOST_QUEUED',
         'PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE',
         'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
-        '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
+        '?listen?Mode=Conquest', '?PerfProfile=Balanced?R13Gameplay=1',
     ):
         require(frontend, needle, "static safe server creation flow")
     for needle in ('PendingPage = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP'):
         forbid(frontend, needle, "Pass 29 must not restore crash-prone server-setup page")
 else:
     for needle in (
-        'if (Page == 0)', 'Page = 1;', 'PASS14_MAIN_START_OPENS_SERVER_SETUP',
+        'if (Page == 0)', 'PendingPage = 1;', 'PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1',
+        'PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED', 'PASS14_MAIN_START_OPENS_SERVER_SETUP',
         '"HostTitle", "СТВОРЕННЯ СЕРВЕРА"', '"CreateServer", "СТВОРИТИ СЕРВЕР"',
         'void UOCR13FrontendMenuSubsystem::StartHostedGameplay()', 'PASS14_HOST_TRAVEL_BEGIN',
-        '?listen?Mode=Conquest', '?PerfProfile=LowCPU?R13Gameplay=1',
+        '?listen?Mode=Conquest', '?PerfProfile=Balanced?R13Gameplay=1',
     ):
-        require(frontend, needle, "explicit server creation flow")
+        require(frontend, needle, "deferred server creation flow")
 
 forbid(frontend, "LocationTest=1", "normal frontend must not open technical LocationTest")
 forbid(frontend, "AutoDeploy=1", "normal frontend must not bypass deployment")
@@ -177,15 +179,16 @@ runtime_markers = [
 if pass29_static:
     runtime_markers.append('PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE')
 else:
-    runtime_markers.append('PASS14_MAIN_START_OPENS_SERVER_SETUP')
+    runtime_markers.extend(['PASS14_MAIN_START_OPENS_SERVER_SETUP', 'PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED'])
 for needle in runtime_markers:
     require(runtime_launcher, needle, "Pass 14 runtime launcher")
 
 print("PLAYFLOW + PERFORMANCE PASS 14 SOURCE CONTRACT PASS")
 if pass29_static:
-    print("- Pass 29 static START replaces the disproven live server-setup page while preserving hosted travel and Deployment ownership")
+    print("- static START path preserves hosted travel and Deployment ownership")
 else:
-    print("- explicit server setup and Deployment ownership remain intact")
+    print("- real server-creation page remains intact and its page/action transitions are deferred for Slate safety")
+print("- hosted gameplay uses the current Balanced production profile; LowCPU remains an explicit performance profile, not a hidden server default")
 print("- Block0 Full/LowCPU foliage share the compact Oster bounds; LowCPU uses a coarser grid and shorter culls instead of a spatial crop")
 print("- Full batch stays <=32 cells and LowCPU <=48 cells while generation remains incremental at 50 ms cadence")
 print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
