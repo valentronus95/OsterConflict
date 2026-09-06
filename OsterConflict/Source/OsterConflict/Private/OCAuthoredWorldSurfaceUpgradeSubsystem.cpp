@@ -1,16 +1,19 @@
 #include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "HAL/PlatformTime.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -454,6 +457,19 @@ namespace
         }
         return true;
     }
+
+    TArray<FSoftObjectPath> BuildSurfacePreloadPaths()
+    {
+        TArray<FSoftObjectPath> Paths;
+        Paths.Reserve(6);
+        Paths.Emplace(AuthoredGroundMeshPath);
+        Paths.Emplace(AuthoredGroundMaterialPath);
+        Paths.Emplace(AuthoredRoadPath);
+        Paths.Emplace(AuthoredSidewalkPath);
+        Paths.Emplace(AuthoredParkPathPath);
+        Paths.Emplace(AuthoredFencePath);
+        return Paths;
+    }
 }
 
 bool UOCAuthoredWorldSurfaceUpgradeSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -469,33 +485,68 @@ TStatId UOCAuthoredWorldSurfaceUpgradeSubsystem::GetStatId() const
     RETURN_QUICK_DECLARE_CYCLE_STAT(UOCAuthoredWorldSurfaceUpgradeSubsystem, STATGROUP_Tickables);
 }
 
+void UOCAuthoredWorldSurfaceUpgradeSubsystem::BeginPreload()
+{
+    if (!bEligible || bPreloadRequested) return;
+    bPreloadRequested = true;
+
+    const TArray<FSoftObjectPath> Paths = BuildSurfacePreloadPaths();
+    PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(Paths, FStreamableDelegate());
+    if (!PreloadHandle.IsValid())
+    {
+        bFinished = true;
+        bSucceeded = false;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_SURFACE_PRELOAD_FAIL handle=0 pre_spawn=1 post_spawn_sync_loads=0"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_SURFACE_PRELOAD_BEGIN assets=%d pre_spawn=1 async=1"), Paths.Num());
+}
+
+float UOCAuthoredWorldSurfaceUpgradeSubsystem::GetWorldSurfaceProgress() const
+{
+    if (!bEligible) return 1.0f;
+    if (bFinished) return bSucceeded ? 1.0f : 0.90f;
+    if (!bPreloadRequested || !PreloadHandle.IsValid()) return 0.05f;
+    return PreloadHandle->HasLoadCompleted() ? 0.85f : 0.35f;
+}
+
 void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
 {
+    (void)DeltaTime;
     if (bFinished) return;
 
     UWorld* World = GetWorld();
     if (!World || !World->IsGameWorld()) return;
-    if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+    if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime")))
     {
-        if (GameMode->IsFrontendOnlySession()) return;
-    }
-
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-
-    // These six package loads are synchronous. Never execute them while Slate owns frontend/deployment/settings
-    // interaction, otherwise the Windows message pump starves and native minimize/close/Alt+Tab appear dead.
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
-    {
-        ElapsedSeconds = 0.0f;
+        bFinished = true;
+        bSucceeded = true;
         return;
     }
 
-    ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    if (ElapsedSeconds < 0.75f) return;
+    if (!bInitialized)
+    {
+        bInitialized = true;
+        if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+        {
+            if (GameMode->IsFrontendOnlySession())
+            {
+                bFinished = true;
+                bSucceeded = true;
+                return;
+            }
+        }
+
+        bEligible = true;
+        PreparationStartWallTimeSeconds = FPlatformTime::Seconds();
+        BeginPreload();
+        return;
+    }
+
+    if (!bEligible || !bPreloadRequested || !PreloadHandle.IsValid() || !PreloadHandle->HasLoadCompleted()) return;
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -506,24 +557,28 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     }
     if (SectorCount != 1 || !Sector)
     {
-        if (ElapsedSeconds < 5.0f) return;
+        if ((FPlatformTime::Seconds() - PreparationStartWallTimeSeconds) < 5.0) return;
         bFinished = true;
+        bSucceeded = false;
+        PreloadHandle.Reset();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL reason=oster_sector_count_%d"), SectorCount);
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL reason=oster_sector_count_%d pre_spawn=1"), SectorCount);
         return;
     }
 
-    UStaticMesh* GroundMesh = LoadObject<UStaticMesh>(nullptr, AuthoredGroundMeshPath);
-    UMaterialInterface* GroundMaterial = LoadObject<UMaterialInterface>(nullptr, AuthoredGroundMaterialPath);
-    UStaticMesh* RoadMesh = LoadObject<UStaticMesh>(nullptr, AuthoredRoadPath);
-    UStaticMesh* SidewalkMesh = LoadObject<UStaticMesh>(nullptr, AuthoredSidewalkPath);
-    UStaticMesh* ParkPathMesh = LoadObject<UStaticMesh>(nullptr, AuthoredParkPathPath);
-    UStaticMesh* FenceMesh = LoadObject<UStaticMesh>(nullptr, AuthoredFencePath);
+    UStaticMesh* GroundMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredGroundMeshPath).ResolveObject());
+    UMaterialInterface* GroundMaterial = Cast<UMaterialInterface>(FSoftObjectPath(AuthoredGroundMaterialPath).ResolveObject());
+    UStaticMesh* RoadMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredRoadPath).ResolveObject());
+    UStaticMesh* SidewalkMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredSidewalkPath).ResolveObject());
+    UStaticMesh* ParkPathMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredParkPathPath).ResolveObject());
+    UStaticMesh* FenceMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredFencePath).ResolveObject());
     if (!GroundMesh || !GroundMaterial || !RoadMesh || !SidewalkMesh || !ParkPathMesh || !FenceMesh)
     {
         bFinished = true;
+        bSucceeded = false;
+        PreloadHandle.Reset();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=KiteDemo tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=KiteDemo tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0 pre_spawn=1 sync_loads=0"),
             GroundMesh ? 1 : 0,
             GroundMaterial ? 1 : 0,
             RoadMesh ? 1 : 0,
@@ -546,8 +601,10 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     if (!bParkPathOwnershipReady)
     {
         bFinished = true;
+        bSucceeded = false;
+        PreloadHandle.Reset();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL park_path_ownership_ready=0 park_path_reason=%s gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL park_path_ownership_ready=0 park_path_reason=%s gate_k_complete=0 pre_spawn=1"),
             *ParkPathOwnershipFailure);
         return;
     }
@@ -568,11 +625,14 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     const bool bFencesReady = UpgradeCubeFamily(Fences, FenceMesh, FenceInstances, FenceFailure);
 
     bFinished = true;
-    if (!bGroundReady || !bRoadsReady || !bSidewalksReady || !bParkPathsReady || !bFencesReady ||
-        SeparatedParkPathInstances != 5 || ParkPathInstances != 5)
+    bSucceeded = bGroundReady && bRoadsReady && bSidewalksReady && bParkPathsReady && bFencesReady &&
+        SeparatedParkPathInstances == 5 && ParkPathInstances == 5;
+    PreloadHandle.Reset();
+
+    if (!bSucceeded)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL ground_ready=%d roads_ready=%d sidewalks_ready=%d park_paths_ready=%d fences_ready=%d park_path_source_instances=%d park_path_runtime_instances=%d ground_reason=%s road_reason=%s sidewalk_reason=%s park_path_reason=%s fence_reason=%s gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL ground_ready=%d roads_ready=%d sidewalks_ready=%d park_paths_ready=%d fences_ready=%d park_path_source_instances=%d park_path_runtime_instances=%d ground_reason=%s road_reason=%s sidewalk_reason=%s park_path_reason=%s fence_reason=%s gate_k_complete=0 pre_spawn=1"),
             bGroundReady ? 1 : 0,
             bRoadsReady ? 1 : 0,
             bSidewalksReady ? 1 : 0,
@@ -600,4 +660,6 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     UE_LOG(LogTemp, Display,
         TEXT("PASS45_AUTHORED_WORLD_FENCE_READY fence_mesh=SM_Fence_Var01 fence_instances=%d basicshape_meshes=0 basicshape_material_overrides=0 topology_preserved=1 gate_k_complete=0"),
         FenceInstances);
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_SURFACE_PREP_FINISH success=1 pre_spawn=1 post_spawn_surface_popin=0 sync_package_loads=0"));
 }
