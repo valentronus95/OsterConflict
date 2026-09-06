@@ -39,7 +39,9 @@ for stale in (":prepare_materials_strict", 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCE
 for needle in (
     'if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game', ':quick_normal_game',
     '[QUICK NORMAL] Incremental C++ build only. Asset reimport is skipped.', 'Runtime acceptance: NOT RUN',
-    '-windowed -ResX=1280 -ResY=720', '-ExecCmds="t.MaxFPS 60"',
+    '-windowed -ResX=1600 -ResY=900', '-ExecCmds="%QUALITY_CMDS%"',
+    'set "QUALITY_CMDS=t.MaxFPS 60,sg.ViewDistanceQuality 3,sg.ShadowQuality 2,sg.TextureQuality 3',
+    'r.ScreenPercentage 100', 'PASS45_NORMAL_VISUAL_QUALITY scale=100', '-nosplash',
 ):
     require(normal, needle, "quick normal route")
 
@@ -66,7 +68,7 @@ for destructive in ("git reset", "git clean", "git stash", "checkout --", "resto
 
 print("NORMAL GAME ROUTE PASS20 + PASS45 BATCH-FIRST SOURCE CONTRACT PASS")
 print("- START_HERE remains the only user-facing launcher")
-print("- option 1/3 remain lightweight normal/compat routes")
-print("- option 2 batches local/Fab assets, weapons, audio, Remington, vehicles, material gates and one runtime")
-print("- tracked local Changes are preserved; failures are consolidated into one report")
+print("- option 1 uses 1600x900 / 100% render scale and normal high DX11-safe quality")
+print("- option 2 remains the full batch runtime path")
+print("- tracked local Changes are preserved")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence remains factual")
