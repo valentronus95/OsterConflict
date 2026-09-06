@@ -4,18 +4,14 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCAuthoredWorldSurfaceUpgradeSubsystem.generated.h"
 
+struct FStreamableHandle;
+
 /**
  * PASS45 item 31 runtime upgrade for canonical Oster Cube-authored topology that already has verified tracked assets.
  *
- * OCWorldSectorOster still carries legacy Cube transforms as deterministic geo/topology authoring data.
- * Before visual acceptance and before the Pass12 12-second stability baseline, this subsystem replaces the playable
- * Ground Cube with committed AdvancedVillagePack SM_Plane_1x1 + KiteDemo M_Ground_Grass2 while preserving the authored
- * XY footprint and top-Z, replaces the player-facing Roads/Sidewalks meshes with tracked Scene_RoadsideConstruction
- * authored surfaces, separates exactly five central-park path transforms into the semantic ParkPaths family and
- * upgrades them to committed AdvancedVillagePack SM_Stonepath_Var01, and replaces the visible Fences family with the
- * committed AdvancedVillagePack authored fence mesh. Existing transforms, footprint orientation and bounds are
- * preserved. ParkDetails remains reserved for benches/memorial/detail geometry. It never converts unrelated/unknown
- * meshes.
+ * GAME RECOVERY treats these player-facing surface packages as pre-spawn world preparation. The subsystem async
+ * preloads them while deployment owns the screen, applies the authored upgrade before possession, and exposes factual
+ * readiness so the player is never used as a loading screen.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCAuthoredWorldSurfaceUpgradeSubsystem : public UTickableWorldSubsystem
@@ -27,8 +23,19 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
     virtual bool IsTickable() const override { return !bFinished; }
+    virtual bool IsTickableWhenPaused() const override { return true; }
+
+    bool IsWorldSurfaceReady() const { return !bEligible || (bFinished && bSucceeded); }
+    float GetWorldSurfaceProgress() const;
 
 private:
-    float ElapsedSeconds = 0.0f;
+    void BeginPreload();
+
+    TSharedPtr<FStreamableHandle> PreloadHandle;
+    double PreparationStartWallTimeSeconds = 0.0;
+    bool bInitialized = false;
+    bool bEligible = false;
+    bool bPreloadRequested = false;
+    bool bSucceeded = false;
     bool bFinished = false;
 };
