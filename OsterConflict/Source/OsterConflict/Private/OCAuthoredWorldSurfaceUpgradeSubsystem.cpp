@@ -407,15 +407,11 @@ namespace
         {
             const FTransform& Old = OldTransforms[Index];
             const FVector OldScale = Old.GetScale3D().GetAbs();
-
-            // The retired Engine Cube is exactly 100 cm per axis, so its old scale is factual desired size in metres.
             const FVector DesiredSizeCm = OldScale * 100.0f;
             const bool bDesiredLongAxisY = DesiredSizeCm.Y > DesiredSizeCm.X * 1.05f;
             FVector NewScale;
             FRotator NewRotation = Old.Rotator();
 
-            // Preserve the source footprint even when an authored mesh's native long axis differs from the Cube family.
-            // This matters for Fences and ParkPaths, whose canonical topology contains mixed source orientations.
             if (bNativeLongAxisY != bDesiredLongAxisY)
             {
                 NewScale.X = DesiredSizeCm.Y / NativeSize.X;
@@ -502,15 +498,16 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::BeginPreload()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_SURFACE_PRELOAD_BEGIN assets=%d pre_spawn=1 async=1"), Paths.Num());
+        TEXT("GAME_RECOVERY_SURFACE_PRELOAD_BEGIN assets=%d pre_spawn=1 async=1 staged_materialization=1"), Paths.Num());
 }
 
 float UOCAuthoredWorldSurfaceUpgradeSubsystem::GetWorldSurfaceProgress() const
 {
     if (!bEligible) return 1.0f;
-    if (bFinished) return bSucceeded ? 1.0f : 0.90f;
+    if (bFinished) return bSucceeded ? 1.0f : 0.92f;
     if (!bPreloadRequested || !PreloadHandle.IsValid()) return 0.05f;
-    return PreloadHandle->HasLoadCompleted() ? 0.85f : 0.35f;
+    if (!PreloadHandle->HasLoadCompleted()) return 0.35f;
+    return FMath::Clamp(0.48f + 0.075f * static_cast<float>(PreparationStage), 0.48f, 0.93f);
 }
 
 void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
@@ -562,7 +559,7 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         bSucceeded = false;
         PreloadHandle.Reset();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL reason=oster_sector_count_%d pre_spawn=1"), SectorCount);
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL reason=oster_sector_count_%d pre_spawn=1 staged_materialization=1"), SectorCount);
         return;
     }
 
@@ -578,7 +575,7 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         bSucceeded = false;
         PreloadHandle.Reset();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=KiteDemo tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0 pre_spawn=1 sync_loads=0"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d road_loaded=%d sidewalk_loaded=%d park_path_loaded=%d fence_loaded=%d tracked_ground_pack=KiteDemo tracked_road_pack=Scene_RoadsideConstruction tracked_park_pack=AdvancedVillagePack tracked_fence_pack=AdvancedVillagePack gate_k_complete=0 pre_spawn=1 sync_loads=0 staged_materialization=1"),
             GroundMesh ? 1 : 0,
             GroundMaterial ? 1 : 0,
             RoadMesh ? 1 : 0,
@@ -591,38 +588,123 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     UStaticMeshComponent* Ground = FindStaticMeshComponent(Sector, TEXT("Ground"));
     UInstancedStaticMeshComponent* Roads = FindISM(Sector, TEXT("Roads"));
     UInstancedStaticMeshComponent* Sidewalks = FindISM(Sector, TEXT("Sidewalks"));
+    UInstancedStaticMeshComponent* ParkPaths = FindISM(Sector, TEXT("ParkPaths"));
     UInstancedStaticMeshComponent* Fences = FindISM(Sector, TEXT("Fences"));
-    UInstancedStaticMeshComponent* ParkPaths = nullptr;
 
-    int32 SeparatedParkPathInstances = 0;
-    FString ParkPathOwnershipFailure;
-    const bool bParkPathOwnershipReady = SeparateParkPathFamily(
-        Sector, Sidewalks, ParkPaths, SeparatedParkPathInstances, ParkPathOwnershipFailure);
-    if (!bParkPathOwnershipReady)
+    auto StageFailure = [this](const TCHAR* StageName, const FString& Failure, const double StageStart)
     {
         bFinished = true;
         bSucceeded = false;
         PreloadHandle.Reset();
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL park_path_ownership_ready=0 park_path_reason=%s gate_k_complete=0 pre_spawn=1"),
-            *ParkPathOwnershipFailure);
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_FAIL stage=%s duration_ms=%.2f reason=%s pre_spawn=1 staged_materialization=1"),
+            StageName,
+            (FPlatformTime::Seconds() - StageStart) * 1000.0,
+            *Failure);
+    };
+
+    const double StageStart = FPlatformTime::Seconds();
+
+    if (PreparationStage == 0)
+    {
+        FString Failure;
+        if (!SeparateParkPathFamily(Sector, Sidewalks, ParkPaths, SeparatedParkPathInstances, Failure))
+        {
+            StageFailure(TEXT("park_path_ownership"), Failure, StageStart);
+            return;
+        }
+        ++PreparationStage;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_READY stage=park_path_ownership duration_ms=%.2f instances=%d next_frame=ground"),
+            (FPlatformTime::Seconds() - StageStart) * 1000.0,
+            SeparatedParkPathInstances);
         return;
     }
 
-    int32 RoadInstances = 0;
-    int32 SidewalkInstances = 0;
-    int32 ParkPathInstances = 0;
-    int32 FenceInstances = 0;
-    FString GroundFailure;
-    FString RoadFailure;
-    FString SidewalkFailure;
-    FString ParkPathFailure;
-    FString FenceFailure;
-    const bool bGroundReady = UpgradeGroundSurface(Ground, GroundMesh, GroundMaterial, GroundFailure);
-    const bool bRoadsReady = UpgradeCubeFamily(Roads, RoadMesh, RoadInstances, RoadFailure);
-    const bool bSidewalksReady = UpgradeCubeFamily(Sidewalks, SidewalkMesh, SidewalkInstances, SidewalkFailure);
-    const bool bParkPathsReady = UpgradeCubeFamily(ParkPaths, ParkPathMesh, ParkPathInstances, ParkPathFailure);
-    const bool bFencesReady = UpgradeCubeFamily(Fences, FenceMesh, FenceInstances, FenceFailure);
+    if (PreparationStage == 1)
+    {
+        FString Failure;
+        bGroundReady = UpgradeGroundSurface(Ground, GroundMesh, GroundMaterial, Failure);
+        if (!bGroundReady)
+        {
+            StageFailure(TEXT("ground"), Failure, StageStart);
+            return;
+        }
+        ++PreparationStage;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_READY stage=ground duration_ms=%.2f next_frame=roads"),
+            (FPlatformTime::Seconds() - StageStart) * 1000.0);
+        return;
+    }
+
+    if (PreparationStage == 2)
+    {
+        FString Failure;
+        bRoadsReady = UpgradeCubeFamily(Roads, RoadMesh, RoadInstances, Failure);
+        if (!bRoadsReady)
+        {
+            StageFailure(TEXT("roads"), Failure, StageStart);
+            return;
+        }
+        ++PreparationStage;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_READY stage=roads duration_ms=%.2f instances=%d next_frame=sidewalks"),
+            (FPlatformTime::Seconds() - StageStart) * 1000.0,
+            RoadInstances);
+        return;
+    }
+
+    if (PreparationStage == 3)
+    {
+        FString Failure;
+        bSidewalksReady = UpgradeCubeFamily(Sidewalks, SidewalkMesh, SidewalkInstances, Failure);
+        if (!bSidewalksReady)
+        {
+            StageFailure(TEXT("sidewalks"), Failure, StageStart);
+            return;
+        }
+        ++PreparationStage;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_READY stage=sidewalks duration_ms=%.2f instances=%d next_frame=park_paths"),
+            (FPlatformTime::Seconds() - StageStart) * 1000.0,
+            SidewalkInstances);
+        return;
+    }
+
+    if (PreparationStage == 4)
+    {
+        ParkPaths = FindISM(Sector, TEXT("ParkPaths"));
+        FString Failure;
+        bParkPathsReady = UpgradeCubeFamily(ParkPaths, ParkPathMesh, ParkPathInstances, Failure);
+        if (!bParkPathsReady)
+        {
+            StageFailure(TEXT("park_paths"), Failure, StageStart);
+            return;
+        }
+        ++PreparationStage;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_READY stage=park_paths duration_ms=%.2f instances=%d next_frame=fences"),
+            (FPlatformTime::Seconds() - StageStart) * 1000.0,
+            ParkPathInstances);
+        return;
+    }
+
+    if (PreparationStage == 5)
+    {
+        FString Failure;
+        bFencesReady = UpgradeCubeFamily(Fences, FenceMesh, FenceInstances, Failure);
+        if (!bFencesReady)
+        {
+            StageFailure(TEXT("fences"), Failure, StageStart);
+            return;
+        }
+        ++PreparationStage;
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SURFACE_STAGE_READY stage=fences duration_ms=%.2f instances=%d next_frame=finalize"),
+            (FPlatformTime::Seconds() - StageStart) * 1000.0,
+            FenceInstances);
+        return;
+    }
 
     bFinished = true;
     bSucceeded = bGroundReady && bRoadsReady && bSidewalksReady && bParkPathsReady && bFencesReady &&
@@ -632,19 +714,14 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
     if (!bSucceeded)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL ground_ready=%d roads_ready=%d sidewalks_ready=%d park_paths_ready=%d fences_ready=%d park_path_source_instances=%d park_path_runtime_instances=%d ground_reason=%s road_reason=%s sidewalk_reason=%s park_path_reason=%s fence_reason=%s gate_k_complete=0 pre_spawn=1"),
+            TEXT("PASS45_AUTHORED_WORLD_SURFACE_FAIL ground_ready=%d roads_ready=%d sidewalks_ready=%d park_paths_ready=%d fences_ready=%d park_path_source_instances=%d park_path_runtime_instances=%d staged_materialization=1 pre_spawn=1"),
             bGroundReady ? 1 : 0,
             bRoadsReady ? 1 : 0,
             bSidewalksReady ? 1 : 0,
             bParkPathsReady ? 1 : 0,
             bFencesReady ? 1 : 0,
             SeparatedParkPathInstances,
-            ParkPathInstances,
-            *GroundFailure,
-            *RoadFailure,
-            *SidewalkFailure,
-            *ParkPathFailure,
-            *FenceFailure);
+            ParkPathInstances);
         return;
     }
 
@@ -661,5 +738,6 @@ void UOCAuthoredWorldSurfaceUpgradeSubsystem::Tick(float DeltaTime)
         TEXT("PASS45_AUTHORED_WORLD_FENCE_READY fence_mesh=SM_Fence_Var01 fence_instances=%d basicshape_meshes=0 basicshape_material_overrides=0 topology_preserved=1 gate_k_complete=0"),
         FenceInstances);
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_SURFACE_PREP_FINISH success=1 pre_spawn=1 post_spawn_surface_popin=0 sync_package_loads=0"));
+        TEXT("GAME_RECOVERY_SURFACE_PREP_FINISH success=1 stages=6 one_family_per_tick=1 pre_spawn=1 post_spawn_surface_popin=0 sync_package_loads=0 total_ms=%.2f"),
+        (FPlatformTime::Seconds() - PreparationStartWallTimeSeconds) * 1000.0);
 }
