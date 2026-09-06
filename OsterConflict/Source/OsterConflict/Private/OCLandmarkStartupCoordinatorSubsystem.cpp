@@ -1,6 +1,7 @@
 #include "OCLandmarkStartupCoordinatorSubsystem.h"
 
 #include "OCGameMode.h"
+#include "OCPlayerController.h"
 #include "OCR137MuseumPhotoModelSubsystem.h"
 #include "OCR138MuseumInteractiveArchitectureSubsystem.h"
 #include "OCR139MuseumMainDoorReplacementSubsystem.h"
@@ -16,7 +17,14 @@
 #include "OCR146CultureHousePhotoModelSubsystem.h"
 
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 #include "TimerManager.h"
+
+namespace
+{
+    const FName MuseumExteriorTag(TEXT("R137_MuseumPhotoModel"));
+}
 
 bool UOCLandmarkStartupCoordinatorSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -35,107 +43,229 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // WorldSubsystem OnWorldBeginPlay ordering is not a contract for GameMode-created actors.
-    // One next-tick handoff guarantees SpawnOsterCenterSector and every landmark subsystem have
-    // completed BeginPlay and registered their historical delayed timers before we cancel/run them.
-    TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
-    InWorld.GetTimerManager().SetTimerForNextTick(
-        FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
+    StartupStageIndex = 0;
+    bHistoricalTimersCancelled = false;
+    bStartupComplete = false;
+    bDeferredLogWritten = false;
+
+    // Wait one frame so every historical landmark subsystem has registered its old delayed timer.
+    // The first coordinator step cancels those timers before any authored package work is allowed.
+    ScheduleStartupStep(InWorld, 0.0f);
+}
+
+void UOCLandmarkStartupCoordinatorSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(StartupStepTimerHandle);
+    }
+    StartupStepTimerHandle.Invalidate();
+    Super::Deinitialize();
+}
+
+void UOCLandmarkStartupCoordinatorSubsystem::ScheduleStartupStep(UWorld& World, const float DelaySeconds)
+{
+    TWeakObjectPtr<UWorld> WeakWorld(&World);
+    FTimerDelegate Delegate = FTimerDelegate::CreateWeakLambda(this, [this, WeakWorld]()
+    {
+        if (UWorld* DeferredWorld = WeakWorld.Get())
         {
-            if (UWorld* World = WeakWorld.Get())
-            {
-                RunAuthoritativeStartup(*World);
-            }
-        }));
+            RunAuthoritativeStartup(*DeferredWorld);
+        }
+    });
+
+    World.GetTimerManager().ClearTimer(StartupStepTimerHandle);
+    if (DelaySeconds <= 0.0f)
+    {
+        World.GetTimerManager().SetTimerForNextTick(Delegate);
+        return;
+    }
+
+    World.GetTimerManager().SetTimer(StartupStepTimerHandle, Delegate, DelaySeconds, false);
+}
+
+void UOCLandmarkStartupCoordinatorSubsystem::CancelHistoricalStageTimers(UWorld& World)
+{
+    if (bHistoricalTimersCancelled) return;
+
+    FTimerManager& Timers = World.GetTimerManager();
+    if (UOCR137MuseumPhotoModelSubsystem* Stage = World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR138MuseumInteractiveArchitectureSubsystem* Stage = World.GetSubsystem<UOCR138MuseumInteractiveArchitectureSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR139MuseumMainDoorReplacementSubsystem* Stage = World.GetSubsystem<UOCR139MuseumMainDoorReplacementSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR140MuseumFacadeDetailSubsystem* Stage = World.GetSubsystem<UOCR140MuseumFacadeDetailSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR142MuseumEntranceDetailSubsystem* Stage = World.GetSubsystem<UOCR142MuseumEntranceDetailSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR143MuseumSiteVegetationSubsystem* Stage = World.GetSubsystem<UOCR143MuseumSiteVegetationSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR144MuseumRearExteriorDetailSubsystem* Stage = World.GetSubsystem<UOCR144MuseumRearExteriorDetailSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR145MuseumTreeLayoutSubsystem* Stage = World.GetSubsystem<UOCR145MuseumTreeLayoutSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR140SilpoPhotoModelSubsystem* Stage = World.GetSubsystem<UOCR140SilpoPhotoModelSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR141SilpoDetailSubsystem* Stage = World.GetSubsystem<UOCR141SilpoDetailSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR142SilpoInteriorDetailSubsystem* Stage = World.GetSubsystem<UOCR142SilpoInteriorDetailSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR143SilpoFacadeIdentitySubsystem* Stage = World.GetSubsystem<UOCR143SilpoFacadeIdentitySubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+    if (UOCR146CultureHousePhotoModelSubsystem* Stage = World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>())
+        Timers.ClearAllTimersForObject(Stage);
+
+    bHistoricalTimersCancelled = true;
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LANDMARK_STARTUP_TIMERS_CANCELLED menu_safe=1 synchronous_next_tick_chain=0"));
+}
+
+bool UOCLandmarkStartupCoordinatorSubsystem::IsBlockingPreGameUI(UWorld& World) const
+{
+    if (World.GetNetMode() == NM_DedicatedServer) return false;
+
+    const AOCPlayerController* PC = Cast<AOCPlayerController>(World.GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController()) return true;
+
+    return PC->IsFrontendMenuVisible() ||
+        PC->IsSettingsVisible() ||
+        PC->IsDeploymentPanelVisible() ||
+        PC->GetPawn() == nullptr;
+}
+
+bool UOCLandmarkStartupCoordinatorSubsystem::IsMuseumExteriorReady(UWorld& World) const
+{
+    for (TActorIterator<AActor> It(&World); It; ++It)
+    {
+        const AActor* Actor = *It;
+        if (Actor && Actor->ActorHasTag(MuseumExteriorTag)) return true;
+    }
+    return false;
 }
 
 void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& World)
 {
-    FTimerManager& Timers = World.GetTimerManager();
+    if (bStartupComplete || !World.IsGameWorld()) return;
+
+    // This runs after every landmark subsystem's OnWorldBeginPlay, so one cancellation is enough and
+    // does not erase timers intentionally created by stages after their authoritative build runs.
+    CancelHistoricalStageTimers(World);
+
+    if (IsBlockingPreGameUI(World))
+    {
+        if (!bDeferredLogWritten)
+        {
+            bDeferredLogWritten = true;
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_LANDMARK_STARTUP_DEFERRED blocking_ui=1 game_thread_materialization=0 team_input_free=1"));
+        }
+        ScheduleStartupStep(World, DeferredStartupRetrySeconds);
+        return;
+    }
+
+    // On playable worlds the deployment-stability subsystem asynchronously preloads the R13.7 museum
+    // exterior before calling its existing build method. Never defeat that by calling the same package-
+    // loading build synchronously from this coordinator. Dedicated servers have no UI/message-pump risk
+    // and still need the collision-bearing exterior, so they retain the authoritative direct build.
+    if (StartupStageIndex == 0)
+    {
+        if (World.GetNetMode() == NM_DedicatedServer)
+        {
+            if (UOCR137MuseumPhotoModelSubsystem* Stage = World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
+            {
+                Stage->RunAuthoritativeBuildNow(World);
+            }
+        }
+        else if (!IsMuseumExteriorReady(World))
+        {
+            ScheduleStartupStep(World, DeferredStartupRetrySeconds);
+            return;
+        }
+
+        ++StartupStageIndex;
+        ScheduleStartupStep(World, 0.0f);
+        return;
+    }
+
+    if (RunNextStartupStage(World)) return;
+    ScheduleStartupStep(World, 0.0f);
+}
+
+bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
+{
     const bool bHasGameplayAuthority = World.GetNetMode() != NM_Client;
 
-    // Museum. Cancel each historical delayed reveal BEFORE invoking the same existing build method,
-    // so timers created intentionally by the immediate build itself are not accidentally erased.
-    if (UOCR137MuseumPhotoModelSubsystem* Stage = World.GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
+    switch (StartupStageIndex)
     {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeBuildNow(World);
-    }
-    if (UOCR138MuseumInteractiveArchitectureSubsystem* Stage = World.GetSubsystem<UOCR138MuseumInteractiveArchitectureSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeUpgradeNow(World);
-    }
-
-    // These two stages replace replicated gameplay actors and historically never executed on NM_Client.
-    if (bHasGameplayAuthority)
-    {
-        if (UOCR139MuseumMainDoorReplacementSubsystem* Stage = World.GetSubsystem<UOCR139MuseumMainDoorReplacementSubsystem>())
+    case 1:
+        if (UOCR138MuseumInteractiveArchitectureSubsystem* Stage = World.GetSubsystem<UOCR138MuseumInteractiveArchitectureSubsystem>())
+            Stage->RunAuthoritativeUpgradeNow(World);
+        break;
+    case 2:
+        if (bHasGameplayAuthority)
         {
-            Timers.ClearAllTimersForObject(Stage);
-            Stage->RunAuthoritativeDetailNow(World);
+            if (UOCR139MuseumMainDoorReplacementSubsystem* Stage = World.GetSubsystem<UOCR139MuseumMainDoorReplacementSubsystem>())
+                Stage->RunAuthoritativeDetailNow(World);
         }
+        break;
+    case 3:
+        if (UOCR140MuseumFacadeDetailSubsystem* Stage = World.GetSubsystem<UOCR140MuseumFacadeDetailSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 4:
+        if (UOCR142MuseumEntranceDetailSubsystem* Stage = World.GetSubsystem<UOCR142MuseumEntranceDetailSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 5:
+        if (UOCR143MuseumSiteVegetationSubsystem* Stage = World.GetSubsystem<UOCR143MuseumSiteVegetationSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 6:
+        if (UOCR144MuseumRearExteriorDetailSubsystem* Stage = World.GetSubsystem<UOCR144MuseumRearExteriorDetailSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 7:
+        if (UOCR145MuseumTreeLayoutSubsystem* Stage = World.GetSubsystem<UOCR145MuseumTreeLayoutSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 8:
+        if (UOCR140SilpoPhotoModelSubsystem* Stage = World.GetSubsystem<UOCR140SilpoPhotoModelSubsystem>())
+            Stage->RunAuthoritativeBuildNow(World);
+        break;
+    case 9:
+        if (UOCR141SilpoDetailSubsystem* Stage = World.GetSubsystem<UOCR141SilpoDetailSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 10:
+        if (UOCR142SilpoInteriorDetailSubsystem* Stage = World.GetSubsystem<UOCR142SilpoInteriorDetailSubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 11:
+        if (UOCR143SilpoFacadeIdentitySubsystem* Stage = World.GetSubsystem<UOCR143SilpoFacadeIdentitySubsystem>())
+            Stage->RunAuthoritativeDetailNow(World);
+        break;
+    case 12:
+        if (UOCR146CultureHousePhotoModelSubsystem* Stage = World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>())
+            Stage->RunAuthoritativeBuildNow(World);
+        break;
+    default:
+        bStartupComplete = true;
+        break;
     }
 
-    if (UOCR140MuseumFacadeDetailSubsystem* Stage = World.GetSubsystem<UOCR140MuseumFacadeDetailSubsystem>())
+    if (!bStartupComplete)
     {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
+        ++StartupStageIndex;
+        if (StartupStageIndex > 12) bStartupComplete = true;
     }
 
+    if (!bStartupComplete) return false;
 
-    if (UOCR142MuseumEntranceDetailSubsystem* Stage = World.GetSubsystem<UOCR142MuseumEntranceDetailSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-    if (UOCR143MuseumSiteVegetationSubsystem* Stage = World.GetSubsystem<UOCR143MuseumSiteVegetationSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-    if (UOCR144MuseumRearExteriorDetailSubsystem* Stage = World.GetSubsystem<UOCR144MuseumRearExteriorDetailSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-    if (UOCR145MuseumTreeLayoutSubsystem* Stage = World.GetSubsystem<UOCR145MuseumTreeLayoutSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-
-    // Silpo. R14.0 remains the shell/interior owner; R14.1-R14.3 are detail-only stages.
-    if (UOCR140SilpoPhotoModelSubsystem* Stage = World.GetSubsystem<UOCR140SilpoPhotoModelSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeBuildNow(World);
-    }
-    if (UOCR141SilpoDetailSubsystem* Stage = World.GetSubsystem<UOCR141SilpoDetailSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-    if (UOCR142SilpoInteriorDetailSubsystem* Stage = World.GetSubsystem<UOCR142SilpoInteriorDetailSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-    if (UOCR143SilpoFacadeIdentitySubsystem* Stage = World.GetSubsystem<UOCR143SilpoFacadeIdentitySubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeDetailNow(World);
-    }
-
-    // Culture House has its own canonical FOCGeoReference site. Run it inside the same startup window.
-    if (UOCR146CultureHousePhotoModelSubsystem* Stage = World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>())
-    {
-        Timers.ClearAllTimersForObject(Stage);
-        Stage->RunAuthoritativeBuildNow(World);
-    }
-
+    StartupStepTimerHandle.Invalidate();
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY museum_stages=R137_exterior+R138_collision_glass+R139_R140_doors_facade+R142_R145_details window_replacement_stage=0 silpo_stages=R140_R143 culture_stage=R146 delayed_stage_timers_cancelled=1 legacy_core_recovery=0 destructive_visibility_rebuild=0"));
+        TEXT("PASS45_LANDMARK_STARTUP_COORDINATED_READY staged_frames=1 deployment_blocking_work=0 museum_async_owner=1 delayed_stage_timers_cancelled=1 legacy_core_recovery=0"));
     UE_LOG(LogTemp, Display,
-        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages ran in one startup pass; historical delayed reveal timers were cancelled; final door owners preserved; obsolete Museum window replacement stage retired."));
+        TEXT("Landmark startup coordinator completed: Museum/Silpo/Culture authoritative stages were deferred until gameplay and released one stage per frame."));
+    return true;
 }
