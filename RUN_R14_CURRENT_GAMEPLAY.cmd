@@ -23,10 +23,11 @@ if /I "%OC_FORCE_ACCEPTANCE%"=="1" set "IS_ACCEPTANCE=1"
 
 rem Pass 45: keep DX11/SM5/no-HDR, but stop making -norhithread the only normal path.
 rem The explicit START_HERE compatibility route sets OC_RHI_COMPAT=1 for A/B crash/performance diagnosis.
-set "RHI_FLAGS=-d3d11 -sm5 -nohdr"
+rem -nosplash keeps the UE/project startup splash from opening as a separate oversized borderless window before the real game window.
+set "RHI_FLAGS=-d3d11 -sm5 -nohdr -nosplash"
 set "RHI_MODE=dx11_sm5_rhi_thread"
 if /I "%OC_RHI_COMPAT%"=="1" (
-  set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread"
+  set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread -nosplash"
   set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"
 )
 
