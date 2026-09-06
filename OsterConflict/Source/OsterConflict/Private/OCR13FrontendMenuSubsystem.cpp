@@ -92,9 +92,6 @@ namespace
         Field->SetHintText(Hint);
         Field->SetText(FText::FromString(Value));
 
-        // Pass 24: use an explicit game-owned dark style instead of the editor/default white field look.
-        // Keeping all brushes resource-stable while tinting them avoids constructing transient Slate resources
-        // during the main-menu -> server-setup transition.
         FEditableTextBoxStyle FieldStyle = Field->GetWidgetStyle();
         FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f));
         FieldStyle.ForegroundColor = FSlateColor(FLinearColor(0.93f, 0.93f, 0.91f, 1.0f));
@@ -211,10 +208,6 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
     EnsureFrontend(Root, PC);
 
-    // Pass 26: a UButton::OnClicked delegate fires inside Slate's mouse-up routing. Merely setting
-    // a flag and consuming it later in the same engine frame is not a strong enough lifetime fence.
-    // Every frontend action now waits until at least the following engine frame before it is allowed
-    // to touch widget visibility, input modes, travel, settings or quit/disconnect state.
     const bool bDeferredActionReady = PendingActionEarliestFrame != 0 && GFrameCounter >= PendingActionEarliestFrame;
     if (bDeferredActionReady)
     {
@@ -234,13 +227,24 @@ void UOCR13FrontendMenuSubsystem::Tick(float DeltaTime)
 
         if (PendingPage != INDEX_NONE)
         {
-            // Pass 29: runtime repeatedly crashed inside Slate immediately after the main-menu START
-            // path changed the live widget hierarchy. Page transitions are now forbidden in the R13
-            // startup shell. Keep the frontend structurally static and route actions directly instead.
-            const int32 BlockedPage = PendingPage;
+            const int32 NewPage = FMath::Clamp(PendingPage, 0, 2);
             PendingPage = INDEX_NONE;
-            UE_LOG(LogTemp, Error, TEXT("PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED page=%d"), BlockedPage);
+            Page = NewPage;
+            LastAppliedPage = INDEX_NONE;
+            UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_BEGIN page=%d"), Page);
+            ApplyPage();
+            SetPresentationVisibility(true, true, false);
+            ForceMenuInput();
+            if (Page == 1)
+            {
+                UE_LOG(LogTemp, Display, TEXT("PASS14_MAIN_START_OPENS_SERVER_SETUP"));
+            }
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_FRONTEND_PAGE_APPLIED page=%d deferred=1 stable_widget_tree=1 backdrop_preserved=1"), Page);
+            UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_READY page=%d"), Page);
+            return;
         }
+
         if (bPendingHostedStart)
         {
             bPendingHostedStart = false;
@@ -373,14 +377,9 @@ void UOCR13FrontendMenuSubsystem::EnsureFrontend(UOCGameUIRootWidget* Root, AOCP
     bPresentationStateValid = false;
     BuildFrontend(Root, PC);
 
-    // Pass 26: legacy-layer suppression mutates widget state. Do it once for a newly built root,
-    // not on every world Tick while Slate is painting/processing input.
     SuppressLegacyFrontendLayers(Root);
     UE_LOG(LogTemp, Display, TEXT("PASS26_LEGACY_FRONTEND_SUPPRESSED_ONCE"));
 
-    // -Frontend belongs only to the startup shell. The same process keeps its command line after
-    // `open ?listen`, so the newly created listen/client controller used to resurrect the main menu
-    // over Deployment and produced a second START. Deployment owns all pre-spawn choices after travel.
     if (PC->GetNetMode() != NM_Standalone && PC->IsFrontendMenuVisible() &&
         PC->IsDeploymentPanelVisible() && PC->GetPawn() == nullptr)
     {
@@ -408,9 +407,6 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        // Pass 27: keep the native frontend attached to its original WidgetTree. Detaching a widget
-        // after UUserWidget::RebuildWidget has already produced Slate children creates an avoidable
-        // structural lifetime edge; collapsed + disabled is sufficient to suppress it.
     }
 
     UBorder* Blocker = Tree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("R13_MenuWorldBlocker"));
@@ -495,18 +491,11 @@ void UOCR13FrontendMenuSubsystem::BuildFrontend(UOCGameUIRootWidget* Root, AOCPl
     if (!Fields || !Status) return;
 
     const UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get();
-    UEditableTextBox* Username = R13FrontendMakeField(
-        Tree, Fields, NSLOCTEXT("OCR13Frontend", "UsernameHint", "Ім'я гравця"),
-        Prefs ? Prefs->GetSavedUsername() : FString(TEXT("Player")));
-    UEditableTextBox* Address = R13FrontendMakeField(
-        Tree, Fields, NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"),
-        Prefs ? Prefs->GetLastServerAddress() : FString(TEXT("127.0.0.1:7777")));
-    UEditableTextBox* MaxPlayers = R13FrontendMakeField(
-        Tree, Fields, NSLOCTEXT("OCR13Frontend", "MaxPlayersHint", "Максимум гравців (2–64)"), TEXT("16"));
-    UEditableTextBox* Bots = R13FrontendMakeField(
-        Tree, Fields, NSLOCTEXT("OCR13Frontend", "BotsHint", "Кількість ботів (0–63)"), TEXT("0"));
-    UEditableTextBox* Difficulty = R13FrontendMakeField(
-        Tree, Fields, NSLOCTEXT("OCR13Frontend", "DifficultyHint", "Складність: Easy / Normal / Hard / Veteran"), TEXT("Normal"));
+    UEditableTextBox* Username = R13FrontendMakeField(Tree, Fields, NSLOCTEXT("OCR13Frontend", "UsernameHint", "Ім'я гравця"), Prefs ? Prefs->GetSavedUsername() : FString(TEXT("Player")));
+    UEditableTextBox* Address = R13FrontendMakeField(Tree, Fields, NSLOCTEXT("OCR13Frontend", "AddressHint", "IP:порт сервера"), Prefs ? Prefs->GetLastServerAddress() : FString(TEXT("127.0.0.1:7777")));
+    UEditableTextBox* MaxPlayers = R13FrontendMakeField(Tree, Fields, NSLOCTEXT("OCR13Frontend", "MaxPlayersHint", "Максимум гравців (2–64)"), TEXT("16"));
+    UEditableTextBox* Bots = R13FrontendMakeField(Tree, Fields, NSLOCTEXT("OCR13Frontend", "BotsHint", "Кількість ботів (0–63)"), TEXT("0"));
+    UEditableTextBox* Difficulty = R13FrontendMakeField(Tree, Fields, NSLOCTEXT("OCR13Frontend", "DifficultyHint", "Складність: Easy / Normal / Hard / Veteran"), TEXT("Normal"));
     if (!Username || !Address || !MaxPlayers || !Bots || !Difficulty) return;
 
     Fields->AddChildToVerticalBox(Status)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 5.0f));
@@ -557,13 +546,9 @@ void UOCR13FrontendMenuSubsystem::ApplyPage()
     if (MenuPanel.IsValid())
     {
         const bool bMainPage = Page == 0;
-        MenuPanel->SetBrushColor(bMainPage
-            ? FLinearColor::Transparent
-            : FLinearColor(0.025f, 0.030f, 0.036f, 0.96f));
+        MenuPanel->SetBrushColor(bMainPage ? FLinearColor::Transparent : FLinearColor(0.025f, 0.030f, 0.036f, 0.96f));
         MenuPanel->SetPadding(bMainPage ? FMargin(0.0f) : FMargin(22.0f));
-        R13FrontendSetPanelGeometry(MenuPanel.Get(),
-            bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 106.0f),
-            bMainPage ? FVector2D(470.0f, 760.0f) : FVector2D(500.0f, 700.0f));
+        R13FrontendSetPanelGeometry(MenuPanel.Get(), bMainPage ? FVector2D(112.0f, 92.0f) : FVector2D(112.0f, 106.0f), bMainPage ? FVector2D(470.0f, 760.0f) : FVector2D(500.0f, 700.0f));
     }
 
     if (Page == 0)
@@ -661,20 +646,12 @@ void UOCR13FrontendMenuSubsystem::ApplyPausePage()
 
 void UOCR13FrontendMenuSubsystem::SetPresentationVisibility(bool bShowMenu, bool bShowBackdrop, bool bDimGameplay)
 {
-    // Pass 26: do not invalidate the same Slate visibility tree every Tick when nothing changed.
-    if (bPresentationStateValid && bLastShowMenu == bShowMenu &&
-        bLastShowBackdrop == bShowBackdrop && bLastDimGameplay == bDimGameplay)
-    {
-        return;
-    }
+    if (bPresentationStateValid && bLastShowMenu == bShowMenu && bLastShowBackdrop == bShowBackdrop && bLastDimGameplay == bDimGameplay) return;
 
     const ESlateVisibility MenuVisibility = bShowMenu ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-    const ESlateVisibility BackdropVisibility = bShowBackdrop
-        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
-    const ESlateVisibility ShadeVisibility = bDimGameplay
-        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
-    const ESlateVisibility GradientVisibility = (bShowMenu && bShowBackdrop)
-        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+    const ESlateVisibility BackdropVisibility = bShowBackdrop ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+    const ESlateVisibility ShadeVisibility = bDimGameplay ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+    const ESlateVisibility GradientVisibility = (bShowMenu && bShowBackdrop) ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
 
     if (WorldBlocker.IsValid())
     {
@@ -711,7 +688,6 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
     {
         LegacyFrontend->SetVisibility(ESlateVisibility::Collapsed);
         LegacyFrontend->SetIsEnabled(false);
-        // Pass 27: never detach the root-owned legacy frontend after Slate has been built.
     }
 
     if (UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root"))))
@@ -719,12 +695,7 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
         for (int32 Index = 0; Index < Canvas->GetChildrenCount(); ++Index)
         {
             UWidget* Child = Canvas->GetChildAt(Index);
-            if (!Child || Child == WorldBlocker.Get() || Child == MenuBackground.Get() ||
-                Child == MenuShade.Get() || Child == MenuPanel.Get())
-            {
-                continue;
-            }
-
+            if (!Child || Child == WorldBlocker.Get() || Child == MenuBackground.Get() || Child == MenuShade.Get() || Child == MenuPanel.Get()) continue;
             if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Child->Slot))
             {
                 const int32 ZOrder = Slot->GetZOrder();
@@ -740,28 +711,19 @@ void UOCR13FrontendMenuSubsystem::SuppressLegacyFrontendLayers(UOCGameUIRootWidg
 
 bool UOCR13FrontendMenuSubsystem::HasPendingFrontendAction() const
 {
-    return PendingPage != INDEX_NONE || bPendingHostedStart || bPendingNetworkConnect ||
-        bPendingSettingsOpen || bPendingQuit || bPendingPauseResume;
+    return PendingPage != INDEX_NONE || bPendingHostedStart || bPendingNetworkConnect || bPendingSettingsOpen || bPendingQuit || bPendingPauseResume;
 }
 
 void UOCR13FrontendMenuSubsystem::ArmDeferredActionFence()
 {
     PendingActionEarliestFrame = GFrameCounter + 1;
-    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_FENCE armed=%llu execute_after=%llu"),
-        static_cast<unsigned long long>(GFrameCounter),
-        static_cast<unsigned long long>(PendingActionEarliestFrame));
+    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_FENCE armed=%llu execute_after=%llu"), static_cast<unsigned long long>(GFrameCounter), static_cast<unsigned long long>(PendingActionEarliestFrame));
 }
 
 void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 {
     UE_LOG(LogTemp, Display, TEXT("R13 frontend: primary pressed, page=%d pause=%d"), Page, bPauseMenuActive ? 1 : 0);
-
-    if (bLocalTravelPending)
-    {
-        UE_LOG(LogTemp, Display, TEXT("R13 frontend: server travel already pending; duplicate primary press ignored"));
-        return;
-    }
-    if (HasPendingFrontendAction()) return;
+    if (bLocalTravelPending || HasPendingFrontendAction()) return;
 
     if (bPauseMenuActive)
     {
@@ -773,14 +735,10 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
     if (Page == 0)
     {
-        // Pass 29: START no longer turns the already-live Slate tree into a different page. The
-        // repeated crash is synchronized with that structural transition, not with compilation.
-        // Start the local hosted session directly from the stable main menu using the already-created
-        // default/saved fields (16 max, 0 bots, Normal unless later changed by a dedicated safe UI).
-        bPendingHostedStart = true;
+        PendingPage = 1;
         ArmDeferredActionFence();
-        UE_LOG(LogTemp, Display, TEXT("PASS29_MAIN_START_DIRECT_HOST_QUEUED"));
-        UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=start_host"));
+        UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1"));
+        UE_LOG(LogTemp, Display, TEXT("PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED"));
         return;
     }
 
@@ -801,20 +759,20 @@ void UOCR13FrontendMenuSubsystem::OnPrimaryClicked()
 
 void UOCR13FrontendMenuSubsystem::OnSecondaryClicked()
 {
-    // Pass 29: no runtime page mutation exists in the startup shell anymore. Secondary is retained
-    // only for compatibility with old constructed widgets and must never alter the live Slate tree.
-    UE_LOG(LogTemp, Display, TEXT("PASS29_SECONDARY_IGNORED_STATIC_FRONTEND"));
+    if (bPauseMenuActive || bLocalTravelPending || HasPendingFrontendAction() || Page == 0) return;
+    PendingPage = 0;
+    ArmDeferredActionFence();
+    UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=0"));
+    UE_LOG(LogTemp, Display, TEXT("PASS45_SECONDARY_MENU_BACK_QUEUED"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnNetworkClicked()
 {
     if (bPauseMenuActive || bLocalTravelPending || HasPendingFrontendAction()) return;
-    // Pass 29: keep the startup Slate hierarchy immutable. Network uses the saved/default address
-    // already present in AddressEntry instead of opening the crash-prone structural page transition.
-    bPendingNetworkConnect = true;
+    PendingPage = 2;
     ArmDeferredActionFence();
-    UE_LOG(LogTemp, Display, TEXT("PASS29_NETWORK_DIRECT_CONNECT_QUEUED"));
-    UE_LOG(LogTemp, Display, TEXT("PASS26_FRONTEND_ACTION_QUEUED action=network_connect"));
+    UE_LOG(LogTemp, Display, TEXT("PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2"));
+    UE_LOG(LogTemp, Display, TEXT("PASS45_SECONDARY_MENU_NETWORK_SETUP_QUEUED"));
 }
 
 void UOCR13FrontendMenuSubsystem::OnSettingsClicked()
@@ -854,17 +812,13 @@ void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
 
     FString Username = UsernameEntry.IsValid() ? UsernameEntry->GetText().ToString() : FString(TEXT("Player"));
     Username = R13SanitizeTravelName(Username);
-    const int32 MaxPlayers = FMath::Clamp(
-        FCString::Atoi(*(MaxPlayersEntry.IsValid() ? MaxPlayersEntry->GetText().ToString() : FString(TEXT("16")))), 2, 64);
-    const int32 Bots = FMath::Clamp(
-        FCString::Atoi(*(BotsEntry.IsValid() ? BotsEntry->GetText().ToString() : FString(TEXT("0")))), 0, MaxPlayers);
-    const FString Difficulty = R13NormalizeDifficulty(
-        BotDifficultyEntry.IsValid() ? BotDifficultyEntry->GetText().ToString() : FString(TEXT("Normal")));
+    const int32 MaxPlayers = FMath::Clamp(FCString::Atoi(*(MaxPlayersEntry.IsValid() ? MaxPlayersEntry->GetText().ToString() : FString(TEXT("16")))), 2, 64);
+    const int32 Bots = FMath::Clamp(FCString::Atoi(*(BotsEntry.IsValid() ? BotsEntry->GetText().ToString() : FString(TEXT("0")))), 0, MaxPlayers);
+    const FString Difficulty = R13NormalizeDifficulty(BotDifficultyEntry.IsValid() ? BotDifficultyEntry->GetText().ToString() : FString(TEXT("Normal")));
 
     if (UOCPlayerUserSettings* Prefs = UOCPlayerUserSettings::Get())
     {
-        Prefs->SetFrontendIdentity(Username,
-            Prefs->GetLastServerAddress().IsEmpty() ? FString(TEXT("127.0.0.1:7777")) : Prefs->GetLastServerAddress());
+        Prefs->SetFrontendIdentity(Username, Prefs->GetLastServerAddress().IsEmpty() ? FString(TEXT("127.0.0.1:7777")) : Prefs->GetLastServerAddress());
     }
     PC->SetNickname(Username);
 
@@ -875,14 +829,11 @@ void UOCR13FrontendMenuSubsystem::StartHostedGameplay()
     SetPresentationVisibility(true, true, false);
     ForceMenuInput();
 
-    // Production host route. No LocationTest and no AutoDeploy: after server creation the human
-    // remains controller-only in Deployment until TEAM -> SQUAD -> ROLE -> SPAWN -> У БІЙ is committed.
     const FString Travel = FString::Printf(
-        TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Name=%s?Bots=%d?Population=%d?BotFill=0?MaxPlayers=%d?BotDifficulty=%s?PerfProfile=LowCPU?R13Gameplay=1"),
+        TEXT("open /Game/Maps/OsterConflict_Runtime?listen?Mode=Conquest?Name=%s?Bots=%d?Population=%d?BotFill=0?MaxPlayers=%d?BotDifficulty=%s?PerfProfile=Balanced?R13Gameplay=1"),
         *Username, Bots, Bots, MaxPlayers, *Difficulty);
-    UE_LOG(LogTemp, Display,
-        TEXT("PASS14_HOST_TRAVEL_BEGIN max_players=%d bots=%d difficulty=%s"), MaxPlayers, Bots, *Difficulty);
-    UE_LOG(LogTemp, Display, TEXT("PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE"));
+    UE_LOG(LogTemp, Display, TEXT("PASS14_HOST_TRAVEL_BEGIN max_players=%d bots=%d difficulty=%s"), MaxPlayers, Bots, *Difficulty);
+    UE_LOG(LogTemp, Display, TEXT("PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE"));
     PC->ConsoleCommand(Travel);
 }
 
@@ -890,10 +841,6 @@ void UOCR13FrontendMenuSubsystem::ForceMenuInput()
 {
     AOCPlayerController* PC = ActiveController.Get();
     if (!PC || !MenuBox.IsValid()) return;
-
-    // Pass 25: OnClicked fires on mouse release. Re-applying SetInputMode every world Tick
-    // can reset Slate mouse capture between press and release, leaving every button visually
-    // present but inert. Arm UI input once per menu/controller lifecycle instead.
     if (bMenuInputArmed) return;
 
     PC->ResetIgnoreMoveInput();
