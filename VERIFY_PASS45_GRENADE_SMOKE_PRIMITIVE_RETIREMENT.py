@@ -14,7 +14,7 @@ FRAG_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "gr
 SMOKE_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "greyLight.uasset"
 FLASH_IDENTITY_MAT = ROOT / "OsterConflict" / "Content" / "R13" / "Weapons" / "sand.uasset"
 BUILD = SRC / "OsterConflict.Build.cs"
-TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
+TZ = ROOT / "GAME_RECOVERY.md"
 
 errors: list[str] = []
 
@@ -50,9 +50,10 @@ req('PASS45_GRENADE_PRODUCTION_VISUAL_FAIL' in grenade and 'primitive_visible=0'
     'grenade production visual does not fail closed with primitive hidden')
 req('OC_ProductionGrenadeVisual' in grenade,
     'production grenade component is not explicitly tagged')
+req('LoadObject<' not in grenade,
+    'grenade runtime presentation reintroduced a synchronous LoadObject path')
 
-# Until exact per-type bodies are committed, the shared real mesh must still be readable by type through tracked
-# authored materials. This is identity assistance, not permission to claim the exact grenade-body content gap closed.
+# Shared real body remains type-readable through tracked authored materials until exact per-type bodies exist.
 for material_path, object_path, label in (
     (FRAG_IDENTITY_MAT, '/Game/R13/Weapons/green.green', 'fragmentation'),
     (SMOKE_IDENTITY_MAT, '/Game/R13/Weapons/greyLight.greyLight', 'smoke'),
@@ -66,13 +67,13 @@ req('GrenadeMesh->EmptyOverrideMaterials();' in grenade and 'GrenadeMesh->SetMat
     'grenade type refresh does not deterministically replace stale material overrides')
 req('PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_READY' in grenade and 'type_distinguishable=1' in grenade,
     'authored grenade type identity cannot prove a readable successful state')
-req('PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL' in grenade and 'type_distinguishable=0' in grenade,
-    'missing grenade identity material is not fail-visible')
+req('GAME_RECOVERY_GRENADE_PRELOAD_MISS' in grenade and 'phase=identity_material' in grenade
+    and 'sync_package_loads=0' in grenade and 'runtime_acceptance=0' in grenade,
+    'missing grenade identity material is not fail-visible on the non-blocking preload contract')
 req('shared_generic_body=1' in grenade and 'exact_type_body=0' in grenade and 'type_specific_content_gap=1' in grenade,
     'shared grenade body is falsely promoted to exact frag/smoke/flash content closure')
 
-# Fragmentation detonation presentation must use the committed authored Niagara donor and replicate from the factual
-# server detonation. A missing donor must fail visibly instead of falling back to primitive geometry.
+# Fragmentation detonation uses the committed Niagara donor resolved from the pre-spawn preload.
 frag_vfx = '/Game/Fire_EXP_Vol01_Free/Niagara/EXP/NS_Sub_EXP_Small_002.NS_Sub_EXP_Small_002'
 req(FRAG_VFX_ASSET.is_file(),
     'authored frag Niagara payload referenced by runtime code is not committed in the repository')
@@ -84,10 +85,12 @@ req('Type != EOCGrenadeType::Fragmentation' in grenade,
     'frag detonation multicast is not restricted to fragmentation presentation')
 req('UNiagaraFunctionLibrary::SpawnSystemAtLocation' in grenade,
     'fragmentation presentation no longer spawns authored Niagara at the factual detonation location')
-req('PASS45_FRAG_EXPLOSION_VFX_DONOR_WIRED' in grenade and 'authored_niagara=1' in grenade,
-    'frag authored Niagara integration has no source-visible success evidence')
-req('PASS45_FRAG_EXPLOSION_VFX_LOAD_FAIL' in grenade and 'runtime_acceptance=0' in grenade,
-    'frag Niagara load failure is not fail-visible')
+req('GAME_RECOVERY_FRAG_EXPLOSION_VFX_READY' in grenade and 'authored_niagara=1' in grenade
+    and 'forced_cleanup_s=' in grenade and 'looping_residue=0' in grenade,
+    'frag authored Niagara integration has no current source-visible success/cleanup evidence')
+req('GAME_RECOVERY_GRENADE_PRELOAD_MISS' in grenade and 'phase=detonation_vfx' in grenade
+    and 'sync_package_loads=0' in grenade and 'runtime_acceptance=0' in grenade,
+    'frag Niagara preload miss is not fail-visible')
 
 # Throwing is authoritative and transactional.
 throw_start = character.find('void AOCCharacter::ServerThrowSelectedGrenade_Implementation()')
@@ -122,22 +125,23 @@ req(spawn_pos >= 0 and commit_pos > spawn_pos,
 req(throw_block.count('--(*Count)') == 1,
     'grenade throw owns multiple inventory decrement paths')
 
-# The imported authored Niagara donor is now the sole smoke presentation owner.
+# The imported authored Niagara donor is the sole visible smoke presentation owner.
 smoke_asset = '/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop.NS_SmokeGradient_Loop'
 req(SMOKE_ASSET.is_file(),
     'authored smoke Niagara payload referenced by runtime code is not committed in the repository')
 req(smoke_asset in smoke,
     'imported authored smoke Niagara system is not wired into AOCSmokeCloud')
 req('UNiagaraComponent' in smoke and 'UNiagaraSystem' in smoke,
-    'smoke runtime does not own/load the authored Niagara presentation')
+    'smoke runtime does not own the authored Niagara presentation')
+req('LoadObject<' not in smoke and 'ResolveObject()' in smoke,
+    'smoke first-use presentation must stay lookup-only after async preload')
 req('PASS45_SMOKE_VFX_DONOR_WIRED' in smoke and 'authored_niagara=1' in smoke,
     'authored smoke Niagara integration does not emit source-visible wiring evidence')
 req('PASS45_SMOKE_VFX_RUNTIME_READY' in smoke and 'runtime_loaded=1' in smoke and 'manual_visual_acceptance=0' in smoke,
-    'smoke runtime cannot prove factual Niagara load/activation without falsely claiming manual visual acceptance')
-req('PASS45_SMOKE_VFX_LOAD_FAIL' in smoke and 'primitive_visible=0' in smoke,
-    'smoke VFX load failure is not visibly fail-closed')
-req('PASS45_SMOKE_VFX_CONTENT_GAP' not in smoke,
-    'obsolete smoke content-gap marker remains in the runtime implementation')
+    'smoke runtime cannot prove factual Niagara activation without falsely claiming manual visual acceptance')
+req('GAME_RECOVERY_GRENADE_PRELOAD_MISS' in smoke and 'phase=smoke_vfx' in smoke
+    and 'primitive_visible=0' in smoke and 'sync_package_loads=0' in smoke,
+    'smoke VFX preload miss is not visibly fail-closed')
 for stale in (
     '/Engine/BasicShapes/Sphere.Sphere',
     'SmokePuff_',
@@ -151,9 +155,7 @@ req('primitive sphere/cube substitute' in smoke_h.lower(),
 req('SmokeHalfHeightCm' in smoke_h and 'GetSmokeHalfHeightCm' in smoke_h,
     'smoke gameplay volume lost its explicit finite vertical bound')
 
-# Gameplay occlusion must grow with the smoke instead of becoming a full-radius invisible wall at detonation.
-# This is intentionally query-time math rather than a per-frame Tick owner; exact Niagara synchronization stays
-# pending until local UE 5.8 visual acceptance.
+# Gameplay occlusion grows with smoke by query-time age, without a per-frame actor Tick.
 req('SmokeExpansionSeconds' in smoke_h and 'GetSmokeExpansionSeconds' in smoke_h,
     'smoke gameplay volume has no explicit expansion duration')
 req('PrimaryActorTick.bCanEverTick = false' in smoke,
@@ -181,32 +183,18 @@ req('finite_volume=1' in smoke and 'half_height_cm=' in smoke,
 req('"Niagara"' in build,
     'OsterConflict module does not declare the Niagara dependency required by authored smoke VFX')
 
-# Canonical current runtime authority and the current grenade/smoke source truth must both remain visible.
-# The 2026-08-27 pack is still the latest committed rendered screenshot evidence, but the newer factual local
-# startup rejection on 2026-08-31 is the canonical current verdict and must not be overwritten by this verifier.
+# GAME_RECOVERY is the current task authority. It must preserve the user-visible grenade requirements while
+# source checks above carry exact implementation markers. UE 5.8 visual acceptance remains separate.
 for needle in (
-    'PASS45_GRENADE_PRODUCTION_VISUAL_READY',
-    'PASS45_GRENADE_THROW_COMMIT_READY',
-    '/Game/PotaVFX_Smoke/VFX/System/ColorSmoke/NS_SmokeGradient_Loop',
-    'PASS45_SMOKE_VFX_RUNTIME_READY',
-    'exact_visual_sync=0',
-    'manual_visual_acceptance=0',
-    'Latest runtime verdict: **RUNTIME REJECTED 2026-08-31**',
+    '## 3. CRITICAL — гранати',
+    'preload/prewarm гранатних mesh/material/VFX/audio',
+    'кидок гранати не повинен викликати blocking asset load',
+    'один explosion event на одну гранату',
+    'VFX/audio/decal/particle cleanup',
+    '## 11. FINAL UE 5.8 ACCEPTANCE',
+    'Definition of Done',
 ):
-    req(needle in tz, f'canonical Pass45 TZ lost grenade/smoke/runtime truth: {needle}')
-
-# Old 2026-08-26 source-state wording may remain only as historical context, never as the current checklist truth.
-for stale_current_claim in (
-    'authored growing smoke VFX with useful visual sight blocking remains **CONTENT GAP**',
-    'Repository authored smoke/Niagara content is currently not proven present',
-    'because no accepted authored smoke particle/Niagara payload is currently present',
-):
-    req(stale_current_claim not in tz,
-        f'canonical Pass45 TZ still presents superseded smoke source state as current: {stale_current_claim}')
-req('Smoke Niagara source content is now committed/wired' in tz,
-    'item 24 no longer distinguishes committed smoke source integration from pending UE visual acceptance')
-req('distinct authored flash-grenade world VFX remains **CONTENT GAP**' in tz,
-    'canonical item 24 lost the remaining flash-world-VFX content gap')
+    req(needle in tz, f'GAME_RECOVERY lost current grenade/runtime requirement: {needle}')
 
 if errors:
     print('PASS45 GRENADE/SMOKE PRIMITIVE RETIREMENT + THROW SEMANTICS: FAIL')
@@ -217,14 +205,10 @@ if errors:
 print('PASS45 GRENADE/SMOKE PRIMITIVE RETIREMENT + THROW SEMANTICS: PASS')
 print('- tracked R13 grenade mesh replaces the visible Engine sphere fail-closed')
 print('- frag/smoke/flash share a real body but use distinct tracked authored identity materials')
-print('- committed Fire_EXP Niagara donor is guarded for replicated fragmentation detonation presentation')
-print('- exact per-type grenade bodies remain an explicit content gap')
-print('- authoritative throw uses swept/overlap-checked spawn clearance')
-print('- grenade inventory commits only after factual projectile spawn success')
-print('- successful throw emits a presentation event without a second gameplay timer')
-print('- primitive smoke-ball presentation remains physically retired')
-print('- committed PotaVFX Niagara smoke donor is wired as the sole visible smoke owner')
+print('- grenade and smoke first-use presentation remains async-preloaded/lookup-only with fail-visible misses')
+print('- committed frag Niagara donor is replicated, scaled and forcibly cleaned up after detonation')
+print('- authoritative throw uses swept/overlap-checked spawn clearance and commits inventory only after spawn')
+print('- primitive smoke-ball presentation remains retired; PotaVFX Niagara is the visible smoke owner')
 print('- smoke gameplay occlusion is finite and expands by query-time game age without an actor Tick')
-print('- canonical TZ now matches committed smoke source truth without upgrading UE visual acceptance')
-print('- exact Niagara/gameplay expansion synchronization and manual visual acceptance remain pending')
-print('STATUS: SOURCE-INTEGRATED; exact grenade bodies + flash world VFX + local UE 5.8 visual acceptance remain pending')
+print('- GAME_RECOVERY remains the current task authority; local UE 5.8 visual acceptance is still required')
+print('STATUS: SOURCE CONTRACT ONLY; exact per-type grenade bodies + flash world VFX + local UE 5.8 acceptance remain pending')
