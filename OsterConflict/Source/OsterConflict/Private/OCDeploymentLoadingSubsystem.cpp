@@ -1,7 +1,9 @@
 #include "OCDeploymentLoadingSubsystem.h"
 
-#include "OCPlayerController.h"
+#include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
+#include "OCDenseGroundFoliageSubsystem.h"
 #include "OCLandmarkStartupCoordinatorSubsystem.h"
+#include "OCPlayerController.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -119,7 +121,7 @@ void UOCDeploymentLoadingSubsystem::BeginDeployment(AOCPlayerController* Control
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_DEPLOYMENT_LOADING_BEGIN wait_for_world_ready=1 spawn_before_ready=0"));
+        TEXT("GAME_RECOVERY_DEPLOYMENT_LOADING_BEGIN wait_for_landmarks=1 wait_for_surfaces=1 wait_for_foliage=1 spawn_before_ready=0"));
 }
 
 void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
@@ -135,22 +137,37 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
     }
 
     UWorld* World = GetWorld();
-    const UOCLandmarkStartupCoordinatorSubsystem* Startup =
+    const UOCLandmarkStartupCoordinatorSubsystem* Landmarks =
         World ? World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>() : nullptr;
-    const bool bWorldReady = Startup == nullptr || Startup->IsWorldStartupReady();
-    const float WorldProgress = Startup ? Startup->GetStartupProgress() : 1.0f;
+    const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surfaces =
+        World ? World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>() : nullptr;
+    const UOCDenseGroundFoliageSubsystem* Foliage =
+        World ? World->GetSubsystem<UOCDenseGroundFoliageSubsystem>() : nullptr;
+
+    const bool bLandmarksReady = Landmarks == nullptr || Landmarks->IsWorldStartupReady();
+    const bool bSurfacesReady = Surfaces == nullptr || Surfaces->IsWorldSurfaceReady();
+    const bool bFoliageReady = Foliage == nullptr || Foliage->IsWorldFoliageReady();
+    const bool bWorldReady = bLandmarksReady && bSurfacesReady && bFoliageReady;
+
+    const float LandmarksProgress = Landmarks ? Landmarks->GetStartupProgress() : 1.0f;
+    const float SurfacesProgress = Surfaces ? Surfaces->GetWorldSurfaceProgress() : 1.0f;
+    const float FoliageProgress = Foliage ? Foliage->GetWorldFoliageProgress() : 1.0f;
+    const float WorldProgress = FMath::Clamp(
+        LandmarksProgress * 0.50f + SurfacesProgress * 0.20f + FoliageProgress * 0.30f,
+        0.0f, 1.0f);
 
     const double Now = FPlatformTime::Seconds();
     const double Elapsed = FMath::Max(0.0, Now - StartTimeSeconds);
 
-    // Do not use the player pawn as a loading screen. The ready/restart request is held until the
-    // critical landmark coordinator has completed its pre-spawn preparation while the opaque UI is up.
+    // Do not use the player pawn as a loading screen. Ready/restart is held until landmarks, authored
+    // world surfaces and dense ground foliage have all completed while the opaque deployment UI is up.
     if (!bReadySent && bWorldReady && Elapsed >= 0.12)
     {
         bReadySent = true;
         Controller->UIReadyDeploy();
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_DEPLOYMENT_WORLD_READY ready_request_sent=1 elapsed=%.2f"), Elapsed);
+            TEXT("GAME_RECOVERY_DEPLOYMENT_WORLD_READY landmarks=1 surfaces=1 foliage=1 ready_request_sent=1 elapsed=%.2f"),
+            Elapsed);
     }
 
     float Progress = bReadySent
@@ -177,7 +194,8 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
         if (CompletionAlpha >= 1.0f)
         {
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_DEPLOYMENT_COMPLETE world_ready_before_spawn=1 elapsed=%.2f"), Elapsed);
+                TEXT("GAME_RECOVERY_DEPLOYMENT_COMPLETE world_ready_before_spawn=1 post_spawn_world_builds=0 elapsed=%.2f"),
+                Elapsed);
             FinishDeploymentTransition();
             return;
         }
@@ -188,7 +206,12 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
     if (!bReadySent && Elapsed >= 45.0)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_DEPLOYMENT_TIMEOUT world_ready=0 progress=%.3f elapsed=%.2f"), WorldProgress, Elapsed);
+            TEXT("GAME_RECOVERY_DEPLOYMENT_TIMEOUT landmarks=%d surfaces=%d foliage=%d progress=%.3f elapsed=%.2f"),
+            bLandmarksReady ? 1 : 0,
+            bSurfacesReady ? 1 : 0,
+            bFoliageReady ? 1 : 0,
+            WorldProgress,
+            Elapsed);
         FinishDeploymentTransition();
         return;
     }
