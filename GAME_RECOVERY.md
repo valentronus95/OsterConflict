@@ -131,8 +131,9 @@
 - `Створення сервера`: вирівняти поля, labels, buttons, spacing, borders, hover/focus/disabled states;
 - `Розгортання`: прибрати величезні мертві площі, зібрати команду/групу/роль/появу в чіткий послідовний flow;
 - side cards (`Матч`, `Ваш вибір`, `Ваша група`) оформити в тому самому стилі;
+- `Налаштування` оформити тим самим production theme, без суцільних світло-сірих debug controls;
 - фон, panel opacity, typography, button treatment та accent повинні відповідати головному меню;
-- input fields не повинні виглядати як стандартні сірі debug controls;
+- input fields, combo boxes, sliders і checkboxes не повинні виглядати як стандартні Unreal/debug controls;
 - підтримати 1280x720 і вище без кривого масштабування/перекриття.
 
 ### Acceptance
@@ -140,7 +141,36 @@
 
 ---
 
-## 8. MEDIUM — HUD
+## 8. CRITICAL — налаштування: функціональність і redesign
+**Проблема:** екран `Налаштування` відкривається, але фактично не працює: вкладки/поля/слайдери/checkbox/combo/buttons не дають нормальної взаємодії. Візуально екран перевантажений великими сірими контролами і виглядає як developer/debug UI.
+
+### Треба
+- відновити повну input-interaction для всього SettingsPanel після переходу з R13 frontend;
+- перевірити, що панель не лишається `disabled` після приховування legacy UI;
+- усі вкладки `ГРАФІКА / ЗВУК / КЕРУВАННЯ / ІНТЕРФЕЙС / ДОСТУПНІСТЬ` повинні реально перемикатися;
+- `ЗАСТОСУВАТИ` застосовує зміни без закриття;
+- `ЗБЕРЕГТИ Й НАЗАД` застосовує, зберігає і коректно повертає назад;
+- `СКАСУВАТИ` відкидає незбережені зміни та повертає попередні значення;
+- `СКИНУТИ НАЛАШТУВАННЯ` відновлює дефолтні значення з можливістю застосувати/скасувати;
+- resolution/window mode/render scale/FPS limit/VSync/dynamic resolution та quality groups реально підключені до `UGameUserSettings`;
+- audio sliders/checks реально підключені до audio user settings;
+- controls/rebind, FOV, HUD scale, accessibility параметри реально зберігаються та застосовуються;
+- після закриття/повторного відкриття показуються фактичні поточні значення;
+- keyboard/mouse focus не губиться, Escape/назад працює передбачувано;
+- зробити compact game-style layout: темні панелі, чіткі секції, нормальна типографіка, компактні combo/sliders/checks, помітний active tab, зрозумілі hover/focus/pressed states;
+- зменшити візуальний шум і надмірну прозорість, щоб текст/контроли читались на фоні гри;
+- зберегти адаптацію 1280x720 / 1600x900 / 1920x1080 і вище.
+
+### Acceptance
+- кожен control реагує на input;
+- Apply/Save/Cancel/Defaults мають фактичну поведінку;
+- значення зберігаються і відновлюються після повторного відкриття;
+- settings виглядають у єдиному стилі з головним меню та іншими production screens;
+- немає «сірої заблокованої форми», debug вигляду або мертвих кнопок.
+
+---
+
+## 9. MEDIUM — HUD
 ### Треба
 - перевірити weapon slot list, ammo, grenades, role/squad/team, interaction prompt;
 - не показувати debug/fallback text як production HUD;
@@ -149,7 +179,7 @@
 
 ---
 
-## 9. PERFORMANCE — runtime spikes
+## 10. PERFORMANCE — runtime spikes
 ### Треба
 - знайти всі startup/first-use блокуючі `LoadObject`/sync loads у WorldSubsystem/weapon/grenade/vehicle paths;
 - перенести допустиме на async preload;
@@ -162,21 +192,23 @@
 
 ---
 
-## 10. FINAL UE 5.8 ACCEPTANCE
+## 11. FINAL UE 5.8 ACCEPTANCE
 Окремо перевірити на поточному exact HEAD:
 1. запуск через `START_HERE.cmd` -> `1`;
-2. створення сервера;
-3. deployment/team/group/role/spawn;
-4. перший spawn;
-5. усі weapon pickups;
-6. grenade throw/explosion;
-7. death -> 10 s respawn;
-8. БТР-4 production visual;
-9. стадіон/музей/основна карта;
-10. Alt+Tab/minimize/maximize/close;
-11. HUD після respawn;
-12. немає Gameplay Debugger/debug shapes;
-13. після цього пакетний runtime test через `START_HERE.cmd` -> `2`.
+2. головне меню -> `Налаштування`;
+3. усі settings tabs/controls + Apply/Save/Cancel/Defaults;
+4. створення сервера;
+5. deployment/team/group/role/spawn;
+6. перший spawn;
+7. усі weapon pickups;
+8. grenade throw/explosion;
+9. death -> 10 s respawn;
+10. БТР-4 production visual;
+11. стадіон/музей/основна карта;
+12. Alt+Tab/minimize/maximize/close;
+13. HUD після respawn;
+14. немає Gameplay Debugger/debug shapes;
+15. після цього пакетний runtime test через `START_HERE.cmd` -> `2`.
 
 ## Definition of Done
 ТЗ закрите тільки коли ці пункти підтверджені фактичним UE 5.8 runtime, а не лише компіляцією/CI/source inspection.
@@ -195,10 +227,15 @@
 - spawn request утримується до `world ready`; при провалі readiness діє fail-closed timeout замість навмисного spawn у напівпорожню карту;
 - respawn delay уже встановлений на **10 секунд**.
 
+### Додано до scope
+- пункт 8: SettingsPanel зараз вважається CRITICAL, бо екран відкривається, але controls фактично не працюють;
+- окремо зафіксовано повний redesign `Налаштувань` у стилі головного меню, а не лише косметичне підфарбовування.
+
 ### Ще не ACCEPTED
 - потрібна фактична UE 5.8 перевірка першого spawn: без 20-секундного freeze та масового pop-in;
 - треба перевірити інші startup/first-use owners на blocking `LoadObject`/важкі component loops;
-- пункти 2–9, крім respawn delay, залишаються відкритими.
+- SettingsPanel потребує функціонального виправлення input/enabled state і повного redesign;
+- пункти 2–10, крім respawn delay, залишаються відкритими.
 
 ### Наступний пункт
-Продовжити пункт 1: знайти й прибрати решту post-spawn blocking startup owners, після чого перейти до death/spectator/Gameplay Debugger.
+Продовжити пункт 1: знайти й прибрати решту post-spawn blocking startup owners, паралельно не втрачати новий CRITICAL пункт 8 `Налаштування`; після стабілізації startup перейти до death/spectator/Gameplay Debugger.
