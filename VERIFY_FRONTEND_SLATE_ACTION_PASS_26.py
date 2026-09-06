@@ -22,7 +22,7 @@ for token, label in [
     ('bool bPendingQuit = false', 'deferred quit state'),
     ('bool bPendingPauseResume = false', 'deferred pause-resume state'),
     ('uint64 PendingActionEarliestFrame = 0', 'engine-frame fence state'),
-    ('bool bPresentationStateValid = false', 'presentation dedupe state'),
+    ('bool bPresentationStateValid = false', 'presentation state tracking'),
     ('bool bPausePageApplied = false', 'pause-page dedupe state'),
     ('bool HasPendingFrontendAction() const;', 'pending-action guard helper'),
     ('void ArmDeferredActionFence();', 'frame fence helper'),
@@ -36,10 +36,17 @@ for token, label in [
     ('PASS26_FRONTEND_ACTION_QUEUED', 'runtime queued marker'),
     ('PASS26_FRONTEND_ACTION_EXECUTE', 'runtime execute marker'),
     ('PASS26_LEGACY_FRONTEND_SUPPRESSED_ONCE', 'one-shot legacy suppression marker'),
-    ('if (bPresentationStateValid && bLastShowMenu == bShowMenu', 'presentation invalidation dedupe'),
+    ('Always assert real Slate state', 'authoritative presentation reassertion'),
+    ('MenuBackground->SetRenderOpacity(1.0f)', 'opaque authored backdrop restoration'),
     ('if (!MenuBox.IsValid() || bPausePageApplied) return;', 'pause page dedupe'),
 ]:
     need(cpp, token, label)
+
+# A cached early-return here was disproven by runtime: deployment/back transitions can legally mutate
+# the same widgets between frontend ticks, leaving stale translucent layers even when the cached booleans
+# match. The frontend now reasserts actual visibility/opacity every tick while keeping the expensive
+# hierarchy structurally stable.
+forbid(cpp, 'if (bPresentationStateValid && bLastShowMenu == bShowMenu', 'stale presentation early-return')
 
 if cpp.count('SuppressLegacyFrontendLayers(Root);') != 1:
     errors.append(f'legacy suppression must be invoked exactly once per new root source path, found {cpp.count("SuppressLegacyFrontendLayers(Root);")} calls')
@@ -66,8 +73,6 @@ unsafe = [
     'UIConnect(',
 ]
 
-pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in cpp
-
 for name, next_name in callbacks:
     start = cpp.find(f'void UOCR13FrontendMenuSubsystem::{name}()')
     end = cpp.find(f'void UOCR13FrontendMenuSubsystem::{next_name}()', start + 1)
@@ -75,45 +80,24 @@ for name, next_name in callbacks:
         errors.append(f'cannot isolate callback {name}')
         continue
     body = cpp[start:end]
-
-    # Pass 29 intentionally turns Secondary into a no-op because there is no longer a mutable
-    # server-setup page to navigate back from. Every callback that still performs an action must
-    # retain the Pass 26 engine-frame fence; a no-op callback is safer than queuing fake work.
-    is_pass29_noop = name == 'OnSecondaryClicked' and 'PASS29_SECONDARY_IGNORED_STATIC_FRONTEND' in body
-    if not is_pass29_noop and 'ArmDeferredActionFence();' not in body:
+    if 'ArmDeferredActionFence();' not in body:
         errors.append(f'{name} must only queue a fenced action')
-
     for token in unsafe:
         if token in body:
             errors.append(f'{name} performs unsafe Slate/input/travel work inside OnClicked: {token}')
 
-# Pass 25 input protection remains mandatory. Pass 24's original page mutation contract is superseded
-# by Pass 29 when the static frontend is present: START/NETWORK still queue work and still wait for
-# Pass 26's later-frame execution fence, but they no longer mutate the live Slate page hierarchy.
 for token, label in [
     ('Primary->OnClicked.AddDynamic', 'OnClicked binding'),
     ('PASS25_MENU_INPUT_ARMED', 'Pass 25 input marker'),
     ('if (bMenuInputArmed) return;', 'Pass 25 input dedupe'),
+    ('PendingPage = 1;', 'host page queue'),
+    ('PendingPage = 2;', 'network page queue'),
+    ('PendingPage = 0;', 'back page queue'),
+    ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'deferred navigation marker'),
+    ('PASS24_HOST_START_DEFERRED_QUEUED', 'deferred host marker'),
+    ('PASS24_NETWORK_CONNECT_DEFERRED_QUEUED', 'deferred network marker'),
 ]:
     need(cpp, token, label)
-
-if pass29_static:
-    for token, label in [
-        ('PASS29_MAIN_START_DIRECT_HOST_QUEUED', 'Pass 29 direct host queue marker'),
-        ('PASS29_NETWORK_DIRECT_CONNECT_QUEUED', 'Pass 29 direct network queue marker'),
-        ('PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'Pass 29 fail-closed page guard'),
-        ('PASS24_HOST_START_DEFERRED_EXECUTE', 'deferred host execution compatibility'),
-        ('PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE', 'deferred network execution compatibility'),
-    ]:
-        need(cpp, token, label)
-    forbid(cpp, 'PendingPage = 1;', 'removed main START page mutation')
-    forbid(cpp, 'PendingPage = 2;', 'removed network page mutation')
-else:
-    for token, label in [
-        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'Pass 24 navigation marker'),
-        ('PASS24_HOST_START_DEFERRED_QUEUED', 'Pass 24 host marker'),
-    ]:
-        need(cpp, token, label)
 
 forbid(cpp, '->OnPressed.AddDynamic', 'OnPressed mutation path')
 forbid(cpp, 'Mode.SetWidgetToFocus(PrimaryButton->TakeWidget())', 'TakeWidget focus churn')
@@ -125,10 +109,7 @@ if errors:
     raise SystemExit(1)
 
 print('FRONTEND SLATE ACTION PASS 26: SUCCESS')
-print('- every actionable frontend OnClicked callback only queues work; Pass 29 Secondary is an inert no-op')
-print('- widget/input/travel/settings/quit mutations wait for a later engine frame')
-print('- repeated presentation/pause Slate invalidations are deduplicated')
-print('- legacy frontend suppression is no longer executed every Tick')
-if pass29_static:
-    print('- Pass 29 supersedes crash-prone page mutation while preserving the Pass 26 action fence')
+print('- every frontend OnClicked callback only queues work behind the next-frame action fence')
+print('- presentation visibility/opacity is reasserted instead of trusting a stale cross-owner cache')
+print('- widget hierarchy remains stable and legacy suppression still runs only once per root')
 print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime confirmation is still required')
