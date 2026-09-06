@@ -217,25 +217,25 @@
 
 ## Поточний checkpoint — 2026-09-06
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **10%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **20%**.
 
-### Виконано в першому циклі
-- пункт 1 переведено на pre-spawn world preparation: deployment більше не повинен відправляти гравця в недобудований світ;
-- museum critical assets запускаються через async preload ще під час `Розгортання`, а не після появи pawn;
-- Museum/Silpo/Culture startup coordinator тепер працює staged і `tick when paused`, тому підготовка може йти під opaque deployment UI;
-- loading progress прив'язаний до фактичної готовності world startup, а не лише до таймера;
-- spawn request утримується до `world ready`; при провалі readiness діє fail-closed timeout замість навмисного spawn у напівпорожню карту;
-- respawn delay уже встановлений на **10 секунд**.
-
-### Додано до scope
-- пункт 8: SettingsPanel зараз вважається CRITICAL, бо екран відкривається, але controls фактично не працюють;
-- окремо зафіксовано повний redesign `Налаштувань` у стилі головного меню, а не лише косметичне підфарбовування.
+### Зроблено
+- пункт 1 суттєво переведено на pre-spawn preparation: museum/landmark critical assets йдуть через async preload, startup coordinator працює staged і під paused deployment UI;
+- spawn утримується до фактичного `world ready`, а не випускає pawn у напівпорожню карту;
+- normal gameplay більше не проходить старий масовий local-inbox manifest `LoadObject()` через 0.45 с після старту; validation/intake шлях ізольовано від звичайної гри;
+- dense foliage вже async-preloaded і заселяється порціями, а не одним великим циклом;
+- deployment presentation більше не переписує high-Z Slate visibility кожні 0.1 с без зміни стану: visibility writes дедупліковані;
+- пункт 2 підготовлено в коді: respawn delay = **10 секунд**, додано recovery guard для завислого spectator/no-pawn, після possession відновлюється game input;
+- Gameplay Debugger вимкнено для звичайного gameplay activation;
+- пункт 8 підготовлено в коді: SettingsPanel примусово повертається в `enabled/visible` стан після R13 frontend, прибрано disabled washout, додано темний production-style для buttons/combo/checkbox/sliders;
+- frontend/deployment input source-contract перевірки на попередньому exact HEAD проходили; PR #94 лишається OPEN/UNMERGED.
 
 ### Ще не ACCEPTED
-- потрібна фактична UE 5.8 перевірка першого spawn: без 20-секундного freeze та масового pop-in;
-- треба перевірити інші startup/first-use owners на blocking `LoadObject`/важкі component loops;
-- SettingsPanel потребує функціонального виправлення input/enabled state і повного redesign;
-- пункти 2–10, крім respawn delay, залишаються відкритими.
+- пункт 1 ще потребує фактичної UE 5.8 перевірки першого spawn без >1 с freeze і без масового pop-in;
+- authored world-surface upgrade все ще виконує кілька великих ISM/component mutation етапів в одному Tick після preload, це треба рознести по кадрах;
+- пункт 2 потребує реальної перевірки `death -> 10 s -> respawn`, HUD та input;
+- пункт 8 потребує реальної перевірки всіх tabs/controls та Apply/Save/Cancel/Defaults, а також доведення layout до фінального вигляду;
+- гранати, arsenal, production БТР-4, стадіон/музей, HUD і фінальний runtime acceptance залишаються відкритими.
 
 ### Наступний пункт
-Продовжити пункт 1: знайти й прибрати решту post-spawn blocking startup owners, паралельно не втрачати новий CRITICAL пункт 8 `Налаштування`; після стабілізації startup перейти до death/spectator/Gameplay Debugger.
+Продовжити пункт 1/10: staged materialization для `OCAuthoredWorldSurfaceUpgradeSubsystem`, щоб ground/roads/sidewalks/park paths/fences не мутувалися одним кадром. Після цього перейти до пункту 3: grenade first-use preload/HUD/explosion cleanup.
