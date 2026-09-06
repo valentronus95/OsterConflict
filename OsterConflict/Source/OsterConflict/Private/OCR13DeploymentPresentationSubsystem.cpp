@@ -117,7 +117,7 @@ void UOCR13DeploymentPresentationSubsystem::Tick(float DeltaTime)
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_DEPLOYMENT_PRESENTATION_READY update_hz=10 frontend_exclusion=1 opaque_leak=0 flow_alpha=0.94 section_alpha=0.90"));
         UE_LOG(LogTemp, Display,
-            TEXT("PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY update_hz=10 root_scan=cache_miss visibility_writes=authoritative style_writes=once_per_root"));
+            TEXT("PASS40_DEPLOYMENT_PRESENTATION_BUDGET_READY update_hz=10 root_scan=cache_miss visibility_writes=deduped style_writes=once_per_root"));
     }
 }
 
@@ -213,8 +213,10 @@ void UOCR13DeploymentPresentationSubsystem::ApplyWidgetStyle(UBorder* FlowPanel)
 
 void UOCR13DeploymentPresentationSubsystem::SetPresentationVisible(const bool bVisible)
 {
-    // Reassert the actual high-Z presentation state. This is cheap at 10 Hz and prevents another UI
-    // owner from leaving a stale shade visible after frontend/deployment handoff.
+    if (bPresentationVisibilityValid && bLastPresentationVisible == bVisible) return;
+
+    // Only write Slate visibility when ownership actually changes. Rewriting this state at 10 Hz was cheap
+    // individually, but it still invalidated the high-Z deployment subtree for no visual change.
     const ESlateVisibility Visibility = bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
     if (BackdropBlur.IsValid()) BackdropBlur->SetVisibility(ESlateVisibility::Collapsed);
     if (BackdropShade.IsValid())
