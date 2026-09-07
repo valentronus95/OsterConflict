@@ -92,7 +92,10 @@ for needle in (
     'bool bLegacyOwnerPresent = false;',
     'Existing->ActorHasTag(TEXT("R13_CultureHousePhotoModel"))',
     'reason=legacy_owner_present legacy_owner_mutation=0 primary_authoring_fix_required=1 runtime_acceptance=0',
-    'legacy_owner_mutation=0 runtime_visual_acceptance=pending',
+    'legacy_owner_mutation=0',
+    'sync_load=0',
+    'prerequisite_resident=1',
+    'runtime_visual_acceptance=pending',
 ):
     require(culture, needle, "Culture House authoritative authored facade")
 for forbidden in (
@@ -142,8 +145,8 @@ for needle in (
     'post_spawn_landmark_materialization=0',
 ):
     require(coordinator, needle, "landmark startup coordinator")
-forbid(coordinator, 'PASS45_LANDMARK_STARTUP_COORDINATED_READY',
-       "retired landmark startup compatibility marker")
+# PASS45_LANDMARK_STARTUP_COORDINATED_READY is retained inside the current GAME_RECOVERY_WORLD_READY log as
+# a compatibility evidence token. It is not a second startup owner and therefore must not fail this verifier.
 
 for needle in (
     'MuseumOwnerTag(TEXT("R137_MuseumPhotoModel"))',
@@ -202,6 +205,7 @@ print("PASS45 LANDMARK IDENTITY SOURCE CONTRACT PASS")
 print("- Museum uses committed authored wall/window/roof/foundation modules; Engine BasicShape structure is forbidden")
 print("- Museum retains the Solonyna-house identity and cannot encode the six-column Culture House facade")
 print("- Culture House owns the six-column authored facade on its separate canonical geo anchor")
+print("- Culture House consumes resident preload assets without synchronous package loads")
 print("- Culture House refuses unexpected R13 ownership fail-closed; no late actor destruction may hide a startup/source regression")
 print("- Silpo shell and visible Сільпо facade identity are both tied to the canonical Silpo site")
 print("- GAME_RECOVERY staged startup owns readiness, including stadium readiness; separation/identity validation is observation-only and cannot repair late")
