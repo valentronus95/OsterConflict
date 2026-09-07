@@ -76,6 +76,7 @@ for marker in (
     "GAME_RECOVERY_STADIUM_ASYNC_PRELOAD_FAIL",
     "GAME_RECOVERY_STADIUM_PRESENTATION_READY",
     "museum_r138_collision_prerequisite=1",
+    "prerequisite_residency=world_lifetime",
     "sync_fallback=0",
     "runtime_acceptance=0",
 ):
@@ -85,8 +86,13 @@ require('/Engine/BasicShapes/Cube.Cube' in r138_cpp and 'LoadObject<UStaticMesh>
         "R138 historical collision consumer is still identified explicitly")
 require('/Engine/BasicShapes/Cube.Cube' in activation_cpp,
         "R138 collision cube is resident before landmark startup may advance")
-require("PreloadHandle.Reset();" not in activation_cpp.split("if (bPresentationReady)")[0],
-        "preload handle stays alive through authored stadium activation and R138 prerequisite handoff")
+
+success_tail = activation_cpp.split("if (bPresentationReady)", 1)[1]
+success_block = success_tail.split("else", 1)[0]
+require("PreloadHandle.Reset();" not in success_block,
+        "successful landmark preload retains its handle through R138 startup")
+require("PreloadHandle.Reset();" in success_tail.split("else", 1)[1],
+        "failed stadium presentation releases the preload handle")
 
 require('#include "OCGameRecoveryStadiumActivationSubsystem.h"' in coordinator_cpp,
         "landmark startup coordinator knows the stadium readiness owner")
@@ -100,7 +106,8 @@ require("stadium_ready=1" in coordinator_cpp,
 print("GAME RECOVERY STADIUM PRELOAD VERIFY PASS")
 print("- quarantined historical owner stays abstract")
 print("- concrete recovery activation preloads the exact stadium payload asynchronously")
-print("- R138 museum collision cube is preloaded before landmark startup can advance, preventing a disk-blocking historical LoadObject")
+print("- R138 museum collision cube is preloaded and kept resident before landmark startup can advance")
+print("- the historical R138 LoadObject therefore resolves resident content instead of becoming disk-blocking IO")
 print("- canonical stadium authoring is reused only after preload resolution")
 print("- landmark/world readiness cannot complete before the stadium actor exists")
 print("STATUS: SOURCE/PRELOAD CONTRACT ONLY; UE 5.8 rendered stadium/museum acceptance remains pending")
