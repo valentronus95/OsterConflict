@@ -3,6 +3,9 @@
 #include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
 #include "OCBlock0GroundFoundationSubsystem.h"
 #include "OCLandmarkStartupCoordinatorSubsystem.h"
+#include "OCParkGroundAuthoredUpgradeSubsystem.h"
+#include "OCParkHardscapeAuthoredUpgradeSubsystem.h"
+#include "OCParkMemorialApproachAuthoredUpgradeSubsystem.h"
 #include "OCParkSemanticAuthoredUpgradeSubsystem.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
@@ -51,8 +54,6 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
 
     if (!bBotsExplicit && !bPopulationExplicit && !bBotFillExplicit)
     {
-        // Pass 44: a normal local visual/playtest launch must measure the actual map/content,
-        // not a hidden 16-player AI workload that starts roughly one second after deployment.
         TargetPopulation = 0;
         bAutoFillBots = false;
         UE_LOG(LogTemp, Display,
@@ -74,10 +75,6 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
         return;
     }
 
-    // PASS45 P0: UWorldSubsystem::OnWorldBeginPlay runs before AOCGameMode::BeginPlay. Block0 therefore needs
-    // the lightweight sector actor before the legacy SpawnOsterCenterSector() path runs. The sector constructor
-    // no longer synchronously resolves KiteDemo tree packages, so this ordering repair does not move the rejected
-    // HillTree_02 / ScotsPine startup dependency back into pre-tick initialization.
     TArray<AOCWorldSectorOster*> ExistingSectors;
     GatherLiveOsterSectors(GetWorld(), ExistingSectors);
     if (ExistingSectors.Num() > 1)
@@ -127,9 +124,6 @@ void AOCGameModeRuntimeSafe::BeginPlay()
         return;
     }
 
-    // The base GameMode still owns all normal gameplay population and currently calls SpawnOsterCenterSector(),
-    // which creates a second sector. Keep its non-sector work intact, but retire only that duplicate before the
-    // first gameplay tick so every runtime subsystem sees one canonical Oster sector after BeginPlay completes.
     TArray<AOCWorldSectorOster*> Sectors;
     GatherLiveOsterSectors(GetWorld(), Sectors);
 
@@ -249,6 +243,57 @@ bool AOCGameModeRuntimeSafe::IsRecoveryWorldReady(FString& OutPendingStages, boo
         Pending.Add(TEXT("park_semantic"));
     }
 
+    const UOCParkGroundAuthoredUpgradeSubsystem* ParkGround =
+        World->GetSubsystem<UOCParkGroundAuthoredUpgradeSubsystem>();
+    if (!ParkGround)
+    {
+        Pending.Add(TEXT("park_ground_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (ParkGround->HasParkGroundFailed())
+    {
+        Pending.Add(TEXT("park_ground_failed"));
+        bOutHardFailure = true;
+    }
+    else if (!ParkGround->IsParkGroundReady())
+    {
+        Pending.Add(TEXT("park_ground"));
+    }
+
+    const UOCParkHardscapeAuthoredUpgradeSubsystem* ParkHardscape =
+        World->GetSubsystem<UOCParkHardscapeAuthoredUpgradeSubsystem>();
+    if (!ParkHardscape)
+    {
+        Pending.Add(TEXT("park_hardscape_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (ParkHardscape->HasParkHardscapeFailed())
+    {
+        Pending.Add(TEXT("park_hardscape_failed"));
+        bOutHardFailure = true;
+    }
+    else if (!ParkHardscape->IsParkHardscapeReady())
+    {
+        Pending.Add(TEXT("park_hardscape"));
+    }
+
+    const UOCParkMemorialApproachAuthoredUpgradeSubsystem* ParkMemorial =
+        World->GetSubsystem<UOCParkMemorialApproachAuthoredUpgradeSubsystem>();
+    if (!ParkMemorial)
+    {
+        Pending.Add(TEXT("park_memorial_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (ParkMemorial->HasParkMemorialApproachFailed())
+    {
+        Pending.Add(TEXT("park_memorial_failed"));
+        bOutHardFailure = true;
+    }
+    else if (!ParkMemorial->IsParkMemorialApproachReady())
+    {
+        Pending.Add(TEXT("park_memorial"));
+    }
+
     OutPendingStages = Pending.Num() > 0 ? FString::Join(Pending, TEXT(",")) : TEXT("none");
     return Pending.Num() == 0;
 }
@@ -305,7 +350,7 @@ void AOCGameModeRuntimeSafe::PollRestartWhenWorldReady(TWeakObjectPtr<AControlle
     {
         ClearPendingWorldReadyRestart(WeakController);
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f ground_ready=1 surface_ready=1 landmarks_ready=1 park_semantic_ready=1 player_spawn_release=1 post_spawn_world_loading=0"),
+            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f ground_ready=1 surface_ready=1 landmarks_ready=1 park_semantic_ready=1 park_ground_ready=1 park_hardscape_ready=1 park_memorial_ready=1 player_spawn_release=1 post_spawn_world_loading=0"),
             WaitMilliseconds);
         RestartPlayer(Controller);
         return;
@@ -394,8 +439,6 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     }
     else
     {
-        // Fail-safe only. Normal runtime should always have the canonical team BASE actor.
-        // Keep this near the Museum rather than falling back to the old map center/edge logic.
         const float Side = Team == EOCTeam::TeamTwo ? 1.0f : -1.0f;
         const FVector FallbackLocation = Museum + FVector(1400.0f * Side, -2400.0f, 200.0f);
         const FRotator FallbackRotation = (Museum - FallbackLocation).Rotation();
@@ -420,8 +463,6 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     float ActualDistanceCm = FVector::Dist2D(SpawnedPawn->GetActorLocation(), Museum);
     if (ActualDistanceCm > MaxMuseumBaseDistanceCm)
     {
-        // Collision adjustment or a stale spawn owner must never silently move the real player back
-        // to the giant legacy map. Correct the live pawn and leave explicit runtime evidence.
         SpawnedPawn->SetActorLocation(
             SpawnTransform.GetLocation(),
             false,
