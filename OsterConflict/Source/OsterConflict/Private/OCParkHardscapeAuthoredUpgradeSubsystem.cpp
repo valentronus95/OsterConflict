@@ -1,14 +1,15 @@
 #include "OCParkHardscapeAuthoredUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -16,8 +17,6 @@ namespace
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1");
     const TCHAR* AuthoredConcreteMaterialPath =
         TEXT("/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_1_Inst.M_Concrete_1_Inst");
-    constexpr float HardscapeUpgradeDelaySeconds = 0.85f;
-    constexpr float OwnerResolutionTimeoutSeconds = 5.0f;
 
     struct FSurfaceUpgradePlan
     {
@@ -197,35 +196,62 @@ bool UOCParkHardscapeAuthoredUpgradeSubsystem::ShouldCreateSubsystem(UObject* Ou
         (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
-TStatId UOCParkHardscapeAuthoredUpgradeSubsystem::GetStatId() const
+void UOCParkHardscapeAuthoredUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
-    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCParkHardscapeAuthoredUpgradeSubsystem, STATGROUP_Tickables);
-}
+    Super::OnWorldBeginPlay(InWorld);
 
-void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
-{
-    if (bFinished) return;
+    HardscapePreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = false;
+    bSucceeded = false;
 
-    UWorld* World = GetWorld();
-    if (!World || !World->IsGameWorld()) return;
-    if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+    if (!InWorld.IsGameWorld()) return;
+    if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
+    BeginHardscapePreload();
+}
+
+void UOCParkHardscapeAuthoredUpgradeSubsystem::BeginHardscapePreload()
+{
+    if (bPreloadRequested || bFinished) return;
+    bPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    Paths.Emplace(AuthoredSurfaceMeshPath);
+    Paths.Emplace(AuthoredConcreteMaterialPath);
+    HardscapePreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCParkHardscapeAuthoredUpgradeSubsystem::HandleHardscapePreloadComplete),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryParkHardscapePreload"));
+
+    if (!HardscapePreloadHandle.IsValid())
     {
-        ElapsedSeconds = 0.0f;
+        bFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_CONTENT_GAP plane_mesh_loaded=0 concrete_material_loaded=0 expected_mesh=SM_Plane_1x1 expected_material=M_Concrete_1_Inst memorial_surface=1 skate_surface=1 pre_spawn=1 async_preload=0 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
         return;
     }
 
-    ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    if (ElapsedSeconds < HardscapeUpgradeDelaySeconds) return;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_PARK_HARDSCAPE_PRELOAD_BEGIN assets=2 async=1 pre_spawn=1 sync_load=0"));
+}
+
+void UOCParkHardscapeAuthoredUpgradeSubsystem::HandleHardscapePreloadComplete()
+{
+    if (bFinished) return;
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld())
+    {
+        bFinished = true;
+        return;
+    }
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -236,11 +262,9 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
     if (SectorCount != 1 || !Sector)
     {
-        if (ElapsedSeconds < OwnerResolutionTimeoutSeconds) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=oster_sector_count_%d gate_k_complete=0 runtime_acceptance=0"),
-            SectorCount);
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=oster_sector_count_%d pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"), SectorCount);
         return;
     }
 
@@ -260,10 +284,9 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         ParkSkateRamps && ParkSkateRamps->GetInstanceCount() == 2;
     if (!bOwnerContractReady)
     {
-        if (ElapsedSeconds < OwnerResolutionTimeoutSeconds) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=semantic_owner_contract legacy_memorial=%d legacy_skate=%d memorial_surface=%d memorial_monument=%d skate_surface=%d skate_ramps=%d primary_source_required=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=semantic_owner_contract legacy_memorial=%d legacy_skate=%d memorial_surface=%d memorial_monument=%d skate_surface=%d skate_ramps=%d primary_source_required=1 normalization_bridge=0 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             LegacyMemorial ? LegacyMemorial->GetInstanceCount() : -1,
             LegacySkate ? LegacySkate->GetInstanceCount() : -1,
             ParkMemorialSurface ? ParkMemorialSurface->GetInstanceCount() : -1,
@@ -273,15 +296,14 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    UStaticMesh* SurfaceMesh = LoadObject<UStaticMesh>(nullptr, AuthoredSurfaceMeshPath);
-    UMaterialInterface* ConcreteMaterial = LoadObject<UMaterialInterface>(nullptr, AuthoredConcreteMaterialPath);
+    UStaticMesh* SurfaceMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredSurfaceMeshPath).ResolveObject());
+    UMaterialInterface* ConcreteMaterial = Cast<UMaterialInterface>(FSoftObjectPath(AuthoredConcreteMaterialPath).ResolveObject());
     if (!SurfaceMesh || !ConcreteMaterial)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_CONTENT_GAP plane_mesh_loaded=%d concrete_material_loaded=%d expected_mesh=SM_Plane_1x1 expected_material=M_Concrete_1_Inst memorial_surface=1 skate_surface=1 gate_k_complete=0 runtime_acceptance=0"),
-            SurfaceMesh ? 1 : 0,
-            ConcreteMaterial ? 1 : 0);
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_CONTENT_GAP plane_mesh_loaded=%d concrete_material_loaded=%d expected_mesh=SM_Plane_1x1 expected_material=M_Concrete_1_Inst memorial_surface=1 skate_surface=1 pre_spawn=1 async_preload=1 resident_only=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
+            SurfaceMesh ? 1 : 0, ConcreteMaterial ? 1 : 0);
         return;
     }
 
@@ -298,7 +320,7 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=%s preflight=0 mutation=0 gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=%s preflight=0 mutation=0 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             Failure.IsEmpty() ? TEXT("surface_preflight_failed") : *Failure);
         return;
     }
@@ -311,9 +333,8 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         RestorePlan(MemorialPlan);
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=transaction_write_failed memorial_applied=%d skate_applied=%d rollback=1 gate_k_complete=0 runtime_acceptance=0"),
-            bMemorialApplied ? 1 : 0,
-            bSkateApplied ? 1 : 0);
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=transaction_write_failed memorial_applied=%d skate_applied=%d rollback=1 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
+            bMemorialApplied ? 1 : 0, bSkateApplied ? 1 : 0);
         return;
     }
 
@@ -337,12 +358,23 @@ void UOCParkHardscapeAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         RestorePlan(MemorialPlan);
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=postcondition rollback=1 untouched_content_gaps=%d gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_FAIL reason=postcondition rollback=1 untouched_content_gaps=%d pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             bUntouchedContentGapsPreserved ? 1 : 0);
         return;
     }
 
     bFinished = true;
+    bSucceeded = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_READY memorial_surface=1 skate_surface=1 memorial_monument_untouched=1 skate_ramps_untouched=2 mesh=SM_Plane_1x1 material=M_Concrete_1_Inst xy_footprint_preserved=1 source_top_preserved=1 family_scope_exact=1 primary_authoring=1 normalization_bridge=0 remaining_content_gap_instances=3 gate_k_complete=0 runtime_acceptance=0"));
+        TEXT("PASS45_AUTHORED_PARK_HARDSCAPE_READY memorial_surface=1 skate_surface=1 memorial_monument_untouched=1 skate_ramps_untouched=2 mesh=SM_Plane_1x1 material=M_Concrete_1_Inst xy_footprint_preserved=1 source_top_preserved=1 family_scope_exact=1 primary_authoring=1 normalization_bridge=0 remaining_content_gap_instances=3 async_preloaded=1 prerequisite_resident=1 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
+}
+
+void UOCParkHardscapeAuthoredUpgradeSubsystem::Deinitialize()
+{
+    if (HardscapePreloadHandle.IsValid()) HardscapePreloadHandle->CancelHandle();
+    HardscapePreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = true;
+    bSucceeded = false;
+    Super::Deinitialize();
 }
