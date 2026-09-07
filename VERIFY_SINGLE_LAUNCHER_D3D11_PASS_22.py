@@ -59,7 +59,7 @@ for needle in (
 for needle in (
     "subprocess.run(runtime_cmd", "/Game/Maps/OsterConflict_Runtime", '"-game", "-Frontend"',
     '"-d3d11", "-sm5", "-nohdr"', "PASS45_BATCH_RUNTIME_REPORT.txt",
-    "Проганяю ВСІ незалежні етапи", "Проганяю ВСІ post-runtime verifier-и",
+    "C++ чистий. Проганяю всі content/asset diagnostics", "Проганяю ВСІ post-runtime verifier-и",
 ):
     require(batch_py, needle, "batch one-runtime contract")
 if batch_py.count("subprocess.run(runtime_cmd") != 1:
