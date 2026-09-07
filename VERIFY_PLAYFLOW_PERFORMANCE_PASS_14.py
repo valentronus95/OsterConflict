@@ -165,11 +165,15 @@ launcher_parts = main_launcher.split(':quick_normal_game', 1)
 if len(launcher_parts) != 2:
     raise SystemExit("PASS14 VERIFY FAIL: canonical gameplay launcher missing quick-normal split")
 strict_launcher, quick_launcher = launcher_parts
-for needle in ('-fullscreen', 't.MaxFPS 60'):
+
+# One shared QUALITY_CMDS definition intentionally feeds both strict and quick-normal routes. The old verifier
+# incorrectly required the literal t.MaxFPS text to be duplicated after the quick-normal label.
+require(main_launcher, 'set "QUALITY_CMDS=t.MaxFPS 60,', "shared 60 FPS quality command")
+for needle in ('-fullscreen', '-ExecCmds="%QUALITY_CMDS%"'):
     require(strict_launcher, needle, "Pass45 strict recovery display/thermal request")
 forbid(strict_launcher, '-windowed', "strict recovery route must not force windowed mode")
 require(quick_launcher, '-windowed', "quick normal route must remain windowed for desktop recovery")
-require(quick_launcher, 't.MaxFPS 60', "quick normal route must retain 60 FPS cap")
+require(quick_launcher, '-ExecCmds="%QUALITY_CMDS%"', "quick normal route must reuse shared 60 FPS quality commands")
 
 runtime_markers = [
     'RUN_R14_CURRENT_GAMEPLAY.cmd', 'PASS14_HOST_TRAVEL_BEGIN',
@@ -191,7 +195,7 @@ else:
 print("- hosted gameplay uses the current Balanced production profile; LowCPU remains an explicit performance profile, not a hidden server default")
 print("- Block0 Full/LowCPU foliage share the compact Oster bounds; LowCPU uses a coarser grid and shorter culls instead of a spatial crop")
 print("- Full batch stays <=32 cells and LowCPU <=48 cells while generation remains incremental at 50 ms cadence")
+print("- strict and quick-normal launchers share the same 60 FPS quality command; only window mode differs")
 print("- Pass 14 FPS evidence markers remain compatible with adaptive recovery")
-print("- strict Pass45 acceptance remains fullscreen; quick normal is windowed only for recoverable startup testing")
 print("- Pass45 Gate C/H distinguishes strict launcher request from live UE t.MaxFPS/fullscreen viewport evidence")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime acceptance still required")
