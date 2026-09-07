@@ -130,22 +130,30 @@ if manifest_text:
         req(donor.get("runtime_ready") is False, f"{key} manifest falsely promotes runtime readiness")
         req(donor.get("ue_import_pending") is True, f"{key} manifest lost UE import pending truth")
 
-# Source routing is allowed before UE import only when it remains fail-closed: LoadSound(null) must leave the
-# fallback arrays empty. The exact repository-owned donor object paths are therefore source-prewired, while the
-# missing .uasset files remain factual CONTENT GAP until the strict UE 5.8 import/fresh-load route succeeds.
+# Source routing is allowed before UE import only when it remains fail-closed. GAME_RECOVERY no longer permits
+# first-use LoadObject/LoadSound here: fallback sound packages are requested asynchronously at BeginPlay and the
+# action route can only ResolveObject from resident memory. A missing donor therefore leaves the action array empty
+# and remains a factual CONTENT GAP without stalling the gameplay thread.
 for needle in (
     "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
     "/Game/R13/Audio/shotguncock.shotguncock",
     "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
-    "if (USoundBase* Bolt = LoadSound",
+    "RequestAsyncLoad(",
+    "ResolveResidentSound",
+    "FSoftObjectPath(AssetPath).ResolveObject()",
+    "if (USoundBase* Bolt = ResolveResidentSound(BoltPath))",
     "RepositoryFallbackProfile->BoltCycle.Add(Bolt);",
-    "if (USoundBase* Pump = LoadSound",
+    "if (USoundBase* Pump = ResolveResidentSound(PumpPath))",
     "RepositoryFallbackProfile->PumpCycle.Add(Pump);",
-    "if (USoundBase* Lever = LoadSound",
+    "if (USoundBase* Lever = ResolveResidentSound(LeverPath))",
     "RepositoryFallbackProfile->LeverCycle.Add(Lever);",
+    "GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_GAP",
     "PASS45_WEAPON_AUDIO_CONTENT_GAP",
+    "first_use_sync_load=0",
 ):
-    req(needle in audio_cpp, f"manual-action fail-closed source routing missing: {needle}")
+    req(needle in audio_cpp, f"manual-action fail-closed resident source routing missing: {needle}")
+req("LoadObject<" not in audio_cpp,
+    "manual-action audio source regained blocking LoadObject after GAME_RECOVERY async cutover")
 
 for needle in (
     "Current repository-owned BoltCycle runtime asset: **CONTENT GAP**",
@@ -158,8 +166,6 @@ for needle in (
 ):
     req(needle in provenance, f"manual-action audio fail-closed rule missing: {needle}")
 
-# The compact canonical TZ replaced the old dated rejection sentence and verbose item-16 wording. Guard the
-# current semantics instead: runtime is still rejected, item 16 remains open, and real mechanical audio is mandatory.
 req("PASS45 remains **RUNTIME REJECTED**" in tz,
     "canonical Pass45 TZ lost current factual runtime rejection")
 req("16. [ ] Finish authored M700 / Remington 870 / Lever Action moving-part presentation and real mechanical audio" in tz,
@@ -177,6 +183,6 @@ print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
 print("- current CC0 lever/bolt transports and repository-owned LFS derivative identities are pinned")
 print("- current advertised preview bytes are audit-only and cannot auto-replace pinned bytes")
 print("- manifest remains runtime_ready=0 / ue_import_pending=1 / item16_checked=0")
-print("- bolt/pump/lever source routes are guarded by LoadSound; absent donor .uasset files remain fail-visible content gaps")
+print("- bolt/pump/lever source routes are fail-closed behind async preload plus resident ResolveObject; first-use blocking load is forbidden")
 print("- item 16 stays open until UE SoundWave import/fresh-load, authored moving-part animation and UE 5.8 acceptance")
 print("STATUS: SOURCE PAYLOAD + FAIL-CLOSED ROUTING VERIFIED; UE IMPORT / RUNTIME ACCEPTANCE PENDING")
