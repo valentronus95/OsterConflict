@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent
 START = ROOT / "START_HERE.cmd"
 NORMAL = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
 BATCH_CMD = ROOT / "OsterConflict" / "PASS45_BATCH_RUNTIME.cmd"
+BATCH_ENTRY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_progress_entry.py"
+BATCH_RUNTIMEFIX = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_runtimefix.py"
 BATCH_PY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 RECOVERY = ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"
 
@@ -23,6 +25,8 @@ def require(text: str, needle: str, label: str) -> None:
 start = read(START)
 normal = read(NORMAL)
 batch_cmd = read(BATCH_CMD)
+batch_entry = read(BATCH_ENTRY)
+batch_runtimefix = read(BATCH_RUNTIMEFIX)
 batch_py = read(BATCH_PY)
 recovery = read(RECOVERY)
 
@@ -37,7 +41,21 @@ for internal in ('RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd', 'RUN_R15_R
     if internal in start:
         raise SystemExit(f"PASS22 VERIFY FAIL: internal launcher leaked into START_HERE: {internal}")
 
-require(batch_cmd, "pass45_batch_runtime.py", "batch wrapper")
+# Pass45 now has a progress/recovery wrapper in front of the canonical one-runtime orchestrator.
+# Validate the whole chain instead of requiring the .cmd file to invoke the old base script directly.
+require(batch_cmd, "pass45_batch_runtime_progress_entry.py", "batch wrapper entry")
+for needle in ("import pass45_batch_runtime_progress as progress", 'with_name("pass45_batch_runtime_runtimefix.py")'):
+    require(batch_entry, needle, "batch progress entry")
+for needle in (
+    "import pass45_batch_runtime as base",
+    "subprocess.run = _patched_subprocess_run",
+    'rewritten.append("-windowed")',
+    'rewritten.append("-ResX=1280")',
+    'rewritten.append("-ResY=720")',
+    'rewritten.append("-norhithread")',
+):
+    require(batch_runtimefix, needle, "batch responsive-window runtime shim")
+
 for needle in (
     "subprocess.run(runtime_cmd", "/Game/Maps/OsterConflict_Runtime", '"-game", "-Frontend"',
     '"-d3d11", "-sm5", "-nohdr"', "PASS45_BATCH_RUNTIME_REPORT.txt",
@@ -50,7 +68,7 @@ for forbidden in ("-d3d12", "-dx12", '"-sm6"'):
     if forbidden in batch_py.lower():
         raise SystemExit(f"PASS22 VERIFY FAIL: batch runtime re-enabled forbidden renderer flag {forbidden}")
 for destructive in ("git reset", "git clean", "git stash", "checkout --", "restore --"):
-    if destructive in batch_py.lower():
+    if destructive in (batch_py + batch_runtimefix + batch_entry).lower():
         raise SystemExit(f"PASS22 VERIFY FAIL: batch runtime mutates local Changes: {destructive}")
 
 for needle in (
@@ -69,6 +87,7 @@ for needle in ("-d3d11", "-sm5", "-nohdr", "[LOCAL CHANGE]"):
 
 print("SINGLE LAUNCHER / D3D11 PASS22 + PASS45 BATCH SOURCE CONTRACT PASS")
 print("- START_HERE is the only user-facing entry point")
+print("- batch wrapper chain keeps one canonical gameplay runtime while adding progress/recovery and a responsive test window")
 print("- DX11/SM5/no-HDR remains canonical; option 3 owns explicit -norhithread compatibility")
 print("- normal route suppresses the separate splash and restores 100% normal visual quality")
 print("- local Changes are reported and preserved, never reset/stashed/cleaned")
