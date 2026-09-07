@@ -215,9 +215,9 @@
 
 ---
 
-## Поточний checkpoint — 2026-09-06
+## Поточний checkpoint — 2026-09-07
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **36%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **39%**.
 
 ### 🟢 Зроблено / source-closed
 - пункт 1/10: критичний startup переведений на pre-spawn readiness; authored world surfaces materialize staged по кадрах, foliage async/staged, deployment чекає фактичний `world ready`;
@@ -225,11 +225,16 @@
 - пункт 3: grenade mesh/material/VFX/audio preload виконується async до deployment release; first-use blocking loads прибрані, smoke/frag presentation та cleanup source-closed;
 - пункт 4: sandbox weapon arsenal стабілізований, physics dropping/helper/basic-shape visuals retired source-side;
 - пункт 5/10: production BTR-4, HMMWV/M2/gun-truck presentation переведені на preload/`ResolveObject()` без runtime `LoadObject()`; старі primitive/proxy visuals fail-closed;
+- пункт 6/10 частково: canonical stadium recovery owner async-preload-ить точний stadium payload, gates `GAME_RECOVERY_WORLD_READY` і тримає prerequisite residency; R13.8 museum collision більше не робить blocking `LoadObject`;
+- пункт 6/10 частково: museum preload розширений з 15 до **25 exact assets**, успішний handle зберігається до `Deinitialize`, а R14.0/R14.2/R14.3/R14.4/R14.5 споживають resident assets через `ResolveObject()` без package load;
+- source verifier `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` тепер захищає stadium + full museum R13.8/R14.x preload contract і забороняє повернення `LoadObject` у цих staged owners;
 - пункт 8: SettingsPanel source-side повернутий у enabled/visible state і production styling;
-- exact HEAD `8712d4bfb4334cee84fc2cf5be192c7010862e87`: **101/101 CI workflow runs SUCCESS**; PR #94 лишається OPEN/UNMERGED.
+- canonical branch: `fix/pass45-runtime-rejection-material-closure-20260826`; source checkpoint HEAD перед цим docs-комітом `11d8ecb2341aafe46fb66d37f2264f38fe636b61`; `main` = `a1ad0e200611911102c48180956d82f73d0d8fc3`; branch була **1307 ahead / 0 behind**; PR #94 лишається OPEN/UNMERGED.
 
 ### 🟡 У роботі
-- пункт 6: наступний safe-remote блок — звірити canonical stadium/museum/map owners і закрити перший фактичний source gap без дублювання вже наявних Pass45/R14 змін.
+- exact-head CI після full museum preload closure запущений; на момент checkpoint більшість workflow runs queued/in-progress, тому старий статус `101/101 SUCCESS` більше не використовується;
+- пункт 6/10: продовжити audit Silpo/Culture House та інших landmark stages на blocking `LoadObject`, duplicate ownership і post-spawn materialization;
+- пункт 1/10: окремо перевірити не тільки disk-load, а й single-frame ISM/component registration у stadium/museum builds; async preload сам по собі не доводить відсутність game-thread hitch.
 
 ### 🔴 Ще не ACCEPTED
 - фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
@@ -241,4 +246,4 @@
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункт 6: audit stadium/museum/canonical map ownership, потім виправити перший підтверджений source gap. Runtime acceptance не підміняти CI/source evidence.
+Пункти 6/10: audit Silpo/Culture House та решти landmark startup на blocking loads/duplicate owners; потім виміряти й за потреби розкласти по кадрах stadium/museum ISM/component materialization. Runtime acceptance не підміняти CI/source evidence.
