@@ -8,17 +8,22 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
 {
     const FName LocalVisualTag(TEXT("OC_LocalInboxWeaponVisual"));
     const FName LocalBoundTag(TEXT("OC_LocalInboxWeaponBound"));
+    const FName LocalPreloadPendingTag(TEXT("OC_LocalInboxWeaponPreloadPending"));
+    const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
 
     template <typename TMesh, typename TComponent>
     TComponent* AddVisual(AOCWeaponBase* Weapon, USceneComponent* Root, TMesh* Mesh,
@@ -44,6 +49,7 @@ namespace
         Visual->SetCanEverAffectNavigation(false);
         Visual->SetCastShadow(true);
         Visual->ComponentTags.Add(LocalVisualTag);
+        Visual->ComponentTags.Add(ProductionVisualTag);
         Weapon->AddInstanceComponent(Visual);
         Visual->RegisterComponent();
         return Visual;
@@ -59,6 +65,7 @@ namespace
         {
             if (Component && !Component->ComponentHasTag(LocalVisualTag))
             {
+                // Preserve the component as physics/pickup authority. Only its old rendering is retired.
                 Component->SetVisibility(false, false);
                 Component->SetHiddenInGame(true, false);
             }
@@ -100,7 +107,9 @@ void UOCLocalInboxWeaponOverrideSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCLocalInboxWeaponOverrideSubsystem::HandleActorSpawned));
-    UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WEAPON_OVERRIDE_READY initial_bound=%d spawn_hook=1"), BoundAtStart);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LOCAL_WEAPON_OVERRIDE_READY initial_bound=%d spawn_hook=1 blocking_load=0 async_missing_assets=1"),
+        BoundAtStart);
 }
 
 void UOCLocalInboxWeaponOverrideSubsystem::Deinitialize()
@@ -110,6 +119,13 @@ void UOCLocalInboxWeaponOverrideSubsystem::Deinitialize()
         if (ActorSpawnedHandle.IsValid()) World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
     }
     ActorSpawnedHandle.Reset();
+
+    for (const TSharedPtr<FStreamableHandle>& Handle : ResidentPreloadHandles)
+    {
+        if (Handle.IsValid()) Handle->CancelHandle();
+    }
+    ResidentPreloadHandles.Reset();
+
     Super::Deinitialize();
 }
 
@@ -250,30 +266,96 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
 
 void UOCLocalInboxWeaponOverrideSubsystem::ApplyLocalVisual(AOCWeaponBase* Weapon)
 {
-    if (!Weapon || Weapon->ActorHasTag(LocalBoundTag)) return;
+    if (!Weapon || Weapon->ActorHasTag(LocalBoundTag) || Weapon->ActorHasTag(LocalPreloadPendingTag)) return;
 
     FString ObjectPath;
     FString Category;
     float DesiredLengthCm = 100.0f;
     if (!ResolveVisualForWeapon(Weapon, ObjectPath, DesiredLengthCm, Category)) return;
 
-    USceneComponent* Root = Weapon->GetRootComponent();
-    if (!Root) return;
+    const FSoftObjectPath AssetPath(ObjectPath);
+    if (!AssetPath.IsValid())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_FAIL reason=invalid_path category=%s asset=%s sync_load=0"),
+            *Category, *ObjectPath);
+        return;
+    }
 
+    if (AssetPath.ResolveObject())
+    {
+        ApplyResidentLocalVisual(Weapon, ObjectPath, DesiredLengthCm, Category);
+        return;
+    }
+
+    Weapon->Tags.AddUnique(LocalPreloadPendingTag);
+    const TWeakObjectPtr<AOCWeaponBase> WeakWeapon(Weapon);
+    TArray<FSoftObjectPath> Paths;
+    Paths.Add(AssetPath);
+    TSharedPtr<FStreamableHandle> Handle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(
+            this,
+            &UOCLocalInboxWeaponOverrideSubsystem::CompleteLocalVisualPreload,
+            WeakWeapon,
+            ObjectPath,
+            DesiredLengthCm,
+            Category));
+
+    if (!Handle.IsValid())
+    {
+        Weapon->Tags.Remove(LocalPreloadPendingTag);
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_FAIL reason=invalid_handle category=%s asset=%s sync_load=0"),
+            *Category, *ObjectPath);
+        return;
+    }
+
+    ResidentPreloadHandles.Add(Handle);
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_BEGIN weapon=%s category=%s asset=%s async=1 sync_load=0"),
+        *Weapon->GetName(), *Category, *ObjectPath);
+}
+
+void UOCLocalInboxWeaponOverrideSubsystem::CompleteLocalVisualPreload(
+    TWeakObjectPtr<AOCWeaponBase> WeakWeapon,
+    FString ObjectPath,
+    float DesiredLengthCm,
+    FString Category)
+{
+    AOCWeaponBase* Weapon = WeakWeapon.Get();
+    if (!Weapon || Weapon->IsActorBeingDestroyed()) return;
+
+    Weapon->Tags.Remove(LocalPreloadPendingTag);
+    ApplyResidentLocalVisual(Weapon, ObjectPath, DesiredLengthCm, Category);
+}
+
+void UOCLocalInboxWeaponOverrideSubsystem::ApplyResidentLocalVisual(
+    AOCWeaponBase* Weapon,
+    const FString& ObjectPath,
+    const float DesiredLengthCm,
+    const FString& Category)
+{
+    if (!Weapon || Weapon->ActorHasTag(LocalBoundTag)) return;
+
+    USceneComponent* VisualRoot = Weapon->GetWeaponVisualRoot();
+    if (!VisualRoot) return;
+
+    UObject* ResolvedAsset = FSoftObjectPath(ObjectPath).ResolveObject();
     bool bBound = false;
-    if (UStaticMesh* StaticMesh = LoadObject<UStaticMesh>(nullptr, *ObjectPath))
+    if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ResolvedAsset))
     {
         if (UStaticMeshComponent* Visual = AddVisual<UStaticMesh, UStaticMeshComponent>(
-            Weapon, Root, StaticMesh, FName(TEXT("LocalInboxWeaponStatic")), DesiredLengthCm))
+            Weapon, VisualRoot, StaticMesh, FName(TEXT("LocalInboxWeaponStatic")), DesiredLengthCm))
         {
             Visual->SetStaticMesh(StaticMesh);
             bBound = true;
         }
     }
-    else if (USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, *ObjectPath))
+    else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ResolvedAsset))
     {
         if (USkeletalMeshComponent* Visual = AddVisual<USkeletalMesh, USkeletalMeshComponent>(
-            Weapon, Root, SkeletalMesh, FName(TEXT("LocalInboxWeaponSkeletal")), DesiredLengthCm))
+            Weapon, VisualRoot, SkeletalMesh, FName(TEXT("LocalInboxWeaponSkeletal")), DesiredLengthCm))
         {
             Visual->SetSkeletalMeshAsset(SkeletalMesh);
             bBound = true;
@@ -282,13 +364,15 @@ void UOCLocalInboxWeaponOverrideSubsystem::ApplyLocalVisual(AOCWeaponBase* Weapo
 
     if (!bBound)
     {
-        UE_LOG(LogTemp, Error, TEXT("PASS45_LOCAL_WEAPON_RUNTIME_FAIL category=%s asset=%s"),
-            *Category, *ObjectPath);
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_GAP category=%s asset=%s resolved=%d sync_load=0 runtime_acceptance=0"),
+            *Category, *ObjectPath, ResolvedAsset ? 1 : 0);
         return;
     }
 
     HideOldWeaponPresentation(Weapon);
-    Weapon->Tags.Add(LocalBoundTag);
-    UE_LOG(LogTemp, Display, TEXT("PASS45_LOCAL_WEAPON_RUNTIME_BOUND weapon=%s category=%s asset=%s"),
+    Weapon->Tags.AddUnique(LocalBoundTag);
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LOCAL_WEAPON_RUNTIME_BOUND weapon=%s category=%s asset=%s production_visual=1 visual_root_unscaled=1 physics_root_preserved=1 resident_asset=1 sync_load=0 runtime_acceptance=0"),
         *Weapon->GetName(), *Category, *ObjectPath);
 }
