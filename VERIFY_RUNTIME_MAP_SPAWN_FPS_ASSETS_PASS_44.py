@@ -50,18 +50,19 @@ reference = ROOT / "REFERENCE_PHOTOS" / "map_extent" / "oster_central_playable_a
 req(reference.is_file() and reference.stat().st_size > 0,
     "compact central Oster reference image is missing/empty")
 
-# Historical Pass 44 must follow today's root authority language, not freeze a previous sentence forever.
+# Historical Pass 44 follows the current authority semantics in AGENTS.md. Do not pin this historical verifier to
+# retired headings/sentences when the current policy expresses the same stronger rules in updated language.
 for needle in (
-    "Latest explicit user requirement and latest user-observed runtime evidence.",
-    "Mandatory stale-rule retirement",
-    "No compatibility resurrection",
-    "Playable-map size is user-authoritative",
-    "Museum BASE means actual pawn placement",
-    "Runtime content truth is fail-visible",
-    "Normal local game must not silently auto-fill",
-    "Verifier truth follows current behavior, not history",
+    "latest explicit user requirement and latest user-observed runtime evidence",
+    "User test feedback outranks stale source assumptions",
+    "No historical verifier may require a runtime-rejected owner/fallback back into production",
+    "The user-approved compact central Oster area is authoritative",
+    "actual live player pawn",
+    "Missing production content must fail visibly",
+    "Normal local game has no implicit heavy bot fill",
+    "stale verifiers are updated/demoted/deleted",
 ):
-    req(needle in agents, f"root authority policy missing: {needle}")
+    req(needle.lower() in agents.lower(), f"root authority policy missing current semantic rule: {needle}")
 
 # Pass 44 is historical and was rejected by factual runtime evidence. Preserve that fact and the subset
 # of useful decisions which Pass45 has not disproved, but never require rejected Pass44 owners back.
@@ -149,6 +150,7 @@ if errors:
 
 print("PASS44 HISTORICAL NON-REGRESSION: PASS")
 print("- factual Pass44 runtime rejection is preserved; this verifier cannot promote it back to active/verified")
+print("- current AGENTS authority semantics protect user runtime truth instead of retired wording")
 print("- compact 960x940 m extent, zero implicit bots and actual Museum pawn proof remain protected")
 print("- old edge coordinates/map auto-fit and grey weapon-material repair remain retired")
 print("- retired Pass37 palette compatibility owner must stay physically deleted")
