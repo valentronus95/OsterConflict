@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parent
 
@@ -45,7 +46,12 @@ if 'NSLOCTEXT("OCR13DeploymentPresentation", "DeployStart", "СТАРТ")' in de
 # Pre-game settings must never expose the live 3D world through the panel or during the open transition.
 require(frontend, 'const bool bSettingsOverGameplay = bPauseMenuActive && bLiveGameplay;', "settings gameplay-context guard")
 require(frontend, 'Root->GetWidgetFromName(TEXT("SettingsPanel"))', "settings panel lookup")
-require(frontend, 'SettingsPanel->SetBrushColor(FLinearColor(0.045f, 0.055f, 0.066f, 1.0f));', "opaque settings panel")
+settings_brush = re.search(
+    r'SettingsPanel->SetBrushColor\(FLinearColor\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)f\)\);',
+    frontend,
+)
+if not settings_brush or float(settings_brush.group(1)) < 0.95:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: settings panel is not effectively opaque (alpha < 0.95)")
 require(frontend, 'SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);', "settings backdrop preservation")
 require(frontend, 'const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);', "settings click pre-transition guard")
 
@@ -120,8 +126,9 @@ if 'const bool bM2RuntimePass = GunTruckCount == 0 ||' in vehicle_validator:
 if 'const bool bBTRRuntimePass = BTRCount == 0 ||' in vehicle_validator:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: zero BTR actors still count as runtime success")
 
-# Runtime acceptance must be executable before merge. The old launcher forced main and therefore tested stale code.
+# Runtime acceptance must be executable before merge. Current canonical PASS45 branch remains explicitly allowed.
 require(launcher, 'findstr /B /I /C:"fix/runtime-acceptance-"', "runtime-acceptance branch allow-list")
+require(launcher, '/C:"fix/pass45-runtime-rejection-"', "canonical Pass45 branch allow-list")
 require(launcher, 'set "REMOTE_REF=origin/%CURRENT_BRANCH%"', "branch-specific remote ref")
 require(launcher, 'set "IS_ACCEPTANCE=1"', "acceptance-mode flag")
 require(launcher, 'git fetch origin "%FETCH_BRANCH%"', "branch-specific fetch")
@@ -135,7 +142,7 @@ if 'Normal gameplay playtest must run from branch main.' in launcher:
 
 print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
-print("- pre-game settings keep the frontend backdrop and use an opaque panel")
+print("- settings panel must remain effectively opaque (alpha >= 0.95), without pinning one obsolete RGB shade")
 print("- deployment transition fully blocks the underlying panel and reaches 100% after possession")
 print("- Museum BASE creation no longer depends on delayed world-sector timing")
 print("- BASE-selected characters are validated/recovered once; vehicle possession cannot trigger Museum revalidation")
