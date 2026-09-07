@@ -49,22 +49,25 @@ req('/Engine/BasicShapes/Cube.Cube' in base_cpp,
 req('USceneComponent* GetWeaponVisualRoot() const { return WeaponRoot; }' in base_h,
     'real fallback has no stable unscaled visual root accessor')
 
-# Concrete variants must hide source primitives before any production load can fail.
+# Concrete variants must hide source primitives before resident production resolution. GAME_RECOVERY forbids
+# blocking package loads in BeginPlay; async owners can later populate the exact production visual.
 for function_name in ('ApplySkeletalProductionWeapon', 'ApplyStaticProductionWeapon'):
     start = variants.find(function_name + '(AOCWeaponBase* Owner')
     req(start >= 0, f'missing production helper: {function_name}')
 
 skeletal_start = variants.find('UPrimitiveComponent* ApplySkeletalProductionWeapon')
-skeletal_load = variants.find('LoadObject<USkeletalMesh>', skeletal_start)
+skeletal_resolve = variants.find('FSoftObjectPath(AssetPath).ResolveObject()', skeletal_start)
 skeletal_hide = variants.find('HideStaticWeaponFallback(Owner);', skeletal_start)
-req(skeletal_start >= 0 and skeletal_hide > skeletal_start and skeletal_load > skeletal_hide,
-    'skeletal production path does not hide primitives before LoadObject')
+req(skeletal_start >= 0 and skeletal_hide > skeletal_start and skeletal_resolve > skeletal_hide,
+    'skeletal production path does not hide primitives before resident ResolveObject')
 
 static_def = variants.find('UStaticMeshComponent* ApplyStaticProductionWeapon', variants.find('UPrimitiveComponent* ApplySkeletalProductionWeapon') + 1)
 static_hide = variants.find('HideStaticWeaponFallback(Owner);', static_def)
-static_load = variants.find('LoadObject<UStaticMesh>', static_def)
-req(static_def >= 0 and static_hide > static_def and static_load > static_hide,
-    'static production path does not hide primitives before LoadObject')
+static_resolve = variants.find('FSoftObjectPath(AssetPath).ResolveObject()', static_def)
+req(static_def >= 0 and static_hide > static_def and static_resolve > static_hide,
+    'static production path does not hide primitives before resident ResolveObject')
+forbid(variants, 'LoadObject<',
+    'weapon variant BeginPlay regained blocking LoadObject')
 
 for needle in (
     'Component->SetVisibility(false, true);',
@@ -84,8 +87,6 @@ for stale in (
     forbid(variants, stale, f'visible source fallback wording returned: {stale}')
 
 # Local imported production visuals used by the sandbox/catalog must also retire the source composite.
-# The physical WeaponMesh remains alive for pickup/drop collision, so this path hides rendering only and
-# deliberately does not propagate visibility to the production child attached below WeaponRoot.
 for needle in (
     'int32 HideSourceProxyVisuals(AOCWeaponBase& Weapon)',
     'Component->ComponentHasTag(ProductionVisualTag)',
@@ -97,12 +98,13 @@ for needle in (
 ):
     req(needle in local_bridge, f'local imported bridge source-proxy retirement missing: {needle}')
 
-# Launcher is a hard current runtime rejection: hide the source tube before exact production load.
+# Launcher remains a separate current source boundary. Until its own GAME_RECOVERY async cutover lands,
+# it must at least hide primitive geometry before the exact production load can fail.
 launcher_begin = launcher.find('void AOCAntiArmorLauncher::BeginPlay()')
 launcher_hide = launcher.find('Component->SetVisibility(false, true);', launcher_begin)
 launcher_load = launcher.find('LoadObject<UStaticMesh>', launcher_begin)
 req(launcher_begin >= 0 and launcher_hide > launcher_begin and launcher_load > launcher_hide,
-    'launcher does not hide primitive geometry before production LoadObject')
+    'launcher does not hide primitive geometry before current production LoadObject')
 for needle in (
     'PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1',
     'primitive_visible=0 runtime_acceptance=0',
@@ -110,8 +112,6 @@ for needle in (
 ):
     req(needle in launcher, f'launcher fail-closed primitive contract missing: {needle}')
 
-# 2026-08-27 runtime regression: AK/MP5 could show briefly and then disappear because a tag-only production
-# component suppressed real fallback after BasicShape retirement. A production visual must own a real assigned mesh.
 for needle in (
     '#include "Components/SkeletalMeshComponent.h"',
     'Component->ComponentHasTag(ProductionVisualTag) &&',
@@ -127,9 +127,17 @@ forbid(
     fallback,
     'if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;',
     'tag-only production visual acceptance returned; invisible tagged weapon can suppress fallback again')
+forbid(fallback, 'LoadObject<',
+    'real weapon fallback regained blocking LoadObject')
+for needle in (
+    'RequestAsyncLoad(',
+    'ResolveResidentStaticMesh',
+    'GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN',
+    'GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY',
+    'sync_load=0',
+):
+    req(needle in fallback, f'real fallback async preload contract missing: {needle}')
 
-# Runtime real fallback must keep the primitive invisible, attach the real mesh to unscaled WeaponRoot,
-# and preserve the physical root collision authority needed by pickup/drop physics.
 for needle in (
     'MeshPath.Contains(TEXT("/Engine/BasicShapes/")',
     'HideRejectedPrimitiveVisuals(*Weapon);',
@@ -145,15 +153,12 @@ for needle in (
 ):
     req(needle in fallback, f'real fallback primitive retirement contract missing: {needle}')
 
-# Runtime acceptance must consume this evidence, otherwise a source-only green check could hide a broken rack again.
 for needle in (
     'PASS45_PRIMITIVE_WEAPON_RUNTIME_READY',
     'PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL',
 ):
     req(needle in runtime_evidence, f'strict runtime evidence gate missing primitive marker: {needle}')
 
-# The compact canonical TZ intentionally stores policy/current state, not every historical
-# runtime marker. Concrete primitive evidence is owned by source + the runtime evidence verifier above.
 for needle in (
     'RUNTIME REJECTED',
     '22/36 = 61.1% complete, 38.9% remaining',
@@ -172,11 +177,11 @@ if errors:
     raise SystemExit(1)
 
 print('PASS45 PRIMITIVE WEAPON RETIREMENT: PASS')
-print('- concrete weapon variants hide source BasicShape geometry before production loading can fail')
+print('- concrete weapon variants hide source BasicShape geometry before resident production resolution and never LoadObject during BeginPlay')
 print('- local imported production bridge hides old source proxy rendering while preserving the physics root')
+print('- real fallback safety meshes preload asynchronously and refresh only uses resident assets')
 print('- production visual acceptance requires an assigned static/skeletal mesh, never only a component tag')
-print('- AK exact static sibling and MP5 tracked real-SMG fallback prevent invisible actors when exact production fails')
-print('- launcher fails closed with primitive_visible=0')
+print('- launcher remains fail-closed with primitive_visible=0 pending its separate async cutover')
 print('- real fallbacks attach to the unscaled visual root while preserving physics-root collision authority')
 print('- strict runtime evidence requires zero visible BasicShape rack weapons')
 print('STATUS: SOURCE-CODED; local UE 5.8 rendered acceptance remains pending')
