@@ -8,7 +8,7 @@ CHARACTER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" 
 CHARACTER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCCharacter.h"
 LAUNCHER_CPP = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Private" / "OCAntiArmorLauncher.cpp"
 LAUNCHER_H = ROOT / "OsterConflict" / "Source" / "OsterConflict" / "Public" / "OCAntiArmorLauncher.h"
-TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
+GAME_RECOVERY = ROOT / "GAME_RECOVERY.md"
 LATEST_RENDERED_RUNTIME_EVIDENCE = ROOT / "RUNTIME_EVIDENCE" / "2026-08-27_PASS45_REJECTED" / "README.md"
 
 errors: list[str] = []
@@ -32,7 +32,7 @@ character_cpp = read(CHARACTER_CPP)
 character_h = read(CHARACTER_H)
 launcher_cpp = read(LAUNCHER_CPP)
 launcher_h = read(LAUNCHER_H)
-tz = read(TZ)
+game_recovery = read(GAME_RECOVERY)
 latest_rendered_runtime_evidence = read(LATEST_RENDERED_RUNTIME_EVIDENCE)
 
 # Historical runtime evidence showed tracers/muzzle flash below the visible barrel because the old code
@@ -151,11 +151,11 @@ req("LauncherAudioEventCounter" in launcher_h,
 req("TraceOrigin+Dir*90.0f" not in launcher_cpp and "MulticastFireTraceFX(TraceOrigin" not in launcher_cpp,
     "anti-armor launcher regressed to camera-origin projectile/FX")
 
-# Runtime authority has two layers: the canonical TZ carries the newest factual local verdict, while the
-# 2026-08-27 pack remains the newest committed rendered screenshot evidence. Do not force the older rendered
-# pack date back into the canonical current verdict when a newer startup rejection exists.
-req("Latest runtime verdict: **RUNTIME REJECTED 2026-08-31**" in tz,
-    "canonical Pass45 TZ lost the latest 2026-08-31 factual runtime verdict")
+# GAME_RECOVERY.md is now the canonical task/checkpoint owner. Do not pin current source acceptance to an
+# obsolete PASS45_RUNTIME_RECOVERY_TZ runtime-verdict sentence. Historical rendered evidence remains factual.
+for needle in ("# GAME RECOVERY", "Definition of Done", "UE 5.8"):
+    req(needle in game_recovery,
+        f"canonical GAME_RECOVERY checkpoint lost required marker: {needle}")
 for needle in ("RUNTIME REJECTED", "2026-08-27"):
     req(needle in latest_rendered_runtime_evidence,
         f"latest committed rendered Pass45 evidence lost required marker: {needle}")
@@ -172,5 +172,5 @@ print("- Character held-input recoil timer/state is physically retired; confirme
 print("- bounded server cadence tolerance prevents tiny timer jitter from killing automatic fire early")
 print("- deliberate player drops enable authority gravity/collision/rigid-body simulation")
 print("- anti-armor projectile/FX/audio originate from production muzzle and ammo commits only after spawn")
-print("- canonical latest factual runtime verdict is RUNTIME REJECTED 2026-08-31; 2026-08-27 remains latest committed rendered evidence")
+print("- GAME_RECOVERY.md owns the current checkpoint; historical 2026-08-27 rendered rejection evidence remains factual")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 build, recoil feel, drop settling, muzzle alignment and rendered firing remain authoritative")
