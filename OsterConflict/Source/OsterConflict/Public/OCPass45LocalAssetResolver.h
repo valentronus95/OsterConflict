@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/SoftObjectPath.h"
 
 class UAnimSequence;
 class USkeletalMesh;
@@ -21,12 +22,22 @@ OSTERCONFLICT_API UStaticMesh* OCPass45FindLocalStaticMeshStrict(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& RequiredTokens);
 
+/** Metadata-only strict lookup. Returns an object path without loading the package. */
+OSTERCONFLICT_API FSoftObjectPath OCPass45FindLocalStaticMeshPathStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens);
+
 OSTERCONFLICT_API USkeletalMesh* OCPass45FindLocalSkeletalMesh(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens = {});
 
 /** Skeletal equivalent of the strict static-mesh resolver. */
 OSTERCONFLICT_API USkeletalMesh* OCPass45FindLocalSkeletalMeshStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens);
+
+/** Metadata-only strict skeletal lookup. Returns an object path without loading the package. */
+OSTERCONFLICT_API FSoftObjectPath OCPass45FindLocalSkeletalMeshPathStrict(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& RequiredTokens);
 
