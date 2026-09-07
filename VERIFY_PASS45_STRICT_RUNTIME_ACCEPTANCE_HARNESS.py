@@ -4,6 +4,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 START = ROOT / "START_HERE.cmd"
 BATCH_CMD = ROOT / "OsterConflict" / "PASS45_BATCH_RUNTIME.cmd"
+BATCH_ENTRY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_progress_entry.py"
+BATCH_RUNTIMEFIX = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_runtimefix.py"
 BATCH_PY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime.py"
 MATERIAL = ROOT / "OsterConflict" / "RUN_PASS45_STRICT_MATERIAL_GATE.cmd"
 EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
@@ -24,20 +26,31 @@ def req(condition: bool, message: str) -> None:
 
 start = read(START)
 batch_cmd = read(BATCH_CMD)
+batch_entry = read(BATCH_ENTRY)
+batch_runtimefix = read(BATCH_RUNTIMEFIX)
 batch_py = read(BATCH_PY)
 material = read(MATERIAL)
 evidence = read(EVIDENCE)
 
 # Current contract: START_HERE option 2 owns one batch-first diagnostic/acceptance route.
-# Independent preflight stages all run and report before the single gameplay process is allowed to start.
+# The command wrapper enters the progress UI, which delegates to the runtime-fix shim, which then reuses the
+# canonical batch orchestrator. This keeps one source of truth while preserving the responsive window wrapper.
 req('call "%~dp0OsterConflict\\PASS45_BATCH_RUNTIME.cmd"' in start,
     "START_HERE option 2 does not enter the batch runtime wrapper")
 req(":prepare_materials_strict" not in start,
     "retired fail-fast START_HERE material chain returned")
 req('call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"' not in start,
     "retired nested strict-main option-2 route returned")
-req("pass45_batch_runtime.py" in batch_cmd,
-    "batch command wrapper no longer delegates to the Python orchestrator")
+req("pass45_batch_runtime_progress_entry.py" in batch_cmd,
+    "batch command wrapper no longer delegates to the progress/runtime entry")
+req("pass45_batch_runtime_progress as progress" in batch_entry,
+    "batch progress entry no longer owns progress UI")
+req("pass45_batch_runtime_runtimefix.py" in batch_entry,
+    "batch progress entry no longer selects the runtime-fix orchestrator")
+req("import pass45_batch_runtime as base" in batch_runtimefix,
+    "runtime-fix shim no longer reuses the canonical batch orchestrator")
+req("base.main()" in batch_runtimefix,
+    "runtime-fix shim no longer delegates to canonical batch main")
 
 for needle in (
     "IMPORT_ALL_LOCAL_INBOX_UE58.cmd",
@@ -55,7 +68,8 @@ for needle in (
     "/Game/Maps/OsterConflict_Runtime",
     '"-d3d11", "-sm5", "-nohdr"',
     "PASS45_BATCH_RUNTIME_REPORT.txt",
-    "PREFLIGHT_FAIL",
+    "PREFLIGHT_HARD_BUILD_FAIL",
+    "PREFLIGHT_DIAGNOSTIC_FAIL_RUNTIME_EXECUTED",
     "RUNTIME_OR_POSTCHECK_FAIL",
     "DIAGNOSTIC_PASS_FORMAL_ACCEPTANCE_BLOCKED",
     "AUTOMATED_PASS_VISUAL_ACCEPTANCE_PENDING",
@@ -67,7 +81,7 @@ req(batch_py.count("subprocess.run(runtime_cmd") == 1,
 for destructive in ("git reset", "git clean", "git stash", "checkout --", "restore --"):
     req(destructive not in batch_py.lower(),
         f"batch route must preserve user local Changes: {destructive}")
-req("tracked_changes_before=" in batch_py and "tracked_changes_after=" in batch_py,
+req("TRACKED CHANGES BEFORE" in batch_py and "TRACKED CHANGES AFTER" in batch_py,
     "batch report no longer records local tracked Changes as formal blockers")
 
 # Headless authored material/dependency truth remains mandatory. Missing exact payload may only use an
@@ -217,9 +231,9 @@ if errors:
     raise SystemExit(1)
 
 print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
-print("- START_HERE option 2 -> one batch-first orchestrator -> all independent preflight gates -> one gameplay process")
+print("- START_HERE option 2 -> batch progress entry -> responsive runtime shim -> one canonical orchestrator")
+print("- all independent preflight gates run before one gameplay process; post-run evidence remains mandatory")
 print("- local/Fab assets, Stein/audio/Remington, HMMWV/M2/BTR, required weapon assets and material truth are collected together")
 print("- user tracked Changes are preserved and reported as formal blockers, never reset/stashed/cleaned")
-print("- post-runtime Gate K, interactions, manual actions and grenade evidence are all evaluated")
 print("- automated evidence cannot mark visual acceptance complete")
 print("STATUS: SOURCE CONTRACT ONLY; factual local UE 5.8 batch run remains authoritative")
