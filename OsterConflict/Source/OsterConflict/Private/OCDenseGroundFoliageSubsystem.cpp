@@ -121,11 +121,13 @@ namespace
         return false;
     }
 
+    // Historical helper name retained for source compatibility, but it is resident-only now.
+    // The async preload owns package I/O; this function must never synchronously read a package from disk.
     UStaticMesh* LoadFirstMesh(const TArray<const TCHAR*>& Paths)
     {
         for (const TCHAR* Path : Paths)
         {
-            if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, Path)) return Mesh;
+            if (UStaticMesh* Mesh = Cast<UStaticMesh>(FSoftObjectPath(Path).ResolveObject())) return Mesh;
         }
         return nullptr;
     }
@@ -291,8 +293,8 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
 {
     if (bPopulationStarted || bPopulated) return false;
 
-    // All candidate packages were requested asynchronously before spawn. LoadObject below should resolve
-    // already-resident objects instead of turning the first gameplay frame into a package-loading stall.
+    // All candidate packages were requested asynchronously before spawn. ResolveObject below accepts only
+    // objects already resident after that preload; a preload gap fails closed instead of doing sync disk I/O.
     const TArray<const TCHAR*> GrassCandidates[] =
     {
         {
@@ -336,6 +338,10 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
 
     if (!bAnyGrass)
     {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_FOLIAGE_PRELOAD_GAP grass=0 ground_plant=%d flower=%d sync_load=0 resident_only=1"),
+            GroundPlantMesh != nullptr ? 1 : 0,
+            FlowerMesh != nullptr ? 1 : 0);
         UE_LOG(LogTemp, Error,
             TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_FAIL reason=grass_assets_not_loadable full_playable_bounds=0 content_intake=KiteDemo"));
         return false;
@@ -386,7 +392,7 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo pre_spawn=1 async_preloaded=1"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo pre_spawn=1 async_preloaded=1 sync_load=0 prerequisite_resident=1"),
         ActiveGridStep,
         ActiveCellsPerBatch,
         GrassCullEnd,
@@ -564,6 +570,6 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             CandidateRejectedTrace,
             CandidateRejectedBounds);
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_FOLIAGE_PREP_FINISH success=1 post_spawn_materialization=0"));
+            TEXT("GAME_RECOVERY_FOLIAGE_PREP_FINISH success=1 post_spawn_materialization=0 sync_load=0 resident_only=1"));
     }
 }
