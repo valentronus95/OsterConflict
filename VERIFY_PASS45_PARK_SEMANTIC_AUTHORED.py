@@ -43,13 +43,13 @@ if not bench_asset.is_file():
 for needle in (
     "UOCParkSemanticAuthoredUpgradeSubsystem",
     "homogeneous semantic families",
-    "must not blanket-remap",
     "pre-spawn world preparation",
     "IsParkSemanticReady",
     "HasParkSemanticFailed",
     "GetParkSemanticProgress",
 ):
     require(header, needle, "semantic upgrade ownership")
+require(" ".join(header.split()), "must not blanket-remap", "semantic upgrade ownership")
 
 for needle in (
     "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Bench_1.SM_Bench_1",
