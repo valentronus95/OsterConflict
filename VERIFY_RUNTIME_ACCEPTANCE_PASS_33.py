@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent
 MAIN = ROOT / "RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"
 LAUNCHER = ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"
 START = ROOT / "START_HERE.cmd"
+BATCH_CMD = ROOT / "OsterConflict" / "PASS45_BATCH_RUNTIME.cmd"
+BATCH_ENTRY = ROOT / "OsterConflict" / "Scripts" / "pass45_batch_runtime_progress_entry.py"
 MANUAL_ACTION = ROOT / "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
 
 
@@ -27,19 +29,28 @@ def forbid(text: str, needle: str, label: str) -> None:
 main = read(MAIN)
 launcher = read(LAUNCHER)
 start = read(START)
+batch_cmd = read(BATCH_CMD)
+batch_entry = read(BATCH_ENTRY)
 manual_action = read(MANUAL_ACTION)
 
-# Pass45 full test is intentionally no longer START_HERE -> playflow directly. The strict main wrapper owns
-# post-game material/dependency + interaction evidence and delegates exactly once to the playflow wrapper.
+# GAME_RECOVERY current full-test route is batch-first. START_HERE option 2 enters the package orchestrator,
+# which owns preflight, one gameplay process and post-run evidence collection. The older strict-main wrapper
+# remains an internal compatibility route and must not be restored as the user's direct option-2 entrypoint.
 require(start, '2. ПОВНИЙ RUNTIME-ТЕСТ', "START_HERE full-test label")
-require(start, 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"', "START_HERE strict full-test route")
-forbid(start, 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"', "obsolete direct full-test bypass")
+require(start, 'call "%~dp0OsterConflict\\PASS45_BATCH_RUNTIME.cmd"', "START_HERE batch full-test route")
+forbid(start, 'call "%~dp0RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd"', "obsolete direct strict-main full-test route")
+forbid(start, 'call "%~dp0RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd"', "obsolete direct playflow full-test bypass")
+require(batch_cmd, 'pass45_batch_runtime_progress_entry.py', "batch command -> progress/runtime entry")
+require(batch_entry, 'pass45_batch_runtime_progress as progress', "batch progress entry")
+require(batch_entry, 'pass45_batch_runtime_runtimefix.py', "batch runtime-fix orchestrator")
+
+# Keep the internal strict-main/playflow compatibility contracts source-valid. They are still useful for focused
+# diagnosis, but they no longer define START_HERE option 2.
 require(main, 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd', "strict main -> playflow identity")
 require(main, 'call "%PLAYFLOW%"', "strict main -> playflow call")
 require(main, 'RUN_PASS45_STRICT_MATERIAL_GATE.cmd', "strict post-game material gate")
 require(main, 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py', "strict post-game evidence verifier")
 require(main, 'VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py', "strict item16 manual-action verifier")
-require(main, 'call "%PLAYFLOW%"', "single gameplay route before post-run verifiers")
 require(main, '%PY_CMD% "%MANUAL_ACTION_VERIFY%" "%GAMEPLAY_LOG%"', "manual-action exact-run log gate")
 require(main, 'VISUAL ACCEPTANCE IS STILL PENDING', "manual visual acceptance remains pending")
 
@@ -174,8 +185,9 @@ for forbidden in (
     forbid(launcher, forbidden, f"retired compatibility marker {forbidden}")
 
 print("RUNTIME ACCEPTANCE PASS 33 / PASS45 CURRENT CONTRACT PASS")
-print("- START_HERE full runtime test enters the strict main wrapper, then playflow, then one gameplay process")
-print("- strict material/dependency, interaction-evidence and item16 manual-action gates cannot be bypassed by the user full-test route")
+print("- START_HERE option 2 enters the batch-first full runtime route")
+print("- batch runtime owns preflight, one gameplay process and post-run evidence; old direct strict-main route stays retired")
+print("- focused strict-main/playflow scripts remain internally source-valid for diagnosis")
 print("- actual Museum pawn, compact Oster bounds, zero implicit filler bots and >=30 FPS remain mandatory")
 print("- authored weapon/vehicle material gaps and manual-action content gaps fail visibly; no runtime disguise is accepted")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 run remains the runtime authority")
