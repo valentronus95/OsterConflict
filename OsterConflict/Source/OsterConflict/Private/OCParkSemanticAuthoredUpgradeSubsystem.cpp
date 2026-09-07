@@ -1,14 +1,15 @@
 #include "OCParkSemanticAuthoredUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -95,6 +96,8 @@ namespace
             OutFailure = TEXT("park_bench_authored_length_invalid");
             return false;
         }
+
+        // Preserve the authored bench native proportions with one uniform scale factor.
         const float UniformScale = FMath::Clamp(DesiredBenchLengthCm / NativeLength, 0.20f, 5.0f);
 
         TArray<FTransform> OldTransforms;
@@ -178,35 +181,63 @@ bool UOCParkSemanticAuthoredUpgradeSubsystem::ShouldCreateSubsystem(UObject* Out
         (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
-TStatId UOCParkSemanticAuthoredUpgradeSubsystem::GetStatId() const
+void UOCParkSemanticAuthoredUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
-    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCParkSemanticAuthoredUpgradeSubsystem, STATGROUP_Tickables);
-}
+    Super::OnWorldBeginPlay(InWorld);
 
-void UOCParkSemanticAuthoredUpgradeSubsystem::Tick(float DeltaTime)
-{
-    if (bFinished) return;
+    BenchPreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = false;
+    bSucceeded = false;
 
-    UWorld* World = GetWorld();
-    if (!World || !World->IsGameWorld()) return;
-    if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (!InWorld.IsGameWorld()) return;
+    if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
+    BeginBenchPreload();
+}
+
+void UOCParkSemanticAuthoredUpgradeSubsystem::BeginBenchPreload()
+{
+    if (bPreloadRequested || bFinished) return;
+    bPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    Paths.Emplace(AuthoredBenchPath);
+    BenchPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCParkSemanticAuthoredUpgradeSubsystem::HandleBenchPreloadComplete),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryParkBenchPreload"));
+
+    if (!BenchPreloadHandle.IsValid())
     {
-        ElapsedSeconds = 0.0f;
+        bFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_CONTENT_GAP bench_mesh_loaded=0 expected=SM_Bench_1 family=ParkBenches pre_spawn=1 async_preload=0 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
         return;
     }
 
-    ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    if (ElapsedSeconds < 0.75f) return;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_PARK_BENCH_PRELOAD_BEGIN assets=1 async=1 pre_spawn=1 sync_load=0"));
+}
+
+void UOCParkSemanticAuthoredUpgradeSubsystem::HandleBenchPreloadComplete()
+{
+    if (bFinished) return;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld())
+    {
+        bFinished = true;
+        return;
+    }
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -217,20 +248,19 @@ void UOCParkSemanticAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
     if (SectorCount != 1 || !Sector)
     {
-        if (ElapsedSeconds < 5.0f) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_FAIL reason=oster_sector_count_%d gate_k_complete=0"),
+            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_FAIL reason=oster_sector_count_%d pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             SectorCount);
         return;
     }
 
-    UStaticMesh* BenchMesh = LoadObject<UStaticMesh>(nullptr, AuthoredBenchPath);
+    UStaticMesh* BenchMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredBenchPath).ResolveObject());
     if (!BenchMesh)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_CONTENT_GAP bench_mesh_loaded=0 expected=SM_Bench_1 family=ParkBenches gate_k_complete=0 runtime_acceptance=0"));
+            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_CONTENT_GAP bench_mesh_loaded=0 expected=SM_Bench_1 family=ParkBenches pre_spawn=1 async_preload=1 sync_load=0 resident_only=1 gate_k_complete=0 runtime_acceptance=0"));
         return;
     }
 
@@ -239,11 +269,12 @@ void UOCParkSemanticAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     FString Failure;
     const bool bBenchReady = UpgradeBenchFamily(ParkBenches, BenchMesh, BenchInstances, Failure);
     bFinished = true;
+    bSucceeded = bBenchReady && BenchInstances == ExpectedBenchInstances;
 
-    if (!bBenchReady || BenchInstances != ExpectedBenchInstances)
+    if (!bSucceeded)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_FAIL family=ParkBenches ready=%d instances=%d expected=%d reason=%s gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_SEMANTIC_FAIL family=ParkBenches ready=%d instances=%d expected=%d reason=%s pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             bBenchReady ? 1 : 0,
             BenchInstances,
             ExpectedBenchInstances,
@@ -252,5 +283,15 @@ void UOCParkSemanticAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_PARK_BENCHES_READY bench_mesh=SM_Bench_1 bench_pack=Mega_Street_Props_Pack bench_instances=14 semantic_owner=ParkBenches basicshape_meshes=0 basicshape_material_overrides=0 uniform_scale=1 native_proportions_preserved=1 ground_bottom_preserved=1 bounds_aware_upgrade=1 gate_k_complete=0 runtime_acceptance=0"));
+        TEXT("PASS45_AUTHORED_PARK_BENCHES_READY bench_mesh=SM_Bench_1 bench_pack=Mega_Street_Props_Pack bench_instances=14 semantic_owner=ParkBenches basicshape_meshes=0 basicshape_material_overrides=0 uniform_scale=1 native_proportions_preserved=1 ground_bottom_preserved=1 bounds_aware_upgrade=1 async_preloaded=1 prerequisite_resident=1 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
+}
+
+void UOCParkSemanticAuthoredUpgradeSubsystem::Deinitialize()
+{
+    if (BenchPreloadHandle.IsValid()) BenchPreloadHandle->CancelHandle();
+    BenchPreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = true;
+    bSucceeded = false;
+    Super::Deinitialize();
 }
