@@ -217,7 +217,7 @@
 
 ## Поточний checkpoint — 2026-09-07
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **45%**. Залишилось приблизно **55%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **46%**. Залишилось приблизно **54%**.
 
 ### Зроблено / source-closed
 - пункт 1/10: world startup не випускає гравця до готовності canonical stadium + landmark chain; historical delayed timers для Museum/Silpo/Culture скасовуються, всі 13 landmark stages виконуються до `GAME_RECOVERY_WORLD_READY`;
@@ -238,6 +238,7 @@
 - shared pre-spawn landmark preload розширено до **29 exact assets** і зберігається resident до `Deinitialize`;
 - `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` захищає Stadium + Museum + Silpo + Culture House від повернення blocking `LoadObject`;
 - пункт 10: Block0 foliage тепер після async preload використовує тільки resident meshes через `FSoftObjectPath::ResolveObject()`; старий post-preload `LoadObject()` прибраний, preload-gap пишеться явно, а source contract забороняє повернення sync package load;
+- пункт 10: `OCRegionalGroundDetailSubsystem` тепер async-preload-ить `SM_DeadLeaves`, зберігає asset resident, використовує `ResolveObject()` замість post-spawn `LoadObject()` і робить один bounded deferred population pass замість повторного polling timer; exact source verifier на `790fdf39...` зелений;
 - пункт 10: додані точні runtime timing logs для кожного landmark stage, загального часу підготовки та найповільнішого stage; stage понад 100 ms окремо позначається warning;
 - центральні Pass7 / main launcher / strict harness source-перевірки синхронізовані з поточною loading/world-ready логікою та повним 23-позиційним weapon catalog, без повернення старої 11-class rack логіки;
 - Pass7 захищає фіксовані 10 секунд respawn, factual respawn `READY/FAIL` probe та заборону delayed vehicle `LoadObject`;
@@ -246,11 +247,11 @@
 - пункт 8: `ЗАСТОСУВАТИ` тепер застосовує video/audio/player settings без permanent save і лишає екран відкритим; `ЗБЕРЕГТИ Й НАЗАД` застосовує, зберігає і закриває; `СКАСУВАТИ` перечитує останні збережені значення та повторно застосовує їх у runtime; `СКИНУТИ НАЛАШТУВАННЯ` лишається staged-only до Apply/Save;
 - пункт 8: додані runtime markers `GAME_RECOVERY_SETTINGS_COMMIT` і `GAME_RECOVERY_SETTINGS_CANCEL` для фактичної UE 5.8 перевірки семантики кнопок;
 - одноразовий workflow, який використано лише для безпечного точкового патчу великого UI-файла, після застосування видалений з гілки;
-- source checkpoint HEAD перед цим docs-комітом: `7141e6ca3f34a6c3cd3d4e09ecf59ddd12a5e130`;
+- source checkpoint HEAD перед цим docs-комітом: `790fdf39d4263c5294b5c9d37c56bb8fb6ad48f3`;
 - PR #94 залишається **OPEN / UNMERGED**, `main` не чіпається.
 
 ### У роботі
-- exact-head CI після settings semantics cleanup запущений; зелений статус наперед не заявляється;
+- exact-head CI після regional-ground resident-only closure ще частково queued/in-progress; зелений статус наперед не заявляється;
 - пункт 1/10: за фактичними UE 5.8 timing logs визначити, чи є stage, який сам займає >100 ms або тим більше >1 s, і такий stage розкласти на менші частини по кадрах;
 - пункт 2: у фактичному UE 5.8 отримати `GAME_RECOVERY_RESPAWN_READY` після смерті та підтвердити HUD/input; будь-який `GAME_RECOVERY_RESPAWN_FAIL` є блокером;
 - пункт 4: дочистити лише актуальні CI/runtime gaps по повному 23-позиційному каталогу, Remington/manual-action audio без повернення старої 11-class rack логіки;
@@ -268,4 +269,4 @@
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункт 1/8/10: перевірити exact-head CI як source regression signal, далі продовжити аудит актуальних first-use/runtime paths і Settings interaction без повернення старих verifier assumptions. У локальному UE 5.8 ключові факти: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_RESPAWN_READY`, `GAME_RECOVERY_SETTINGS_COMMIT`, `GAME_RECOVERY_SETTINGS_CANCEL`, відсутність `GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP`/`GAME_RECOVERY_FOLIAGE_PRELOAD_GAP`, стабільний HUD та робочі Settings.
+Пункт 1/8/10: перевірити exact-head CI як source regression signal, далі продовжити аудит актуальних first-use/runtime paths і Settings interaction без повернення старих verifier assumptions. У локальному UE 5.8 ключові факти: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_RESPAWN_READY`, `GAME_RECOVERY_SETTINGS_COMMIT`, `GAME_RECOVERY_SETTINGS_CANCEL`, відсутність `GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP`/`GAME_RECOVERY_FOLIAGE_PRELOAD_GAP`/`GAME_RECOVERY_REGIONAL_GROUND_PRELOAD_FAIL`, стабільний HUD та робочі Settings.
