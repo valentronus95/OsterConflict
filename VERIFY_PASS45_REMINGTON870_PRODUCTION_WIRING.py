@@ -31,6 +31,8 @@ validator = read("OsterConflict/Source/OsterConflict/Private/OCProductionWeaponR
 presentation = read("OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp")
 start_here = read("START_HERE.cmd")
 batch_cmd = read("OsterConflict/PASS45_BATCH_RUNTIME.cmd")
+batch_entry = read("OsterConflict/Scripts/pass45_batch_runtime_progress_entry.py")
+batch_runtimefix = read("OsterConflict/Scripts/pass45_batch_runtime_runtimefix.py")
 batch = read("OsterConflict/Scripts/pass45_batch_runtime.py")
 
 SKELETAL_OBJECT = "/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870"
@@ -47,7 +49,7 @@ for needle in (
     'doc["animations"] = pump',
     'import_static_meshes", False',
     'import_skeletal_meshes", True',
-    'InterchangeCombineSkeletalMeshesBehavior.ALL',
+    'InterchangeCombineSkeletalMeshesBehavior.BY_SKELETON',
     'InterchangeForceMeshType.IFMT_SKELETAL_MESH',
     'create_physics_asset", False',
     'if static_meshes:',
@@ -133,9 +135,9 @@ for needle in (
 ):
     req(needle in presentation, f"existing manual-action bridge invariant missing: {needle}")
 
-# The full runtime route is batch-owned now. START_HERE must not abort on the
-# first weapon-specific importer; the batch executes Remington as one independent
-# preflight stage, records its result, then reports every preflight failure together.
+# The full runtime route is batch-owned. START_HERE enters one progress wrapper; that wrapper delegates to
+# the responsive runtime shim, which imports the canonical batch orchestrator. Content/asset diagnostics are
+# collected together after a clean C++ build and no longer prevent the one gameplay runtime from starting.
 for needle in (
     'ПОВНИЙ RUNTIME-ТЕСТ ^(ПАКЕТНИЙ^)',
     'OsterConflict\\PASS45_BATCH_RUNTIME.cmd',
@@ -144,27 +146,46 @@ for needle in (
     req(needle in start_here, f"START_HERE batch route missing: {needle}")
 
 for needle in (
-    'pass45_batch_runtime.py',
+    'pass45_batch_runtime_progress_entry.py',
     '%PY_CMD% "%BATCH_SCRIPT%"',
 ):
     req(needle in batch_cmd, f"batch wrapper contract missing: {needle}")
 
 for needle in (
+    'import pass45_batch_runtime_progress as progress',
+    'pass45_batch_runtime_runtimefix.py',
+    'progress.main()',
+):
+    req(needle in batch_entry, f"batch progress-entry contract missing: {needle}")
+
+for needle in (
+    'import pass45_batch_runtime as base',
+    'subprocess.run = _patched_subprocess_run',
+    'base.subprocess.run = _patched_subprocess_run',
+    'base.main()',
+):
+    req(needle in batch_runtimefix, f"batch responsive-runtime shim missing: {needle}")
+
+for needle in (
     '("remington870", "Remington 870 skeletal pump + fresh-load", PROJECT_DIR / "PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd")',
-    'for stage in preflight:',
+    'for stage in preflight[1:]:',
     'run(stage)',
-    'blockers = [stage for stage in preflight if stage.rc != 0]',
-    'preflight_failure_count=',
-    'RUNTIME: NOT STARTED - preflight blockers exist',
+    'soft_blockers = [stage for stage in preflight[1:] if stage.rc != 0]',
+    'Gameplay runtime НЕ блокую.',
+    'Current-source build чистий. Запускаю ОДИН gameplay runtime незалежно від content-gate FAIL.',
     'PASS45_BATCH_RUNTIME_REPORT.txt',
 ):
     req(needle in batch, f"batch Remington/aggregate contract missing: {needle}")
 
+# Only the current-source C++ build may hard-stop the gameplay launch. A single Remington/content failure is
+# reported together with the other diagnostics and remains a failure in the final batch result, but it is not
+# allowed to hide additional runtime defects by cancelling the gameplay process entirely.
 for forbidden in (
     'REMINGTON_STRICT_RC',
     'exit /b 27',
+    'RUNTIME: NOT STARTED - preflight blockers exist',
 ):
-    req(forbidden not in start_here, f"obsolete fail-fast Remington route returned to START_HERE: {forbidden}")
+    req(forbidden not in start_here + batch, f"obsolete fail-fast Remington route returned: {forbidden}")
 
 if errors:
     print("PASS45 REMINGTON870 PRODUCTION WIRING: FAIL")
@@ -174,7 +195,7 @@ if errors:
 
 print(
     "PASS45 REMINGTON870 PRODUCTION WIRING: PASS "
-    "exact_donor_derivative=1 full_weapon_single_skeletal=1 pilot_first=1 fresh_load_gate=1 "
+    "exact_donor_derivative=1 full_weapon_single_skeletal=1 combine_by_skeleton=1 pilot_first=1 fresh_load_gate=1 "
     "runtime_owner_skeletal=1 pump_profile_wired=1 validator_skeletal=1 batch_full_route=1 "
-    "fail_fast_start_here=0 runtime_acceptance=0 item16_checked=0"
+    "content_failures_aggregated=1 runtime_after_clean_build=1 fail_fast_start_here=0 runtime_acceptance=0 item16_checked=0"
 )
