@@ -220,9 +220,18 @@ void UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload()
         (GenericShotgun ? 1 : 0) +
         (AuthoredAKFallback ? 1 : 0);
 
-    UE_LOG(LogTemp, ResolvedCount == 5 ? Display : Warning,
-        TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY resolved=%d expected=5 async=1 resident_only=1 sync_load=0 runtime_acceptance=0"),
-        ResolvedCount);
+    if (ResolvedCount == 5)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY resolved=%d expected=5 async=1 resident_only=1 sync_load=0 runtime_acceptance=0"),
+            ResolvedCount);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY resolved=%d expected=5 async=1 resident_only=1 sync_load=0 runtime_acceptance=0"),
+            ResolvedCount);
+    }
 
     World->GetTimerManager().SetTimer(
         RefreshTimer,
