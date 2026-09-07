@@ -185,6 +185,7 @@ for marker in (
     req(marker in evidence, f"ordnance failure rejection missing: {marker}")
 
 # Runtime interaction/material gates remain mandatory after the one integrated playtest.
+# Runtime weapon truth is now the complete 23-entry catalog. Headless material/dependency truth remains separate.
 for marker in (
     "PASS45_INITIAL_BASE_DEPLOYMENT_VALIDATED_ONCE",
     "PASS45_INITIAL_BASE_DEPLOYMENT_RECOVERED_ONCE",
@@ -192,7 +193,8 @@ for marker in (
     "PASS45_VEHICLE_EXIT_TRANSFORM_READY",
     "PASS45_M2_GUNNER_PITCH_CONTRACT_READY",
     "PASS45_GUNNER_EXIT_TRANSFORM_READY",
-    "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY",
+    "PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY",
+    "PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP",
     "PASS36_WEAPON_MATERIAL_AUDIT_READY",
     "PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY",
     "PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY",
@@ -206,7 +208,6 @@ for marker in (
     "PASS45_VEHICLE_ENTER_TRANSFORM_FAIL",
     "PASS45_VEHICLE_EXIT_TRANSFORM_FAIL",
     "PASS45_GUNNER_EXIT_TRANSFORM_FAIL",
-    "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL",
     "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
     "placeholder=1",
     "textureDependency=GAP",
@@ -233,6 +234,7 @@ if errors:
 print("PASS45 STRICT RUNTIME ACCEPTANCE HARNESS: PASS")
 print("- START_HERE option 2 -> batch progress entry -> responsive runtime shim -> one canonical orchestrator")
 print("- all independent preflight gates run before one gameplay process; post-run evidence remains mandatory")
+print("- runtime weapon truth is the complete 23-entry catalog; material/dependency validation remains fail-closed")
 print("- local/Fab assets, Stein/audio/Remington, HMMWV/M2/BTR, required weapon assets and material truth are collected together")
 print("- user tracked Changes are preserved and reported as formal blockers, never reset/stashed/cleaned")
 print("- automated evidence cannot mark visual acceptance complete")
