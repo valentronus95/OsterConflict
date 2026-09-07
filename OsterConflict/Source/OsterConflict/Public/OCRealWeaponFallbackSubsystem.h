@@ -5,7 +5,7 @@
 #include "TimerManager.h"
 #include "OCRealWeaponFallbackSubsystem.generated.h"
 
-class FStreamableHandle;
+struct FStreamableHandle;
 class UStaticMesh;
 
 /**
