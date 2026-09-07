@@ -19,6 +19,8 @@ public:
     AOCPlayerController();
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
+    virtual void OnPossess(APawn* InPawn) override;
+    virtual void PawnPendingDestroy(APawn* InPawn) override;
 
     UFUNCTION(BlueprintPure, Category="HUD") bool IsScoreboardVisible() const { return bScoreboardVisible; }
     UFUNCTION(BlueprintPure, Category="Lobby") bool IsDeploymentPanelVisible() const { return bDeploymentPanelVisible; }
@@ -29,6 +31,8 @@ public:
     UFUNCTION(BlueprintPure, Category="UI") bool IsSettingsVisible() const { return bSettingsVisible; }
     UFUNCTION(BlueprintPure, Category="UI") bool HasRichUI() const { return RichUIRoot != nullptr; }
     UFUNCTION(BlueprintPure, Category="UI") FName GetRequestedDeploymentSpawn() const { return RequestedDeploymentSpawn; }
+    UFUNCTION(BlueprintPure, Category="Respawn") bool IsRespawnWaiting() const { return bRespawnWaiting; }
+    UFUNCTION(BlueprintPure, Category="Respawn") float GetRespawnSecondsRemaining() const;
     bool IsSandboxAdmin() const;
     bool IsSandboxGodMode() const { return bSandboxGodMode; }
     FString GetAdminActionLabel(int32 Index) const;
@@ -45,6 +49,8 @@ public:
     UFUNCTION(Exec) void PerfReport();
     UFUNCTION(Client, Reliable) void ClientReceivePerfReport(const FString& Report);
     UFUNCTION(Client, Reliable) void ClientSetSandboxAdminAllowed(bool bAllowed);
+    UFUNCTION(Client, Reliable) void ClientBeginRespawnWait(AActor* DeathViewTarget, float DelaySeconds);
+    UFUNCTION(Client, Reliable) void ClientFinishRespawnWait(APawn* NewPawn);
 
     /** S14 chat backend. The final S17 widget will call the same functions. */
     UFUNCTION(Exec) void SayGlobal(const FString& Message);
@@ -117,6 +123,9 @@ private:
     bool bSettingsVisible = false;
     bool bDeploymentPanelVisible = true;
     bool bAdminPanelVisible = false;
+    bool bRespawnWaiting = false;
+    bool bServerAwaitingRespawnPossession = false;
+    double RespawnWaitDeadlineSeconds = 0.0;
     int32 SelectedAdminActionIndex = 0;
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
