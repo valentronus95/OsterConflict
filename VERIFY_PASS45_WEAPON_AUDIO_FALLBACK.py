@@ -40,8 +40,13 @@ for path in TRACKED_AUDIO:
     req(path.is_file(), f"tracked repository audio missing: {path.relative_to(ROOT)}")
 
 for needle in (
+    "BeginPlay() override",
+    "EndPlay(const EEndPlayReason::Type EndPlayReason) override",
+    "BeginRepositoryFallbackPreload()",
     "EnsureRepositoryFallbackProfile()",
     "RepositoryFallbackProfile",
+    "RepositoryFallbackPreloadHandle",
+    "bRepositoryFallbackPreloadRequested",
     "bRepositoryFallbackAttempted",
 ):
     req(needle in header, f"weapon audio fallback header contract missing: {needle}")
@@ -57,6 +62,15 @@ for needle in (
     "/Game/R13/Audio/snd_bullethit.snd_bullethit",
     "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
     "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
+    "RequestAsyncLoad(",
+    "ResolveResidentSound",
+    "FSoftObjectPath(AssetPath).ResolveObject()",
+    "RepositoryFallbackPreloadHandle->HasLoadCompleted()",
+    "GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_BEGIN",
+    "GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_PENDING",
+    "GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_GAP",
+    "first_use_sync_load=0",
+    "resident_until_end_play=1",
     "PASS45_WEAPON_AUDIO_FALLBACK_READY",
     "PASS45_WEAPON_AUDIO_CONTENT_GAP",
     "if (!HasRequestedNearShot(ShotProfile))",
@@ -75,6 +89,9 @@ for needle in (
     "lever_cycle=%d",
 ):
     req(needle in cpp, f"weapon audio fallback source contract missing: {needle}")
+
+req("LoadObject<" not in cpp,
+    "weapon audio normal first-use path regained blocking LoadObject")
 
 start = cpp.find("UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile()")
 end = cpp.find("EOCAcousticEnvironment UOCWeaponAudioComponent::DetectEnvironmentAt", start)
@@ -113,8 +130,8 @@ if errors:
 
 print("PASS45 WEAPON AUDIO FALLBACK: PASS")
 print("- exact AK project audio is preferred when no assigned profile supplies the event")
-print("- other silent weapons receive a repository-owned factual shot fallback instead of disappearing acoustically")
+print("- fallback audio starts async during BeginPlay and remains resident through component lifetime")
+print("- first shot/reload/manual-action/impact never use blocking LoadObject; pending preload fails soft instead of freezing gameplay")
 print("- assigned authored event sets still win; fallback is event-local and presentation-only")
 print("- pump action reuses tracked shotgun-cock audio; bolt/lever source routes target repository-owned CC0 action-family donor SoundWaves")
-print("- donor SoundWave UE import, audibility, timing, per-weapon mix and authored manual-action animations remain runtime/content acceptance work")
 print("STATUS: SOURCE-CODED; local UE 5.8 load/audibility/mix/content-quality acceptance remains pending")
