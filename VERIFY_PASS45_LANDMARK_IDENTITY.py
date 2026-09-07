@@ -131,12 +131,15 @@ for needle in (
     'World.GetSubsystem<UOCR140SilpoPhotoModelSubsystem>()',
     'World.GetSubsystem<UOCR143SilpoFacadeIdentitySubsystem>()',
     'World.GetSubsystem<UOCR146CultureHousePhotoModelSubsystem>()',
+    'World.GetSubsystem<UOCGameRecoveryStadiumActivationSubsystem>()',
     'GAME_RECOVERY_WORLD_PREP_BEGIN',
     'pre_spawn=1 tick_when_paused=1 staged_materialization=1',
     'GAME_RECOVERY_WORLD_PREP_TIMERS_CANCELLED',
     'duplicate_startup_timers=0',
     'GAME_RECOVERY_WORLD_READY',
-    'pre_spawn=1 post_spawn_landmark_materialization=0',
+    'pre_spawn=1',
+    'stadium_ready=1',
+    'post_spawn_landmark_materialization=0',
 ):
     require(coordinator, needle, "landmark startup coordinator")
 forbid(coordinator, 'PASS45_LANDMARK_STARTUP_COORDINATED_READY',
@@ -201,6 +204,6 @@ print("- Museum retains the Solonyna-house identity and cannot encode the six-co
 print("- Culture House owns the six-column authored facade on its separate canonical geo anchor")
 print("- Culture House refuses unexpected R13 ownership fail-closed; no late actor destruction may hide a startup/source regression")
 print("- Silpo shell and visible Сільпо facade identity are both tied to the canonical Silpo site")
-print("- GAME_RECOVERY staged startup owns readiness; separation/identity validation is observation-only and cannot repair late")
+print("- GAME_RECOVERY staged startup owns readiness, including stadium readiness; separation/identity validation is observation-only and cannot repair late")
 print("- strict runtime acceptance requires authored Museum/Culture shells plus landmark separation and Silpo facade identity")
 print("STATUS: SOURCE CONTRACT ONLY; current-head local UE 5.8 screenshots remain mandatory")
