@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/StreamableManager.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "OCRegionalGroundDetailSubsystem.generated.h"
 
@@ -20,7 +21,12 @@ public:
     virtual void Deinitialize() override;
 
 private:
+    void RequestRegionalGroundDetailPreload();
+    void HandleRegionalGroundDetailPreloadComplete();
     void PopulateRegionalGroundDetail();
 
     FTimerHandle PopulateTimerHandle;
+    TSharedPtr<FStreamableHandle> PreloadHandle;
+    bool bPreloadRequested = false;
+    bool bPopulationFinished = false;
 };
