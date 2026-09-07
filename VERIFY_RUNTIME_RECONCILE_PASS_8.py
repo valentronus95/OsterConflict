@@ -45,7 +45,12 @@ def forbid(text: str, needle: str, label: str) -> None:
 t = {name: read(name) for name in FILES}
 
 # Pass 7 frontend/vehicle truth survives, but Pass45 supersedes the obsolete all-exact 11-weapon rack gate.
-require(t["frontend"], 'SettingsPanel->SetBrushColor(FLinearColor(0.045f, 0.055f, 0.066f, 1.0f));', "opaque settings")
+settings_brush = re.search(
+    r'SettingsPanel->SetBrushColor\(FLinearColor\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)f\)\);',
+    t["frontend"],
+)
+if not settings_brush or float(settings_brush.group(1)) < 0.95:
+    raise SystemExit("PASS 8 FAIL: settings panel is not effectively opaque (alpha < 0.95)")
 require(t["deploy"], '"DeployEnterBattle", "У БІЙ"', "single START semantics")
 require(t["loading"], 'Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));', "opaque deployment loading")
 require(t["museum_guard"], 'PASS7_MUSEUM_BASES_READY', "Museum BASE runtime marker")
@@ -167,6 +172,7 @@ for marker in (
 
 print("RUNTIME RECONCILE PASS 8 + PASS45 WEAPON TRUTH SOURCE CONTRACT PASS")
 print("- Pass 7 frontend/Museum/production vehicle contracts remain intact")
+print("- settings panel remains effectively opaque without pinning one obsolete RGB shade")
 print("- Pass45 required-available rack replaces impossible all-exact weapon readiness without relabelling fallback production")
 print("- compact minimap/chat, Block0 profile-bounded foliage, vehicle proxy and first-person weapon contracts remain intact")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance still required")
