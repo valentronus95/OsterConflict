@@ -41,11 +41,28 @@ local_bridge = read(LOCAL_BRIDGE)
 runtime_evidence = read(RUNTIME_EVIDENCE)
 tz = read(TZ)
 
-# Keep the old source composite only as hidden collision/debug history while migration is incomplete.
+# GAME_RECOVERY cutover: the root BasicShape remains only as invisible physics authority. The historical decorative
+# Cube/Cylinder/material composite must never be rebuilt during BeginPlay and no blocking asset load is allowed here.
 req('BuildSourceOnlyWeaponVisual();' in base_cpp,
-    'source primitive history disappeared without a replacement collision migration contract')
+    'base weapon no longer applies the source-visual retirement contract during BeginPlay')
 req('/Engine/BasicShapes/Cube.Cube' in base_cpp,
-    'expected current hidden physics/source primitive contract changed unexpectedly')
+    'hidden root physics mesh contract changed unexpectedly')
+forbid(base_cpp, 'LoadObject<',
+    'base weapon BeginPlay regained blocking LoadObject')
+for forbidden in (
+    '/Engine/BasicShapes/Cylinder.Cylinder',
+    '/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial',
+    'UMaterialInstanceDynamic::Create',
+    'SourceVisualParts.Add(',
+):
+    forbid(base_cpp, forbidden, f'retired decorative source weapon composite returned: {forbidden}')
+for needle in (
+    'WeaponMesh->SetVisibility(false, false);',
+    'WeaponMesh->SetHiddenInGame(true, false);',
+    'GAME_RECOVERY_SOURCE_WEAPON_COMPOSITE_RETIRED',
+    'decorative_parts=0 blocking_asset_loads=0 primitive_visible=0 collision_authority_preserved=1',
+):
+    req(needle in base_cpp, f'base weapon source-composite retirement contract missing: {needle}')
 req('USceneComponent* GetWeaponVisualRoot() const { return WeaponRoot; }' in base_h,
     'real fallback has no stable unscaled visual root accessor')
 
@@ -183,6 +200,7 @@ if errors:
     raise SystemExit(1)
 
 print('PASS45 PRIMITIVE WEAPON RETIREMENT: PASS')
+print('- base weapon keeps only an invisible physics root; decorative Cube/Cylinder/material runtime composite is retired')
 print('- concrete weapon variants hide source BasicShape geometry before resident production resolution and never LoadObject during BeginPlay')
 print('- local imported production bridge hides old source proxy rendering while preserving the physics root')
 print('- real fallback safety meshes preload asynchronously and refresh only uses resident assets')
