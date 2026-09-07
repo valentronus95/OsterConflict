@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Fail-closed source contract for PASS45 item-16 manual-action audio dispatch.
 
-Runtime evidence must prove more than a loaded bolt/pump/lever SoundBase. The same
+Runtime evidence must prove more than an available bolt/pump/lever SoundBase. The same
 authoritative action-cycle rising edge must dispatch ManualActionCycle and attempt the
-authored moving-part animation without a second gameplay timer. The exact current
-manual-action sound expected for that weapon must then flow through local playback
-with positive effective volume. Direct audible/visual feel acceptance remains a
+authored moving-part animation without a second gameplay timer. GAME_RECOVERY also
+requires these fallback sounds to arrive through async preload and resident resolution,
+never a first-use blocking package load. Direct audible/visual feel acceptance remains a
 separate UE 5.8 manual gate.
 """
 from __future__ import annotations
@@ -20,14 +20,17 @@ RUNTIME = ROOT / "VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py"
 EXPECTED_AUDIO = (
     (
         "M700 bolt",
+        "BoltPath",
         "/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor",
     ),
     (
         "Remington 870 pump",
+        "PumpPath",
         "/Game/R13/Audio/shotguncock.shotguncock",
     ),
     (
         "Lever Action",
+        "LeverPath",
         "/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor",
     ),
 )
@@ -112,8 +115,6 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
                 "manual-action same-transition order drifted: rising edge -> audio dispatch -> authored guard/start -> READY"
             )
 
-        # This block is presentation-only. It must observe the replicated gameplay gate,
-        # not acquire its own timer or abort between audio and authored-animation work.
         for forbidden in ("SetTimer(", "ManualActionCycleTimerHandle", "ActionCycleStartTime", "return;"):
             if forbidden in action_block:
                 errors.append(f"manual-action presentation regained a second owner/early exit: {forbidden}")
@@ -148,32 +149,41 @@ def validate(presentation: str, audio: str, runtime: str) -> list[str]:
     if playback_marker_pos < 0 or play2d_pos < 0 or playat_pos < 0 or playback_marker_pos < max(play2d_pos, playat_pos):
         errors.append("manual-action playback evidence must be emitted only after the Play2D/PlayAt dispatch branches")
 
-    # Repository fallback arrays may only receive successfully loaded SoundBase objects.
+    # GAME_RECOVERY: action arrays may only receive successfully resolved resident SoundBase objects.
+    # Blocking LoadObject/LoadSound on the first action is forbidden.
     for label, marker in (
-        ("Bolt", "if (USoundBase* Bolt = LoadSound"),
-        ("Pump", "if (USoundBase* Pump = LoadSound"),
-        ("Lever", "if (USoundBase* Lever = LoadSound"),
+        ("Bolt", "if (USoundBase* Bolt = ResolveResidentSound(BoltPath))"),
+        ("Pump", "if (USoundBase* Pump = ResolveResidentSound(PumpPath))"),
+        ("Lever", "if (USoundBase* Lever = ResolveResidentSound(LeverPath))"),
     ):
         if marker not in audio:
-            errors.append(f"{label} fallback route no longer guards Add() behind successful LoadSound")
+            errors.append(f"{label} fallback route no longer guards Add() behind successful resident resolution")
     for marker in (
+        "RequestAsyncLoad(",
+        "RepositoryFallbackPreloadHandle->HasLoadCompleted()",
+        "FSoftObjectPath(AssetPath).ResolveObject()",
+        "GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_BEGIN",
+        "GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_GAP",
+        "first_use_sync_load=0",
         "RepositoryFallbackProfile->BoltCycle.Add(Bolt);",
         "RepositoryFallbackProfile->PumpCycle.Add(Pump);",
         "RepositoryFallbackProfile->LeverCycle.Add(Lever);",
         "PASS45_WEAPON_AUDIO_FALLBACK_READY",
     ):
         if marker not in audio:
-            errors.append(f"manual-action loaded-audio evidence route missing: {marker}")
+            errors.append(f"manual-action async/resident audio evidence route missing: {marker}")
+    if "LoadObject<" in audio:
+        errors.append("manual-action audio path regained blocking LoadObject")
 
-    # Bind runtime expectation to the exact sound objects actually loaded by source.
-    for label, object_path in EXPECTED_AUDIO:
-        if f'LoadSound(TEXT("{object_path}"))' not in audio:
-            errors.append(f"{label} exact fallback sound object drifted from source: {object_path}")
+    # Bind runtime expectation to the exact sound objects selected by source constants and resident routes.
+    for label, constant_name, object_path in EXPECTED_AUDIO:
+        if f'constexpr const TCHAR* {constant_name} = TEXT("{object_path}");' not in audio:
+            errors.append(f"{label} exact fallback sound constant drifted from source: {object_path}")
+        if f"ResolveResidentSound({constant_name})" not in audio:
+            errors.append(f"{label} is no longer resolved through resident sound route: {constant_name}")
         if f'"audio_object_path": "{object_path}"' not in runtime:
             errors.append(f"{label} exact runtime sound identity gate missing: {object_path}")
 
-    # Runtime gate must require loaded action-family audio, exact playback identity,
-    # positive bus/effective volume and failure-marker rejection for every required weapon.
     for marker in (
         '"audio_field": "bolt_cycle=1"',
         '"audio_field": "pump_cycle=1"',
@@ -202,11 +212,10 @@ def main() -> int:
     runtime = read(RUNTIME)
     errors = validate(presentation, audio, runtime)
 
-    # Adversarial source mutations prove the guard is not a decorative grep collection.
     negative_cases = (
         (
             "missing rising-edge ownership",
-            presentation.replace(edge_gate := "if (bActionCycling && !State.bWasActionCycling)", "if (bActionCycling)", 1),
+            presentation.replace("if (bActionCycling && !State.bWasActionCycling)", "if (bActionCycling)", 1),
             audio,
             runtime,
             "rising-edge gate",
@@ -260,7 +269,14 @@ def main() -> int:
                 1,
             ),
             runtime,
-            "M700 bolt exact fallback sound object drifted",
+            "M700 bolt exact fallback sound constant drifted",
+        ),
+        (
+            "blocking first-use load resurrection",
+            presentation,
+            audio + '\nUObject* Bad = LoadObject<UObject>(nullptr, TEXT("/Game/Bad.Bad"));\n',
+            runtime,
+            "blocking LoadObject",
         ),
         (
             "missing runtime playback evidence",
@@ -307,7 +323,7 @@ def main() -> int:
         raise SystemExit(1)
 
     print("PASS45 ITEM16 MANUAL ACTION AUDIO DISPATCH: PASS")
-    print("same_rising_edge_audio_and_authored_animation=1 manual_action_dispatch=1 authored_start_attempt=1 loaded_sound_guard=1 exact_sound_identity=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
+    print("same_rising_edge_audio_and_authored_animation=1 manual_action_dispatch=1 authored_start_attempt=1 resident_sound_guard=1 async_preload=1 first_use_sync_load=0 exact_sound_identity=1 local_playback_dispatch=1 positive_bus_and_volume=1 content_gap_fail_closed=1")
     print("runtime_playback_marker_required=1 wrong_sound_identity_rejected=1 direct_audible_visual_acceptance=pending")
     print("second_gameplay_timer=0 runtime_acceptance=0 item16_checked=0 merge_permitted=0 user_local_execution_requested=0")
     return 0
