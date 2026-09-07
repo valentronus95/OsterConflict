@@ -156,6 +156,9 @@ void AOCGrenadeProjectile::RefreshGrenadePresentation()
     else
     {
         UE_LOG(LogTemp, Error,
+            TEXT("PASS45_GRENADE_TYPE_IDENTITY_MATERIAL_FAIL material=%s type=%d material_resident=%d material_slots=%d shared_generic_body=1 exact_type_body=0 type_specific_content_gap=1 type_distinguishable=0 sync_package_loads=0 runtime_acceptance=0"),
+            IdentityMaterialPath, static_cast<int32>(GrenadeType), IdentityMaterial ? 1 : 0, MaterialSlotCount);
+        UE_LOG(LogTemp, Error,
             TEXT("GAME_RECOVERY_GRENADE_PRELOAD_MISS asset=%s type=%d phase=identity_material material_slots=%d sync_package_loads=0 runtime_acceptance=0"),
             IdentityMaterialPath, static_cast<int32>(GrenadeType), MaterialSlotCount);
     }
