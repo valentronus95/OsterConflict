@@ -23,10 +23,10 @@ required_main = (
     'if "%IS_ACCEPTANCE%"=="1" if /I "%CURRENT_BRANCH%"=="main"',
     'VERIFY_RUNTIME_RECONCILE_PASS_8.py',
     'PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL',
-    'PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP',
     'PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP',
     'PASS7_PRODUCTION_VEHICLES_READY',
-    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY',
     'PASS36_WEAPON_MATERIAL_AUDIT_READY',
     'PASS7_MUSEUM_BASES_READY',
     'git fetch origin "%FETCH_BRANCH%"',
@@ -37,9 +37,14 @@ required_main = (
 for marker in required_main:
     if marker not in main:
         raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: missing main marker {marker!r}")
-for stale in ('PASS7_PRODUCTION_WEAPONS_READY', 'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL'):
+for stale in (
+    'PASS7_PRODUCTION_WEAPONS_READY',
+    'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL',
+    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL',
+):
     if stale in main:
-        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete exact-only weapon marker returned {stale!r}")
+        raise SystemExit(f"MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: obsolete weapon marker returned {stale!r}")
 
 # The strict wrapper must add post-playtest material/evidence gates without creating a second game launch.
 required_strict = (
@@ -90,6 +95,7 @@ for destructive in (
 if 'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"' not in playflow:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: playflow wrapper no longer owns the single CURRENT_GAMEPLAY delegation")
 
+# Headless material/dependency validation is still required even though runtime catalog completeness is now 23-entry.
 for marker in (
     'PASS45_REQUIRED_AVAILABLE_WEAPONS=PASS',
     'PASS45_AUTHORED_WEAPON_MATERIALS=PASS',
@@ -104,7 +110,8 @@ if 'R14_PRODUCTION_WEAPONS=PASS' in material:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: strict material gate resurrected impossible all-exact weapon readiness")
 
 for marker in (
-    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP',
     'PASS36_WEAPON_MATERIAL_AUDIT_READY',
     'PASS45_VEHICLE_ENTER_TRANSFORM_READY',
     'PASS45_VEHICLE_EXIT_TRANSFORM_READY',
@@ -124,12 +131,12 @@ if 'start /wait' in strict or 'start /wait' in playflow:
 if 'start /wait' not in main:
     raise SystemExit("MAIN RUNTIME ACCEPTANCE LAUNCHER FAIL: CURRENT_GAMEPLAY lost ownership of the one gameplay process")
 
-print("MAIN RUNTIME ACCEPTANCE LAUNCHER + PASS45 REQUIRED-AVAILABLE CONTRACT PASS")
+print("MAIN RUNTIME ACCEPTANCE LAUNCHER + COMPLETE WEAPON CATALOG CONTRACT PASS")
 print("- CURRENT_GAMEPLAY remains the single gameplay process owner")
 print("- strict main wrapper pins Git HEAD and requires a clean tracked worktree before runtime")
 print("- strict main wrapper rejects HEAD or tracked-worktree drift after runtime/material stages without mutating local Changes")
 print("- strict main wrapper delegates through playflow, then runs material/dependency and interaction evidence gates")
-print("- exact weapon payload gaps stay CONTENT GAP; required available visuals and materials remain mandatory")
+print("- runtime acceptance requires the complete 23-entry weapon catalog with no duplicate IDs or missing production visuals")
 print("- driver enter/exit and M2 gunner pitch/exit are mandatory Pass45 regression evidence")
 print("- automated evidence cannot promote visual acceptance beyond PENDING")
 print("STATUS: SOURCE VERIFIED ONLY; local Windows UE 5.8 execution is still required")
