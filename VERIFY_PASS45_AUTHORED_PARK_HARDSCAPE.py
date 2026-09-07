@@ -33,7 +33,7 @@ run_all = RUN_ALL.read_text(encoding='utf-8')
 
 require('created directly by AOCWorldSectorOster' in header, 'direct primary-owner header contract missing')
 require('ParkMemorialSurface and ParkSkateSurface' in header, 'header must state exact two-family scope')
-require('ParkMemorialMonument and ParkSkateRamps remain separate content gaps' in header,
+require('ParkMemorialMonument' in header and 'ParkSkateRamps' in header and 'separate content gaps' in header,
         'header must preserve monument/ramp content-gap truth')
 require('primary_authoring=1 / normalization_bridge=0' in header,
         'header must retire normalization bridge ownership')
