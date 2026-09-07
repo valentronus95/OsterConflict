@@ -82,8 +82,14 @@ for marker in (
 ):
     require(marker in activation_cpp, f"stadium recovery marker present: {marker}")
 
-require('/Engine/BasicShapes/Cube.Cube' in r138_cpp and 'LoadObject<UStaticMesh>' in r138_cpp,
-        "R138 historical collision consumer is still identified explicitly")
+require('/Engine/BasicShapes/Cube.Cube' in r138_cpp,
+        "R138 collision prerequisite is still explicit")
+require("FSoftObjectPath" in r138_cpp and "ResolveObject()" in r138_cpp,
+        "R138 resolves the preloaded collision cube without a synchronous package request")
+require("LoadObject<" not in r138_cpp,
+        "R138 staged museum startup contains no blocking LoadObject")
+require("sync_load=0" in r138_cpp and "prerequisite_resident=1" in r138_cpp,
+        "R138 logs non-blocking prerequisite residency")
 require('/Engine/BasicShapes/Cube.Cube' in activation_cpp,
         "R138 collision cube is resident before landmark startup may advance")
 
@@ -104,10 +110,10 @@ require("stadium_ready=1" in coordinator_cpp,
         "world-ready logging records stadium readiness")
 
 print("GAME RECOVERY STADIUM PRELOAD VERIFY PASS")
-print("- quarantined historical owner stays abstract")
+print("- quarantined historical stadium owner stays abstract")
 print("- concrete recovery activation preloads the exact stadium payload asynchronously")
-print("- R138 museum collision cube is preloaded and kept resident before landmark startup can advance")
-print("- the historical R138 LoadObject therefore resolves resident content instead of becoming disk-blocking IO")
+print("- R138 museum collision cube is preloaded, retained and consumed only through ResolveObject")
+print("- staged museum collision startup can no longer issue a blocking LoadObject request")
 print("- canonical stadium authoring is reused only after preload resolution")
 print("- landmark/world readiness cannot complete before the stadium actor exists")
 print("STATUS: SOURCE/PRELOAD CONTRACT ONLY; UE 5.8 rendered stadium/museum acceptance remains pending")
