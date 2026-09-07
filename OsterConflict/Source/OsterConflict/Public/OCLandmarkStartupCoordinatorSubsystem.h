@@ -10,7 +10,7 @@ class UWorld;
  * Owns landmark startup ordering without monopolising the game thread.
  *
  * Historical Museum/Silpo/Culture timers are cancelled once. The coordinator then advances the
- * authoritative stages in small wall-clock-spaced steps while the deployment UI is still visible.
+ * authoritative stages in wall-clock-spaced steps while the deployment UI is still visible.
  * It is deliberately tickable while the world is paused so pre-game preparation finishes before
  * possession instead of materialising the city after the player has already spawned.
  */
@@ -41,6 +41,9 @@ private:
     bool RunNextStartupStage(UWorld& World);
 
     double NextStageWallTimeSeconds = 0.0;
+    double StartupBeginWallTimeSeconds = 0.0;
+    double SlowestStageMilliseconds = 0.0;
+    int32 SlowestStageIndex = INDEX_NONE;
     int32 StartupStageIndex = 0;
     bool bInitialized = false;
     bool bHistoricalTimersCancelled = false;
