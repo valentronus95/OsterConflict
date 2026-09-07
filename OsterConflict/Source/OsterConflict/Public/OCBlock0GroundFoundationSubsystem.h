@@ -21,10 +21,15 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
     virtual void Deinitialize() override;
 
+    /** GAME_RECOVERY: true only after the authored ground passed all runtime postconditions. */
+    bool IsGroundReady() const { return bGroundAttemptFinished && bGroundSucceeded; }
+    bool HasGroundFailed() const { return bGroundAttemptFinished && !bGroundSucceeded; }
+
 private:
     void RequestGroundPreload();
     void HandleGroundPreloadComplete();
 
     TSharedPtr<FStreamableHandle> GroundPreloadHandle;
     bool bGroundAttemptFinished = false;
+    bool bGroundSucceeded = false;
 };
