@@ -8,6 +8,7 @@ BASE_CPP = SRC / "Private" / "OCWeaponBase.cpp"
 VARIANTS = SRC / "Private" / "OCWeaponVariants.cpp"
 LAUNCHER = SRC / "Private" / "OCAntiArmorLauncher.cpp"
 FALLBACK = SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp"
+LOCAL_BRIDGE = SRC / "Private" / "OCPass45ImportedWeaponBridgeSubsystem.cpp"
 RUNTIME_EVIDENCE = ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py"
 TZ = ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md"
 
@@ -36,6 +37,7 @@ base_cpp = read(BASE_CPP)
 variants = read(VARIANTS)
 launcher = read(LAUNCHER)
 fallback = read(FALLBACK)
+local_bridge = read(LOCAL_BRIDGE)
 runtime_evidence = read(RUNTIME_EVIDENCE)
 tz = read(TZ)
 
@@ -80,6 +82,20 @@ for stale in (
     'keeping LMG fallback visual',
 ):
     forbid(variants, stale, f'visible source fallback wording returned: {stale}')
+
+# Local imported production visuals used by the sandbox/catalog must also retire the source composite.
+# The physical WeaponMesh remains alive for pickup/drop collision, so this path hides rendering only and
+# deliberately does not propagate visibility to the production child attached below WeaponRoot.
+for needle in (
+    'int32 HideSourceProxyVisuals(AOCWeaponBase& Weapon)',
+    'Component->ComponentHasTag(ProductionVisualTag)',
+    'Component->SetVisibility(false, false);',
+    'Component->SetHiddenInGame(true, false);',
+    'const int32 HiddenSourceProxyVisuals = HideSourceProxyVisuals(Weapon);',
+    'source_proxy_visuals_hidden=%d',
+    'physics_root_preserved=1',
+):
+    req(needle in local_bridge, f'local imported bridge source-proxy retirement missing: {needle}')
 
 # Launcher is a hard current runtime rejection: hide the source tube before exact production load.
 launcher_begin = launcher.find('void AOCAntiArmorLauncher::BeginPlay()')
@@ -157,6 +173,7 @@ if errors:
 
 print('PASS45 PRIMITIVE WEAPON RETIREMENT: PASS')
 print('- concrete weapon variants hide source BasicShape geometry before production loading can fail')
+print('- local imported production bridge hides old source proxy rendering while preserving the physics root')
 print('- production visual acceptance requires an assigned static/skeletal mesh, never only a component tag')
 print('- AK exact static sibling and MP5 tracked real-SMG fallback prevent invisible actors when exact production fails')
 print('- launcher fails closed with primitive_visible=0')
