@@ -94,11 +94,11 @@ def main() -> int:
     require(gameplay, "PASS45_GUNNER_EXIT_TRANSFORM_READY", errors, "gunner exit transform evidence")
     forbid(gameplay, "PASS45_GUNNER_EXIT_TRANSFORM_FAIL", errors, "gunner exit transform failure")
 
-    # Gate F is required-available truth, not an impossible all-exact production claim.
-    require(gameplay, "PASS45_REQUIRED_AVAILABLE_WEAPONS_READY", errors, "required available weapon rack")
+    # GAME_RECOVERY Gate F is the complete runtime catalog, not the retired smaller rack acceptance.
+    require(gameplay, "PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY", errors, "complete 23-entry weapon catalog")
     require(gameplay, "PASS36_WEAPON_MATERIAL_AUDIT_READY", errors, "rack authored material audit")
     require(gameplay, "PASS45_PRIMITIVE_WEAPON_RUNTIME_READY", errors, "zero visible BasicShape weapon rack")
-    forbid(gameplay, "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL", errors, "required available weapon failure")
+    forbid(gameplay, "PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP", errors, "complete weapon catalog gap")
     forbid(gameplay, "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP", errors, "rack authored material gap")
     forbid(gameplay, "PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL", errors, "visible BasicShape weapon")
     forbid(gameplay, "PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL", errors, "launcher production visual gap")
@@ -195,7 +195,7 @@ def main() -> int:
     ):
         forbid(material, marker, errors, "vehicle material/content gap")
 
-    # The separate headless weapon gate must validate every required available visual and dependency chain.
+    # The separate headless dependency gate remains useful for asset/material loading before the full runtime catalog check.
     require(material, "PASS45_REQUIRED_AVAILABLE_WEAPON_VISUALS_VALIDATED_READY", errors, "required available weapon material readiness")
     forbid(material, "PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL", errors, "headless required available weapon failure")
 
@@ -248,6 +248,7 @@ def main() -> int:
         "DRIVER_ENTER_EXIT_TRANSFORM=PASS\n"
         "M2_GUNNER_PITCH_AND_EXIT=PASS\n"
         "PRODUCTION_VEHICLE_MATERIALS=PASS\n"
+        "COMPLETE_WEAPON_CATALOG_RUNTIME=PASS\n"
         "REQUIRED_AVAILABLE_WEAPON_MATERIALS=PASS\n"
         "PRIMITIVE_WEAPON_VISUALS=PASS\n"
         "REMINGTON870_AUTHORED_PUMP_RUNTIME_BRIDGE=PASS\n"
@@ -258,8 +259,7 @@ def main() -> int:
         "GRENADE_AUTHORED_THROW_ANIMATION=PASS\n"
         "SMOKE_AUTHORED_VFX=PASS\n"
         "SMOKE_GAMEPLAY_EXPANSION_CONTRACT=PASS\n"
-        "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n"
-        "EXACT_WEAPON_CONTENT_GAPS=ALLOWED_IF_EXPLICIT_FALLBACK_PASSES\n",
+        "WEAPON_MATERIAL_TEXTURE_DEPENDENCIES=PASS\n",
         encoding="utf-8",
     )
     print("PASS45 RUNTIME EVIDENCE: PASS")
@@ -272,7 +272,8 @@ def main() -> int:
     print("- initial BASE deployment is character-only and no recovery failure was logged")
     print("- driver enter/exit and M2 gunner exit transforms were exercised without teleport failures")
     print("- authored HMMWV/M2/BTR materials passed")
-    print("- all required available rack visuals passed material/texture dependency checks with zero visible BasicShape weapon proxies")
+    print("- the complete 23-entry runtime weapon catalog was present with exact visuals and no duplicate IDs")
+    print("- required weapon material/texture dependency checks passed with zero visible BasicShape weapon proxies")
     print("- launcher production visual did not fall back to rejected primitive geometry")
     print("- Remington 870 action-cycle gameplay reached the production pump animation bridge without authored-content/audio gap")
     print("- grenade production visual and authored type-identity material loaded; exact per-type body content remains explicit")
