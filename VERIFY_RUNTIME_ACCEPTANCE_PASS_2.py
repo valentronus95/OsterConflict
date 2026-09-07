@@ -44,16 +44,22 @@ for needle in (
 ):
     require(runtime_safe, needle, "Pass 44 actual pawn proof")
 
-# Block 0 replaced the historical single CellsPerBatch constant with explicit Full/LowCPU budgets.
-# Both profiles cover the same compact Oster bounds; the acceptance check follows the canonical profile ceilings.
+# Block0 now requests all candidate foliage packages asynchronously, waits for completion, then resolves
+# resident meshes only. Population remains incremental in Tick/PopulateBatch and never falls back to LoadObject.
 for needle in (
-    "TryPopulateWhenGameplayReady",
-    "PopulationBatchTimer",
+    "RequestPreload",
+    "RequestAsyncLoad",
+    "PreloadHandle->HasLoadCompleted()",
+    "BeginPopulation(*World)",
     "PopulateBatch",
     "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch",
+    "FSoftObjectPath(Path).ResolveObject()",
+    "sync_load=0",
     "full_playable_bounds=1",
 ):
-    require(foliage_cpp, needle, "incremental Block0 foliage")
+    require(foliage_cpp, needle, "incremental resident-only Block0 foliage")
+if "LoadObject<" in foliage_cpp:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: Block0 foliage reintroduced synchronous package loading")
 full_batch = re.search(r"constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
 low_batch = re.search(r"constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
 if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
@@ -121,13 +127,13 @@ for needle in (
 for needle in (
     "ukrainian_hmmwv_mk_19.glb", "m2_50cal_machinegun_cc0.glb", "BTR4_Bucephalus.fbx",
     "OsterConflict_vehicle_assets_ready.zip", "Find-BtrFbxInNamedArchive",
-    "Available models may still be imported independently; missing models remain explicit content gaps.",
+    "Other inbox models remain in the inventory for their own gameplay/world integration pass; they are never silently called READY.",
 ):
     require(source_recovery, needle, "local production source recovery")
 
-print("RUNTIME ACCEPTANCE PASS 3 + PASS 44 CURRENT CONTRACT PASS")
+print("RUNTIME ACCEPTANCE PASS 3 + PASS 45 CURRENT CONTRACT PASS")
 print("- Museum BASE source remains and actual live-pawn Museum proof is now stronger")
-print("- Block0 Full/LowCPU foliage work stays bounded and incremental across the same compact map bounds")
+print("- Block0 foliage preloads asynchronously, resolves resident meshes only and populates the full compact map incrementally")
 print("- normal/strict launch flow follows current independent content intake instead of the retired all-or-nothing rule")
 print("- production fresh-load rejects placeholder materials")
-print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
+print("STATUS: SOURCE VERIFIED ONLY; local UE 5.8 build/playtest still required")
