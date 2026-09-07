@@ -5,6 +5,7 @@
 #include "TimerManager.h"
 #include "OCRealWeaponFallbackSubsystem.generated.h"
 
+class FStreamableHandle;
 class UStaticMesh;
 
 /**
@@ -27,6 +28,7 @@ public:
 
 private:
     FTimerHandle RefreshTimer;
+    TSharedPtr<FStreamableHandle> FallbackPreloadHandle;
 
     UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericMachineGun;
@@ -40,9 +42,13 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UStaticMesh> GenericShotgun;
 
+    UPROPERTY(Transient)
+    TObjectPtr<UStaticMesh> AuthoredAKFallback;
+
     bool bRackMaterialAuditReadyLogged = false;
     int32 RefreshPassCount = 0;
 
+    void CompleteFallbackPreload();
     void RefreshWeaponFallbacks();
     int32 AuditAndRepairWeaponMaterials(class AOCWeaponBase& Weapon);
     bool ApplyRealFallback(class AOCWeaponBase& Weapon, UStaticMesh* Mesh, float DesiredLengthCm, const TCHAR* FallbackLabel);
