@@ -158,17 +158,19 @@ for needle in (
 ):
     req(needle in provenance, f"manual-action audio fail-closed rule missing: {needle}")
 
-req("RUNTIME REJECTED 2026-08-31" in tz,
+# The compact canonical TZ replaced the old dated rejection sentence and verbose item-16 wording. Guard the
+# current semantics instead: runtime is still rejected, item 16 remains open, and real mechanical audio is mandatory.
+req("PASS45 remains **RUNTIME REJECTED**" in tz,
     "canonical Pass45 TZ lost current factual runtime rejection")
-req("Replace procedural manual-action fallback cues" in tz,
+req("16. [ ] Finish authored M700 / Remington 870 / Lever Action moving-part presentation and real mechanical audio" in tz,
     "canonical item 16 text is no longer discoverable")
-req("real bolt/pump/lever sound content" in tz,
+req("manual-action audio routing exists by action family" in tz,
     "canonical item 16 lost the real manual-action audio requirement")
 
 if errors:
     print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: FAIL")
     for error in errors:
-        print("[FAIL]", error)
+        print("[FAIL]", error)")
     raise SystemExit(1)
 
 print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
