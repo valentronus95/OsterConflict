@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -32,7 +33,7 @@ void HideStaticWeaponFallback(AOCWeaponBase* Owner)
         if (Component)
         {
             // Pass45: source BasicShape/composite parts are collision/debug history only. Hide them before any
-            // production load attempt so a missing asset can become a fail-visible CONTENT GAP, never a rendered cube/cylinder.
+            // production resolution can fail so a missing asset is a fail-visible CONTENT GAP, never a rendered cube/cylinder.
             Component->SetVisibility(false, true);
             Component->SetHiddenInGame(true, true);
             Component->SetCastShadow(false);
@@ -49,10 +50,11 @@ UPrimitiveComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneC
 {
     if (!Owner || !Root) return nullptr;
 
-    // Hide rejected source geometry synchronously during BeginPlay, before LoadObject can fail.
+    // GAME_RECOVERY: BeginPlay must never synchronously load a weapon package. Hide rejected source geometry
+    // immediately, then consume the production asset only if an async owner already made it resident.
     HideStaticWeaponFallback(Owner);
 
-    if (USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, AssetPath))
+    if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(FSoftObjectPath(AssetPath).ResolveObject()))
     {
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
@@ -81,8 +83,8 @@ UPrimitiveComponent* ApplySkeletalProductionWeapon(AOCWeaponBase* Owner, USceneC
         return ProductionVisual;
     }
 
-    // The restored R13 Stein packages carry SKM_* names but UE 5.8 can report their canonical assets
-    // as StaticMesh. Runtime evidence wins over filename convention: try the exact real mesh in static form.
+    // Some restored Stein object paths resolve to StaticMesh in UE 5.8. Resident-only static resolution keeps
+    // that compatibility without turning BeginPlay back into a blocking package load.
     return ApplyStaticProductionWeapon(Owner, Root, AssetPath, ComponentBaseName, DesiredLengthCm);
 }
 
@@ -91,10 +93,9 @@ UStaticMeshComponent* ApplyStaticProductionWeapon(AOCWeaponBase* Owner, USceneCo
 {
     if (!Owner || !Root) return nullptr;
 
-    // Same fail-closed visual rule for static production assets: primitives never remain visible on load failure.
     HideStaticWeaponFallback(Owner);
 
-    UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, AssetPath);
+    UStaticMesh* Mesh = Cast<UStaticMesh>(FSoftObjectPath(AssetPath).ResolveObject());
     if (!Mesh) return nullptr;
 
     const FBoxSphereBounds Bounds = Mesh->GetBounds();
