@@ -37,7 +37,10 @@ for needle in (
     "ParkCentralGround, ParkNorthCivicGround and CollegeRecreationGround",
     "source surface-top elevation",
     "primary_authoring=1 / normalization_bridge=0",
-    "does not constitute UE 5.8 visual acceptance",
+    "direct UE 5.8 visual acceptance",
+    "IsParkGroundReady",
+    "HasParkGroundFailed",
+    "GetParkGroundProgress",
 ):
     require(header, needle, "authored-ground ownership")
 
@@ -58,7 +61,6 @@ forbid(world, "AddBox(ParkGeometry,", "legacy ParkGeometry source resurrection")
 for needle in (
     "/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1",
     "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Grass_Inst.M_Grass_Inst",
-    "AuthoredUpgradeDelaySeconds = 0.70f",
     'FindISM(Sector, TEXT("ParkGeometry"))',
     'FindISM(Sector, TEXT("ParkCentralGround"))',
     'FindISM(Sector, TEXT("ParkNorthCivicGround"))',
@@ -72,8 +74,16 @@ for needle in (
     "NewLocation.Z = SourceTopZ - NewTopOffsetZ",
     "SetStaticMesh(AuthoredMesh)",
     "SetMaterial(Slot, GrassMaterial)",
+    "RequestAsyncLoad(",
+    "FSoftObjectPath(AuthoredGroundMeshPath).ResolveObject()",
+    "FSoftObjectPath(AuthoredGrassMaterialPath).ResolveObject()",
+    "GAME_RECOVERY_PARK_GROUND_PRELOAD_BEGIN",
     "PASS45_AUTHORED_PARK_GROUND_READY",
     "exact_semantic_owners=3",
+    "async_preloaded=1",
+    "prerequisite_resident=1",
+    "pre_spawn=1",
+    "sync_load=0",
     "primary_authoring=1 normalization_bridge=0",
     "gate_k_complete=0",
     "runtime_acceptance=0",
@@ -81,6 +91,9 @@ for needle in (
     require(impl, needle, "exact authored-ground upgrade")
 
 for forbidden in (
+    "LoadObject<",
+    "AuthoredUpgradeDelaySeconds",
+    "PC->GetPawn()",
     'FindISM(Sector, TEXT("ParkDetails"))',
     'FindISM(Sector, TEXT("ParkPaths"))',
     'FindISM(Sector, TEXT("ParkMemorialSurface"))',
@@ -93,7 +106,7 @@ for forbidden in (
     "SetHiddenInGame(true",
     "primary_authoring=0",
 ):
-    forbid(impl, forbidden, "authored-ground scope/ownership")
+    forbid(impl, forbidden, "authored-ground scope/startup ownership")
 
 require(gate, "ElapsedSeconds < 3.0f", "Gate K observation delay")
 forbid(gate, "SetVisibility(false", "Gate K mutation")
@@ -106,7 +119,8 @@ for needle in (
 forbid(tactical, 'TEXT("ParkGeometry")', "legacy ParkGeometry tactical-map name dependency")
 
 print("PASS45 AUTHORED PARK GROUND SOURCE PASS")
-print("- three green-ground owners are direct AOCWorldSectorOster primary components; no normalization bridge remains")
-print("- tracked SM_Plane_1x1 + M_Grass_Inst upgrade only those three exact owners")
+print("- three green-ground owners remain direct AOCWorldSectorOster primary components")
+print("- tracked SM_Plane_1x1 + M_Grass_Inst are async-preloaded and applied from resident memory pre-spawn")
+print("- no post-spawn timer or blocking LoadObject remains in park-ground preparation")
 print("- XY footprint, yaw and source surface-top elevation remain bounds-preserved with transactional rollback")
 print("- tactical-map projection remains component-bounds based; UE 5.8 visual acceptance remains open")
