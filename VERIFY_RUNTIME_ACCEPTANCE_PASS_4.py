@@ -100,7 +100,7 @@ for needle in (
     "Windows_low_albedo.png",
     "interior.png",
     "tire.png",
-    "Available models may still be imported independently; missing models remain explicit content gaps.",
+    "Other inbox models remain in the inventory for their own gameplay/world integration pass; they are never silently called READY.",
 ):
     require(source_recovery, needle, "local production source recovery")
 
