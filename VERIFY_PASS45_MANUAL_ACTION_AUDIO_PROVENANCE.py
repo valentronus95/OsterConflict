@@ -170,7 +170,7 @@ req("manual-action audio routing exists by action family" in tz,
 if errors:
     print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: FAIL")
     for error in errors:
-        print("[FAIL]", error)")
+        print("[FAIL]", error)
     raise SystemExit(1)
 
 print("PASS45 MANUAL-ACTION AUDIO PROVENANCE: PASS")
