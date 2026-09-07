@@ -7,7 +7,7 @@
 #include "OCPass45ImportedWeaponBridgeSubsystem.generated.h"
 
 class AOCWeaponBase;
-class FStreamableHandle;
+struct FStreamableHandle;
 
 /**
  * Bridges already-imported local weapon packs into existing gameplay weapon actors without creating
