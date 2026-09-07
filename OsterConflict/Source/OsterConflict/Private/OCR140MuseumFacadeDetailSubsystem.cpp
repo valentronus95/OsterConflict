@@ -17,6 +17,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -311,14 +312,21 @@ void UOCR140MuseumFacadeDetailSubsystem::ApplyFacadeDetail(UWorld& World) const
 
     if (!bFacadeExists)
     {
-        UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-        UStaticMesh* RoofMesh = LoadObject<UStaticMesh>(nullptr,
-            TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m"));
-        UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-            TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-        UMaterialInterface* MetalRoof = LoadObject<UMaterialInterface>(nullptr,
-            TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Metal_Roof.Metal_Roof"));
-        if (!Cube || !Basic) return;
+        UStaticMesh* Cube = Cast<UStaticMesh>(
+            FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")).ResolveObject());
+        UStaticMesh* RoofMesh = Cast<UStaticMesh>(FSoftObjectPath(
+            TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Roof_Both_Ends_4m.Roof_Both_Ends_4m")).ResolveObject());
+        UMaterialInterface* Basic = Cast<UMaterialInterface>(FSoftObjectPath(
+            TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")).ResolveObject());
+        UMaterialInterface* MetalRoof = Cast<UMaterialInterface>(FSoftObjectPath(
+            TEXT("/Game/Modular_Rural_Cabin/Materials/Instances/Metal_Roof.Metal_Roof")).ResolveObject());
+        if (!Cube || !Basic)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("GAME_RECOVERY_MUSEUM_R140_PRELOAD_GAP cube=%d roof=%d material=%d metal_roof=%d sync_load=0"),
+                Cube ? 1 : 0, RoofMesh ? 1 : 0, Basic ? 1 : 0, MetalRoof ? 1 : 0);
+            return;
+        }
 
         AActor* DetailActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
         if (!DetailActor) return;
@@ -376,7 +384,7 @@ void UOCR140MuseumFacadeDetailSubsystem::ApplyFacadeDetail(UWorld& World) const
         }
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_MUSEUM_R140_DETAIL_ONLY_READY late_r137_suppression=0 instance_removal=0; service gable/canopy/final door and upper glass authored directly from references."));
+            TEXT("PASS45_MUSEUM_R140_DETAIL_ONLY_READY late_r137_suppression=0 instance_removal=0 sync_load=0 prerequisite_resident=1; service gable/canopy/final door and upper glass authored directly from references."));
     }
 
     ReplaceServiceDoor(World, MuseumOwner, Museum);
