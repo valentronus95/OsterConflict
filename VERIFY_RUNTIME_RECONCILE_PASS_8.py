@@ -11,6 +11,7 @@ FILES = {
     "loading": SRC / "Private" / "OCDeploymentLoadingSubsystem.cpp",
     "museum_guard": SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp",
     "vehicle_validator": SRC / "Private" / "OCProductionVehicleRuntimeValidationSubsystem.cpp",
+    "weapon_catalog": SRC / "Private" / "OCPass45WeaponCatalogSpawnSubsystem.cpp",
     "minimap": SRC / "Private" / "OCMinimapSubsystem.cpp",
     "chat": SRC / "Private" / "OCRuntimeChatSubsystem.cpp",
     "foliage": SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp",
@@ -44,7 +45,8 @@ def forbid(text: str, needle: str, label: str) -> None:
 
 t = {name: read(name) for name in FILES}
 
-# Pass 7 frontend/vehicle truth survives, but Pass45 supersedes the obsolete all-exact 11-weapon rack gate.
+# Pass 7 frontend/vehicle truth survives. GAME_RECOVERY now gives complete weapon-rack validation to the
+# 23-entry catalog owner instead of the vehicle validator or the retired smaller required-available rack gate.
 settings_brush = re.search(
     r'SettingsPanel->SetBrushColor\(FLinearColor\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)f\)\);',
     t["frontend"],
@@ -53,28 +55,49 @@ if not settings_brush or float(settings_brush.group(1)) < 0.95:
     raise SystemExit("PASS 8 FAIL: settings panel is not effectively opaque (alpha < 0.95)")
 require(t["deploy"], '"DeployEnterBattle", "У БІЙ"', "single START semantics")
 require(t["loading"], 'Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));', "opaque deployment loading")
+require(t["loading"], 'Widget->SetLoadingProgress(0.0f);', "honest zero-percent deployment start")
 require(t["museum_guard"], 'PASS7_MUSEUM_BASES_READY', "Museum BASE runtime marker")
-for marker in (
-    'PASS7_PRODUCTION_VEHICLES_READY',
-    'PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL',
-    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
-    'PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL',
-    'PASS45_EXACT_WEAPON_CONTENT_GAP',
-    'validation_only=1 mutation=0',
-):
-    require(t["vehicle_validator"], marker, "current fail-closed runtime evidence")
-for stale in ('PASS7_PRODUCTION_WEAPONS_READY', 'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL'):
-    forbid(t["vehicle_validator"], stale, "obsolete all-exact weapon runtime gate")
 
 for marker in (
     'PASS7_PRODUCTION_VEHICLES_READY',
+    'PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL',
+    'validation_owner=vehicles_only',
+):
+    require(t["vehicle_validator"], marker, "vehicle-only fail-closed runtime evidence")
+for stale in (
+    'PASS7_PRODUCTION_WEAPONS_READY',
+    'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL',
     'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL',
+):
+    forbid(t["vehicle_validator"], stale, "weapon validation must not return to vehicle owner")
+
+for marker in (
+    'const FWeaponCatalogEntry WeaponCatalog[]',
+    'constexpr int32 CoreRackEntryCount = 7',
+    'PASS45_COMPLETE_WEAPON_RACK_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP',
+    'duplicate_weapon_ids=0',
+    'wrong_identity_substitution=0',
+):
+    require(t["weapon_catalog"], marker, "complete 23-entry weapon catalog owner")
+
+for marker in (
+    'PASS7_PRODUCTION_VEHICLES_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY',
+    'PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP',
     'PASS36_WEAPON_MATERIAL_AUDIT_READY',
     'PASS7_MUSEUM_BASES_READY',
 ):
     require(t["launcher"], marker, "launcher runtime evidence gate")
-for stale in ('PASS7_PRODUCTION_WEAPONS_READY', 'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL'):
-    forbid(t["launcher"], stale, "obsolete exact-only launcher weapon gate")
+for stale in (
+    'PASS7_PRODUCTION_WEAPONS_READY',
+    'PASS7_PRODUCTION_WEAPON_RUNTIME_FAIL',
+    'PASS45_REQUIRED_AVAILABLE_WEAPONS_READY',
+    'PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL',
+):
+    forbid(t["launcher"], stale, "obsolete smaller weapon runtime gate")
 
 # Compact HUD recovered from Pass 6.
 for marker in (
@@ -170,9 +193,10 @@ for marker in (
 ):
     require(t["recovered"], marker, "legacy BASE/static-weapon recovery")
 
-print("RUNTIME RECONCILE PASS 8 + PASS45 WEAPON TRUTH SOURCE CONTRACT PASS")
+print("RUNTIME RECONCILE PASS 8 + GAME_RECOVERY WEAPON CATALOG SOURCE CONTRACT PASS")
 print("- Pass 7 frontend/Museum/production vehicle contracts remain intact")
 print("- settings panel remains effectively opaque without pinning one obsolete RGB shade")
-print("- Pass45 required-available rack replaces impossible all-exact weapon readiness without relabelling fallback production")
+print("- complete 23-entry weapon catalog is the single runtime rack/visual validation owner")
+print("- acceptance launcher requires complete-catalog READY and rejects complete-catalog GAP")
 print("- compact minimap/chat, Block0 profile-bounded foliage, vehicle proxy and first-person weapon contracts remain intact")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance still required")
