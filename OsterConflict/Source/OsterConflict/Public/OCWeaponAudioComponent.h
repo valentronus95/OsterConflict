@@ -6,7 +6,7 @@
 #include "OCTraumaTypes.h"
 #include "OCWeaponAudioComponent.generated.h"
 
-class FStreamableHandle;
+struct FStreamableHandle;
 class UOCWeaponAudioProfile;
 class USoundBase;
 
