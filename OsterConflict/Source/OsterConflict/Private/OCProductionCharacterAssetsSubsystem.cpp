@@ -179,11 +179,22 @@ void UOCProductionCharacterAssetsSubsystem::Tick(float DeltaTime)
 
     const bool bBodyReady = FSoftObjectPath(BodyPath).ResolveObject() != nullptr;
     const bool bArmsReady = FSoftObjectPath(ArmsPath).ResolveObject() != nullptr;
-    UE_LOG(LogTemp, bBodyReady && bArmsReady ? Display : Error,
-        TEXT("GAME_RECOVERY_CHARACTER_PRELOAD_FINISH body=%d arms=%d profiles=%d sync_spawn_loads=0 pre_spawn=1"),
-        bBodyReady ? 1 : 0,
-        bArmsReady ? 1 : 0,
-        UAProfile ? 1 : 0);
+    if (bBodyReady && bArmsReady)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_CHARACTER_PRELOAD_FINISH body=%d arms=%d profiles=%d sync_spawn_loads=0 pre_spawn=1"),
+            bBodyReady ? 1 : 0,
+            bArmsReady ? 1 : 0,
+            UAProfile ? 1 : 0);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_CHARACTER_PRELOAD_FINISH body=%d arms=%d profiles=%d sync_spawn_loads=0 pre_spawn=1"),
+            bBodyReady ? 1 : 0,
+            bArmsReady ? 1 : 0,
+            UAProfile ? 1 : 0);
+    }
 }
 
 TStatId UOCProductionCharacterAssetsSubsystem::GetStatId() const
