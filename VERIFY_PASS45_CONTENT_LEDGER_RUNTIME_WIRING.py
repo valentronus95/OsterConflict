@@ -44,12 +44,18 @@ world = read(WORLD)
 if RETIRED_TREES.exists():
     raise SystemExit("PASS45 CONTENT LEDGER WIRING FAIL: late tree upgrade owner is not physically retired")
 
+# GAME_RECOVERY replaced the old donor-wired marker with factual first-use runtime evidence.
+# The source contract now proves the donor path stays wired without reintroducing a blocking LoadObject.
 for needle in (
     "/Game/Fire_EXP_Vol01_Free/",
-    "PASS45_FRAG_EXPLOSION_VFX_DONOR_WIRED",
+    "GAME_RECOVERY_FRAG_EXPLOSION_VFX_READY",
+    "FSoftObjectPath(Pass45FragExplosionVFXPath).ResolveObject()",
+    "sync_package_loads=0",
 ):
     if needle not in grenade:
         raise SystemExit(f"PASS45 CONTENT LEDGER WIRING FAIL: Fire_EXP runtime wiring missing {needle!r}")
+if "LoadObject<UNiagaraSystem>" in grenade:
+    raise SystemExit("PASS45 CONTENT LEDGER WIRING FAIL: Fire_EXP grenade VFX regained blocking LoadObject")
 
 for needle in (
     "/Game/PotaVFX_Smoke/",
@@ -88,6 +94,7 @@ if not row or (row.get("State") or "").strip().upper() != "PENDING_INTEGRATION":
 
 print("PASS45 CONTENT LEDGER RUNTIME WIRING: PASS")
 print("- INTEGRATED VFX/foliage/tree ledger states have matching project-owned runtime source wiring")
+print("- Fire_EXP grenade VFX uses resident ResolveObject lookup and cannot regain blocking first-use LoadObject")
 print("- all source wiring stays fail-honest with runtime_acceptance=0 until local UE 5.8 evidence exists")
 print("- KiteDemo GroundTiles/Rocks remain explicitly pending rather than false-ready")
 print("STATUS: SOURCE INTEGRATION ONLY; local UE 5.8 runtime acceptance remains required")
