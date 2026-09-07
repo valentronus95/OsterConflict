@@ -6,7 +6,7 @@
 
 class AActor;
 class AOCWeaponBase;
-class FStreamableHandle;
+struct FStreamableHandle;
 
 /** Runtime visual override for user-supplied weapon families from models_game_OC. */
 UCLASS()
