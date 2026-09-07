@@ -1,4 +1,5 @@
 @echo off
+title OSTER CONFLICT - Local
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
