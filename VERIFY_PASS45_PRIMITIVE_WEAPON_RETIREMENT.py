@@ -86,7 +86,6 @@ for stale in (
 ):
     forbid(variants, stale, f'visible source fallback wording returned: {stale}')
 
-# Local imported production visuals used by the sandbox/catalog must also retire the source composite.
 for needle in (
     'int32 HideSourceProxyVisuals(AOCWeaponBase& Weapon)',
     'Component->ComponentHasTag(ProductionVisualTag)',
@@ -98,19 +97,26 @@ for needle in (
 ):
     req(needle in local_bridge, f'local imported bridge source-proxy retirement missing: {needle}')
 
-# Launcher remains a separate current source boundary. Until its own GAME_RECOVERY async cutover lands,
-# it must at least hide primitive geometry before the exact production load can fail.
+# Launcher owns its exact asset asynchronously and keeps the source primitive hidden throughout preload/failure.
 launcher_begin = launcher.find('void AOCAntiArmorLauncher::BeginPlay()')
 launcher_hide = launcher.find('Component->SetVisibility(false, true);', launcher_begin)
-launcher_load = launcher.find('LoadObject<UStaticMesh>', launcher_begin)
-req(launcher_begin >= 0 and launcher_hide > launcher_begin and launcher_load > launcher_hide,
-    'launcher does not hide primitive geometry before current production LoadObject')
+launcher_preload = launcher.find('RequestAsyncLoad(', launcher_begin)
+req(launcher_begin >= 0 and launcher_hide > launcher_begin and launcher_preload > launcher_hide,
+    'launcher does not hide primitive geometry before async production preload')
+forbid(launcher, 'LoadObject<', 'launcher regained blocking production LoadObject')
 for needle in (
+    'FSoftObjectPath(ProductionLauncherPath)',
+    'CompleteProductionVisualPreload',
+    'FSoftObjectPath(ProductionLauncherPath).ResolveObject()',
+    'GAME_RECOVERY_LAUNCHER_PRELOAD_BEGIN weapon=OC_RPG1',
+    'GAME_RECOVERY_LAUNCHER_PRELOAD_GAP weapon=OC_RPG1',
     'PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1',
-    'primitive_visible=0 runtime_acceptance=0',
     'PASS45_LAUNCHER_PRODUCTION_VISUAL_READY weapon=OC_RPG1',
+    'primitive_visible=0',
+    'resident_until_end_play=1',
+    'async_preloaded=1 resident_asset=1 sync_load=0',
 ):
-    req(needle in launcher, f'launcher fail-closed primitive contract missing: {needle}')
+    req(needle in launcher, f'launcher async fail-closed primitive contract missing: {needle}')
 
 for needle in (
     '#include "Components/SkeletalMeshComponent.h"',
@@ -181,7 +187,7 @@ print('- concrete weapon variants hide source BasicShape geometry before residen
 print('- local imported production bridge hides old source proxy rendering while preserving the physics root')
 print('- real fallback safety meshes preload asynchronously and refresh only uses resident assets')
 print('- production visual acceptance requires an assigned static/skeletal mesh, never only a component tag')
-print('- launcher remains fail-closed with primitive_visible=0 pending its separate async cutover')
+print('- launcher exact production mesh async-preloads while primitive geometry remains hidden')
 print('- real fallbacks attach to the unscaled visual root while preserving physics-root collision authority')
 print('- strict runtime evidence requires zero visible BasicShape rack weapons')
 print('STATUS: SOURCE-CODED; local UE 5.8 rendered acceptance remains pending')
