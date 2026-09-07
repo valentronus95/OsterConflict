@@ -173,15 +173,19 @@ for forbidden in (
     if forbidden in spawn:
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 4 FAIL: superseded Museum BASE returned: {forbidden}")
 
-# Block 0 replaces the historical single CellsPerBatch value with explicit Full/LowCPU budgets.
-# Full and LowCPU retain the same playable bounds; only density/batching/culls differ.
+# Block0 uses async preload + Tick-driven incremental population. It must resolve resident meshes only.
 for needle in (
+    "RequestAsyncLoad",
+    "PreloadHandle->HasLoadCompleted()",
     "PopulateBatch",
-    "PopulationBatchTimer",
     "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch",
+    "FSoftObjectPath(Path).ResolveObject()",
+    "sync_load=0",
     "full_playable_bounds=1",
 ):
-    require(foliage, needle, "batched Block0 dense foliage")
+    require(foliage, needle, "resident-only batched Block0 dense foliage")
+if "LoadObject<" in foliage:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 4 FAIL: Block0 foliage reintroduced synchronous package loading")
 full_batch = re.search(r"constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;", foliage)
 low_batch = re.search(r"constexpr\s+int32\s+LowCPUCellsPerBatch\s*=\s*(\d+)\s*;", foliage)
 if not full_batch or not 1 <= int(full_batch.group(1)) <= 32:
@@ -198,5 +202,5 @@ print("- normal gameplay hard-gates required real/playable weapon meshes in a fr
 print("- authored materials and their fresh-loadable texture dependencies are independently audited")
 print("- white/default/missing dependencies remain explicit non-production gaps")
 print("- no unverified M16/M4 payload is invented")
-print("- Windows Git LFS/source recovery, tracer/muzzle, Museum BASE and Block0 profile-batched foliage contracts remain intact")
-print("STATUS: CODED_UNTESTED; local UE 5.8 build/playtest still required")
+print("- Windows Git LFS/source recovery, tracer/muzzle, Museum BASE and resident-only Block0 foliage contracts remain intact")
+print("STATUS: SOURCE VERIFIED ONLY; local UE 5.8 build/playtest still required")
