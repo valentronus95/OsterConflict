@@ -1,14 +1,15 @@
 #include "OCParkMemorialApproachAuthoredUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -194,35 +195,61 @@ bool UOCParkMemorialApproachAuthoredUpgradeSubsystem::ShouldCreateSubsystem(UObj
         (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
-TStatId UOCParkMemorialApproachAuthoredUpgradeSubsystem::GetStatId() const
+void UOCParkMemorialApproachAuthoredUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
-    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCParkMemorialApproachAuthoredUpgradeSubsystem, STATGROUP_Tickables);
-}
+    Super::OnWorldBeginPlay(InWorld);
 
-void UOCParkMemorialApproachAuthoredUpgradeSubsystem::Tick(float DeltaTime)
-{
-    if (bFinished) return;
+    MemorialApproachPreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = false;
+    bSucceeded = false;
 
-    UWorld* World = GetWorld();
-    if (!World || !World->IsGameWorld()) return;
-    if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+    if (!InWorld.IsGameWorld()) return;
+    if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
+    BeginMemorialApproachPreload();
+}
+
+void UOCParkMemorialApproachAuthoredUpgradeSubsystem::BeginMemorialApproachPreload()
+{
+    if (bPreloadRequested || bFinished) return;
+    bPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    Paths.Emplace(AuthoredMemorialStepPath);
+    MemorialApproachPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCParkMemorialApproachAuthoredUpgradeSubsystem::HandleMemorialApproachPreloadComplete),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryParkMemorialApproachPreload"));
+
+    if (!MemorialApproachPreloadHandle.IsValid())
     {
-        ElapsedSeconds = 0.0f;
+        bFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_CONTENT_GAP step_mesh_loaded=0 expected=SM_Curb_1 family=ParkMemorialApproach pre_spawn=1 async_preload=0 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
         return;
     }
 
-    ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    if (ElapsedSeconds < 0.80f) return;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_PARK_MEMORIAL_APPROACH_PRELOAD_BEGIN assets=1 async=1 pre_spawn=1 sync_load=0"));
+}
+
+void UOCParkMemorialApproachAuthoredUpgradeSubsystem::HandleMemorialApproachPreloadComplete()
+{
+    if (bFinished) return;
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld())
+    {
+        bFinished = true;
+        return;
+    }
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -233,20 +260,18 @@ void UOCParkMemorialApproachAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
     if (SectorCount != 1 || !Sector)
     {
-        if (ElapsedSeconds < 5.0f) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_FAIL reason=oster_sector_count_%d gate_k_complete=0 runtime_acceptance=0"),
-            SectorCount);
+            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_FAIL reason=oster_sector_count_%d pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"), SectorCount);
         return;
     }
 
-    UStaticMesh* StepMesh = LoadObject<UStaticMesh>(nullptr, AuthoredMemorialStepPath);
+    UStaticMesh* StepMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredMemorialStepPath).ResolveObject());
     if (!StepMesh)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_CONTENT_GAP step_mesh_loaded=0 expected=SM_Curb_1 family=ParkMemorialApproach gate_k_complete=0 runtime_acceptance=0"));
+            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_CONTENT_GAP step_mesh_loaded=0 expected=SM_Curb_1 family=ParkMemorialApproach pre_spawn=1 async_preload=1 resident_only=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
         return;
     }
 
@@ -255,11 +280,12 @@ void UOCParkMemorialApproachAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     FString Failure;
     const bool bApproachReady = UpgradeMemorialApproach(ParkMemorialApproach, StepMesh, ApproachInstances, Failure);
     bFinished = true;
+    bSucceeded = bApproachReady && ApproachInstances == ExpectedMemorialApproachInstances;
 
-    if (!bApproachReady || ApproachInstances != ExpectedMemorialApproachInstances)
+    if (!bSucceeded)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_FAIL family=ParkMemorialApproach ready=%d instances=%d expected=%d reason=%s gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_FAIL family=ParkMemorialApproach ready=%d instances=%d expected=%d reason=%s pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             bApproachReady ? 1 : 0,
             ApproachInstances,
             ExpectedMemorialApproachInstances,
@@ -268,5 +294,15 @@ void UOCParkMemorialApproachAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_READY step_mesh=SM_Curb_1 step_pack=Mega_Street_Props_Pack instances=4 semantic_owner=ParkMemorialApproach basicshape_meshes=0 basicshape_material_overrides=0 bounds_aware_box_fit=1 source_bottom_preserved=1 family_scope_exact=1 gate_k_complete=0 runtime_acceptance=0"));
+        TEXT("PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_READY step_mesh=SM_Curb_1 step_pack=Mega_Street_Props_Pack instances=4 semantic_owner=ParkMemorialApproach basicshape_meshes=0 basicshape_material_overrides=0 bounds_aware_box_fit=1 source_bottom_preserved=1 family_scope_exact=1 async_preloaded=1 prerequisite_resident=1 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
+}
+
+void UOCParkMemorialApproachAuthoredUpgradeSubsystem::Deinitialize()
+{
+    if (MemorialApproachPreloadHandle.IsValid()) MemorialApproachPreloadHandle->CancelHandle();
+    MemorialApproachPreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = true;
+    bSucceeded = false;
+    Super::Deinitialize();
 }
