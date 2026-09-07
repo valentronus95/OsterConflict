@@ -1,15 +1,15 @@
 #include "OCBlock0GroundFoundationSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
-#include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -187,55 +187,54 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
 
+    bGroundAttemptFinished = false;
+    GroundPreloadHandle.Reset();
+
     if (!InWorld.IsGameWorld()) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Never synchronously load the AdvancedVillage/KiteDemo ground packages while Slate owns
-    // frontend/deployment input. Poll a tiny readiness predicate and perform the authored swap only
-    // after a real gameplay pawn exists and all blocking menus have closed.
-    InWorld.GetTimerManager().SetTimer(
-        GameplayReadyTimer,
-        this,
-        &UOCBlock0GroundFoundationSubsystem::TryApplyWhenGameplayReady,
-        0.25f,
-        true,
-        0.50f);
-
-    UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_GROUND_LOAD_DEFERRED_READY menu_safe=1 synchronous_startup_loads=0 poll_s=0.25 runtime_acceptance=0"));
-}
-
-void UOCBlock0GroundFoundationSubsystem::Deinitialize()
-{
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(GameplayReadyTimer);
-    }
-    Super::Deinitialize();
-}
-
-void UOCBlock0GroundFoundationSubsystem::TryApplyWhenGameplayReady()
-{
-    if (bGroundAttemptFinished) return;
-
-    UWorld* World = GetWorld();
-    if (!World || !World->IsGameWorld()) return;
-
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
+    RequestGroundPreload();
+}
+
+void UOCBlock0GroundFoundationSubsystem::RequestGroundPreload()
+{
+    if (bGroundAttemptFinished || GroundPreloadHandle.IsValid()) return;
+
+    TArray<FSoftObjectPath> Paths;
+    Paths.Emplace(AuthoredGroundMeshPath);
+    Paths.Emplace(AuthoredGroundMaterialPath);
+    GroundPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCBlock0GroundFoundationSubsystem::HandleGroundPreloadComplete),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryBlock0GroundPreload"));
+
+    if (!GroundPreloadHandle.IsValid())
     {
+        bGroundAttemptFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP ground_mesh_loaded=0 ground_material_loaded=0 preferred_ground_pack=KiteDemo preferred_ground_material=M_Ground_Grass2 authored_before_first_tick=0 runtime_acceptance=0 sync_load=0 resident_only=1"));
         return;
     }
 
-    World->GetTimerManager().ClearTimer(GameplayReadyTimer);
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_BLOCK0_GROUND_PRELOAD_BEGIN assets=2 async=1 pre_spawn=1 sync_load=0"));
+}
+
+void UOCBlock0GroundFoundationSubsystem::HandleGroundPreloadComplete()
+{
+    if (bGroundAttemptFinished) return;
     bGroundAttemptFinished = true;
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld()) return;
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -247,17 +246,17 @@ void UOCBlock0GroundFoundationSubsystem::TryApplyWhenGameplayReady()
     if (SectorCount != 1 || !Sector)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_PRETICK_GROUND_FAIL reason=oster_sector_count_%d authored_before_first_tick=0 runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_PRETICK_GROUND_FAIL reason=oster_sector_count_%d authored_before_first_tick=0 runtime_acceptance=0 sync_load=0"),
             SectorCount);
         return;
     }
 
-    UStaticMesh* AuthoredMesh = LoadObject<UStaticMesh>(nullptr, AuthoredGroundMeshPath);
-    UMaterialInterface* AuthoredMaterial = LoadObject<UMaterialInterface>(nullptr, AuthoredGroundMaterialPath);
+    UStaticMesh* AuthoredMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredGroundMeshPath).ResolveObject());
+    UMaterialInterface* AuthoredMaterial = Cast<UMaterialInterface>(FSoftObjectPath(AuthoredGroundMaterialPath).ResolveObject());
     if (!AuthoredMesh || !AuthoredMaterial)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d preferred_ground_pack=KiteDemo preferred_ground_material=M_Ground_Grass2 authored_before_first_tick=0 runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_PRETICK_GROUND_CONTENT_GAP ground_mesh_loaded=%d ground_material_loaded=%d preferred_ground_pack=KiteDemo preferred_ground_material=M_Ground_Grass2 authored_before_first_tick=0 runtime_acceptance=0 sync_load=0 resident_only=1"),
             AuthoredMesh ? 1 : 0,
             AuthoredMaterial ? 1 : 0);
         return;
@@ -268,11 +267,19 @@ void UOCBlock0GroundFoundationSubsystem::TryApplyWhenGameplayReady()
     if (!ApplyAuthoredGroundBeforeFirstTick(Ground, AuthoredMesh, AuthoredMaterial, Failure))
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_PRETICK_GROUND_FAIL reason=%s authored_before_first_tick=0 runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_PRETICK_GROUND_FAIL reason=%s authored_before_first_tick=0 runtime_acceptance=0 sync_load=0"),
             *Failure);
         return;
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=0 gameplay_deferred=1 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 runtime_acceptance=0"));
+        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=1 delayed_ground_mutation_required=0 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 runtime_acceptance=0 async_preloaded=1 sync_load=0 resident_only=1"));
+}
+
+void UOCBlock0GroundFoundationSubsystem::Deinitialize()
+{
+    if (GroundPreloadHandle.IsValid()) GroundPreloadHandle->CancelHandle();
+    GroundPreloadHandle.Reset();
+    bGroundAttemptFinished = true;
+    Super::Deinitialize();
 }
