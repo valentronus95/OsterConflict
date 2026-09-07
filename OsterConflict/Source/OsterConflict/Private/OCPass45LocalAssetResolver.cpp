@@ -76,6 +76,16 @@ namespace
         return Assets[0];
     }
 
+    FSoftObjectPath ResolvePath(
+        const UClass* AssetClass,
+        const TArray<FName>& PackageRoots,
+        const TArray<FString>& PreferredTokens,
+        bool bRequireTokenMatch)
+    {
+        const FAssetData Best = FindBestAsset(AssetClass, PackageRoots, PreferredTokens, bRequireTokenMatch);
+        return Best.IsValid() ? FSoftObjectPath(Best.GetObjectPathString()) : FSoftObjectPath();
+    }
+
     template <typename TObjectType>
     TObjectType* Resolve(
         const UClass* AssetClass,
@@ -102,6 +112,13 @@ UStaticMesh* OCPass45FindLocalStaticMeshStrict(
     return Resolve<UStaticMesh>(UStaticMesh::StaticClass(), PackageRoots, RequiredTokens, true);
 }
 
+FSoftObjectPath OCPass45FindLocalStaticMeshPathStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens)
+{
+    return ResolvePath(UStaticMesh::StaticClass(), PackageRoots, RequiredTokens, true);
+}
+
 USkeletalMesh* OCPass45FindLocalSkeletalMesh(
     const TArray<FName>& PackageRoots,
     const TArray<FString>& PreferredTokens)
@@ -114,6 +131,13 @@ USkeletalMesh* OCPass45FindLocalSkeletalMeshStrict(
     const TArray<FString>& RequiredTokens)
 {
     return Resolve<USkeletalMesh>(USkeletalMesh::StaticClass(), PackageRoots, RequiredTokens, true);
+}
+
+FSoftObjectPath OCPass45FindLocalSkeletalMeshPathStrict(
+    const TArray<FName>& PackageRoots,
+    const TArray<FString>& RequiredTokens)
+{
+    return ResolvePath(USkeletalMesh::StaticClass(), PackageRoots, RequiredTokens, true);
 }
 
 UAnimSequence* OCPass45FindLocalAnimation(
