@@ -13,6 +13,11 @@ RESPAWN_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCRespawnRecove
 TEAM_SPAWN = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp"
 GAME_MODE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCGameMode.h"
 GAME_MODE = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp"
+RUNTIME_SAFE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCGameModeRuntimeSafe.h"
+RUNTIME_SAFE_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGameModeRuntimeSafe.cpp"
+GROUND_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCBlock0GroundFoundationSubsystem.h"
+SURFACE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCAuthoredWorldSurfaceUpgradeSubsystem.h"
+LANDMARK_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCLandmarkStartupCoordinatorSubsystem.h"
 VEHICLE_SPAWNS = ROOT / "OsterConflict/Source/OsterConflict/Private/OCCombatVehicleSpawnPoints.cpp"
 VEHICLE_VALIDATOR = ROOT / "OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp"
 LAUNCHER = ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd"
@@ -39,6 +44,11 @@ respawn_cpp = read(RESPAWN_CPP)
 team_spawn = read(TEAM_SPAWN)
 game_mode_h = read(GAME_MODE_H)
 game_mode = read(GAME_MODE)
+runtime_safe_h = read(RUNTIME_SAFE_H)
+runtime_safe = read(RUNTIME_SAFE_CPP)
+ground_h = read(GROUND_H)
+surface_h = read(SURFACE_H)
+landmark_h = read(LANDMARK_H)
 vehicle_spawns = read(VEHICLE_SPAWNS)
 vehicle_validator = read(VEHICLE_VALIDATOR)
 launcher = read(LAUNCHER)
@@ -70,6 +80,45 @@ require(loading, 'if (!bReadySent && bWorldReady && Elapsed >= 0.12)', "world-re
 require(loading, 'Progress = FMath::Lerp(0.94f, 1.0f, CompletionAlpha);', "loading reaches factual 100 percent through completion alpha")
 require(loading, 'if (CompletionAlpha >= 1.0f)', "loading removal only after 100 percent completion")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
+
+# GAME_RECOVERY initial human spawn must be held centrally until factual local visual-world readiness.
+for needle in (
+    'WorldReadyRestartPollSeconds = 0.10f',
+    'WorldReadyRestartTimeoutSeconds = 60.0',
+    'IsRecoveryWorldReady',
+    'QueueRestartWhenWorldReady',
+    'PollRestartWhenWorldReady',
+    'PendingWorldReadyRestarts',
+):
+    require(runtime_safe_h, needle, f"central pre-spawn readiness gate header: {needle}")
+for needle in (
+    'World->GetNetMode() == NM_DedicatedServer',
+    'World->GetSubsystem<UOCBlock0GroundFoundationSubsystem>()',
+    'World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>()',
+    'World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>()',
+    'Ground->IsGroundReady()',
+    'Ground->HasGroundFailed()',
+    'Surface->IsWorldSurfaceReady()',
+    'Surface->HasWorldSurfaceFailed()',
+    'Landmarks->IsWorldStartupReady()',
+    'GAME_RECOVERY_SPAWN_GATE_WAIT',
+    'GAME_RECOVERY_SPAWN_GATE_READY',
+    'GAME_RECOVERY_SPAWN_GATE_FAIL',
+    'player_spawn_release=1',
+    'post_spawn_world_loading=0',
+    'fail_closed=1',
+    'RestartPlayer(Controller);',
+):
+    require(runtime_safe, needle, f"central pre-spawn readiness gate implementation: {needle}")
+require(ground_h, 'bool IsGroundReady() const { return bGroundAttemptFinished && bGroundSucceeded; }', "factual Block0 ground readiness")
+require(ground_h, 'bool HasGroundFailed() const { return bGroundAttemptFinished && !bGroundSucceeded; }', "Block0 ground fail-closed state")
+require(surface_h, 'bool IsWorldSurfaceReady() const', "authored world-surface readiness")
+require(surface_h, 'bool HasWorldSurfaceFailed() const', "authored world-surface failure state")
+require(landmark_h, 'bool IsWorldStartupReady() const { return bStartupComplete; }', "landmark startup readiness")
+gate_pos = runtime_safe.find('if (!IsRecoveryWorldReady(PendingStages, bHardFailure))')
+spawn_logic_pos = runtime_safe.find('if (!HumanPC || HumanPC->GetRequestedDeploymentSpawn()')
+if gate_pos < 0 or spawn_logic_pos < 0 or gate_pos > spawn_logic_pos:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: human spawn logic can run before GAME_RECOVERY world-readiness gate")
 
 # GAME_RECOVERY death flow is fixed at ten seconds and must produce factual runtime evidence.
 require(game_mode_h, 'static constexpr float RespawnDelay = 10.0f;', "fixed ten-second player respawn rule")
@@ -177,7 +226,7 @@ if 'Normal gameplay playtest must run from branch main.' in launcher:
 print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
 print("- settings panel must remain effectively opaque (alpha >= 0.95), without pinning one obsolete RGB shade")
-print("- deployment transition starts at factual 0%, waits for world readiness, then reaches 100% after possession")
+print("- deployment transition starts at factual 0% and human spawn is centrally held until ground/surface/landmark readiness")
 print("- player respawn is fixed at 10 seconds and a validation-only probe emits factual READY/FAIL evidence")
 print("- Museum BASE creation no longer depends on delayed world-sector timing")
 print("- BASE-selected characters are validated/recovered once; vehicle possession cannot trigger Museum revalidation")
