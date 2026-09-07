@@ -48,8 +48,19 @@ for term in (
 require("Hit.ImpactNormal.Z < 0.82f" in text, "regional detail lost slope rejection")
 require("BlockedSurfaceRejected" in text, "blocked-surface rejection is not observable")
 require("PrimaryActorTick" not in text, "regional detail introduced an actor tick owner")
+
+# GAME_RECOVERY: the detail asset must be prepared asynchronously before the bounded one-shot population pass.
+require("RequestAsyncLoad(" in text, "regional detail lost async preload")
+require("GameRecoveryRegionalGroundDetailPreload" in text, "regional detail preload has no stable owner marker")
+require("FSoftObjectPath(DeadLeavesMeshPath).ResolveObject()" in text,
+        "regional detail does not resolve the already-resident leaf mesh")
+require("LoadObject<" not in text, "regional detail reintroduced a blocking LoadObject path")
+require("sync_load=0" in text and "resident_only=1" in text,
+        "regional detail resident-only contract is not observable")
 require("SetTimer(" in text and "0.30f" in text and "false);" in text,
         "regional detail is no longer a bounded one-shot deferred pass")
+require("true,\n        0.50f" not in text,
+        "regional detail reintroduced the old repeating post-spawn polling timer")
 
 if errors:
     print("PASS45 BLOCK0 REGIONAL GROUND DETAIL: FAIL")
@@ -59,6 +70,7 @@ if errors:
 
 print("PASS45 BLOCK0 REGIONAL GROUND DETAIL: PASS")
 print("- sparse authored SM_DeadLeaves detail remains bounded and deterministic")
-print("- LowCPU/full instance caps, culling and zero collision/navigation/tick ownership are protected")
+print("- leaf asset is async-preloaded and population is resident-only with no blocking LoadObject")
+print("- one bounded deferred population pass replaces historical repeating post-spawn polling")
 print("- road/building/water/river/lake/canal/NoFoliage hits are rejected before AddInstance")
 print("STATUS: SOURCE CONTRACT ONLY; UE 5.8 runtime visual acceptance remains required")
