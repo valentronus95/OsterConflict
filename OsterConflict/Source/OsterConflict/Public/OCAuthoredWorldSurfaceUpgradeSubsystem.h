@@ -26,6 +26,7 @@ public:
     virtual bool IsTickableWhenPaused() const override { return true; }
 
     bool IsWorldSurfaceReady() const { return bInitialized && (!bEligible || (bFinished && bSucceeded)); }
+    bool HasWorldSurfaceFailed() const { return bInitialized && bEligible && bFinished && !bSucceeded; }
     float GetWorldSurfaceProgress() const;
 
 private:
