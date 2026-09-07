@@ -217,35 +217,36 @@
 
 ## Поточний checkpoint — 2026-09-07
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **50%**. Залишилось приблизно **50%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **52%**. Залишилось приблизно **48%**.
 
 ### Зроблено / source-closed
 - пункт 1/10: canonical Stadium + Museum + Silpo + Culture House готуються до spawn; historical delayed landmark timers прибрані з post-spawn шляху, loading UI чекає фактичний `WORLD_READY`;
 - пункт 1/10: усі 4 знайдені park upgrade-власники (`ParkBenches`, ground, hardscape, memorial approach) переведені з post-spawn delay/`LoadObject()` на async/resident підготовку до spawn; Park Ground/Hardscape/Memorial/Semantic source gates зелені;
 - пункт 1/10: stadium assets preload-яться async, а сама `ApplyStadiumSurface()` тепер має окремий `GAME_RECOVERY_STADIUM_MATERIALIZATION_TIMING` з warning budget 100 ms, щоб фактичний UE 5.8 показав, чи треба дробити геометрію по кадрах;
-- пункт 2: respawn source-side зафіксований на **10 секунд**, recovery повертає input/HUD; factual `GAME_RECOVERY_RESPAWN_READY` ще потрібен у UE 5.8;
-- пункт 3: grenade mesh/material/VFX/audio preload, one-shot explosion і cleanup source-closed; відповідні grenade gates зелені;
-- пункт 4: повний **23-позиційний weapon catalog** та primitive/proxy retirement source-side захищені; local imported bridge після production visual ховає старий source proxy, але не видаляє physics root;
+- пункт 2: server respawn зафіксований на **10 секунд**; confirmed death переходить у corpse-camera wait без spectator/debug pawn; input/menu stacks блокуються на час смерті та відновлюються після нового possession;
+- пункт 2/9: додано production respawn HUD countdown `10 -> 0`; overlay прибирається при respawn та `EndPlay`, без `GameplayDebugger` або debug-text; `Game Recovery Respawn` source gate зелений на `c82e626bfc4e7f9f3db0e5808d269bff0786bf12`;
+- пункт 3/9: grenade mesh/material/VFX/audio preload, HUD type/count, one-shot explosion і cleanup source-closed; відповідні grenade gates зелені на останніх перевірених exact heads;
+- пункт 4: повний **23-позиційний weapon catalog** та primitive/proxy retirement source-side захищені; base weapon startup більше не будує декоративні Cube/Cylinder/material proxy; local imported bridge після production visual ховає старий source proxy, але не видаляє physics root;
 - пункт 4/10: `OCLocalInboxWeaponOverrideSubsystem` більше не робить `LoadObject()` у normal gameplay: missing weapon asset вантажиться через `RequestAsyncLoad`, потім ставиться тільки через resident `ResolveObject()`; visual кріпиться до unscaled weapon root і отримує production tag, тому дві видимі моделі не повинні конкурувати;
 - пункт 5/10: BTR-4, HMMWV/M2 та інші production vehicle source paths переведені на preload/resident assets, primitive/proxy fallback fail-closed;
 - пункт 6/10: Stadium/Museum/Silpo/Culture House blocking landmark loads source-side прибрані; shared landmark preload утримує потрібні assets resident;
 - пункт 8: Settings handlers для tabs/video/audio/FOV/HUD/accessibility/rebind та Apply/Save/Cancel/Defaults source-side присутні; `GAME_RECOVERY_SETTINGS_COMMIT` / `GAME_RECOVERY_SETTINGS_CANCEL` лишаються factual runtime markers;
-- пункт 10: landmark stage timing, stadium materialization timing, foliage/regional-ground resident-only paths і local weapon async path захищені source checks;
-- exact source HEAD перед цим docs-комітом: `e8fc1be2bb2c9e93ebe61f2258bad0a044a3717f`;
-- на `e8fc...` зелені ключові gates: `Runtime recovery Pass 45`, `Park Semantic Authored`, `Pass 45 primitive weapon retirement`, `Game Recovery Stadium Preload`; інші раніше перевірені recovery/performance/vehicle/grenade gates також не показали нового source regression;
+- пункт 10: landmark stage timing, stadium materialization timing, foliage/regional-ground resident-only paths, local weapon async path та respawn lifecycle timing/log markers захищені source checks;
+- exact source HEAD перед цим docs-комітом: `c82e626bfc4e7f9f3db0e5808d269bff0786bf12`;
+- новий `Game Recovery Respawn` gate на `c82e...`: **SUCCESS**; ширший набір exact-head workflow після respawn HUD зміни ще виконується;
 - PR #94: **OPEN / UNMERGED**, base `main` = `a1ad0e200611911102c48180956d82f73d0d8fc3`; merge не дозволений до factual UE 5.8 acceptance.
 
 ### У роботі
 - пункт 1/10: у фактичному UE 5.8 зняти `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING` і `GAME_RECOVERY_STADIUM_MATERIALIZATION_TIMING`; дробити лише реально over-budget stage/materialization, а не навмання;
-- пункт 2: отримати фактичний `GAME_RECOVERY_RESPAWN_READY` після смерті та підтвердити HUD/input;
-- пункт 4: перевірити rendered 23-позиційний каталог після нового local weapon async/production-owner cutover, без синіх дисків, proxy і подвійних моделей;
+- пункт 2/9: фактично пройти `death -> 10 s -> respawn`, побачити countdown і підтвердити HUD/input після нового pawn;
+- пункт 4: перевірити rendered 23-позиційний каталог після local weapon async/production-owner cutover, без синіх дисків, proxy і подвійних моделей;
 - пункт 6: фактично перевірити Stadium/Museum/Silpo/Culture House/park без post-spawn pop-in;
 - пункт 8/9: фактично пройти Settings + HUD у UE 5.8;
 - пункт 10: продовжити аудит лише реальних normal-game first-use paths; validation-only `LocalInboxWorldAssets` не вважається normal gameplay blocker.
 
 ### Ще не ACCEPTED
 - фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
-- `death -> 10 s -> respawn` із HUD/input;
+- `death -> 10 s -> respawn` із видимим countdown та стабільним HUD/input;
 - перший і повторний grenade throw/explosion у rendered runtime;
 - rendered повний weapon catalog без helper/proxy/detached/double visuals;
 - production BTR-4/HMMWV/M2 у фактичній грі;
@@ -254,4 +255,4 @@
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункт 1/4/10: продовжити normal-game first-use audit, а в UE 5.8 головні факти зараз: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_STADIUM_MATERIALIZATION_TIMING`, `GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_*`, `GAME_RECOVERY_RESPAWN_READY`, `GAME_RECOVERY_SETTINGS_COMMIT`/`CANCEL`, стабільний HUD та відсутність post-spawn proxy/pop-in.
+Пункт 1/4/10: продовжити normal-game first-use audit, а в UE 5.8 головні факти зараз: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_STADIUM_MATERIALIZATION_TIMING`, `GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_*`, `GAME_RECOVERY_RESPAWN_HUD_READY`, `GAME_RECOVERY_RESPAWN_CLIENT_READY`, `GAME_RECOVERY_SETTINGS_COMMIT`/`CANCEL`, стабільний HUD та відсутність post-spawn proxy/pop-in.
