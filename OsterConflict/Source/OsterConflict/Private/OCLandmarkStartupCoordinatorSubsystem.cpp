@@ -25,6 +25,7 @@
 namespace
 {
     const FName MuseumExteriorTag(TEXT("R137_MuseumPhotoModel"));
+    constexpr double StageWarnBudgetMilliseconds = 100.0;
 }
 
 bool UOCLandmarkStartupCoordinatorSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -43,6 +44,9 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     bHistoricalTimersCancelled = false;
     bStartupComplete = false;
     NextStageWallTimeSeconds = 0.0;
+    StartupBeginWallTimeSeconds = 0.0;
+    SlowestStageMilliseconds = 0.0;
+    SlowestStageIndex = INDEX_NONE;
 
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
@@ -51,8 +55,10 @@ void UOCLandmarkStartupCoordinatorSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     bInitialized = true;
+    StartupBeginWallTimeSeconds = FPlatformTime::Seconds();
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_WORLD_PREP_BEGIN pre_spawn=1 tick_when_paused=1 staged_materialization=1"));
+        TEXT("GAME_RECOVERY_WORLD_PREP_BEGIN pre_spawn=1 tick_when_paused=1 staged_materialization=1 timing_probe=1 stage_warn_budget_ms=%.0f"),
+        StageWarnBudgetMilliseconds);
 }
 
 void UOCLandmarkStartupCoordinatorSubsystem::Tick(float DeltaTime)
@@ -86,6 +92,9 @@ void UOCLandmarkStartupCoordinatorSubsystem::Deinitialize()
 {
     bInitialized = false;
     NextStageWallTimeSeconds = 0.0;
+    StartupBeginWallTimeSeconds = 0.0;
+    SlowestStageMilliseconds = 0.0;
+    SlowestStageIndex = INDEX_NONE;
     Super::Deinitialize();
 }
 
@@ -140,15 +149,8 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
 {
     if (bStartupComplete || !World.IsGameWorld()) return;
 
-    // Cancel every historical delayed owner once, then own the whole landmark startup sequence here.
-    // Unlike the old implementation this coordinator keeps running while the world is paused, so the
-    // deployment screen absorbs preparation and the player is not used as a loading screen.
     CancelHistoricalStageTimers(World);
 
-    // GAME_RECOVERY item 6/10: the canonical stadium used to be quarantined because its historical owner
-    // synchronously loaded a deep mesh/material dependency chain during OnWorldBeginPlay. A concrete recovery
-    // subclass now preloads that exact presentation asynchronously. Do not release landmark readiness until the
-    // authoritative stadium actor exists, otherwise the player can still spawn into the old empty stadium gap.
     UOCGameRecoveryStadiumActivationSubsystem* Stadium =
         World.GetSubsystem<UOCGameRecoveryStadiumActivationSubsystem>();
     if (!Stadium || !Stadium->IsStadiumPresentationReady())
@@ -167,7 +169,6 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
         }
         else if (!IsMuseumExteriorReady(World))
         {
-            // The deployment-stability subsystem owns asynchronous preload + R13.7 build on playable worlds.
             return;
         }
 
@@ -183,6 +184,8 @@ void UOCLandmarkStartupCoordinatorSubsystem::RunAuthoritativeStartup(UWorld& Wor
 bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
 {
     const bool bHasGameplayAuthority = World.GetNetMode() != NM_Client;
+    const int32 StageBeingRun = StartupStageIndex;
+    const double StageStartSeconds = FPlatformTime::Seconds();
 
     switch (StartupStageIndex)
     {
@@ -242,6 +245,26 @@ bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
         break;
     }
 
+    const double StageMilliseconds = (FPlatformTime::Seconds() - StageStartSeconds) * 1000.0;
+    if (StageMilliseconds > SlowestStageMilliseconds)
+    {
+        SlowestStageMilliseconds = StageMilliseconds;
+        SlowestStageIndex = StageBeingRun;
+    }
+
+    if (StageMilliseconds >= StageWarnBudgetMilliseconds)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE_TIMING stage=%d duration_ms=%.2f budget_ms=%.0f over_budget=1 pre_spawn=1"),
+            StageBeingRun, StageMilliseconds, StageWarnBudgetMilliseconds);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Verbose,
+            TEXT("GAME_RECOVERY_WORLD_PREP_STAGE_TIMING stage=%d duration_ms=%.2f budget_ms=%.0f over_budget=0 pre_spawn=1"),
+            StageBeingRun, StageMilliseconds, StageWarnBudgetMilliseconds);
+    }
+
     if (!bStartupComplete)
     {
         ++StartupStageIndex;
@@ -255,8 +278,11 @@ bool UOCLandmarkStartupCoordinatorSubsystem::RunNextStartupStage(UWorld& World)
         return false;
     }
 
+    const double TotalMilliseconds = StartupBeginWallTimeSeconds > 0.0
+        ? (FPlatformTime::Seconds() - StartupBeginWallTimeSeconds) * 1000.0
+        : 0.0;
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 stadium_ready=1 post_spawn_landmark_materialization=0 PASS45_LANDMARK_STARTUP_COORDINATED_READY R138_collision_glass=current_stage R139_R140_doors_facade=current_stage R142_R145_details=current_stage window_replacement_stage=0 legacy_core_recovery=0 destructive_visibility_rebuild=0 runtime_acceptance=0"),
-        TotalStartupStages);
+        TEXT("GAME_RECOVERY_WORLD_READY stages=%d pre_spawn=1 stadium_ready=1 post_spawn_landmark_materialization=0 total_prep_ms=%.2f slowest_stage=%d slowest_stage_ms=%.2f PASS45_LANDMARK_STARTUP_COORDINATED_READY R138_collision_glass=current_stage R139_R140_doors_facade=current_stage R142_R145_details=current_stage window_replacement_stage=0 legacy_core_recovery=0 destructive_visibility_rebuild=0 runtime_acceptance=0"),
+        TotalStartupStages, TotalMilliseconds, SlowestStageIndex, SlowestStageMilliseconds);
     return true;
 }
