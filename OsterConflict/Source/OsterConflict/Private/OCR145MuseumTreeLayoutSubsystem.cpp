@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -88,13 +89,18 @@ void UOCR145MuseumTreeLayoutSubsystem::ReplaceMuseumTrees(UWorld& World) const
         if (AActor* Actor = *It; Actor && Actor->ActorHasTag(TEXT("R145_MuseumPhotoTreeLayout"))) return;
     }
 
-    UStaticMesh* Pine01 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01"));
-    UStaticMesh* Pine03 = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03"));
-    UStaticMesh* Deciduous = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01"));
-    if (!Pine01 && !Pine03 && !Deciduous) return;
+    UStaticMesh* Pine01 = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01")).ResolveObject());
+    UStaticMesh* Pine03 = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03")).ResolveObject());
+    UStaticMesh* Deciduous = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01")).ResolveObject());
+    if (!Pine01 && !Pine03 && !Deciduous)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_MUSEUM_R145_PRELOAD_GAP pine01=0 pine03=0 deciduous=0 sync_load=0"));
+        return;
+    }
 
     AActor* TreesActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!TreesActor) return;
@@ -164,6 +170,6 @@ void UOCR145MuseumTreeLayoutSubsystem::ReplaceMuseumTrees(UWorld& World) const
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_MUSEUM_TREE_SINGLE_OWNER_READY owner=R145 r137_tree_pass=0 late_hide=0 placed=%d central_approach_open=1"),
+        TEXT("PASS45_MUSEUM_TREE_SINGLE_OWNER_READY owner=R145 r137_tree_pass=0 late_hide=0 placed=%d central_approach_open=1 sync_load=0 prerequisite_resident=1"),
         Placed);
 }
