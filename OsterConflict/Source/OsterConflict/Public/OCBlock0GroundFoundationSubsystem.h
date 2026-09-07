@@ -24,6 +24,7 @@ public:
     /** GAME_RECOVERY: true only after the authored ground passed all runtime postconditions. */
     bool IsGroundReady() const { return bGroundAttemptFinished && bGroundSucceeded; }
     bool HasGroundFailed() const { return bGroundAttemptFinished && !bGroundSucceeded; }
+    float GetGroundProgress() const { return IsGroundReady() ? 1.0f : 0.0f; }
 
 private:
     void RequestGroundPreload();
