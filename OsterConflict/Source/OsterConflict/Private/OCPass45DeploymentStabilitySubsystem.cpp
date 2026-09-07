@@ -19,7 +19,7 @@ namespace
     void BuildMuseumPreloadPaths(TArray<FSoftObjectPath>& OutAssets)
     {
         OutAssets.Reset();
-        OutAssets.Reserve(25);
+        OutAssets.Reserve(29);
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_8m.Wall_8m")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Window_4m.Wall_Window_4m")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Door_Windows_8m.Wall_Door_Windows_8m")));
@@ -36,8 +36,8 @@ namespace
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/Vegetation_Debris_002/SM_Vegetation_Debris_002.SM_Vegetation_Debris_002")));
 
-        // GAME_RECOVERY: later R14.x museum stages are part of the same pre-spawn contract.
-        // Keep their exact payload resident so those stages can ResolveObject without issuing package loads.
+        // GAME_RECOVERY: later landmark stages are part of the same pre-spawn contract.
+        // Keep their exact payload resident so staged owners can ResolveObject without issuing package loads.
         OutAssets.Add(FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")));
@@ -48,6 +48,12 @@ namespace
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01")));
+
+        // Silpo R14.1 and Culture House R14.6 exact prerequisites.
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.Power_Pole_1")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Pillar.Wall_Pillar")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Door_01.Door_01")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Porch_Roof_8x4m.Porch_Roof_8x4m")));
     }
 
     bool AreMuseumPreloadAssetsResolved(FString& OutMissingAsset)
@@ -185,7 +191,7 @@ void UOCPass45DeploymentStabilitySubsystem::BeginMuseumBuildPreparation(UWorld& 
             &UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad));
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d pre_spawn=1 deployment_visible=1 full_chain=1"),
+        TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d pre_spawn=1 deployment_visible=1 full_landmark_chain=1"),
         MuseumAssets.Num());
 
     if (!MuseumPreloadHandle.IsValid())
@@ -226,15 +232,15 @@ void UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad()
         World->GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
     {
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_READY pre_spawn=1 synchronous_disk_load=0 resolved_assets=25 full_chain=1 prerequisite_residency=world_lifetime"));
+            TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_READY pre_spawn=1 synchronous_disk_load=0 resolved_assets=29 full_landmark_chain=1 prerequisite_residency=world_lifetime"));
         MuseumSubsystem->RunAuthoritativeBuildNow(*World);
         bMuseumBuildComplete = true;
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_MUSEUM_BUILD_READY pre_spawn=1 later_stages_resident=1"));
+            TEXT("GAME_RECOVERY_MUSEUM_BUILD_READY pre_spawn=1 later_landmark_stages_resident=1"));
     }
 
-    // Keep the completed streamable handle alive through the world. R14.0-R14.5 consume this
-    // payload via ResolveObject during staged pre-spawn materialization; dropping the handle here
+    // Keep the completed streamable handle alive through the world. R14.0-R14.6 landmark stages consume
+    // this payload via ResolveObject during staged pre-spawn materialization; dropping the handle here
     // would silently turn those stages back into first-use package loads.
 }
 
