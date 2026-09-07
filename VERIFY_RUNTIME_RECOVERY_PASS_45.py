@@ -31,6 +31,8 @@ local_weapon_override = read(PRIVATE / "OCLocalInboxWeaponOverrideSubsystem.cpp"
 imported_weapon_bridge = read(PRIVATE / "OCPass45ImportedWeaponBridgeSubsystem.cpp")
 local_asset_resolver = read(PRIVATE / "OCPass45LocalAssetResolver.cpp")
 real_weapon_fallback = read(PRIVATE / "OCRealWeaponFallbackSubsystem.cpp")
+weapon_variants = read(PRIVATE / "OCWeaponVariants.cpp")
+anti_armor_launcher = read(PRIVATE / "OCAntiArmorLauncher.cpp")
 
 require("RUNTIME REJECTED" in tz and "RUNTIME ACCEPTANCE DEFERRED" in tz,
         "Pass45 runtime rejection/deferred acceptance truth was lost")
@@ -124,8 +126,6 @@ for token in (
     require(token in local_asset_resolver,
             f"metadata-only local asset resolver contract missing: {token}")
 
-# Real fallback meshes are normal-game safety content. They used to synchronously load four packages at world begin
-# and another AK package during refresh. They must now preload together and be consumed resident-only.
 require("LoadObject<" not in real_weapon_fallback,
         "real weapon fallback regained blocking LoadObject")
 for token in (
@@ -144,6 +144,35 @@ for token in (
 ):
     require(token in real_weapon_fallback,
             f"real weapon fallback async/resident contract missing: {token}")
+
+# Concrete weapon classes execute BeginPlay for ordinary pickups/player weapons. They must not issue synchronous
+# package loads; they may consume an already resident exact mesh while async bridge/fallback owners handle misses.
+require("LoadObject<" not in weapon_variants,
+        "weapon variant BeginPlay regained blocking LoadObject")
+for token in (
+    "FSoftObjectPath(AssetPath).ResolveObject()",
+    "HideStaticWeaponFallback(Owner);",
+    "PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=AK-47 primitive_visible=0",
+    "PASS45_WEAPON_PRODUCTION_VISUAL_GAP weapon=Remington870 primitive_visible=0",
+):
+    require(token in weapon_variants,
+            f"resident-only weapon variant contract missing: {token}")
+
+# The anti-armor launcher has its own exact production mesh owner. It must async-preload that mesh and never
+# block BeginPlay while the rejected primitive remains hidden.
+require("LoadObject<" not in anti_armor_launcher,
+        "anti-armor launcher regained blocking LoadObject")
+for token in (
+    "RequestAsyncLoad(",
+    "CompleteProductionVisualPreload",
+    "FSoftObjectPath(ProductionLauncherPath).ResolveObject()",
+    "GAME_RECOVERY_LAUNCHER_PRELOAD_BEGIN",
+    "GAME_RECOVERY_LAUNCHER_PRELOAD_GAP",
+    "resident_until_end_play=1",
+    "async_preloaded=1 resident_asset=1 sync_load=0",
+):
+    require(token in anti_armor_launcher,
+            f"launcher async production contract missing: {token}")
 
 delegated = (
     "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py",
@@ -178,8 +207,7 @@ if errors:
 print("RUNTIME RECOVERY PASS 45: PASS")
 print("- current recovery gate delegates specialized source contracts instead of duplicating stale assertions")
 print("- DX11/SM5 startup, grenades, production vehicles, stadium, weapon proxy retirement and reference-driven map rules are guarded")
-print("- both normal-game local weapon visual owners async-load missing assets and bind only resident production meshes")
-print("- real weapon fallback meshes preload asynchronously and refresh uses only resident meshes")
+print("- local/imported weapon owners, real fallbacks and launcher use async/resident asset routes; weapon variants are resident-only")
 print("- weapon fallback audio preloads before first use; shot/reload/manual-action/impact never issue blocking LoadObject")
 print("- imported weapon bridge uses metadata-only AssetRegistry path selection and yields to LocalInbox ownership")
 print("- staged landmark readiness uses current GAME_RECOVERY markers")
