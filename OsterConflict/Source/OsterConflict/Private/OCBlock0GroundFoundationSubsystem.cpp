@@ -188,6 +188,7 @@ void UOCBlock0GroundFoundationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     Super::OnWorldBeginPlay(InWorld);
 
     bGroundAttemptFinished = false;
+    bGroundSucceeded = false;
     GroundPreloadHandle.Reset();
 
     if (!InWorld.IsGameWorld()) return;
@@ -272,8 +273,9 @@ void UOCBlock0GroundFoundationSubsystem::HandleGroundPreloadComplete()
         return;
     }
 
+    bGroundSucceeded = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=1 delayed_ground_mutation_required=0 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 runtime_acceptance=0 async_preloaded=1 sync_load=0 resident_only=1"));
+        TEXT("PASS45_BLOCK0_PRETICK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Ground_Grass2 ground_pack=KiteDemo content_intake_ground_selected=1 basicshape_material=0 authored_before_first_tick=1 delayed_ground_mutation_required=0 footprint_preserved=1 top_z_preserved=1 geometry_postcondition=1 collision_enabled=1 runtime_acceptance=0 async_preloaded=1 sync_load=0 resident_only=1 readiness_gate=1"));
 }
 
 void UOCBlock0GroundFoundationSubsystem::Deinitialize()
@@ -281,5 +283,6 @@ void UOCBlock0GroundFoundationSubsystem::Deinitialize()
     if (GroundPreloadHandle.IsValid()) GroundPreloadHandle->CancelHandle();
     GroundPreloadHandle.Reset();
     bGroundAttemptFinished = true;
+    bGroundSucceeded = false;
     Super::Deinitialize();
 }
