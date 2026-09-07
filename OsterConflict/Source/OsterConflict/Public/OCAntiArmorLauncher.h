@@ -3,7 +3,7 @@
 #include "OCWeaponBase.h"
 #include "OCAntiArmorLauncher.generated.h"
 
-class FStreamableHandle;
+struct FStreamableHandle;
 
 UCLASS()
 class OSTERCONFLICT_API AOCAntiArmorLauncher : public AOCWeaponBase
