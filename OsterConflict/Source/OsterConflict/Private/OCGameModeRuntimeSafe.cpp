@@ -1,5 +1,8 @@
 #include "OCGameModeRuntimeSafe.h"
 
+#include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
+#include "OCBlock0GroundFoundationSubsystem.h"
+#include "OCLandmarkStartupCoordinatorSubsystem.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
@@ -8,7 +11,9 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -167,9 +172,170 @@ void AOCGameModeRuntimeSafe::BeginPlay()
         DuplicatesRetired);
 }
 
+bool AOCGameModeRuntimeSafe::IsRecoveryWorldReady(FString& OutPendingStages, bool& bOutHardFailure) const
+{
+    OutPendingStages.Reset();
+    bOutHardFailure = false;
+
+    UWorld* World = GetWorld();
+    if (!World || World->GetNetMode() == NM_DedicatedServer ||
+        !World->GetMapName().Contains(TEXT("OsterConflict_Runtime")))
+    {
+        return true;
+    }
+
+    TArray<FString> Pending;
+
+    const UOCBlock0GroundFoundationSubsystem* Ground = World->GetSubsystem<UOCBlock0GroundFoundationSubsystem>();
+    if (!Ground)
+    {
+        Pending.Add(TEXT("ground_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (Ground->HasGroundFailed())
+    {
+        Pending.Add(TEXT("ground_failed"));
+        bOutHardFailure = true;
+    }
+    else if (!Ground->IsGroundReady())
+    {
+        Pending.Add(TEXT("ground"));
+    }
+
+    const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surface =
+        World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>();
+    if (!Surface)
+    {
+        Pending.Add(TEXT("surface_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (Surface->HasWorldSurfaceFailed())
+    {
+        Pending.Add(TEXT("surface_failed"));
+        bOutHardFailure = true;
+    }
+    else if (!Surface->IsWorldSurfaceReady())
+    {
+        Pending.Add(TEXT("surface"));
+    }
+
+    const UOCLandmarkStartupCoordinatorSubsystem* Landmarks =
+        World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>();
+    if (!Landmarks)
+    {
+        Pending.Add(TEXT("landmark_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (!Landmarks->IsWorldStartupReady())
+    {
+        Pending.Add(TEXT("landmarks"));
+    }
+
+    OutPendingStages = Pending.Num() > 0 ? FString::Join(Pending, TEXT(",")) : TEXT("none");
+    return Pending.Num() == 0;
+}
+
+void AOCGameModeRuntimeSafe::QueueRestartWhenWorldReady(AController* NewPlayer, const FString& PendingStages)
+{
+    if (!IsValid(NewPlayer) || !GetWorld()) return;
+
+    const TWeakObjectPtr<AController> WeakController(NewPlayer);
+    if (PendingWorldReadyRestarts.Contains(WeakController)) return;
+
+    FPendingWorldReadyRestart& Pending = PendingWorldReadyRestarts.Add(WeakController);
+    Pending.StartWallTimeSeconds = FPlatformTime::Seconds();
+
+    FTimerDelegate RetryDelegate;
+    RetryDelegate.BindUObject(this, &AOCGameModeRuntimeSafe::PollRestartWhenWorldReady, WeakController);
+    GetWorldTimerManager().SetTimer(
+        Pending.TimerHandle,
+        RetryDelegate,
+        WorldReadyRestartPollSeconds,
+        true,
+        WorldReadyRestartPollSeconds);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_SPAWN_GATE_WAIT pending=%s spawn_deferred=1 player_pawn=0 poll_ms=100 timeout_s=60 dedicated_server_bypass=0"),
+        *PendingStages);
+}
+
+void AOCGameModeRuntimeSafe::ClearPendingWorldReadyRestart(const TWeakObjectPtr<AController>& WeakController)
+{
+    if (FPendingWorldReadyRestart* Pending = PendingWorldReadyRestarts.Find(WeakController))
+    {
+        if (GetWorld()) GetWorldTimerManager().ClearTimer(Pending->TimerHandle);
+    }
+    PendingWorldReadyRestarts.Remove(WeakController);
+}
+
+void AOCGameModeRuntimeSafe::PollRestartWhenWorldReady(TWeakObjectPtr<AController> WeakController)
+{
+    FPendingWorldReadyRestart* Pending = PendingWorldReadyRestarts.Find(WeakController);
+    AController* Controller = WeakController.Get();
+    if (!Pending || !IsValid(Controller))
+    {
+        ClearPendingWorldReadyRestart(WeakController);
+        return;
+    }
+
+    const double WaitMilliseconds = (FPlatformTime::Seconds() - Pending->StartWallTimeSeconds) * 1000.0;
+    FString PendingStages;
+    bool bHardFailure = false;
+    const bool bWorldReady = IsRecoveryWorldReady(PendingStages, bHardFailure);
+
+    if (bWorldReady)
+    {
+        ClearPendingWorldReadyRestart(WeakController);
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f ground_ready=1 surface_ready=1 landmarks_ready=1 player_spawn_release=1 post_spawn_world_loading=0"),
+            WaitMilliseconds);
+        RestartPlayer(Controller);
+        return;
+    }
+
+    if (bHardFailure)
+    {
+        ClearPendingWorldReadyRestart(WeakController);
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=world_preparation_failed pending=%s waited_ms=%.1f player_spawned=0 fail_closed=1"),
+            *PendingStages,
+            WaitMilliseconds);
+        return;
+    }
+
+    if (WaitMilliseconds >= WorldReadyRestartTimeoutSeconds * 1000.0)
+    {
+        ClearPendingWorldReadyRestart(WeakController);
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=timeout pending=%s waited_ms=%.1f player_spawned=0 fail_closed=1"),
+            *PendingStages,
+            WaitMilliseconds);
+    }
+}
+
 void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
 {
     AOCPlayerController* HumanPC = Cast<AOCPlayerController>(NewPlayer);
+    if (HumanPC)
+    {
+        FString PendingStages;
+        bool bHardFailure = false;
+        if (!IsRecoveryWorldReady(PendingStages, bHardFailure))
+        {
+            if (bHardFailure)
+            {
+                UE_LOG(LogTemp, Error,
+                    TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=world_preparation_failed pending=%s waited_ms=0 player_spawned=0 fail_closed=1"),
+                    *PendingStages);
+            }
+            else
+            {
+                QueueRestartWhenWorldReady(NewPlayer, PendingStages);
+            }
+            return;
+        }
+    }
+
     if (!HumanPC || HumanPC->GetRequestedDeploymentSpawn() != FName(TEXT("BASE")))
     {
         Super::RestartPlayer(NewPlayer);
@@ -270,4 +436,17 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
             TEXT("PASS44_ACTUAL_PAWN_MUSEUM_BASE_FAIL reason=distance team=%d distance_m=%.1f max_m=45 source=%s"),
             static_cast<int32>(Team), ActualDistanceCm / 100.0f, SpawnSource);
     }
+}
+
+void AOCGameModeRuntimeSafe::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (UWorld* World = GetWorld())
+    {
+        for (TPair<TWeakObjectPtr<AController>, FPendingWorldReadyRestart>& Pair : PendingWorldReadyRestarts)
+        {
+            World->GetTimerManager().ClearTimer(Pair.Value.TimerHandle);
+        }
+    }
+    PendingWorldReadyRestarts.Reset();
+    Super::EndPlay(EndPlayReason);
 }
