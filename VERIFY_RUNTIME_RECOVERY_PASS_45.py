@@ -30,6 +30,7 @@ startup = read(PRIVATE / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 local_weapon_override = read(PRIVATE / "OCLocalInboxWeaponOverrideSubsystem.cpp")
 imported_weapon_bridge = read(PRIVATE / "OCPass45ImportedWeaponBridgeSubsystem.cpp")
 local_asset_resolver = read(PRIVATE / "OCPass45LocalAssetResolver.cpp")
+real_weapon_fallback = read(PRIVATE / "OCRealWeaponFallbackSubsystem.cpp")
 
 require("RUNTIME REJECTED" in tz and "RUNTIME ACCEPTANCE DEFERRED" in tz,
         "Pass45 runtime rejection/deferred acceptance truth was lost")
@@ -75,8 +76,6 @@ for token in (
 ):
     require(token in startup, f"current staged landmark startup contract missing: {token}")
 
-# Local inbox weapon visuals are a normal gameplay path. Missing meshes must async-load and then bind only
-# from resident memory; this path must never bring back a post-spawn LoadObject hitch or a second visible owner.
 require("LoadObject<" not in local_weapon_override,
         "local inbox weapon override regained blocking LoadObject")
 for token in (
@@ -94,8 +93,6 @@ for token in (
     require(token in local_weapon_override,
             f"local inbox async/resident weapon contract missing: {token}")
 
-# The imported exact-weapon bridge used to call FAssetData::GetAsset through the pointer-returning resolver
-# every 0.35 s, starting 0.08 s after world begin. It must use metadata-only paths plus async/resident binding.
 for stale_call in (
     "OCPass45FindLocalSkeletalMeshStrict(Query.Roots",
     "OCPass45FindLocalStaticMeshStrict(Query.Roots",
@@ -118,7 +115,6 @@ for token in (
     require(token in imported_weapon_bridge,
             f"imported bridge async/resident ownership contract missing: {token}")
 
-# Metadata-only strict lookup must return an object path without invoking GetAsset on that path-selection branch.
 for token in (
     "FSoftObjectPath ResolvePath(",
     "FSoftObjectPath(Best.GetObjectPathString())",
@@ -127,6 +123,27 @@ for token in (
 ):
     require(token in local_asset_resolver,
             f"metadata-only local asset resolver contract missing: {token}")
+
+# Real fallback meshes are normal-game safety content. They used to synchronously load four packages at world begin
+# and another AK package during refresh. They must now preload together and be consumed resident-only.
+require("LoadObject<" not in real_weapon_fallback,
+        "real weapon fallback regained blocking LoadObject")
+for token in (
+    "BuildFallbackPreloadPaths()",
+    "RequestAsyncLoad(",
+    "CompleteFallbackPreload",
+    "ResolveResidentStaticMesh",
+    "FSoftObjectPath(Path).ResolveObject()",
+    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN",
+    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_GAP",
+    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY",
+    "resident_until_deinitialize=1",
+    "resident_only=1",
+    "sync_load=0",
+    "AuthoredAKFallback.Get()",
+):
+    require(token in real_weapon_fallback,
+            f"real weapon fallback async/resident contract missing: {token}")
 
 delegated = (
     "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py",
@@ -162,6 +179,7 @@ print("RUNTIME RECOVERY PASS 45: PASS")
 print("- current recovery gate delegates specialized source contracts instead of duplicating stale assertions")
 print("- DX11/SM5 startup, grenades, production vehicles, stadium, weapon proxy retirement and reference-driven map rules are guarded")
 print("- both normal-game local weapon visual owners async-load missing assets and bind only resident production meshes")
+print("- real weapon fallback meshes preload asynchronously and refresh uses only resident meshes")
 print("- weapon fallback audio preloads before first use; shot/reload/manual-action/impact never issue blocking LoadObject")
 print("- imported weapon bridge uses metadata-only AssetRegistry path selection and yields to LocalInbox ownership")
 print("- staged landmark readiness uses current GAME_RECOVERY markers")
