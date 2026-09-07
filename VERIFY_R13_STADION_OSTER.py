@@ -49,14 +49,18 @@ launcher = read(LAUNCHER)
 pass45_tz = read(PASS45_TZ)
 agents = read(AGENTS)
 
-# Pass45 physical-retirement policy supersedes the old inert compatibility shim contract.
+# Pass45 physical-retirement policy supersedes the old inert compatibility shim contract. Follow the current
+# authority language rather than pinning this verifier to retired section titles.
 if RETIRED_CPP.exists() or RETIRED_HEADER.exists():
     fail("retired OCR13MuseumStadiumPhotoFidelitySubsystem was resurrected")
+policy = (agents + "\n" + pass45_tz).lower()
 for needle in (
-    "Physical retirement beats inert resurrection",
-    "legacy owner deletion",
+    "superseded/rejected mutation owners are physically retired",
+    "no historical verifier may require a runtime-rejected owner/fallback back into production",
+    "git history is the rollback",
 ):
-    require(agents + pass45_tz, needle, "Pass45 stale-owner retirement policy")
+    if needle not in policy:
+        fail(f"Pass45 stale-owner retirement policy: missing {needle!r}")
 
 # Reference payload integrity is explicit. A corrupt/missing archive is never silently accepted.
 if REFERENCE_ARCHIVE.exists():
@@ -198,7 +202,7 @@ for needle in (
 print("R13 STADION OSTER VERIFY PASS")
 print("- canonical hard-georeferenced stadium owner is present")
 print("- terrain Z snap is required and obsolete giant grass apron is forbidden")
-print("- obsolete Museum/Stadium compatibility subsystem stays physically deleted under Pass45")
+print("- obsolete Museum/Stadium compatibility subsystem stays physically deleted under current Pass45 policy")
 print("- 17-frame reference index and explicit payload integrity state are present")
 print("- Pass 9 runtime evidence validates site components, georef XY, terrain Z and legacy visibility")
 print("- strict Windows acceptance launcher requires PASS9_STADION_OSTER_READY")
