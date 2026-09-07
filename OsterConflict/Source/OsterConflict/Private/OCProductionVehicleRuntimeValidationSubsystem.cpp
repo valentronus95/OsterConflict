@@ -10,7 +10,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
-#include "UObject/UObjectGlobals.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -21,6 +21,11 @@ namespace
     const TCHAR* M2AssetPath = TEXT("/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning");
     const TCHAR* BTR4AssetPath = TEXT("/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus");
     const FName ProductionM2Tag(TEXT("OC_ProductionM2"));
+
+    UStaticMesh* ResolveResidentMesh(const TCHAR* ObjectPath)
+    {
+        return Cast<UStaticMesh>(FSoftObjectPath(ObjectPath).ResolveObject());
+    }
 
     bool HasUsableBounds(const UStaticMesh* Mesh)
     {
@@ -109,15 +114,27 @@ void UOCProductionVehicleRuntimeValidationSubsystem::OnWorldBeginPlay(UWorld& In
 
 void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(UWorld& World)
 {
-    UStaticMesh* HMMWV = LoadObject<UStaticMesh>(nullptr, HMMWVAssetPath);
-    UStaticMesh* Pickup = LoadObject<UStaticMesh>(nullptr, PickupAssetPath);
-    UStaticMesh* M2 = LoadObject<UStaticMesh>(nullptr, M2AssetPath);
-    UStaticMesh* BTR4 = LoadObject<UStaticMesh>(nullptr, BTR4AssetPath);
+    // Validation must never become a delayed disk-load hitch after the player enters gameplay.
+    // Production vehicle actors/preload owners are responsible for residency; this validator only inspects resident assets.
+    UStaticMesh* HMMWV = ResolveResidentMesh(HMMWVAssetPath);
+    UStaticMesh* Pickup = ResolveResidentMesh(PickupAssetPath);
+    UStaticMesh* M2 = ResolveResidentMesh(M2AssetPath);
+    UStaticMesh* BTR4 = ResolveResidentMesh(BTR4AssetPath);
 
     const bool bHMMWVAssetReady = HasUsableProductionAsset(HMMWV);
     const bool bPickupAssetReady = HasUsableProductionAsset(Pickup);
     const bool bM2AssetReady = HasUsableProductionAsset(M2);
     const bool bBTR4AssetReady = HasUsableProductionAsset(BTR4);
+
+    if (!bHMMWVAssetReady || !bM2AssetReady || !bBTR4AssetReady)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP HMMWV=%d M2=%d BTR4=%d pickup=%d sync_load=0 delayed_validation_hitch=0"),
+            bHMMWVAssetReady ? 1 : 0,
+            bM2AssetReady ? 1 : 0,
+            bBTR4AssetReady ? 1 : 0,
+            bPickupAssetReady ? 1 : 0);
+    }
 
     int32 GunTruckCount = 0;
     int32 HMMWVGunTruckCount = 0;
@@ -189,7 +206,7 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
     if (bVehiclePass)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS7_PRODUCTION_VEHICLES_READY HMMWV=%d/%d M2=%d/%d BTR4=%d/%d pickup=%d/%d validation_owner=vehicles_only"),
+            TEXT("PASS7_PRODUCTION_VEHICLES_READY HMMWV=%d/%d M2=%d/%d BTR4=%d/%d pickup=%d/%d validation_owner=vehicles_only sync_load=0 prerequisite_resident=1"),
             HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
             GunTrucksUsingM2, GunTruckCount,
             BTRsUsingProductionShell, BTRCount,
@@ -198,7 +215,7 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d validation_owner=vehicles_only"),
+            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d validation_owner=vehicles_only sync_load=0"),
             bHMMWVAssetReady ? 1 : 0, bPickupAssetReady ? 1 : 0, bM2AssetReady ? 1 : 0, bBTR4AssetReady ? 1 : 0,
             bExpectedNormalFleetPresent ? 1 : 0,
             HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
