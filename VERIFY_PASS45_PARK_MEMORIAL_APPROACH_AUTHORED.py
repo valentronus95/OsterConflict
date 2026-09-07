@@ -44,6 +44,9 @@ for needle in (
     "UOCParkMemorialApproachAuthoredUpgradeSubsystem",
     "ParkMemorialApproach",
     "ParkMemorialPlaza, ParkSkateFitness, ParkBenches and legacy ParkDetails remain separate ownership domains",
+    "IsParkMemorialApproachReady",
+    "HasParkMemorialApproachFailed",
+    "GetParkMemorialApproachProgress",
 ):
     require(header, needle, "dedicated semantic ownership")
 
@@ -59,6 +62,9 @@ for needle in (
     "SourceBottomZ",
     "NewLocation.Z = SourceBottomZ - NewBottomOffsetZ",
     "FindISM(Sector, TEXT(\"ParkMemorialApproach\"))",
+    "RequestAsyncLoad(",
+    "FSoftObjectPath(AuthoredMemorialStepPath).ResolveObject()",
+    "GAME_RECOVERY_PARK_MEMORIAL_APPROACH_PRELOAD_BEGIN",
     "PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_CONTENT_GAP",
     "PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_FAIL",
     "PASS45_AUTHORED_PARK_MEMORIAL_APPROACH_READY",
@@ -70,18 +76,25 @@ for needle in (
     "bounds_aware_box_fit=1",
     "source_bottom_preserved=1",
     "family_scope_exact=1",
+    "async_preloaded=1",
+    "prerequisite_resident=1",
+    "pre_spawn=1",
+    "sync_load=0",
     "gate_k_complete=0",
     "runtime_acceptance=0",
 ):
     require(impl, needle, "authored memorial approach replacement")
 
 for needle in (
+    "LoadObject<",
+    "PC->GetPawn()",
+    "ElapsedSeconds < 0.80f",
     'FindISM(Sector, TEXT("ParkDetails"))',
     'FindISM(Sector, TEXT("ParkMemorialPlaza"))',
     'FindISM(Sector, TEXT("ParkSkateFitness"))',
     'FindISM(Sector, TEXT("ParkBenches"))',
 ):
-    forbid(impl, needle, "cross-family mutation")
+    forbid(impl, needle, "post-spawn/cross-family mutation")
 
 park_begin = world.find("void AOCWorldSectorOster::BuildCentralPark()")
 park_end = world.find("\nvoid AOCWorldSectorOster::BuildCollegeSector()", park_begin)
@@ -101,8 +114,6 @@ for needle in (
 
 forbid(park_source, "AddBox(ParkDetails,", "legacy ParkDetails resurrection")
 
-# Gate K remains observation-only. One more BasicShape family is retired here, but global completion is still
-# forbidden until the remaining park/world families and direct current-head UE 5.8 visual evidence are clean.
 for needle in (
     "CountVisibleBasicShapes",
     "PASS45_GATE_K_RUNTIME_FAIL",
@@ -115,7 +126,7 @@ forbid(gate, "SetVisibility(false", "Gate K mutation")
 
 print("PASS45 PARK MEMORIAL APPROACH AUTHORED SOURCE PASS")
 print("- ParkMemorialApproach remains a dedicated semantic owner with exactly four canonical steps")
-print("- tracked SM_Curb_1 replaces only that four-step family before Gate K / Pass12")
+print("- tracked SM_Curb_1 is async-preloaded and applied from resident memory before human spawn")
+print("- no post-spawn timer or blocking LoadObject remains in memorial-approach preparation")
 print("- source box footprint and bottom contact are preserved through bounds-aware authored fitting")
-print("- memorial plaza, skate/fitness, benches and legacy ParkDetails are not mutated")
 print("- Gate K remains incomplete and runtime visual acceptance remains pending")
