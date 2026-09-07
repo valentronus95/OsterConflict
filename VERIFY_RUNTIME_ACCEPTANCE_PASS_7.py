@@ -8,7 +8,10 @@ DEPLOY_PRESENTATION = ROOT / "OsterConflict/Source/OsterConflict/Private/OCR13De
 LOADING = ROOT / "OsterConflict/Source/OsterConflict/Private/OCDeploymentLoadingSubsystem.cpp"
 SPAWN_GUARD_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCMuseumSpawnGuardSubsystem.h"
 SPAWN_GUARD_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp"
+RESPAWN_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCRespawnRecoveryValidationSubsystem.h"
+RESPAWN_CPP = ROOT / "OsterConflict/Source/OsterConflict/Private/OCRespawnRecoveryValidationSubsystem.cpp"
 TEAM_SPAWN = ROOT / "OsterConflict/Source/OsterConflict/Private/OCTeamSpawnPoint.cpp"
+GAME_MODE_H = ROOT / "OsterConflict/Source/OsterConflict/Public/OCGameMode.h"
 GAME_MODE = ROOT / "OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp"
 VEHICLE_SPAWNS = ROOT / "OsterConflict/Source/OsterConflict/Private/OCCombatVehicleSpawnPoints.cpp"
 VEHICLE_VALIDATOR = ROOT / "OsterConflict/Source/OsterConflict/Private/OCProductionVehicleRuntimeValidationSubsystem.cpp"
@@ -31,7 +34,10 @@ deploy = read(DEPLOY_PRESENTATION)
 loading = read(LOADING)
 spawn_guard_h = read(SPAWN_GUARD_H)
 spawn_guard = read(SPAWN_GUARD_CPP)
+respawn_h = read(RESPAWN_H)
+respawn_cpp = read(RESPAWN_CPP)
 team_spawn = read(TEAM_SPAWN)
+game_mode_h = read(GAME_MODE_H)
 game_mode = read(GAME_MODE)
 vehicle_spawns = read(VEHICLE_SPAWNS)
 vehicle_validator = read(VEHICLE_VALIDATOR)
@@ -64,6 +70,28 @@ require(loading, 'if (!bReadySent && bWorldReady && Elapsed >= 0.12)', "world-re
 require(loading, 'Progress = FMath::Lerp(0.94f, 1.0f, CompletionAlpha);', "loading reaches factual 100 percent through completion alpha")
 require(loading, 'if (CompletionAlpha >= 1.0f)', "loading removal only after 100 percent completion")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
+
+# GAME_RECOVERY death flow is fixed at ten seconds and must produce factual runtime evidence.
+require(game_mode_h, 'static constexpr float RespawnDelay = 10.0f;', "fixed ten-second player respawn rule")
+if 'UPROPERTY(EditDefaultsOnly, Category="Respawn") float RespawnDelay' in game_mode_h:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: player respawn delay became a tunable Blueprint/default value again")
+require(game_mode, 'GetWorldTimerManager().SetTimer(RespawnTimer, RespawnDelegate, RespawnDelay, false);', "ten-second respawn timer owner")
+require(respawn_h, 'ExpectedRespawnDelaySeconds = 10.0', "respawn acceptance deadline")
+require(respawn_h, 'second respawn source of truth', "validation-only ownership comment")
+for marker in (
+    'GAME_RECOVERY_RESPAWN_WATCH_ARMED',
+    'GAME_RECOVERY_RESPAWN_READY',
+    'GAME_RECOVERY_RESPAWN_FAIL',
+    'reason=late_respawn',
+    'reason=no_live_character',
+    'spectator_stuck=0',
+    'spectator_stuck=1',
+    'GetDeaths()',
+):
+    require(respawn_cpp, marker, f"factual respawn runtime evidence: {marker}")
+for forbidden in ('RestartPlayer(', 'SpawnActor<', 'Possess('):
+    if forbidden in respawn_cpp:
+        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 7 FAIL: respawn validator gained gameplay mutation {forbidden!r}")
 
 # BASE spawn keeps three protection layers: canonical relocation, authoritative BASE creation and
 # one initial-character validation per controller. Pass45 explicitly forbids treating ordinary
@@ -106,7 +134,7 @@ require(vehicle_spawns, 'VehicleClass = AOCHMMWVGunTruck::StaticClass();', "norm
 require(vehicle_spawns, 'AOCBTRSpawnPoint::AOCBTRSpawnPoint()', "normal BTR spawn slot")
 require(vehicle_spawns, 'VehicleClass = AOCBTR::StaticClass();', "normal BTR slot maps to BTR")
 
-# Production vehicle acceptance is fail-closed. Proxy bodies/turrets are quarantined and create an explicit log marker.
+# Production vehicle acceptance is fail-closed and must not cause its own delayed sync-load hitch.
 for marker in [
     '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
     '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
@@ -115,11 +143,16 @@ for marker in [
     'Actor->SetActorEnableCollision(false);',
     'PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL',
     'PASS7_PRODUCTION_VEHICLES_READY',
+    'GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP',
+    'FSoftObjectPath(ObjectPath).ResolveObject()',
+    'sync_load=0',
     'HMMWVGunTruckCount > 0',
     'BTRCount > 0',
     'GunTruckCount > 0',
 ]:
     require(vehicle_validator, marker, f"production vehicle runtime gate: {marker}")
+if 'LoadObject<' in vehicle_validator:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: delayed production vehicle validator regained blocking LoadObject")
 if 'const bool bHMMWVRuntimePass = HMMWVGunTruckCount == 0 ||' in vehicle_validator:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: zero HMMWV actors still count as runtime success")
 if 'const bool bM2RuntimePass = GunTruckCount == 0 ||' in vehicle_validator:
@@ -145,8 +178,9 @@ print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
 print("- settings panel must remain effectively opaque (alpha >= 0.95), without pinning one obsolete RGB shade")
 print("- deployment transition starts at factual 0%, waits for world readiness, then reaches 100% after possession")
+print("- player respawn is fixed at 10 seconds and a validation-only probe emits factual READY/FAIL evidence")
 print("- Museum BASE creation no longer depends on delayed world-sector timing")
 print("- BASE-selected characters are validated/recovered once; vehicle possession cannot trigger Museum revalidation")
-print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; invalid proxies fail closed instead of being accepted")
+print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; validator uses resident assets only and cannot disk-load them late")
 print("- acceptance launcher requires runtime READY evidence and rejects vehicle FAIL evidence")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance is still required")
