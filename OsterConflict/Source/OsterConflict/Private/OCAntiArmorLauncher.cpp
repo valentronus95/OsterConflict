@@ -3,9 +3,17 @@
 #include "OCCharacter.h"
 #include "OCWeaponAudioComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
+
+namespace
+{
+    constexpr const TCHAR* ProductionLauncherPath = TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern");
+}
 
 AOCAntiArmorLauncher::AOCAntiArmorLauncher()
 {
@@ -28,8 +36,7 @@ void AOCAntiArmorLauncher::BeginPlay()
     Super::BeginPlay();
 
     // Pass45 fail-closed visual rule: the source BasicShape launcher is collision/debug history only.
-    // Hide it before production loading so a missing or malformed production asset is an explicit CONTENT GAP,
-    // never another visible cylinder/box launcher in gameplay.
+    // Hide it immediately, then preload the exact production mesh asynchronously. BeginPlay never loads a package.
     TArray<UStaticMeshComponent*> SourceStaticComponents;
     GetComponents<UStaticMeshComponent>(SourceStaticComponents);
     for (UStaticMeshComponent* Component : SourceStaticComponents)
@@ -41,12 +48,28 @@ void AOCAntiArmorLauncher::BeginPlay()
         Component->SetCanEverAffectNavigation(false);
     }
 
-    UStaticMesh* ProductionMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern"));
+    ProductionVisualPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        FSoftObjectPath(ProductionLauncherPath),
+        FStreamableDelegate::CreateUObject(this, &AOCAntiArmorLauncher::CompleteProductionVisualPreload));
+
+    if (!ProductionVisualPreloadHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_LAUNCHER_PRELOAD_GAP weapon=OC_RPG1 reason=invalid_handle primitive_visible=0 sync_load=0 runtime_acceptance=0"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_LAUNCHER_PRELOAD_BEGIN weapon=OC_RPG1 async=1 primitive_visible=0 sync_load=0 resident_until_end_play=1"));
+}
+
+void AOCAntiArmorLauncher::CompleteProductionVisualPreload()
+{
+    UStaticMesh* ProductionMesh = Cast<UStaticMesh>(FSoftObjectPath(ProductionLauncherPath).ResolveObject());
     if (!ProductionMesh || !WeaponRoot)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=mesh_or_visual_root_missing primitive_visible=0 runtime_acceptance=0"));
+            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=mesh_or_visual_root_missing primitive_visible=0 sync_load=0 runtime_acceptance=0"));
         return;
     }
 
@@ -56,7 +79,7 @@ void AOCAntiArmorLauncher::BeginPlay()
     if (NativeLength <= 1.0f)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=invalid_bounds primitive_visible=0 runtime_acceptance=0"));
+            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=invalid_bounds primitive_visible=0 sync_load=0 runtime_acceptance=0"));
         return;
     }
 
@@ -66,12 +89,10 @@ void AOCAntiArmorLauncher::BeginPlay()
     if (!ProductionVisual)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=component_allocation_failed primitive_visible=0 runtime_acceptance=0"));
+            TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL weapon=OC_RPG1 reason=component_allocation_failed primitive_visible=0 sync_load=0 runtime_acceptance=0"));
         return;
     }
 
-    // The imported source is already tracked in the project. Authoritative projectile/damage gameplay stays
-    // unchanged while this real mesh becomes the only rendered launcher representation.
     constexpr float DesiredLauncherLengthCm = 105.0f;
     const float UniformScale = DesiredLauncherLengthCm / NativeLength;
     ProductionVisual->SetupAttachment(WeaponRoot);
@@ -90,7 +111,17 @@ void AOCAntiArmorLauncher::BeginPlay()
     ProductionVisual->RegisterComponent();
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_READY weapon=OC_RPG1 asset=rocketlauncherModern primitive_visible=0 production_visual=1"));
+        TEXT("PASS45_LAUNCHER_PRODUCTION_VISUAL_READY weapon=OC_RPG1 asset=rocketlauncherModern primitive_visible=0 production_visual=1 async_preloaded=1 resident_asset=1 sync_load=0"));
+}
+
+void AOCAntiArmorLauncher::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (ProductionVisualPreloadHandle.IsValid())
+    {
+        ProductionVisualPreloadHandle->CancelHandle();
+        ProductionVisualPreloadHandle.Reset();
+    }
+    Super::EndPlay(EndPlayReason);
 }
 
 bool AOCAntiArmorLauncher::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOrigin, const FVector& TraceDirection,
@@ -104,8 +135,6 @@ bool AOCAntiArmorLauncher::TryFireServer(AOCCharacter* Shooter, const FVector& T
     const FVector Dir=TraceDirection.GetSafeNormal();
     if (Dir.IsNearlyZero()) return false;
 
-    // Hit/aim intent still comes from the player's view ray, but the actual projectile, muzzle FX and shot audio
-    // must originate at the rendered production weapon. This removes the camera/under-barrel launch artifact.
     const FVector MuzzleOrigin = ResolvePresentationMuzzleOrigin(TraceOrigin, Dir);
     const FVector PresentationEnd = MuzzleOrigin + Dir * FMath::Min(Tuning.RangeCm, 2200.0f);
 
