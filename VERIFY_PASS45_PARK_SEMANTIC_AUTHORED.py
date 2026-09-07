@@ -47,9 +47,10 @@ for needle in (
     "IsParkSemanticReady",
     "HasParkSemanticFailed",
     "GetParkSemanticProgress",
+    "must not",
+    "blanket-remap",
 ):
     require(header, needle, "semantic upgrade ownership")
-require(" ".join(header.split()), "must not blanket-remap", "semantic upgrade ownership")
 
 for needle in (
     "/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Bench_1.SM_Bench_1",
