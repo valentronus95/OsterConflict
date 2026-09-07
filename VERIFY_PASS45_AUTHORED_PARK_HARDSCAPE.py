@@ -37,6 +37,8 @@ require('ParkMemorialMonument and ParkSkateRamps remain separate content gaps' i
         'header must preserve monument/ramp content-gap truth')
 require('primary_authoring=1 / normalization_bridge=0' in header,
         'header must retire normalization bridge ownership')
+for needle in ('IsParkHardscapeReady', 'HasParkHardscapeFailed', 'GetParkHardscapeProgress'):
+    require(needle in header, f'pre-spawn hardscape readiness contract missing: {needle}')
 
 for owner, count in [
     ('ParkMemorialSurface', 1),
@@ -67,37 +69,40 @@ require('AddBox(ParkMemorialPlaza,' not in world, 'legacy mixed memorial source 
 require('AddBox(ParkSkateFitness,' not in world, 'legacy mixed skate source must stay empty')
 require('AddBoxRotated(ParkSkateFitness,' not in world, 'legacy mixed skate ramp source must stay empty')
 
-require('constexpr float HardscapeUpgradeDelaySeconds = 0.85f;' in cpp,
-        'hardscape presentation delay contract changed unexpectedly')
-require('if (ElapsedSeconds < HardscapeUpgradeDelaySeconds) return;' in cpp,
-        'hardscape delay gate missing')
 require('LegacyMemorial->GetInstanceCount() == 0' in cpp, 'legacy memorial bucket must be empty')
 require('LegacySkate->GetInstanceCount() == 0' in cpp, 'legacy skate bucket must be empty')
 require('primary_source_required=1 normalization_bridge=0' in cpp,
         'hardscape must fail closed when primary ownership is invalid')
 
-require('/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1' in cpp,
-        'authored hardscape plane path missing')
-require('/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_1_Inst.M_Concrete_1_Inst' in cpp,
-        'authored concrete material path missing')
-require('BuildPlan(ParkMemorialSurface, SurfaceMesh, MemorialPlan, Failure)' in cpp,
-        'memorial surface preflight missing')
-require('BuildPlan(ParkSkateSurface, SurfaceMesh, SkatePlan, Failure)' in cpp,
-        'skate surface preflight missing')
+for needle in [
+    '/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1',
+    '/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Concrete_1_Inst.M_Concrete_1_Inst',
+    'BuildPlan(ParkMemorialSurface, SurfaceMesh, MemorialPlan, Failure)',
+    'BuildPlan(ParkSkateSurface, SurfaceMesh, SkatePlan, Failure)',
+    'bUntouchedContentGapsPreserved',
+    'RestorePlan(SkatePlan);',
+    'RestorePlan(MemorialPlan);',
+    'RequestAsyncLoad(',
+    'FSoftObjectPath(AuthoredSurfaceMeshPath).ResolveObject()',
+    'FSoftObjectPath(AuthoredConcreteMaterialPath).ResolveObject()',
+    'GAME_RECOVERY_PARK_HARDSCAPE_PRELOAD_BEGIN',
+    'PASS45_AUTHORED_PARK_HARDSCAPE_READY',
+    'remaining_content_gap_instances=3',
+    'primary_authoring=1 normalization_bridge=0',
+    'async_preloaded=1',
+    'prerequisite_resident=1',
+    'pre_spawn=1',
+    'sync_load=0',
+]:
+    require(needle in cpp, f'authored hardscape pre-spawn contract missing: {needle}')
+
 require('BuildPlan(ParkMemorialMonument' not in cpp,
         'memorial monument must not be authored by hardscape slice')
 require('BuildPlan(ParkSkateRamps' not in cpp,
         'skate ramps must not be authored by hardscape slice')
-require('bUntouchedContentGapsPreserved' in cpp,
-        'monument/ramp untouched postcondition missing')
-require('RestorePlan(SkatePlan);' in cpp and 'RestorePlan(MemorialPlan);' in cpp,
-        'transaction rollback must restore both hardscape owners')
-require('PASS45_AUTHORED_PARK_HARDSCAPE_READY' in cpp,
-        'hardscape ready marker missing')
-require('remaining_content_gap_instances=3' in cpp,
-        'ready marker must keep monument + two ramps open')
-require('primary_authoring=1 normalization_bridge=0' in cpp,
-        'ready marker must reflect direct semantic ownership')
+require('LoadObject<' not in cpp, 'hardscape regained blocking LoadObject')
+require('HardscapeUpgradeDelaySeconds' not in cpp, 'hardscape regained post-spawn delay')
+require('PC->GetPawn()' not in cpp, 'hardscape regained player-after-spawn gate')
 require('primary_authoring=0' not in cpp and 'migration_bridge_required=1' not in cpp,
         'obsolete bridge ownership must not survive')
 require('gate_k_complete=1' not in cpp and 'runtime_acceptance=1' not in cpp,
@@ -107,3 +112,7 @@ require('VERIFY_PASS45_AUTHORED_PARK_HARDSCAPE.py' in run_all,
         'cumulative RUN_ALL_VERIFY integration missing')
 
 print('PASS45 AUTHORED PARK HARDSCAPE: PASS')
+print('- Memorial and skate surfaces keep direct semantic ownership; monument/ramp content gaps stay untouched')
+print('- authored plane + concrete material are async-preloaded and applied from resident memory pre-spawn')
+print('- no post-spawn delay or blocking LoadObject remains in hardscape preparation')
+print('- source-only evidence remains fail-honest until direct UE 5.8 visual acceptance')
