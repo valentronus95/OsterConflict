@@ -217,7 +217,7 @@
 
 ## Поточний checkpoint — 2026-09-07
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **44%**. Залишилось приблизно **56%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **45%**. Залишилось приблизно **55%**.
 
 ### Зроблено / source-closed
 - пункт 1/10: world startup не випускає гравця до готовності canonical stadium + landmark chain; historical delayed timers для Museum/Silpo/Culture скасовуються, всі 13 landmark stages виконуються до `GAME_RECOVERY_WORLD_READY`;
@@ -243,16 +243,19 @@
 - Pass7 захищає фіксовані 10 секунд respawn, factual respawn `READY/FAIL` probe та заборону delayed vehicle `LoadObject`;
 - застарілі Pass4/Pass22/Pass3 verifier-и оновлені під current source-recovery wording, поточний batch runtime wrapper chain та актуальний async/resident foliage flow замість вимог до вже видалених старих функцій/назв;
 - пункт 8: SettingsPanel source-side enabled/visible; вкладки, video/audio/FOV/HUD/accessibility/rebind та Apply/Save/Cancel/Defaults мають фактичні backend handlers; production styling присутній;
-- source checkpoint HEAD перед цим docs-комітом: `9fc1673fd248b42a091aba327a71e221d60d3134`;
+- пункт 8: `ЗАСТОСУВАТИ` тепер застосовує video/audio/player settings без permanent save і лишає екран відкритим; `ЗБЕРЕГТИ Й НАЗАД` застосовує, зберігає і закриває; `СКАСУВАТИ` перечитує останні збережені значення та повторно застосовує їх у runtime; `СКИНУТИ НАЛАШТУВАННЯ` лишається staged-only до Apply/Save;
+- пункт 8: додані runtime markers `GAME_RECOVERY_SETTINGS_COMMIT` і `GAME_RECOVERY_SETTINGS_CANCEL` для фактичної UE 5.8 перевірки семантики кнопок;
+- одноразовий workflow, який використано лише для безпечного точкового патчу великого UI-файла, після застосування видалений з гілки;
+- source checkpoint HEAD перед цим docs-комітом: `7141e6ca3f34a6c3cd3d4e09ecf59ddd12a5e130`;
 - PR #94 залишається **OPEN / UNMERGED**, `main` не чіпається.
 
 ### У роботі
-- exact-head CI для `9fc1673...` запущений і на момент checkpoint переважно queued/in-progress; зелений статус наперед не заявляється;
+- exact-head CI після settings semantics cleanup запущений; зелений статус наперед не заявляється;
 - пункт 1/10: за фактичними UE 5.8 timing logs визначити, чи є stage, який сам займає >100 ms або тим більше >1 s, і такий stage розкласти на менші частини по кадрах;
 - пункт 2: у фактичному UE 5.8 отримати `GAME_RECOVERY_RESPAWN_READY` після смерті та підтвердити HUD/input; будь-який `GAME_RECOVERY_RESPAWN_FAIL` є блокером;
 - пункт 4: дочистити лише актуальні CI/runtime gaps по повному 23-позиційному каталогу, Remington/manual-action audio без повернення старої 11-class rack логіки;
 - пункт 6: після source closure потрібна фактична перевірка в UE 5.8, що стадіон, музей, Сільпо і Будинок культури реально видимі й не з'являються після spawn;
-- пункт 8: у фактичному UE 5.8 перевірити всі settings controls; окремо перевірити семантику `ЗАСТОСУВАТИ` проти `ЗБЕРЕГТИ Й НАЗАД`, бо source зараз для обох шляхів одразу персистить частину налаштувань.
+- пункт 8: у фактичному UE 5.8 перевірити всі settings controls і підтвердити markers для Apply/Save/Cancel/Defaults; source-side семантика Apply проти Save вже розведена.
 
 ### Ще не ACCEPTED
 - фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
@@ -265,4 +268,4 @@
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункт 1/8/10: перевірити exact-head CI як source regression signal, далі продовжити аудит актуальних first-use/runtime paths і Settings interaction без повернення старих verifier assumptions. У локальному UE 5.8 ключові факти: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_RESPAWN_READY`, відсутність `GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP`/`GAME_RECOVERY_FOLIAGE_PRELOAD_GAP`, стабільний HUD та робочі Settings.
+Пункт 1/8/10: перевірити exact-head CI як source regression signal, далі продовжити аудит актуальних first-use/runtime paths і Settings interaction без повернення старих verifier assumptions. У локальному UE 5.8 ключові факти: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_RESPAWN_READY`, `GAME_RECOVERY_SETTINGS_COMMIT`, `GAME_RECOVERY_SETTINGS_CANCEL`, відсутність `GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP`/`GAME_RECOVERY_FOLIAGE_PRELOAD_GAP`, стабільний HUD та робочі Settings.
