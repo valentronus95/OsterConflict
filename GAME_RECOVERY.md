@@ -217,12 +217,12 @@
 
 ## Поточний checkpoint — 2026-09-07
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **43%**. Залишилось приблизно **57%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **44%**. Залишилось приблизно **56%**.
 
 ### Зроблено / source-closed
 - пункт 1/10: world startup не випускає гравця до готовності canonical stadium + landmark chain; historical delayed timers для Museum/Silpo/Culture скасовуються, всі 13 landmark stages виконуються до `GAME_RECOVERY_WORLD_READY`;
 - пункт 1: deployment/loading UI починає фактичний прогрес з **0%** і відпускає гравця тільки після `bWorldReady`;
-- пункт 2: player respawn delay тепер зафіксований у `AOCGameMode` як незмінне правило **10.0 секунд**, а не Blueprint/default параметр, який можна тихо перевизначити;
+- пункт 2: player respawn delay зафіксований у `AOCGameMode` як незмінне правило **10.0 секунд**, а не Blueprint/default параметр, який можна тихо перевизначити;
 - пункт 2/10: додано validation-only `UOCRespawnRecoveryValidationSubsystem`: після зміни лічильника смертей він очікує живого нового `AOCCharacter` біля 10-секундної межі та пише `GAME_RECOVERY_RESPAWN_READY` або явний `GAME_RECOVERY_RESPAWN_FAIL`; сам subsystem не spawn/possess і не створює другу respawn-логіку;
 - пункт 2: input recovery source-side скидає накопичені `SetIgnoreMoveInput/SetIgnoreLookInput` стани перед gameplay; у `DefaultInput.ini` немає окремої прив’язки Gameplay Debugger;
 - пункт 3: grenade mesh/material/VFX/audio preload виконується async до deployment release; first-use blocking loads прибрані, smoke/frag presentation та cleanup source-closed;
@@ -237,19 +237,22 @@
 - пункт 6/10: Silpo R14.0/R14.1/R14.2/R14.3 переведені на resident assets через `ResolveObject()`; Culture House R14.6 також більше не використовує `LoadObject`;
 - shared pre-spawn landmark preload розширено до **29 exact assets** і зберігається resident до `Deinitialize`;
 - `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` захищає Stadium + Museum + Silpo + Culture House від повернення blocking `LoadObject`;
+- пункт 10: Block0 foliage тепер після async preload використовує тільки resident meshes через `FSoftObjectPath::ResolveObject()`; старий post-preload `LoadObject()` прибраний, preload-gap пишеться явно, а source contract забороняє повернення sync package load;
 - пункт 10: додані точні runtime timing logs для кожного landmark stage, загального часу підготовки та найповільнішого stage; stage понад 100 ms окремо позначається warning;
 - центральні Pass7 / main launcher / strict harness source-перевірки синхронізовані з поточною loading/world-ready логікою та повним 23-позиційним weapon catalog, без повернення старої 11-class rack логіки;
-- Pass7 тепер також захищає фіксовані 10 секунд respawn, factual respawn `READY/FAIL` probe та заборону delayed vehicle `LoadObject`;
-- пункт 8: SettingsPanel source-side повернутий у enabled/visible state і production styling; старі тести більше не вимагають конкретний застарілий RGB, а перевіряють фактичну непрозорість панелі;
-- source checkpoint HEAD перед цим docs-комітом: `dde4a4b74cdf3f3bd319ed897a60832b5c7b5f6f`;
+- Pass7 захищає фіксовані 10 секунд respawn, factual respawn `READY/FAIL` probe та заборону delayed vehicle `LoadObject`;
+- застарілі Pass4/Pass22/Pass3 verifier-и оновлені під current source-recovery wording, поточний batch runtime wrapper chain та актуальний async/resident foliage flow замість вимог до вже видалених старих функцій/назв;
+- пункт 8: SettingsPanel source-side enabled/visible; вкладки, video/audio/FOV/HUD/accessibility/rebind та Apply/Save/Cancel/Defaults мають фактичні backend handlers; production styling присутній;
+- source checkpoint HEAD перед цим docs-комітом: `9fc1673fd248b42a091aba327a71e221d60d3134`;
 - PR #94 залишається **OPEN / UNMERGED**, `main` не чіпається.
 
 ### У роботі
-- exact-head CI після respawn/vehicle змін ще queued/in-progress; зелений статус наперед не заявляється;
+- exact-head CI для `9fc1673...` запущений і на момент checkpoint переважно queued/in-progress; зелений статус наперед не заявляється;
 - пункт 1/10: за фактичними UE 5.8 timing logs визначити, чи є stage, який сам займає >100 ms або тим більше >1 s, і такий stage розкласти на менші частини по кадрах;
 - пункт 2: у фактичному UE 5.8 отримати `GAME_RECOVERY_RESPAWN_READY` після смерті та підтвердити HUD/input; будь-який `GAME_RECOVERY_RESPAWN_FAIL` є блокером;
 - пункт 4: дочистити лише актуальні CI/runtime gaps по повному 23-позиційному каталогу, Remington/manual-action audio без повернення старої 11-class rack логіки;
-- пункт 6: після source closure потрібна фактична перевірка в UE 5.8, що стадіон, музей, Сільпо і Будинок культури реально видимі й не з'являються після spawn.
+- пункт 6: після source closure потрібна фактична перевірка в UE 5.8, що стадіон, музей, Сільпо і Будинок культури реально видимі й не з'являються після spawn;
+- пункт 8: у фактичному UE 5.8 перевірити всі settings controls; окремо перевірити семантику `ЗАСТОСУВАТИ` проти `ЗБЕРЕГТИ Й НАЗАД`, бо source зараз для обох шляхів одразу персистить частину налаштувань.
 
 ### Ще не ACCEPTED
 - фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
@@ -262,4 +265,4 @@
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункт 1/2/10: перевірити exact-head CI як source regression signal, далі продовжити аудит first-use/runtime paths. У локальному UE 5.8 наступні ключові факти: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_RESPAWN_READY`, відсутність `GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP` та візуальна стабільність HUD після respawn.
+Пункт 1/8/10: перевірити exact-head CI як source regression signal, далі продовжити аудит актуальних first-use/runtime paths і Settings interaction без повернення старих verifier assumptions. У локальному UE 5.8 ключові факти: `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, `GAME_RECOVERY_RESPAWN_READY`, відсутність `GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP`/`GAME_RECOVERY_FOLIAGE_PRELOAD_GAP`, стабільний HUD та робочі Settings.
