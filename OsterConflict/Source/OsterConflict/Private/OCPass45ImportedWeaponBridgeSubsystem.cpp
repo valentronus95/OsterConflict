@@ -8,8 +8,10 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -20,6 +22,11 @@ namespace
     const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
     const FName LocalBridgeTag(TEXT("OC_PASS45_LOCAL_IMPORTED_WEAPON"));
+    const FName LocalBridgePreloadPendingTag(TEXT("OC_PASS45_LOCAL_IMPORTED_WEAPON_PRELOAD_PENDING"));
+    const FName LocalBridgeSkeletalGapTag(TEXT("OC_PASS45_LOCAL_IMPORTED_WEAPON_SKELETAL_GAP"));
+    const FName LocalBridgeStaticGapTag(TEXT("OC_PASS45_LOCAL_IMPORTED_WEAPON_STATIC_GAP"));
+    const FName LocalInboxBoundTag(TEXT("OC_LocalInboxWeaponBound"));
+    const FName LocalInboxPreloadPendingTag(TEXT("OC_LocalInboxWeaponPreloadPending"));
     constexpr int32 FastRefreshPasses = 8;
     constexpr float SandboxWatchIntervalSeconds = 1.50f;
 
@@ -248,27 +255,11 @@ namespace
         const int32 HiddenSourceProxyVisuals = HideSourceProxyVisuals(Weapon);
         RetireTemporaryRealFallbacks(Weapon);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_READY weapon=%s asset=%s desired_length_cm=%.1f mesh_kind=%s production_visual=1 temporary_fallback_retired=1 source_proxy_visuals_hidden=%d physics_root_preserved=1 runtime_acceptance=0"),
+            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_READY weapon=%s asset=%s desired_length_cm=%.1f mesh_kind=%s production_visual=1 temporary_fallback_retired=1 source_proxy_visuals_hidden=%d physics_root_preserved=1 resident_asset=1 sync_load=0 runtime_acceptance=0"),
             *Weapon.GetWeaponDisplayName(), *Mesh->GetPathName(), DesiredLength,
             std::is_same_v<TComponent, USkeletalMeshComponent> ? TEXT("skeletal") : TEXT("static"),
             HiddenSourceProxyVisuals);
         return true;
-    }
-
-    bool ApplyExactLocalVisual(AOCWeaponBase& Weapon)
-    {
-        FLocalWeaponQuery Query;
-        if (!ResolveQuery(Weapon.GetWeaponDisplayName(), Query)) return false;
-
-        if (USkeletalMesh* Skeletal = OCPass45FindLocalSkeletalMeshStrict(Query.Roots, Query.Tokens))
-        {
-            return ApplyLocalVisualTyped<USkeletalMesh, USkeletalMeshComponent>(Weapon, Skeletal, Query.DesiredLengthCm);
-        }
-        if (UStaticMesh* Static = OCPass45FindLocalStaticMeshStrict(Query.Roots, Query.Tokens))
-        {
-            return ApplyLocalVisualTyped<UStaticMesh, UStaticMeshComponent>(Weapon, Static, Query.DesiredLengthCm);
-        }
-        return false;
     }
 }
 
@@ -301,8 +292,132 @@ void UOCPass45ImportedWeaponBridgeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 void UOCPass45ImportedWeaponBridgeSubsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(RefreshTimer);
+    for (const TSharedPtr<FStreamableHandle>& Handle : ResidentPreloadHandles)
+    {
+        if (Handle.IsValid()) Handle->CancelHandle();
+    }
+    ResidentPreloadHandles.Reset();
     RefreshPass = 0;
     Super::Deinitialize();
+}
+
+bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase& Weapon)
+{
+    if (Weapon.ActorHasTag(LocalBridgePreloadPendingTag) ||
+        Weapon.ActorHasTag(LocalInboxBoundTag) ||
+        Weapon.ActorHasTag(LocalInboxPreloadPendingTag) ||
+        HasProductionVisual(Weapon))
+    {
+        return false;
+    }
+
+    FLocalWeaponQuery Query;
+    if (!ResolveQuery(Weapon.GetWeaponDisplayName(), Query)) return false;
+
+    bool bSkeletal = false;
+    FSoftObjectPath AssetPath;
+    if (!Weapon.ActorHasTag(LocalBridgeSkeletalGapTag))
+    {
+        AssetPath = OCPass45FindLocalSkeletalMeshPathStrict(Query.Roots, Query.Tokens);
+        bSkeletal = AssetPath.IsValid();
+    }
+    if (!AssetPath.IsValid() && !Weapon.ActorHasTag(LocalBridgeStaticGapTag))
+    {
+        AssetPath = OCPass45FindLocalStaticMeshPathStrict(Query.Roots, Query.Tokens);
+        bSkeletal = false;
+    }
+    if (!AssetPath.IsValid()) return false;
+
+    if (UObject* Resolved = AssetPath.ResolveObject())
+    {
+        if (bSkeletal)
+        {
+            if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(Resolved))
+            {
+                return ApplyLocalVisualTyped<USkeletalMesh, USkeletalMeshComponent>(
+                    Weapon, Mesh, Query.DesiredLengthCm);
+            }
+        }
+        else if (UStaticMesh* Mesh = Cast<UStaticMesh>(Resolved))
+        {
+            return ApplyLocalVisualTyped<UStaticMesh, UStaticMeshComponent>(
+                Weapon, Mesh, Query.DesiredLengthCm);
+        }
+
+        Weapon.Tags.AddUnique(bSkeletal ? LocalBridgeSkeletalGapTag : LocalBridgeStaticGapTag);
+        return false;
+    }
+
+    Weapon.Tags.AddUnique(LocalBridgePreloadPendingTag);
+    const TWeakObjectPtr<AOCWeaponBase> WeakWeapon(&Weapon);
+    TArray<FSoftObjectPath> Paths;
+    Paths.Add(AssetPath);
+    TSharedPtr<FStreamableHandle> Handle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(
+            this,
+            &UOCPass45ImportedWeaponBridgeSubsystem::CompleteExactLocalVisual,
+            WeakWeapon,
+            AssetPath,
+            Query.DesiredLengthCm,
+            bSkeletal));
+
+    if (!Handle.IsValid())
+    {
+        Weapon.Tags.Remove(LocalBridgePreloadPendingTag);
+        Weapon.Tags.AddUnique(bSkeletal ? LocalBridgeSkeletalGapTag : LocalBridgeStaticGapTag);
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_FAIL weapon=%s asset=%s reason=invalid_handle sync_load=0"),
+            *Weapon.GetWeaponDisplayName(), *AssetPath.ToString());
+        return false;
+    }
+
+    ResidentPreloadHandles.Add(Handle);
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_BEGIN weapon=%s asset=%s mesh_kind=%s async=1 sync_load=0"),
+        *Weapon.GetWeaponDisplayName(), *AssetPath.ToString(), bSkeletal ? TEXT("skeletal") : TEXT("static"));
+    return false;
+}
+
+void UOCPass45ImportedWeaponBridgeSubsystem::CompleteExactLocalVisual(
+    TWeakObjectPtr<AOCWeaponBase> WeakWeapon,
+    FSoftObjectPath AssetPath,
+    const float DesiredLengthCm,
+    const bool bSkeletal)
+{
+    AOCWeaponBase* Weapon = WeakWeapon.Get();
+    if (!Weapon || Weapon->IsActorBeingDestroyed()) return;
+
+    Weapon->Tags.Remove(LocalBridgePreloadPendingTag);
+    if (Weapon->ActorHasTag(LocalInboxBoundTag) || HasProductionVisual(*Weapon)) return;
+
+    UObject* Resolved = AssetPath.ResolveObject();
+    bool bApplied = false;
+    if (bSkeletal)
+    {
+        if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(Resolved))
+        {
+            bApplied = ApplyLocalVisualTyped<USkeletalMesh, USkeletalMeshComponent>(
+                *Weapon, Mesh, DesiredLengthCm);
+        }
+    }
+    else if (UStaticMesh* Mesh = Cast<UStaticMesh>(Resolved))
+    {
+        bApplied = ApplyLocalVisualTyped<UStaticMesh, UStaticMeshComponent>(
+            *Weapon, Mesh, DesiredLengthCm);
+    }
+
+    if (bApplied) return;
+
+    Weapon->Tags.AddUnique(bSkeletal ? LocalBridgeSkeletalGapTag : LocalBridgeStaticGapTag);
+    UE_LOG(LogTemp, Error,
+        TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_GAP weapon=%s asset=%s mesh_kind=%s resolved=%d sync_load=0 runtime_acceptance=0"),
+        *Weapon->GetWeaponDisplayName(), *AssetPath.ToString(),
+        bSkeletal ? TEXT("skeletal") : TEXT("static"), Resolved ? 1 : 0);
+
+    // A failed exact skeletal candidate may still have a valid exact static sibling. Retry metadata selection
+    // without ever synchronously loading the failed package.
+    if (bSkeletal) ApplyExactLocalVisual(*Weapon);
 }
 
 void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
@@ -316,7 +431,13 @@ void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
         AOCWeaponBase* Weapon = *It;
-        if (!Weapon || Weapon->IsActorBeingDestroyed() || HasProductionVisual(*Weapon)) continue;
+        if (!Weapon || Weapon->IsActorBeingDestroyed() || HasProductionVisual(*Weapon) ||
+            Weapon->ActorHasTag(LocalBridgePreloadPendingTag) ||
+            Weapon->ActorHasTag(LocalInboxBoundTag) ||
+            Weapon->ActorHasTag(LocalInboxPreloadPendingTag))
+        {
+            continue;
+        }
 
         FLocalWeaponQuery Query;
         if (!ResolveQuery(Weapon->GetWeaponDisplayName(), Query)) continue;
@@ -327,7 +448,7 @@ void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
     if (Applied > 0)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_PASS pass=%d exact_candidates=%d applied=%d all_declared_local_identities_supported=1 wrong_identity_substitution=0"),
+            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_PASS pass=%d exact_candidates=%d applied=%d all_declared_local_identities_supported=1 wrong_identity_substitution=0 blocking_asset_loads=0"),
             RefreshPass, ExactCandidates, Applied);
     }
 
@@ -344,14 +465,14 @@ void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
                 true,
                 SandboxWatchIntervalSeconds);
             UE_LOG(LogTemp, Display,
-                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_SANDBOX_WATCH_READY fast_passes=%d interval_s=%.2f late_spawn_support=1 permanent_scan_sandbox_only=1 wrong_identity_substitution=0"),
+                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_SANDBOX_WATCH_READY fast_passes=%d interval_s=%.2f late_spawn_support=1 permanent_scan_sandbox_only=1 wrong_identity_substitution=0 blocking_asset_loads=0"),
                 FastRefreshPasses, SandboxWatchIntervalSeconds);
         }
         else
         {
             World->GetTimerManager().ClearTimer(RefreshTimer);
             UE_LOG(LogTemp, Display,
-                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_STOPPED passes=%d permanent_scan=0 sandbox=0 wrong_identity_substitution=0"),
+                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_STOPPED passes=%d permanent_scan=0 sandbox=0 wrong_identity_substitution=0 blocking_asset_loads=0"),
                 RefreshPass);
         }
     }
