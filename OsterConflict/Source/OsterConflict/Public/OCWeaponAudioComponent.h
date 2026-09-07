@@ -6,6 +6,7 @@
 #include "OCTraumaTypes.h"
 #include "OCWeaponAudioComponent.generated.h"
 
+class FStreamableHandle;
 class UOCWeaponAudioProfile;
 class USoundBase;
 
@@ -35,6 +36,9 @@ public:
     void HandleImpactLocal(const FVector& ImpactLocation, EOCImpactSurface Surface, int32 EventSeed);
 
 protected:
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
     TObjectPtr<UOCWeaponAudioProfile> AudioProfile;
 
@@ -45,6 +49,7 @@ private:
     void PlayAt(USoundBase* Sound, const FVector& Location, float Volume = 1.0f) const;
     void Play2D(USoundBase* Sound, float Volume = 1.0f) const;
     void EmitDebugEvent(const FString& Label, const FVector& Location) const;
+    void BeginRepositoryFallbackPreload();
 
     /**
      * Pass45 safety net for currently unassigned/empty weapon audio profiles. It reuses audio already committed
@@ -56,5 +61,9 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UOCWeaponAudioProfile> RepositoryFallbackProfile;
 
+    TSharedPtr<FStreamableHandle> RepositoryFallbackPreloadHandle;
+    bool bRepositoryFallbackPreloadRequested = false;
+    bool bRepositoryFallbackPreloadPendingLogged = false;
+    bool bRepositoryFallbackPreloadGapLogged = false;
     bool bRepositoryFallbackAttempted = false;
 };
