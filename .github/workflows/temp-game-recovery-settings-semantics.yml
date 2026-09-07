@@ -1,0 +1,82 @@
+name: Temporary Game Recovery Settings Semantics Patch
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - .github/workflows/temp-game-recovery-settings-semantics.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-settings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pass45-runtime-rejection-material-closure-20260826
+          fetch-depth: 0
+
+      - name: Patch settings apply save cancel semantics
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'SettingsRoot->AddChildToVerticalBox(MakeText(LOCTEXT("SettingsHelp", "Застосувати — зберегти й лишитися тут. Зберегти й назад — зберегти та закрити. Скасувати — відкинути зміни після останнього збереження."), 12, false));',
+              'SettingsRoot->AddChildToVerticalBox(MakeText(LOCTEXT("SettingsHelp", "Застосувати — застосувати без збереження й лишитися тут. Зберегти й назад — застосувати, зберегти та закрити. Скасувати — повернути останні збережені значення."), 12, false));',
+              'settings help')
+
+          replace_once(
+              'GU->ApplySettings(false);GU->ConfirmVideoMode();',
+              'if(bCloseAfterApply){GU->ApplySettings(false);GU->ConfirmVideoMode();GU->SaveSettings();}else{GU->ApplyResolutionSettings(false);GU->ApplyNonResolutionSettings();GU->ConfirmVideoMode();}',
+              'game user settings apply')
+
+          replace_once(
+              'A->OutputMode=OutputModeFromString(AudioOutputCombo->GetSelectedOption());A->SaveAudioSettings();',
+              'A->OutputMode=OutputModeFromString(AudioOutputCombo->GetSelectedOption());if(bCloseAfterApply)A->SaveAudioSettings();',
+              'audio persistence')
+
+          replace_once(
+              'P->ColorVisionMode=CV==L(LOCTEXT("ColorDeuteranopia", "Дейтеранопія"))?EOCColorVisionMode::Deuteranopia:(CV==L(LOCTEXT("ColorProtanopia", "Протанопія"))?EOCColorVisionMode::Protanopia:(CV==L(LOCTEXT("ColorTritanopia", "Тританопія"))?EOCColorVisionMode::Tritanopia:EOCColorVisionMode::Off));P->SavePlayerSettings();',
+              'P->ColorVisionMode=CV==L(LOCTEXT("ColorDeuteranopia", "Дейтеранопія"))?EOCColorVisionMode::Deuteranopia:(CV==L(LOCTEXT("ColorProtanopia", "Протанопія"))?EOCColorVisionMode::Protanopia:(CV==L(LOCTEXT("ColorTritanopia", "Тританопія"))?EOCColorVisionMode::Tritanopia:EOCColorVisionMode::Off));if(bCloseAfterApply)P->SavePlayerSettings();',
+              'player persistence')
+
+          replace_once(
+              'if(SettingsStatusText)SettingsStatusText->SetText(LOCTEXT("SettingsSaved", "Налаштування застосовано та збережено."));',
+              'if(SettingsStatusText)SettingsStatusText->SetText(bCloseAfterApply?LOCTEXT("SettingsSaved", "Налаштування застосовано та збережено."):LOCTEXT("SettingsAppliedTemporary", "Налаштування застосовано тимчасово. Збережіть їх окремо, якщо хочете залишити."));UE_LOG(LogTemp,Display,TEXT("GAME_RECOVERY_SETTINGS_COMMIT close=%d persisted=%d temporary=%d"),bCloseAfterApply?1:0,bCloseAfterApply?1:0,bCloseAfterApply?0:1);',
+              'settings status')
+
+          replace_once(
+              'UOCPlayerUserSettings::Get()->ReloadConfig();UOCAudioUserSettings::Get()->ReloadConfig();if(UGameUserSettings* GU=GEngine?GEngine->GetGameUserSettings():nullptr)GU->LoadSettings(true);if(AOCPlayerController* PC=Cast<AOCPlayerController>(GetOwningPlayer())){PC->UIApplyLocalPreferences();PC->UICloseSettings();}PendingRebindAction=NAME_None;SyncSettingsWidgetsFromBackend();',
+              'UOCPlayerUserSettings::Get()->ReloadConfig();UOCAudioUserSettings::Get()->ReloadConfig();if(UGameUserSettings* GU=GEngine?GEngine->GetGameUserSettings():nullptr){GU->LoadSettings(true);GU->ApplyResolutionSettings(false);GU->ApplyNonResolutionSettings();GU->ConfirmVideoMode();}if(AOCPlayerController* PC=Cast<AOCPlayerController>(GetOwningPlayer())){PC->UIApplyLocalPreferences();PC->UICloseSettings();}PendingRebindAction=NAME_None;SyncSettingsWidgetsFromBackend();UE_LOG(LogTemp,Display,TEXT("GAME_RECOVERY_SETTINGS_CANCEL restored_persisted=1 close=1"));',
+              'settings cancel')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit settings fix
+        shell: bash
+        run: |
+          if git diff --quiet -- OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp; then
+            echo "No settings patch needed."
+            exit 0
+          fi
+          git config user.name "Valentin"
+          git config user.email "89931955+valentronus95@users.noreply.github.com"
+          git add OsterConflict/Source/OsterConflict/Private/OCGameUIRootWidget.cpp
+          git commit -m "fix(game recovery): separate apply save cancel settings"
+          git push origin HEAD:fix/pass45-runtime-rejection-material-closure-20260826
