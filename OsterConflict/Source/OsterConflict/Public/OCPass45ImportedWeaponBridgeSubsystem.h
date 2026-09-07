@@ -3,7 +3,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "OCPass45ImportedWeaponBridgeSubsystem.generated.h"
+
+class AOCWeaponBase;
+class FStreamableHandle;
 
 /**
  * Bridges already-imported local weapon packs into existing gameplay weapon actors without creating
@@ -23,6 +27,10 @@ public:
 private:
     FTimerHandle RefreshTimer;
     int32 RefreshPass = 0;
+    TArray<TSharedPtr<FStreamableHandle>> ResidentPreloadHandles;
 
     void RefreshWeapons();
+    bool ApplyExactLocalVisual(AOCWeaponBase& Weapon);
+    void CompleteExactLocalVisual(TWeakObjectPtr<AOCWeaponBase> WeakWeapon, FSoftObjectPath AssetPath,
+        float DesiredLengthCm, bool bSkeletal);
 };
