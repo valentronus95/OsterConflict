@@ -57,6 +57,34 @@ namespace
         }
     }
 
+    int32 HideSourceProxyVisuals(AOCWeaponBase& Weapon)
+    {
+        TArray<UStaticMeshComponent*> Components;
+        Weapon.GetComponents<UStaticMeshComponent>(Components);
+
+        int32 HiddenCount = 0;
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (!Component || Component->ComponentHasTag(ProductionVisualTag)
+                || Component->ComponentHasTag(RealFallbackComponentTag))
+            {
+                continue;
+            }
+
+            if (Component->IsVisible())
+            {
+                ++HiddenCount;
+            }
+
+            // Keep the component alive because WeaponMesh remains the drop/physics authority. Only the old
+            // source/proxy rendering is retired. Do not propagate visibility to children because the production
+            // visual is attached below WeaponRoot and must remain visible.
+            Component->SetVisibility(false, false);
+            Component->SetHiddenInGame(true, false);
+        }
+        return HiddenCount;
+    }
+
     bool ResolveQuery(const FString& DisplayName, FLocalWeaponQuery& Out)
     {
         const FName FabRoot(TEXT("/Game/Fab"));
@@ -217,11 +245,13 @@ namespace
         Weapon.AddInstanceComponent(Visual);
         Visual->RegisterComponent();
 
+        const int32 HiddenSourceProxyVisuals = HideSourceProxyVisuals(Weapon);
         RetireTemporaryRealFallbacks(Weapon);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_READY weapon=%s asset=%s desired_length_cm=%.1f mesh_kind=%s production_visual=1 temporary_fallback_retired=1 runtime_acceptance=0"),
+            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_READY weapon=%s asset=%s desired_length_cm=%.1f mesh_kind=%s production_visual=1 temporary_fallback_retired=1 source_proxy_visuals_hidden=%d physics_root_preserved=1 runtime_acceptance=0"),
             *Weapon.GetWeaponDisplayName(), *Mesh->GetPathName(), DesiredLength,
-            std::is_same_v<TComponent, USkeletalMeshComponent> ? TEXT("skeletal") : TEXT("static"));
+            std::is_same_v<TComponent, USkeletalMeshComponent> ? TEXT("skeletal") : TEXT("static"),
+            HiddenSourceProxyVisuals);
         return true;
     }
 
