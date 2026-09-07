@@ -55,13 +55,14 @@ if not settings_brush or float(settings_brush.group(1)) < 0.95:
 require(frontend, 'SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);', "settings backdrop preservation")
 require(frontend, 'const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);', "settings click pre-transition guard")
 
-# Deployment loading must fully block the shifting panel and visibly progress from 0 to 100 before removal.
+# Deployment loading must fully block the shifting panel, start at a factual 0%, and release only after world readiness.
 require(loading, 'Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));', "opaque deployment loading scrim")
 require(loading, 'Title->SetText(FText::FromString(TEXT("ЗАВАНТАЖЕННЯ")));', "distinct loading title")
 require(loading, 'Widget->AddToViewport(5000);', "blocking loading z-order")
 require(loading, 'Widget->SetLoadingProgress(0.0f);', "loading starts at zero")
-require(loading, 'if (!bReadySent && Elapsed >= 0.12)', "rendered zero-percent frame")
-require(loading, 'Widget->SetLoadingProgress(1.0f);', "loading reaches 100 before removal")
+require(loading, 'if (!bReadySent && bWorldReady && Elapsed >= 0.12)', "world-ready release guard after rendered zero-percent frame")
+require(loading, 'Progress = FMath::Lerp(0.94f, 1.0f, CompletionAlpha);', "loading reaches factual 100 percent through completion alpha")
+require(loading, 'if (CompletionAlpha >= 1.0f)', "loading removal only after 100 percent completion")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
 
 # BASE spawn keeps three protection layers: canonical relocation, authoritative BASE creation and
@@ -143,7 +144,7 @@ if 'Normal gameplay playtest must run from branch main.' in launcher:
 print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
 print("- settings panel must remain effectively opaque (alpha >= 0.95), without pinning one obsolete RGB shade")
-print("- deployment transition fully blocks the underlying panel and reaches 100% after possession")
+print("- deployment transition starts at factual 0%, waits for world readiness, then reaches 100% after possession")
 print("- Museum BASE creation no longer depends on delayed world-sector timing")
 print("- BASE-selected characters are validated/recovered once; vehicle possession cannot trigger Museum revalidation")
 print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; invalid proxies fail closed instead of being accepted")
