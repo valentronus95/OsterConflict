@@ -12,6 +12,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -112,10 +113,17 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
 {
     if (HasActorTag(World, TEXT("R142_SilpoInteriorDetails"))) return;
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!Cube || !Basic) return;
+    UStaticMesh* Cube = Cast<UStaticMesh>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")).ResolveObject());
+    UMaterialInterface* Basic = Cast<UMaterialInterface>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")).ResolveObject());
+    if (!Cube || !Basic)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_SILPO_R142_PRELOAD_GAP cube=%d material=%d sync_load=0"),
+            Cube ? 1 : 0, Basic ? 1 : 0);
+        return;
+    }
 
     const FVector Site = SilpoAnchor();
     AActor* Details = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform(FRotator::ZeroRotator, Site));
@@ -170,7 +178,6 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
     UInstancedStaticMeshComponent* EntranceMat = MakeISM(Details, Root, Cube, MatMat,
         TEXT("R142Silpo_EntranceMat"));
 
-    // Square tile-joint grid. Thin non-colliding strips sit just above the base floor to avoid gameplay changes.
     constexpr float TileStepCm = 62.0f;
     for (float X = -HalfLength + TileStepCm; X < HalfLength; X += TileStepCm)
     {
@@ -181,7 +188,6 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
         AddLocalBox(FloorGrout, FVector(0.0f, Y, 14.4f), FVector(BuildingLengthCm - 50.0f, 1.2f, 0.8f));
     }
 
-    // Six shelf runs from R14.0. Add end plates and kick rails without changing the collision volume.
     for (const float X : { -920.0f, -570.0f, -220.0f, 130.0f, 480.0f, 830.0f })
     {
         AddLocalBox(ShelfEdges, FVector(X, -278.0f, 88.0f), FVector(112.0f, 8.0f, 176.0f));
@@ -189,7 +195,6 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
         AddLocalBox(ShelfEdges, FVector(X, 110.0f, 11.0f), FVector(112.0f, 760.0f, 12.0f));
     }
 
-    // Rear refrigeration receives dark glass faces and regular vertical door/frame divisions.
     for (const float X : { -1100.0f, -650.0f, -200.0f, 250.0f, 700.0f, 1150.0f })
     {
         AddLocalBox(CoolerGlass, FVector(X, RearY - 122.0f, 128.0f), FVector(350.0f, 5.0f, 205.0f));
@@ -201,7 +206,6 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
         AddLocalBox(CoolerFrames, FVector(X, RearY - 126.0f, 24.0f), FVector(360.0f, 8.0f, 6.0f));
     }
 
-    // Checkout surfaces read better with a dark conveyor and a narrow warm accent strip.
     for (int32 Lane = 0; Lane < 4; ++Lane)
     {
         const float X = 300.0f + static_cast<float>(Lane) * 270.0f;
@@ -209,7 +213,6 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
         AddLocalBox(CheckoutTrim, FVector(X + 93.0f, -600.0f, 76.0f), FVector(10.0f, 76.0f, 48.0f));
     }
 
-    // Empty produce table: add shallow dividers that imply bins while keeping the island intentionally unstocked.
     for (const float XOffset : { -105.0f, 0.0f, 105.0f })
     {
         AddLocalBox(ProduceTrim, FVector(-760.0f + XOffset, -360.0f, 112.0f), FVector(5.0f, 135.0f, 28.0f));
@@ -217,10 +220,9 @@ void UOCR142SilpoInteriorDetailSubsystem::BuildInteriorDetails(UWorld& World)
     AddLocalBox(ProduceTrim, FVector(-760.0f, -426.0f, 112.0f), FVector(325.0f, 5.0f, 28.0f));
     AddLocalBox(ProduceTrim, FVector(-760.0f, -294.0f, 112.0f), FVector(325.0f, 5.0f, 28.0f));
 
-    // Dark entrance mat just inside the photo-derived left-side public doorway.
     AddLocalBox(EntranceMat, FVector(EntranceCenterX, FrontY + 105.0f, 15.0f), FVector(118.0f, 165.0f, 2.0f));
 
     UE_LOG(LogTemp, Display,
-        TEXT("R14.2 Silpo interior detail pass built at [%.0f %.0f]: tile grid, shelf/cooler detail, checkout surfaces and produce bins."),
+        TEXT("R14.2 Silpo interior detail pass built at [%.0f %.0f]: tile grid, shelf/cooler detail, checkout surfaces and produce bins. sync_load=0 prerequisite_resident=1"),
         Site.X, Site.Y);
 }
