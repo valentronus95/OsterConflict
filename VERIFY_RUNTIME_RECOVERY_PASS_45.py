@@ -27,6 +27,7 @@ tz = read(ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md")
 recovery_tz = read(ROOT / "GAME_RECOVERY.md")
 launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 startup = read(PRIVATE / "OCLandmarkStartupCoordinatorSubsystem.cpp")
+weapon_base = read(PRIVATE / "OCWeaponBase.cpp")
 local_weapon_override = read(PRIVATE / "OCLocalInboxWeaponOverrideSubsystem.cpp")
 imported_weapon_bridge = read(PRIVATE / "OCPass45ImportedWeaponBridgeSubsystem.cpp")
 local_asset_resolver = read(PRIVATE / "OCPass45LocalAssetResolver.cpp")
@@ -77,6 +78,29 @@ for token in (
     "post_spawn_landmark_materialization=0",
 ):
     require(token in startup, f"current staged landmark startup contract missing: {token}")
+
+# Base weapon startup keeps only the already-constructed hidden physics root. The historical decorative runtime
+# Cube/Cylinder/material composite must stay retired and BeginPlay must not issue blocking asset loads.
+require("LoadObject<" not in weapon_base,
+        "base weapon BeginPlay regained blocking LoadObject")
+for token in (
+    "GAME_RECOVERY_SOURCE_WEAPON_COMPOSITE_RETIRED",
+    "decorative_parts=0",
+    "blocking_asset_loads=0",
+    "primitive_visible=0",
+    "collision_authority_preserved=1",
+    "WeaponMesh->SetVisibility(false, false);",
+    "WeaponMesh->SetHiddenInGame(true, false);",
+):
+    require(token in weapon_base,
+            f"base weapon composite retirement contract missing: {token}")
+for stale in (
+    "/Engine/BasicShapes/Cylinder.Cylinder",
+    "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "SourceVisualParts.Add(",
+):
+    require(stale not in weapon_base,
+            f"retired decorative base weapon composite returned: {stale}")
 
 require("LoadObject<" not in local_weapon_override,
         "local inbox weapon override regained blocking LoadObject")
@@ -145,8 +169,6 @@ for token in (
     require(token in real_weapon_fallback,
             f"real weapon fallback async/resident contract missing: {token}")
 
-# Concrete weapon classes execute BeginPlay for ordinary pickups/player weapons. They must not issue synchronous
-# package loads; they may consume an already resident exact mesh while async bridge/fallback owners handle misses.
 require("LoadObject<" not in weapon_variants,
         "weapon variant BeginPlay regained blocking LoadObject")
 for token in (
@@ -158,8 +180,6 @@ for token in (
     require(token in weapon_variants,
             f"resident-only weapon variant contract missing: {token}")
 
-# The anti-armor launcher has its own exact production mesh owner. It must async-preload that mesh and never
-# block BeginPlay while the rejected primitive remains hidden.
 require("LoadObject<" not in anti_armor_launcher,
         "anti-armor launcher regained blocking LoadObject")
 for token in (
@@ -207,6 +227,7 @@ if errors:
 print("RUNTIME RECOVERY PASS 45: PASS")
 print("- current recovery gate delegates specialized source contracts instead of duplicating stale assertions")
 print("- DX11/SM5 startup, grenades, production vehicles, stadium, weapon proxy retirement and reference-driven map rules are guarded")
+print("- base weapon decorative source composite is retired; only invisible physics authority remains")
 print("- local/imported weapon owners, real fallbacks and launcher use async/resident asset routes; weapon variants are resident-only")
 print("- weapon fallback audio preloads before first use; shot/reload/manual-action/impact never issue blocking LoadObject")
 print("- imported weapon bridge uses metadata-only AssetRegistry path selection and yields to LocalInbox ownership")
