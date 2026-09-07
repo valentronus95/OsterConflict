@@ -19,7 +19,7 @@ namespace
     void BuildMuseumPreloadPaths(TArray<FSoftObjectPath>& OutAssets)
     {
         OutAssets.Reset();
-        OutAssets.Reserve(15);
+        OutAssets.Reserve(25);
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_8m.Wall_8m")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Window_4m.Wall_Window_4m")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Modular/Wall_Door_Windows_8m.Wall_Door_Windows_8m")));
@@ -35,6 +35,19 @@ namespace
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/HillTree_02/HillTree_02.HillTree_02")));
         OutAssets.Add(FSoftObjectPath(TEXT("/Game/KiteDemo/Environments/Trees/Vegetation_Debris_002/SM_Vegetation_Debris_002.SM_Vegetation_Debris_002")));
+
+        // GAME_RECOVERY: later R14.x museum stages are part of the same pre-spawn contract.
+        // Keep their exact payload resident so those stages can ResolveObject without issuing package loads.
+        OutAssets.Add(FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_03_mesh.grass_01_03_mesh")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_02_01_mesh.grass_02_01_mesh")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_02.ground_01_02")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_02_03.ground_02_03")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_01.SM_Pine_Tree_01")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/Modular_Rural_Cabin/Meshes/Foliage/SM_Pine_Tree_03.SM_Pine_Tree_03")));
+        OutAssets.Add(FSoftObjectPath(TEXT("/Game/AdvancedVillagePack/Meshes/SM_Tree_Var01.SM_Tree_Var01")));
     }
 
     bool AreMuseumPreloadAssetsResolved(FString& OutMissingAsset)
@@ -172,7 +185,8 @@ void UOCPass45DeploymentStabilitySubsystem::BeginMuseumBuildPreparation(UWorld& 
             &UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad));
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d pre_spawn=1 deployment_visible=1"), MuseumAssets.Num());
+        TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_STARTED assets=%d pre_spawn=1 deployment_visible=1 full_chain=1"),
+        MuseumAssets.Num());
 
     if (!MuseumPreloadHandle.IsValid())
     {
@@ -212,14 +226,16 @@ void UOCPass45DeploymentStabilitySubsystem::CompleteMuseumBuildAfterAsyncLoad()
         World->GetSubsystem<UOCR137MuseumPhotoModelSubsystem>())
     {
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_READY pre_spawn=1 synchronous_disk_load=0 resolved_assets=15"));
+            TEXT("GAME_RECOVERY_MUSEUM_ASYNC_PRELOAD_READY pre_spawn=1 synchronous_disk_load=0 resolved_assets=25 full_chain=1 prerequisite_residency=world_lifetime"));
         MuseumSubsystem->RunAuthoritativeBuildNow(*World);
         bMuseumBuildComplete = true;
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_MUSEUM_BUILD_READY pre_spawn=1"));
+            TEXT("GAME_RECOVERY_MUSEUM_BUILD_READY pre_spawn=1 later_stages_resident=1"));
     }
 
-    MuseumPreloadHandle.Reset();
+    // Keep the completed streamable handle alive through the world. R14.0-R14.5 consume this
+    // payload via ResolveObject during staged pre-spawn materialization; dropping the handle here
+    // would silently turn those stages back into first-use package loads.
 }
 
 void UOCPass45DeploymentStabilitySubsystem::EnsureDeploymentBackdrop()
