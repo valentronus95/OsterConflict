@@ -27,6 +27,9 @@ namespace
         TEXT("/Game/KiteDemo/Environments/Trees/ScotsPineTall_01/ScotsPineTall_01.ScotsPineTall_01"),
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Ground_01/SM_Urb_Roa_Ground_01.SM_Urb_Roa_Ground_01"),
         TEXT("/Game/Scene_RoadsideConstruction/Assets/Custom/Urb_Roa_Sidewalk_01/SM_Urb_Roa_Sidewalk_01.SM_Urb_Roa_Sidewalk_01"),
+        // GAME_RECOVERY 6/10: R138 museum collision consumes this cube through a historical LoadObject call.
+        // Keep the package resident before landmark startup advances so that call cannot become a disk-blocking load.
+        TEXT("/Engine/BasicShapes/Cube.Cube"),
     };
 
     TArray<FSoftObjectPath> BuildStadiumPreloadPaths()
@@ -100,7 +103,7 @@ void UOCGameRecoveryStadiumActivationSubsystem::BeginStadiumPreload()
             &UOCGameRecoveryStadiumActivationSubsystem::CompleteStadiumPreload));
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_STADIUM_ASYNC_PRELOAD_BEGIN assets=%d pre_spawn=1 sync_gameplay_loads=0 runtime_acceptance=0"),
+        TEXT("GAME_RECOVERY_STADIUM_ASYNC_PRELOAD_BEGIN assets=%d pre_spawn=1 sync_gameplay_loads=0 museum_r138_collision_prerequisite=1 runtime_acceptance=0"),
         Paths.Num());
 
     if (!PreloadHandle.IsValid())
@@ -147,7 +150,7 @@ void UOCGameRecoveryStadiumActivationSubsystem::CompleteStadiumPreload()
     if (bPresentationReady)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_READY assets=%d async_preload=1 sync_gameplay_loads=0 canonical_owner=R13_StadionOsterAuthoritative runtime_acceptance=0"),
+            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_READY assets=%d async_preload=1 sync_gameplay_loads=0 museum_r138_collision_prerequisite=1 canonical_owner=R13_StadionOsterAuthoritative runtime_acceptance=0"),
             UE_ARRAY_COUNT(StadiumPresentationPaths));
     }
     else
