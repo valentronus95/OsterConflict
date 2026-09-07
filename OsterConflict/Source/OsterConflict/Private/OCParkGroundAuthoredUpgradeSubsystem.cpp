@@ -1,14 +1,15 @@
 #include "OCParkGroundAuthoredUpgradeSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -16,8 +17,6 @@ namespace
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1");
     const TCHAR* AuthoredGrassMaterialPath =
         TEXT("/Game/Mega_Street_Props_Pack/Street_Props_pack_V2/Materials/Instances/M_Grass_Inst.M_Grass_Inst");
-    constexpr float AuthoredUpgradeDelaySeconds = 0.70f;
-    constexpr float OwnerResolutionTimeoutSeconds = 5.0f;
 
     struct FGroundUpgradePlan
     {
@@ -197,35 +196,62 @@ bool UOCParkGroundAuthoredUpgradeSubsystem::ShouldCreateSubsystem(UObject* Outer
         (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
-TStatId UOCParkGroundAuthoredUpgradeSubsystem::GetStatId() const
+void UOCParkGroundAuthoredUpgradeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
-    RETURN_QUICK_DECLARE_CYCLE_STAT(UOCParkGroundAuthoredUpgradeSubsystem, STATGROUP_Tickables);
-}
+    Super::OnWorldBeginPlay(InWorld);
 
-void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
-{
-    if (bFinished) return;
+    GroundPreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = false;
+    bSucceeded = false;
 
-    UWorld* World = GetWorld();
-    if (!World || !World->IsGameWorld()) return;
-    if (!World->GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
-
-    if (const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>())
+    if (!InWorld.IsGameWorld()) return;
+    if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
+    if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
+    BeginGroundPreload();
+}
+
+void UOCParkGroundAuthoredUpgradeSubsystem::BeginGroundPreload()
+{
+    if (bPreloadRequested || bFinished) return;
+    bPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    Paths.Emplace(AuthoredGroundMeshPath);
+    Paths.Emplace(AuthoredGrassMaterialPath);
+    GroundPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCParkGroundAuthoredUpgradeSubsystem::HandleGroundPreloadComplete),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryParkGroundPreload"));
+
+    if (!GroundPreloadHandle.IsValid())
     {
-        ElapsedSeconds = 0.0f;
+        bFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_AUTHORED_PARK_GROUND_CONTENT_GAP plane_mesh_loaded=0 grass_material_loaded=0 expected_mesh=SM_Plane_1x1 expected_material=M_Grass_Inst pre_spawn=1 async_preload=0 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
         return;
     }
 
-    ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
-    if (ElapsedSeconds < AuthoredUpgradeDelaySeconds) return;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_PARK_GROUND_PRELOAD_BEGIN assets=2 async=1 pre_spawn=1 sync_load=0"));
+}
+
+void UOCParkGroundAuthoredUpgradeSubsystem::HandleGroundPreloadComplete()
+{
+    if (bFinished) return;
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld())
+    {
+        bFinished = true;
+        return;
+    }
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -236,11 +262,9 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
     if (SectorCount != 1 || !Sector)
     {
-        if (ElapsedSeconds < OwnerResolutionTimeoutSeconds) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=oster_sector_count_%d gate_k_complete=0 runtime_acceptance=0"),
-            SectorCount);
+            TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=oster_sector_count_%d pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"), SectorCount);
         return;
     }
 
@@ -251,10 +275,9 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     if (!LegacyGeometry || LegacyGeometry->GetInstanceCount() != 0 ||
         !ParkCentralGround || !ParkNorthCivicGround || !CollegeRecreationGround)
     {
-        if (ElapsedSeconds < OwnerResolutionTimeoutSeconds) return;
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=semantic_owner_contract legacy=%d central=%d north=%d college=%d primary_source_required=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"),
+            TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=semantic_owner_contract legacy=%d central=%d north=%d college=%d primary_source_required=1 normalization_bridge=0 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
             LegacyGeometry ? LegacyGeometry->GetInstanceCount() : -1,
             ParkCentralGround ? ParkCentralGround->GetInstanceCount() : -1,
             ParkNorthCivicGround ? ParkNorthCivicGround->GetInstanceCount() : -1,
@@ -262,23 +285,18 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    UStaticMesh* GroundMesh = LoadObject<UStaticMesh>(nullptr, AuthoredGroundMeshPath);
-    UMaterialInterface* GrassMaterial = LoadObject<UMaterialInterface>(nullptr, AuthoredGrassMaterialPath);
+    UStaticMesh* GroundMesh = Cast<UStaticMesh>(FSoftObjectPath(AuthoredGroundMeshPath).ResolveObject());
+    UMaterialInterface* GrassMaterial = Cast<UMaterialInterface>(FSoftObjectPath(AuthoredGrassMaterialPath).ResolveObject());
     if (!GroundMesh || !GrassMaterial)
     {
         bFinished = true;
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_AUTHORED_PARK_GROUND_CONTENT_GAP plane_mesh_loaded=%d grass_material_loaded=%d expected_mesh=SM_Plane_1x1 expected_material=M_Grass_Inst gate_k_complete=0 runtime_acceptance=0"),
-            GroundMesh ? 1 : 0,
-            GrassMaterial ? 1 : 0);
+            TEXT("PASS45_AUTHORED_PARK_GROUND_CONTENT_GAP plane_mesh_loaded=%d grass_material_loaded=%d expected_mesh=SM_Plane_1x1 expected_material=M_Grass_Inst pre_spawn=1 async_preload=1 resident_only=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
+            GroundMesh ? 1 : 0, GrassMaterial ? 1 : 0);
         return;
     }
 
-    UInstancedStaticMeshComponent* Owners[] = {
-        ParkCentralGround,
-        ParkNorthCivicGround,
-        CollegeRecreationGround
-    };
+    UInstancedStaticMeshComponent* Owners[] = { ParkCentralGround, ParkNorthCivicGround, CollegeRecreationGround };
     TArray<FGroundUpgradePlan> Plans;
     Plans.Reserve(UE_ARRAY_COUNT(Owners));
     FString Failure;
@@ -289,7 +307,7 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
         {
             bFinished = true;
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=%s preflight_complete=0 mutation_started=0 gate_k_complete=0 runtime_acceptance=0"),
+                TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=%s preflight_complete=0 mutation_started=0 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
                 *Failure);
             return;
         }
@@ -307,7 +325,7 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
             }
             bFinished = true;
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=authored_write_or_postcondition applied_before_failure=%d rollback=1 gate_k_complete=0 runtime_acceptance=0"),
+                TEXT("PASS45_AUTHORED_PARK_GROUND_FAIL reason=authored_write_or_postcondition applied_before_failure=%d rollback=1 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"),
                 AppliedCount);
             return;
         }
@@ -315,6 +333,17 @@ void UOCParkGroundAuthoredUpgradeSubsystem::Tick(float DeltaTime)
     }
 
     bFinished = true;
+    bSucceeded = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_AUTHORED_PARK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Grass_Inst park_central_ground=1 park_north_civic_ground=1 college_recreation_ground=1 exact_semantic_owners=3 basicshape_meshes=0 basicshape_material_overrides=0 source_surface_top_preserved=1 xy_footprint_preserved=1 yaw_preserved=1 bounds_aware_surface_fit=1 park_green_semantics_preserved=1 transactional_preflight=1 rollback_on_write_failure=1 tactical_map_xy_bounds_preserved=1 primary_authoring=1 normalization_bridge=0 gate_k_complete=0 runtime_acceptance=0"));
+        TEXT("PASS45_AUTHORED_PARK_GROUND_READY ground_mesh=SM_Plane_1x1 ground_material=M_Grass_Inst park_central_ground=1 park_north_civic_ground=1 college_recreation_ground=1 exact_semantic_owners=3 basicshape_meshes=0 basicshape_material_overrides=0 source_surface_top_preserved=1 xy_footprint_preserved=1 yaw_preserved=1 bounds_aware_surface_fit=1 park_green_semantics_preserved=1 transactional_preflight=1 rollback_on_write_failure=1 tactical_map_xy_bounds_preserved=1 primary_authoring=1 normalization_bridge=0 async_preloaded=1 prerequisite_resident=1 pre_spawn=1 sync_load=0 gate_k_complete=0 runtime_acceptance=0"));
+}
+
+void UOCParkGroundAuthoredUpgradeSubsystem::Deinitialize()
+{
+    if (GroundPreloadHandle.IsValid()) GroundPreloadHandle->CancelHandle();
+    GroundPreloadHandle.Reset();
+    bPreloadRequested = false;
+    bFinished = true;
+    bSucceeded = false;
+    Super::Deinitialize();
 }
