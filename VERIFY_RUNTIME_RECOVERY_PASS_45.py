@@ -27,6 +27,7 @@ tz = read(ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md")
 recovery_tz = read(ROOT / "GAME_RECOVERY.md")
 launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 startup = read(PRIVATE / "OCLandmarkStartupCoordinatorSubsystem.cpp")
+local_weapon_override = read(PRIVATE / "OCLocalInboxWeaponOverrideSubsystem.cpp")
 
 require("RUNTIME REJECTED" in tz and "RUNTIME ACCEPTANCE DEFERRED" in tz,
         "Pass45 runtime rejection/deferred acceptance truth was lost")
@@ -72,6 +73,25 @@ for token in (
 ):
     require(token in startup, f"current staged landmark startup contract missing: {token}")
 
+# Local inbox weapon visuals are a normal gameplay path. Missing meshes must async-load and then bind only
+# from resident memory; this path must never bring back a post-spawn LoadObject hitch or a second visible owner.
+require("LoadObject<" not in local_weapon_override,
+        "local inbox weapon override regained blocking LoadObject")
+for token in (
+    "RequestAsyncLoad(",
+    "FSoftObjectPath(ObjectPath).ResolveObject()",
+    "OC_ProductionWeaponVisual",
+    "GetWeaponVisualRoot()",
+    "GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_BEGIN",
+    "GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_GAP",
+    "resident_asset=1",
+    "visual_root_unscaled=1",
+    "physics_root_preserved=1",
+    "sync_load=0",
+):
+    require(token in local_weapon_override,
+            f"local inbox async/resident weapon contract missing: {token}")
+
 delegated = (
     "VERIFY_SLATE_RENDER_TARGET_STARTUP_PASS_43.py",
     "VERIFY_DX11_SM5_RENDER_TARGET_PASS_23.py",
@@ -104,5 +124,6 @@ if errors:
 print("RUNTIME RECOVERY PASS 45: PASS")
 print("- current recovery gate delegates specialized source contracts instead of duplicating stale assertions")
 print("- DX11/SM5 startup, grenades, production vehicles, stadium, weapon proxy retirement and reference-driven map rules are guarded")
+print("- local inbox weapon visuals async-load missing assets and bind only resident production meshes")
 print("- staged landmark readiness uses current GAME_RECOVERY markers")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")
