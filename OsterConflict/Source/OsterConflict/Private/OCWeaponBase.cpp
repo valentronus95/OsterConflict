@@ -16,8 +16,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "Materials/MaterialInterface.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
@@ -136,121 +134,19 @@ void AOCWeaponBase::ApplyDefinitionIfAssigned()
 
 void AOCWeaponBase::BuildSourceOnlyWeaponVisual()
 {
-    if (!WeaponMesh || SourceVisualParts.Num() > 0) return;
+    if (!WeaponMesh) return;
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!Cube || !Cylinder) return;
+    // GAME_RECOVERY: the old runtime composite built Cube/Cylinder/material parts for every weapon during BeginPlay,
+    // only for production/fallback owners to hide them immediately afterwards. Keep the root cube solely as invisible
+    // collision/physics authority and retire all decorative BasicShape construction from normal gameplay.
+    WeaponMesh->SetVisibility(false, false);
+    WeaponMesh->SetHiddenInGame(true, false);
+    WeaponMesh->SetCastShadow(false);
+    WeaponMesh->SetCanEverAffectNavigation(false);
 
-    auto ColorPart = [BaseMaterial](UStaticMeshComponent* Part, const FLinearColor& Color)
-    {
-        if (!BaseMaterial || !Part) return;
-        if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMaterial, Part))
-        {
-            MID->SetVectorParameterValue(TEXT("Color"), Color);
-            Part->SetMaterial(0, MID);
-        }
-    };
-
-    const FLinearColor Metal(0.055f, 0.060f, 0.058f);
-    const FLinearColor Polymer(0.075f, 0.085f, 0.075f);
-    const FLinearColor Accent(0.18f, 0.16f, 0.10f);
-
-    auto AddPart = [this, Cube, Cylinder, &ColorPart](const TCHAR* Name, bool bCylinder,
-        const FVector& Location, const FVector& Scale, const FRotator& Rotation, const FLinearColor& Color)
-    {
-        UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(this, FName(Name));
-        if (!Part) return static_cast<UStaticMeshComponent*>(nullptr);
-        Part->SetStaticMesh(bCylinder ? Cylinder : Cube);
-        Part->SetupAttachment(WeaponRoot);
-        Part->SetRelativeLocation(Location);
-        Part->SetRelativeRotation(Rotation);
-        Part->SetRelativeScale3D(Scale);
-        Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Part->SetGenerateOverlapEvents(false);
-        Part->SetCastShadow(true);
-        Part->RegisterComponent();
-        ColorPart(Part, Color);
-        SourceVisualParts.Add(Part);
-        return Part;
-    };
-
-    WeaponMesh->SetRelativeLocation(FVector::ZeroVector);
-    WeaponMesh->SetRelativeRotation(FRotator::ZeroRotator);
-    ColorPart(WeaponMesh, Metal);
-
-    switch (Tuning.WeaponClass)
-    {
-    case EOCWeaponClass::Pistol:
-        WeaponMesh->SetRelativeScale3D(FVector(0.16f, 0.055f, 0.075f));
-        AddPart(TEXT("PistolSlide"), false, FVector(10,0,6), FVector(0.18f,0.048f,0.035f), FRotator::ZeroRotator, Metal);
-        AddPart(TEXT("PistolGrip"), false, FVector(-3,0,-10), FVector(0.055f,0.050f,0.13f), FRotator(0,0,-12), Polymer);
-        AddPart(TEXT("PistolBarrel"), true, FVector(22,0,5), FVector(0.018f,0.018f,0.11f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("PistolFrontSight"), false, FVector(21,0,10), FVector(0.012f,0.018f,0.025f), FRotator::ZeroRotator, Accent);
-        break;
-
-    case EOCWeaponClass::SMG:
-        WeaponMesh->SetRelativeScale3D(FVector(0.25f, 0.07f, 0.09f));
-        AddPart(TEXT("SMGHandguard"), false, FVector(28,0,0), FVector(0.20f,0.07f,0.07f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("SMGBarrel"), true, FVector(51,0,1), FVector(0.020f,0.020f,0.17f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("SMGMagazine"), false, FVector(0,0,-18), FVector(0.07f,0.055f,0.19f), FRotator(0,0,-4), Polymer);
-        AddPart(TEXT("SMGGrip"), false, FVector(-12,0,-15), FVector(0.055f,0.055f,0.15f), FRotator(0,0,-18), Polymer);
-        AddPart(TEXT("SMGStock"), false, FVector(-34,0,0), FVector(0.18f,0.055f,0.045f), FRotator::ZeroRotator, Metal);
-        break;
-
-    case EOCWeaponClass::SniperRifle:
-        WeaponMesh->SetRelativeScale3D(FVector(0.32f, 0.07f, 0.085f));
-        AddPart(TEXT("SniperHandguard"), false, FVector(36,0,0), FVector(0.27f,0.065f,0.065f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("SniperBarrel"), true, FVector(79,0,1), FVector(0.017f,0.017f,0.31f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("SniperStock"), false, FVector(-38,0,-2), FVector(0.25f,0.08f,0.07f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("SniperGrip"), false, FVector(-9,0,-18), FVector(0.06f,0.055f,0.17f), FRotator(0,0,-15), Polymer);
-        AddPart(TEXT("SniperMag"), false, FVector(7,0,-17), FVector(0.075f,0.055f,0.15f), FRotator(0,0,-5), Polymer);
-        AddPart(TEXT("SniperScope"), true, FVector(2,0,15), FVector(0.045f,0.045f,0.19f), FRotator(0,90,0), Metal);
-        break;
-
-    case EOCWeaponClass::Shotgun:
-        WeaponMesh->SetRelativeScale3D(FVector(0.30f, 0.065f, 0.075f));
-        AddPart(TEXT("ShotgunForend"), false, FVector(40,0,-2), FVector(0.24f,0.075f,0.065f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("ShotgunBarrel"), true, FVector(77,0,4), FVector(0.022f,0.022f,0.32f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("ShotgunTube"), true, FVector(69,0,-6), FVector(0.018f,0.018f,0.25f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("ShotgunStock"), false, FVector(-39,0,-2), FVector(0.25f,0.075f,0.075f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("ShotgunGrip"), false, FVector(-9,0,-17), FVector(0.06f,0.055f,0.16f), FRotator(0,0,-15), Accent);
-        break;
-
-    case EOCWeaponClass::Launcher:
-        WeaponMesh->SetRelativeScale3D(FVector(0.18f, 0.09f, 0.09f));
-        AddPart(TEXT("LauncherTube"), true, FVector(28,0,0), FVector(0.10f,0.10f,0.62f), FRotator(0,90,0), Polymer);
-        AddPart(TEXT("LauncherFrontRing"), true, FVector(84,0,0), FVector(0.13f,0.13f,0.07f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("LauncherRearRing"), true, FVector(-29,0,0), FVector(0.12f,0.12f,0.06f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("LauncherGrip"), false, FVector(4,0,-20), FVector(0.07f,0.06f,0.18f), FRotator(0,0,-14), Polymer);
-        AddPart(TEXT("LauncherSight"), false, FVector(24,0,14), FVector(0.08f,0.035f,0.055f), FRotator::ZeroRotator, Metal);
-        break;
-
-    case EOCWeaponClass::LMG:
-        WeaponMesh->SetRelativeScale3D(FVector(0.32f, 0.085f, 0.10f));
-        AddPart(TEXT("LMGHandguard"), false, FVector(39,0,0), FVector(0.27f,0.085f,0.075f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("LMGBarrel"), true, FVector(82,0,1), FVector(0.022f,0.022f,0.32f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("LMGStock"), false, FVector(-40,0,-2), FVector(0.24f,0.085f,0.075f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("LMGGrip"), false, FVector(-8,0,-19), FVector(0.06f,0.06f,0.17f), FRotator(0,0,-16), Polymer);
-        AddPart(TEXT("LMGBoxMag"), false, FVector(12,0,-19), FVector(0.13f,0.12f,0.16f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("LMGBipodL"), true, FVector(45,-7,-20), FVector(0.012f,0.012f,0.18f), FRotator(8,0,18), Metal);
-        AddPart(TEXT("LMGBipodR"), true, FVector(45,7,-20), FVector(0.012f,0.012f,0.18f), FRotator(-8,0,-18), Metal);
-        break;
-
-    default:
-        WeaponMesh->SetRelativeScale3D(FVector(0.29f, 0.075f, 0.09f));
-        AddPart(TEXT("RifleHandguard"), false, FVector(35,0,0), FVector(0.24f,0.075f,0.07f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("RifleBarrel"), true, FVector(71,0,1), FVector(0.019f,0.019f,0.27f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("RifleMuzzle"), true, FVector(88,0,1), FVector(0.028f,0.028f,0.07f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("RifleStock"), false, FVector(-38,0,-2), FVector(0.23f,0.075f,0.075f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("RifleGrip"), false, FVector(-8,0,-18), FVector(0.06f,0.055f,0.17f), FRotator(0,0,-16), Polymer);
-        AddPart(TEXT("RifleMagazine"), false, FVector(12,0,-19), FVector(0.075f,0.06f,0.18f), FRotator(0,0,-8), Polymer);
-        AddPart(TEXT("RifleRearSight"), false, FVector(-4,0,13), FVector(0.025f,0.035f,0.035f), FRotator::ZeroRotator, Metal);
-        AddPart(TEXT("RifleFrontSight"), false, FVector(55,0,12), FVector(0.018f,0.025f,0.05f), FRotator::ZeroRotator, Metal);
-        break;
-    }
+    UE_LOG(LogTemp, Verbose,
+        TEXT("GAME_RECOVERY_SOURCE_WEAPON_COMPOSITE_RETIRED weapon=%s decorative_parts=0 blocking_asset_loads=0 primitive_visible=0 collision_authority_preserved=1"),
+        *Tuning.WeaponId.ToString());
 }
 
 void AOCWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
