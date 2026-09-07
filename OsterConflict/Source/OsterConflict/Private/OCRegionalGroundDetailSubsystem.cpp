@@ -1,16 +1,17 @@
 #include "OCRegionalGroundDetailSubsystem.h"
 
 #include "OCGameMode.h"
-#include "OCPlayerController.h"
 #include "OCWorldSectorOster.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -46,8 +47,6 @@ namespace
         const AActor* Actor = Hit.GetActor();
         const FString ComponentName = Component ? Component->GetName() : FString();
 
-        // Keep regional detail on natural ground. This intentionally mirrors the Block0 dense-foliage
-        // surface policy so a nearby tree cannot scatter leaf cards onto roads, roofs or water.
         static const TCHAR* BlockedTerms[] =
         {
             TEXT("road"), TEXT("street"), TEXT("sidewalk"), TEXT("pavement"), TEXT("asphalt"),
@@ -91,6 +90,10 @@ void UOCRegionalGroundDetailSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
 
+    bPreloadRequested = false;
+    bPopulationFinished = false;
+    PreloadHandle.Reset();
+
     if (!InWorld.IsGameWorld()) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
@@ -99,15 +102,64 @@ void UOCRegionalGroundDetailSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Retry cheaply until the local player leaves deployment. This prevents the KiteDemo leaf package and
-    // hundreds of traces from stealing the game thread while the deployment UI/window controls are in use.
-    InWorld.GetTimerManager().SetTimer(
+    RequestRegionalGroundDetailPreload();
+}
+
+void UOCRegionalGroundDetailSubsystem::RequestRegionalGroundDetailPreload()
+{
+    if (bPreloadRequested || bPopulationFinished) return;
+    bPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    Paths.Emplace(DeadLeavesMeshPath);
+    PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCRegionalGroundDetailSubsystem::HandleRegionalGroundDetailPreloadComplete),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryRegionalGroundDetailPreload"));
+
+    if (!PreloadHandle.IsValid())
+    {
+        bPopulationFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_REGIONAL_GROUND_PRELOAD_FAIL handle=0 sync_load=0 resident_only=1 runtime_acceptance=0"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_REGIONAL_GROUND_PRELOAD_BEGIN assets=1 async=1 pre_spawn=1 sync_load=0"));
+}
+
+void UOCRegionalGroundDetailSubsystem::HandleRegionalGroundDetailPreloadComplete()
+{
+    if (bPopulationFinished) return;
+    if (!PreloadHandle.IsValid() || !PreloadHandle->HasLoadCompleted())
+    {
+        bPopulationFinished = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_REGIONAL_GROUND_PRELOAD_FAIL handle_or_completion=0 sync_load=0 resident_only=1 runtime_acceptance=0"));
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World || !World->IsGameWorld())
+    {
+        bPopulationFinished = true;
+        return;
+    }
+
+    // One short deferred pass gives the authored Oster sector its BeginPlay work without polling after spawn.
+    World->GetTimerManager().SetTimer(
         PopulateTimerHandle,
         this,
         &UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail,
-        0.25f,
-        true,
-        0.50f);
+        0.30f,
+        false);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_REGIONAL_GROUND_PRELOAD_READY async=1 resident_only=1 sync_load=0 one_shot=1 pre_spawn=1"));
 }
 
 void UOCRegionalGroundDetailSubsystem::Deinitialize()
@@ -116,23 +168,20 @@ void UOCRegionalGroundDetailSubsystem::Deinitialize()
     {
         World->GetTimerManager().ClearTimer(PopulateTimerHandle);
     }
+    if (PreloadHandle.IsValid()) PreloadHandle->CancelHandle();
+    PreloadHandle.Reset();
+    bPreloadRequested = false;
+    bPopulationFinished = true;
     Super::Deinitialize();
 }
 
 void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
 {
+    if (bPopulationFinished) return;
+    bPopulationFinished = true;
+
     UWorld* World = GetWorld();
     if (!World || !World->IsGameWorld()) return;
-
-    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
-    if (!PC || !PC->IsLocalController()) return;
-    if (PC->IsFrontendMenuVisible() || PC->IsDeploymentPanelVisible() ||
-        PC->IsSettingsVisible() || !PC->GetPawn())
-    {
-        return;
-    }
-
-    World->GetTimerManager().ClearTimer(PopulateTimerHandle);
 
     AOCWorldSectorOster* Sector = nullptr;
     int32 SectorCount = 0;
@@ -144,17 +193,17 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
     if (SectorCount != 1 || !Sector)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_FAIL reason=oster_sector_count_%d runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_FAIL reason=oster_sector_count_%d runtime_acceptance=0 sync_load=0"),
             SectorCount);
         return;
     }
 
     UInstancedStaticMeshComponent* DeciduousTrees = FindISM(Sector, TEXT("AuthoredDeciduousTrees"));
-    UStaticMesh* DeadLeavesMesh = LoadObject<UStaticMesh>(nullptr, DeadLeavesMeshPath);
+    UStaticMesh* DeadLeavesMesh = Cast<UStaticMesh>(FSoftObjectPath(DeadLeavesMeshPath).ResolveObject());
     if (!DeciduousTrees || !DeadLeavesMesh || DeciduousTrees->GetInstanceCount() <= 0)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_FAIL reason=source_or_asset_missing deciduous_component=%d deciduous_instances=%d dead_leaves_loaded=%d runtime_acceptance=0"),
+            TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_FAIL reason=source_or_preload_gap deciduous_component=%d deciduous_instances=%d dead_leaves_resident=%d runtime_acceptance=0 sync_load=0 resident_only=1"),
             DeciduousTrees ? 1 : 0,
             DeciduousTrees ? DeciduousTrees->GetInstanceCount() : 0,
             DeadLeavesMesh ? 1 : 0);
@@ -196,7 +245,7 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
     const bool bLowCPU = IsLowCPUProfile(*World);
     const int32 LeavesPerTree = bLowCPU ? LowCPULeavesPerTree : FullLeavesPerTree;
     const int32 MaxLeafInstances = bLowCPU ? LowCPUMaxLeafInstances : FullMaxLeafInstances;
-    FRandomStream RandomStream(0x4F535445); // "OSTE", deterministic across runs.
+    FRandomStream RandomStream(0x4F535445);
 
     int32 AddedInstances = 0;
     int32 TraceRejected = 0;
@@ -251,7 +300,7 @@ void UOCRegionalGroundDetailSubsystem::PopulateRegionalGroundDetail()
 
     DetailOwner->Tags.AddUnique(TEXT("OC_Block0RegionalGroundDetail"));
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_WIRED asset=SM_DeadLeaves source_tree_family=AuthoredDeciduousTrees tree_instances=%d leaf_instances=%d max_instances=%d profile=%s collision=0 navigation=0 shadow=0 cull_end_cm=6500 deterministic=1 permanent_tick=0 candidate_surface_guard=1 water_surface_guard=1 trace_rejected=%d blocked_surface_rejected=%d runtime_acceptance=0"),
+        TEXT("PASS45_BLOCK0_REGIONAL_GROUND_DETAIL_WIRED asset=SM_DeadLeaves source_tree_family=AuthoredDeciduousTrees tree_instances=%d leaf_instances=%d max_instances=%d profile=%s collision=0 navigation=0 shadow=0 cull_end_cm=6500 deterministic=1 permanent_tick=0 candidate_surface_guard=1 water_surface_guard=1 trace_rejected=%d blocked_surface_rejected=%d runtime_acceptance=0 async_preloaded=1 sync_load=0 resident_only=1 one_shot=1"),
         TreeCount,
         AddedInstances,
         MaxLeafInstances,
