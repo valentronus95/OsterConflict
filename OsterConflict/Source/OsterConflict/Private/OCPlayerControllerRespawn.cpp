@@ -2,12 +2,24 @@
 
 #include "OCCharacter.h"
 #include "OCHealthComponent.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerInput.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 namespace
 {
     constexpr float GameRecoveryRespawnDelaySeconds = 10.0f;
+}
+
+void AOCPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    HideRespawnOverlay();
+    Super::EndPlay(EndPlayReason);
 }
 
 void AOCPlayerController::PawnPendingDestroy(APawn* InPawn)
@@ -84,14 +96,23 @@ void AOCPlayerController::ClientBeginRespawnWait_Implementation(AActor* DeathVie
         SetViewTargetWithBlend(DeathViewTarget, 0.15f);
     }
 
+    ShowRespawnOverlay();
+
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_RESPAWN_CLIENT_WAIT delay_seconds=%.1f input_locked=1 cursor=0 corpse_view=%d spectator_pawn=0 gameplay_debugger=0"),
+        TEXT("GAME_RECOVERY_RESPAWN_CLIENT_WAIT delay_seconds=%.1f input_locked=1 cursor=0 corpse_view=%d spectator_pawn=0 gameplay_debugger=0 respawn_hud=1"),
         FMath::Max(0.0f, DelaySeconds), IsValid(DeathViewTarget) ? 1 : 0);
 }
 
 void AOCPlayerController::ClientFinishRespawnWait_Implementation(APawn* NewPawn)
 {
-    if (!IsLocalController() || !bRespawnWaiting)
+    if (!IsLocalController())
+    {
+        return;
+    }
+
+    HideRespawnOverlay();
+
+    if (!bRespawnWaiting)
     {
         return;
     }
@@ -116,8 +137,66 @@ void AOCPlayerController::ClientFinishRespawnWait_Implementation(APawn* NewPawn)
     ConfigureControllerInput();
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_RESPAWN_CLIENT_READY pawn=%s input_game_only=1 input_lock_cleared=1 cursor=0 possession_restored=%d spectator_pawn=0 gameplay_debugger=0"),
+        TEXT("GAME_RECOVERY_RESPAWN_CLIENT_READY pawn=%s input_game_only=1 input_lock_cleared=1 cursor=0 possession_restored=%d spectator_pawn=0 gameplay_debugger=0 respawn_hud_removed=1"),
         *GetNameSafe(NewPawn), IsValid(NewPawn) ? 1 : 0);
+}
+
+void AOCPlayerController::ShowRespawnOverlay()
+{
+    if (!IsLocalController() || !GEngine || !GEngine->GameViewport)
+    {
+        return;
+    }
+
+    HideRespawnOverlay();
+
+    const TWeakObjectPtr<AOCPlayerController> WeakController(this);
+    RespawnOverlayWidget =
+        SNew(SBox)
+        .HAlign(HAlign_Center)
+        .VAlign(VAlign_Center)
+        [
+            SNew(SBorder)
+            .BorderImage(FCoreStyle::Get().GetBrush(TEXT("GenericWhiteBox")))
+            .BorderBackgroundColor(FLinearColor(0.018f, 0.024f, 0.032f, 0.90f))
+            .Padding(FMargin(30.0f, 16.0f))
+            [
+                SNew(STextBlock)
+                .Text_Lambda([WeakController]() -> FText
+                {
+                    const AOCPlayerController* Controller = WeakController.Get();
+                    if (!Controller || !Controller->IsRespawnWaiting())
+                    {
+                        return FText::GetEmpty();
+                    }
+                    const int32 Seconds = FMath::Max(0, FMath::CeilToInt(Controller->GetRespawnSecondsRemaining()));
+                    return FText::Format(
+                        NSLOCTEXT("OsterConflict", "RespawnCountdown", "RESPAWN  {0}"),
+                        FText::AsNumber(Seconds));
+                })
+                .Font(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 26))
+                .ColorAndOpacity(FSlateColor(FLinearColor(0.92f, 0.95f, 0.98f, 1.0f)))
+            ]
+        ];
+
+    GEngine->GameViewport->AddViewportWidgetContent(RespawnOverlayWidget.ToSharedRef(), 1900);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_RESPAWN_HUD_READY countdown=1 debug_text=0 spectator_overlay=0"));
+}
+
+void AOCPlayerController::HideRespawnOverlay()
+{
+    if (!RespawnOverlayWidget.IsValid())
+    {
+        return;
+    }
+
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->RemoveViewportWidgetContent(RespawnOverlayWidget.ToSharedRef());
+    }
+    RespawnOverlayWidget.Reset();
 }
 
 float AOCPlayerController::GetRespawnSecondsRemaining() const
@@ -130,7 +209,7 @@ float AOCPlayerController::GetRespawnSecondsRemaining() const
     const UWorld* World = GetWorld();
     if (!World)
     {
-        return FMath::Max(0.0, RespawnWaitDeadlineSeconds);
+        return static_cast<float>(FMath::Max(0.0, RespawnWaitDeadlineSeconds));
     }
 
     return static_cast<float>(FMath::Max(0.0, RespawnWaitDeadlineSeconds - World->GetTimeSeconds()));
