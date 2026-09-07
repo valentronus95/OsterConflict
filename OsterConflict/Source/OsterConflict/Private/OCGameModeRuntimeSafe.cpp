@@ -3,6 +3,7 @@
 #include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
 #include "OCBlock0GroundFoundationSubsystem.h"
 #include "OCLandmarkStartupCoordinatorSubsystem.h"
+#include "OCParkSemanticAuthoredUpgradeSubsystem.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
 #include "OCTeamSpawnPoint.h"
@@ -231,6 +232,23 @@ bool AOCGameModeRuntimeSafe::IsRecoveryWorldReady(FString& OutPendingStages, boo
         Pending.Add(TEXT("landmarks"));
     }
 
+    const UOCParkSemanticAuthoredUpgradeSubsystem* ParkSemantic =
+        World->GetSubsystem<UOCParkSemanticAuthoredUpgradeSubsystem>();
+    if (!ParkSemantic)
+    {
+        Pending.Add(TEXT("park_semantic_subsystem_missing"));
+        bOutHardFailure = true;
+    }
+    else if (ParkSemantic->HasParkSemanticFailed())
+    {
+        Pending.Add(TEXT("park_semantic_failed"));
+        bOutHardFailure = true;
+    }
+    else if (!ParkSemantic->IsParkSemanticReady())
+    {
+        Pending.Add(TEXT("park_semantic"));
+    }
+
     OutPendingStages = Pending.Num() > 0 ? FString::Join(Pending, TEXT(",")) : TEXT("none");
     return Pending.Num() == 0;
 }
@@ -287,7 +305,7 @@ void AOCGameModeRuntimeSafe::PollRestartWhenWorldReady(TWeakObjectPtr<AControlle
     {
         ClearPendingWorldReadyRestart(WeakController);
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f ground_ready=1 surface_ready=1 landmarks_ready=1 player_spawn_release=1 post_spawn_world_loading=0"),
+            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f ground_ready=1 surface_ready=1 landmarks_ready=1 park_semantic_ready=1 player_spawn_release=1 post_spawn_world_loading=0"),
             WaitMilliseconds);
         RestartPlayer(Controller);
         return;
