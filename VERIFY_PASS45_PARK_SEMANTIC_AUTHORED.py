@@ -44,6 +44,10 @@ for needle in (
     "UOCParkSemanticAuthoredUpgradeSubsystem",
     "homogeneous semantic families",
     "must not blanket-remap",
+    "pre-spawn world preparation",
+    "IsParkSemanticReady",
+    "HasParkSemanticFailed",
+    "GetParkSemanticProgress",
 ):
     require(header, needle, "semantic upgrade ownership")
 
@@ -59,7 +63,9 @@ for needle in (
     "native proportions",
     "SourceBottomZ",
     "NewLocation.Z = SourceBottomZ - NewBottomOffsetZ",
-    "ElapsedSeconds < 0.75f",
+    "RequestAsyncLoad(",
+    "FSoftObjectPath(AuthoredBenchPath).ResolveObject()",
+    "GAME_RECOVERY_PARK_BENCH_PRELOAD_BEGIN",
     "PASS45_AUTHORED_PARK_SEMANTIC_CONTENT_GAP",
     "PASS45_AUTHORED_PARK_SEMANTIC_FAIL",
     "PASS45_AUTHORED_PARK_BENCHES_READY",
@@ -71,11 +77,18 @@ for needle in (
     "native_proportions_preserved=1",
     "ground_bottom_preserved=1",
     "bounds_aware_upgrade=1",
+    "async_preloaded=1",
+    "prerequisite_resident=1",
+    "pre_spawn=1",
+    "sync_load=0",
     "gate_k_complete=0",
     "runtime_acceptance=0",
 ):
     require(impl, needle, "ParkBenches authored replacement")
 
+forbid(impl, "LoadObject<", "post-spawn blocking asset load")
+forbid(impl, "ElapsedSeconds < 0.75f", "post-spawn timer")
+forbid(impl, "PC->GetPawn()", "post-spawn player gate")
 forbid(impl, 'FindISM(Sector, TEXT("ParkDetails"))', "legacy mixed ParkDetails mutation")
 forbid(impl, 'FindISM(Sector, TEXT("ParkMemorialPlaza"))', "memorial quarantine mutation")
 forbid(impl, 'FindISM(Sector, TEXT("ParkMemorialApproach"))', "memorial-step cross-family mutation")
@@ -122,7 +135,8 @@ forbid(gate, "SetVisibility(false", "Gate K mutation")
 
 print("PASS45 PARK SEMANTIC AUTHORED SOURCE PASS")
 print("- ParkBenches remains a distinct semantic owner with exactly 14 canonical source proxies")
-print("- tracked SM_Bench_1 replaces only ParkBenches before Gate K / Pass12")
+print("- tracked SM_Bench_1 is async-preloaded and applied from resident memory before human spawn")
 print("- authored bench native proportions and source ground contact are preserved")
 print("- legacy mixed park buckets remain zero-instance quarantine; bench upgrade has no cross-family mutation")
+print("- no post-spawn timer or blocking LoadObject remains in the ParkBenches upgrade")
 print("- Gate K remains incomplete and runtime visual acceptance remains pending")
