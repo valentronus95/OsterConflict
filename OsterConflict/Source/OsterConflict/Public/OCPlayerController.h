@@ -9,6 +9,7 @@
 class UInputAction;
 class UInputMappingContext;
 class UOCGameUIRootWidget;
+class SWidget;
 
 UCLASS()
 class OSTERCONFLICT_API AOCPlayerController : public APlayerController
@@ -18,6 +19,7 @@ class OSTERCONFLICT_API AOCPlayerController : public APlayerController
 public:
     AOCPlayerController();
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void SetupInputComponent() override;
     virtual void OnPossess(APawn* InPawn) override;
     virtual void PawnPendingDestroy(APawn* InPawn) override;
@@ -126,6 +128,7 @@ private:
     bool bRespawnWaiting = false;
     bool bServerAwaitingRespawnPossession = false;
     double RespawnWaitDeadlineSeconds = 0.0;
+    TSharedPtr<SWidget> RespawnOverlayWidget;
     int32 SelectedAdminActionIndex = 0;
     bool bSandboxGodMode = false;
     bool bSandboxAdminAllowed = false;
@@ -157,6 +160,8 @@ private:
     void ExecuteSandboxAdminActionServer(EOCSandboxAdminAction Action);
     void SendChat(EOCChatChannel Channel, const FString& Message);
     void SubmitSquadOrder(EOCSquadOrderType Type, FName ObjectiveId, const FVector& Location);
+    void ShowRespawnOverlay();
+    void HideRespawnOverlay();
     static FString SanitizeNickname(const FString& RawName);
     static FString SanitizeChat(const FString& RawMessage);
 };
