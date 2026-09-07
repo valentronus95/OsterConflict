@@ -1,0 +1,26 @@
+name: Pass 45 item16 production cutover preflight
+
+# Deep calibration/provenance diagnostic kept for targeted investigation.
+# The current automatic production owner is pass45-item16-production-profile-cutover.yml.
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run deep item16 cutover diagnostics on demand
+        run: |
+          python -m py_compile PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY.py VERIFY_PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY_CONTRACT.py VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py VERIFY_PASS45_ITEM16_PRODUCTION_PROFILE_CUTOVER.py VERIFY_PASS45_ITEM16_PRODUCTION_PACKAGE_BINDING.py VERIFY_PASS45_ITEM16_PRODUCTION_PATH_SINGLE_SOURCE_CONTRACT.py VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py VERIFY_PASS45_ITEM16_CALIBRATION_REVIEW_PROVENANCE_CONTRACT.py
+          python VERIFY_PASS45_ITEM16_PRODUCTION_PATH_SINGLE_SOURCE_CONTRACT.py
+          python VERIFY_PASS45_ITEM16_CALIBRATION_SOURCE_IDENTITY_CONTRACT.py
+          python VERIFY_PASS45_ITEM16_CALIBRATION_REVIEW_PROVENANCE_CONTRACT.py
+          python VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING_CONTRACT.py
+          python VERIFY_PASS45_ITEM16_PRODUCTION_CUTOVER_PREFLIGHT.py
+          python VERIFY_PASS45_ITEM16_CALIBRATION_RECEIPT_BINDING.py

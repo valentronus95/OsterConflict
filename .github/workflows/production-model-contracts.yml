@@ -208,8 +208,10 @@ jobs:
                       'static production weapon visual helper is missing')
               require('/Game/Production/Weapons/M249/SM_M249.SM_M249' in weapon_variants_cpp,
                       'M249 canonical runtime path changed')
-              require('/Game/Production/Weapons/Remington870/SM_Remington870.SM_Remington870' in weapon_variants_cpp,
-                      'Remington 870 canonical runtime path changed')
+              require('/Game/Production/Weapons/Remington870/SKM_Remington870.SKM_Remington870' in weapon_variants_cpp,
+                      'Remington 870 canonical skeletal runtime path changed')
+              require('ApplySkeletalProductionWeapon' in weapon_variants_cpp,
+                      'skeletal production weapon visual helper is missing')
               require('void AOCWeapon_LMG::BeginPlay()' in weapon_variants_cpp and
                       'void AOCWeapon_Shotgun::BeginPlay()' in weapon_variants_cpp,
                       'LMG/shotgun production BeginPlay hooks are missing')

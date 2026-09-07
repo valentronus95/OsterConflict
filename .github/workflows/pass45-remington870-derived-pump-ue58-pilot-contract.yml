@@ -1,0 +1,22 @@
+name: Pass 45 Remington 870 derived pump UE58 pilot contract
+
+# Local UE pilot contract. Manual only under the batch-first PASS45 policy.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify fail-closed Remington UE58 pilot contract on demand
+        run: |
+          python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py
+          python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py

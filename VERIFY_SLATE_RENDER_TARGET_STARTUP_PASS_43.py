@@ -124,10 +124,10 @@ for needle in (
     require(tactical, needle, "one-shot tactical map render target")
 
 # Pass 45 keeps the Pass 43 DX11/SM5/no-HDR isolation but no longer treats -norhithread as a permanent
-# normal-game invariant. It is now an explicit compatibility A/B route after the latest menu-at-8-FPS evidence.
-for token in ("-d3d11", "-sm5", "-nohdr"):
+# normal-game invariant. The canonical route also suppresses the separate splash window via -nosplash.
+for token in ("-d3d11", "-sm5", "-nohdr", "-nosplash"):
     require(launcher, token, f"normal launcher renderer flag {token}")
-require(launcher, 'set "RHI_FLAGS=-d3d11 -sm5 -nohdr"', "Pass 45 normal RHI-thread route")
+require(launcher, 'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -nosplash"', "Pass 45 normal RHI-thread route")
 require(launcher, 'if /I "%OC_RHI_COMPAT%"=="1"', "Pass 45 explicit compatibility selector")
 require(launcher, '-norhithread', "Pass 45 compatibility route retains no-RHI-thread fallback")
 require(launcher, 'set "RHI_MODE=dx11_sm5_rhi_thread"', "Pass 45 normal RHI mode marker")
@@ -145,5 +145,5 @@ print("- automatic graphics changes are persisted for safe boot-time application
 print("- minimap SceneCapture/render target/Slate brush is not created in frontend, deployment or settings UI")
 print("- minimap render target is first allowed only with an actual unblocked gameplay Pawn")
 print("- explicit user graphics Apply remains available after viewport initialization")
-print("- DX11 + SM5 + no HDR isolation remains; -norhithread is now explicit Pass 45 compatibility A/B only")
+print("- DX11 + SM5 + no HDR isolation remains; -nosplash suppresses the separate startup window and -norhithread is compatibility-only")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime remains authoritative")

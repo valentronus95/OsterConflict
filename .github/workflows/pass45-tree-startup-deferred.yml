@@ -1,0 +1,26 @@
+name: Pass 45 tree startup deferred
+
+on:
+  push:
+    paths:
+      - "OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp"
+      - "VERIFY_PASS45_TREE_STARTUP_DEFERRED.py"
+      - ".github/workflows/pass45-tree-startup-deferred.yml"
+      - "RUN_ALL_VERIFY.py"
+  pull_request:
+    paths:
+      - "OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp"
+      - "VERIFY_PASS45_TREE_STARTUP_DEFERRED.py"
+      - ".github/workflows/pass45-tree-startup-deferred.yml"
+      - "RUN_ALL_VERIFY.py"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Verify constructor-safe deferred tree startup
+        run: python VERIFY_PASS45_TREE_STARTUP_DEFERRED.py

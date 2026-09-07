@@ -1,0 +1,19 @@
+name: Pass 45 Remington 870 donor motion audit
+
+# Donor-history diagnostic. Manual only; ordinary production wiring/cutover
+# checks remain automatic where they protect current runtime behavior.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  donor-motion-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Verify pinned articulated donor motion on demand
+        run: python VERIFY_PASS45_REMINGTON870_DONOR_MOTION_AUDIT.py

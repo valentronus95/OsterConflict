@@ -8,18 +8,25 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTreeContentUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTreeContentUpgradeSubsystem.h'
       - 'RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_FOLIAGE_RUNTIME_PASS_10.py'
+      - 'VERIFY_PASS45_AUTHORED_TREE_ASSET_MAPPING.py'
       - '.github/workflows/foliage-runtime-pass-10.yml'
   push:
     branches: [ main ]
     paths:
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCDenseGroundFoliageSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCDenseGroundFoliageSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFoliageRuntimeGuardSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCFoliageRuntimeGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCTreeContentUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCTreeContentUpgradeSubsystem.h'
       - 'RUN_R14_FOLIAGE_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_FOLIAGE_RUNTIME_PASS_10.py'
+      - 'VERIFY_PASS45_AUTHORED_TREE_ASSET_MAPPING.py'
       - '.github/workflows/foliage-runtime-pass-10.yml'
 
 jobs:
@@ -34,3 +41,5 @@ jobs:
           python-version: '3.12'
       - name: Verify foliage runtime ownership contracts
         run: python VERIFY_FOLIAGE_RUNTIME_PASS_10.py
+      - name: Verify authoring and final runtime tree asset mapping
+        run: python VERIFY_PASS45_AUTHORED_TREE_ASSET_MAPPING.py

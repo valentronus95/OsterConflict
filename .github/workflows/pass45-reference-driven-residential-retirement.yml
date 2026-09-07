@@ -10,9 +10,13 @@ on:
       - 'PASS45_RUNTIME_RECOVERY_TZ.md'
       - 'OSTER_CONFLICT_WORK_LEDGER.md'
       - 'VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'VERIFY_PASS45_STRICT_RUNTIME_ACCEPTANCE_HARNESS.py'
       - 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCReferenceDrivenResidentialValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCReferenceDrivenResidentialValidationSubsystem.h'
       - '.github/workflows/pass45-reference-driven-residential-retirement.yml'
 
 jobs:
@@ -25,5 +29,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify generic residential visuals stay retired
+      - name: Verify generic residential visuals stay retired and Gate E is fail-visible
         run: python VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py

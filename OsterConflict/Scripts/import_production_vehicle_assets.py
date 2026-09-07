@@ -1,22 +1,28 @@
 import json
 import shutil
 import struct
+import sys
 from pathlib import Path
 
 import unreal
-
-from generate_btr4_game_visual import build_btr4_glb
 
 
 PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
 SOURCE_ROOT = PROJECT_DIR / "SourceAssets" / "Production"
 CACHE_ROOT = PROJECT_DIR / "Saved" / "ProductionAssetImportCache"
 SUCCESS_SENTINEL = CACHE_ROOT / "production_import_success.txt"
+IMPORT_CONTRACT_REVISION = "PASS45_BTR_GLTF_Y_UP_20260827_R3"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+from generate_btr4_game_visual import build_btr4_glb
 
 HMMWV_SOURCE = SOURCE_ROOT / "Vehicles" / "HMMWV" / "ukrainian_hmmwv_mk_19.glb"
 M2_SOURCE = SOURCE_ROOT / "Weapons" / "M2" / "m2_50cal_machinegun_cc0.glb"
 BTR_SOURCE = SOURCE_ROOT / "Vehicles" / "BTR4" / "BTR4_Bucephalus.fbx"
 BTR_TEXTURE_DIR = SOURCE_ROOT / "Vehicles" / "BTR4" / "Textures"
+BTR_GENERATED_SOURCE = CACHE_ROOT / "BTR4" / "btr4_bucephalus_oc_authored.glb"
 
 HMMWV_DEST = "/Game/Production/Vehicles/HMMWV"
 M2_DEST = "/Game/Production/Weapons/M2"
@@ -27,6 +33,7 @@ M2_NAME = "SM_M2_Browning"
 BTR_NAME = "SM_BTR4_Bucephalus"
 
 HMMWV_CANONICAL_ROTATION = [0.0, -0.7071067811865476, 0.0, 0.7071067811865476]
+M2_AUTHORED_MATERIAL_NAME = "M_M2_OC_Authored"
 
 
 def log(message):
@@ -36,18 +43,6 @@ def log(message):
 def fail(message):
     unreal.log_error(f"[OC Production Import] {message}")
     raise RuntimeError(message)
-
-
-def canonical_asset_path(destination_path, asset_name):
-    return f"{destination_path}/{asset_name}"
-
-
-def existing_asset(destination_path, asset_name):
-    asset_path = canonical_asset_path(destination_path, asset_name)
-    if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
-        log(f"SKIP already imported: {asset_path}")
-        return asset_path
-    return None
 
 
 def _read_glb(path):
@@ -135,6 +130,59 @@ def make_hmmwv_without_mk19(source, destination):
     _write_glb(destination, chunks)
 
 
+def make_m2_authored_material_ready(source, destination):
+    """Preserve M2 geometry and existing authored materials; fill only missing material bindings.
+
+    The local CC0 M2 has previously imported with WorldGridMaterial when its glTF primitive
+    did not carry a usable material binding. That is not a production material. This stages
+    the same source geometry and gives otherwise-unbound primitives one explicit dark-metal
+    PBR material so a fresh UE load cannot silently fall back to WorldGridMaterial.
+    """
+    chunks = _read_glb(source)
+    json_index = next((i for i, chunk in enumerate(chunks) if chunk[0] == 0x4E4F534A), None)
+    if json_index is None:
+        fail(f"M2 GLB has no JSON chunk: {source}")
+
+    document = json.loads(chunks[json_index][1].decode("utf-8").rstrip("\x00 "))
+    materials = document.setdefault("materials", [])
+    authored_index = next(
+        (index for index, material in enumerate(materials)
+         if str(material.get("name") or "") == M2_AUTHORED_MATERIAL_NAME),
+        None,
+    )
+    if authored_index is None:
+        authored_index = len(materials)
+        materials.append({
+            "name": M2_AUTHORED_MATERIAL_NAME,
+            "pbrMetallicRoughness": {
+                "baseColorFactor": [0.12, 0.13, 0.13, 1.0],
+                "metallicFactor": 0.82,
+                "roughnessFactor": 0.46,
+            },
+        })
+
+    patched = 0
+    primitive_count = 0
+    for mesh in document.get("meshes", []):
+        for primitive in mesh.get("primitives", []):
+            primitive_count += 1
+            material_index = primitive.get("material")
+            if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
+                primitive["material"] = authored_index
+                patched += 1
+
+    if primitive_count <= 0:
+        fail("M2 GLB contains no mesh primitives.")
+
+    chunks[json_index][1] = json.dumps(document, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    Path(destination).parent.mkdir(parents=True, exist_ok=True)
+    _write_glb(destination, chunks)
+    log(
+        f"M2 authored-material guard staged source={source.name} primitives={primitive_count} "
+        f"patched_missing_material_bindings={patched} fallback_material={M2_AUTHORED_MATERIAL_NAME}"
+    )
+
+
 def configure_ue58_interchange_static_mesh_pipeline(mesh_pipeline, common_meshes):
     combine_behavior = getattr(unreal, "InterchangeCombineStaticMeshesBehavior", None)
     if combine_behavior is None or not hasattr(combine_behavior, "ALL"):
@@ -202,10 +250,15 @@ def import_glb_combined(filename, destination_path, asset_name):
     log(f"Importing GLB {filename.name} -> {destination_path}/{asset_name}")
     task = make_interchange_task(filename, destination_path, asset_name)
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    return verify_import_task_updated_asset(task, canonical_asset_path(destination_path, asset_name))
+    return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
 
 
 def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
+    """Development-only helper retained for explicitly calibrated local experiments.
+
+    PASS45 canonical runtime import does not call this helper until the local FBX has a factual
+    forward-axis sign contract and redistribution provenance.
+    """
     stage = CACHE_ROOT / "BTR4"
     if stage.exists():
         shutil.rmtree(stage)
@@ -244,19 +297,48 @@ def import_btr_fbx(filename, texture_dir, destination_path, asset_name):
 
     log(f"Importing FBX {filename.name} -> {destination_path}/{asset_name}")
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    return verify_import_task_updated_asset(task, canonical_asset_path(destination_path, asset_name))
+    return verify_import_task_updated_asset(task, f"{destination_path}/{asset_name}")
 
 
-def attempt(label, source, import_fn, gaps, imported):
-    if not source.exists():
+def attempt(label, source, import_fn, gaps, imported, provenance, source_kind):
+    if source is not None and not source.exists():
         gaps.append(f"{label}_SOURCE_MISSING={source}")
         unreal.log_warning(f"[OC Production Import] CONTENT GAP: {label} source missing: {source}")
         return
     try:
-        imported.append(import_fn())
+        imported_path = import_fn()
+        imported.append(imported_path)
+        provenance.append(f"SOURCE_KIND={label}:{source_kind}")
+        if source is not None:
+            provenance.append(f"SOURCE_PATH={label}:{source}")
     except Exception as exc:
         gaps.append(f"{label}_IMPORT_FAILED={exc}")
         unreal.log_error(f"[OC Production Import] {label} import failed but other independent assets will continue: {exc}")
+
+
+def import_btr4(provenance):
+    if BTR_SOURCE.exists():
+        log(
+            f"BTR-4 local FBX detected at {BTR_SOURCE}, but canonical import skips it because "
+            "forward-axis sign/provenance are unverified."
+        )
+
+    BTR_GENERATED_SOURCE.parent.mkdir(parents=True, exist_ok=True)
+    build_btr4_glb(BTR_GENERATED_SOURCE)
+    if not BTR_GENERATED_SOURCE.is_file() or BTR_GENERATED_SOURCE.stat().st_size <= 0:
+        fail("Repository-safe authored BTR-4 fallback GLB generation produced no usable file.")
+    log(
+        "BTR-4 importing repository-safe authored GLB fallback with explicit +X forward, glTF +Y up, "
+        "and M_BTR4_OC_Authored PBR material contracts."
+    )
+    imported_path = import_glb_combined(BTR_GENERATED_SOURCE, BTR_DEST, BTR_NAME)
+    provenance.append("SOURCE_KIND=BTR4:authored_external_visual_canonical_plus_x")
+    provenance.append(f"SOURCE_PATH=BTR4:{BTR_GENERATED_SOURCE}")
+    provenance.append("BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored")
+    provenance.append("BTR4_FORWARD_AXIS=+X")
+    provenance.append("BTR4_GLTF_UP_AXIS=+Y")
+    provenance.append("BTR4_INTERNAL_UP_AXIS=+Z")
+    return imported_path
 
 
 def main():
@@ -265,73 +347,42 @@ def main():
         SUCCESS_SENTINEL.unlink()
 
     imported = []
-    present = []
     gaps = []
+    provenance = [f"IMPORT_CONTRACT_REVISION={IMPORT_CONTRACT_REVISION}"]
 
-    hmmwv_existing = existing_asset(HMMWV_DEST, HMMWV_NAME)
-    if hmmwv_existing:
-        present.append(hmmwv_existing)
-    else:
-        def import_hmmwv():
-            cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
-            make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
-            return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
-        attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported)
+    def import_hmmwv():
+        cleaned_hmmwv = CACHE_ROOT / "ukrainian_hmmwv_no_mk19.glb"
+        make_hmmwv_without_mk19(HMMWV_SOURCE, cleaned_hmmwv)
+        return import_glb_combined(cleaned_hmmwv, HMMWV_DEST, HMMWV_NAME)
 
-    m2_existing = existing_asset(M2_DEST, M2_NAME)
-    if m2_existing:
-        present.append(m2_existing)
-    else:
-        attempt("M2", M2_SOURCE, lambda: import_glb_combined(M2_SOURCE, M2_DEST, M2_NAME), gaps, imported)
+    def import_m2():
+        staged_m2 = CACHE_ROOT / "M2" / "m2_50cal_machinegun_oc_material_ready.glb"
+        make_m2_authored_material_ready(M2_SOURCE, staged_m2)
+        return import_glb_combined(staged_m2, M2_DEST, M2_NAME)
 
-    btr_existing = existing_asset(BTR_DEST, BTR_NAME)
-    if btr_existing:
-        present.append(btr_existing)
-    else:
-        try:
-            if BTR_SOURCE.exists():
-                imported.append(import_btr_fbx(BTR_SOURCE, BTR_TEXTURE_DIR, BTR_DEST, BTR_NAME))
-                log("BTR4 local FBX source imported.")
-            else:
-                authored_btr = CACHE_ROOT / "btr4_bucephalus_oc_authored.glb"
-                build_btr4_glb(authored_btr)
-                imported.append(import_glb_combined(authored_btr, BTR_DEST, BTR_NAME))
-                log(f"BTR4 local FBX missing; generated and imported Oster-authored fallback: {authored_btr}")
-        except Exception as exc:
-            gaps.append(f"BTR4_IMPORT_FAILED={exc}")
-            unreal.log_error(f"[OC Production Import] BTR4 import/fallback failed but other independent assets will continue: {exc}")
+    attempt("HMMWV", HMMWV_SOURCE, import_hmmwv, gaps, imported, provenance, "canonical_glb_no_mk19")
+    attempt("M2", M2_SOURCE, import_m2, gaps, imported, provenance, "canonical_glb_authored_material_guard")
 
-    required = [
-        canonical_asset_path(HMMWV_DEST, HMMWV_NAME),
-        canonical_asset_path(M2_DEST, M2_NAME),
-        canonical_asset_path(BTR_DEST, BTR_NAME),
-    ]
-    final_present = [path for path in required if unreal.EditorAssetLibrary.does_asset_exist(path)]
-    missing_after = [path for path in required if path not in final_present]
+    try:
+        imported.append(import_btr4(provenance))
+    except Exception as exc:
+        gaps.append(f"BTR4_IMPORT_FAILED={exc}")
+        unreal.log_error(f"[OC Production Import] BTR4 import failed but other independent assets will continue: {exc}")
 
-    for path in missing_after:
-        marker = f"CANONICAL_ASSET_MISSING_AFTER_IMPORT={path}"
-        if marker not in gaps:
-            gaps.append(marker)
+    if not imported:
+        fail("No production vehicle/weapon source could be imported. See CONTENT GAP messages above.")
 
-    if not final_present:
-        fail("No canonical production vehicle/weapon asset is present after import attempts.")
-
-    if imported:
-        unreal.EditorAssetLibrary.save_directory("/Game/Production", only_if_is_dirty=False, recursive=True)
-
-    log("Production import state complete:")
-    for path in final_present:
-        log(f"  PRESENT {path}")
+    unreal.EditorAssetLibrary.save_directory("/Game/Production", only_if_is_dirty=False, recursive=True)
+    log("Independent production import complete:")
     for path in imported:
-        log(f"  NEWLY_IMPORTED {path}")
+        log(f"  IMPORTED {path}")
+    for line in provenance:
+        log(f"  {line}")
     for gap in gaps:
         log(f"  {gap}")
 
-    status = "PASS" if not missing_after else "GAP"
-    sentinel_lines = [f"STATUS={status}"]
-    sentinel_lines.extend(f"PRESENT={path}" for path in final_present)
-    sentinel_lines.extend(f"IMPORTED={path}" for path in imported)
+    sentinel_lines = [f"IMPORTED={path}" for path in imported]
+    sentinel_lines.extend(provenance)
     sentinel_lines.extend(f"CONTENT_GAP={gap}" for gap in gaps)
     SUCCESS_SENTINEL.write_text("\n".join(sentinel_lines) + "\n", encoding="utf-8")
     log(f"Import result sentinel written: {SUCCESS_SENTINEL}")

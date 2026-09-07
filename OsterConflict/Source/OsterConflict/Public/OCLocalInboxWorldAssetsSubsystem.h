@@ -5,8 +5,8 @@
 #include "OCLocalInboxWorldAssetsSubsystem.generated.h"
 
 /**
- * Replaces source-only BasicShape world presentation with meshes supplied through models_game_OC.
- * Existing authored transforms/collision remain authoritative; the local meshes become the visible layer.
+ * Optional local-inbox intake/validation route. Normal gameplay does not apply this arbitrary mesh-pool
+ * replacement path; it is enabled only by explicit validation/intake command-line switches.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCLocalInboxWorldAssetsSubsystem : public UWorldSubsystem

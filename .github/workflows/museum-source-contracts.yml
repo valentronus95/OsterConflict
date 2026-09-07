@@ -10,12 +10,14 @@ on:
       - 'OsterConflict/Source/OsterConflict/OsterConflict.Build.cs'
       - 'OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCMuseum*.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCMuseum*.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13*Museum*.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR13*Museum*.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR14*Museum*.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR14*Museum*.h'
+      - 'VERIFY_PASS45_MUSEUM_LEGACY_BLOCKOUT_RETIREMENT.py'
   push:
     branches:
       - museum-oster
@@ -27,12 +29,14 @@ on:
       - 'OsterConflict/Source/OsterConflict/OsterConflict.Build.cs'
       - 'OsterConflict/Source/OsterConflict/Public/OCWeaponBase.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCMuseum*.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCMuseum*.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR13*Museum*.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR13*Museum*.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR14*Museum*.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCR14*Museum*.h'
+      - 'VERIFY_PASS45_MUSEUM_LEGACY_BLOCKOUT_RETIREMENT.py'
 
 permissions:
   contents: read
@@ -47,7 +51,12 @@ jobs:
           lfs: false
 
       - name: Validate Python syntax
-        run: python -m py_compile OsterConflict/Scripts/validate_museum_source_contracts.py
+        run: |
+          python -m py_compile OsterConflict/Scripts/validate_museum_source_contracts.py
+          python -m py_compile VERIFY_PASS45_MUSEUM_LEGACY_BLOCKOUT_RETIREMENT.py
 
       - name: Validate museum source contracts
         run: python OsterConflict/Scripts/validate_museum_source_contracts.py
+
+      - name: Verify legacy Museum world blockout retirement
+        run: python VERIFY_PASS45_MUSEUM_LEGACY_BLOCKOUT_RETIREMENT.py

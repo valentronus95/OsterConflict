@@ -1,0 +1,28 @@
+name: Pass 45 Remington 870 local candidate quarantine
+
+on:
+  pull_request:
+    paths:
+      - 'PASS45_REMINGTON870_LOCAL_CANDIDATE_IDENTITY_AUDIT.py'
+      - 'VERIFY_PASS45_REMINGTON870_LOCAL_CANDIDATE_QUARANTINE.py'
+      - '_DOCS/PASS45_REMINGTON870_LOCAL_CANDIDATE_QUARANTINE_2026-09-02.md'
+      - 'SOURCE_ASSETS/PASS45/Remington870/MANIFEST.json'
+      - '_DOCS/THIRD_PARTY_CODE_AND_ASSET_REGISTER.md'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - 'OsterConflict/Source/**'
+      - 'OsterConflict/Config/**'
+      - '.github/workflows/pass45-remington870-local-candidate-quarantine.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile identity audit and quarantine verifier
+        run: python -m py_compile PASS45_REMINGTON870_LOCAL_CANDIDATE_IDENTITY_AUDIT.py VERIFY_PASS45_REMINGTON870_LOCAL_CANDIDATE_QUARANTINE.py
+      - name: Verify local candidate remains quarantined
+        run: python VERIFY_PASS45_REMINGTON870_LOCAL_CANDIDATE_QUARANTINE.py

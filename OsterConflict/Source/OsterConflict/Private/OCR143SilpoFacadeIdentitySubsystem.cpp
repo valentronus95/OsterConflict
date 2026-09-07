@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -77,8 +78,6 @@ namespace
         const float WidthCm, const float HeightCm, const float DepthCm)
     {
         if (!Component) return;
-        // Engine cylinder is Z-axis aligned. Roll 90 degrees turns the cylinder depth toward facade Y,
-        // while X/Y local scale becomes the horizontal/vertical ellipse on the facade plane.
         const FVector Scale(WidthCm / 100.0f, HeightCm / 100.0f, DepthCm / 100.0f);
         Component->AddInstance(FTransform(FRotator(0.0f, 0.0f, 90.0f), Center, Scale), false);
     }
@@ -124,11 +123,19 @@ void UOCR143SilpoFacadeIdentitySubsystem::BuildFacadeIdentity(UWorld& World)
 {
     if (HasActorTag(World, TEXT("R143_SilpoFacadeIdentity"))) return;
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!Cube || !Cylinder || !Basic) return;
+    UStaticMesh* Cube = Cast<UStaticMesh>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")).ResolveObject());
+    UStaticMesh* Cylinder = Cast<UStaticMesh>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/Cylinder.Cylinder")).ResolveObject());
+    UMaterialInterface* Basic = Cast<UMaterialInterface>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")).ResolveObject());
+    if (!Cube || !Cylinder || !Basic)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_SILPO_R143_PRELOAD_GAP cube=%d cylinder=%d material=%d sync_load=0"),
+            Cube ? 1 : 0, Cylinder ? 1 : 0, Basic ? 1 : 0);
+        return;
+    }
 
     const FVector Site = SilpoAnchor();
     AActor* Identity = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform(FRotator::ZeroRotator, Site));
@@ -175,14 +182,10 @@ void UOCR143SilpoFacadeIdentitySubsystem::BuildFacadeIdentity(UWorld& World)
     UInstancedStaticMeshComponent* ParkingWhite = MakeISM(Identity, Root, Cube, White,
         TEXT("R143Silpo_ParkingSupplement"), true);
 
-    // Cover the R14.0 rectangular logo placeholder without editing the gameplay shell.
     AddLocalBox(Patch, FVector(50.0f, FrontY - 56.0f, 466.0f), FVector(850.0f, 10.0f, 166.0f));
-
-    // Photo-driven layered oval approximation of the prominent orange/blue facade logo.
     AddFacadeOval(LogoBlue, FVector(80.0f, FrontY - 68.0f, 470.0f), 790.0f, 255.0f, 12.0f);
     AddFacadeOval(LogoOrange, FVector(80.0f, FrontY - 76.0f, 470.0f), 755.0f, 225.0f, 10.0f);
 
-    // Blue shadow and white face approximate the strongly outlined script from the reference sign.
     UTextRenderComponent* LogoShadow = NewObject<UTextRenderComponent>(Identity, TEXT("R143Silpo_LogoTextShadow"));
     if (LogoShadow)
     {
@@ -213,7 +216,6 @@ void UOCR143SilpoFacadeIdentitySubsystem::BuildFacadeIdentity(UWorld& World)
         LogoText->RegisterComponent();
     }
 
-    // Dark metal cap lines visible along each stepped parapet tier.
     const FTopRail TopRails[] =
     {
         { -1170.0f, 456.0f, 660.0f },
@@ -227,7 +229,6 @@ void UOCR143SilpoFacadeIdentitySubsystem::BuildFacadeIdentity(UWorld& World)
         AddLocalBox(Rails, FVector(Rail.X, FrontY - 17.0f, Rail.Z), FVector(Rail.Width, 34.0f, 5.0f));
     }
 
-    // Freestanding P sign visible in the facade reference. The lower plate stays deliberately generic.
     constexpr float ParkingX = 1030.0f;
     constexpr float ParkingY = FrontY - 245.0f;
     AddLocalBox(Rails, FVector(ParkingX, ParkingY, 92.0f), FVector(6.0f, 6.0f, 184.0f));
@@ -250,6 +251,6 @@ void UOCR143SilpoFacadeIdentitySubsystem::BuildFacadeIdentity(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R14.3 Silpo facade identity pass built at [%.0f %.0f]: layered logo, parapet rails and parking sign."),
+        TEXT("R14.3 Silpo facade identity pass built at [%.0f %.0f]: layered logo, parapet rails and parking sign. sync_load=0 prerequisite_resident=1"),
         Site.X, Site.Y);
 }

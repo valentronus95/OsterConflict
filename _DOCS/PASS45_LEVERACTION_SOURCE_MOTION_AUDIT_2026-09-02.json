@@ -1,0 +1,414 @@
+{
+  "schema": 2,
+  "status": "SOURCE_STRUCTURE_MOTION_AND_GEOMETRY_EVIDENCE_ONLY",
+  "source": "OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/LeverAction/SKM_LeverAction.fbx",
+  "source_license": "CC0-1.0 (Stein Games Classic Weapons Pack; repository provenance)",
+  "source_sha256": "b2bf25bd47e9c4f6404897f67ad2a76a02971365fb7a689761936891d4591c69",
+  "source_size": 570332,
+  "inspection_converter": "Assimp -> glTF2 (CI inspection only)",
+  "node_count": 24,
+  "mesh_count": 2,
+  "skin_count": 1,
+  "animation_count": 0,
+  "node_names": [
+    "RootNode",
+    "Skeleton",
+    "WPN_REPEATER_RIFLE_CLASSIC",
+    "FRAME",
+    "FX_CASING",
+    "ANCHOR",
+    "LEVER",
+    "ATTACH_BEADS",
+    "SAFETY",
+    "HAMMER",
+    "BOLT",
+    "LOADING_GATE",
+    "SADDLE_RING",
+    "BULLET",
+    "TRIGGER",
+    "ATTACH_SILENCER",
+    "ATTACH_SCOPE",
+    "REVEAL_RAIL",
+    "IRONSIGHT",
+    "FX_FIRE",
+    "ATTACH_STRAP",
+    "CLASSIC_AIM",
+    "FRAME_LOD0.001",
+    "FRAME_LOD0"
+  ],
+  "mesh_names": [
+    "FRAME_LOD0.586",
+    "FRAME_LOD0.585"
+  ],
+  "mechanical_named_candidates": [
+    {
+      "node_index": 6,
+      "node_name": "LEVER",
+      "matched_terms": [
+        "lever"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [
+        "ATTACH_BEADS"
+      ],
+      "local_transform": {
+        "uses_matrix": true,
+        "matrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          -8.145542018667129e-10,
+          -0.14167749881744385,
+          -0.012812890112400055,
+          1.0
+        ],
+        "translation": [
+          -8.145542018667129e-10,
+          -0.14167749881744385,
+          -0.012812890112400055
+        ]
+      }
+    },
+    {
+      "node_index": 9,
+      "node_name": "HAMMER",
+      "matched_terms": [
+        "hammer"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "local_transform": {
+        "uses_matrix": true,
+        "matrix": [
+          1.0,
+          -4.0863511685529375e-08,
+          -1.4872898468354379e-08,
+          0.0,
+          4.0863483263819944e-08,
+          0.7660488486289978,
+          0.6427823305130005,
+          0.0,
+          -1.4872976628055312e-08,
+          -0.6427823305130005,
+          0.7660488486289978,
+          0.0,
+          -2.0527137767345494e-09,
+          -0.09759876132011414,
+          -0.03228906914591789,
+          1.0
+        ],
+        "translation": [
+          -2.0527137767345494e-09,
+          -0.09759876132011414,
+          -0.03228906914591789
+        ]
+      }
+    },
+    {
+      "node_index": 10,
+      "node_name": "BOLT",
+      "matched_terms": [
+        "bolt"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "local_transform": {
+        "uses_matrix": true,
+        "matrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          -4.154613097995252e-09,
+          -0.12718786299228668,
+          -0.06535182893276215,
+          1.0
+        ],
+        "translation": [
+          -4.154613097995252e-09,
+          -0.12718786299228668,
+          -0.06535182893276215
+        ]
+      }
+    }
+  ],
+  "identity_named_candidates": [
+    {
+      "node_index": 2,
+      "node_name": "WPN_REPEATER_RIFLE_CLASSIC",
+      "matched_terms": [
+        "rifle"
+      ],
+      "parent_index": 1,
+      "parent_name": "Skeleton",
+      "children": [
+        "FRAME",
+        "FX_CASING",
+        "ANCHOR",
+        "ATTACH_SILENCER",
+        "ATTACH_SCOPE",
+        "REVEAL_RAIL",
+        "IRONSIGHT",
+        "FX_FIRE",
+        "ATTACH_STRAP",
+        "CLASSIC_AIM"
+      ],
+      "local_transform": {
+        "uses_matrix": true,
+        "matrix": [
+          -1.0,
+          0.0,
+          -3.8941436741879443e-07,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          3.8941436741879443e-07,
+          0.0,
+          -1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "node_index": 14,
+      "node_name": "TRIGGER",
+      "matched_terms": [
+        "trigger"
+      ],
+      "parent_index": 5,
+      "parent_name": "ANCHOR",
+      "children": [],
+      "local_transform": {
+        "uses_matrix": true,
+        "matrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          -6.059284740622672e-10,
+          -0.08924652636051178,
+          -0.00953122042119503,
+          1.0
+        ],
+        "translation": [
+          -6.059284740622672e-10,
+          -0.08924652636051178,
+          -0.00953122042119503
+        ]
+      }
+    }
+  ],
+  "skins": [
+    {
+      "skin_index": 0,
+      "joint_count": 20,
+      "joint_names": [
+        "WPN_REPEATER_RIFLE_CLASSIC",
+        "FRAME",
+        "FX_CASING",
+        "ANCHOR",
+        "LEVER",
+        "ATTACH_BEADS",
+        "SAFETY",
+        "HAMMER",
+        "BOLT",
+        "LOADING_GATE",
+        "SADDLE_RING",
+        "BULLET",
+        "TRIGGER",
+        "ATTACH_SILENCER",
+        "ATTACH_SCOPE",
+        "REVEAL_RAIL",
+        "IRONSIGHT",
+        "FX_FIRE",
+        "ATTACH_STRAP",
+        "CLASSIC_AIM"
+      ]
+    }
+  ],
+  "mechanical_joint_names": [
+    "LEVER",
+    "HAMMER",
+    "BOLT"
+  ],
+  "animated_node_names": [],
+  "mechanical_animation_targets": [],
+  "animations": [],
+  "motion_classification": "MECHANICAL_JOINT_DERIVATIVE_CANDIDATE_NO_EMBEDDED_MOTION",
+  "target_nodes": {
+    "LEVER": 6,
+    "HAMMER": 9,
+    "BOLT": 10
+  },
+  "joint_geometry": {
+    "LEVER": {
+      "weighted_vertex_count": 964,
+      "dominant_vertex_count": 964,
+      "full_weight_vertex_count": 964,
+      "total_weight": 964.0,
+      "bounds_min": [
+        -0.004508134908974171,
+        -0.15808138251304626,
+        -0.06464677304029465
+      ],
+      "bounds_max": [
+        0.0045081134885549545,
+        0.01622462272644043,
+        0.033158645033836365
+      ],
+      "aabb_extent": [
+        0.009016248397529125,
+        0.1743060052394867,
+        0.09780541807413101
+      ],
+      "aabb_volume": 0.0001537096492838519,
+      "weighted_centroid": [
+        2.361386216623284e-06,
+        -0.08252201910025374,
+        -0.014052607455022821
+      ],
+      "vertex_centroid": [
+        2.361386216623284e-06,
+        -0.08252201910025374,
+        -0.014052607455022821
+      ]
+    },
+    "HAMMER": {
+      "weighted_vertex_count": 325,
+      "dominant_vertex_count": 325,
+      "full_weight_vertex_count": 325,
+      "total_weight": 325.0,
+      "bounds_min": [
+        -0.005217521917074919,
+        -0.08283939957618713,
+        0.012952238321304321
+      ],
+      "bounds_max": [
+        0.005240386351943016,
+        -0.042655427008867264,
+        0.057117994874715805
+      ],
+      "aabb_extent": [
+        0.010457908269017935,
+        0.04018397256731987,
+        0.044165756553411484
+      ],
+      "aabb_volume": 1.856023073929145e-05,
+      "weighted_centroid": [
+        1.0412415423391399e-05,
+        -0.055928671520489914,
+        0.03939057540435057
+      ],
+      "vertex_centroid": [
+        1.0412415423391399e-05,
+        -0.055928671520489914,
+        0.03939057540435057
+      ]
+    },
+    "BOLT": {
+      "weighted_vertex_count": 515,
+      "dominant_vertex_count": 515,
+      "full_weight_vertex_count": 515,
+      "total_weight": 515.0,
+      "bounds_min": [
+        -0.014782960526645184,
+        -0.1839400827884674,
+        0.05817065015435219
+      ],
+      "bounds_max": [
+        0.00942810345441103,
+        -0.07698114216327667,
+        0.07693538069725037
+      ],
+      "aabb_extent": [
+        0.024211063981056213,
+        0.10695894062519073,
+        0.018764730542898178
+      ],
+      "aabb_volume": 4.85929539658937e-05,
+      "weighted_centroid": [
+        -0.002298484694538808,
+        -0.11105914176667778,
+        0.0673549246802492
+      ],
+      "vertex_centroid": [
+        -0.002298484694538808,
+        -0.11105914176667778,
+        0.0673549246802492
+      ]
+    }
+  },
+  "shared_weighted_vertices": {
+    "LEVER+HAMMER": 0,
+    "LEVER+BOLT": 0,
+    "HAMMER+BOLT": 0
+  },
+  "primitive_material_ownership": [
+    {
+      "node_index": 22,
+      "node_name": "FRAME_LOD0.001",
+      "skin_index": 0,
+      "mesh_index": 0,
+      "mesh_name": "FRAME_LOD0.586",
+      "primitive_index": 0,
+      "material_index": 0,
+      "material_name": "WPN_4570SG_Classic.001",
+      "weighted_vertex_count": {
+        "LEVER": 964,
+        "HAMMER": 325,
+        "BOLT": 515
+      },
+      "shared_target_vertex_count": {
+        "LEVER+HAMMER": 0,
+        "LEVER+BOLT": 0,
+        "HAMMER+BOLT": 0
+      }
+    }
+  ],
+  "lever_joint_has_weighted_geometry": true,
+  "geometry_classification": "LEVER_WEIGHTED_GEOMETRY_DERIVATIVE_CANDIDATE",
+  "source_authored_lever_angle_or_endpoint": false,
+  "derived_motion_parameters_authored": false,
+  "production_cutover": false,
+  "runtime_acceptance": false,
+  "item16_checked": false
+}

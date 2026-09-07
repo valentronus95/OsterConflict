@@ -46,7 +46,10 @@ public:
     float GetTurretPitch() const { return TurretPitch; }
 
     UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
-    float GetMaxTurretYawLimit() const { return MaxTurretYaw; }
+    float GetMaxTurretYawLimit() const { return bContinuousTurretYaw ? 1000000.0f : MaxTurretYaw; }
+
+    UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
+    bool IsTurretYawContinuous() const { return bContinuousTurretYaw; }
 
     UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
     float GetMinTurretPitchLimit() const { return MinTurretPitch; }
@@ -88,6 +91,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Vehicle|Turret")
     TObjectPtr<USceneComponent> MuzzlePoint;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Vehicle|Turret")
+    TObjectPtr<USceneComponent> GunnerCameraPivot;
+
     UPROPERTY(EditDefaultsOnly, Category="Vehicle|Turret")
     FString TurretDisplayName = TEXT("VEHICLE MG");
 
@@ -105,6 +111,11 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category="Vehicle|Turret")
     float MaxTurretYaw = 170.0f;
+
+    // Open mounts such as the HMMWV M2 ring have no artificial +/- yaw stop. The replicated
+    // presentation stays normalized while the local gunner input may cross +/-180 repeatedly.
+    UPROPERTY(EditDefaultsOnly, Category="Vehicle|Turret")
+    bool bContinuousTurretYaw = false;
 
     UPROPERTY(EditDefaultsOnly, Category="Vehicle|Turret")
     float MinTurretPitch = -18.0f;

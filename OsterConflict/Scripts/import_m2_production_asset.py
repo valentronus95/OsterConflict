@@ -8,13 +8,14 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from generate_m2_game_visual import build_m2_glb
-from import_production_vehicle_assets import import_glb_combined
+from import_production_vehicle_assets import import_glb_combined, make_m2_authored_material_ready
 
 PROJECT_DIR = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
 SOURCE_DIR = PROJECT_DIR / "SourceAssets" / "Production" / "Weapons" / "M2"
 CACHE_DIR = PROJECT_DIR / "Saved" / "ProductionAssetImportCache" / "M2"
 DOWNLOADED_SOURCE = SOURCE_DIR / "m2_50cal_machinegun_cc0.glb"
 GENERATED_SOURCE = CACHE_DIR / "m2_browning_oc_authored.glb"
+MATERIAL_READY_SOURCE = CACHE_DIR / "m2_browning_oc_material_ready.glb"
 DESTINATION = "/Game/Production/Weapons/M2"
 ASSET_NAME = "SM_M2_Browning"
 SENTINEL = CACHE_DIR / "m2_import_success.txt"
@@ -43,14 +44,15 @@ def main():
         SENTINEL.unlink()
 
     source, source_kind = choose_source()
-    imported_path = import_glb_combined(source, DESTINATION, ASSET_NAME)
+    make_m2_authored_material_ready(source, MATERIAL_READY_SOURCE)
+    imported_path = import_glb_combined(MATERIAL_READY_SOURCE, DESTINATION, ASSET_NAME)
     unreal.EditorAssetLibrary.save_directory(DESTINATION, only_if_is_dirty=False, recursive=True)
 
     SENTINEL.write_text(
-        f"asset={imported_path}\nsource={source}\nsource_kind={source_kind}\n",
+        f"asset={imported_path}\nsource={source}\nsource_kind={source_kind}\nmaterial_guard=1\n",
         encoding="utf-8",
     )
-    log(f"M2 production visual ready at {imported_path}; source_kind={source_kind}")
+    log(f"M2 production visual ready at {imported_path}; source_kind={source_kind}; material_guard=1")
 
 
 if __name__ == "__main__":

@@ -16,8 +16,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "Materials/MaterialInterface.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
@@ -28,9 +26,8 @@ namespace
     {
         if (!Target) return 1.0f;
         const float LocalZ = Target->GetActorTransform().InverseTransformPosition(Hit.ImpactPoint).Z;
-        // Source proxy/capsule-safe zones. Production skeletal profiles can replace this with authored hitboxes.
-        if (LocalZ >= 62.0f) return 2.0f;   // head / neck band
-        if (LocalZ <= -28.0f) return 0.85f; // lower limbs; keep pelvis/lower torso at normal damage
+        if (LocalZ >= 62.0f) return 2.0f;
+        if (LocalZ <= -28.0f) return 0.85f;
         return 1.0f;
     }
 
@@ -52,17 +49,23 @@ namespace
 
 AOCWeaponBase::AOCWeaponBase()
 {
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
     bReplicates = true;
     SetReplicateMovement(false);
 
-    WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
-    SetRootComponent(WeaponRoot);
-
     WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-    WeaponMesh->SetupAttachment(WeaponRoot);
+    SetRootComponent(WeaponMesh);
+
+    WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
+    WeaponRoot->SetupAttachment(WeaponMesh);
+    WeaponRoot->SetAbsolute(false, false, true);
 
     WeaponAudioComponent = CreateDefaultSubobject<UOCWeaponAudioComponent>(TEXT("WeaponAudio"));
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponMesh->SetEnableGravity(true);
+    WeaponMesh->SetLinearDamping(0.55f);
+    WeaponMesh->SetAngularDamping(1.10f);
     WeaponMesh->SetRelativeScale3D(FVector(0.35f, 0.08f, 0.08f));
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -93,12 +96,19 @@ void AOCWeaponBase::BeginPlay()
     ApplyWorldPickupPresentation();
 }
 
+void AOCWeaponBase::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    RecoverConfirmedLocalShotRecoil(DeltaSeconds);
+}
+
 void AOCWeaponBase::ConfigureBuiltInTuning(const FOCWeaponTuning& NewTuning)
 {
     Tuning = NewTuning;
     AmmoInMagazine = Tuning.MagazineSize;
     ReserveAmmo = Tuning.InitialReserveAmmo;
-    CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
+    CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic
+        : (Tuning.bSupportsBurst3 ? EOCFireMode::Burst3 : EOCFireMode::SemiAutomatic);
 }
 
 void AOCWeaponBase::ApplyDefinitionIfAssigned()
@@ -117,129 +127,26 @@ void AOCWeaponBase::ApplyDefinitionIfAssigned()
     {
         AmmoInMagazine = Tuning.MagazineSize;
         ReserveAmmo = Tuning.InitialReserveAmmo;
-        CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
+        CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic
+            : (Tuning.bSupportsBurst3 ? EOCFireMode::Burst3 : EOCFireMode::SemiAutomatic);
     }
 }
 
-
 void AOCWeaponBase::BuildSourceOnlyWeaponVisual()
 {
-    if (!WeaponMesh || SourceVisualParts.Num() > 0) return;
+    if (!WeaponMesh) return;
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!Cube || !Cylinder) return;
+    // GAME_RECOVERY: the old runtime composite built Cube/Cylinder/material parts for every weapon during BeginPlay,
+    // only for production/fallback owners to hide them immediately afterwards. Keep the root cube solely as invisible
+    // collision/physics authority and retire all decorative BasicShape construction from normal gameplay.
+    WeaponMesh->SetVisibility(false, false);
+    WeaponMesh->SetHiddenInGame(true, false);
+    WeaponMesh->SetCastShadow(false);
+    WeaponMesh->SetCanEverAffectNavigation(false);
 
-    auto ColorPart = [BaseMaterial](UStaticMeshComponent* Part, const FLinearColor& Color)
-    {
-        if (!BaseMaterial || !Part) return;
-        if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMaterial, Part))
-        {
-            MID->SetVectorParameterValue(TEXT("Color"), Color);
-            Part->SetMaterial(0, MID);
-        }
-    };
-
-    const FLinearColor Metal(0.055f, 0.060f, 0.058f);
-    const FLinearColor Polymer(0.075f, 0.085f, 0.075f);
-    const FLinearColor Accent(0.18f, 0.16f, 0.10f);
-
-    auto AddPart = [this, Cube, Cylinder, &ColorPart](const TCHAR* Name, bool bCylinder,
-        const FVector& Location, const FVector& Scale, const FRotator& Rotation, const FLinearColor& Color)
-    {
-        UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(this, FName(Name));
-        if (!Part) return static_cast<UStaticMeshComponent*>(nullptr);
-        Part->SetStaticMesh(bCylinder ? Cylinder : Cube);
-        Part->SetupAttachment(WeaponRoot);
-        Part->SetRelativeLocation(Location);
-        Part->SetRelativeRotation(Rotation);
-        Part->SetRelativeScale3D(Scale);
-        Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Part->SetGenerateOverlapEvents(false);
-        Part->SetCastShadow(true);
-        Part->RegisterComponent();
-        ColorPart(Part, Color);
-        SourceVisualParts.Add(Part);
-        return Part;
-    };
-
-    // The root mesh becomes the receiver rather than the entire "gun cube".
-    WeaponMesh->SetRelativeLocation(FVector::ZeroVector);
-    WeaponMesh->SetRelativeRotation(FRotator::ZeroRotator);
-    ColorPart(WeaponMesh, Metal);
-
-    switch (Tuning.WeaponClass)
-    {
-    case EOCWeaponClass::Pistol:
-        WeaponMesh->SetRelativeScale3D(FVector(0.16f, 0.055f, 0.075f));
-        AddPart(TEXT("PistolSlide"), false, FVector(10,0,6), FVector(0.18f,0.048f,0.035f), FRotator::ZeroRotator, Metal);
-        AddPart(TEXT("PistolGrip"), false, FVector(-3,0,-10), FVector(0.055f,0.050f,0.13f), FRotator(0,0,-12), Polymer);
-        AddPart(TEXT("PistolBarrel"), true, FVector(22,0,5), FVector(0.018f,0.018f,0.11f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("PistolFrontSight"), false, FVector(21,0,10), FVector(0.012f,0.018f,0.025f), FRotator::ZeroRotator, Accent);
-        break;
-
-    case EOCWeaponClass::SMG:
-        WeaponMesh->SetRelativeScale3D(FVector(0.25f, 0.07f, 0.09f));
-        AddPart(TEXT("SMGHandguard"), false, FVector(28,0,0), FVector(0.20f,0.07f,0.07f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("SMGBarrel"), true, FVector(51,0,1), FVector(0.020f,0.020f,0.17f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("SMGMagazine"), false, FVector(0,0,-18), FVector(0.07f,0.055f,0.19f), FRotator(0,0,-4), Polymer);
-        AddPart(TEXT("SMGGrip"), false, FVector(-12,0,-15), FVector(0.055f,0.055f,0.15f), FRotator(0,0,-18), Polymer);
-        AddPart(TEXT("SMGStock"), false, FVector(-34,0,0), FVector(0.18f,0.055f,0.045f), FRotator::ZeroRotator, Metal);
-        break;
-
-    case EOCWeaponClass::SniperRifle:
-        WeaponMesh->SetRelativeScale3D(FVector(0.32f, 0.07f, 0.085f));
-        AddPart(TEXT("SniperHandguard"), false, FVector(36,0,0), FVector(0.27f,0.065f,0.065f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("SniperBarrel"), true, FVector(79,0,1), FVector(0.017f,0.017f,0.31f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("SniperStock"), false, FVector(-38,0,-2), FVector(0.25f,0.08f,0.07f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("SniperGrip"), false, FVector(-9,0,-18), FVector(0.06f,0.055f,0.17f), FRotator(0,0,-15), Polymer);
-        AddPart(TEXT("SniperMag"), false, FVector(7,0,-17), FVector(0.075f,0.055f,0.15f), FRotator(0,0,-5), Polymer);
-        AddPart(TEXT("SniperScope"), true, FVector(2,0,15), FVector(0.045f,0.045f,0.19f), FRotator(0,90,0), Metal);
-        break;
-
-    case EOCWeaponClass::Shotgun:
-        WeaponMesh->SetRelativeScale3D(FVector(0.30f, 0.065f, 0.075f));
-        AddPart(TEXT("ShotgunForend"), false, FVector(40,0,-2), FVector(0.24f,0.075f,0.065f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("ShotgunBarrel"), true, FVector(77,0,4), FVector(0.022f,0.022f,0.32f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("ShotgunTube"), true, FVector(69,0,-6), FVector(0.018f,0.018f,0.25f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("ShotgunStock"), false, FVector(-39,0,-2), FVector(0.25f,0.075f,0.075f), FRotator::ZeroRotator, Accent);
-        AddPart(TEXT("ShotgunGrip"), false, FVector(-9,0,-17), FVector(0.06f,0.055f,0.16f), FRotator(0,0,-15), Accent);
-        break;
-
-    case EOCWeaponClass::Launcher:
-        WeaponMesh->SetRelativeScale3D(FVector(0.18f, 0.09f, 0.09f));
-        AddPart(TEXT("LauncherTube"), true, FVector(28,0,0), FVector(0.10f,0.10f,0.62f), FRotator(0,90,0), Polymer);
-        AddPart(TEXT("LauncherFrontRing"), true, FVector(84,0,0), FVector(0.13f,0.13f,0.07f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("LauncherRearRing"), true, FVector(-29,0,0), FVector(0.12f,0.12f,0.06f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("LauncherGrip"), false, FVector(4,0,-20), FVector(0.07f,0.06f,0.18f), FRotator(0,0,-14), Polymer);
-        AddPart(TEXT("LauncherSight"), false, FVector(24,0,14), FVector(0.08f,0.035f,0.055f), FRotator::ZeroRotator, Metal);
-        break;
-
-    case EOCWeaponClass::LMG:
-        WeaponMesh->SetRelativeScale3D(FVector(0.32f, 0.085f, 0.10f));
-        AddPart(TEXT("LMGHandguard"), false, FVector(39,0,0), FVector(0.27f,0.085f,0.075f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("LMGBarrel"), true, FVector(82,0,1), FVector(0.022f,0.022f,0.32f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("LMGStock"), false, FVector(-40,0,-2), FVector(0.24f,0.085f,0.075f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("LMGGrip"), false, FVector(-8,0,-19), FVector(0.06f,0.06f,0.17f), FRotator(0,0,-16), Polymer);
-        AddPart(TEXT("LMGBoxMag"), false, FVector(12,0,-19), FVector(0.13f,0.12f,0.16f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("LMGBipodL"), true, FVector(45,-7,-20), FVector(0.012f,0.012f,0.18f), FRotator(8,0,18), Metal);
-        AddPart(TEXT("LMGBipodR"), true, FVector(45,7,-20), FVector(0.012f,0.012f,0.18f), FRotator(-8,0,-18), Metal);
-        break;
-
-    default: // Assault rifle fallback.
-        WeaponMesh->SetRelativeScale3D(FVector(0.29f, 0.075f, 0.09f));
-        AddPart(TEXT("RifleHandguard"), false, FVector(35,0,0), FVector(0.24f,0.075f,0.07f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("RifleBarrel"), true, FVector(71,0,1), FVector(0.019f,0.019f,0.27f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("RifleMuzzle"), true, FVector(88,0,1), FVector(0.028f,0.028f,0.07f), FRotator(0,90,0), Metal);
-        AddPart(TEXT("RifleStock"), false, FVector(-38,0,-2), FVector(0.23f,0.075f,0.075f), FRotator::ZeroRotator, Polymer);
-        AddPart(TEXT("RifleGrip"), false, FVector(-8,0,-18), FVector(0.06f,0.055f,0.17f), FRotator(0,0,-16), Polymer);
-        AddPart(TEXT("RifleMagazine"), false, FVector(12,0,-19), FVector(0.075f,0.06f,0.18f), FRotator(0,0,-8), Polymer);
-        AddPart(TEXT("RifleRearSight"), false, FVector(-4,0,13), FVector(0.025f,0.035f,0.035f), FRotator::ZeroRotator, Metal);
-        AddPart(TEXT("RifleFrontSight"), false, FVector(55,0,12), FVector(0.018f,0.025f,0.05f), FRotator::ZeroRotator, Metal);
-        break;
-    }
+    UE_LOG(LogTemp, Verbose,
+        TEXT("GAME_RECOVERY_SOURCE_WEAPON_COMPOSITE_RETIRED weapon=%s decorative_parts=0 blocking_asset_loads=0 primitive_visible=0 collision_authority_preserved=1"),
+        *Tuning.WeaponId.ToString());
 }
 
 void AOCWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -248,6 +155,7 @@ void AOCWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
     DOREPLIFETIME(AOCWeaponBase, AmmoInMagazine);
     DOREPLIFETIME(AOCWeaponBase, ReserveAmmo);
     DOREPLIFETIME(AOCWeaponBase, bIsReloading);
+    DOREPLIFETIME(AOCWeaponBase, bActionCycling);
     DOREPLIFETIME(AOCWeaponBase, CurrentFireMode);
     DOREPLIFETIME(AOCWeaponBase, bIsWorldPickup);
     DOREPLIFETIME(AOCWeaponBase, Attachments);
@@ -267,10 +175,7 @@ bool AOCWeaponBase::HasAttachment(FName AttachmentId) const
 {
     for (const FOCWeaponAttachmentState& State : Attachments)
     {
-        if (State.AttachmentId == AttachmentId)
-        {
-            return true;
-        }
+        if (State.AttachmentId == AttachmentId) return true;
     }
     return false;
 }
@@ -278,14 +183,8 @@ bool AOCWeaponBase::HasAttachment(FName AttachmentId) const
 float AOCWeaponBase::GetRecoilMultiplier() const
 {
     float Multiplier = 1.0f;
-    if (HasAttachment(FName(TEXT("VerticalGrip"))))
-    {
-        Multiplier *= 0.82f;
-    }
-    if (HasAttachment(FName(TEXT("LightStock"))))
-    {
-        Multiplier *= 0.90f;
-    }
+    if (HasAttachment(FName(TEXT("VerticalGrip")))) Multiplier *= 0.82f;
+    if (HasAttachment(FName(TEXT("LightStock")))) Multiplier *= 0.90f;
     return Multiplier;
 }
 
@@ -319,13 +218,52 @@ float AOCWeaponBase::GetRecoilYawMax() const
     return Tuning.RecoilYawMax * GetRecoilMultiplier();
 }
 
+bool AOCWeaponBase::RequiresManualActionCycle() const
+{
+    switch (Tuning.ActionType)
+    {
+        case EOCWeaponActionType::BoltAction:
+        case EOCWeaponActionType::PumpAction:
+        case EOCWeaponActionType::LeverAction:
+            return Tuning.ManualActionCycleSeconds > KINDA_SMALL_NUMBER;
+        default:
+            return false;
+    }
+}
+
+void AOCWeaponBase::BeginManualActionCycleServer()
+{
+    if (!HasAuthority() || !RequiresManualActionCycle() || !GetWorld()) return;
+
+    const float Duration = FMath::Max(0.05f, Tuning.ManualActionCycleSeconds);
+    bActionCycling = true;
+    GetWorldTimerManager().SetTimer(ManualActionTimerHandle, this, &AOCWeaponBase::FinishManualActionCycleServer,
+        Duration, false);
+    ForceNetUpdate();
+    UE_LOG(LogTemp, Verbose,
+        TEXT("PASS45_MANUAL_ACTION_CYCLE_READY weapon=%s action=%s duration=%.3f authoritative=1"),
+        *Tuning.WeaponId.ToString(), *UEnum::GetValueAsString(Tuning.ActionType), Duration);
+}
+
+void AOCWeaponBase::FinishManualActionCycleServer()
+{
+    if (!HasAuthority()) return;
+    bActionCycling = false;
+    ForceNetUpdate();
+}
+
+void AOCWeaponBase::CancelManualActionCycleServer()
+{
+    if (!HasAuthority()) return;
+    GetWorldTimerManager().ClearTimer(ManualActionTimerHandle);
+    bActionCycling = false;
+    ForceNetUpdate();
+}
+
 float AOCWeaponBase::CalculateSpreadDegrees(bool bAiming, bool bMoving) const
 {
     float Spread = bAiming ? Tuning.ADSSpreadDegrees * GetADSSpreadMultiplier() : Tuning.HipSpreadDegrees;
-    if (bMoving)
-    {
-        Spread *= Tuning.MovingSpreadMultiplier;
-    }
+    if (bMoving) Spread *= Tuning.MovingSpreadMultiplier;
     return FMath::Max(0.0f, Spread);
 }
 
@@ -336,7 +274,8 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
     bOutFatalHit = false;
     OutHit = FHitResult();
 
-    if (!HasAuthority() || !Shooter || bIsWorldPickup || Tuning.RoundsPerMinute <= 0.0f || bIsReloading)
+    if (!HasAuthority() || !Shooter || bIsWorldPickup || Tuning.RoundsPerMinute <= 0.0f || bIsReloading ||
+        bActionCycling || !GetWorld())
     {
         return false;
     }
@@ -352,7 +291,8 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
         return false;
     }
     const double FireInterval = static_cast<double>(GetFireInterval());
-    if ((CurrentTime - LastServerFireTime) + KINDA_SMALL_NUMBER < FireInterval)
+    const double CadenceTolerance = FMath::Min(0.008, FireInterval * 0.10);
+    if ((CurrentTime - LastServerFireTime) + CadenceTolerance < FireInterval)
     {
         return false;
     }
@@ -361,6 +301,7 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
     --AmmoInMagazine;
 
     const FVector SafeDirection = TraceDirection.GetSafeNormal();
+    const FVector PresentationMuzzleOrigin = ResolvePresentationMuzzleOrigin(TraceOrigin, SafeDirection);
     const float SpreadRadians = FMath::DegreesToRadians(CalculateSpreadDegrees(bAiming, bMoving));
     const int32 PelletCount = FMath::Clamp(Tuning.PelletsPerShot, 1, 16);
 
@@ -389,21 +330,13 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
         if (bHit && PelletHit.GetActor())
         {
             const AOCGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AOCGameMode>() : nullptr;
-            if (GameMode && !GameMode->CanDealDamage(Shooter->GetController(), PelletHit.GetActor()))
-            {
-                continue;
-            }
+            if (GameMode && !GameMode->CanDealDamage(Shooter->GetController(), PelletHit.GetActor())) continue;
 
             const AOCCharacter* HitCharacter = Cast<AOCCharacter>(PelletHit.GetActor());
             const float HitZoneMultiplier = ResolveCharacterDamageMultiplier(HitCharacter, PelletHit);
             const float AppliedDamage = UGameplayStatics::ApplyPointDamage(
-                PelletHit.GetActor(),
-                Tuning.Damage * GetDamageMultiplier() * HitZoneMultiplier,
-                ShotDirection,
-                PelletHit,
-                Shooter->GetController(),
-                this,
-                UOCBallisticDamageType::StaticClass());
+                PelletHit.GetActor(), Tuning.Damage * GetDamageMultiplier() * HitZoneMultiplier,
+                ShotDirection, PelletHit, Shooter->GetController(), this, UOCBallisticDamageType::StaticClass());
 
             if (AppliedDamage > 0.0f)
             {
@@ -424,20 +357,24 @@ bool AOCWeaponBase::TryFireServer(AOCCharacter* Shooter, const FVector& TraceOri
         }
     }
 
-    MulticastFireTraceFX(TraceOrigin, RepresentativeTraceEnd, bRepresentativeHit);
+    MulticastFireTraceFX(PresentationMuzzleOrigin, RepresentativeTraceEnd, bRepresentativeHit);
     const EOCAcousticEnvironment AcousticEnvironment = WeaponAudioComponent
-        ? WeaponAudioComponent->DetectEnvironmentAt(TraceOrigin) : EOCAcousticEnvironment::Outdoor;
-    MulticastShotAudio(TraceOrigin, RepresentativeTraceEnd, IsSuppressed(), Tuning.bSupersonicAmmo, AcousticEnvironment, ++ServerAudioEventCounter);
+        ? WeaponAudioComponent->DetectEnvironmentAt(PresentationMuzzleOrigin) : EOCAcousticEnvironment::Outdoor;
+    MulticastShotAudio(PresentationMuzzleOrigin, RepresentativeTraceEnd, IsSuppressed(), Tuning.bSupersonicAmmo,
+        AcousticEnvironment, ++ServerAudioEventCounter);
     if (bRepresentativeHit)
     {
         MulticastImpactFX(OutHit.ImpactPoint, OutHit.ImpactNormal.GetSafeNormal(), ResolveImpactSurface(OutHit));
     }
+
+    BeginManualActionCycleServer();
     return true;
 }
 
 bool AOCWeaponBase::BeginReloadServer()
 {
-    if (!HasAuthority() || bIsWorldPickup || bIsReloading || AmmoInMagazine >= GetMagazineSize() || ReserveAmmo <= 0)
+    if (!HasAuthority() || bIsWorldPickup || bIsReloading || bActionCycling ||
+        AmmoInMagazine >= GetMagazineSize() || ReserveAmmo <= 0)
     {
         return false;
     }
@@ -451,11 +388,7 @@ bool AOCWeaponBase::BeginReloadServer()
 
 void AOCWeaponBase::CancelReloadServer()
 {
-    if (!HasAuthority() || !bIsReloading)
-    {
-        return;
-    }
-
+    if (!HasAuthority() || !bIsReloading) return;
     GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
     bIsReloading = false;
     MulticastWeaponStateAudio(EOCWeaponAudioEvent::ReloadCancel, GetActorLocation(), ++ServerAudioEventCounter);
@@ -463,11 +396,7 @@ void AOCWeaponBase::CancelReloadServer()
 
 void AOCWeaponBase::FinishReloadServer()
 {
-    if (!HasAuthority() || !bIsReloading)
-    {
-        return;
-    }
-
+    if (!HasAuthority() || !bIsReloading) return;
     const int32 Needed = GetMagazineSize() - AmmoInMagazine;
     const int32 ToLoad = FMath::Min(Needed, ReserveAmmo);
     AmmoInMagazine += ToLoad;
@@ -478,37 +407,50 @@ void AOCWeaponBase::FinishReloadServer()
 
 bool AOCWeaponBase::CycleFireModeServer()
 {
-    if (!HasAuthority() || bIsWorldPickup)
+    if (!HasAuthority() || bIsWorldPickup || bActionCycling) return false;
+
+    static constexpr EOCFireMode SelectorOrder[] =
     {
-        return false;
+        EOCFireMode::SemiAutomatic,
+        EOCFireMode::Burst3,
+        EOCFireMode::Automatic,
+    };
+
+    int32 CurrentIndex = INDEX_NONE;
+    for (int32 Index = 0; Index < UE_ARRAY_COUNT(SelectorOrder); ++Index)
+    {
+        if (SelectorOrder[Index] == CurrentFireMode)
+        {
+            CurrentIndex = Index;
+            break;
+        }
     }
 
-    if (Tuning.bSupportsSemiAutomatic && Tuning.bSupportsAutomatic)
+    for (int32 Step = 1; Step <= UE_ARRAY_COUNT(SelectorOrder); ++Step)
     {
-        CurrentFireMode = CurrentFireMode == EOCFireMode::Automatic
-            ? EOCFireMode::SemiAutomatic
-            : EOCFireMode::Automatic;
+        const int32 CandidateIndex = (FMath::Max(CurrentIndex, 0) + Step) % UE_ARRAY_COUNT(SelectorOrder);
+        const EOCFireMode Candidate = SelectorOrder[CandidateIndex];
+        if (!SupportsFireMode(Candidate) || Candidate == CurrentFireMode) continue;
+
+        CurrentFireMode = Candidate;
         MulticastWeaponStateAudio(EOCWeaponAudioEvent::FireModeSwitch, GetActorLocation(), ++ServerAudioEventCounter);
+        ForceNetUpdate();
         return true;
     }
-
-    CurrentFireMode = Tuning.bSupportsAutomatic ? EOCFireMode::Automatic : EOCFireMode::SemiAutomatic;
     return false;
 }
 
 void AOCWeaponBase::EquipToCharacterServer(AOCCharacter* NewOwnerCharacter)
 {
-    if (!HasAuthority() || !NewOwnerCharacter)
-    {
-        return;
-    }
-
+    if (!HasAuthority() || !NewOwnerCharacter) return;
     CancelReloadServer();
     bIsWorldPickup = false;
     SetOwner(NewOwnerCharacter);
     SetInstigator(NewOwnerCharacter);
     SetReplicateMovement(false);
     WeaponMesh->SetSimulatePhysics(false);
+    WeaponMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    WeaponMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     ForceNetUpdate();
     MulticastWeaponStateAudio(EOCWeaponAudioEvent::Equip, GetActorLocation(), ++ServerAudioEventCounter);
@@ -521,11 +463,9 @@ void AOCWeaponBase::StoreInInventoryServer(AOCCharacter* NewOwnerCharacter)
 
 void AOCWeaponBase::DropToWorldServer(const FVector& DropLocation, const FRotator& DropRotation)
 {
-    if (!HasAuthority())
-    {
-        return;
-    }
+    if (!HasAuthority()) return;
 
+    const FVector InheritedVelocity = GetOwner() ? GetOwner()->GetVelocity() : FVector::ZeroVector;
     CancelReloadServer();
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     SetOwner(nullptr);
@@ -534,17 +474,24 @@ void AOCWeaponBase::DropToWorldServer(const FVector& DropLocation, const FRotato
     bIsWorldPickup = true;
     SetReplicateMovement(true);
     ApplyWorldPickupPresentation();
+
+    if (WeaponMesh)
+    {
+        WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        WeaponMesh->SetSimulatePhysics(true);
+        WeaponMesh->SetEnableGravity(true);
+        WeaponMesh->SetPhysicsLinearVelocity(InheritedVelocity);
+        WeaponMesh->SetPhysicsAngularVelocityInDegrees(FVector(0.0f, 0.0f, 28.0f));
+        WeaponMesh->WakeAllRigidBodies();
+    }
+
     ForceNetUpdate();
     MulticastWeaponStateAudio(EOCWeaponAudioEvent::Drop, GetActorLocation(), ++ServerAudioEventCounter);
 }
 
 int32 AOCWeaponBase::AddReserveAmmoServer(int32 Amount)
 {
-    if (!HasAuthority() || Amount <= 0)
-    {
-        return 0;
-    }
-
+    if (!HasAuthority() || Amount <= 0) return 0;
     const int32 Previous = ReserveAmmo;
     ReserveAmmo = FMath::Clamp(ReserveAmmo + Amount, 0, Tuning.MaxReserveAmmo);
     return ReserveAmmo - Previous;
@@ -552,11 +499,7 @@ int32 AOCWeaponBase::AddReserveAmmoServer(int32 Amount)
 
 bool AOCWeaponBase::InstallAttachmentServer(EOCAttachmentSlot Slot, FName AttachmentId)
 {
-    if (!HasAuthority())
-    {
-        return false;
-    }
-
+    if (!HasAuthority()) return false;
     for (FOCWeaponAttachmentState& State : Attachments)
     {
         if (State.Slot == Slot)
@@ -566,7 +509,6 @@ bool AOCWeaponBase::InstallAttachmentServer(EOCAttachmentSlot Slot, FName Attach
             return true;
         }
     }
-
     FOCWeaponAttachmentState NewState;
     NewState.Slot = Slot;
     NewState.AttachmentId = AttachmentId;
@@ -580,10 +522,7 @@ FString AOCWeaponBase::GetAttachmentSummary() const
     TArray<FString> Names;
     for (const FOCWeaponAttachmentState& State : Attachments)
     {
-        if (!State.AttachmentId.IsNone())
-        {
-            Names.Add(State.AttachmentId.ToString());
-        }
+        if (!State.AttachmentId.IsNone()) Names.Add(State.AttachmentId.ToString());
     }
     return FString::Join(Names, TEXT(" | "));
 }
@@ -610,21 +549,19 @@ void AOCWeaponBase::ApplyInventoryPresentation(bool bActive, USceneComponent* Ac
 
 void AOCWeaponBase::ApplyWorldPickupPresentation()
 {
-    if (!WeaponMesh)
-    {
-        return;
-    }
+    if (!WeaponMesh) return;
 
     if (bIsWorldPickup)
     {
         SetActorHiddenInGame(false);
-        WeaponMesh->SetSimulatePhysics(false);
+        if (!HasAuthority()) WeaponMesh->SetSimulatePhysics(false);
         WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         WeaponMesh->SetCollisionResponseToAllChannels(ECR_Block);
         WeaponMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
     }
     else
     {
+        WeaponMesh->SetSimulatePhysics(false);
         WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
 }
@@ -636,7 +573,47 @@ void AOCWeaponBase::OnRep_WorldPickup()
 
 void AOCWeaponBase::OnRep_Attachments()
 {
-    // Presentation hooks are intentionally light in S04. Functional modifiers already apply from replicated IDs.
+}
+
+void AOCWeaponBase::ApplyConfirmedLocalShotRecoil()
+{
+    AOCCharacter* LocalShooter = Cast<AOCCharacter>(GetOwner());
+    if (!LocalShooter || !LocalShooter->IsLocallyControlled() || !GetWorld()) return;
+
+    const float RecoilMultiplier = GetRecoilMultiplier();
+    const float PitchKick = FMath::FRandRange(Tuning.RecoilPitchMin, Tuning.RecoilPitchMax) * RecoilMultiplier;
+    const float YawKick = FMath::FRandRange(-Tuning.RecoilYawMax, Tuning.RecoilYawMax) * RecoilMultiplier;
+
+    LocalShooter->AddControllerPitchInput(-PitchKick);
+    LocalShooter->AddControllerYawInput(YawKick);
+    ConfirmedLocalRecoilPitchOffset += PitchKick;
+    ConfirmedLocalRecoilYawOffset += YawKick;
+    LastConfirmedLocalShotTime = GetWorld()->GetTimeSeconds();
+    LocalShooter->NotifyConfirmedWeaponShotPresentation();
+}
+
+void AOCWeaponBase::RecoverConfirmedLocalShotRecoil(float DeltaSeconds)
+{
+    AOCCharacter* LocalShooter = Cast<AOCCharacter>(GetOwner());
+    if (!LocalShooter || !LocalShooter->IsLocallyControlled() || !GetWorld() ||
+        GetWorld()->GetTimeSeconds() - LastConfirmedLocalShotTime < ConfirmedRecoilRecoveryDelay)
+    {
+        return;
+    }
+
+    if (ConfirmedLocalRecoilPitchOffset > KINDA_SMALL_NUMBER)
+    {
+        const float PitchStep = FMath::Min(ConfirmedLocalRecoilPitchOffset, ConfirmedRecoilRecoverySpeed * DeltaSeconds);
+        LocalShooter->AddControllerPitchInput(PitchStep);
+        ConfirmedLocalRecoilPitchOffset -= PitchStep;
+    }
+
+    if (!FMath::IsNearlyZero(ConfirmedLocalRecoilYawOffset, 0.001f))
+    {
+        const float NewYawOffset = FMath::FInterpTo(ConfirmedLocalRecoilYawOffset, 0.0f, DeltaSeconds, ConfirmedRecoilRecoverySpeed);
+        LocalShooter->AddControllerYawInput(NewYawOffset - ConfirmedLocalRecoilYawOffset);
+        ConfirmedLocalRecoilYawOffset = NewYawOffset;
+    }
 }
 
 void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize TraceStart, FVector_NetQuantize TraceEnd, bool bHit)
@@ -647,7 +624,10 @@ void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize Trac
     const FVector End(TraceEnd);
     const FVector Direction = (End - Start).GetSafeNormal();
 
-    // R11: actual short-lived scene geometry/light instead of editor DrawDebug primitives.
+    // This multicast exists only after TryFireServer accepted a factual shot. Recoil, crosshair expansion and camera
+    // shake therefore share the same accepted-shot source; the retired Character held-input timer cannot ghost-fire.
+    ApplyConfirmedLocalShotRecoil();
+
     if (AOCTransientVisualFX* Muzzle = GetWorld()->SpawnActor<AOCTransientVisualFX>(
         AOCTransientVisualFX::StaticClass(), Start, Direction.Rotation()))
     {
@@ -657,7 +637,6 @@ void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize Trac
     const float FullLength = FVector::Distance(Start, End);
     if (FullLength > 200.0f)
     {
-        // A partial streak reads like a fast projectile rather than a permanent laser beam.
         const float VisibleLength = FMath::Clamp(FullLength * 0.18f, 180.0f, 900.0f);
         const FVector TracerEnd = End;
         const FVector TracerStart = End - Direction * VisibleLength;
@@ -669,7 +648,6 @@ void AOCWeaponBase::MulticastFireTraceFX_Implementation(FVector_NetQuantize Trac
         }
     }
 }
-
 
 void AOCWeaponBase::MulticastShotAudio_Implementation(FVector_NetQuantize ShotOrigin, FVector_NetQuantize TraceEnd,
     bool bSuppressed, bool bSupersonic, EOCAcousticEnvironment Environment, int32 EventSeed)
@@ -683,10 +661,7 @@ void AOCWeaponBase::MulticastShotAudio_Implementation(FVector_NetQuantize ShotOr
 void AOCWeaponBase::MulticastWeaponStateAudio_Implementation(EOCWeaponAudioEvent Event,
     FVector_NetQuantize SourceLocation, int32 EventSeed)
 {
-    if (WeaponAudioComponent)
-    {
-        WeaponAudioComponent->HandleStateEventLocal(Event, SourceLocation, EventSeed);
-    }
+    if (WeaponAudioComponent) WeaponAudioComponent->HandleStateEventLocal(Event, SourceLocation, EventSeed);
 }
 
 void AOCWeaponBase::MulticastImpactFX_Implementation(FVector_NetQuantize ImpactLocation,
@@ -719,4 +694,3 @@ void AOCWeaponBase::MulticastImpactFX_Implementation(FVector_NetQuantize ImpactL
         Impact->ConfigureImpact(FVector(ImpactLocation), FVector(ImpactNormal), ImpactColor, Radius);
     }
 }
-

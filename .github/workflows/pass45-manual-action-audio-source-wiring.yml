@@ -1,0 +1,105 @@
+name: Pass45 manual-action audio source wiring
+
+on:
+  push:
+    branches:
+      - 'fix/pass45-runtime-rejection-material-closure-20260826'
+    paths:
+      - 'PASS45_MANUAL_ACTION_AUDIO_SOURCE_WIRING.py'
+      - 'PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
+      - 'PASS45_MANUAL_ACTION_AUDIO_UE_FRESH_LOAD.py'
+      - 'VERIFY_PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py'
+      - 'OsterConflict/OsterConflict.uproject'
+      - 'OsterConflict/OsterConflictPass45Commandlet.uproject'
+      - 'OsterConflict/PASS45_IMPORT_MANUAL_ACTION_AUDIO_UE58.cmd'
+      - 'START_HERE.cmd'
+      - '.github/workflows/pass45-manual-action-audio-source-wiring.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pass45-manual-action-audio-source-wiring
+  cancel-in-progress: false
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout canonical head without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply exact-anchor runtime source wiring
+        run: python PASS45_MANUAL_ACTION_AUDIO_SOURCE_WIRING.py --mode write
+
+      - name: Verify manual-action UE import, fresh-load and runtime routing contract
+        run: python VERIFY_PASS45_MANUAL_ACTION_AUDIO_UE_IMPORT.py
+
+      - name: Verify existing weapon-audio fallback contract
+        run: python VERIFY_PASS45_WEAPON_AUDIO_FALLBACK.py
+
+      - name: Restrict generated diff to the intended runtime source file
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check -- OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp
+          mapfile -t changed < <(git diff --name-only)
+          generated=()
+          unexpected=()
+          for path in "${changed[@]}"; do
+            case "$path" in
+              OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp)
+                generated+=("$path")
+                ;;
+              PC_TEST/TEST_RESULTS/OSTER_UE58_TEST_RESULTS_20260816_001551.zip|PC_TEST/TEST_RESULTS/OSTER_UE58_TEST_RESULTS_20260816_001930.zip)
+                echo "Ignoring known checkout-only legacy LFS anomaly: $path"
+                ;;
+              *)
+                unexpected+=("$path")
+                ;;
+            esac
+          done
+          if [[ ${#unexpected[@]} -ne 0 ]]; then
+            printf 'Unexpected generated diff:\n%s\n' "${unexpected[*]}"
+            exit 1
+          fi
+          if [[ ${#generated[@]} -eq 0 ]]; then
+            echo "No source patch required; canonical head is already wired."
+            exit 0
+          fi
+          if [[ ${#generated[@]} -ne 1 ]]; then
+            printf 'Unexpected generated source diff:\n%s\n' "${generated[*]}"
+            exit 1
+          fi
+
+      - name: Commit guarded source wiring if still on exact canonical head
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/pass45-runtime-rejection-material-closure-20260826
+          SOURCE_PATH: OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$SOURCE_PATH"; then
+            echo "Canonical source already wired; no commit required."
+            exit 0
+          fi
+          git fetch origin "$TARGET_BRANCH"
+          remote_head="$(git rev-parse "origin/$TARGET_BRANCH")"
+          if [[ "$remote_head" != "$GITHUB_SHA" ]]; then
+            echo "Canonical HEAD moved during guarded wiring: expected=$GITHUB_SHA actual=$remote_head"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$SOURCE_PATH"
+          git commit -m "feat(pass45): wire manual-action donor SoundWaves"
+          git push origin "HEAD:$TARGET_BRANCH"

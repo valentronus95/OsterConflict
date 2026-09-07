@@ -43,7 +43,6 @@ for needle in (
 ):
     require(header, needle, "Pass 17 subsystem header")
 
-# Construction-order tolerance remains bounded and one-shot after the sector appears.
 for needle in (
     "TActorIterator<AOCWorldSectorOster>",
     "Attempts >= 20",
@@ -55,8 +54,8 @@ for needle in (
 ):
     require(cpp, needle, "world-sector retry and evidence")
 
-# Pass 45 supersedes the old 700-1300 m family budgets. These values are the current compact 960x940 m
-# source contract and may not be forward-ported back to historical long-distance numbers just to satisfy CI.
+# Pass45 item26 retires eight Cylinder/Sphere tree families. The render budget must follow the
+# actual authored source families instead of keeping dead component names in an otherwise green table.
 required_budgets = {
     "Roads": (0, 90000, "false"),
     "Sidewalks": (8000, 42000, "false"),
@@ -71,14 +70,9 @@ required_budgets = {
     "WoodFences": (6000, 28000, "false"),
     "MetalFences": (6000, 28000, "false"),
     "LightSheetFences": (6000, 28000, "false"),
-    "TreeTrunks": (12000, 36000, "false"),
-    "TreeCrowns": (12000, 36000, "false"),
-    "SovietPoplarTrunks": (12000, 36000, "false"),
-    "SovietPoplarCrowns": (12000, 36000, "false"),
-    "BirchTrunks": (12000, 36000, "false"),
-    "BirchCrowns": (12000, 36000, "false"),
-    "PineTrunks": (12000, 36000, "false"),
-    "PineCrowns": (12000, 36000, "false"),
+    "AuthoredDeciduousTrees": (12000, 42000, "true"),
+    "AuthoredPine01Trees": (12000, 46000, "true"),
+    "AuthoredPine03Trees": (12000, 46000, "true"),
     "GrassMown": (0, 16000, "false"),
     "GrassRough": (0, 18000, "false"),
     "GrassWetland": (0, 20000, "false"),
@@ -95,6 +89,12 @@ for name, (start, end, shadow) in required_budgets.items():
     if not re.search(pattern, cpp):
         raise SystemExit(f"PASS17 VERIFY FAIL: compact render budget mismatch for {name}")
 
+for stale_tree in (
+    "TreeTrunks", "TreeCrowns", "SovietPoplarTrunks", "SovietPoplarCrowns",
+    "BirchTrunks", "BirchCrowns", "PineTrunks", "PineCrowns",
+):
+    forbid(cpp, f'TEXT("{stale_tree}")', "retired primitive tree budget returned")
+
 for forbidden_distance in ("130000", "120000"):
     forbid(cpp, forbidden_distance, "historical broad cull distance returned")
 
@@ -107,22 +107,27 @@ for needle in (
 ):
     require(cpp, needle, "ISM runtime tuning")
 
-# Performance work must not achieve its numbers by deleting gameplay collision.
 forbid(cpp, "SetCollisionProfileName(", "Pass 17/45 changing collision profiles")
 forbid(cpp, "SetCollisionEnabled(", "Pass 17/45 changing collision state")
 forbid(cpp, "DestroyComponent", "Pass 17/45 deleting world components")
 
-# Underlying source still owns gameplay collision. Pass 45's tree guard may hide primitive visual families,
-# but the render-budget subsystem itself must not silently rewrite collision contracts.
+# Gameplay collision still exists for solid authored vegetation, but it is now owned by real tree meshes.
 for needle in (
     'Buildings = MakeISM(TEXT("Buildings"), TEXT("BlockAll"))',
     'Fences = MakeISM(TEXT("Fences"), TEXT("BlockAll"))',
     'WoodFences = MakeISM(TEXT("WoodFences"), TEXT("BlockAll"))',
-    'TreeTrunks = MakeISM(TEXT("TreeTrunks"), TEXT("BlockAll"))',
+    'AuthoredDeciduousTrees = MakeISM(TEXT("AuthoredDeciduousTrees"), TEXT("BlockAll"))',
+    'AuthoredPine01Trees = MakeISM(TEXT("AuthoredPine01Trees"), TEXT("BlockAll"))',
+    'AuthoredPine03Trees = MakeISM(TEXT("AuthoredPine03Trees"), TEXT("BlockAll"))',
 ):
     require(world, needle, "gameplay collision remains in world source")
 
-# Historical runtime wrapper remains usable for evidence; Pass 45 adds stricter frontend/gameplay evidence elsewhere.
+for forbidden in (
+    '/Engine/BasicShapes/Cylinder.Cylinder',
+    '/Engine/BasicShapes/Sphere.Sphere',
+):
+    forbid(world, forbidden, "rejected primitive vegetation source returned")
+
 for needle in (
     'set "BASE_LAUNCHER=%~dp0RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd"',
     'set "VERIFY17=%~dp0VERIFY_RUNTIME_PERFORMANCE_PASS_17.py"',
@@ -137,9 +142,10 @@ for needle in (
     require(launcher, needle, "Pass 17 runtime acceptance launcher")
 
 print("RUNTIME PERFORMANCE PASS 17/45 SOURCE CONTRACT PASS")
-print("- all 31 source-world ISM families use the current compact 960x940 m cull budget")
+print(f"- all {len(required_budgets)} current source-world ISM families use the compact 960x940 m cull budget")
+print("- retired primitive tree budget entries are absent; authored deciduous/pine families are budgeted directly")
 print("- historical 1200-1300 m broad family ranges stay retired")
-print("- detail/fence/grass/proxy vegetation ranges are local while important silhouettes remain longer")
+print("- detail/fence/grass ranges are local while important silhouettes and authored trees remain longer")
 print("- NoCollision decoration is removed from dynamic navigation participation")
 print("- gameplay collision profiles are not modified or disabled by the render-budget subsystem")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 frontend/gameplay FPS and pop-in remain runtime-only")

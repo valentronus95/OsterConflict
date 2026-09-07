@@ -1,0 +1,41 @@
+name: Pass 45 asset intake 2026-09-03 contract
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - '_DOCS/PASS45_ASSET_INTAKE_2026-09-03.md'
+      - 'PASS45_ASSET_INTAKE_20260903.py'
+      - 'VERIFY_PASS45_ASSET_INTAKE_20260903.py'
+      - 'OsterConflict/RUN_PASS45_ASSET_INTAKE_20260903.cmd'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - '.github/workflows/pass45-asset-intake-20260903.yml'
+  pull_request:
+    paths:
+      - '_DOCS/PASS45_ASSET_INTAKE_2026-09-03.md'
+      - 'PASS45_ASSET_INTAKE_20260903.py'
+      - 'VERIFY_PASS45_ASSET_INTAKE_20260903.py'
+      - 'OsterConflict/RUN_PASS45_ASSET_INTAKE_20260903.cmd'
+      - 'PASS45_RUNTIME_RECOVERY_HISTORY.md'
+      - '.github/workflows/pass45-asset-intake-20260903.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile PASS45 asset-intake tools
+        run: |
+          python -m py_compile PASS45_ASSET_INTAKE_20260903.py
+          python -m py_compile VERIFY_PASS45_ASSET_INTAKE_20260903.py
+      - name: Verify PASS45 quarantined asset-intake contract
+        run: python VERIFY_PASS45_ASSET_INTAKE_20260903.py

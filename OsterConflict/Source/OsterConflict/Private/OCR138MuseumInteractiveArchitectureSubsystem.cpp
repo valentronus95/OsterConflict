@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -310,15 +311,17 @@ void UOCR138MuseumInteractiveArchitectureSubsystem::BuildInteractionCollisionArc
         if (Existing && !Existing->IsActorBeingDestroyed() && Existing->ActorHasTag(CollisionOwnerTag))
         {
             UE_LOG(LogTemp, Display,
-                TEXT("PASS45_MUSEUM_R138_COLLISION_ONLY_READY collision_owner=1 visible_components=0 duplicate_build=0"));
+                TEXT("PASS45_MUSEUM_R138_COLLISION_ONLY_READY collision_owner=1 visible_components=0 duplicate_build=0 sync_load=0"));
             return;
         }
     }
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+    const FSoftObjectPath CubePath(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    UStaticMesh* Cube = Cast<UStaticMesh>(CubePath.ResolveObject());
     if (!Cube)
     {
-        UE_LOG(LogTemp, Error, TEXT("PASS45_MUSEUM_R138_COLLISION_ONLY_FAIL reason=cube_missing"));
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_MUSEUM_R138_COLLISION_ONLY_FAIL reason=cube_not_resident sync_load=0 prerequisite_preload=stadium_recovery"));
         return;
     }
 
@@ -441,7 +444,7 @@ void UOCR138MuseumInteractiveArchitectureSubsystem::BuildInteractionCollisionArc
         Museum + FVector(1020.0f, 235.0f, 160.0f), FVector(430.0f, 470.0f, 250.0f));
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_MUSEUM_R138_COLLISION_ONLY_READY collision_owner=1 visible_components=0 authored_material_writes=0 visible_shell_duplication=0"));
+        TEXT("PASS45_MUSEUM_R138_COLLISION_ONLY_READY collision_owner=1 visible_components=0 authored_material_writes=0 visible_shell_duplication=0 sync_load=0 prerequisite_resident=1"));
 }
 
 void UOCR138MuseumInteractiveArchitectureSubsystem::SpawnInteractiveOpenings(UWorld& World) const

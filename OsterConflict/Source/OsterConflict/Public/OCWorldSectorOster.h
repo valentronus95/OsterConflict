@@ -48,6 +48,7 @@ public:
     /** Read-only semantic geometry for the world-synchronised tactical map vector layer. */
     const UInstancedStaticMeshComponent* GetTacticalRoads() const { return Roads; }
     const UInstancedStaticMeshComponent* GetTacticalSidewalks() const { return Sidewalks; }
+    const UInstancedStaticMeshComponent* GetTacticalParkPaths() const { return ParkPaths; }
     const UInstancedStaticMeshComponent* GetTacticalBuildings() const { return Buildings; }
     const UInstancedStaticMeshComponent* GetTacticalResidentialRoofs() const { return ResidentialRoofs; }
     const UInstancedStaticMeshComponent* GetTacticalLandmarkBlocks() const { return LandmarkBlocks; }
@@ -61,6 +62,8 @@ private:
 
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Roads;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Sidewalks;
+    // PASS45 Gate K: the five central-park pedestrian paths are a canonical source-owned family.
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkPaths;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Buildings;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ResidentialRoofs;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ResidentialDetails;
@@ -73,22 +76,35 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> WoodFences;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> MetalFences;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> LightSheetFences;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TreeTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TreeCrowns;
-    // S16B source-only vegetation families. Final foliage meshes/materials are content assets.
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> SovietPoplarTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> SovietPoplarCrowns;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> BirchTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> BirchCrowns;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PineTrunks;
-    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PineCrowns;
+
+    // PASS45 item 26: player-facing trees are authored meshes. Generic deciduous is intentionally
+    // not promoted to oak/poplar/birch without a verified species-specific asset.
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> AuthoredDeciduousTrees;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> AuthoredPine01Trees;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> AuthoredPine03Trees;
+
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassMown;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassRough;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GrassWetland;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StadiumGeometry;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StadiumDetails;
+
+    // PASS45 Gate K primary semantic ownership. The legacy mixed/shared buckets remain zero-instance quarantine
+    // for compatibility only; all player-facing park/college surface instances are authored directly into exact owners.
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkGeometry;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkCentralGround;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkNorthCivicGround;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> CollegeRecreationGround;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkDetails;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialPlaza;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialSurface;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialMonument;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkMemorialApproach;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateFitness;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateSurface;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkSkateRamps;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ParkBenches;
+
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Waterways;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Bridges;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ReferenceMarkers;
@@ -112,8 +128,6 @@ private:
         float YawDegrees = 0.0f);
     static void AddBoxRotated(UInstancedStaticMeshComponent* Component, const FVector& Center, const FVector& SizeCm,
         const FRotator& Rotation);
-    static void AddCylinder(UInstancedStaticMeshComponent* Component, const FVector& Center, float RadiusCm,
-        float HeightCm);
     static void AddGableRoof(UInstancedStaticMeshComponent* Component, const FVector& Center, float WidthCm,
         float DepthCm, float RidgeZCm, float YawDegrees, float SlopeDegrees = 28.0f);
     static void AddFacadeWindow(UInstancedStaticMeshComponent* Component, const FVector& BuildingCenter,

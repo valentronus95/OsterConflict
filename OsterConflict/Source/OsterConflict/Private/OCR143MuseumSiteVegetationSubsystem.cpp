@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -48,7 +49,8 @@ namespace
         const FVector Scale(Uniform * WidthScale, Uniform * WidthScale, Uniform);
         const float LocalBottom = Bounds.Origin.Z - Bounds.BoxExtent.Z;
         FVector Location = Ground;
-        Location.Z = -LocalBottom * Uniform;
+        // Preserve the canonical MuseumAnchor/site elevation; the mesh bottom supplies only the local grounding offset.
+        Location.Z += -LocalBottom * Uniform;
         Component->AddInstance(FTransform(FRotator(0.0f, Yaw, 0.0f), Location, Scale), true);
     }
 
@@ -94,15 +96,20 @@ void UOCR143MuseumSiteVegetationSubsystem::BuildSiteVegetation(UWorld& World) co
         if (AActor* Actor = *It; Actor && Actor->ActorHasTag(TEXT("R143_MuseumSiteVegetation"))) return;
     }
 
-    UStaticMesh* GrassA = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_03_mesh.grass_01_03_mesh"));
-    UStaticMesh* GrassB = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_02_01_mesh.grass_02_01_mesh"));
-    UStaticMesh* GroundA = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_02.ground_01_02"));
-    UStaticMesh* GroundB = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_02_03.ground_02_03"));
-    if (!GrassA && !GrassB && !GroundA && !GroundB) return;
+    UStaticMesh* GrassA = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_01_03_mesh.grass_01_03_mesh")).ResolveObject());
+    UStaticMesh* GrassB = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/PN_FoliageCollection/Meshes/grassMesh/grass_02_01_mesh.grass_02_01_mesh")).ResolveObject());
+    UStaticMesh* GroundA = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_01_02.ground_01_02")).ResolveObject());
+    UStaticMesh* GroundB = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/PN_FoliageCollection/Meshes/groundPlantMesh/ground_02_03.ground_02_03")).ResolveObject());
+    if (!GrassA && !GrassB && !GroundA && !GroundB)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_MUSEUM_R143_PRELOAD_GAP grass_a=0 grass_b=0 ground_a=0 ground_b=0 sync_load=0"));
+        return;
+    }
 
     AActor* SiteActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!SiteActor) return;
@@ -186,6 +193,6 @@ void UOCR143MuseumSiteVegetationSubsystem::BuildSiteVegetation(UWorld& World) co
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R14.3 museum site vegetation: low photo-oriented grass=%d groundPlants=%d; central slab approach kept clear."),
+        TEXT("R14.3 museum site vegetation: low photo-oriented grass=%d groundPlants=%d; central slab approach kept clear. sync_load=0 prerequisite_resident=1"),
         GrassCount, PlantCount);
 }

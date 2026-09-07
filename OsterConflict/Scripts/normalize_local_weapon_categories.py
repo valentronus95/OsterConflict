@@ -78,11 +78,14 @@ def main():
             if category in LIVE_WEAPON_CATEGORIES:
                 resolved_sources[source] = category
 
-    # Make source_status tell the same truth as the runtime manifest. An imported mesh is not
-    # considered complete merely because UE can load it; a weapon needs a gameplay weapon class.
+    # Make source_status tell the same truth as the runtime manifest. A factual import/load failure
+    # is never upgraded from UNBOUND merely because its filename matches a weapon regex.
     for row in data.get("source_status", []):
         source = str(row.get("source") or "")
         row_category = str(row.get("category") or "")
+        row_status = str(row.get("status") or "").upper()
+        if row_status == "UNBOUND":
+            continue
         if source in resolved_sources:
             row["category"] = resolved_sources[source]
             row["status"] = "BOUND"
@@ -106,6 +109,16 @@ def main():
     ]
     seen = {(str(x.get("source")), str(x.get("asset")), str(x.get("reason"))) for x in retained}
     for row in unresolved:
+        key = (str(row.get("source")), str(row.get("asset")), str(row.get("reason")))
+        if key not in seen:
+            retained.append(row)
+            seen.add(key)
+
+    # Independent reconciliation: every source_status row still marked UNBOUND after normalization
+    # must remain an acceptance blocker even if an upstream importer forgot to mirror it.
+    for row in data.get("source_status", []):
+        if str(row.get("status") or "").upper() != "UNBOUND":
+            continue
         key = (str(row.get("source")), str(row.get("asset")), str(row.get("reason")))
         if key not in seen:
             retained.append(row)

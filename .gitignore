@@ -31,5 +31,40 @@ OsterConflict/SourceAssets/Production/Vehicles/BTR4/BTR4_Bucephalus.fbx
 OsterConflict/SourceAssets/Production/Vehicles/BTR4/Textures/
 OsterConflict/Content/Production/Vehicles/BTR4/
 
-# Local model inbox. START_HERE processes this folder locally; raw downloads are never committed.
-models_game_OC/
+# Local Fab / Marketplace / donor imports. These remain available to the local UE project but must not flood
+# Git changes or be published blindly before provenance and runtime acceptance are complete.
+OsterConflict/Content/CrosshairFreePack/
+OsterConflict/Content/Deko_MatrixDemo/
+OsterConflict/Content/Fab/Megascans/3D/Military_Trenches_Barrier_Sandbag_Canvas_Square_01_yd0kbfl/High/
+OsterConflict/Content/Fab/Megascans/3D/Military_Trenches_Pile_Sandbag_Canvas_01_yd0tae2/High/
+# User-added Fab grenade packs are runtime-discovered locally; keep their licensed marketplace payload out of Git.
+OsterConflict/Content/Fab/*[Gg]renade*/
+OsterConflict/Content/Fab/*[Gg]ranade*/
+OsterConflict/Content/Megaplant_Library/Tree_Ginkgo/
+OsterConflict/Content/ak-74m/
+OsterConflict/Content/ar15-rifle/
+OsterConflict/Content/assault-rifle-m4a1/
+OsterConflict/Content/colt-m1911/
+OsterConflict/Content/fivestory-building-appartament-of-post-soviet/
+OsterConflict/Content/fn-ballista-sniper-rifle/
+OsterConflict/Content/kar98k-free-model/
+OsterConflict/Content/konserva-sardines/
+OsterConflict/Content/law-light-anti-tank-weapon-m72/
+OsterConflict/Content/makarov-pistol/
+OsterConflict/Content/po-2-fence/
+OsterConflict/Content/pripyat-chainlink-fence/
+OsterConflict/Content/pripyat-light-poles/
+OsterConflict/Content/rpg-26-grenade-launcher-low-poly/
+OsterConflict/Content/shotgun/
+OsterConflict/Content/telephone-pole-scene/
+OsterConflict/Content/tommy-gun/
+OsterConflict/Content/ukrainian-cherry-juice-nash-sik/
+OsterConflict/SourceAssets/ThirdParty/Gameplay/BorderRun/
+OsterConflict/SourceAssets/ThirdParty/Gameplay/FPSArms3D/
+OsterConflict/SourceAssets/ThirdParty/Gameplay/FPSAssetKit/
+OsterConflict/SourceAssets/ThirdParty/Gameplay/HardLines/
+OsterConflict/SourceAssets/ThirdParty/Gameplay/OpenGameArt/
+
+!models_game_OC/
+!models_game_OC/*.zip
+!models_game_OC/**/*.zip

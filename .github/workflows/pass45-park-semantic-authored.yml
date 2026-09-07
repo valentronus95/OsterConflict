@@ -1,0 +1,32 @@
+name: Pass 45 Park Semantic Authored
+
+on:
+  push:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkSemanticAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkSemanticAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Content/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Bench_1.uasset'
+      - 'VERIFY_PASS45_PARK_SEMANTIC_AUTHORED.py'
+      - '.github/workflows/pass45-park-semantic-authored.yml'
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCParkSemanticAuthoredUpgradeSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCParkSemanticAuthoredUpgradeSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualFidelityGateKSubsystem.cpp'
+      - 'OsterConflict/Content/Mega_Street_Props_Pack/Street_Props_pack_V2/Meshes/SM_Bench_1.uasset'
+      - 'VERIFY_PASS45_PARK_SEMANTIC_AUTHORED.py'
+      - '.github/workflows/pass45-park-semantic-authored.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify semantic authored Central Park family
+        run: python VERIFY_PASS45_PARK_SEMANTIC_AUTHORED.py

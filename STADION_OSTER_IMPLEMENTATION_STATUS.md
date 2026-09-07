@@ -21,6 +21,10 @@
 - `VERIFY_R13_STADION_OSTER.py` підключений до source verification;
 - 17-frame reference index збережений; пошкоджений ZIP не маскується як валідний payload і позначений `RESTORE_REQUIRED`, доки його не відновлено з оригіналів.
 
+## Active PASS45 continuation — 2026-08-30
+
+On open/unmerged PR #94, source head `9d04baab648fe75ccb0e6903365f438c55230609` makes the Stadion Oster perimeter tree owner directly select committed `HillTree_02` and `ScotsPineTall_01`. Legacy `SM_Tree_Var01/04` authoring is forbidden and the source has no late tree remap. This is source-verified only; current-head UE 5.8 visual/runtime evidence remains pending.
+
 ## Pass 9 — runtime evidence
 
 Гілка: `fix/runtime-acceptance-stadion-pass-9-20260822`

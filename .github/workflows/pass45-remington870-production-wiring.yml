@@ -1,0 +1,46 @@
+name: Pass 45 Remington 870 production pump wiring
+
+on:
+  pull_request:
+    paths:
+      - 'PASS45_REMINGTON870_PRODUCTION_UE58_IMPORT.py'
+      - 'VERIFY_PASS45_REMINGTON870_PRODUCTION_WIRING.py'
+      - 'VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py'
+      - 'VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py'
+      - 'OsterConflict/PASS45_IMPORT_REMINGTON870_PRODUCTION_UE58.cmd'
+      - 'OsterConflict/TRY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.cmd'
+      - 'OsterConflict/Scripts/verify_remington870_production_fresh_load.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCProductionWeaponRuntimeValidationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'START_HERE.cmd'
+      - '.github/workflows/pass45-remington870-production-wiring.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Remington production scripts
+        run: >-
+          python -m py_compile
+          PASS45_REMINGTON870_PRODUCTION_UE58_IMPORT.py
+          OsterConflict/Scripts/verify_remington870_production_fresh_load.py
+          VERIFY_PASS45_REMINGTON870_PRODUCTION_WIRING.py
+          VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py
+          VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py
+      - name: Verify Remington production wiring
+        run: python VERIFY_PASS45_REMINGTON870_PRODUCTION_WIRING.py
+      - name: Re-verify original donor pilot isolation
+        run: python VERIFY_PASS45_REMINGTON870_UE58_IMPORT_PILOT.py
+      - name: Re-verify derived pump pilot isolation
+        run: python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_PILOT.py

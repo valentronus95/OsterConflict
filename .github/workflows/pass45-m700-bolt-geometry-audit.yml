@@ -1,0 +1,32 @@
+name: Pass 45 M700 bolt geometry audit
+
+# Historical/diagnostic geometry classifier. Manual only; current production
+# cutover checks own ordinary PASS45 gating.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-m700-bolt-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Run M700 bolt geometry diagnostic on demand
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
+          git lfs install --local
+          git lfs pull --include="$SOURCE" --exclude=''
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends assimp-utils
+          GLTF='/tmp/pass45_m700_bolt_geometry.gltf'
+          OUTPUT='/tmp/PASS45_M700_BOLT_GEOMETRY_AUDIT.json'
+          assimp export "$SOURCE" "$GLTF" -f gltf2
+          python PASS45_M700_BOLT_GEOMETRY_AUDIT.py --source "$SOURCE" --gltf "$GLTF" --output "$OUTPUT"
+          cat "$OUTPUT"

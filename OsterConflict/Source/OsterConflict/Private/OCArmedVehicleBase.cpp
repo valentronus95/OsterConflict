@@ -40,6 +40,12 @@ AOCArmedVehicleBase::AOCArmedVehicleBase()
     MuzzlePoint->SetupAttachment(BarrelPivot);
     MuzzlePoint->SetRelativeLocation(FVector(190.0f, 0.0f, 0.0f));
 
+    // PASS45 item 27: the gunner viewpoint belongs to the yaw hierarchy. This keeps the view
+    // coupled to the real ring instead of leaving the hidden gunner pawn at a vehicle-local point.
+    GunnerCameraPivot = CreateDefaultSubobject<USceneComponent>(TEXT("GunnerCameraPivot"));
+    GunnerCameraPivot->SetupAttachment(TurretPivot);
+    GunnerCameraPivot->SetRelativeLocation(FVector(-25.0f, 0.0f, 58.0f));
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
     if (CylinderMesh.Succeeded())
@@ -74,6 +80,17 @@ void AOCArmedVehicleBase::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     ApplyTurretPresentation();
+
+    // Gunner pawn is hidden while mounted, but its camera still originates from the pawn. Keep that
+    // pawn pinned to the turret-owned camera pivot so yaw and vehicle motion cannot desynchronise view/weapon.
+    if (HasAuthority() && GunnerCharacter && GunnerCameraPivot)
+    {
+        GunnerCharacter->SetActorLocation(
+            GetGunnerCameraWorldLocation() - FVector(0.0f, 0.0f, 64.0f),
+            false,
+            nullptr,
+            ETeleportType::TeleportPhysics);
+    }
 
     if (HasAuthority() && !HasDriver() && !GunnerCharacter && OccupantTeam != EOCTeam::None)
     {
@@ -197,7 +214,9 @@ bool AOCArmedVehicleBase::CanGunnerOperateServer(const AOCCharacter* Requester) 
 void AOCArmedVehicleBase::SetGunnerAimServer(AOCCharacter* Requester, float RelativeYaw, float RelativePitch)
 {
     if (!CanGunnerOperateServer(Requester)) return;
-    TurretYaw = FMath::Clamp(RelativeYaw, -MaxTurretYaw, MaxTurretYaw);
+    TurretYaw = bContinuousTurretYaw
+        ? FMath::UnwindDegrees(RelativeYaw)
+        : FMath::Clamp(RelativeYaw, -MaxTurretYaw, MaxTurretYaw);
     TurretPitch = FMath::Clamp(RelativePitch, MinTurretPitch, MaxTurretPitch);
     ApplyTurretPresentation();
     ForceNetUpdate();
@@ -390,6 +409,10 @@ float AOCArmedVehicleBase::ModifyHullDamage(float DamageAmount, const FDamageEve
 
 FVector AOCArmedVehicleBase::GetGunnerCameraWorldLocation() const
 {
+    if (GunnerCameraPivot)
+    {
+        return GunnerCameraPivot->GetComponentLocation();
+    }
     const FVector Base = TurretPivot ? TurretPivot->GetComponentLocation() : GetActorLocation();
     return Base + GetActorUpVector() * 58.0f - GetActorForwardVector() * 25.0f;
 }

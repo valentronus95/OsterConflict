@@ -28,3 +28,5 @@ jobs:
           python-version: '3.12'
       - name: Verify Pass45 weapon material dependency audit contract
         run: python VERIFY_PASS45_WEAPON_MATERIAL_DEPENDENCY_AUDIT.py
+      - name: Verify Pass45 real-fallback material texture dependencies
+        run: python VERIFY_PASS45_FALLBACK_MATERIAL_TEXTURE_GUARD.py

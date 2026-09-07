@@ -11,8 +11,16 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Sound/SoundBase.h"
+#include "UObject/SoftObjectPath.h"
+
+namespace
+{
+    const TCHAR* Pass45GrenadeThrowSoundPath = TEXT("/Game/R13/Audio/snd_throw1.snd_throw1");
+}
 
 UOCCharacterVisualComponent::UOCCharacterVisualComponent()
 {
@@ -25,6 +33,12 @@ void UOCCharacterVisualComponent::BeginPlay()
 {
     Super::BeginPlay();
     CharacterOwner = Cast<AOCCharacter>(GetOwner());
+    if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+    {
+        // GAME RECOVERY: production character preparation preloads this package before possession.
+        // Never let actor BeginPlay turn into a disk-backed package load.
+        GrenadeThrowSound = Cast<USoundBase>(FSoftObjectPath(Pass45GrenadeThrowSoundPath).ResolveObject());
+    }
     if (bEnableSourceOnlyProxy) BuildSourceOnlyProxy();
     RefreshPresentation(true);
 }
@@ -111,7 +125,8 @@ void UOCCharacterVisualComponent::ApplyProfile(UOCCharacterVisualProfile* Profil
     bool bHasProductionBody = false;
     if (Profile && ThirdPersonMesh && !Profile->ThirdPersonBodyMesh.IsNull())
     {
-        if (USkeletalMesh* Loaded = Profile->ThirdPersonBodyMesh.LoadSynchronous())
+        // Preload is owned by UOCProductionCharacterAssetsSubsystem. Get() is intentionally non-blocking.
+        if (USkeletalMesh* Loaded = Profile->ThirdPersonBodyMesh.Get())
         {
             ThirdPersonMesh->SetSkeletalMeshAsset(Loaded);
             if (Profile->ThirdPersonAnimClass) ThirdPersonMesh->SetAnimInstanceClass(Profile->ThirdPersonAnimClass);
@@ -131,7 +146,7 @@ void UOCCharacterVisualComponent::ApplyProfile(UOCCharacterVisualProfile* Profil
         bool bHasProductionArms = false;
         if (Profile && !Profile->FirstPersonArmsMesh.IsNull())
         {
-            if (USkeletalMesh* Loaded = Profile->FirstPersonArmsMesh.LoadSynchronous())
+            if (USkeletalMesh* Loaded = Profile->FirstPersonArmsMesh.Get())
             {
                 Arms->SetSkeletalMeshAsset(Loaded);
                 if (Profile->FirstPersonAnimClass) Arms->SetAnimInstanceClass(Profile->FirstPersonAnimClass);
@@ -151,6 +166,7 @@ void UOCCharacterVisualComponent::BuildSourceOnlyProxy()
     AOCCharacter* Character = CharacterOwner.Get();
     if (!Character || ThirdPersonProxyParts.Num() > 0) return;
 
+    // Explicit developer-only diagnostics. Production runtime defaults bEnableSourceOnlyProxy=false.
     UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -226,6 +242,9 @@ void UOCCharacterVisualComponent::UpdateSourceOnlyProxy(bool bShowProxy)
 
 void UOCCharacterVisualComponent::ApplyProxyTint(EOCFactionArchetype Faction)
 {
+    // No production character should pay for Engine BasicShape material loading when proxies are disabled.
+    if (ThirdPersonProxyParts.IsEmpty() && FirstPersonProxyParts.IsEmpty()) return;
+
     FLinearColor Color;
     switch (Faction)
     {
@@ -263,5 +282,41 @@ void UOCCharacterVisualComponent::BroadcastActionServer(EOCCharacterActionEvent 
 
 void UOCCharacterVisualComponent::MulticastCharacterAction_Implementation(EOCCharacterActionEvent Event, int32 EventSeed)
 {
+    if (Event == EOCCharacterActionEvent::GrenadeThrow)
+    {
+        AActor* Owner = GetOwner();
+        if (!GrenadeThrowSound && GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+        {
+            // Non-blocking retry only. GAME RECOVERY preloads this package before player spawn.
+            GrenadeThrowSound = Cast<USoundBase>(FSoftObjectPath(Pass45GrenadeThrowSoundPath).ResolveObject());
+        }
+        if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer && GrenadeThrowSound && Owner)
+        {
+            const bool bLocalFirstPerson = CharacterOwner.IsValid() && CharacterOwner->IsLocallyControlled();
+            if (bLocalFirstPerson)
+            {
+                UGameplayStatics::PlaySound2D(this, GrenadeThrowSound);
+            }
+            else
+            {
+                UGameplayStatics::PlaySoundAtLocation(this, GrenadeThrowSound, Owner->GetActorLocation());
+            }
+            UE_LOG(LogTemp, Display,
+                TEXT("PASS45_GRENADE_THROW_AUDIO_RUNTIME_READY asset=%s authored_sound=1 local_first_person=%d replicated_event=1 gameplay_authority=0 runtime_visual_acceptance=0"),
+                Pass45GrenadeThrowSoundPath, bLocalFirstPerson ? 1 : 0);
+        }
+        else if (GetWorld() && GetWorld()->GetNetMode() != NM_DedicatedServer)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_GRENADE_THROW_AUDIO_CONTENT_GAP asset=%s authored_sound=0 replicated_event=1 gameplay_authority=0 runtime_acceptance=0"),
+                Pass45GrenadeThrowSoundPath);
+        }
+
+        // Pass45 item 24: the replicated cosmetic bridge exists, but the repository has no accepted authored
+        // first-person hand/throw/recover sequence wired here yet. Keep gameplay flowing while making the visual
+        // content gap fatal to final runtime acceptance instead of allowing a Blueprint hook to impersonate proof.
+        UE_LOG(LogTemp, Warning,
+            TEXT("PASS45_GRENADE_THROW_AUTHORED_ANIMATION_CONTENT_GAP event=GrenadeThrow native_authored_sequence=0 blueprint_hook_dispatched=1 second_gameplay_timer=0 runtime_visual_acceptance=0"));
+    }
     BP_OnCharacterAction(Event, EventSeed);
 }

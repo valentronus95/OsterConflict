@@ -2,7 +2,12 @@
 
 This mesh exists to remove the green/proxy runtime shell when the user's local FBX is
 not available in the worktree. It is deliberately a presentation model, not an
-engineering/manufacturing reference. +X is vehicle forward, +Z is up.
+engineering/manufacturing reference.
+
+Internal modeling coordinates are +X forward, +Y lateral, +Z up. glTF is Y-up, so the
+exported root carries an explicit -90 degree X rotation that maps internal +Z to glTF
++Y while preserving +X as vehicle forward. Unreal may then perform its normal glTF
+coordinate conversion without leaving the BTR lying on its side.
 
 Pass45 material rule: the generated fallback must carry an explicit authored glTF
 PBR material. Vertex colors are presentation data, not a substitute for a material
@@ -25,6 +30,9 @@ STEEL = (86, 90, 84, 255)
 GLASS = (54, 66, 65, 255)
 
 BTR4_MATERIAL_NAME = "M_BTR4_OC_Authored"
+# Quaternion [x, y, z, w]. Internal mesh math is Z-up; glTF is Y-up.
+# -90 degrees around X maps internal +Z -> glTF +Y and preserves +X forward.
+BTR4_Z_UP_TO_GLTF_Y_UP_ROTATION = [-0.7071067811865476, 0.0, 0.0, 0.7071067811865476]
 
 
 class MeshBuilder:
@@ -139,7 +147,7 @@ def build_visual_mesh():
         for x in (-205, -70, 70, 205):
             m.add_box((82, 9, 15), (x, y, 17), ARMOR_LIGHT)
 
-    # Eight wheels. Cylinder axis is Y so wheels roll around Y.
+    # Eight wheels. Internal cylinder axis Y is the wheel axle.
     axle_x = (-205, -70, 70, 205)
     for x in axle_x:
         for side in (-1, 1):
@@ -147,8 +155,6 @@ def build_visual_mesh():
             m.add_cylinder(30, 43, (x, y, -26), (0,1,0), RUBBER, 20)
             m.add_cylinder(33, 21, (x, y, -26), (0,1,0), STEEL, 16)
 
-    # BTR-style compact remote turret shell. Gameplay aim remains in C++ TurretPivot;
-    # this static visual only supplies a credible silhouette while the source FBX is absent.
     m.add_cylinder(38, 54, (-35, 0, 194), (0,0,1), ARMOR_DARK, 20)
     m.add_box((84, 92, 44), (-28, 0, 216), ARMOR)
     m.add_wedge_x(54, 88, 26, 38, 38, 0, 199, ARMOR_LIGHT)
@@ -156,7 +162,6 @@ def build_visual_mesh():
     m.add_cylinder(25, 8.0, (181, 0, 220), (1,0,0), STEEL, 18)
     m.add_box((78, 18, 18), (54, -36, 206), ARMOR_DARK)
 
-    # Hatches, optics, lamps, mirrors and rear door cues.
     m.add_box((62, 72, 5), (96, -48, 172), ARMOR_DARK)
     m.add_box((62, 72, 5), (96, 48, 172), ARMOR_DARK)
     m.add_box((46, 48, 7), (-170, 0, 174), ARMOR_DARK)
@@ -168,7 +173,6 @@ def build_visual_mesh():
     m.add_box((10, 8, 24), (305, -104, 76), BLACK)
     m.add_box((10, 8, 24), (305, 104, 76), BLACK)
 
-    # External tow/bumper cues and antennas.
     m.add_box((22, 232, 16), (342, 0, 3), ARMOR_DARK)
     m.add_box((18, 228, 16), (-338, 0, 8), ARMOR_DARK)
     m.add_cylinder(110, 1.6, (-95, -68, 240), (0,0,1), BLACK, 10)
@@ -202,17 +206,21 @@ def build_btr4_glb(output_path):
                 "purpose": "external game visual only",
                 "engineering_accuracy": False,
                 "pass45_authored_material_contract": True,
+                "internal_axis_contract": "+X forward, +Z up",
+                "gltf_axis_contract": "+X forward, +Y up",
             },
         },
         "scene": 0,
         "scenes": [{"nodes": [0]}],
-        "nodes": [{"mesh": 0, "name": "BTR4_Bucephalus_GameVisual"}],
+        "nodes": [{
+            "mesh": 0,
+            "name": "BTR4_Bucephalus_GameVisual",
+            "rotation": BTR4_Z_UP_TO_GLTF_Y_UP_ROTATION,
+        }],
         "materials": [{
             "name": BTR4_MATERIAL_NAME,
             "doubleSided": False,
             "pbrMetallicRoughness": {
-                # COLOR_0 is multiplied by this neutral authored base color, preserving the deliberate
-                # armor/rubber/steel/glass vertex palette while guaranteeing a non-default material slot.
                 "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
                 "metallicFactor": 0.18,
                 "roughnessFactor": 0.72,

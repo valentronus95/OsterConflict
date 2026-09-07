@@ -7,7 +7,7 @@
  *
  * Empty paths are intentional: R14 must not invent animation assets that are not
  * actually present in Content. A profile can therefore be declared while its
- * authored Fire/Reload coverage is still pending.
+ * authored Fire/Reload/manual-action coverage is still pending.
  */
 struct FOCWeaponAnimationProfile
 {
@@ -18,9 +18,26 @@ struct FOCWeaponAnimationProfile
     /** True when convincing reload/fire mechanics require moving weapon parts. */
     bool bRequiresArticulatedWeapon = false;
 
+    /**
+     * Authored bolt/pump/lever sequence for the production skeletal weapon, when one is actually committed.
+     * Empty is a deliberate CONTENT GAP and must never be substituted with an unrelated animation.
+     */
+    FString ManualActionAnimationObjectPath;
+
+    /** True for weapons whose authoritative post-shot gate requires an authored manual-action presentation. */
+    bool bRequiresManualActionAnimation = false;
+
     bool HasFireAnimation() const { return !FireAnimationObjectPath.IsEmpty(); }
     bool HasReloadAnimation() const { return !ReloadAnimationObjectPath.IsEmpty(); }
-    bool HasCompleteAuthoredCoverage() const { return HasFireAnimation() && HasReloadAnimation(); }
+    bool HasManualActionAnimation() const { return !ManualActionAnimationObjectPath.IsEmpty(); }
+    bool HasRequiredManualActionCoverage() const
+    {
+        return !bRequiresManualActionAnimation || HasManualActionAnimation();
+    }
+    bool HasCompleteAuthoredCoverage() const
+    {
+        return HasFireAnimation() && HasReloadAnimation() && HasRequiredManualActionCoverage();
+    }
 };
 
 /** True for every weapon id that currently exists in the R14 gameplay set. */

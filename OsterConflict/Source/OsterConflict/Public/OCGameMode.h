@@ -67,7 +67,9 @@ public:
     FString MakeUniquePlayerName(const FString& RequestedName, const AOCPlayerState* IgnoreState = nullptr) const;
 
 protected:
-    UPROPERTY(EditDefaultsOnly, Category="Respawn") float RespawnDelay = 3.0f;
+    // GAME_RECOVERY: player respawn is a fixed gameplay rule, not a tunable Blueprint/default value.
+    // If a player stays out longer than 10 seconds, the respawn path itself is broken and must fail visibly.
+    static constexpr float RespawnDelay = 10.0f;
     UPROPERTY(EditDefaultsOnly, Category="Respawn|Corpse", meta=(ClampMin="3.0")) float CorpseLifetimeSeconds = 30.0f;
     UPROPERTY(EditDefaultsOnly, Category="Respawn|Corpse", meta=(ClampMin="1", ClampMax="64")) int32 MaxPersistentCorpses = 20;
     UPROPERTY(EditDefaultsOnly, Category="Match", meta=(ClampMin="1")) int32 StartingTickets = 200;

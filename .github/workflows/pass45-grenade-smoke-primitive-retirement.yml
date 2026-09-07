@@ -1,0 +1,20 @@
+name: Pass 45 grenade smoke primitive retirement
+
+on:
+  pull_request:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify grenade and smoke fail-closed presentation
+        run: python VERIFY_PASS45_GRENADE_SMOKE_PRIMITIVE_RETIREMENT.py

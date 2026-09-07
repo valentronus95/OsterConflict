@@ -3,88 +3,211 @@
 This repository is the canonical working project for the user.
 
 ## Repository
+
 - GitHub: `valentronus95/OsterConflict`
 - Primary integration branch: `main`
-- Dedicated location branches may be used for isolated work, but completed, explicitly approved integrations land in `main` through a controlled forward-port.
 - Unreal Engine target: UE 5.8.x on Windows
 - Project: `OsterConflict/OsterConflict.uproject`
 
-## Mandatory context files
-Before editing the project, read these files in this order:
-1. `AGENTS.md`
-2. `OSTER_CONFLICT_WORK_LEDGER.md` — active issues, repeat counts, real completion state, commits and test status.
-3. The dedicated location TZ for the work being changed; for Stadion Oster use `STADION_OSTER_TZ.md`.
-4. The matching implementation-status file when present; for Stadion Oster use `STADION_OSTER_IMPLEMENTATION_STATUS.md`.
+## Authority
 
-The WORK LEDGER and dedicated location TZ/status files are persistent living documents. Update them whenever the user adds/changes a requirement, repeats an unresolved requirement, a meaningful code block is committed, or build/playtest changes the status of a task.
+Current authority order:
 
-## Authority / conflict resolution
-The project has accumulated historical passes, verifiers and reports. They are evidence, not equal-priority rules.
+1. latest explicit user requirement and latest user-observed runtime evidence;
+2. current `AGENTS.md`;
+3. current dedicated TZ / current targeted ledger state;
+4. current implementation and active critical acceptance scripts;
+5. historical verifier scripts, reports and old pass assumptions.
 
-Current authority order is:
-1. **Latest explicit user requirement and latest user-observed runtime evidence.**
-2. **Current `AGENTS.md`.**
-3. **Current `OSTER_CONFLICT_WORK_LEDGER.md`.**
-4. **Current dedicated TZ / implementation-status file for the location or feature.**
-5. Source implementation and active acceptance scripts.
-6. Historical verifier scripts, old reports, old pass notes and old implementation assumptions.
+A lower historical rule must never silently undo a newer requirement or factual runtime result.
 
-When two instructions conflict, the higher item wins. A lower historical rule must never silently undo a newer accepted change.
+## Context loading — do not reread the world
 
-**Mandatory stale-rule retirement:** whenever a newer user requirement/runtime result disproves an older rule, invariant, verifier expectation, fallback or compatibility path, update or delete the conflicting old requirement in the same work pass. Do not keep a stale behavior merely so an old verifier remains green. Update/retire the verifier instead. Historical reports may remain as chronology, but must be clearly non-authoritative for current behavior.
+### Normal project work
 
-**No compatibility resurrection:** a deprecated runtime mutation/fallback that caused a confirmed regression must not survive in a second subsystem under a different marker/name. Compatibility shells may remain only when they perform no conflicting mutation/work.
+Read only the files required by the feature being changed:
 
-## Mandatory workflow
-1. Work directly in this GitHub repository. Do not create replacement ZIP archives as the default delivery method.
-2. Before editing, verify the current branch and read all mandatory context files listed above.
-3. Preserve existing project history and avoid destructive rewrites or force-updating branches unless explicitly required.
-4. Keep fixes small and reviewable. Do not mix unrelated regressions into one change.
+1. `AGENTS.md`;
+2. the relevant dedicated TZ/status file;
+3. targeted `OSTER_CONFLICT_WORK_LEDGER.md` entries when needed;
+4. relevant reference/provenance files.
+
+Do not reread unrelated project history by default.
+
+### PASS45 continuation fast path
+
+When continuing `PASS45_RUNTIME_RECOVERY_TZ.md`, use this order:
+
+1. reconcile canonical branch / HEAD / PR #94;
+2. read the latest checkpoint in `PASS45_RUNTIME_RECOVERY_HISTORY.md`;
+3. read the compact `PASS45_RUNTIME_RECOVERY_TZ.md` sections for the next remote-preparable batch;
+4. read only targeted ledger/reference/provenance entries required by that batch.
+
+Do **not** reread the entire ledger, all historical passes, all verifiers, all reports or the whole repository on every continuation. A broad re-audit is allowed only when architecture/ownership, engine/license, merge history, checkpoint integrity or newer direct runtime evidence materially invalidates the current checkpoint.
+
+For PASS45, `_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md` and `_DOCS/PASS45_COMPONENT_FIRST_UE_DEBUGGING_PROTOCOL.md` are binding.
+
+## Core repository workflow
+
+1. Work directly in this GitHub repository. Do not use replacement ZIP archives as the normal delivery path.
+2. Verify current branch/HEAD before writing. Consume newer parallel-chat commits instead of replaying old work.
+3. Preserve history. No destructive rewrite/force-update unless explicitly justified.
+4. Commit **coherent subsystem/content batches**. Do not fragment work into micro-commits merely so every tiny change can have its own verifier cycle.
 5. Do not commit generated UE folders: `Binaries`, `Intermediate`, `Saved`, `DerivedDataCache`.
-6. For user test feedback, fix the reported regression first, then update `OSTER_CONFLICT_WORK_LEDGER.md`. Add a short report in `OsterConflict/Docs/WorkReports/` only when a meaningful milestone or test pass is completed.
-7. Reports must stay lightweight Markdown. Do not store copied build logs, screenshots, binaries, archives, or generated assets in the reports folder.
-8. Never call an item `VERIFIED` or "done" merely because code was committed. Until UE build/runtime/user playtest confirms it, use `CODED_UNTESTED` in the ledger.
-9. If the user repeats an unresolved request, increment its `Repeat` counter in the ledger instead of silently creating another duplicate task.
-10. Before creating primitive/blockout geometry, inventory the already imported assets under `OsterConflict/Content` and prefer a suitable real asset when one exists.
-11. For geography and landmark placement, user-confirmed local knowledge and verified photo/map evidence override old provisional code coordinates.
-12. Do not let independent late runtime subsystems silently overwrite an already visible landmark. One site/landmark should have a clear placement owner.
-13. Reference-photo retention is mandatory: when the user supplies images specifically to create a 3D model or location, preserve them in a named `REFERENCE_PHOTOS/<location>/` pack even if the user did not separately ask to save them. Ordinary bug/test screenshots are not automatically archived unless requested.
-14. Every preserved photo pack needs an index/manifest linking it to its TZ and explaining chronology/role. Do not discard older references after a model is built; they are regression evidence.
-15. **Playable-map size is user-authoritative.** Do not expand Oster to a full-town/procedural 2.4 km square simply because old blockout code can generate it. The hard current playable-area reference is `REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg` and its manifest. The intended battlefield is the compact central Oster area shown there, covering the user-visible central street network and landmarks around Silpo / central park / Culture House through Stadium Oster and the Oster Local History Museum. Legacy peripheral BASE geometry, hydrography, roads or residential seeds outside that reference must not inflate gameplay/tactical-map bounds or consume runtime budget.
-16. **Museum BASE means actual pawn placement, not a source-only marker.** For a normal local deployment the live player pawn must spawn on the Museum BASE approach and the runtime must prove its 2D distance to the Museum anchor. A verifier that only proves an `AOCTeamSpawnPoint` exists near the Museum is insufficient.
-17. **Runtime content truth is fail-visible.** A missing HMMWV/M2/BTR source, missing weapon authored material, or fallback BasicShape material must never be printed/accepted as production-ready. Source/fresh-load checks must distinguish `mesh loads` from `authored materials ready`.
-18. **Normal local game must not silently auto-fill a heavy bot population.** Bots/population are opt-in through explicit server/test options. Local visual/playtest launch should start without background filler bots so performance evidence measures the map/content rather than an unrequested AI load.
-19. **Verifier truth follows current behavior, not history.** A verifier that requires a superseded constant, fallback, map extent, bot default, palette mutation, spawn proxy or old timing must be updated/retired before merge. Green CI is not allowed to depend on restoring a known regression.
-20. **One runtime responsibility has one current owner.** If a newer subsystem takes ownership of spawn, material truth, map bounds or landmark placement, older subsystems may only observe or become inert; they must not mutate the same state later.
-21. **Compact playable bounds apply at primary authoring time.** Do not create the old 2.4 km ground, far BASE compounds, peripheral hydrography, roads, residential grids or vegetation instances and rely on a later subsystem to delete them. Primary world generation must create/filter geometry against the current compact reference before `BeginPlay`; `OCCentralPlayableAreaSubsystem` is only a safety net for late/legacy instances.
-22. **Tactical-map projection is bounded by the current playable-area reference.** Do not auto-fit the `M` map from arbitrary procedural component extents and do not restore historical minimum-size clamps that expand the map beyond the authoritative playable area. A component outside the hard reference must not make the tactical map zoom farther out.
-23. **Runtime actor seeds must respect compact playable bounds.** BASE spawn actors, firing/destruction test lanes, civilian vehicles, combat-vehicle spawn points, pickups, props and other source-authored runtime actors must be created inside the authoritative compact Oster area from the start. Do not keep old edge coordinates and rely on a later relocation/trim pass. Primary/secondary BASE identity must not depend on retired edge-coordinate thresholds.
-24. **Physical retirement beats inert resurrection.** When runtime evidence rejects a legacy `UWorldSubsystem`, visual owner, mutation layer or compatibility path and it no longer carries required data/collision responsibility, delete its `.h/.cpp` and retire the verifier/workflow that required it. Do not merely leave it compiled with `ShouldCreateSubsystem=false` “just in case”; Git history already preserves it.
-25. **No historical verifier may require a runtime-rejected owner.** If a newer runtime result invalidates an older READY marker, asset family, mutation order or owner class, the historical verifier must be forward-ported or removed in the same corrective pass. CI must never force stale code back into production source.
-26. **Mutating-owner exclusivity is stronger than pass chronology.** For one runtime responsibility there may be one mutating owner only. Legacy layers retained for data/collision may not call `SetMaterial`, `SetVisibility`, `SetHiddenInGame`, `Destroy`, `SpawnActor`, `SetActorLocation`, `SetActorTransform`, or equivalent mutation APIs on state owned by the current layer. If they do, consolidate or delete them.
-27. **Legacy owner deletion is a tracked migration, not silent cleanup.** Every legacy owner deletion must be recorded in the current TZ and `OSTER_CONFLICT_WORK_LEDGER.md` with the rejected behavior, the replacement/current owner, and runtime status. Deletion alone is never proof of visual correctness; until local UE runtime confirms the replacement, status remains `CODED_UNTESTED`.
-28. **Assistant-owned Git operations are mandatory whenever tooling permits.** The user must not be sent to perform branch creation, remote commit/push, PR updates, CI inspection, merge preparation, or other repository-side work that the assistant can execute through the connected GitHub tools. Perform those operations directly. Ask the user to touch GitHub Desktop/CMD only for genuinely local-only state that the connected tools cannot access, such as uncommitted files that exist only on the user's PC, switching the checked-out local working tree, or launching UE. In those local-only cases, explain the limitation explicitly and reduce the user's action to the smallest safe UI step. Never offload a multi-command Git procedure merely for convenience.
-29. **Do not merge an unaccepted runtime branch into `main` merely to make local testing easier.** A runtime-recovery PR may be tested from its branch. Preserve uncommitted local work before switching branches; if those files exist only on the user's machine, remote GitHub tools cannot commit or move them and the user should be asked only for the minimal local preservation/switch action. The branch remains unmerged until factual runtime acceptance permits integration.
+6. User test feedback outranks stale source assumptions. Fix the reported regression before expanding scope.
+7. Reports stay lightweight. Write a report only for a meaningful milestone/test pass, not every microscopic edit.
+8. Source/CI success is not UE runtime acceptance. Use `CODED_UNTESTED`/equivalent until factual runtime evidence exists.
+9. If a user repeats an unresolved request, update the existing task rather than creating duplicate work.
+10. Before creating primitive/blockout content, inventory existing imported assets and reuse a suitable real asset when one exists.
+11. External code/content requires known license/provenance. Unknown provenance is **DO NOT IMPORT**.
+12. Assistant-owned Git operations are performed by the assistant whenever connected tooling permits them. Do not offload remote Git/PR/CI work to the user.
+13. Local uncommitted user `Changes` are outside remote mutation scope unless the user explicitly asks and factual local access exists.
 
-### Hard playable-area map reference — 2026-08-24
+## Branch discipline — binding
 
-![User-approved compact central Oster playable area](REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg)
+- For one active TZ, keep exactly **one canonical work branch** plus `main`.
+- For PASS45, the only canonical work branch is `fix/pass45-runtime-rejection-material-closure-20260826` until PR #94 is accepted and merged.
+- Do **not** create separate remote branches for audits, checkpoints, backups, asset intake, individual weapons, individual fixes, verifier changes or temporary experiments.
+- Git history is the rollback mechanism. Do not keep remote `backup/*`, `tmp-*`, duplicate pass/fix branches or similar branch clutter after their unique work has been reconciled.
+- Before retiring an existing branch, verify whether it contains commits or assets not present in the canonical work branch. Transfer only unique required production/provenance work; never merge an old branch wholesale merely to preserve it.
+- A new TZ may use a new branch only when the user creates/requests that branch. The assistant does not create an additional TZ branch on its own.
+- Normal delivery cadence is: `work on canonical branch -> push coherent batch -> run only applicable critical checks -> merge to main as soon as the batch satisfies its factual acceptance gates`.
+- Runtime/visual/audio changes that require UE evidence are not considered accepted merely because GitHub CI is green. Do not move known runtime-rejected work into `main` solely to reduce branch count.
+- After an accepted TZ branch is merged, retire that work branch instead of leaving it as a permanent backup.
+- Third-party/raw source downloads are temporary intake, not final game content. Accepted shipping assets must be imported into the Unreal project under `OsterConflict/Content/...` with required provenance retained; do not create a permanent remote branch just to warehouse source archives.
 
-This image is a boundary/topology reference, not decorative documentation. When an old coordinate, generated road, base, water proxy, residential seed, tactical-map auto-fit or other blockout feature expands the visible/playable map beyond this compact central area, the old blockout loses. Do not “fix” this by zooming the tactical UI out farther.
+## Runtime/content non-regression
+
+- One runtime responsibility has one current mutating owner.
+- Superseded/rejected mutation owners are physically retired when their replacement owns the responsibility; Git history is the rollback.
+- No historical verifier may require a runtime-rejected owner/fallback back into production.
+- Missing production content must fail visibly. BasicShape/default/white fallback cannot impersonate production readiness.
+- Server owns gameplay facts. Presentation/audio/animation may not become a second gameplay timer or authority.
+- Normal local game has no implicit heavy bot fill.
+- Heavy/optional production content must not reintroduce known startup-blocking synchronous constructor/CDO loads.
+
+## Oster world authority
+
+### Playable area
+
+The user-approved compact central Oster area is authoritative:
+
+`REFERENCE_PHOTOS/map_extent/oster_central_playable_area_20260824.jpg`
+
+Do not restore the historical ~2.4 km procedural battlefield, far BASE compounds, peripheral roads/hydrography/residential grids or tactical-map auto-fit that expands beyond this reference.
+
+Primary authoring must respect compact bounds. A late cleanup subsystem is only a safety net, not permission to create out-of-bounds geometry first.
+
+### BASE
+
+Museum BASE means the **actual live player pawn** spawns on the Museum approach. A source-only spawn actor near Museum is not acceptance.
+
+Vehicle enter/exit is not fresh BASE deployment and must never teleport the player to Museum.
+
+### Landmarks
+
+Museum, Culture House, Silpo, Stadium and water-tower responsibilities must have clear placement/visual owners. A late subsystem may not silently overwrite an already visible landmark.
+
+User-confirmed geography and verified photo/map evidence override provisional old coordinates.
+
+Reference photos supplied for 3D/location work are preserved in named `REFERENCE_PHOTOS/<location>/` packs with an index/manifest.
+
+### Tactical map
+
+Tactical-map projection stays bounded by the compact playable reference. Out-of-bounds components must not force the map to zoom farther out.
+
+## PASS45 fast execution rules
+
+### Batch-first local acceptance
+
+The user has explicitly deferred local UE checks until a **large integrated package** is worth testing.
+
+While safe remote work remains, do not stop on one weapon, animation, SoundWave, ADS calibration seam, vehicle or graphics tweak merely because its final acceptance needs UE 5.8.
+
+Prepare as much as safely possible of:
+
+- weapons/mechanics/audio;
+- first-person hands/arms;
+- ADS/presentation;
+- grenade/ordnance presentation;
+- HMMWV/M2/BTR integration;
+- vegetation/environment;
+- world/material/LOD/graphics quality;
+- tactical/performance preparation.
+
+Then request one integrated current-head UE 5.8 session, collect one defect list, batch-fix it, rerun only failed components, and perform one final integrated acceptance.
+
+A pre-batch single-component local run is allowed only if a genuinely local-only fact blocks safe remote work across the remaining approved batch or the user explicitly requests it.
+
+### Critical-only verifier policy
+
+For PASS45:
+
+- prefer one canonical verifier per responsibility;
+- do not create verifier-of-verifier chains without a concrete uncovered high-risk production invariant;
+- do not duplicate path/SHA/schema/namespace/timing checks across several scripts;
+- historical/calibration/local-evidence/documentation diagnostics are manual/on-demand unless they directly protect current production behavior;
+- docs-only changes should not trigger heavy runtime/source workflows by default;
+- broad source/exact-head verification is a batch/milestone/merge check, not a micro-change ritual;
+- if automatic workflows overlap substantially, keep the stronger/current owner automatic and demote or retire the duplicate;
+- stale verifiers are updated/demoted/deleted. Never distort production code to satisfy obsolete tests.
+
+### PASS45 merge truth
+
+Do not merge PR #94 merely to simplify local testing.
+
+Until factual integrated current-head UE 5.8 acceptance passes:
+
+```text
+runtime_acceptance=0
+item16_checked=0
+merge_permitted=0
+```
+
+## User-facing communication
+
+PASS45 continuation summaries lead with plain Ukrainian:
+
+- what was done;
+- what remains;
+- what is next;
+- official percentage.
+
+If no user action is required, state:
+
+`ВІД ТЕБЕ ЗАРАЗ НІЧОГО НЕ ПОТРІБНО.`
+
+If local work becomes a real hard blocker, state prominently:
+
+`ПОТРІБНА ТВОЯ ПЕРЕВІРКА.`
+
+Name `Oster Conflict / PASS45`, give the smallest exact action, and explain what evidence is needed. Do not bury the user action in technical prose.
+
+## Persistent progress-control/reporting protocol
+
+This is a project-wide user requirement, not a one-chat preference.
+
+- The assistant owns progress tracking and must keep the current state consistent across continuations without requiring the user to reconstruct it.
+- After every meaningful work cycle, provide one **short status table** in Ukrainian. Use exactly: `✅` = fully done for the stated scope, `🟡` = in progress / coded but still awaiting required integration or UE runtime acceptance, `❌` = not done or factually blocked.
+- A row may be marked `✅ 100%` only when every acceptance gate required by that row has actually passed. Source code alone does not make runtime/visual/audio work 100%.
+- Never inflate progress to make the report look better. If a prior estimate was wrong, correct it explicitly from current evidence.
+- Keep two concepts separate when needed: **formal TZ progress** and **asset/runtime integration progress**. Do not mix their percentages.
+- The assistant must compare the new report against the previous factual state, detect regressions or stalled items itself, and continue the first safe unfinished item without waiting for the user to remind it.
+- The report must show only: block/status, concise state or percentage, what remains when relevant. No long technical memoirs.
+- User action is requested only for a real local-only blocker. Otherwise continue autonomously.
+
+## Canonical asset inventory
+
+`ASSET_STATUS.md` in the repository root is the binding inventory for imported/downloaded game content.
+
+- Every newly observed user import, Fab/Marketplace pack, local donor root, vehicle, weapon, grenade, character, animation, building, prop, vegetation pack, UI pack, VFX or audio source must be added to `ASSET_STATUS.md` immediately when observed.
+- A listed import root covers all of its files recursively. Do not flood the ledger with one row per texture/material unless a specific sub-asset needs its own runtime identity.
+- Never remove an asset from the inventory silently. Superseded assets are marked for retirement, then physically removed when the replacement is factual; Git history is rollback.
+- Before claiming an asset batch complete, reconcile `ASSET_STATUS.md` against the canonical Git tree, ignored local-import roots in `.gitignore`, user-observed Content Browser/git-status evidence and the latest explicit import/download report.
+- GitHub cannot see ignored local payload on the user's PC. Such content remains explicitly tracked as `LOCAL/REPORT` until exact local identity is factually available; absence from Git is never treated as proof that the user did not import it.
 
 ## Current priority
-R13 location repair, visual/gameplay stabilization, and replacement of placeholders with existing real assets. Highest-priority tracked work is maintained in `OSTER_CONFLICT_WORK_LEDGER.md`, currently centered on:
-- forcing the **actual live player pawn** to the Museum BASE and proving the runtime distance;
-- shrinking gameplay/tactical-map bounds to the user-approved compact central Oster reference above;
-- stopping the `120 FPS → ~4 FPS` startup collapse before adding more scenery;
-- separating and correctly placing Museum / Silpo / Culture House / water tower;
-- museum stadium-left + rear-slope + lower-residential topology;
-- photo-driven location fidelity;
-- eliminating late runtime rebuild/flicker;
-- using existing imported houses/fences/lights/weapons/vehicles instead of visible primitive placeholders;
-- refusing to call grey BasicShape weapon fallback or missing HMMWV/M2/BTR sources production-ready;
-- validating the complete spawn-relative weapon test rack.
 
-For the current Stadion Oster integration in `main`, the dedicated priority is the hard-georeferenced site defined by `STADION_OSTER_TZ.md`, `STADION_OSTER_IMPLEMENTATION_STATUS.md`, and `REFERENCE_PHOTOS/stadion_oster/`.
+For active PASS45 work, execute the compact `PASS45_RUNTIME_RECOVERY_TZ.md` queue and latest checkpoint instead of expanding architecture surveys.
 
-The detailed Stadion Oster acceptance requirements live in its dedicated TZ.
+For dedicated location work, use that location's TZ/status/reference pack. For Stadion Oster, use `STADION_OSTER_TZ.md`, `STADION_OSTER_IMPLEMENTATION_STATUS.md`, and `REFERENCE_PHOTOS/stadion_oster/`.

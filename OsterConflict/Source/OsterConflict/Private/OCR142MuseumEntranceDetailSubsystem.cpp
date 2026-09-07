@@ -12,6 +12,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -138,10 +139,17 @@ void UOCR142MuseumEntranceDetailSubsystem::BuildEntranceDetail(UWorld& World) co
         if (AActor* Actor = *It; Actor && Actor->ActorHasTag(TEXT("R142_MuseumEntranceDetail"))) return;
     }
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!Cube || !Basic) return;
+    UStaticMesh* Cube = Cast<UStaticMesh>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")).ResolveObject());
+    UMaterialInterface* Basic = Cast<UMaterialInterface>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")).ResolveObject());
+    if (!Cube || !Basic)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_MUSEUM_R142_PRELOAD_GAP cube=%d material=%d sync_load=0"),
+            Cube ? 1 : 0, Basic ? 1 : 0);
+        return;
+    }
 
     AActor* DetailActor = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
     if (!DetailActor) return;
@@ -217,5 +225,5 @@ void UOCR142MuseumEntranceDetailSubsystem::BuildEntranceDetail(UWorld& World) co
     AddBox(Hatch, Museum + FVector(-278.0f, -545.0f, 42.0f), FVector(14.0f, 88.0f, 68.0f));
 
     UE_LOG(LogTemp, Display,
-        TEXT("R14.2 museum entrance: brick/grey vestibule base, curtains, info board, carved fascia, dormer trim and ornamental porch rails built from REF-06/15/17/18."));
+        TEXT("R14.2 museum entrance: brick/grey vestibule base, curtains, info board, carved fascia, dormer trim and ornamental porch rails built from REF-06/15/17/18. sync_load=0 prerequisite_resident=1"));
 }

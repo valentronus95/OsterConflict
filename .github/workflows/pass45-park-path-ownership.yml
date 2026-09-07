@@ -1,0 +1,25 @@
+name: Pass45 park path ownership
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+  pull_request:
+    paths:
+      - "OsterConflict/Source/OsterConflict/Public/OCWorldSectorOster.h"
+      - "OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp"
+      - "OsterConflict/Source/OsterConflict/Private/OCAuthoredWorldSurfaceUpgradeSubsystem.cpp"
+      - "OsterConflict/Source/OsterConflict/Private/OCTacticalMapVisual.cpp"
+      - "VERIFY_PASS45_PARK_PATH_OWNERSHIP.py"
+      - ".github/workflows/pass45-park-path-ownership.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify canonical ParkPaths ownership
+        run: python VERIFY_PASS45_PARK_PATH_OWNERSHIP.py

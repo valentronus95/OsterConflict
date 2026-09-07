@@ -37,7 +37,9 @@ private:
     float WorstFrameSeconds = 0.0f;
     int32 SampleFrames = 0;
     bool bProbeComplete = false;
+    bool bRecoveryRuntimeContractLogged = false;
     bool bFinished = false;
 
+    void ValidatePass45RecoveryRuntimeContract() ;
     void ReportLowFpsProbe(float ProbeFps) const;
 };

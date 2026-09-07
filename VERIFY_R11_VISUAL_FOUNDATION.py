@@ -21,6 +21,9 @@ world_h = read(SRC/'Public/OCWorldSectorOster.h')
 world = read(SRC/'Private/OCWorldSectorOster.cpp')
 weapon_h = read(SRC/'Public/OCWeaponBase.h')
 weapon = read(SRC/'Private/OCWeaponBase.cpp')
+weapon_variants = read(SRC/'Private/OCWeaponVariants.cpp')
+weapon_fallback = read(SRC/'Private/OCRealWeaponFallbackSubsystem.cpp')
+launcher = read(SRC/'Private/OCAntiArmorLauncher.cpp')
 fx_h = read(SRC/'Public/OCTransientVisualFX.h')
 fx = read(SRC/'Private/OCTransientVisualFX.cpp')
 char = read(SRC/'Private/OCCharacterVisualComponent.cpp')
@@ -29,6 +32,8 @@ validation = read(ROOT/'PC_TEST/RUN_UE58_PC_VALIDATION.ps1')
 preflight = read(P/'Scripts/S18C/WINDOWS_TOOLCHAIN_PREFLIGHT.ps1')
 prelaunch = read(ROOT/'PC_TEST/PRELAUNCH_CHECK.ps1')
 start = read(ROOT/'START_HERE.cmd')
+strict_main = read(ROOT/'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd')
+playflow = read(ROOT/'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd')
 quick = read(ROOT/'RUN_R11_LISTEN_TEST.cmd')
 
 req('UDirectionalLightComponent' in env_h and 'USkyAtmosphereComponent' in env_h, 'runtime daylight rig declared')
@@ -47,13 +52,29 @@ req('SpawnActor<AOCVisualEnvironment>' in gm, 'GameMode spawns visual environmen
 req(gm.find('SpawnActor<AOCVisualEnvironment>') < gm.find('SpawnActor<AOCWorldSectorOster>'), 'lighting spawns before source world')
 
 req('virtual void BeginPlay() override;' in world_h, 'world has runtime material pass')
-for token in ['Tint(Ground','Tint(Roads','Tint(Buildings','Tint(ResidentialRoofs','Tint(TreeCrowns','Tint(Waterways','Tint(StadiumGeometry']:
+for token in ['Tint(Ground','Tint(Roads','Tint(Buildings','Tint(ResidentialRoofs','Tint(Waterways','Tint(StadiumGeometry']:
     req(token in world, f'world palette marker {token}')
+req(all(token in world for token in ['AuthoredDeciduousTrees','AuthoredPine01Trees','AuthoredPine03Trees']),
+    'PASS45 authored vegetation family is present')
+req('Tint(AuthoredDeciduousTrees' not in world and 'Tint(AuthoredPine01Trees' not in world and 'Tint(AuthoredPine03Trees' not in world,
+    'PASS45 authored tree materials are not overwritten by BasicShape palette tint')
 req('ReferenceMarkers->SetVisibility(false, true)' in world, 'authoring reference markers hidden in gameplay')
 req('Label->SetVisibility(false, true)' in world, 'authoring labels hidden in gameplay')
 
-req('TObjectPtr<USceneComponent> WeaponRoot' in weapon_h, 'weapon has unscaled scene root for composite visuals')
-req('BuildSourceOnlyWeaponVisual();' in weapon and 'RifleBarrel' in weapon and 'SniperScope' in weapon and 'PistolGrip' in weapon, 'recognizable composite weapon silhouettes implemented')
+req('TObjectPtr<USceneComponent> WeaponRoot' in weapon_h, 'weapon has unscaled scene root for real production/fallback visuals')
+# Historical R11 accepted source composite Cube/Cylinder silhouettes. Pass45 runtime evidence rejected those visuals.
+# The builder may remain temporarily as invisible physics/debug history, but concrete weapons must fail closed visually.
+req('BuildSourceOnlyWeaponVisual();' in weapon and '/Engine/BasicShapes/Cube.Cube' in weapon,
+    'hidden source collision/prototype history remains explicit during migration')
+req('HideStaticWeaponFallback(Owner);' in weapon_variants and
+    'PASS45_WEAPON_PRODUCTION_VISUAL_GAP' in weapon_variants and 'primitive_visible=0' in weapon_variants,
+    'concrete weapon variants hide source primitives before production-load failure can render them')
+req('PASS45_PRIMITIVE_WEAPON_RUNTIME_READY' in weapon_fallback and
+    'PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL' in weapon_fallback and
+    'Weapon.GetWeaponVisualRoot()' in weapon_fallback,
+    'runtime fallback path enforces zero visible BasicShape weapons and uses the unscaled visual root')
+req('PASS45_LAUNCHER_PRODUCTION_VISUAL_FAIL' in launcher and 'primitive_visible=0 runtime_acceptance=0' in launcher,
+    'anti-armor launcher fails closed instead of rendering its primitive source body')
 req('AOCTransientVisualFX' in weapon and 'ConfigureMuzzle' in weapon and 'ConfigureTracer' in weapon and 'ConfigureImpact' in weapon, 'combat FX use transient scene visuals')
 req('DrawDebugLine(GetWorld(), TraceStart' not in weapon and 'DrawDebugPoint(GetWorld(), ImpactLocation' not in weapon, 'weapon fire/impact debug primitives removed')
 req('SetLifeSpan' in fx and 'UPointLightComponent' in fx_h and 'BasicShapeMaterial' in fx, 'transient FX self-clean and use lit material geometry')
@@ -66,18 +87,26 @@ req('[string[]]$ArgumentList' in validation and '& $Exe @ArgumentList' in valida
 req("Launcher/installed UE 5.8 detected; source-only RunUBT.bat is not required." in prelaunch and "Engine\\Build\\BatchFiles\\Build.bat" in prelaunch, 'prelaunch accepts Launcher UE and requires Build.bat instead of RunUBT.bat')
 req("$InstalledBuild = Test-Path" in validation and "Compile Dedicated Server' 'SKIP'" in validation, 'Launcher UE path is explicitly supported')
 req("$BuildBat=Join-Path" in preflight and 'RunUBT.bat' not in preflight, 'toolchain preflight uses Build.bat on installed UE')
-# Current single-launcher contract: normal play is R14 current gameplay, while option 2 is the
-# Pass 14/29 playflow+performance wrapper. Focused Pass 15 and landmark Pass 21 stay internal.
-req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in start and
+
+# Pass45 current single-launcher contract: normal/compatibility launch CURRENT_GAMEPLAY directly; full runtime
+# acceptance enters the strict main wrapper, which delegates to playflow and then runs material/evidence gates.
+req('RUN_R14_CURRENT_GAMEPLAY.cmd' in start and 'RUN_R14_MAIN_RUNTIME_ACCEPTANCE.cmd' in start and
     'ЗВИЧАЙНА ГРА' in start and 'ПОВНИЙ RUNTIME-ТЕСТ' in start and '-d3d11' in start and
+    'RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' not in start and
     'RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd' not in start and
     'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd' not in start and
     'RUN_R14_MAIN_SANDBOX_TEST.cmd' not in start,
-    'START_HERE exposes canonical normal/full-test routes on the safe D3D11 renderer')
+    'START_HERE exposes canonical normal/strict-full-test routes on the safe D3D11 renderer')
+req('RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd' in strict_main and 'call "%PLAYFLOW%"' in strict_main and
+    'RUN_PASS45_STRICT_MATERIAL_GATE.cmd' in strict_main and 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py' in strict_main,
+    'strict full-test wrapper delegates through playflow and retains post-run Pass45 gates')
+req('RUN_R14_CURRENT_GAMEPLAY.cmd' in playflow,
+    'playflow wrapper retains the one actual gameplay launcher')
+
 req('-NoFrontend' in quick and '?listen?Mode=Conquest' in quick and '-game' in quick, 'quick launch enters visible listen-server gameplay directly')
 req('CREATE_RELEASE_MAP.py' in quick and 'OsterConflict_Runtime.umap' in quick and 'UnrealEditor-Cmd.exe' in quick, 'fresh R11 quick launch bootstraps generated runtime map')
 
 for bad in ['Binaries','Intermediate','Saved','DerivedDataCache']:
     req(not (P/bad).exists(), f'archive excludes generated {bad}')
 
-print(f'R11 VISUAL FOUNDATION verifier: PASS ({len(checks)} checks)')
+print(f'R11 VISUAL FOUNDATION / PASS45 launcher+primitive-retirement verifier: PASS ({len(checks)} checks)')

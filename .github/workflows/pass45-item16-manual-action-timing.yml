@@ -1,0 +1,36 @@
+name: Pass 45 item16 manual-action timing semantics
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponVariants.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAnimationProfiles.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCFirstPersonWeaponPresentationSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWeaponAudioComponent.cpp'
+      - 'PASS45_M700_DERIVED_BOLT_TRANSLATION_SOURCE.py'
+      - 'PASS45_REMINGTON870_DERIVED_PUMP_SOURCE.py'
+      - 'PASS45_LEVERACTION_DERIVED_LEVER_SOURCE.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'VERIFY_PASS45_MANUAL_ACTION_RUNTIME.py'
+      - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_TIMING_SEMANTICS.py'
+      - 'VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py'
+      - '.github/workflows/pass45-item16-manual-action-timing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile item16 timing and audio-dispatch verifiers
+        run: python -m py_compile VERIFY_PASS45_ITEM16_MANUAL_ACTION_TIMING_SEMANTICS.py VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py
+      - name: Verify manual-action timing ownership and source boundaries
+        run: python VERIFY_PASS45_ITEM16_MANUAL_ACTION_TIMING_SEMANTICS.py
+      - name: Verify manual-action loaded-audio dispatch contract
+        run: python VERIFY_PASS45_ITEM16_MANUAL_ACTION_AUDIO_DISPATCH_CONTRACT.py

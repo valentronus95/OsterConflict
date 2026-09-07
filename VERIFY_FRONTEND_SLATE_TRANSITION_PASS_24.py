@@ -15,11 +15,12 @@ def forbid(text: str, token: str, label: str):
         errors.append(f'forbidden {label}: {token}')
 
 for token, label in [
-    ('int32 PendingPage = INDEX_NONE', 'fail-closed page state'),
-    ('int32 LastAppliedPage = INDEX_NONE', 'legacy page application cache'),
+    ('int32 PendingPage = INDEX_NONE', 'deferred page state'),
+    ('int32 LastAppliedPage = INDEX_NONE', 'page application cache'),
+    ('uint64 PendingActionEarliestFrame = 0', 'next-frame action fence'),
     ('bool bPendingHostedStart = false', 'deferred host state'),
     ('bool bPendingNetworkConnect = false', 'deferred connect state'),
-    ('void StartNetworkGameplay();', 'deferred network helper'),
+    ('IsTickableWhenPaused() const override { return true; }', 'paused-menu tick contract'),
 ]:
     need(hdr, token, label)
 
@@ -29,54 +30,30 @@ for token, label in [
     ('Network->OnClicked.AddDynamic', 'network OnClicked binding'),
     ('Settings->OnClicked.AddDynamic', 'settings OnClicked binding'),
     ('Quit->OnClicked.AddDynamic', 'quit OnClicked binding'),
-    ('PASS24_HOST_START_DEFERRED_EXECUTE', 'deferred host execute marker'),
-    ('PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE', 'deferred connect execute marker'),
-    ('if (!MenuBox.IsValid() || LastAppliedPage == Page) return;', 'legacy page dedupe guard'),
-    ('LastAppliedPage = Page;', 'legacy page applied state'),
-    ('FLinearColor(0.025f, 0.030f, 0.036f, 0.96f)', 'opaque server/network panel style retained'),
-    ('FieldStyle.BackgroundColor = FSlateColor(FLinearColor(0.045f, 0.052f, 0.061f, 1.0f))', 'dark field background retained'),
-    ('PASS14_HOST_TRAVEL_BEGIN', 'host travel compatibility marker'),
+    ('PendingActionEarliestFrame = GFrameCounter + 1', 'next-frame fence arm'),
+    ('PendingPage = 1;', 'host setup page queue'),
+    ('PendingPage = 2;', 'network setup page queue'),
+    ('PendingPage = 0;', 'back-to-main page queue'),
+    ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1', 'host page queued marker'),
+    ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2', 'network page queued marker'),
+    ('PASS24_FRONTEND_PAGE_TRANSITION_BEGIN', 'deferred transition begin marker'),
+    ('PASS24_FRONTEND_PAGE_TRANSITION_READY', 'deferred transition ready marker'),
+    ('PASS45_FRONTEND_PAGE_APPLIED', 'stable tree/backdrop marker'),
+    ('PASS24_HOST_START_DEFERRED_QUEUED', 'deferred host queue'),
+    ('PASS24_HOST_START_DEFERRED_EXECUTE', 'deferred host execute'),
+    ('PASS24_NETWORK_CONNECT_DEFERRED_QUEUED', 'deferred connect queue'),
+    ('PASS24_NETWORK_CONNECT_DEFERRED_EXECUTE', 'deferred connect execute'),
+    ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'server setup compatibility marker'),
+    ('SetPresentationVisibility(true, true, false);', 'secondary menu backdrop ownership'),
+    ('Root->WidgetTree', 'stable WidgetTree ownership'),
 ]:
     need(cpp, token, label)
 
-pass29_static = 'PASS29_MAIN_START_DIRECT_HOST_QUEUED' in cpp
-
-if pass29_static:
-    # Pass 24's deferred concept remains valid, but its Page 0 -> Page 1 live Slate mutation was
-    # disproven by repeated runtime crashes. Pass 29 is the stronger contract: defer the action,
-    # keep the startup hierarchy static, then enter host/network directly on the later frame.
-    for token, label in [
-        ('PASS29_MAIN_START_DIRECT_HOST_QUEUED', 'static START queue marker'),
-        ('PASS29_NETWORK_DIRECT_CONNECT_QUEUED', 'static NETWORK queue marker'),
-        ('PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'fail-closed page transition guard'),
-        ('PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE', 'static host travel marker'),
-    ]:
-        need(cpp, token, label)
-    for token, label in [
-        ('PendingPage = 1;', 'main START page mutation'),
-        ('PendingPage = 2;', 'network page mutation'),
-        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=1', 'obsolete main page transition marker'),
-        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED page=2', 'obsolete network page transition marker'),
-        ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'obsolete server-setup page marker'),
-    ]:
-        forbid(cpp, token, label)
-else:
-    for token, label in [
-        ('PASS24_FRONTEND_PAGE_TRANSITION_QUEUED', 'queued page marker'),
-        ('PASS24_FRONTEND_PAGE_TRANSITION_BEGIN', 'transition begin marker'),
-        ('PASS24_FRONTEND_PAGE_TRANSITION_READY', 'transition ready marker'),
-        ('PASS24_HOST_START_DEFERRED_QUEUED', 'deferred host queued marker'),
-        ('PASS24_NETWORK_CONNECT_DEFERRED_QUEUED', 'deferred connect queued marker'),
-        ('PASS14_MAIN_START_OPENS_SERVER_SETUP', 'Pass 14 compatibility marker'),
-    ]:
-        need(cpp, token, label)
-
 for token, label in [
     ('->OnPressed.AddDynamic', 'input mutation from OnPressed'),
-    ('Mode.SetWidgetToFocus(PrimaryButton->TakeWidget())', 'per-tick TakeWidget focus'),
     ('Page = 1;\n        ApplyPage();', 'immediate page mutation in click callback'),
-    ('FLinearColor(0.0f, 0.0f, 0.0f, 0.36f)', 'old translucent setup panel'),
-    ('Field->SetMinimumDesiredWidth(', 'unsupported UEditableTextBox width API'),
+    ('PASS29_UNSAFE_FRONTEND_PAGE_TRANSITION_BLOCKED', 'obsolete transition blocker'),
+    ('PASS29_SECONDARY_IGNORED_STATIC_FRONTEND', 'obsolete inert BACK button'),
 ]:
     forbid(cpp, token, label)
 
@@ -87,11 +64,7 @@ if errors:
     raise SystemExit(1)
 
 print('FRONTEND SLATE TRANSITION PASS 24: SUCCESS')
-if pass29_static:
-    print('- Pass 24 deferred action boundary is retained, but crash-prone live page transitions are retired by Pass 29')
-    print('- START/NETWORK queue direct later-frame actions against a structurally static startup menu')
-else:
-    print('- frontend navigation is deferred out of Slate input callbacks')
-print('- server host/network travel remains deferred to world Tick')
-print('- TakeWidget focus churn remains removed and field styling contracts remain intact')
-print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 click-through runtime confirmation is still required')
+print('- START, NETWORK and BACK are deferred beyond the Slate click frame')
+print('- secondary pages reuse the already-built WidgetTree and retain the authored background')
+print('- host/network travel remains deferred and menu Tick continues while the world is paused')
+print('STATUS: SOURCE CONTRACT ONLY; local UE 5.8 click-through remains authoritative')

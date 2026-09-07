@@ -55,6 +55,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon Mechanics")
     TArray<TObjectPtr<USoundBase>> FireModeSwitch;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon Mechanics|Manual Action")
+    TArray<TObjectPtr<USoundBase>> BoltCycle;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon Mechanics|Manual Action")
+    TArray<TObjectPtr<USoundBase>> PumpCycle;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon Mechanics|Manual Action")
+    TArray<TObjectPtr<USoundBase>> LeverCycle;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon Mechanics")
     TArray<TObjectPtr<USoundBase>> Equip;
 

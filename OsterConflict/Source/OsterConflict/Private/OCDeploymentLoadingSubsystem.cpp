@@ -1,6 +1,16 @@
 #include "OCDeploymentLoadingSubsystem.h"
 
+#include "OCAuthoredWorldSurfaceUpgradeSubsystem.h"
+#include "OCBlock0GroundFoundationSubsystem.h"
+#include "OCDenseGroundFoliageSubsystem.h"
+#include "OCLandmarkStartupCoordinatorSubsystem.h"
+#include "OCParkGroundAuthoredUpgradeSubsystem.h"
+#include "OCParkHardscapeAuthoredUpgradeSubsystem.h"
+#include "OCParkMemorialApproachAuthoredUpgradeSubsystem.h"
+#include "OCParkSemanticAuthoredUpgradeSubsystem.h"
+#include "OCPass45ImportedGrenadeVisualSubsystem.h"
 #include "OCPlayerController.h"
+#include "OCProductionCharacterAssetsSubsystem.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -21,8 +31,6 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     WidgetTree->RootWidget = Canvas;
 
     UBorder* Scrim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DeploymentLoadingScrim"));
-    // The transition is intentionally fully blocking. A translucent scrim exposed the deployment panel changing
-    // underneath it and made the START -> spawn transition look like another broken intermediate screen.
     Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));
     UCanvasPanelSlot* ScrimSlot = Canvas->AddChildToCanvas(Scrim);
     ScrimSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
@@ -35,7 +43,7 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     CardSlot->SetAnchors(FAnchors(0.5f, 0.5f));
     CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
     CardSlot->SetPosition(FVector2D::ZeroVector);
-    CardSlot->SetSize(FVector2D(560.0f, 170.0f));
+    CardSlot->SetSize(FVector2D(560.0f, 205.0f));
 
     UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("DeploymentLoadingStack"));
     Card->SetContent(Stack);
@@ -46,7 +54,15 @@ void UOCDeploymentLoadingWidget::NativeConstruct()
     FSlateFontInfo TitleFont = Title->GetFont();
     TitleFont.Size = 22;
     Title->SetFont(TitleFont);
-    Stack->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
+    Stack->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+    StatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeploymentLoadingStatus"));
+    StatusText->SetText(FText::FromString(TEXT("ПІДГОТОВКА КАРТИ")));
+    StatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.75f, 0.78f, 1.0f)));
+    FSlateFontInfo StatusFont = StatusText->GetFont();
+    StatusFont.Size = 14;
+    StatusText->SetFont(StatusFont);
+    Stack->AddChildToVerticalBox(StatusText)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
 
     ProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("DeploymentLoadingProgress"));
     ProgressBar->SetPercent(0.0f);
@@ -73,6 +89,11 @@ void UOCDeploymentLoadingWidget::SetLoadingProgress(float NormalizedProgress)
     {
         PercentText->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Clamped * 100.0f))));
     }
+}
+
+void UOCDeploymentLoadingWidget::SetLoadingStatus(const FText& Status)
+{
+    if (StatusText) StatusText->SetText(Status);
 }
 
 bool UOCDeploymentLoadingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -102,12 +123,17 @@ void UOCDeploymentLoadingSubsystem::BeginDeployment(AOCPlayerController* Control
     {
         Widget->AddToViewport(5000);
         Widget->SetLoadingProgress(0.0f);
+        Widget->SetLoadingStatus(FText::FromString(TEXT("ПІДГОТОВКА КАРТИ")));
         LoadingWidget = Widget;
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_DEPLOYMENT_LOADING_BEGIN wait_for_ground=1 wait_for_landmarks=1 wait_for_surfaces=1 wait_for_foliage=1 wait_for_park_semantic=1 wait_for_park_ground=1 wait_for_park_hardscape=1 wait_for_park_memorial=1 wait_for_characters=1 wait_for_grenades=1 spawn_before_ready=0"));
 }
 
 void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
 {
+    (void)DeltaTime;
     if (!bActive) return;
 
     AOCPlayerController* Controller = PendingController.Get();
@@ -117,43 +143,131 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
         return;
     }
 
+    UWorld* World = GetWorld();
+    const UOCBlock0GroundFoundationSubsystem* Ground =
+        World ? World->GetSubsystem<UOCBlock0GroundFoundationSubsystem>() : nullptr;
+    const UOCLandmarkStartupCoordinatorSubsystem* Landmarks =
+        World ? World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>() : nullptr;
+    const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surfaces =
+        World ? World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>() : nullptr;
+    const UOCDenseGroundFoliageSubsystem* Foliage =
+        World ? World->GetSubsystem<UOCDenseGroundFoliageSubsystem>() : nullptr;
+    const UOCParkSemanticAuthoredUpgradeSubsystem* ParkSemantic =
+        World ? World->GetSubsystem<UOCParkSemanticAuthoredUpgradeSubsystem>() : nullptr;
+    const UOCParkGroundAuthoredUpgradeSubsystem* ParkGround =
+        World ? World->GetSubsystem<UOCParkGroundAuthoredUpgradeSubsystem>() : nullptr;
+    const UOCParkHardscapeAuthoredUpgradeSubsystem* ParkHardscape =
+        World ? World->GetSubsystem<UOCParkHardscapeAuthoredUpgradeSubsystem>() : nullptr;
+    const UOCParkMemorialApproachAuthoredUpgradeSubsystem* ParkMemorial =
+        World ? World->GetSubsystem<UOCParkMemorialApproachAuthoredUpgradeSubsystem>() : nullptr;
+    const UOCProductionCharacterAssetsSubsystem* Characters =
+        World ? World->GetSubsystem<UOCProductionCharacterAssetsSubsystem>() : nullptr;
+    const UOCPass45ImportedGrenadeVisualSubsystem* Grenades =
+        World ? World->GetSubsystem<UOCPass45ImportedGrenadeVisualSubsystem>() : nullptr;
+
+    const bool bGroundReady = Ground != nullptr && Ground->IsGroundReady();
+    const bool bLandmarksReady = Landmarks != nullptr && Landmarks->IsWorldStartupReady();
+    const bool bSurfacesReady = Surfaces != nullptr && Surfaces->IsWorldSurfaceReady();
+    const bool bFoliageReady = Foliage == nullptr || Foliage->IsWorldFoliageReady();
+    const bool bParkSemanticReady = ParkSemantic != nullptr && ParkSemantic->IsParkSemanticReady();
+    const bool bParkGroundReady = ParkGround != nullptr && ParkGround->IsParkGroundReady();
+    const bool bParkHardscapeReady = ParkHardscape != nullptr && ParkHardscape->IsParkHardscapeReady();
+    const bool bParkMemorialReady = ParkMemorial != nullptr && ParkMemorial->IsParkMemorialApproachReady();
+    const bool bCharactersReady = Characters == nullptr || Characters->IsCharacterAssetsReady();
+    const bool bGrenadesReady = Grenades == nullptr || Grenades->IsGrenadePresentationReady();
+    const bool bWorldReady = bGroundReady && bLandmarksReady && bSurfacesReady && bFoliageReady &&
+        bParkSemanticReady && bParkGroundReady && bParkHardscapeReady && bParkMemorialReady &&
+        bCharactersReady && bGrenadesReady;
+
+    const float GroundProgress = Ground ? Ground->GetGroundProgress() : 0.0f;
+    const float LandmarksProgress = Landmarks ? Landmarks->GetStartupProgress() : 0.0f;
+    const float SurfacesProgress = Surfaces ? Surfaces->GetWorldSurfaceProgress() : 0.0f;
+    const float FoliageProgress = Foliage ? Foliage->GetWorldFoliageProgress() : 1.0f;
+    const float ParkSemanticProgress = ParkSemantic ? ParkSemantic->GetParkSemanticProgress() : 0.0f;
+    const float ParkGroundProgress = ParkGround ? ParkGround->GetParkGroundProgress() : 0.0f;
+    const float ParkHardscapeProgress = ParkHardscape ? ParkHardscape->GetParkHardscapeProgress() : 0.0f;
+    const float ParkMemorialProgress = ParkMemorial ? ParkMemorial->GetParkMemorialApproachProgress() : 0.0f;
+    const float CharacterProgress = Characters ? Characters->GetCharacterAssetsProgress() : 1.0f;
+    const float GrenadeProgress = Grenades ? Grenades->GetGrenadePresentationProgress() : 1.0f;
+    const float WorldProgress = FMath::Clamp(
+        GroundProgress * 0.10f + LandmarksProgress * 0.28f + SurfacesProgress * 0.14f +
+        FoliageProgress * 0.16f + ParkSemanticProgress * 0.06f + ParkGroundProgress * 0.06f +
+        ParkHardscapeProgress * 0.05f + ParkMemorialProgress * 0.05f + CharacterProgress * 0.05f +
+        GrenadeProgress * 0.05f,
+        0.0f, 1.0f);
+
     const double Now = FPlatformTime::Seconds();
     const double Elapsed = FMath::Max(0.0, Now - StartTimeSeconds);
 
-    // Keep the 0% loading frame visible before the authoritative restart request. The opaque transition layer
-    // prevents the underlying deployment panel from visibly shifting while the server changes possession state.
-    if (!bReadySent && Elapsed >= 0.12)
+    if (!bReadySent && bWorldReady && Elapsed >= 0.12)
     {
         bReadySent = true;
         Controller->UIReadyDeploy();
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_DEPLOYMENT_WORLD_READY ground=1 landmarks=1 surfaces=1 foliage=1 park_semantic=1 park_ground=1 park_hardscape=1 park_memorial=1 characters=1 grenades=1 ready_request_sent=1 elapsed=%.2f"),
+            Elapsed);
     }
 
     float Progress = bReadySent
-        ? FMath::Min(0.92f, 0.14f + static_cast<float>(Elapsed) * 0.22f)
-        : FMath::Min(0.12f, static_cast<float>(Elapsed) * 0.95f);
+        ? FMath::Min(0.94f, 0.90f + static_cast<float>(Elapsed) * 0.01f)
+        : FMath::Clamp(WorldProgress * 0.90f, 0.0f, 0.90f);
+
+    if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get())
+    {
+        Widget->SetLoadingProgress(Progress);
+        Widget->SetLoadingStatus(FText::FromString(bReadySent ? TEXT("ПОЯВА НА КАРТІ") : TEXT("ПІДГОТОВКА КАРТИ")));
+    }
 
     const bool bPossessedAndReleased = bReadySent && Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible();
     if (bPossessedAndReleased)
     {
         if (CompletionStartSeconds < 0.0) CompletionStartSeconds = Now;
         const float CompletionAlpha = FMath::Clamp(static_cast<float>((Now - CompletionStartSeconds) / 0.25), 0.0f, 1.0f);
-        Progress = FMath::Lerp(0.92f, 1.0f, CompletionAlpha);
+        Progress = FMath::Lerp(0.94f, 1.0f, CompletionAlpha);
+        if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get())
+        {
+            Widget->SetLoadingProgress(Progress);
+            Widget->SetLoadingStatus(FText::FromString(TEXT("ГОТОВО")));
+        }
         if (CompletionAlpha >= 1.0f)
         {
-            if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get()) Widget->SetLoadingProgress(1.0f);
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_DEPLOYMENT_COMPLETE ground_ready_before_spawn=1 park_semantic_ready_before_spawn=1 park_ground_ready_before_spawn=1 park_hardscape_ready_before_spawn=1 park_memorial_ready_before_spawn=1 world_ready_before_spawn=1 character_packages_ready_before_spawn=1 grenade_assets_ready_before_spawn=1 post_spawn_world_builds=0 elapsed=%.2f"),
+                Elapsed);
             FinishDeploymentTransition();
             return;
         }
     }
 
-    // Never trap input behind a dead overlay if the server refuses or fails to possess the player.
-    if (Elapsed >= 12.0)
+    if (!bReadySent && Elapsed >= 45.0)
     {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_DEPLOYMENT_TIMEOUT ground=%d landmarks=%d surfaces=%d foliage=%d park_semantic=%d park_ground=%d park_hardscape=%d park_memorial=%d characters=%d grenades=%d progress=%.3f elapsed=%.2f"),
+            bGroundReady ? 1 : 0,
+            bLandmarksReady ? 1 : 0,
+            bSurfacesReady ? 1 : 0,
+            bFoliageReady ? 1 : 0,
+            bParkSemanticReady ? 1 : 0,
+            bParkGroundReady ? 1 : 0,
+            bParkHardscapeReady ? 1 : 0,
+            bParkMemorialReady ? 1 : 0,
+            bCharactersReady ? 1 : 0,
+            bGrenadesReady ? 1 : 0,
+            WorldProgress,
+            Elapsed);
         FinishDeploymentTransition();
         return;
     }
 
-    if (UOCDeploymentLoadingWidget* Widget = LoadingWidget.Get()) Widget->SetLoadingProgress(Progress);
+    if (bReadySent && Elapsed >= 60.0)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_POSSESSION_TIMEOUT pawn=%d deployment_visible=%d elapsed=%.2f"),
+            Controller->GetPawn() != nullptr ? 1 : 0,
+            Controller->IsDeploymentPanelVisible() ? 1 : 0,
+            Elapsed);
+        FinishDeploymentTransition();
+    }
 }
 
 void UOCDeploymentLoadingSubsystem::FinishDeploymentTransition()

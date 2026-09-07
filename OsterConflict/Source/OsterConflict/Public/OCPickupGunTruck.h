@@ -5,6 +5,7 @@
 #include "OCPickupGunTruck.generated.h"
 
 class UStaticMeshComponent;
+struct FStreamableHandle;
 
 /** Light two-player gun truck. Driver cannot fire; the second player occupies the mounted MG. */
 UCLASS()
@@ -25,6 +26,12 @@ protected:
     virtual bool ShouldUseHMMWVProductionVisual() const { return false; }
 
 private:
+    void HandlePresentationAssetsLoaded();
+
+    TSharedPtr<FStreamableHandle> PresentationLoadHandle;
+    bool bPresentationLoadRequested = false;
+    bool bPresentationLoadFailed = false;
+
     UPROPERTY() TObjectPtr<UStaticMeshComponent> CabRoof;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> BedFloor;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> BedLeft;

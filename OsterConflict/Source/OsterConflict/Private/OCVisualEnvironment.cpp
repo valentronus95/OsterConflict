@@ -20,7 +20,11 @@ AOCVisualEnvironment::AOCVisualEnvironment()
     SunLight->SetupAttachment(SceneRoot);
     SunLight->SetMobility(EComponentMobility::Movable);
     SunLight->SetRelativeRotation(FRotator(-58.0f, -28.0f, 0.0f));
-    SunLight->SetIntensity(4.0f);
+    // Pass45 P0: Directional Light intensity is lux in UE 5.8. The previous 4 lux value was
+    // incompatible with the project's disabled exposure adaptation and could leave the outdoor
+    // world effectively unlit. This physical daylight value is paired with AutoExposure=True in
+    // DefaultEngine.ini; neither side of that pair may be changed independently.
+    SunLight->SetIntensity(120000.0f);
     SunLight->SetLightColor(FLinearColor::White);
     SunLight->SetAtmosphereSunLight(true);
     SunLight->SetAtmosphereSunLightIndex(0);
@@ -65,4 +69,6 @@ AOCVisualEnvironment::AOCVisualEnvironment()
 
     UE_LOG(LogTemp, Display,
         TEXT("PASS14_RENDER_BUDGET_READY shadow_cascades=4 shadow_cm=18000 skylight_realtime=0"));
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_DAYLIGHT_EXPOSURE_CONTRACT_READY sun_lux=120000 expected_auto_exposure=1 component_owned=1 replicated=1"));
 }

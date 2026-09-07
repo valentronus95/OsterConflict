@@ -38,6 +38,15 @@ namespace
             TEXT("local_world_runtime_validation.txt"));
     }
 
+    bool ShouldApplyLocalWorldAssets()
+    {
+        // Local inbox mesh-pool binding is an intake/validation tool, not a production world owner.
+        // In normal play it can synchronously load every manifest mesh and replace authored Oster families
+        // with arbitrary round-robin assets, causing both long hitches and visually nonsensical scenery.
+        return FParse::Param(FCommandLine::Get(), TEXT("ValidateLocalInbox")) ||
+            FParse::Param(FCommandLine::Get(), TEXT("ApplyLocalInboxWorldAssets"));
+    }
+
     void WriteWorldReport(const bool bPass, const FString& Detail)
     {
         if (!FParse::Param(FCommandLine::Get(), TEXT("ValidateLocalInbox"))) return;
@@ -239,6 +248,15 @@ void UOCLocalInboxWorldAssetsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    if (!ShouldApplyLocalWorldAssets())
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_LOCAL_INBOX_WORLD_SKIP normal_play=1 sync_manifest_loads=0 random_mesh_pool_replacement=0"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_LOCAL_WORLD_ASSETS_VALIDATION_ROUTE explicit_opt_in=1 normal_play=0"));
     InWorld.GetTimerManager().SetTimer(ApplyTimer, this,
         &UOCLocalInboxWorldAssetsSubsystem::ApplyWorldAssets, 0.70f, false);
 }

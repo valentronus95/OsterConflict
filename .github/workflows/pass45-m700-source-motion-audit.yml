@@ -1,0 +1,39 @@
+name: Pass 45 M700 source motion audit
+
+# Inspection-only raw-source audit. Run manually when the pinned M700 donor
+# itself changes or provenance is questioned; do not mutate the branch on push.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-raw-m700-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout without bulk LFS payload download
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Materialize pinned M700 FBX
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
+          git lfs install --local
+          git lfs pull --include="$SOURCE" --exclude=''
+          test -f "$SOURCE"
+      - name: Inspect source motion on demand
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends assimp-utils
+          SOURCE='OsterConflict/Content/Raw/R13/Weapons/SteinClassicWeapons/WeaponsPack/M700/SKM_M700.fbx'
+          GLTF='/tmp/pass45_m700_source_audit.gltf'
+          OUTPUT='/tmp/PASS45_M700_SOURCE_MOTION_AUDIT.json'
+          assimp export "$SOURCE" "$GLTF" -f gltf2
+          python PASS45_M700_SOURCE_MOTION_AUDIT.py --source "$SOURCE" --gltf "$GLTF" --output "$OUTPUT"
+          cat "$OUTPUT"

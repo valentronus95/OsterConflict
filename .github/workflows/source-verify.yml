@@ -4,20 +4,20 @@ on:
   push:
     branches:
       - main
-  pull_request:
+      - r13-content-gameplay-pass
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: source-verify-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: source-verify-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  verify-current-source:
+  verify-source:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout source without LFS payloads
         uses: actions/checkout@v4
@@ -30,10 +30,30 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify the single current launcher and runtime route
+      - name: Verify current R14 landmark ownership
+        if: github.ref_name == 'main'
         shell: pwsh
         run: |
-          $env:PYTHONUTF8='1'
-          $env:PYTHONIOENCODING='utf-8'
-          python .\VERIFY_MAIN_RUNTIME_ACCEPTANCE_LAUNCHER.py
+          python .\VERIFY_R14_MAIN_LOCATION_OWNERSHIP.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify runtime-recovery source contracts
+        if: github.ref_name == 'main'
+        shell: pwsh
+        run: |
+          python .\VERIFY_RUNTIME_RECOVERY_SOURCE.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Stadion Oster integration
+        if: github.ref_name == 'main' || github.ref_name == 'r13-content-gameplay-pass'
+        shell: pwsh
+        run: |
+          python .\VERIFY_R13_STADION_OSTER.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run full structural and regression suite
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          python .\RUN_ALL_VERIFY.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

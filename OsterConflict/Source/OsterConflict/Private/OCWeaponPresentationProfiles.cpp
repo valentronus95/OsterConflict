@@ -15,6 +15,15 @@ namespace
         FName(TEXT("R13_TEC9")),
         FName(TEXT("R13_LEVER4570")),
         FName(TEXT("OC_RPG1")),
+        FName(TEXT("IMP_AK74M")),
+        FName(TEXT("IMP_AR15")),
+        FName(TEXT("IMP_M4A1")),
+        FName(TEXT("IMP_BALLISTA")),
+        FName(TEXT("IMP_KAR98K")),
+        FName(TEXT("IMP_MAKAROV")),
+        FName(TEXT("IMP_TOMMY")),
+        FName(TEXT("IMP_M72")),
+        FName(TEXT("IMP_RPG26")),
     };
 
     FOCFirstPersonWeaponProfile MakeLegacyBaselineProfile(const FName WeaponId)
@@ -38,6 +47,27 @@ namespace
         Profile.bGripCalibrated = true;
         return Profile;
     }
+
+    FOCFirstPersonWeaponProfile MakeM700Profile()
+    {
+        // PASS45 item 16: M700 manual action is authored-animation-only. Until an accepted
+        // bolt sequence is committed, the presentation subsystem preserves the baseline transform.
+        return MakeLegacyBaselineProfile(FName(TEXT("OC_SNP1")));
+    }
+
+    FOCFirstPersonWeaponProfile MakeRemington870Profile()
+    {
+        // PASS45 item 16: the tracked pump sound does not justify fake fore-end motion.
+        // Until an accepted pump sequence is committed, preserve the baseline transform.
+        return MakeLegacyBaselineProfile(FName(TEXT("OC_SG1")));
+    }
+
+    FOCFirstPersonWeaponProfile MakeLeverActionProfile()
+    {
+        // PASS45 item 16: the production skeletal LeverAction exists, but an accepted lever-cycle
+        // sequence does not. Missing articulated content therefore remains fail-visible and inert.
+        return MakeLegacyBaselineProfile(FName(TEXT("R13_LEVER4570")));
+    }
 }
 
 bool OCHasDeclaredFirstPersonWeaponProfile(const FName WeaponId)
@@ -55,8 +85,20 @@ FOCFirstPersonWeaponProfile OCResolveFirstPersonWeaponProfile(const FName Weapon
     {
         return MakeAK47Profile();
     }
+    if (WeaponId == FName(TEXT("OC_SNP1")))
+    {
+        return MakeM700Profile();
+    }
+    if (WeaponId == FName(TEXT("OC_SG1")))
+    {
+        return MakeRemington870Profile();
+    }
+    if (WeaponId == FName(TEXT("R13_LEVER4570")))
+    {
+        return MakeLeverActionProfile();
+    }
 
-    // Remaining weapons keep their previous baseline until each exact production mesh is
-    // visually calibrated. The AK has a known verified axis correction from runtime history.
+    // Every declared imported weapon gets an explicit fail-closed first-person baseline immediately.
+    // Exact grip/ADS offsets are promoted only after the shared UE 5.8 visual acceptance session.
     return MakeLegacyBaselineProfile(WeaponId);
 }

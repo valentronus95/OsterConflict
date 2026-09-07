@@ -27,6 +27,7 @@ enum class EOCCharacterActionEvent : uint8
 {
     Fire,
     ReloadStart,
+    GrenadeThrow,
     ReviveStart,
     ReviveComplete,
     Interact,

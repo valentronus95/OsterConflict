@@ -1,0 +1,134 @@
+name: Pass 45 manual-action audio intake
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-material-closure-20260826
+    paths:
+      - PASS45_MANUAL_ACTION_AUDIO_INTAKE.py
+      - PASS45_MANUAL_ACTION_AUDIO_PROVENANCE.md
+      - .github/workflows/pass45-manual-action-audio-intake.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  acquire-pinned-cc0-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Audit currently advertised preview candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import PASS45_MANUAL_ACTION_AUDIO_INTAKE as intake
+
+          for key, donor in intake.DONORS.items():
+              source_html = intake.fetch_text(str(donor['source_page']))
+              intake.validate_source_contract(source_html, donor)
+              urls = intake.extract_audio_urls(source_html)
+              if not urls:
+                  raise SystemExit(f'no current public preview candidate advertised for {key}')
+              for url in urls:
+                  data = intake.fetch_bytes(url)
+                  print(
+                      f"PASS45_AUDIO_CURRENT_CANDIDATE donor={key} "
+                      f"url={intake.canonical_transport_url(url)} "
+                      f"sha256={intake.sha256(data)} bytes={len(data)}"
+                  )
+          PY
+
+      - name: Ensure deterministic audio converter and Git LFS
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+          git lfs version
+          git lfs install --local
+
+      - name: Acquire only pinned CC0 preview derivatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT_DIR="SOURCE_ASSETS/PASS45/ManualActionAudio"
+          python PASS45_MANUAL_ACTION_AUDIO_INTAKE.py \
+            --mode write \
+            --out-dir "$OUT_DIR" \
+            --manifest "$OUT_DIR/MANIFEST.json"
+          cat "$OUT_DIR/MANIFEST.json"
+
+      - name: Stage and verify Git LFS pointers
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT_DIR="SOURCE_ASSETS/PASS45/ManualActionAudio"
+          git add "$OUT_DIR"
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          root = Path('SOURCE_ASSETS/PASS45/ManualActionAudio')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          if manifest.get('runtime_ready') is not False or manifest.get('ue_import_pending') is not True:
+              raise SystemExit('manifest falsely promotes runtime readiness')
+          if manifest.get('item16_checked') is not False:
+              raise SystemExit('manifest falsely checks item16')
+
+          for key, record in manifest['donors'].items():
+              wav = root / record['derivative_file']
+              attr = subprocess.check_output(['git', 'check-attr', 'filter', '--', str(wav)], text=True).strip()
+              if not attr.endswith('filter: lfs'):
+                  raise SystemExit(f'{wav}: Git LFS filter is not active: {attr}')
+              pointer = subprocess.check_output(['git', 'show', f':{wav.as_posix()}'], text=True)
+              expected_oid = f"oid sha256:{record['derivative_sha256']}"
+              expected_size = f"size {record['derivative_bytes']}"
+              required = ('version https://git-lfs.github.com/spec/v1', expected_oid, expected_size)
+              missing = [needle for needle in required if needle not in pointer]
+              if missing:
+                  raise SystemExit(f'{wav}: invalid LFS pointer; missing {missing}')
+              print(f"PASS45_AUDIO_LFS_POINTER_OK donor={key} oid={record['derivative_sha256']} size={record['derivative_bytes']}")
+          PY
+
+      - name: Commit only if canonical head is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_HEAD="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f1)"
+          if [[ "$REMOTE_HEAD" != "$GITHUB_SHA" ]]; then
+            echo "PASS45_AUDIO_INTAKE_HEAD_MOVED expected=$GITHUB_SHA actual=$REMOTE_HEAD"
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "PASS45_AUDIO_INTAKE_NO_CHANGES"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "content(pass45): acquire CC0 manual-action audio donors"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Preserve acquisition manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-manual-action-audio-acquisition
+          path: SOURCE_ASSETS/PASS45/ManualActionAudio/MANIFEST.json
+          if-no-files-found: error
+          retention-days: 3

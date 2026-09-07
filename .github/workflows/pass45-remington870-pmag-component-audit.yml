@@ -1,0 +1,39 @@
+name: Pass 45 Remington 870 Pmag component audit
+
+on:
+  pull_request:
+    paths:
+      - 'PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py'
+      - 'VERIFY_PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py'
+      - 'PASS45_REMINGTON870_PUMP_IDENTITY_VISUAL_AUDIT.py'
+      - 'PASS45_REMINGTON870_REMOTE_CANDIDATE_AUDIT.py'
+      - 'PASS45_REMINGTON870_SOURCE_ACQUIRE.py'
+      - 'PASS45_REMINGTON870_STRUCTURE_AUDIT.py'
+      - '.github/workflows/pass45-remington870-pmag-component-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile component audit
+        run: python -m py_compile PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py VERIFY_PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py
+      - name: Verify fail-closed component audit contract
+        run: python VERIFY_PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py
+      - name: Generate exact-donor Pmag topology evidence
+        run: |
+          mkdir -p _pass45_pmag_components
+          python PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.py \
+            --output-json _pass45_pmag_components/PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.json \
+            --output-svg _pass45_pmag_components/PASS45_REMINGTON870_PMAG_COMPONENT_AUDIT.svg
+      - name: Upload component evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pass45-remington870-pmag-component-evidence
+          path: _pass45_pmag_components/
+          if-no-files-found: error
+          retention-days: 14

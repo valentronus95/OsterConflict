@@ -5,6 +5,7 @@ root = Path(__file__).resolve().parent / 'OsterConflict'
 required = [
     'Source/OsterConflict/Public/OCWorldSectorOster.h',
     'Source/OsterConflict/Private/OCWorldSectorOster.cpp',
+    'Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp',
     'Source/OsterConflict/Private/OCGameMode.cpp',
     'Docs/SESSION_09_README_UA.md',
     'Docs/OSTER_REFERENCE_MANIFEST_S09.md',
@@ -23,9 +24,15 @@ markers = {
     'OCWorldSectorOster.cpp': [
         'BuildCentralPark();', 'BuildCollegeSector();', 'BuildMuseumAndStadium();',
         'Stadium:', 'SOLOMII KRUSHELNYTSKOI 7A',
-        'red-brick single-storey wings', '10500, 6800', 'Columns = 9', 'Rows = 4',
+        'PASS45_MUSEUM_LEGACY_BLOCKOUT_SOURCE_RETIRED', '10500, 6800', 'Columns = 9', 'Rows = 4',
         'Small skate/active-recreation pad',
         'PASS45_WORLD_GENERIC_RESIDENTIAL_RETIRED'
+    ],
+    'OCR137MuseumPhotoModelSubsystem.cpp': [
+        'PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY',
+        'visible_shell_owner=R137',
+        'PASS45_MUSEUM_AUTHORED_SHELL_FAIL',
+        'basicshape_fallback=0',
     ],
     'SESSION_09_README_UA.md': ['reference-driven', '105×68', '4 поверхи', 'Приватний сектор'],
     'OSTER_REFERENCE_MANIFEST_S09.md': ['Travels in Ukraine', 'OTG.cn.ua', 'Матеріально-технічна база', 'Остер з висоти пташиного польоту'],
@@ -39,10 +46,10 @@ for name, needles in markers.items():
 
 world=(root/'Source/OsterConflict/Private/OCWorldSectorOster.cpp').read_text(errors='ignore')
 world_h=(root/'Source/OsterConflict/Public/OCWorldSectorOster.h').read_text(errors='ignore')
+r137=(root/'Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp').read_text(errors='ignore')
 
 # Pass45 supersedes S09 private-sector approximations. Keep the public-reference manifest and
-# reference-driven POI work, including the valid Solonyna museum/estate identity, but never force
-# rejected arbitrary residence/fence generators back.
+# reference-driven POI work, but never force rejected arbitrary residence/fence generators back.
 for stale in (
     'BuildResidentialBlocks();',
     'void AOCWorldSectorOster::BuildResidentialBlocks()',
@@ -55,6 +62,32 @@ for stale in (
 for stale in ('void BuildResidentialBlocks();', 'void BuildSolomiiKrushelnytskoiStreet();'):
     if stale in world_h:
         print('Pass45 rejected S09 private-sector declaration returned:', stale); sys.exit(1)
+
+# Pass45 item 32 supersedes the old S09 museum Landmark* blockout. Museum reference fidelity now belongs to the
+# authored R13.7 exterior owner; canonical current world source must not recreate a second visible shell.
+museum_begin = world.find('void AOCWorldSectorOster::BuildMuseumAndStadium()')
+stadium_begin = world.find('    // Stadium:', museum_begin)
+if museum_begin < 0 or stadium_begin < 0:
+    print('Cannot isolate Museum source section'); sys.exit(1)
+museum_source = world[museum_begin:stadium_begin]
+for stale in (
+    'AddBox(LandmarkBlocks, Museum',
+    'AddBox(LandmarkDetails, Museum',
+    'AddGableRoof(LandmarkRoofs, Museum',
+    'AddFacadeWindow(LandmarkWindows, Museum',
+    'red-brick single-storey wings',
+):
+    if stale in museum_source:
+        print('Pass45 retired S09 Museum world blockout returned:', stale); sys.exit(1)
+if museum_source.count('AddBox(Fences, Museum') != 3:
+    print('Museum perimeter fence proxy count changed unexpectedly'); sys.exit(1)
+for needle in (
+    'SuppressLegacyMuseum(World);',
+    'PASS45_MUSEUM_R137_PRIMARY_EXTERIOR_READY',
+    'runtime_photo_acceptance=0',
+):
+    if needle not in r137:
+        print('R13.7 Museum authoritative-owner regression', needle); sys.exit(1)
 
 # delimiter sanity
 for p in list((root/'Source').rglob('*.h')) + list((root/'Source').rglob('*.cpp')):
@@ -87,4 +120,4 @@ if 'SpawnActor<AOCTestArena>' in gm: print('Old arena became active'); sys.exit(
 
 print('S09 structural verification: PASS')
 print(f'Checked {len(required)} required files and {sum(map(len, markers.values()))} S09 markers.')
-print('Pass45 forward-port: public-reference POI fidelity retained; rejected private-sector generators remain retired.')
+print('Pass45 forward-port: public-reference POI fidelity retained; rejected private-sector generators and legacy Museum world blockout remain retired.')

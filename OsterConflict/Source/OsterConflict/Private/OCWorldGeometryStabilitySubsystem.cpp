@@ -4,8 +4,11 @@
 #include "OCWorldSectorOster.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInterface.h"
 
 namespace
 {
@@ -13,7 +16,7 @@ namespace
     constexpr float ComparisonIntervalSeconds = 4.0f;
     constexpr int32 RequiredStableComparisons = 2;
 
-    const FName TrackedFamilies[] =
+    const FName TrackedFamilies[]
     {
         TEXT("Buildings"),
         TEXT("ResidentialRoofs"),
@@ -24,8 +27,22 @@ namespace
         TEXT("LandmarkDetails"),
         TEXT("ParkGeometry"),
         TEXT("Roads"),
-        TEXT("Sidewalks")
+        TEXT("Sidewalks"),
+        TEXT("ParkPaths"),
+        TEXT("Fences")
     };
+
+    UStaticMeshComponent* FindStaticMeshComponent(AActor* Actor, const FName Name)
+    {
+        if (!Actor) return nullptr;
+        TInlineComponentArray<UStaticMeshComponent*> Components;
+        Actor->GetComponents(Components);
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == Name) return Component;
+        }
+        return nullptr;
+    }
 
     UInstancedStaticMeshComponent* FindISM(AActor* Actor, const FName Name)
     {
@@ -37,6 +54,116 @@ namespace
             if (Component && Component->GetFName() == Name) return Component;
         }
         return nullptr;
+    }
+
+    bool HasAuthoredGroundSurface(
+        UStaticMeshComponent* Component,
+        const TCHAR* ExpectedMeshToken,
+        const TCHAR* ExpectedMaterialToken,
+        FString& OutFailure)
+    {
+        if (!Component || !Component->GetStaticMesh())
+        {
+            OutFailure = TEXT("authored_ground_mesh_missing");
+            return false;
+        }
+
+        const FString MeshPath = Component->GetStaticMesh()->GetPathName();
+        if (!MeshPath.Contains(ExpectedMeshToken, ESearchCase::IgnoreCase) ||
+            MeshPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase))
+        {
+            OutFailure = FString::Printf(TEXT("authored_ground_mesh_invalid_%s"), *MeshPath);
+            return false;
+        }
+
+        UMaterialInterface* Material = Component->GetMaterial(0);
+        if (!Material)
+        {
+            OutFailure = TEXT("authored_ground_material_missing");
+            return false;
+        }
+        const FString MaterialPath = Material->GetPathName();
+        if (!MaterialPath.Contains(ExpectedMaterialToken, ESearchCase::IgnoreCase) ||
+            MaterialPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase))
+        {
+            OutFailure = FString::Printf(TEXT("authored_ground_material_invalid_%s"), *MaterialPath);
+            return false;
+        }
+        return true;
+    }
+
+    bool HasAuthoredSurface(
+        UInstancedStaticMeshComponent* Component,
+        const TCHAR* ExpectedMeshToken,
+        FString& OutFailure,
+        const TCHAR* Family)
+    {
+        if (!Component || !Component->GetStaticMesh())
+        {
+            OutFailure = FString::Printf(TEXT("authored_surface_mesh_missing_%s"), Family);
+            return false;
+        }
+
+        const FString MeshPath = Component->GetStaticMesh()->GetPathName();
+        if (!MeshPath.Contains(ExpectedMeshToken, ESearchCase::IgnoreCase) ||
+            MeshPath.Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase))
+        {
+            OutFailure = FString::Printf(TEXT("authored_surface_mesh_invalid_%s_%s"), Family, *MeshPath);
+            return false;
+        }
+
+        UMaterialInterface* Material = Component->GetMaterial(0);
+        if (!Material)
+        {
+            OutFailure = FString::Printf(TEXT("authored_surface_material_missing_%s"), Family);
+            return false;
+        }
+        if (Material->GetPathName().Contains(TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase))
+        {
+            OutFailure = FString::Printf(TEXT("authored_surface_basicshape_material_%s"), Family);
+            return false;
+        }
+        return true;
+    }
+
+    bool ValidateSemanticMaterials(AOCWorldSectorOster* Sector, FString& OutFailure)
+    {
+        if (!Sector)
+        {
+            OutFailure = TEXT("semantic_material_sector_missing");
+            return false;
+        }
+
+        // Item 31 upgrades all verified surface families before the 12-second stability baseline. None of these
+        // families may fall back to Engine BasicShape material/mesh acceptance after startup. Block 0 now owns
+        // the imported KiteDemo ground material consistently across first-frame and stability validation.
+        if (!HasAuthoredGroundSurface(
+            FindStaticMeshComponent(Sector, TEXT("Ground")),
+            TEXT("SM_Plane_1x1"),
+            TEXT("M_Ground_Grass2"),
+            OutFailure)) return false;
+        if (!HasAuthoredSurface(
+            FindISM(Sector, TEXT("Roads")),
+            TEXT("SM_Urb_Roa_Asphalt_01"),
+            OutFailure,
+            TEXT("Roads"))) return false;
+        if (!HasAuthoredSurface(
+            FindISM(Sector, TEXT("Sidewalks")),
+            TEXT("SM_Urb_Roa_Sidewalk_01"),
+            OutFailure,
+            TEXT("Sidewalks"))) return false;
+        if (!HasAuthoredSurface(
+            FindISM(Sector, TEXT("ParkPaths")),
+            TEXT("SM_Stonepath_Var01"),
+            OutFailure,
+            TEXT("ParkPaths"))) return false;
+        if (!HasAuthoredSurface(
+            FindISM(Sector, TEXT("Fences")),
+            TEXT("SM_Fence_Var01"),
+            OutFailure,
+            TEXT("Fences"))) return false;
+
+        return true;
     }
 }
 
@@ -83,6 +210,11 @@ bool UOCWorldGeometryStabilitySubsystem::ReadTrackedCounts(
     if (SectorCount != 1 || !Sector)
     {
         OutFailure = FString::Printf(TEXT("oster_sector_count_%d"), SectorCount);
+        return false;
+    }
+
+    if (!ValidateSemanticMaterials(Sector, OutFailure))
+    {
         return false;
     }
 
@@ -151,6 +283,8 @@ void UOCWorldGeometryStabilitySubsystem::Tick(float DeltaTime)
         UE_LOG(LogTemp, Display,
             TEXT("PASS12_WORLD_GEOMETRY_BASELINE_CAPTURED families=%d at=%.1fs startupWindow=8.0s"),
             BaselineCounts.Num(), ElapsedSeconds);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_WORLD_MATERIAL_BASELINE_READY ground_authored=1 authored_surface_families=5 basicshape_surface_materials=0 owner=OCWorldSectorOster"));
         return;
     }
 
@@ -182,5 +316,7 @@ void UOCWorldGeometryStabilitySubsystem::Tick(float DeltaTime)
         UE_LOG(LogTemp, Display,
             TEXT("PASS12_WORLD_GEOMETRY_STABLE families=%d baseline=12.0s final=20.0s result=no_late_source_geometry_mutation"),
             BaselineCounts.Num());
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_WORLD_MATERIAL_STABLE ground_authored=1 authored_surface_families=5 samples=12s,16s,20s result=semantic_material_contract_preserved"));
     }
 }

@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "OCBTR.h"
+#include "OCHMMWVGunTruck.h"
 #include "OCPickupGunTruck.h"
 #include "OCVehicleBase.h"
 #include "UObject/UnrealType.h"
@@ -20,7 +21,17 @@ void UOCVehicleSpeedRuntimeSubsystem::Tick(float DeltaTime)
     {
         if (AOCPickupGunTruck* Vehicle = *It)
         {
-            ApplySpeedContract(*Vehicle, 120.0f, 550.0f);
+            // PASS45 item 28: HMMWV is a distinct gameplay vehicle, not merely the pickup profile
+            // with a different visual shell. Keep the ordinary pickup at 120 km/h while giving the
+            // heavier HMMWV a stable 110 km/h contract, comfortably above the required >=80 km/h.
+            if (AOCHMMWVGunTruck* HMMWV = Cast<AOCHMMWVGunTruck>(Vehicle))
+            {
+                ApplySpeedContract(*HMMWV, 110.0f, 430.0f);
+            }
+            else
+            {
+                ApplySpeedContract(*Vehicle, 120.0f, 550.0f);
+            }
         }
     }
 

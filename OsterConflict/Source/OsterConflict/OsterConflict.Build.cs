@@ -29,6 +29,8 @@ public class OsterConflict : ModuleRules
             "Slate",
             "SlateCore",
             "MoviePlayer",
+            "Niagara",
+            "AssetRegistry",
             "Json"
         });
     }

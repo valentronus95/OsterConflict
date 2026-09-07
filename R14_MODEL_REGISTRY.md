@@ -1,7 +1,7 @@
 # OSTER CONFLICT — R14 GAME ASSET REGISTRY
 
-Оновлено: 2026-08-20
-Гілка: `feat/r14-production-models`
+Оновлено: 2026-08-30
+Гілка: `fix/pass45-runtime-rejection-material-closure-20260826` / PR #94
 
 Мета реєстру: одна точка правди для production-візуалів, їхніх `/Game/...` шляхів і стану інтеграції. Тут фіксуються тільки перевірені в репозиторії або коді дані.
 
@@ -13,8 +13,8 @@
 | MP5 | `/Game/R13/Weapons/Stein/MP5/SKM_MP5` | Skeletal | file/path verified; runtime code wired; animation coverage pending |
 | M1911 | `/Game/R13/Weapons/Stein/1911/SKM_1911` | Skeletal | runtime code wired; animation coverage pending |
 | M700 | `/Game/R13/Weapons/Stein/M700/SKM_M700` | Skeletal | runtime code wired; animation coverage pending |
-| Remington 870 | `/Game/Production/Weapons/Remington870/SM_Remington870` | Static | runtime code wired; animated production replacement/pass pending |
-| M249 | `/Game/Production/Weapons/M249/SM_M249` | Static | runtime code wired; animated production replacement/pass pending |
+| Remington 870 | `/Game/Production/Weapons/Remington870/SM_Remington870` | Static | **CONTENT GAP / NOT READY**: canonical exact-production asset remains unresolved; runtime may use only an explicit real-mesh fallback, and that fallback does not convert the missing canonical asset into exact-production READY; final Pass45 acceptance still requires an authored material/texture/fresh-load/runtime chain for whichever accepted visual is used |
+| M249 | `/Game/Production/Weapons/M249/SM_M249` | Static | **CONTENT GAP / NOT READY**: canonical exact-production asset remains unresolved; runtime may use only an explicit real-mesh fallback, and that fallback does not convert the missing canonical asset into exact-production READY; final Pass45 acceptance still requires an authored material/texture/fresh-load/runtime chain for whichever accepted visual is used |
 | M14 | `/Game/R13/Weapons/Stein/M14/SKM_M14` | Skeletal | runtime code wired; animation coverage pending |
 | MAC-10 | `/Game/R13/Weapons/Stein/Mac10/SKM_Mac10` | Skeletal | runtime code wired; animation coverage pending |
 | TEC-9 | `/Game/R13/Weapons/Stein/Tec9/SKM_Tec9` | Skeletal | runtime code wired; animation coverage pending |
@@ -22,11 +22,13 @@
 | Anti-Armor Launcher (`OC_RPG1`) | `/Game/R13/Weapons/rocketlauncherModern` | Static | Kenney CC0 source + imported uasset verified; runtime production visual wired; canonical/runtime automation added; grip/visual validation pending |
 | M2 Browning visual | `/Game/Production/Weapons/M2/SM_M2_Browning` | Static | source/import path verified; mounted by gun-truck runtime code; visual validation pending |
 
-Current first-person presentation provides generic ADS, recoil and reload offsets. Explicit model animation sequences are currently wired for AK-47 only. R14 therefore treats all other rows as incomplete until their compatible animation coverage and hand alignment are validated.
+Pass45 exact-production truth on 2026-08-30: Remington 870 and M249 remain explicit exact-production `CONTENT GAP` items in the canonical recovery TZ; M16/M4 is also an explicit exact-production gap but is not one of the implemented weapon rows above. Current Pass45 architecture allows `exact production OR explicit real fallback`; therefore the older PR #90 idea of hard-failing solely because the canonical Remington/M249 `.uasset` path is absent is no longer the complete acceptance rule. A fallback can be considered only when it is an explicit real authored mesh and passes the same material/texture/fresh-load/runtime visual gates. White/default/BasicShape fallback never qualifies.
 
-R14 has a code-level animation coverage registry in `OCWeaponAnimationProfiles.h/.cpp`. All 11 implemented weapon IDs are declared there. Only `OC_AR1` currently owns verified Fire/Reload object paths. Missing authored animations are represented by intentionally empty paths instead of invented or silent generic mappings. `OC_SG1` and `OC_LMG1` additionally carry an explicit articulated-weapon requirement because the current Remington 870 and M249 production visuals are static meshes.
+Current first-person presentation is no longer treated as one generic ADS transform. Pass45 has per-weapon presentation profiles and fail-visible ADS calibration state; accepted production weapons remain uncalibrated until factual UE 5.8 rear/front/optic evidence and direct visual acceptance exist. Source architecture is not runtime ADS acceptance.
 
-`OCWeaponPresentationProfileTests.cpp` validates declaration coverage for the same 11 weapon IDs, finite first-person profile transforms, loadability of any declared animation path, canonical AK Fire/Reload paths and AK weapon-skeleton compatibility. `.github/workflows/r14-weapon-profile-contracts.yml` protects the source-level profile matrix in GitHub CI. Actual UE 5.8 compile/runtime/visual validation remains pending and will be done in the consolidated laptop pass rather than blocking each location/model workstream separately.
+R14 has a code-level animation coverage registry in `OCWeaponAnimationProfiles.h/.cpp`. All 11 implemented weapon IDs are declared there. Only `OC_AR1` currently owns verified Fire/Reload object paths. Missing authored animations are represented by intentionally empty paths instead of invented or silent generic mappings. `OC_SG1` and `OC_LMG1` additionally carry an explicit articulated-weapon requirement because the target Remington 870 and M249 production visuals are static meshes when those assets become available.
+
+`OCWeaponPresentationProfileTests.cpp` validates declaration coverage for the same 11 weapon IDs, finite first-person profile transforms, loadability of any declared animation path, canonical AK Fire/Reload paths and AK weapon-skeleton compatibility. `.github/workflows/r14-weapon-profile-contracts.yml` protects the source-level profile matrix in GitHub CI. Actual UE 5.8 compile/runtime/visual validation remains pending and is part of the consolidated Pass45 acceptance rather than something source CI may infer.
 
 Current equipped-weapon attachment historically relied on one shared camera-space base transform for every weapon class (`X=38, Y=12, Z=-14`, zero rotation). R14 routes each implemented weapon ID through its own explicit `FOCFirstPersonWeaponProfile` in `UOCFirstPersonWeaponPresentationSubsystem`. All profiles intentionally preserve the legacy baseline and remain `UNCALIBRATED` until the exact mesh is visually approved in UE 5.8; no fake per-weapon coordinates are being guessed.
 
@@ -111,9 +113,9 @@ Source/license notes:
 
 ## Environment / interiors
 
-Verified top-level packs currently present and scheduled for R14 audit:
+Verified top-level packs currently present for audit/reference include:
 
-- `AdvancedVillagePack`
+- `AdvancedVillagePack` — generic residential/fence use is runtime-rejected for Oster-authentic production presentation under Pass45; presence of the pack does not authorize the retired generic owner path
 - `Modular_Rural_Cabin`
 - `PN_FoliageCollection`
 - `TileableForestRoad`

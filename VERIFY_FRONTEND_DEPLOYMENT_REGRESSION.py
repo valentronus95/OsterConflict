@@ -25,10 +25,7 @@ for label, path in FILES.items():
     if not path.is_file():
         fail(f"missing {label}: {path.relative_to(ROOT)}")
 
-text = {
-    label: path.read_text(encoding="utf-8", errors="replace")
-    for label, path in FILES.items()
-}
+text = {label: path.read_text(encoding="utf-8", errors="replace") for label, path in FILES.items()}
 
 for token in [
     'TEXT("R13_MenuWorldBlocker")',
@@ -41,13 +38,11 @@ for token in [
     'SetPresentationVisibility(true, true, false)',
     'open /Game/Maps/OsterConflict_Runtime',
     'DisconnectFromServer()',
+    'MenuBackground->SetRenderOpacity(1.0f)',
 ]:
     if token not in text["menu"]:
         fail(f"frontend marker missing: {token}")
 
-# Pass 27: UOCGameUIRootWidget owns the native frontend in its WidgetTree. Collapsing/disabling is
-# sufficient suppression; detaching it after RebuildWidget recreates the exact structural lifetime
-# edge that the Slate crash hardening is removing.
 if 'LegacyFrontend->RemoveFromParent()' in text["menu"]:
     fail('frontend must not detach the root-owned legacy panel after WidgetTree rebuild')
 
@@ -72,20 +67,31 @@ for forbidden in [
 
 for token in [
     'TEXT("R13_DeploymentFlowPanel")',
+    'TEXT("R13_DeploymentBackdrop")',
     'TEXT("DeploymentPanel")',
     'Legacy->SetRenderOpacity(0.0f)',
     'Legacy->SetIsEnabled(false)',
     'PC->UIRequestSquad(',
     'PC->UIRequestRole(',
-    'PC->UICommitDeployment()',
+    'PC->UISelectSpawn(SelectedSpawn);',
+    'PC->UIReadyDeploy();',
+    'PASS45_DEPLOY_DIRECT_READY',
+    'PC->UICloseDeployment();',
+    'PASS45_DEPLOYMENT_BACK_TO_FRONTEND_READY',
 ]:
     if token not in text["deploy"]:
         fail(f"deployment marker missing: {token}")
 
+if 'ПЕРЕВІРКА ТОЧКИ ПОЯВИ' in text["deploy"]:
+    fail('obsolete indefinite spawn-verification UI state returned')
+
 for token in [
     'R13_DeploymentBackdropBlur',
     'Blur->SetBlurStrength(0.0f)',
-    'SetPresentationVisible(PC->IsDeploymentPanelVisible() && !PC->IsSettingsVisible())',
+    'const bool bDeploymentOwnsScreen = PC->IsDeploymentPanelVisible()',
+    '!PC->IsSettingsVisible() && !PC->IsFrontendMenuVisible()',
+    'PASS45_DEPLOYMENT_PRESENTATION_READY',
+    'SetPresentationVisible(bDeploymentOwnsScreen)',
 ]:
     if token not in text["deploy_present"]:
         fail(f"deployment presentation marker missing: {token}")
@@ -94,6 +100,7 @@ for token in [
     'void UIRequestSquad(int32 SquadId)',
     'void UIRequestRole(EOCPlayerRole RequestedRole)',
     'void UICommitDeployment()',
+    'void UIReadyDeploy()',
 ]:
     if token not in text["controller_h"]:
         fail(f"controller declaration missing: {token}")
@@ -108,4 +115,4 @@ for token in [
         fail(f"deployment compatibility marker missing: {token}")
 
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Approved frontend, staged deployment and pawn-less travel-shell isolation are present without persistent viewport render suppression or post-rebuild legacy-panel detachment.")
+print("Frontend backdrop is authoritative, deployment shade explicitly excludes frontend ownership, BACK closes deployment state, and R13 spawn commits directly without the stuck loading interstitial.")

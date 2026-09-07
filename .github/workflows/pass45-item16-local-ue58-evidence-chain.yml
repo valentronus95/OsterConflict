@@ -1,0 +1,24 @@
+name: Pass 45 item16 local UE58 evidence chain contract
+
+# Local evidence-chain diagnostic. Deferred until the integrated UE 5.8 acceptance milestone.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile item16 evidence-chain verifier and calibration review
+        run: |
+          python -m py_compile VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py
+          python -m py_compile PASS45_ITEM16_M700_LEVER_CALIBRATION_REVIEW.py
+      - name: Verify one-shot local UE58 evidence-chain safety contract
+        run: python VERIFY_PASS45_ITEM16_LOCAL_UE58_EVIDENCE_CHAIN.py

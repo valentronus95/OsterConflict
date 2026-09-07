@@ -27,6 +27,7 @@ def absent(path: Path, label: str) -> None:
 
 
 start = read(ROOT / "START_HERE.cmd")
+normal_launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 try_import = read(ROOT / "OsterConflict" / "TRY_PRODUCTION_VEHICLES_UE58.cmd")
 importer = read(ROOT / "OsterConflict" / "IMPORT_PRODUCTION_VEHICLES_UE58.cmd")
 pickup = read(SRC / "Private" / "OCPickupGunTruck.cpp")
@@ -48,8 +49,20 @@ startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 absent(SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Museum visibility/rebuild header")
 absent(SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Museum visibility/rebuild source")
 
-# Normal game no longer ignores a locally available exact production package.
-require(start, 'TRY_PRODUCTION_VEHICLES_UE58.cmd', "normal launcher production intake")
+# User option 1 is deliberately lightweight: it must not run the heavy vehicle importer before every game.
+# Exact production intake remains mandatory and wired in the strict option-2 acceptance path.
+require(start, 'set "OC_QUICK_NORMAL=1"', "quick normal selector")
+forbid(start, 'TRY_PRODUCTION_VEHICLES_UE58.cmd', "quick user launcher must not run optional production intake")
+require(normal_launcher, 'set "PRODUCTION_IMPORT=%~dp0OsterConflict\\IMPORT_PRODUCTION_VEHICLES_UE58.cmd"',
+        "strict canonical production importer owner")
+require(normal_launcher, 'call "%PRODUCTION_IMPORT%"', "strict production intake call")
+require(normal_launcher, 'if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game', "quick preflight bypass")
+launcher_parts = normal_launcher.split(':quick_normal_game', 1)
+if len(launcher_parts) != 2:
+    raise SystemExit("PASS42 VERIFY FAIL: canonical launcher is missing explicit quick-normal section")
+strict_launcher, quick_launcher = launcher_parts
+require(strict_launcher, 'call "%PRODUCTION_IMPORT%"', "strict production intake remains wired")
+forbid(quick_launcher, 'call "%PRODUCTION_IMPORT%"', "quick normal must not import production vehicles")
 for needle in (
     'SM_HMMWV_UA.uasset', 'SM_M2_Browning.uasset', 'SM_BTR4_Bucephalus.uasset',
     'IMPORT_PRODUCTION_VEHICLES_UE58.cmd',
@@ -62,15 +75,21 @@ for needle in (
 ):
     require(importer, needle, "canonical production importer")
 
-# Runtime classes request imported models and Pass45 preserves native proportions rather than fitting each axis separately.
+# Runtime classes request imported models and preserve native proportions. Exact M2 uses its authored
+# receiver/mount pivot; the rejected bounds-grounding/longest-axis correction must not return.
 for needle in (
     '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
     '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
     'PASS45_HMMWV_PROPORTIONAL_VISUAL_READY',
-    'PASS45_M2_MOUNT_ALIGNMENT_READY',
+    'PASS45_M2_AUTHORED_PIVOT_READY',
+    'm2_authored_pivot=1',
+    'bounds_recenter=0',
+    'longest_axis_guess=0',
     'nonuniform_stretch=0',
 ):
     require(pickup, needle, "HMMWV/M2 runtime visual")
+forbid(pickup, 'AddGroundedTurretVisual(this, M2Parent, M2, 165.0f',
+       "rejected exact-M2 bounds grounding")
 for needle in (
     '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
     'PASS45_BTR4_PROPORTIONAL_VISUAL_READY',
@@ -150,25 +169,61 @@ for needle in (
 ):
     require(settings_h + settings, needle, "native-scale graphics clarity recovery")
 
-# LowCPU foliage remains bounded and its guard is throttled.
+# PASS45 Block 0 supersedes the historical Pass42 museum-area LowCPU crop. LowCPU is now only a
+# density/grid/cull budget and must retain the same full 960x940m playable spatial scope as Full profile.
 for needle in (
-    'LowCPUHalfExtentCm = 10000.0f',
+    'CompactMinX = -78000.0f',
+    'CompactMaxX =  18000.0f',
+    'CompactMinY = -12000.0f',
+    'CompactMaxY =  82000.0f',
+    'CompactWidthCm == 96000.0f',
+    'CompactHeightCm == 94000.0f',
     'LowCPUGridStepCm = 1500.0f',
-    'LowCPUGrassCullEndCm = 8500',
-    'PASS42_LOWCPU_FOLIAGE_SCOPE_EXPANDED',
+    'LowCPUCellsPerBatch = 48',
+    'LowCPUGrassCullEndCm = 14000',
+    'PopulationMinX = CompactMinX',
+    'PopulationMaxX = CompactMaxX',
+    'PopulationMinY = CompactMinY',
+    'PopulationMaxY = CompactMaxY',
+    'PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY',
+    'bounds_m=960x940',
+    'museum_only=0',
+    'full_playable_bounds=1',
+):
+    require(dense, needle, "Block0 full-sector LowCPU foliage")
+for forbidden in (
+    'LowCPUHalfExtentCm = 10000.0f',
     'area_m=200x200',
     'full_sector_population=0',
 ):
-    require(dense, needle, "bounded expanded LowCPU foliage")
+    forbid(dense + foliage_guard, forbidden, "retired LowCPU spatial crop")
+for needle in (
+    'PASS36_LOWCPU_FOLIAGE_RUNTIME_READY',
+    'full_sector_population=1',
+    'population_complete=1',
+    'density_policy_only=1',
+):
+    require(foliage_guard, needle, "Block0 LowCPU runtime evidence")
+
+# PASS45 item 31 upgrades old hide-only ground proxy retirement to physical destruction, and removes developer
+# reference markers/text labels as scenery. The guard remains throttled and stops after convergence.
 for needle in (
     'float ValidationAccumulator = 0.0f',
     'ValidationAccumulator < 0.25f',
-    'bProxyRetirementObserved || RetireSourceGroundCoverProxies()',
+    'bGroundProxyDestructionObserved || DestroySourceGroundCoverProxies()',
+    'bDeveloperMarkerDestructionObserved || DestroyDeveloperVisualMarkers()',
+    'PASS45_GROUND_COVER_PRIMITIVES_DESTROYED',
+    'PASS45_DEVELOPER_WORLD_MARKERS_DESTROYED',
     'PASS42_FOLIAGE_GUARD_THROTTLED_READY',
     'sample_hz=4',
     'proxy_rescan_after_ready=0',
 ):
     require(foliage_guard_h + foliage_guard, needle, "throttled foliage acceptance guard")
+for forbidden in (
+    'bProxyRetirementObserved || RetireSourceGroundCoverProxies()',
+    'PASS10_GROUND_COVER_PROXY_RETIRED',
+):
+    forbid(foliage_guard_h + foliage_guard, forbidden, "obsolete hide-only foliage retirement")
 
 # Pass45 supersedes the old timer/rebuild choreography. Coordinator cancels historical stage timers and
 # runs current Museum/Silpo/Culture stages once; the destructive visibility owner stays deleted.
@@ -183,10 +238,14 @@ for needle in (
     require(startup, needle, "Pass45 coordinated landmark startup")
 
 print("PRODUCTION VEHICLE + GROUNDED RACK + VISUAL/FPS RECOVERY PASS 42/45 SOURCE CONTRACT PASS")
+print("- quick normal deliberately skips heavy production intake; strict option 2 keeps canonical HMMWV/M2/BTR import")
 print("- exact local HMMWV/M2/BTR intake remains wired and production meshes preserve native proportions")
+print("- exact M2 uses its authored receiver/mount pivot; rejected bounds/longest-axis recenter is forbidden")
 print("- VehicleBase skips legacy tint for /Game/Production meshes at the primary source")
 print("- production vehicle guard is one-shot validation-only: no material repair, no polling")
 print("- Museum BASE rack remains grounded with 12 cm clearance")
-print("- native-scale graphics clarity and bounded LowCPU foliage/audio budgets remain intact")
+print("- native-scale graphics clarity remains intact")
+print("- LowCPU foliage retains full compact Oster spatial coverage and reduces density/grid/cull budget only")
+print("- PASS45 item31 physically destroys source ground-cover proxies and developer visual markers")
 print("- historical Museum visibility/rebuild owner is deleted; current landmark startup is coordinated once")
 print("STATUS: CODED_UNTESTED; local UE 5.8 runtime remains authoritative")

@@ -1,0 +1,51 @@
+name: Pass 45 landmark identity
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR143SilpoFacadeIdentitySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
+      - 'VERIFY_PASS45_LANDMARK_IDENTITY.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-landmark-identity.yml'
+  push:
+    branches:
+      - main
+      - 'fix/pass45-runtime-rejection-*'
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR140SilpoPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR143SilpoFacadeIdentitySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
+      - 'VERIFY_PASS45_LANDMARK_IDENTITY.py'
+      - 'VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py'
+      - 'RUN_R21_LANDMARK_OWNERSHIP_RUNTIME_ACCEPTANCE.cmd'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - '.github/workflows/pass45-landmark-identity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Museum Culture House Silpo identity ownership
+        run: python VERIFY_PASS45_LANDMARK_IDENTITY.py

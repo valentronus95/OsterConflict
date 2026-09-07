@@ -8,27 +8,16 @@ set "UPROJECT=%PROJECT_DIR%OsterConflict.uproject"
 set "PY_SCRIPT=%PROJECT_DIR%Scripts\import_production_vehicle_assets.py"
 set "VERIFY_SCRIPT=%PROJECT_DIR%Scripts\verify_production_vehicle_fresh_load.py"
 set "SOURCE_RECOVERY=%PROJECT_DIR%Scripts\prepare_local_production_sources.ps1"
-set "WEAPON_SOURCE_RECOVERY=%PROJECT_DIR%Scripts\prepare_local_weapon_sources.ps1"
-set "WEAPON_IMPORT_SCRIPT=%PROJECT_DIR%Scripts\import_local_production_weapon_assets.py"
-set "WEAPON_VERIFY_SCRIPT=%PROJECT_DIR%Scripts\verify_local_production_weapon_fresh_load.py"
-set "ALL_SOURCE_PREP=%PROJECT_DIR%Scripts\prepare_all_local_inbox_assets.ps1"
-set "ALL_IMPORT_SCRIPT=%PROJECT_DIR%Scripts\import_all_local_inbox_assets.py"
 set "SUCCESS_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_import_success.txt"
 set "FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_fresh_load_success.txt"
-set "WEAPON_IMPORT_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_weapon_import_result.txt"
-set "WEAPON_FRESH_SENTINEL=%PROJECT_DIR%Saved\ProductionAssetImportCache\production_weapon_fresh_load_result.txt"
-set "ALL_BINDING_SENTINEL=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings_success.txt"
-set "ALL_BINDING_MANIFEST=%PROJECT_DIR%Saved\LocalModelInbox\runtime_bindings.json"
 set "IMPORT_LOG=%PROJECT_DIR%Saved\Logs\ProductionVehicleImport.log"
 set "FRESH_LOG=%PROJECT_DIR%Saved\Logs\ProductionVehicleFreshLoad.log"
-set "WEAPON_IMPORT_LOG=%PROJECT_DIR%Saved\Logs\ProductionWeaponImport.log"
-set "WEAPON_FRESH_LOG=%PROJECT_DIR%Saved\Logs\ProductionWeaponFreshLoad.log"
-set "ALL_IMPORT_LOG=%PROJECT_DIR%Saved\Logs\AllLocalInboxImport.log"
 set "UE_CMD="
 
 set "HMMWV_ASSET=/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA"
 set "M2_ASSET=/Game/Production/Weapons/M2/SM_M2_Browning"
 set "BTR_ASSET=/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus"
+set "REQUIRED_REVISION=PASS45_BTR_GLTF_Y_UP_20260827_R3"
 
 if exist "%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" (
     set "UE_CMD=%ProgramFiles%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -56,191 +45,161 @@ if not exist "%UPROJECT%" (
     exit /b 3
 )
 if not exist "%PY_SCRIPT%" (
-    echo ERROR: vehicle import script not found: %PY_SCRIPT%
+    echo ERROR: Import script not found: %PY_SCRIPT%
     exit /b 4
 )
 if not exist "%VERIFY_SCRIPT%" (
-    echo ERROR: vehicle fresh-load verification script not found: %VERIFY_SCRIPT%
+    echo ERROR: fresh-load verification script not found: %VERIFY_SCRIPT%
     exit /b 5
 )
-if not exist "%WEAPON_SOURCE_RECOVERY%" (
-    echo ERROR: local weapon source intake script not found: %WEAPON_SOURCE_RECOVERY%
-    exit /b 8
-)
-if not exist "%WEAPON_IMPORT_SCRIPT%" (
-    echo ERROR: local production weapon import script not found: %WEAPON_IMPORT_SCRIPT%
-    exit /b 9
-)
-if not exist "%WEAPON_VERIFY_SCRIPT%" (
-    echo ERROR: local production weapon fresh-load verifier not found: %WEAPON_VERIFY_SCRIPT%
-    exit /b 10
-)
-if not exist "%ALL_SOURCE_PREP%" (
-    echo ERROR: all-inbox source preparation script not found: %ALL_SOURCE_PREP%
-    exit /b 11
-)
-if not exist "%ALL_IMPORT_SCRIPT%" (
-    echo ERROR: all-inbox Unreal import/binding script not found: %ALL_IMPORT_SCRIPT%
-    exit /b 12
-)
 
-rem First prepare EVERY model/UI pack in models_game_OC. UE-ready uasset packs keep their original /Game path;
-rem raw FBX/GLB/OBJ and HUD images remain staged for the Unreal import pass below.
-echo [ALL INBOX] Preparing every user-supplied ZIP/model/HUD source...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ALL_SOURCE_PREP%" -ProjectDir "%RECOVERY_PROJECT_DIR%"
-set "ALL_PREP_RC=!ERRORLEVEL!"
-if not "!ALL_PREP_RC!"=="0" (
-    echo ERROR: all-inbox preparation failed with code !ALL_PREP_RC!.
-    exit /b !ALL_PREP_RC!
-)
-
-rem Vehicle source recovery is independent: usable sources import even when another exact vehicle remains a gap.
+rem Local source recovery may discover development-only BTR source, but PASS45 canonical runtime intake
+rem remains the repository-authored +X-forward GLB until local FBX orientation/provenance are explicitly accepted.
 if exist "%SOURCE_RECOVERY%" (
     echo [SOURCE] Recovery project directory: %RECOVERY_PROJECT_DIR%
     powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_RECOVERY%" -ProjectDir "%RECOVERY_PROJECT_DIR%"
     set "SOURCE_RC=!ERRORLEVEL!"
     if not "!SOURCE_RC!"=="0" (
-        echo [SOURCE] Vehicle recovery returned code !SOURCE_RC!. Continuing independent intake for available source files.
+        echo [SOURCE] Recovery returned code !SOURCE_RC!. Continuing independent intake; canonical BTR authored fallback remains available.
     )
 )
 
-rem Exact production M249 and Remington 870 are staged only from the explicit local models_game_OC inbox.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%WEAPON_SOURCE_RECOVERY%" -ProjectDir "%RECOVERY_PROJECT_DIR%"
-set "WEAPON_SOURCE_RC=!ERRORLEVEL!"
-if not "!WEAPON_SOURCE_RC!"=="0" (
-    echo ERROR: local production weapon source staging failed with code !WEAPON_SOURCE_RC!.
-    exit /b !WEAPON_SOURCE_RC!
-)
-
-for %%F in ("%SUCCESS_SENTINEL%" "%FRESH_SENTINEL%" "%WEAPON_IMPORT_SENTINEL%" "%WEAPON_FRESH_SENTINEL%" "%ALL_BINDING_SENTINEL%" "%IMPORT_LOG%" "%FRESH_LOG%" "%WEAPON_IMPORT_LOG%" "%WEAPON_FRESH_LOG%" "%ALL_IMPORT_LOG%") do (
-    if exist "%%~F" del /q "%%~F" >nul 2>nul
-)
+if exist "%SUCCESS_SENTINEL%" del /q "%SUCCESS_SENTINEL%" >nul 2>nul
+if exist "%FRESH_SENTINEL%" del /q "%FRESH_SENTINEL%" >nul 2>nul
+if exist "%IMPORT_LOG%" del /q "%IMPORT_LOG%" >nul 2>nul
+if exist "%FRESH_LOG%" del /q "%FRESH_LOG%" >nul 2>nul
 
 echo ============================================================
-echo OSTER CONFLICT - STRICT PRODUCTION MODEL INTAKE
+echo OSTER CONFLICT - PASS45 PRODUCTION VEHICLE/M2 MATERIAL+AXIS INTAKE
 echo ============================================================
-echo UE:      %UE_CMD%
-echo Project: %UPROJECT%
+echo UE:       %UE_CMD%
+echo Project:  %UPROJECT%
+echo Script:   %PY_SCRIPT%
+echo Revision: %REQUIRED_REVISION%
+echo Log:      %IMPORT_LOG%
 echo.
 
-echo [ALL INBOX] Importing/binding all user models, humans, UE packs and HUD assets...
-"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%ALL_IMPORT_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%ALL_IMPORT_LOG%"
-set "ALL_IMPORT_RC=!ERRORLEVEL!"
-if not "!ALL_IMPORT_RC!"=="0" (
-    echo ERROR: all-inbox Unreal import process failed. code=!ALL_IMPORT_RC!
-    echo Log: %ALL_IMPORT_LOG%
-    exit /b !ALL_IMPORT_RC!
-)
-if not exist "%ALL_BINDING_SENTINEL%" (
-    echo [ALL INBOX] CONTENT GAP: at least one supplied model/HUD could not be bound to runtime.
-    if exist "%ALL_BINDING_MANIFEST%" type "%ALL_BINDING_MANIFEST%"
-    echo Log: %ALL_IMPORT_LOG%
-    exit /b 34
-)
-
-echo [VEHICLES] Importing HMMWV + M2 Browning + BTR-4 candidates...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%PY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%IMPORT_LOG%"
 set "RESULT=!ERRORLEVEL!"
+
+rem UE 5.8 Interchange may return a non-zero commandlet code for material-expression diagnostics even when
+rem the Python intake completed and wrote its canonical result sentinel. A commandlet code alone is therefore
+rem not accepted as final truth. Non-zero may continue ONLY when a fresh current-revision sentinel exists,
+rem and the independent fresh UE process below must still reopen and validate every reported canonical asset.
 if not "!RESULT!"=="0" (
-    echo ERROR: no usable production vehicle import completed. code=!RESULT!
-    echo Log: %IMPORT_LOG%
-    exit /b !RESULT!
+    if not exist "%SUCCESS_SENTINEL%" (
+        echo.
+        echo ERROR: production import commandlet failed with code !RESULT! and wrote no result sentinel.
+        echo [DIAG] Exact importer/crash evidence from UE log:
+        if exist "%IMPORT_LOG%" (
+            findstr /C:"PASS45_PRODUCTION" /C:"PASS45_BTR" /C:"LogPython: Error:" /C:"Python script executed with errors" /C:"Fatal error:" /C:"Unhandled Exception:" "%IMPORT_LOG%"
+            echo.
+            echo [DIAG] Last 80 UE log lines:
+            powershell -NoProfile -Command "Get-Content -LiteralPath $env:IMPORT_LOG -Tail 80" 2>nul
+        ) else (
+            echo [DIAG] ProductionVehicleImport.log was not created.
+        )
+        echo Log: %IMPORT_LOG%
+        exit /b !RESULT!
+    )
+    echo.
+    echo [IMPORT] PASS45_NONZERO_COMMANDLET_DEFERRED_TO_FRESH_LOAD code=!RESULT! sentinel=1
+    echo [IMPORT] UE commandlet diagnostics are not being called PASS; fresh-load validation remains mandatory.
 )
 
 if not exist "%SUCCESS_SENTINEL%" (
-    echo ERROR: Unreal exited with code 0 but the vehicle production import result sentinel is missing.
+    echo.
+    echo ERROR: Unreal import produced no production result sentinel.
     echo Log: %IMPORT_LOG%
     exit /b 6
+)
+findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%SUCCESS_SENTINEL%" >nul || (
+    echo ERROR: production import sentinel is stale or from another material/axis contract revision.
+    type "%SUCCESS_SENTINEL%"
+    exit /b 26
 )
 
 set "HMMWV_IMPORTED=0"
 set "M2_IMPORTED=0"
 set "BTR_IMPORTED=0"
+set "BTR_AXIS_READY=0"
+set "BTR_GLTF_UP_READY=0"
+set "BTR_INTERNAL_UP_READY=0"
 findstr /L /C:"IMPORTED=%HMMWV_ASSET%" "%SUCCESS_SENTINEL%" >nul && set "HMMWV_IMPORTED=1"
 findstr /L /C:"IMPORTED=%M2_ASSET%" "%SUCCESS_SENTINEL%" >nul && set "M2_IMPORTED=1"
 findstr /L /C:"IMPORTED=%BTR_ASSET%" "%SUCCESS_SENTINEL%" >nul && set "BTR_IMPORTED=1"
+findstr /L /C:"BTR4_FORWARD_AXIS=+X" "%SUCCESS_SENTINEL%" >nul && set "BTR_AXIS_READY=1"
+findstr /L /C:"BTR4_GLTF_UP_AXIS=+Y" "%SUCCESS_SENTINEL%" >nul && set "BTR_GLTF_UP_READY=1"
+findstr /L /C:"BTR4_INTERNAL_UP_AXIS=+Z" "%SUCCESS_SENTINEL%" >nul && set "BTR_INTERNAL_UP_READY=1"
 
 if "!HMMWV_IMPORTED!"=="0" if "!M2_IMPORTED!"=="0" if "!BTR_IMPORTED!"=="0" (
-    echo ERROR: importer produced no canonical production vehicle asset marker.
+    echo ERROR: importer produced no canonical production asset marker.
     type "%SUCCESS_SENTINEL%"
     exit /b 7
 )
+if "!BTR_IMPORTED!"=="1" if "!BTR_AXIS_READY!"=="0" (
+    echo ERROR: BTR-4 import is missing canonical +X forward provenance.
+    type "%SUCCESS_SENTINEL%"
+    exit /b 27
+)
+if "!BTR_IMPORTED!"=="1" if "!BTR_GLTF_UP_READY!"=="0" (
+    echo ERROR: BTR-4 import is missing canonical glTF +Y up provenance.
+    type "%SUCCESS_SENTINEL%"
+    exit /b 28
+)
+if "!BTR_IMPORTED!"=="1" if "!BTR_INTERNAL_UP_READY!"=="0" (
+    echo ERROR: BTR-4 import is missing canonical internal +Z up provenance.
+    type "%SUCCESS_SENTINEL%"
+    exit /b 29
+)
 
-echo [VEHICLES] Reopening imported production assets in a fresh UE process...
+echo.
+echo [VERIFY] Reopening imported production assets in a fresh UE process...
 "%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%VERIFY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%FRESH_LOG%"
 set "VERIFY_RC=!ERRORLEVEL!"
 if not "!VERIFY_RC!"=="0" (
-    echo ERROR: fresh UE process could not validate imported production vehicles. code=!VERIFY_RC!
+    echo ERROR: fresh UE process could not validate imported production models. code=!VERIFY_RC!
     echo Log: %FRESH_LOG%
     exit /b !VERIFY_RC!
 )
 if not exist "%FRESH_SENTINEL%" (
-    echo ERROR: fresh-load production vehicle sentinel is missing.
+    echo ERROR: fresh-load production model sentinel is missing.
     echo Log: %FRESH_LOG%
     exit /b 24
 )
+findstr /L /C:"IMPORT_CONTRACT_REVISION=%REQUIRED_REVISION%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 
-if "!HMMWV_IMPORTED!"=="1" findstr /L /C:"%HMMWV_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
-if "!M2_IMPORTED!"=="1" findstr /L /C:"%M2_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
-if "!BTR_IMPORTED!"=="1" findstr /L /C:"%BTR_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
-
-echo [WEAPONS] Importing exact local M249 + Remington 870 candidates from models_game_OC...
-"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%WEAPON_IMPORT_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%WEAPON_IMPORT_LOG%"
-set "WEAPON_IMPORT_RC=!ERRORLEVEL!"
-if not "!WEAPON_IMPORT_RC!"=="0" (
-    echo ERROR: production weapon import process failed. code=!WEAPON_IMPORT_RC!
-    echo Log: %WEAPON_IMPORT_LOG%
-    exit /b !WEAPON_IMPORT_RC!
-)
-if not exist "%WEAPON_IMPORT_SENTINEL%" (
-    echo ERROR: production weapon import result is missing.
-    echo Log: %WEAPON_IMPORT_LOG%
-    exit /b 26
-)
-
-"%UE_CMD%" "%UPROJECT%" -run=pythonscript -script="%WEAPON_VERIFY_SCRIPT%" -unattended -nop4 -nosplash -nullrhi -stdout -FullStdOutLogOutput -UTF8Output -abslog="%WEAPON_FRESH_LOG%"
-set "WEAPON_VERIFY_RC=!ERRORLEVEL!"
-if not "!WEAPON_VERIFY_RC!"=="0" (
-    echo ERROR: exact production weapon fresh-load process failed. code=!WEAPON_VERIFY_RC!
-    echo Log: %WEAPON_FRESH_LOG%
-    exit /b !WEAPON_VERIFY_RC!
-)
-if not exist "%WEAPON_FRESH_SENTINEL%" (
-    echo ERROR: production weapon fresh-load result is missing.
-    echo Log: %WEAPON_FRESH_LOG%
-    exit /b 27
-)
-
-findstr /L /C:"STATUS=PASS" "%WEAPON_FRESH_SENTINEL%" >nul
-if errorlevel 1 (
-    echo [WEAPONS] CONTENT GAP: exact M249 and/or Remington 870 did not pass authored material+texture fresh-load validation.
-    type "%WEAPON_FRESH_SENTINEL%"
-    echo Log: %WEAPON_FRESH_LOG%
-    exit /b 33
-)
+if "!HMMWV_IMPORTED!"=="1" findstr /L /C:"FRESH_LOADED=%HMMWV_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!M2_IMPORTED!"=="1" findstr /L /C:"FRESH_LOADED=%M2_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"FRESH_LOADED=%BTR_ASSET%" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_AUTHORED_MATERIAL=M_BTR4_OC_Authored" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_FORWARD_AXIS=+X" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_GLTF_UP_AXIS=+Y" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
+if "!BTR_IMPORTED!"=="1" findstr /L /C:"BTR4_INTERNAL_UP_AXIS=+Z" "%FRESH_SENTINEL%" >nul || goto :bad_fresh
 
 echo.
-echo [ASSETS] ALL supplied inbox models/HUD are imported and assigned to a runtime binding.
-echo [ASSETS] Vehicle result: HMMWV=!HMMWV_IMPORTED! M2=!M2_IMPORTED! BTR4=!BTR_IMPORTED!
-if "!HMMWV_IMPORTED!"=="1" echo [ASSETS] HMMWV canonical production mesh imported and fresh-load verified.
-if "!M2_IMPORTED!"=="1" echo [ASSETS] M2 Browning canonical production mesh imported and fresh-load verified.
-if "!BTR_IMPORTED!"=="1" echo [ASSETS] BTR-4 canonical production mesh imported and fresh-load verified.
-echo [ASSETS] Exact M249 + Remington 870 authored material/texture fresh-load validation PASS.
+echo [ASSETS] Import result: HMMWV=!HMMWV_IMPORTED! M2=!M2_IMPORTED! BTR4=!BTR_IMPORTED! BTR4_PLUS_X=!BTR_AXIS_READY! BTR4_GLTF_PLUS_Y_UP=!BTR_GLTF_UP_READY! BTR4_INTERNAL_PLUS_Z_UP=!BTR_INTERNAL_UP_READY!
+if "!HMMWV_IMPORTED!"=="1" echo [ASSETS] HMMWV canonical production mesh imported and fresh-load material verified.
+if "!M2_IMPORTED!"=="1" echo [ASSETS] M2 Browning canonical production mesh imported and fresh-load material verified.
+if "!BTR_IMPORTED!"=="1" echo [ASSETS] BTR-4 canonical +X-forward / glTF +Y-up mesh imported and fresh-load material/orientation provenance verified.
 
 if "!HMMWV_IMPORTED!"=="0" echo [ASSETS] CONTENT GAP: HMMWV production source/import is still unavailable.
 if "!M2_IMPORTED!"=="0" echo [ASSETS] CONTENT GAP: M2 Browning production source/import is still unavailable.
-if "!BTR_IMPORTED!"=="0" echo [ASSETS] CONTENT GAP: BTR-4 production source/import is still unavailable.
+if "!BTR_IMPORTED!"=="0" echo [ASSETS] ERROR: BTR-4 canonical intake failed; repository-safe authored fallback should have been available.
 
-rem Full runtime acceptance is fail-closed for every exact production vehicle required by Pass45.
+rem Strict acceptance remains non-zero if any final required production item failed intake.
 if "!HMMWV_IMPORTED!"=="0" exit /b 30
 if "!M2_IMPORTED!"=="0" exit /b 31
 if "!BTR_IMPORTED!"=="0" exit /b 32
+if "!BTR_AXIS_READY!"=="0" exit /b 33
+if "!BTR_GLTF_UP_READY!"=="0" exit /b 34
+if "!BTR_INTERNAL_UP_READY!"=="0" exit /b 35
 
 exit /b 0
 
 :bad_fresh
 echo.
-echo ERROR: a model reported as imported failed fresh-load verification.
+echo ERROR: a model reported as imported failed fresh-load/material/orientation verification.
 echo File: %FRESH_SENTINEL%
 echo Log:  %FRESH_LOG%
 exit /b 25

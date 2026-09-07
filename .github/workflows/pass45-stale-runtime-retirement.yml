@@ -1,0 +1,37 @@
+name: Pass 45 stale runtime retirement
+
+on:
+  push:
+    branches:
+      - fix/pass45-runtime-rejection-20260825
+      - main
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'PASS45_RUNTIME_RECOVERY_TZ.md'
+      - 'OSTER_CONFLICT_WORK_LEDGER.md'
+      - 'RUN_ALL_VERIFY.py'
+      - 'RUN_R14_CURRENT_GAMEPLAY.cmd'
+      - 'VERIFY_PASS45_STALE_RUNTIME_RETIREMENT.py'
+      - 'OsterConflict/Source/OsterConflict/Private/OCMuseumSpawnGuardSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCMuseumSpawnGuardSubsystem.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCPickupGunTruck.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBTR.cpp'
+      - 'OsterConflict/Source/OsterConflict/**/OCWorldProductionVisualsSubsystem.*'
+      - 'VERIFY_PASS45_COMPLETION_AUDIT.py'
+      - '.github/workflows/pass45-completion-audit.yml'
+
+jobs:
+  stale-runtime-retirement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify stale runtime owners stay retired
+        run: python VERIFY_PASS45_STALE_RUNTIME_RETIREMENT.py
+      - name: Verify active Pass 45 recovery contract
+        run: python VERIFY_RUNTIME_RECOVERY_PASS_45.py

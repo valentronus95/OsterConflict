@@ -1,0 +1,22 @@
+name: Pass 45 Remington 870 derived pump UE58 assembly audit
+
+# Local assembly diagnostic retained for corrective debugging only.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify fail-closed UE58 assembly audit on demand
+        run: |
+          python -m py_compile PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py
+          python VERIFY_PASS45_REMINGTON870_DERIVED_PUMP_UE58_ASSEMBLY_AUDIT.py

@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
@@ -150,12 +151,19 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
 {
     if (HasActorTag(World, TEXT("R141_SilpoPhotoDetails"))) return;
 
-    UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* PowerPoleMesh = LoadObject<UStaticMesh>(nullptr,
-        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.Power_Pole_1"));
-    UMaterialInterface* Basic = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!Cube || !Basic) return;
+    UStaticMesh* Cube = Cast<UStaticMesh>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/Cube.Cube")).ResolveObject());
+    UStaticMesh* PowerPoleMesh = Cast<UStaticMesh>(FSoftObjectPath(
+        TEXT("/Game/Modular_Rural_Cabin/Meshes/Props/Power_Pole_1.Power_Pole_1")).ResolveObject());
+    UMaterialInterface* Basic = Cast<UMaterialInterface>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")).ResolveObject());
+    if (!Cube || !Basic)
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_SILPO_R141_PRELOAD_GAP cube=%d power_pole=%d material=%d sync_load=0"),
+            Cube ? 1 : 0, PowerPoleMesh ? 1 : 0, Basic ? 1 : 0);
+        return;
+    }
 
     const FVector Site = SilpoAnchor();
     AActor* Details = World.SpawnActor<AActor>(AActor::StaticClass(), FTransform(FRotator::ZeroRotator, Site));
@@ -222,7 +230,6 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         UtilityPoleCollision->SetCastShadow(false);
     }
 
-    // The interior photos show a low suspended tile ceiling rather than an exposed roof volume.
     AddLocalBox(Ceiling, FVector(0.0f, 0.0f, 362.0f), FVector(2860.0f, 1620.0f, 6.0f));
     for (float X = -1320.0f; X <= 1320.0f; X += 220.0f)
     {
@@ -233,17 +240,14 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         AddLocalBox(CeilingGrid, FVector(0.0f, Y, 357.5f), FVector(2820.0f, 3.0f, 3.0f));
     }
 
-    // The photographed apron reads as plain worn asphalt, so cover the first-pass parking guide marks.
     AddLocalBox(AsphaltCorrection, FVector(100.0f, FrontY - 610.0f, 6.5f),
         FVector(3450.0f, 850.0f, 5.0f));
 
-    // Entrance-side trim and the small projecting canopy/vestibule character visible in close views.
     AddLocalBox(FacadeTrim, FVector(-1412.0f, FrontY - 12.0f, 155.0f), FVector(18.0f, 22.0f, 285.0f));
     AddLocalBox(FacadeTrim, FVector(-1218.0f, FrontY - 12.0f, 155.0f), FVector(18.0f, 22.0f, 285.0f));
     AddLocalBox(FacadeTrim, FVector(-1315.0f, FrontY - 12.0f, 292.0f), FVector(215.0f, 22.0f, 18.0f));
     AddLocalBox(DarkDetails, FVector(-1315.0f, FrontY - 165.0f, 308.0f), FVector(315.0f, 315.0f, 12.0f));
 
-    // Thin parapet cap pieces keep the stepped silhouette crisp at street-view distance.
     const FParapetCap Caps[] =
     {
         { -1170.0f, 451.0f, 660.0f },
@@ -257,14 +261,12 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         AddLocalBox(FacadeTrim, FVector(Cap.X, FrontY - 13.0f, Cap.Z), FVector(Cap.Width, 30.0f, 8.0f));
     }
 
-    // Exterior wall-light brackets above the advertising panels.
     for (const float X : { -980.0f, -600.0f, -220.0f, 260.0f, 760.0f })
     {
         AddLocalBox(DarkDetails, FVector(X, FrontY - 45.0f, 315.0f), FVector(8.0f, 42.0f, 8.0f));
         AddLocalBox(DarkDetails, FVector(X, FrontY - 62.0f, 307.0f), FVector(34.0f, 20.0f, 10.0f));
     }
 
-    // Compact checkout queue rails/cart bay. Geometry stays low so it cannot trap the player.
     const float QueueY = -520.0f;
     for (const float X : { 260.0f, 530.0f, 800.0f, 1070.0f })
     {
@@ -275,7 +277,6 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
     AddLocalBox(Metal, FVector(1300.0f, -470.0f, 48.0f), FVector(7.0f, 290.0f, 96.0f));
     AddLocalBox(Metal, FVector(1230.0f, -605.0f, 92.0f), FVector(140.0f, 7.0f, 7.0f));
 
-    // Overhead checkout lane plates. The reference photos show compact numbered orange markers.
     for (int32 Lane = 0; Lane < 4; ++Lane)
     {
         const float X = 300.0f + static_cast<float>(Lane) * 270.0f;
@@ -296,10 +297,6 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         Number->RegisterComponent();
     }
 
-    // One photo-supported utility pole just beyond the right end of the facade. Prefer the checked-in
-    // rural-cabin pole mesh, but keep the old simple collision footprint as a hidden proxy so replacing
-    // presentation does not silently change traversal/collision. If the LFS asset is not hydrated, retain
-    // the historical visible Cube fallback instead.
     const FVector UtilityPoleCenter(HalfLength + 165.0f, FrontY + 15.0f, 315.0f);
     if (PowerPoleVisual && UtilityPoleCollision)
     {
@@ -314,8 +311,6 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
         AddLocalBox(Metal, FVector(HalfLength + 165.0f, FrontY + 15.0f, 565.0f), FVector(155.0f, 12.0f, 12.0f));
     }
 
-    // Immediate right-side market edge visible in the street references. This is intentionally low-detail context,
-    // not a claim about stall ownership or a permanent measured footprint.
     for (int32 Stall = 0; Stall < 3; ++Stall)
     {
         const float Y = -420.0f + static_cast<float>(Stall) * 300.0f;
@@ -326,6 +321,6 @@ void UOCR141SilpoDetailSubsystem::BuildDetails(UWorld& World)
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("R14.1 Silpo detail pass built at [%.0f %.0f]: suspended ceiling, facade trim, checkout markers and immediate street context."),
+        TEXT("R14.1 Silpo detail pass built at [%.0f %.0f]: suspended ceiling, facade trim, checkout markers and immediate street context. sync_load=0 prerequisite_resident=1"),
         Site.X, Site.Y);
 }

@@ -24,6 +24,7 @@
 #include "OCWeaponBase.h"
 #include "OCWeaponVariants.h"
 #include "OCAntiArmorLauncher.h"
+#include "OCLocalInboxRuntimeSubsystem.h"
 #include "OCAIController.h"
 #include "OCAmmoBox.h"
 #include "OCCivilianVehicle.h"
@@ -358,9 +359,100 @@ void AOCPlayerController::ExecuteSandboxAdminActionServer(EOCSandboxAdminAction 
     FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     if(Action==EOCSandboxAdminAction::SpawnWeaponRack)
     {
-        const TSubclassOf<AOCWeaponBase> Classes[] = {AOCWeapon_AssaultRifle::StaticClass(),AOCWeapon_SMG::StaticClass(),AOCWeapon_Pistol::StaticClass(),AOCWeapon_Sniper::StaticClass(),AOCWeapon_Shotgun::StaticClass(),AOCWeapon_LMG::StaticClass(),AOCAntiArmorLauncher::StaticClass()};
-        for(int32 I=0;I<UE_ARRAY_COUNT(Classes);++I){const FVector Pos=Anchor+Facing.RotateVector(FVector(220.0f+(I%4)*90.0f,-150.0f+(I/4)*150.0f,40.0f));if(AOCWeaponBase* W=GetWorld()->SpawnActor<AOCWeaponBase>(Classes[I],Pos,Facing,Params))W->DropToWorldServer(Pos,Facing);}
-        GetWorld()->SpawnActor<AOCAmmoBox>(AOCAmmoBox::StaticClass(),Anchor+Facing.RotateVector(FVector(250,190,30)),Facing,Params);return;
+        struct FWeaponRackBinding
+        {
+            TSubclassOf<AOCWeaponBase> Class;
+            const TCHAR* Category;
+        };
+
+        const FWeaponRackBinding BoundCategories[] =
+        {
+            { AOCWeapon_AssaultRifle::StaticClass(), TEXT("M16_M4") },
+            { AOCWeapon_AssaultRifle::StaticClass(), TEXT("AR15") },
+            { AOCWeapon_AssaultRifle::StaticClass(), TEXT("AK74") },
+            { AOCWeapon_AssaultRifle::StaticClass(), TEXT("AK47") },
+            { AOCWeapon_AssaultRifle::StaticClass(), TEXT("ASSAULT_GENERIC") },
+            { AOCWeapon_AssaultRifle::StaticClass(), TEXT("RIFLE_GENERIC") },
+            { AOCWeapon_SMG::StaticClass(), TEXT("MP5") },
+            { AOCWeapon_SMG::StaticClass(), TEXT("SMG_GENERIC") },
+            { AOCWeapon_Pistol::StaticClass(), TEXT("M1911") },
+            { AOCWeapon_Pistol::StaticClass(), TEXT("MAKAROV") },
+            { AOCWeapon_Pistol::StaticClass(), TEXT("PISTOL_GENERIC") },
+            { AOCWeapon_Sniper::StaticClass(), TEXT("M700") },
+            { AOCWeapon_Sniper::StaticClass(), TEXT("BALLISTA") },
+            { AOCWeapon_Sniper::StaticClass(), TEXT("KAR98") },
+            { AOCWeapon_Sniper::StaticClass(), TEXT("SNIPER_GENERIC") },
+            { AOCWeapon_Shotgun::StaticClass(), TEXT("REMINGTON870") },
+            { AOCWeapon_Shotgun::StaticClass(), TEXT("SHOTGUN_GENERIC") },
+            { AOCWeapon_LMG::StaticClass(), TEXT("M249") },
+            { AOCWeapon_LMG::StaticClass(), TEXT("LMG_GENERIC") },
+            { AOCWeapon_M14::StaticClass(), TEXT("M14") },
+            { AOCWeapon_Mac10::StaticClass(), TEXT("MAC10") },
+            { AOCWeapon_Tec9::StaticClass(), TEXT("TEC9") },
+            { AOCWeapon_LeverAction::StaticClass(), TEXT("LEVER_ACTION") },
+            { AOCAntiArmorLauncher::StaticClass(), TEXT("M72") },
+            { AOCAntiArmorLauncher::StaticClass(), TEXT("LAUNCHER") },
+            { AOCAntiArmorLauncher::StaticClass(), TEXT("LAUNCHER_GENERIC") }
+        };
+
+        const TSubclassOf<AOCWeaponBase> GameplayClasses[] =
+        {
+            AOCWeapon_AssaultRifle::StaticClass(), AOCWeapon_SMG::StaticClass(), AOCWeapon_Pistol::StaticClass(),
+            AOCWeapon_Sniper::StaticClass(), AOCWeapon_Shotgun::StaticClass(), AOCWeapon_LMG::StaticClass(),
+            AOCWeapon_M14::StaticClass(), AOCWeapon_Mac10::StaticClass(), AOCWeapon_Tec9::StaticClass(),
+            AOCWeapon_LeverAction::StaticClass(), AOCAntiArmorLauncher::StaticClass()
+        };
+
+        TSet<UClass*> RepresentedClasses;
+        int32 SpawnedBoundModels = 0;
+        int32 SpawnedFallbackClasses = 0;
+        int32 RackIndex = 0;
+
+        auto SpawnRackWeapon = [&](const TSubclassOf<AOCWeaponBase> WeaponClass, const FString& ForcedCategory, const int32 PathIndex)
+        {
+            if (!WeaponClass) return;
+            const int32 Column = RackIndex % 5;
+            const int32 Row = RackIndex / 5;
+            const FVector Pos = Anchor + Facing.RotateVector(FVector(240.0f + Row * 125.0f, -240.0f + Column * 120.0f, 40.0f));
+            if (AOCWeaponBase* Weapon = GetWorld()->SpawnActor<AOCWeaponBase>(WeaponClass, Pos, Facing, Params))
+            {
+                if (!ForcedCategory.IsEmpty())
+                {
+                    Weapon->Tags.Add(FName(*FString::Printf(TEXT("OC_FORCE_WEAPON_CATEGORY_%s"), *ForcedCategory)));
+                    Weapon->Tags.Add(FName(*FString::Printf(TEXT("OC_FORCE_WEAPON_PATH_INDEX_%d"), PathIndex)));
+                }
+                Weapon->DropToWorldServer(Pos, Facing);
+                ++RackIndex;
+            }
+        };
+
+        for (const FWeaponRackBinding& Binding : BoundCategories)
+        {
+            TArray<FString> Paths;
+            UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(Binding.Category, Paths);
+            if (Paths.IsEmpty()) continue;
+
+            RepresentedClasses.Add(Binding.Class.Get());
+            for (int32 PathIndex = 0; PathIndex < Paths.Num(); ++PathIndex)
+            {
+                SpawnRackWeapon(Binding.Class, Binding.Category, PathIndex);
+                ++SpawnedBoundModels;
+            }
+        }
+
+        for (const TSubclassOf<AOCWeaponBase>& GameplayClass : GameplayClasses)
+        {
+            if (!GameplayClass || RepresentedClasses.Contains(GameplayClass.Get())) continue;
+            SpawnRackWeapon(GameplayClass, FString(), INDEX_NONE);
+            ++SpawnedFallbackClasses;
+        }
+
+        GetWorld()->SpawnActor<AOCAmmoBox>(AOCAmmoBox::StaticClass(),
+            Anchor + Facing.RotateVector(FVector(220.0f, 360.0f, 30.0f)), Facing, Params);
+        UE_LOG(LogTemp, Display,
+            TEXT("OC_SANDBOX_ALL_WEAPONS_SPAWNED bound_models=%d fallback_gameplay_classes=%d total=%d"),
+            SpawnedBoundModels, SpawnedFallbackClasses, RackIndex);
+        return;
     }
     if(Action==EOCSandboxAdminAction::RefillAmmo&&ControlledCharacter){ControlledCharacter->AddAmmoFromBoxServer(EOCAmmoType::Any,9999);return;}
     if(Action==EOCSandboxAdminAction::RestorePlayer&&ControlledCharacter&&ControlledCharacter->GetHealthComponent()){ControlledCharacter->GetHealthComponent()->RestoreFullServer();return;}

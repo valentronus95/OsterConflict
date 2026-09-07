@@ -1,9 +1,12 @@
 #include "OCPerformanceSampleSubsystem.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMemory.h"
 #include "Misc/CommandLine.h"
 #include "NavigationSystem.h"
@@ -84,6 +87,51 @@ bool UOCPerformanceSampleSubsystem::ShouldCreateSubsystem(UObject* Outer) const
     return World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
+void UOCPerformanceSampleSubsystem::ValidatePass45RecoveryRuntimeContract()
+{
+    if (bRecoveryRuntimeContractLogged) return;
+    bRecoveryRuntimeContractLogged = true;
+
+    const FString CommandLine(FCommandLine::Get());
+    const bool bFullscreenRequested = CommandLine.Contains(TEXT("-fullscreen"), ESearchCase::IgnoreCase);
+
+    IConsoleVariable* MaxFpsVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("t.MaxFPS"));
+    const float RuntimeMaxFps = MaxFpsVariable ? MaxFpsVariable->GetFloat() : -1.0f;
+    const bool bThermalCapReady = MaxFpsVariable && FMath::IsNearlyEqual(RuntimeMaxFps, 60.0f, 0.5f);
+
+    const UGameViewportClient* ViewportClient = GEngine ? GEngine->GameViewport : nullptr;
+    const bool bViewportReady = ViewportClient != nullptr;
+    const bool bFullscreenRuntime = ViewportClient && ViewportClient->IsFullScreenViewport();
+    const bool bDisplayReady = bFullscreenRequested && bViewportReady && bFullscreenRuntime;
+
+    if (bThermalCapReady)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_THERMAL_CAP_RUNTIME_READY requested_fps=60 actual_tmaxfps=%.1f tolerance=0.5 quality_mutation=0 render_scale_mutation=0"),
+            RuntimeMaxFps);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_THERMAL_CAP_RUNTIME_FAIL requested_fps=60 actual_tmaxfps=%.1f cvar_present=%d quality_mutation=0 render_scale_mutation=0"),
+            RuntimeMaxFps, MaxFpsVariable ? 1 : 0);
+    }
+
+    if (bDisplayReady)
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_FULLSCREEN_RUNTIME_READY requested_fullscreen=1 viewport_present=1 viewport_fullscreen=1"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_FULLSCREEN_RUNTIME_FAIL requested_fullscreen=%d viewport_present=%d viewport_fullscreen=%d"),
+            bFullscreenRequested ? 1 : 0,
+            bViewportReady ? 1 : 0,
+            bFullscreenRuntime ? 1 : 0);
+    }
+}
+
 void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
 {
     if (bFinished || DeltaTime <= 0.0f || DeltaTime > 1.0f) return;
@@ -141,6 +189,10 @@ void UOCPerformanceSampleSubsystem::Tick(float DeltaTime)
     }
 
     if (PC->GetPawn() == nullptr) return;
+
+    // The strict normal route requests fullscreen + t.MaxFPS 60. Verify the actual UE runtime state after
+    // gameplay possession so Gate C/H cannot be satisfied by command-line intent alone.
+    ValidatePass45RecoveryRuntimeContract();
 
     if (!bFrontendSampleLogged)
     {

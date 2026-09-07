@@ -13,7 +13,6 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -27,13 +26,14 @@
 
 namespace
 {
-    const FLinearColor FlowPanelColor(0.010f, 0.014f, 0.018f, 0.985f);
-    const FLinearColor FlowSectionColor(0.026f, 0.032f, 0.038f, 0.985f);
-    const FLinearColor FlowTextColor(0.94f, 0.95f, 0.95f, 1.0f);
-    const FLinearColor FlowMutedColor(0.62f, 0.66f, 0.69f, 1.0f);
-    const FLinearColor FlowButtonColor(0.075f, 0.085f, 0.095f, 0.96f);
-    const FLinearColor FlowButtonHover(0.20f, 0.23f, 0.25f, 1.0f);
-    const FLinearColor FlowButtonPressed(0.30f, 0.26f, 0.17f, 1.0f);
+    const FLinearColor FlowBackdropColor(0.0f, 0.0f, 0.0f, 0.38f);
+    const FLinearColor FlowPanelColor(0.008f, 0.012f, 0.016f, 0.965f);
+    const FLinearColor FlowSectionColor(0.030f, 0.038f, 0.046f, 0.94f);
+    const FLinearColor FlowTextColor(0.95f, 0.96f, 0.96f, 1.0f);
+    const FLinearColor FlowMutedColor(0.67f, 0.71f, 0.73f, 1.0f);
+    const FLinearColor FlowButtonColor(0.075f, 0.088f, 0.102f, 0.96f);
+    const FLinearColor FlowButtonHover(0.17f, 0.20f, 0.23f, 1.0f);
+    const FLinearColor FlowButtonPressed(0.42f, 0.31f, 0.12f, 1.0f);
 
     FString TeamLabel(const EOCTeam Team)
     {
@@ -101,18 +101,21 @@ bool UOCR13DeploymentFlowSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 UButton* UOCR13DeploymentFlowSubsystem::MakeActionButton(UObject* Owner, const FString& Label, UTextBlock*& OutLabel)
 {
     UButton* Button = NewObject<UButton>(Owner);
-    OutLabel = MakeFlowText(Owner, Label, 18, true);
+    OutLabel = MakeFlowText(Owner, Label, 16, true);
     if (!Button || !OutLabel) return Button;
 
+    OutLabel->SetJustification(ETextJustify::Center);
+    OutLabel->SetAutoWrapText(false);
     FButtonStyle Style = Button->GetStyle();
     Style.Normal.TintColor = FSlateColor(FlowButtonColor);
     Style.Hovered.TintColor = FSlateColor(FlowButtonHover);
     Style.Pressed.TintColor = FSlateColor(FlowButtonPressed);
-    Style.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.040f, 0.045f, 0.75f));
-    Style.NormalPadding = FMargin(1.0f);
-    Style.PressedPadding = FMargin(1.0f, 2.0f, 1.0f, 0.0f);
+    Style.Disabled.TintColor = FSlateColor(FLinearColor(0.035f, 0.040f, 0.045f, 0.74f));
+    Style.NormalPadding = FMargin(12.0f, 9.0f);
+    Style.PressedPadding = FMargin(12.0f, 10.0f, 12.0f, 8.0f);
     Button->SetStyle(Style);
     Button->SetBackgroundColor(FLinearColor::White);
+    Button->IsFocusable = true;
     Button->AddChild(OutLabel);
     return Button;
 }
@@ -126,11 +129,11 @@ UBorder* UOCR13DeploymentFlowSubsystem::MakeSection(UObject* Owner, const FStrin
 
     UVerticalBox* Box = NewObject<UVerticalBox>(Owner);
     Border->SetContent(Box);
-    if (UTextBlock* Header = MakeFlowText(Owner, Title, 15, true))
+    if (UTextBlock* Header = MakeFlowText(Owner, Title, 14, true))
     {
         Box->AddChildToVerticalBox(Header)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
     }
-    OutBody = MakeFlowText(Owner, TEXT(""), 14, false);
+    OutBody = MakeFlowText(Owner, TEXT(""), 13, false);
     if (OutBody) Box->AddChildToVerticalBox(OutBody);
     return Border;
 }
@@ -153,17 +156,31 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
     UCanvasPanel* Canvas = Cast<UCanvasPanel>(Root->GetWidgetFromName(TEXT("OC_UI_Root")));
     if (!Canvas) return;
 
-    // The old panel is deliberately kept for source compatibility, but it must never flash through the new flow.
     if (UWidget* Legacy = Root->GetWidgetFromName(TEXT("DeploymentPanel")))
     {
+        Legacy->SetVisibility(ESlateVisibility::Collapsed);
         Legacy->SetRenderOpacity(0.0f);
         Legacy->SetIsEnabled(false);
+    }
+
+    UBorder* Backdrop = NewObject<UBorder>(Root, TEXT("R13_DeploymentBackdrop"));
+    if (Backdrop)
+    {
+        Backdrop->SetBrushColor(FlowBackdropColor);
+        Backdrop->SetVisibility(ESlateVisibility::Collapsed);
+        Backdrop->SetIsEnabled(false);
+        if (UCanvasPanelSlot* BackdropSlot = Canvas->AddChildToCanvas(Backdrop))
+        {
+            BackdropSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+            BackdropSlot->SetOffsets(FMargin(0.0f));
+            BackdropSlot->SetZOrder(9190);
+        }
     }
 
     UBorder* Panel = NewObject<UBorder>(Root, TEXT("R13_DeploymentFlowPanel"));
     if (!Panel) return;
     Panel->SetBrushColor(FlowPanelColor);
-    Panel->SetPadding(FMargin(28.0f));
+    Panel->SetPadding(FMargin(32.0f));
     Panel->SetVisibility(ESlateVisibility::Collapsed);
 
     UHorizontalBox* Columns = NewObject<UHorizontalBox>(Root);
@@ -171,12 +188,12 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
 
     UVerticalBox* Main = NewObject<UVerticalBox>(Root);
     UHorizontalBoxSlot* MainSlot = Columns->AddChildToHorizontalBox(Main);
-    SetFill(MainSlot, 0.72f);
-    MainSlot->SetPadding(FMargin(0.0f, 0.0f, 24.0f, 0.0f));
+    SetFill(MainSlot, 0.74f);
+    MainSlot->SetPadding(FMargin(0.0f, 0.0f, 28.0f, 0.0f));
 
-    if (UTextBlock* Header = MakeFlowText(Root, TEXT("РОЗГОРТАННЯ"), 32, true))
+    if (UTextBlock* Header = MakeFlowText(Root, TEXT("РОЗГОРТАННЯ"), 30, true))
         Main->AddChildToVerticalBox(Header);
-    StepText = MakeFlowText(Root, TEXT("КРОК 1 / 4 · КОМАНДА"), 14, false);
+    StepText = MakeFlowText(Root, TEXT("КРОК 1 З 4  •  КОМАНДА"), 13, false);
     if (StepText.IsValid()) Main->AddChildToVerticalBox(StepText.Get())->SetPadding(FMargin(0.0f, 5.0f, 0.0f, 18.0f));
 
     UWidgetSwitcher* Switcher = NewObject<UWidgetSwitcher>(Root, TEXT("R13_DeploymentStepSwitcher"));
@@ -193,16 +210,16 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
     {
         UVerticalBox* Page = NewObject<UVerticalBox>(Root);
         Switcher->AddChild(Page);
-        if (UTextBlock* T = MakeFlowText(Root, Title, 24, true))
+        if (UTextBlock* T = MakeFlowText(Root, Title, 22, true))
             Page->AddChildToVerticalBox(T)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 6.0f));
-        if (UTextBlock* S = MakeFlowText(Root, Subtitle, 14, false))
+        if (UTextBlock* S = MakeFlowText(Root, Subtitle, 13, false))
             Page->AddChildToVerticalBox(S)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
         return Page;
     };
 
     UVerticalBox* TeamPage = NewPage(
         TEXT("ОБЕРІТЬ КОМАНДУ"),
-        TEXT("Спочатку оберіть сторону. Склад груп, ролі та точки появи відкриються на наступних кроках."));
+        TEXT("Оберіть сторону. Далі — група, роль і точка появи."));
     UTextBlock* TeamOneText = nullptr;
     UButton* TeamOne = MakeActionButton(Root, TEXT("КОМАНДА 1"), TeamOneText);
     TeamOne->OnClicked.AddDynamic(this, &UOCR13DeploymentFlowSubsystem::OnTeamOne);
@@ -214,7 +231,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
 
     UVerticalBox* SquadPage = NewPage(
         TEXT("ОБЕРІТЬ ГРУПУ"),
-        TEXT("У групі максимум 4 бійці. Заповнені групи недоступні."));
+        TEXT("До 4 бійців у групі. Заповнені групи недоступні."));
     const TCHAR* SquadNames[] = { TEXT("АЛЬФА"), TEXT("БРАВО"), TEXT("ЧАРЛІ"), TEXT("ДЕЛЬТА") };
     for (int32 Index = 0; Index < 4; ++Index)
     {
@@ -231,7 +248,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
 
     UVerticalBox* RolePage = NewPage(
         TEXT("ОБЕРІТЬ РОЛЬ"),
-        TEXT("Штурмовик є універсальним слотом. Медик, інженер і підтримка мають по одному слоту в групі."));
+        TEXT("Оберіть спеціалізацію. Зайняті ролі будуть недоступні."));
     const TCHAR* RoleNames[] = { TEXT("ШТУРМОВИК"), TEXT("МЕДИК"), TEXT("ІНЖЕНЕР"), TEXT("ПІДТРИМКА") };
     for (int32 Index = 0; Index < 4; ++Index)
     {
@@ -248,8 +265,8 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
 
     UVerticalBox* SpawnPage = NewPage(
         TEXT("ОБЕРІТЬ ТОЧКУ ПОЯВИ"),
-        TEXT("База доступна завжди. Передові точки доступні лише коли їх контролює ваша команда і вони не оспорюються."));
-    SpawnSelectionText = MakeFlowText(Root, TEXT("ТОЧКА: НЕ ВИБРАНО"), 15, true);
+        TEXT("База доступна завжди. Передові точки — лише під контролем вашої команди."));
+    SpawnSelectionText = MakeFlowText(Root, TEXT("ОБРАНО: НЕ ВИБРАНО"), 14, true);
     if (SpawnSelectionText.IsValid()) SpawnPage->AddChildToVerticalBox(SpawnSelectionText.Get())->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
     const TCHAR* SpawnNames[] = { TEXT("БАЗА"), TEXT("ТОЧКА A"), TEXT("ТОЧКА B"), TEXT("ТОЧКА C") };
     for (int32 Index = 0; Index < 4; ++Index)
@@ -265,7 +282,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
     SpawnButtons[2]->OnClicked.AddDynamic(this, &UOCR13DeploymentFlowSubsystem::OnSpawnB);
     SpawnButtons[3]->OnClicked.AddDynamic(this, &UOCR13DeploymentFlowSubsystem::OnSpawnC);
 
-    StatusText = MakeFlowText(Root, TEXT("Оберіть команду."), 13, false);
+    StatusText = MakeFlowText(Root, TEXT("Оберіть команду."), 12, false);
     if (StatusText.IsValid()) Main->AddChildToVerticalBox(StatusText.Get())->SetPadding(FMargin(0.0f, 14.0f, 0.0f, 8.0f));
 
     UHorizontalBox* Footer = NewObject<UHorizontalBox>(Root);
@@ -279,7 +296,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
     BackSlot->SetPadding(FMargin(0.0f, 0.0f, 10.0f, 0.0f));
 
     UTextBlock* DeployLabel = nullptr;
-    UButton* Deploy = MakeActionButton(Root, TEXT("ПОЯВИТИСЯ"), DeployLabel);
+    UButton* Deploy = MakeActionButton(Root, TEXT("У БІЙ"), DeployLabel);
     Deploy->OnClicked.AddDynamic(this, &UOCR13DeploymentFlowSubsystem::OnDeploy);
     DeployButton = Deploy;
     UHorizontalBoxSlot* DeploySlot = Footer->AddChildToHorizontalBox(Deploy);
@@ -287,7 +304,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
 
     UVerticalBox* Info = NewObject<UVerticalBox>(Root);
     UHorizontalBoxSlot* InfoSlot = Columns->AddChildToHorizontalBox(Info);
-    SetFill(InfoSlot, 0.28f);
+    SetFill(InfoSlot, 0.26f);
 
     UTextBlock* MatchBody = nullptr;
     if (UBorder* Section = MakeSection(Root, TEXT("МАТЧ"), MatchBody))
@@ -302,7 +319,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
         Info->AddChildToVerticalBox(Section)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
     }
     UTextBlock* SquadBody = nullptr;
-    if (UBorder* Section = MakeSection(Root, TEXT("СКЛАД ГРУПИ"), SquadBody))
+    if (UBorder* Section = MakeSection(Root, TEXT("ВАША ГРУПА"), SquadBody))
     {
         SquadRosterText = SquadBody;
         Info->AddChildToVerticalBox(Section);
@@ -310,8 +327,8 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
 
     if (UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Panel))
     {
-        Slot->SetPosition(FVector2D(90.0f, 70.0f));
-        Slot->SetSize(FVector2D(1420.0f, 760.0f));
+        Slot->SetPosition(FVector2D(110.0f, 80.0f));
+        Slot->SetSize(FVector2D(1380.0f, 720.0f));
         Slot->SetZOrder(9200);
     }
 
@@ -327,6 +344,7 @@ void UOCR13DeploymentFlowSubsystem::ResetFlow()
     SelectedRole = EOCPlayerRole::Rifleman;
     bRoleSelected = false;
     SelectedSpawn = NAME_None;
+    AuthorityReconcileAge = 0.0f;
     SetStep(0);
     if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("Оберіть команду.")));
 }
@@ -339,7 +357,7 @@ void UOCR13DeploymentFlowSubsystem::SetStep(const int32 NewStep)
     static const TCHAR* StepNames[] = { TEXT("КОМАНДА"), TEXT("ГРУПА"), TEXT("РОЛЬ"), TEXT("ТОЧКА ПОЯВИ") };
     if (StepText.IsValid())
     {
-        StepText->SetText(FText::FromString(FString::Printf(TEXT("КРОК %d / 4 · %s"), CurrentStep + 1, StepNames[CurrentStep])));
+        StepText->SetText(FText::FromString(FString::Printf(TEXT("КРОК %d З 4  •  %s"), CurrentStep + 1, StepNames[CurrentStep])));
     }
     if (DeployButton.IsValid())
     {
@@ -402,7 +420,6 @@ bool UOCR13DeploymentFlowSubsystem::IsSpawnAvailable(const EOCTeam Team, const F
     }
     if (bFoundTeamSpawn) return false;
 
-    // Remote clients may not own server-only PlayerStart actors, so capture ownership is the replication-safe fallback.
     for (TActorIterator<AOCCapturePoint> It(GetWorld()); It; ++It)
     {
         const AOCCapturePoint* Point = *It;
@@ -419,9 +436,9 @@ FString UOCR13DeploymentFlowSubsystem::BuildSelectedSquadRoster(
 
     FString Roster;
     if (bRoleSelected)
-        Roster += FString::Printf(TEXT("ВИ · %s\n"), *RoleLabel(SelectedRole));
+        Roster += FString::Printf(TEXT("ВИ  •  %s\n"), *RoleLabel(SelectedRole));
     else
-        Roster += TEXT("ВИ · роль не вибрана\n");
+        Roster += TEXT("ВИ  •  роль не вибрана\n");
 
     const AOCPlayerState* Local = PC ? PC->GetPlayerState<AOCPlayerState>() : nullptr;
     const AOCGameState* GameState = GetWorld()->GetGameState<AOCGameState>();
@@ -432,7 +449,7 @@ FString UOCR13DeploymentFlowSubsystem::BuildSelectedSquadRoster(
     {
         const AOCPlayerState* State = Cast<AOCPlayerState>(RawState);
         if (!State || State == Local || State->GetTeamId() != Team || State->GetSquadId() != SquadId) continue;
-        Roster += FString::Printf(TEXT("%s%s · %s\n"),
+        Roster += FString::Printf(TEXT("%s%s  •  %s\n"),
             State->IsBotPlayer() ? TEXT("[БОТ] ") : TEXT(""),
             *State->GetPlayerName(), *RoleLabel(State->GetPlayerRole()));
         if (++Added >= 3) break;
@@ -450,14 +467,13 @@ void UOCR13DeploymentFlowSubsystem::RefreshState(AOCPlayerController* PC)
         if (GameState)
         {
             MatchText->SetText(FText::FromString(FString::Printf(
-                TEXT("ГРАВЦІ: %d\nБОТИ: %d\nЗАГАЛОМ: %d / %d"),
+                TEXT("ГРАВЦІ: %d\nБОТИ: %d\nУ МАТЧІ: %d"),
                 GameState->GetHumanPlayerCount(), GameState->GetBotPlayerCount(),
-                GameState->GetHumanPlayerCount() + GameState->GetBotPlayerCount(),
-                GameState->GetTargetPopulation())));
+                GameState->GetHumanPlayerCount() + GameState->GetBotPlayerCount())));
         }
         else
         {
-            MatchText->SetText(FText::FromString(TEXT("Очікування стану матчу…")));
+            MatchText->SetText(FText::FromString(TEXT("Завантаження матчу…")));
         }
     }
 
@@ -486,7 +502,7 @@ void UOCR13DeploymentFlowSubsystem::RefreshState(AOCPlayerController* PC)
         if (SquadButtonTexts.IsValidIndex(Index) && SquadButtonTexts[Index].IsValid())
         {
             SquadButtonTexts[Index]->SetText(FText::FromString(FString::Printf(
-                TEXT("%s    %d / 4    %s"), *SquadLabel(Index), DisplayMembers,
+                TEXT("%s   •   %d / 4   •   %s"), *SquadLabel(Index), DisplayMembers,
                 bAvailable ? TEXT("Є МІСЦЕ") : TEXT("ЗАПОВНЕНО"))));
         }
     }
@@ -502,7 +518,7 @@ void UOCR13DeploymentFlowSubsystem::RefreshState(AOCPlayerController* PC)
         if (RoleButtonTexts.IsValidIndex(Index) && RoleButtonTexts[Index].IsValid())
         {
             RoleButtonTexts[Index]->SetText(FText::FromString(FString::Printf(
-                TEXT("%s    %s"), *RoleLabel(Roles[Index]), bAvailable ? TEXT("ВІЛЬНО") : TEXT("ЗАЙНЯТО"))));
+                TEXT("%s   •   %s"), *RoleLabel(Roles[Index]), bAvailable ? TEXT("ВІЛЬНО") : TEXT("ЗАЙНЯТО"))));
         }
     }
 
@@ -514,13 +530,13 @@ void UOCR13DeploymentFlowSubsystem::RefreshState(AOCPlayerController* PC)
         if (SpawnButtonTexts.IsValidIndex(Index) && SpawnButtonTexts[Index].IsValid())
         {
             SpawnButtonTexts[Index]->SetText(FText::FromString(FString::Printf(
-                TEXT("%s    %s"), *SpawnLabel(SpawnIds[Index]), bAvailable ? TEXT("ДОСТУПНА") : TEXT("НЕДОСТУПНА"))));
+                TEXT("%s   •   %s"), *SpawnLabel(SpawnIds[Index]), bAvailable ? TEXT("ДОСТУПНА") : TEXT("НЕДОСТУПНА"))));
         }
     }
 
     if (SpawnSelectionText.IsValid())
     {
-        SpawnSelectionText->SetText(FText::FromString(FString::Printf(TEXT("ТОЧКА: %s"), *SpawnLabel(SelectedSpawn))));
+        SpawnSelectionText->SetText(FText::FromString(FString::Printf(TEXT("ОБРАНО: %s"), *SpawnLabel(SelectedSpawn))));
     }
 
     if (DeployButton.IsValid())
@@ -554,6 +570,7 @@ void UOCR13DeploymentFlowSubsystem::Tick(float DeltaTime)
 
     if (UWidget* Legacy = Root->GetWidgetFromName(TEXT("DeploymentPanel")))
     {
+        Legacy->SetVisibility(ESlateVisibility::Collapsed);
         Legacy->SetRenderOpacity(0.0f);
         Legacy->SetIsEnabled(false);
     }
@@ -566,7 +583,12 @@ void UOCR13DeploymentFlowSubsystem::Tick(float DeltaTime)
         ResetFlow();
     }
     bWasVisible = bVisible;
+    FlowPanel->SetRenderOpacity(1.0f);
     FlowPanel->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    if (UWidget* Backdrop = Root->GetWidgetFromName(TEXT("R13_DeploymentBackdrop")))
+    {
+        Backdrop->SetVisibility(bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+    }
     if (!bVisible) return;
 
     RefreshAccumulator += DeltaTime;
@@ -575,6 +597,18 @@ void UOCR13DeploymentFlowSubsystem::Tick(float DeltaTime)
         RefreshAccumulator = 0.0f;
         RefreshState(PC);
     }
+}
+
+void UOCR13DeploymentFlowSubsystem::ReconcileAuthoritativeState(AOCPlayerController* PC, float DeltaSeconds)
+{
+    if (!PC) return;
+    AuthorityReconcileAge += FMath::Max(0.0f, DeltaSeconds);
+    const AOCPlayerState* State = PC->GetPlayerState<AOCPlayerState>();
+    if (!State) return;
+    ReconcileTeamSnapshot = State->GetTeamId();
+    ReconcileSquadSnapshot = State->GetSquadId();
+    ReconcileRoleSnapshot = State->GetPlayerRole();
+    bReconcileRoleSelectedSnapshot = bRoleSelected;
 }
 
 void UOCR13DeploymentFlowSubsystem::OnTeamOne()
@@ -613,10 +647,10 @@ void UOCR13DeploymentFlowSubsystem::OnRoleMedic(){ AOCPlayerController* PC=GetWo
 void UOCR13DeploymentFlowSubsystem::OnRoleEngineer(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsRoleAvailable(SelectedTeam,SelectedSquad,EOCPlayerRole::Engineer,PC))return; SelectedRole=EOCPlayerRole::Engineer; bRoleSelected=true; SelectedSpawn=NAME_None; PC->UIRequestRole(SelectedRole); SetStep(3); }
 void UOCR13DeploymentFlowSubsystem::OnRoleSupport(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsRoleAvailable(SelectedTeam,SelectedSquad,EOCPlayerRole::Support,PC))return; SelectedRole=EOCPlayerRole::Support; bRoleSelected=true; SelectedSpawn=NAME_None; PC->UIRequestRole(SelectedRole); SetStep(3); }
 
-void UOCR13DeploymentFlowSubsystem::OnSpawnBase(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC)return; SelectedSpawn=TEXT("BASE"); PC->UISelectSpawn(SelectedSpawn); }
-void UOCR13DeploymentFlowSubsystem::OnSpawnA(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsSpawnAvailable(SelectedTeam,TEXT("A")))return; SelectedSpawn=TEXT("A"); PC->UISelectSpawn(SelectedSpawn); }
-void UOCR13DeploymentFlowSubsystem::OnSpawnB(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsSpawnAvailable(SelectedTeam,TEXT("B")))return; SelectedSpawn=TEXT("B"); PC->UISelectSpawn(SelectedSpawn); }
-void UOCR13DeploymentFlowSubsystem::OnSpawnC(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsSpawnAvailable(SelectedTeam,TEXT("C")))return; SelectedSpawn=TEXT("C"); PC->UISelectSpawn(SelectedSpawn); }
+void UOCR13DeploymentFlowSubsystem::OnSpawnBase(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC)return; SelectedSpawn=TEXT("BASE"); PC->UISelectSpawn(SelectedSpawn); if(StatusText.IsValid())StatusText->SetText(FText::FromString(TEXT("Базу вибрано. Натисніть «У БІЙ»."))); }
+void UOCR13DeploymentFlowSubsystem::OnSpawnA(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsSpawnAvailable(SelectedTeam,TEXT("A")))return; SelectedSpawn=TEXT("A"); PC->UISelectSpawn(SelectedSpawn); if(StatusText.IsValid())StatusText->SetText(FText::FromString(TEXT("Точку A вибрано. Натисніть «У БІЙ»."))); }
+void UOCR13DeploymentFlowSubsystem::OnSpawnB(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsSpawnAvailable(SelectedTeam,TEXT("B")))return; SelectedSpawn=TEXT("B"); PC->UISelectSpawn(SelectedSpawn); if(StatusText.IsValid())StatusText->SetText(FText::FromString(TEXT("Точку B вибрано. Натисніть «У БІЙ»."))); }
+void UOCR13DeploymentFlowSubsystem::OnSpawnC(){ AOCPlayerController* PC=GetWorld()?Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()):nullptr; if(!PC||!IsSpawnAvailable(SelectedTeam,TEXT("C")))return; SelectedSpawn=TEXT("C"); PC->UISelectSpawn(SelectedSpawn); if(StatusText.IsValid())StatusText->SetText(FText::FromString(TEXT("Точку C вибрано. Натисніть «У БІЙ»."))); }
 
 void UOCR13DeploymentFlowSubsystem::OnBack()
 {
@@ -624,7 +658,11 @@ void UOCR13DeploymentFlowSubsystem::OnBack()
     if (!PC) return;
     if (CurrentStep <= 0)
     {
-        PC->UIToggleFrontend();
+        if (FlowPanel.IsValid()) FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
+        bWasVisible = false;
+        PC->UICloseDeployment();
+        if (!PC->IsFrontendMenuVisible()) PC->UIToggleFrontend();
+        UE_LOG(LogTemp, Display, TEXT("PASS45_DEPLOYMENT_BACK_TO_FRONTEND_READY deployment_closed=1 frontend_open=1 stale_overlay=0"));
         return;
     }
 
@@ -632,6 +670,7 @@ void UOCR13DeploymentFlowSubsystem::OnBack()
     else if (CurrentStep == 2) bRoleSelected = false;
     else if (CurrentStep == 1) SelectedSquad = INDEX_NONE;
     SetStep(CurrentStep - 1);
+    if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("Змініть вибір або поверніться назад.")));
 }
 
 void UOCR13DeploymentFlowSubsystem::OnDeploy()
@@ -640,10 +679,18 @@ void UOCR13DeploymentFlowSubsystem::OnDeploy()
     if (!PC || CurrentStep != 3 || SelectedTeam == EOCTeam::None || SelectedSquad < 0 ||
         !bRoleSelected || SelectedSpawn.IsNone() || !IsSpawnAvailable(SelectedTeam, SelectedSpawn)) return;
 
-    if (StatusText.IsValid())
-        StatusText->SetText(FText::FromString(TEXT("ПЕРЕВІРКА ТОЧКИ ПОЯВИ…")));
+    if (DeployButton.IsValid()) DeployButton->SetIsEnabled(false);
+    if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("ВХІД У БІЙ…")));
+
+    // UISelectSpawn and the ready RPC are ordered on the same controller connection. Do not wait on a
+    // cosmetic client-side "spawn verification" state: that old path could leave the UI frozen forever.
     PC->UISelectSpawn(SelectedSpawn);
-    PC->UICommitDeployment();
+    PC->UIReadyDeploy();
+    if (FlowPanel.IsValid()) FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
+    bWasVisible = false;
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_DEPLOY_DIRECT_READY spawn=%s validation_wait=0 deployment_closed=1"), *SelectedSpawn.ToString());
 }
 
 TStatId UOCR13DeploymentFlowSubsystem::GetStatId() const

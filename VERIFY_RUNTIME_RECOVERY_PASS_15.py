@@ -28,6 +28,7 @@ museum_h = read(SRC / "Public" / "OCMuseumSpawnGuardSubsystem.h")
 museum = read(SRC / "Private" / "OCMuseumSpawnGuardSubsystem.cpp")
 spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 foliage = read(SRC / "Private" / "OCDenseGroundFoliageSubsystem.cpp")
+foliage_guard = read(SRC / "Private" / "OCFoliageRuntimeGuardSubsystem.cpp")
 perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
 perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
 launcher = read(ROOT / "RUN_R15_RUNTIME_RECOVERY_ACCEPTANCE.cmd")
@@ -72,9 +73,50 @@ for needle in (
 ):
     require(spawn, needle, "physical Museum weapon rack")
 
-grid = re.search(r"constexpr\s+float\s+GridStep\s*=\s*([0-9.]+)f\s*;", foliage)
-if not grid or float(grid.group(1)) < 2000.0:
-    raise SystemExit("PASS15 VERIFY FAIL: foliage grid exceeds low-cost recovery density")
+# Pass45 Block 0 supersedes the historical Museum-only/20m recovery foliage crop. LowCPU now reduces density
+# and cull budget across the same compact 960x940m playable Oster bounds; it may not spatially erase the city.
+for needle in (
+    "CompactMinX = -78000.0f",
+    "CompactMaxX =  18000.0f",
+    "CompactMinY = -12000.0f",
+    "CompactMaxY =  82000.0f",
+    "FullGridStepCm = 1000.0f",
+    "LowCPUGridStepCm = 1500.0f",
+    "FullCellsPerBatch = 32",
+    "LowCPUCellsPerBatch = 48",
+    "ActiveGridStep = bLowCPUProfile ? LowCPUGridStepCm : FullGridStepCm",
+    "PASS45_BLOCK0_FULL_MAP_GRASS_SCOPE_READY",
+    "PASS45_BLOCK0_FOLIAGE_BUDGET_READY",
+    "PASS45_BLOCK0_FULL_MAP_GRASS_READY",
+    "full_playable_bounds=1",
+    "museum_only=0",
+):
+    require(foliage, needle, "Pass45 full-map profile-aware foliage")
+
+full_grid = re.search(r"FullGridStepCm\s*=\s*([0-9.]+)f", foliage)
+low_grid = re.search(r"LowCPUGridStepCm\s*=\s*([0-9.]+)f", foliage)
+if not full_grid or not low_grid:
+    raise SystemExit("PASS15 VERIFY FAIL: profile-aware foliage grid constants missing")
+if float(low_grid.group(1)) <= float(full_grid.group(1)):
+    raise SystemExit("PASS15 VERIFY FAIL: LowCPU foliage no longer reduces density relative to Full profile")
+
+for forbidden in (
+    "LowCPUHalfExtentCm = 10000.0f",
+    "PopulationMinX = Museum.X - LowCPUHalfExtentCm",
+    "PopulationMaxX = Museum.X + LowCPUHalfExtentCm",
+    "full_sector_population=0",
+):
+    forbid(foliage + foliage_guard, forbidden, "retired Museum-only foliage acceptance")
+
+for needle in (
+    'Block0PopulationCompleteTag(TEXT("OC_Block0FullMapGrassComplete"))',
+    "ActorHasTag(Block0PopulationCompleteTag)",
+    "full_map_foliage_population_incomplete",
+    "full_sector_population=1",
+    "population_complete=1",
+    "density_policy_only=1",
+):
+    require(foliage_guard, needle, "full-map foliage runtime completion gate")
 
 # Low FPS remains evidence, not permission for hidden graphics degradation.
 for needle in (
@@ -118,6 +160,8 @@ for forbidden in (
 print("RUNTIME RECOVERY PASS15/PASS45 SOURCE CONTRACT PASS")
 print("- frontend/server recovery and physical 11-weapon Museum rack remain required")
 print("- Museum BASE correction is initial-character-only and vehicle revalidation is forbidden")
+print("- Pass45 foliage covers the compact 960x940m playable Oster area in both profiles; LowCPU reduces density instead of cropping the city")
+print("- foliage runtime READY requires the full-map population-complete tag, preventing early partial-population false green")
 print("- focused launcher accepts the current Pass45 terminal deployment evidence")
 print("- low-FPS probe remains diagnostic-only and does not destroy graphics quality")
 print("- exact production-art certification remains separate")

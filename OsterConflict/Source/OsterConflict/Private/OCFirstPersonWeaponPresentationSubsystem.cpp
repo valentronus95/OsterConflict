@@ -2,6 +2,8 @@
 
 #include "OCCharacter.h"
 #include "OCGameMode.h"
+#include "OCWeaponAnimationProfiles.h"
+#include "OCWeaponAudioComponent.h"
 #include "OCWeaponBase.h"
 #include "OCWeaponPresentationProfiles.h"
 
@@ -34,10 +36,37 @@ void UOCFirstPersonWeaponPresentationSubsystem::OnWorldBeginPlay(UWorld& InWorld
         TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Idle_01.AS_F_Rifle_Idle_01"));
     RifleADSIdleAnimation = LoadObject<UAnimSequence>(nullptr,
         TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Idle_01.AS_F_ADS_Rifle_Idle_01"));
+    RifleWalkForwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_F_Loop.AS_F_Rifle_Walk_F_Loop"));
+    RifleWalkBackwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_B_Loop.AS_F_Rifle_Walk_B_Loop"));
+    RifleWalkLeftAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_L_Loop.AS_F_Rifle_Walk_L_Loop"));
+    RifleWalkRightAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_R_Loop.AS_F_Rifle_Walk_R_Loop"));
+    RifleADSWalkForwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_F_Loop.AS_F_ADS_Rifle_Walk_F_Loop"));
+    RifleADSWalkBackwardAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_B_Loop.AS_F_ADS_Rifle_Walk_B_Loop"));
+    RifleADSWalkLeftAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_L_Loop.AS_F_ADS_Rifle_Walk_L_Loop"));
+    RifleADSWalkRightAnimation = LoadObject<UAnimSequence>(nullptr,
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_R_Loop.AS_F_ADS_Rifle_Walk_R_Loop"));
     AKFireAnimation = LoadObject<UAnimSequence>(nullptr,
         TEXT("/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W"));
     AKReloadAnimation = LoadObject<UAnimSequence>(nullptr,
         TEXT("/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W"));
+
+    const bool bRifleLocomotionPackReady = RifleIdleAnimation && RifleADSIdleAnimation &&
+        RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation &&
+        RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation;
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_FP_RIFLE_LOCOMOTION_CONTENT_BRIDGE ready=%d hip_idle=%d ads_idle=%d directional_hip=%d directional_ads=%d runtime_acceptance=0"),
+        bRifleLocomotionPackReady ? 1 : 0,
+        RifleIdleAnimation ? 1 : 0,
+        RifleADSIdleAnimation ? 1 : 0,
+        (RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation) ? 1 : 0,
+        (RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation) ? 1 : 0);
 }
 
 TStatId UOCFirstPersonWeaponPresentationSubsystem::GetStatId() const
@@ -55,8 +84,6 @@ void UOCFirstPersonWeaponPresentationSubsystem::Tick(float DeltaTime)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
-    // Pass 39: this is first-person LOCAL presentation. Iterating every AOCCharacter in the world every
-    // frame was needless work and scales with bots/respawned pawns. Resolve exactly one local pawn directly.
     APlayerController* LocalPC = World->GetFirstPlayerController();
     AOCCharacter* Character = LocalPC ? Cast<AOCCharacter>(LocalPC->GetPawn()) : nullptr;
     if (Character && Character->IsLocallyControlled())
@@ -130,8 +157,10 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
 
     if (USkeletalMeshComponent* Arms = Character.GetFirstPersonArms())
     {
-        Arms->SetRelativeLocation(State.BaseArmsLocation);
-        Arms->SetRelativeRotation(State.BaseArmsRotation);
+        // Return to the character-owned transform, not the profile-adjusted baseline. This prevents
+        // per-weapon grip offsets from accumulating every time the player swaps weapons or enters a vehicle.
+        Arms->SetRelativeLocation(State.OriginalArmsLocation);
+        Arms->SetRelativeRotation(State.OriginalArmsRotation);
         if (State.bRiflePoseApplied && Arms->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
         {
             Arms->SetAnimation(nullptr);
@@ -140,22 +169,26 @@ void UOCFirstPersonWeaponPresentationSubsystem::RestorePresentationState(AOCChar
 
     State.bWeaponAnimationActive = false;
     State.bRiflePoseApplied = false;
+    State.bWasActionCycling = false;
+    State.bWasAiming = false;
+    State.ArmsLocomotionState = 255;
     State.RecoilAlpha = 0.0f;
 }
 
-void UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
+bool UOCFirstPersonWeaponPresentationSubsystem::PlayWeaponAnimation(AOCWeaponBase& Weapon, UAnimSequence* Sequence,
     FOCFirstPersonWeaponState& State, double ResetDelaySeconds)
 {
-    if (!Sequence) return;
+    if (!Sequence) return false;
     USkeletalMeshComponent* Visual = FindProductionSkeletalWeaponVisual(Weapon);
     USkeletalMesh* Mesh = Visual ? Visual->GetSkeletalMeshAsset() : nullptr;
-    if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return;
+    if (!Visual || !Mesh || !Sequence->GetSkeleton() || Sequence->GetSkeleton() != Mesh->GetSkeleton()) return false;
 
-    if (Visual->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Visual->GetAnimClass()) return;
+    if (Visual->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Visual->GetAnimClass()) return false;
 
     Visual->PlayAnimation(Sequence, false);
     State.bWeaponAnimationActive = true;
     State.WeaponAnimationResetTime = GetWorld() ? GetWorld()->GetTimeSeconds() + FMath::Max(0.05, ResetDelaySeconds) : 0.0;
+    return true;
 }
 
 void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Character,
@@ -167,17 +200,69 @@ void UOCFirstPersonWeaponPresentationSubsystem::ApplyArmsPose(AOCCharacter& Char
 
     if (Arms->GetAnimationMode() == EAnimationMode::AnimationBlueprint && Arms->GetAnimClass()) return;
 
+    enum : uint8
+    {
+        Idle = 0,
+        Forward = 1,
+        Backward = 2,
+        Left = 3,
+        Right = 4
+    };
+
+    uint8 LocomotionState = Idle;
     UAnimSequence* Desired = bADS ? RifleADSIdleAnimation.Get() : RifleIdleAnimation.Get();
+
+    FVector FlatVelocity = Character.GetVelocity();
+    FlatVelocity.Z = 0.0f;
+    if (FlatVelocity.SizeSquared() > FMath::Square(10.0f))
+    {
+        const FVector MoveDirection = FlatVelocity.GetSafeNormal();
+        const float ForwardDot = FVector::DotProduct(Character.GetActorForwardVector(), MoveDirection);
+        const float RightDot = FVector::DotProduct(Character.GetActorRightVector(), MoveDirection);
+
+        if (FMath::Abs(ForwardDot) >= FMath::Abs(RightDot))
+        {
+            if (ForwardDot >= 0.0f)
+            {
+                LocomotionState = Forward;
+                Desired = bADS ? RifleADSWalkForwardAnimation.Get() : RifleWalkForwardAnimation.Get();
+            }
+            else
+            {
+                LocomotionState = Backward;
+                Desired = bADS ? RifleADSWalkBackwardAnimation.Get() : RifleWalkBackwardAnimation.Get();
+            }
+        }
+        else if (RightDot >= 0.0f)
+        {
+            LocomotionState = Right;
+            Desired = bADS ? RifleADSWalkRightAnimation.Get() : RifleWalkRightAnimation.Get();
+        }
+        else
+        {
+            LocomotionState = Left;
+            Desired = bADS ? RifleADSWalkLeftAnimation.Get() : RifleWalkLeftAnimation.Get();
+        }
+    }
+
+    UAnimSequence* IdleFallback = bADS ? RifleADSIdleAnimation.Get() : RifleIdleAnimation.Get();
+    if (!Desired || !Desired->GetSkeleton() || Desired->GetSkeleton() != ArmsMesh->GetSkeleton())
+    {
+        Desired = IdleFallback;
+        LocomotionState = Idle;
+    }
     if (!Desired || !Desired->GetSkeleton() || Desired->GetSkeleton() != ArmsMesh->GetSkeleton())
     {
         return;
     }
 
-    if (!State.bRiflePoseApplied || State.bADSArmsPose != bADS)
+    const uint8 PoseKey = static_cast<uint8>(LocomotionState | (bADS ? 0x80 : 0x00));
+    if (!State.bRiflePoseApplied || State.ArmsLocomotionState != PoseKey)
     {
         Arms->PlayAnimation(Desired, true);
         State.bRiflePoseApplied = true;
         State.bADSArmsPose = bADS;
+        State.ArmsLocomotionState = PoseKey;
     }
 }
 
@@ -210,6 +295,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     const FName WeaponId = Weapon->GetWeaponId();
     const bool bDeclaredProfile = OCHasDeclaredFirstPersonWeaponProfile(WeaponId);
     const FOCFirstPersonWeaponProfile Profile = OCResolveFirstPersonWeaponProfile(WeaponId);
+    const FOCWeaponAnimationProfile AnimationProfile = OCResolveWeaponAnimationProfile(WeaponId);
 
     if (!ExistingState)
     {
@@ -217,12 +303,16 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         State.Weapon = Weapon;
         State.LastAmmo = Weapon->GetAmmoInMagazine();
         State.bWasReloading = Weapon->IsReloading();
+        State.bWasActionCycling = false;
+        State.bWasAiming = false;
         State.ReloadStartTime = Now;
 
         State.BaseWeaponLocation = Profile.CameraLocation;
         State.BaseWeaponRotation = Profile.CameraRotation;
-        State.BaseArmsLocation = Arms->GetRelativeLocation() + Profile.ArmsBaseOffset;
-        State.BaseArmsRotation = Arms->GetRelativeRotation() + Profile.ArmsBaseRotationOffset;
+        State.OriginalArmsLocation = Arms->GetRelativeLocation();
+        State.OriginalArmsRotation = Arms->GetRelativeRotation();
+        State.BaseArmsLocation = State.OriginalArmsLocation + Profile.ArmsBaseOffset;
+        State.BaseArmsRotation = State.OriginalArmsRotation + Profile.ArmsBaseRotationOffset;
 
         UPrimitiveComponent* ProductionVisual = FindProductionWeaponVisual(*Weapon);
         if (!ProductionVisual)
@@ -252,7 +342,21 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         }
     }
 
-    const bool bADS = Character.IsAiming();
+    const bool bRequestedADS = Character.IsAiming();
+    if (bRequestedADS && !State.bWasAiming && bDeclaredProfile)
+    {
+        ValidateADSAlignment(Character, *Weapon, FindProductionWeaponVisual(*Weapon), Profile);
+        if (!Profile.bADSCalibrated)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_ADS_PRESENTATION_FAIL_CLOSED weapon=%s requested_ads=1 calibrated=0 hip_transform_preserved=1 runtime_visual_acceptance=pending"),
+                *WeaponId.ToString());
+        }
+    }
+    State.bWasAiming = bRequestedADS;
+
+    const bool bADS = bRequestedADS && Profile.bADSCalibrated;
+
     const EOCWeaponClass WeaponClass = Weapon->GetWeaponClass();
     const bool bLongGun = WeaponClass != EOCWeaponClass::Pistol;
     if (bLongGun)
@@ -263,15 +367,19 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     {
         Arms->SetAnimation(nullptr);
         State.bRiflePoseApplied = false;
+        State.ArmsLocomotionState = 255;
     }
 
     const int32 CurrentAmmo = Weapon->GetAmmoInMagazine();
     if (State.LastAmmo != INDEX_NONE && CurrentAmmo < State.LastAmmo && !Weapon->IsReloading())
     {
         State.RecoilAlpha = 1.0f;
-        if (WeaponId == FName(TEXT("OC_AR1")))
+        if (AnimationProfile.HasFireAnimation())
         {
-            PlayWeaponAnimation(*Weapon, AKFireAnimation, State, 0.11);
+            UAnimSequence* FireSequence = WeaponId == FName(TEXT("OC_AR1"))
+                ? AKFireAnimation.Get()
+                : LoadObject<UAnimSequence>(nullptr, *AnimationProfile.FireAnimationObjectPath);
+            PlayWeaponAnimation(*Weapon, FireSequence, State, 0.11);
         }
     }
     State.LastAmmo = CurrentAmmo;
@@ -280,9 +388,12 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
     if (bReloading && !State.bWasReloading)
     {
         State.ReloadStartTime = Now;
-        if (WeaponId == FName(TEXT("OC_AR1")))
+        if (AnimationProfile.HasReloadAnimation())
         {
-            PlayWeaponAnimation(*Weapon, AKReloadAnimation, State, Weapon->GetReloadDuration());
+            UAnimSequence* ReloadSequence = WeaponId == FName(TEXT("OC_AR1"))
+                ? AKReloadAnimation.Get()
+                : LoadObject<UAnimSequence>(nullptr, *AnimationProfile.ReloadAnimationObjectPath);
+            PlayWeaponAnimation(*Weapon, ReloadSequence, State, Weapon->GetReloadDuration());
         }
     }
 
@@ -310,6 +421,48 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         }
         State.bWeaponAnimationActive = false;
     }
+
+    const bool bActionCycling = Weapon->IsActionCycling();
+    if (bActionCycling && !State.bWasActionCycling)
+    {
+        const EOCWeaponActionType ActionType = Weapon->GetWeaponActionType();
+        if (UOCWeaponAudioComponent* Audio = Weapon->GetWeaponAudioComponent())
+        {
+            const int32 EventSeed = CurrentAmmo * 31 + static_cast<int32>(ActionType) * 101;
+            Audio->HandleStateEventLocal(EOCWeaponAudioEvent::ManualActionCycle, Weapon->GetActorLocation(), EventSeed);
+        }
+
+        bool bAuthoredManualActionStarted = false;
+        if (AnimationProfile.HasManualActionAnimation())
+        {
+            UAnimSequence* ManualActionSequence = LoadObject<UAnimSequence>(
+                nullptr, *AnimationProfile.ManualActionAnimationObjectPath);
+            const double ResetDelay = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
+            bAuthoredManualActionStarted = PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay);
+            if (bAuthoredManualActionStarted)
+            {
+                UE_LOG(LogTemp, Display,
+                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=%s action=%s path=%s replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0"),
+                    *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
+                    *AnimationProfile.ManualActionAnimationObjectPath);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error,
+                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=%s action=%s path=%s reason=load_or_skeleton_or_animation_mode runtime_acceptance=0"),
+                    *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
+                    *AnimationProfile.ManualActionAnimationObjectPath);
+            }
+        }
+
+        if (!bAuthoredManualActionStarted)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("PASS45_MANUAL_ACTION_AUTHORED_CONTENT_GAP weapon=%s action=%s authored_moving_part=0 procedural_fallback=0 baseline_transform_preserved=1 second_gameplay_timer=0 runtime_acceptance=0"),
+                *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType));
+        }
+    }
+    State.bWasActionCycling = bActionCycling;
 
     State.RecoilAlpha = FMath::FInterpTo(State.RecoilAlpha, 0.0f, DeltaTime, 19.0f);
 

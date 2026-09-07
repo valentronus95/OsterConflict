@@ -1,0 +1,32 @@
+name: Pass 45 combat dismemberment proxy retirement
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCCombatVisualComponent.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCombatVisualComponent.cpp'
+      - 'VERIFY_PASS45_COMBAT_DISMEMBERMENT_PROXY_RETIREMENT.py'
+      - '.github/workflows/pass45-combat-dismemberment-proxy-retirement.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCCombatVisualComponent.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCCombatVisualComponent.cpp'
+      - 'VERIFY_PASS45_COMBAT_DISMEMBERMENT_PROXY_RETIREMENT.py'
+      - '.github/workflows/pass45-combat-dismemberment-proxy-retirement.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify fail-closed combat dismemberment presentation
+        run: python VERIFY_PASS45_COMBAT_DISMEMBERMENT_PROXY_RETIREMENT.py

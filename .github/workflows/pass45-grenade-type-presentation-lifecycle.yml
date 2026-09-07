@@ -1,0 +1,32 @@
+name: Pass 45 grenade type presentation lifecycle
+
+on:
+  pull_request:
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCGrenadeProjectile.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGrenadeProjectile.cpp'
+      - 'VERIFY_PASS45_GRENADE_TYPE_PRESENTATION_LIFECYCLE.py'
+      - '.github/workflows/pass45-grenade-type-presentation-lifecycle.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'OsterConflict/Source/OsterConflict/Public/OCGrenadeProjectile.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGrenadeProjectile.cpp'
+      - 'VERIFY_PASS45_GRENADE_TYPE_PRESENTATION_LIFECYCLE.py'
+      - '.github/workflows/pass45-grenade-type-presentation-lifecycle.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify grenade type presentation lifecycle
+        run: python VERIFY_PASS45_GRENADE_TYPE_PRESENTATION_LIFECYCLE.py

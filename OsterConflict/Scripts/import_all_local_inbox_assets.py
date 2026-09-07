@@ -366,6 +366,22 @@ def main():
     if supplied_hud and not (bindings["hud_textures"] or bindings["hud_widget_classes"]):
         bindings["unbound_models"].append({"source": "HUD_UI", "category": "HUD_UI", "status": "UNBOUND", "reason": "hud_supplied_but_no_runtime_binding"})
 
+    # Fail closed on every source row the importer itself explicitly classified as UNBOUND.
+    # Non-runtime dependencies (materials/textures that are not HUD) do not emit UNBOUND rows, so
+    # a broken or oddly named mesh package cannot escape acceptance merely because a filename heuristic missed it.
+    seen_unbound = {
+        (row.get("source"), row.get("reason"), row.get("asset"))
+        for row in bindings["unbound_models"]
+    }
+    for status in bindings["source_status"]:
+        if str(status.get("status") or "").upper() != "UNBOUND":
+            continue
+        identity = (status.get("source"), status.get("reason"), status.get("asset"))
+        if identity in seen_unbound:
+            continue
+        seen_unbound.add(identity)
+        bindings["unbound_models"].append(status)
+
     compatible_skins = [x for x in bindings["skeletal_assets"] if x.get("category") == "CHARACTER_SKIN" and x.get("character_compatible")]
     bindings["summary"] = {
         "static_assets": len(bindings["static_assets"]),

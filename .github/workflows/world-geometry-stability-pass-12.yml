@@ -3,10 +3,17 @@ name: World geometry stability pass 12
 on:
   pull_request:
     paths:
+      - 'OsterConflict/Config/DefaultEngine.ini'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualEnvironment.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldAssetModelsSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldGeometryStabilitySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGeoReference.h'
       - 'OsterConflict/Source/OsterConflict/Public/OCWorldGeometryStabilitySubsystem.h'
       - 'RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py'
@@ -14,7 +21,16 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'OsterConflict/Config/DefaultEngine.ini'
+      - 'OsterConflict/Source/OsterConflict/Private/OCVisualEnvironment.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGeoReference.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCWorldSectorOster.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCLandmarkStartupCoordinatorSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR137MuseumPhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146CultureHousePhotoModelSubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Private/OCR146LandmarkSeparationSubsystem.cpp'
       - 'OsterConflict/Source/OsterConflict/Private/OCWorldGeometryStabilitySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGeoReference.h'
       - 'OsterConflict/Source/OsterConflict/Public/OCWorldGeometryStabilitySubsystem.h'
       - 'RUN_R14_WORLD_STABILITY_RUNTIME_ACCEPTANCE.cmd'
       - 'VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py'
@@ -30,5 +46,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify late world-geometry stability contracts
+      - name: Verify world geometry, materials, lighting and landmark identity contracts
         run: python VERIFY_WORLD_GEOMETRY_STABILITY_PASS_12.py
