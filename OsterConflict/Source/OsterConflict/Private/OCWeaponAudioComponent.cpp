@@ -5,21 +5,64 @@
 #include "OCWeaponBase.h"
 #include "OCWeaponAudioProfile.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/AssetManager.h"
+#include "Engine/Engine.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
-#include "Engine/Engine.h"
-#include "Engine/World.h"
-#include "HAL/IConsoleManager.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
 {
+    constexpr const TCHAR* AKFirePath = TEXT("/Game/AK-47/Sound/AK-47/Cues/AK47_Fire_Cue.AK47_Fire_Cue");
+    constexpr const TCHAR* AKReloadPath = TEXT("/Game/AK-47/Sound/AK-47/Cues/Reload_Cue.Reload_Cue");
+    constexpr const TCHAR* AKDryFirePath = TEXT("/Game/AK-47/Sound/AK-47/Cues/AK47_Empty_Cue.AK47_Empty_Cue");
+    constexpr const TCHAR* GenericShotPath = TEXT("/Game/R13/Audio/gunfire_sfx.gunfire_sfx");
+    constexpr const TCHAR* GenericReloadPath = TEXT("/Game/R13/Audio/gunreload1.gunreload1");
+    constexpr const TCHAR* AssaultReloadPath = TEXT("/Game/R13/Audio/assaultriflereload1.assaultriflereload1");
+    constexpr const TCHAR* PumpPath = TEXT("/Game/R13/Audio/shotguncock.shotguncock");
+    constexpr const TCHAR* ImpactPath = TEXT("/Game/R13/Audio/snd_bullethit.snd_bullethit");
+    constexpr const TCHAR* BoltPath = TEXT("/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor");
+    constexpr const TCHAR* LeverPath = TEXT("/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor");
+
     TAutoConsoleVariable<int32> CVarOCAudioDebug(
         TEXT("oc.Audio.Debug"),
         0,
         TEXT("Weapon audio debug labels. 0=off, 1=events."),
         ECVF_Default);
+
+    void BuildRepositoryFallbackAudioPaths(TArray<FSoftObjectPath>& OutPaths)
+    {
+        const TCHAR* Paths[] =
+        {
+            AKFirePath,
+            AKReloadPath,
+            AKDryFirePath,
+            GenericShotPath,
+            GenericReloadPath,
+            AssaultReloadPath,
+            PumpPath,
+            ImpactPath,
+            BoltPath,
+            LeverPath
+        };
+
+        OutPaths.Reset();
+        OutPaths.Reserve(UE_ARRAY_COUNT(Paths));
+        for (const TCHAR* Path : Paths)
+        {
+            OutPaths.Emplace(Path);
+        }
+    }
+
+    USoundBase* ResolveResidentSound(const TCHAR* AssetPath)
+    {
+        return Cast<USoundBase>(FSoftObjectPath(AssetPath).ResolveObject());
+    }
 }
 
 UOCWeaponAudioComponent::UOCWeaponAudioComponent()
@@ -28,9 +71,61 @@ UOCWeaponAudioComponent::UOCWeaponAudioComponent()
     SetIsReplicatedByDefault(false);
 }
 
+void UOCWeaponAudioComponent::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UWorld* World = GetWorld();
+    if (!World || World->GetNetMode() == NM_DedicatedServer)
+    {
+        return;
+    }
+
+    BeginRepositoryFallbackPreload();
+}
+
+void UOCWeaponAudioComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (RepositoryFallbackPreloadHandle.IsValid())
+    {
+        RepositoryFallbackPreloadHandle->CancelHandle();
+        RepositoryFallbackPreloadHandle.Reset();
+    }
+
+    Super::EndPlay(EndPlayReason);
+}
+
 void UOCWeaponAudioComponent::SetAudioProfile(UOCWeaponAudioProfile* NewProfile)
 {
     AudioProfile = NewProfile;
+}
+
+void UOCWeaponAudioComponent::BeginRepositoryFallbackPreload()
+{
+    if (bRepositoryFallbackPreloadRequested)
+    {
+        return;
+    }
+    bRepositoryFallbackPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    BuildRepositoryFallbackAudioPaths(Paths);
+    RepositoryFallbackPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate());
+
+    if (!RepositoryFallbackPreloadHandle.IsValid())
+    {
+        bRepositoryFallbackPreloadGapLogged = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_GAP reason=invalid_handle assets=%d first_use_sync_load=0 runtime_acceptance=0"),
+            Paths.Num());
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_BEGIN assets=%d async=1 first_use_sync_load=0 resident_until_end_play=1"),
+        Paths.Num());
 }
 
 UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile()
@@ -39,6 +134,36 @@ UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile(
     {
         return RepositoryFallbackProfile;
     }
+
+    if (!bRepositoryFallbackPreloadRequested)
+    {
+        BeginRepositoryFallbackPreload();
+    }
+
+    if (!RepositoryFallbackPreloadHandle.IsValid())
+    {
+        if (!bRepositoryFallbackPreloadGapLogged)
+        {
+            bRepositoryFallbackPreloadGapLogged = true;
+            UE_LOG(LogTemp, Error,
+                TEXT("GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_GAP reason=missing_handle first_use_sync_load=0 runtime_acceptance=0"));
+        }
+        return nullptr;
+    }
+
+    if (!RepositoryFallbackPreloadHandle->HasLoadCompleted())
+    {
+        if (!bRepositoryFallbackPreloadPendingLogged)
+        {
+            bRepositoryFallbackPreloadPendingLogged = true;
+            const AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(GetOwner());
+            UE_LOG(LogTemp, Verbose,
+                TEXT("GAME_RECOVERY_WEAPON_AUDIO_PRELOAD_PENDING weapon=%s first_use_sync_load=0 fallback_audio_deferred=1"),
+                Weapon ? *Weapon->GetWeaponId().ToString() : TEXT("None"));
+        }
+        return nullptr;
+    }
+
     if (bRepositoryFallbackAttempted)
     {
         return nullptr;
@@ -57,34 +182,27 @@ UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile(
     const EOCWeaponActionType ActionType = Weapon ? Weapon->GetWeaponActionType() : EOCWeaponActionType::GasOperated;
     RepositoryFallbackProfile->ProfileId = FName(*FString::Printf(TEXT("PASS45_RepositoryFallback_%s"), *WeaponId.ToString()));
 
-    auto LoadSound = [](const TCHAR* AssetPath) -> USoundBase*
-    {
-        return LoadObject<USoundBase>(nullptr, AssetPath);
-    };
-
     USoundBase* Shot = nullptr;
     USoundBase* Reload = nullptr;
     USoundBase* DryFire = nullptr;
 
-    // The AK package already carries dedicated project audio. Prefer it for the exact represented AK.
+    // The preload handle owns package residency. First-use paths only resolve already-resident objects and never issue disk loads.
     if (WeaponId == FName(TEXT("OC_AR1")))
     {
-        Shot = LoadSound(TEXT("/Game/AK-47/Sound/AK-47/Cues/AK47_Fire_Cue.AK47_Fire_Cue"));
-        Reload = LoadSound(TEXT("/Game/AK-47/Sound/AK-47/Cues/Reload_Cue.Reload_Cue"));
-        DryFire = LoadSound(TEXT("/Game/AK-47/Sound/AK-47/Cues/AK47_Empty_Cue.AK47_Empty_Cue"));
+        Shot = ResolveResidentSound(AKFirePath);
+        Reload = ResolveResidentSound(AKReloadPath);
+        DryFire = ResolveResidentSound(AKDryFirePath);
     }
 
-    // Other current weapons have no guaranteed assigned DataAsset yet. Reuse repository-owned audio rather than
-    // accepting a silent factual shot. This is an explicit temporary content fallback, not a claim of final sound identity.
     if (!Shot)
     {
-        Shot = LoadSound(TEXT("/Game/R13/Audio/gunfire_sfx.gunfire_sfx"));
+        Shot = ResolveResidentSound(GenericShotPath);
     }
     if (!Reload)
     {
         Reload = Weapon && Weapon->GetWeaponClass() == EOCWeaponClass::AssaultRifle
-            ? LoadSound(TEXT("/Game/R13/Audio/assaultriflereload1.assaultriflereload1"))
-            : LoadSound(TEXT("/Game/R13/Audio/gunreload1.gunreload1"));
+            ? ResolveResidentSound(AssaultReloadPath)
+            : ResolveResidentSound(GenericReloadPath);
     }
 
     if (Shot)
@@ -103,29 +221,27 @@ UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile(
 
     if (ActionType == EOCWeaponActionType::BoltAction)
     {
-        // Repository-owned CC0 action-family donor. The source is Mosin-Nagant, not exact M700 identity.
-        if (USoundBase* Bolt = LoadSound(TEXT("/Game/PASS45/Audio/ManualAction/SW_PASS45_BoltAction_CC0_Donor.SW_PASS45_BoltAction_CC0_Donor")))
+        if (USoundBase* Bolt = ResolveResidentSound(BoltPath))
         {
             RepositoryFallbackProfile->BoltCycle.Add(Bolt);
         }
     }
     if (ActionType == EOCWeaponActionType::PumpAction)
     {
-        if (USoundBase* Pump = LoadSound(TEXT("/Game/R13/Audio/shotguncock.shotguncock")))
+        if (USoundBase* Pump = ResolveResidentSound(PumpPath))
         {
             RepositoryFallbackProfile->PumpCycle.Add(Pump);
         }
     }
     if (ActionType == EOCWeaponActionType::LeverAction)
     {
-        // Repository-owned CC0 action-family donor. This is not an exact Stein/Marlin/Model-1894 identity claim.
-        if (USoundBase* Lever = LoadSound(TEXT("/Game/PASS45/Audio/ManualAction/SW_PASS45_LeverAction_CC0_Donor.SW_PASS45_LeverAction_CC0_Donor")))
+        if (USoundBase* Lever = ResolveResidentSound(LeverPath))
         {
             RepositoryFallbackProfile->LeverCycle.Add(Lever);
         }
     }
 
-    if (USoundBase* Impact = LoadSound(TEXT("/Game/R13/Audio/snd_bullethit.snd_bullethit")))
+    if (USoundBase* Impact = ResolveResidentSound(ImpactPath))
     {
         RepositoryFallbackProfile->ImpactFlesh.Add(Impact);
         RepositoryFallbackProfile->ImpactGlass.Add(Impact);
@@ -138,13 +254,13 @@ UOCWeaponAudioProfile* UOCWeaponAudioComponent::EnsureRepositoryFallbackProfile(
     if (RepositoryFallbackProfile->ShotNearOutdoor.IsEmpty())
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS45_WEAPON_AUDIO_CONTENT_GAP weapon=%s event=shot repository_fallback_load=0 runtime_acceptance=0"),
+            TEXT("PASS45_WEAPON_AUDIO_CONTENT_GAP weapon=%s event=shot repository_fallback_load=0 async_preloaded=1 resident_only=1 first_use_sync_load=0 runtime_acceptance=0"),
             *WeaponId.ToString());
     }
     else
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_WEAPON_AUDIO_FALLBACK_READY weapon=%s shot=1 reload=%d bolt_cycle=%d pump_cycle=%d lever_cycle=%d exact_profile_override=0 authoritative_mutation=0 runtime_acceptance=0"),
+            TEXT("PASS45_WEAPON_AUDIO_FALLBACK_READY weapon=%s shot=1 reload=%d bolt_cycle=%d pump_cycle=%d lever_cycle=%d exact_profile_override=0 authoritative_mutation=0 async_preloaded=1 resident_only=1 first_use_sync_load=0 runtime_acceptance=0"),
             *WeaponId.ToString(),
             RepositoryFallbackProfile->ReloadStart.IsEmpty() ? 0 : 1,
             RepositoryFallbackProfile->BoltCycle.IsEmpty() ? 0 : 1,
@@ -309,8 +425,6 @@ void UOCWeaponAudioComponent::HandleShotLocal(const FVector& ShotOrigin, const F
     }
     else if (Distance <= ShotProfile->DistantTailMaxDistanceCm)
     {
-        // A dedicated authored distant tail is preferred. If a temporary repository fallback does not have one,
-        // use its factual near report at reduced level rather than making the entire weapon disappear acoustically.
         USoundBase* Tail = Pick(ShotProfile->DistantTails, EventSeed + 17);
         if (!Tail) Tail = Pick(*NearSet, EventSeed + 17);
         PlayAt(Tail, ShotOrigin, bSuppressed ? 0.22f : 0.48f);
