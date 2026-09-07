@@ -139,6 +139,7 @@ delegated = (
     "VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py",
     "VERIFY_PASS45_REFERENCE_DRIVEN_RESIDENTIAL_RETIREMENT.py",
     "VERIFY_PASS45_PRIMITIVE_WEAPON_RETIREMENT.py",
+    "VERIFY_PASS45_WEAPON_AUDIO_FALLBACK.py",
 )
 
 for name in delegated:
@@ -161,6 +162,7 @@ print("RUNTIME RECOVERY PASS 45: PASS")
 print("- current recovery gate delegates specialized source contracts instead of duplicating stale assertions")
 print("- DX11/SM5 startup, grenades, production vehicles, stadium, weapon proxy retirement and reference-driven map rules are guarded")
 print("- both normal-game local weapon visual owners async-load missing assets and bind only resident production meshes")
+print("- weapon fallback audio preloads before first use; shot/reload/manual-action/impact never issue blocking LoadObject")
 print("- imported weapon bridge uses metadata-only AssetRegistry path selection and yields to LocalInbox ownership")
 print("- staged landmark readiness uses current GAME_RECOVERY markers")
 print("STATUS: SOURCE CONTRACT ONLY; factual UE 5.8 runtime remains authoritative")
