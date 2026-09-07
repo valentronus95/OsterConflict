@@ -221,33 +221,39 @@
 
 ### Зроблено / source-closed
 - пункт 1/10: world startup не випускає гравця до готовності canonical stadium + landmark chain; historical delayed timers для Museum/Silpo/Culture скасовуються, всі 13 landmark stages виконуються до `GAME_RECOVERY_WORLD_READY`;
+- пункт 1: deployment/loading UI тепер починає фактичний прогрес з **0%**, а не з намальованого стартового відсотка;
 - пункт 2: у коді є 10-секундний respawn, recovery guard, відновлення input і вимкнення Gameplay Debugger для звичайної гри;
 - пункт 3: grenade mesh/material/VFX/audio preload виконується async до deployment release; first-use blocking loads прибрані, smoke/frag presentation та cleanup source-closed;
 - пункт 4: sandbox weapon arsenal стабілізований, physics dropping/helper/basic-shape visuals retired source-side;
+- пункт 4: один current runtime owner перевіряє повний **23-позиційний weapon catalog**; launcher, Pass8 і strict runtime evidence тепер вимагають `PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_READY` та відхиляють `PASS45_COMPLETE_WEAPON_CATALOG_VISUAL_GAP`;
+- пункт 4: Remington 870 production wiring verifier актуалізований під current UE 5.8 `BY_SKELETON` import contract і поточний batch runtime route; вимоги до single skeletal weapon, pump animation та fresh-load не послаблені;
+- пункт 4: manual-action audio provenance verifier актуалізований під compact canonical TZ; pinned donor/provenance/LFS/fail-closed audio вимоги збережені;
 - пункт 5/10: production BTR-4, HMMWV/M2/gun-truck presentation переведені на preload/`ResolveObject()` без runtime `LoadObject()`; старі primitive/proxy visuals fail-closed;
 - пункт 6/10: canonical stadium async-preload і readiness gate source-closed;
 - пункт 6/10: Museum R13.8/R14.0/R14.2/R14.3/R14.4/R14.5 переведені на resident assets через `ResolveObject()` без blocking package load;
 - пункт 6/10: Silpo R14.0/R14.1/R14.2/R14.3 переведені на resident assets через `ResolveObject()`; Culture House R14.6 також більше не використовує `LoadObject`;
 - shared pre-spawn landmark preload розширено до **29 exact assets** і зберігається resident до `Deinitialize`;
-- `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` тепер захищає Stadium + Museum + Silpo + Culture House від повернення blocking `LoadObject`;
+- `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` захищає Stadium + Museum + Silpo + Culture House від повернення blocking `LoadObject`;
 - пункт 10: додані точні runtime timing logs для кожного landmark stage, загального часу підготовки та найповільнішого stage; stage понад 100 ms окремо позначається warning;
-- пункт 8: SettingsPanel source-side повернутий у enabled/visible state і production styling;
-- source checkpoint HEAD перед цим docs-комітом: `cd30d01106422e31d99c22c7f7d68255bfc1cf7a`.
+- пункт 8: SettingsPanel source-side повернутий у enabled/visible state і production styling; старі тести більше не вимагають конкретний застарілий RGB, а перевіряють фактичну непрозорість панелі;
+- source checkpoint HEAD перед цим docs-комітом: `7904b76abed721bf48b38f48cbd1e848f5aa174a`;
+- PR #94 на цьому checkpoint: **OPEN / UNMERGED**, `main` base `a1ad0e200611911102c48180956d82f73d0d8fc3`.
 
 ### У роботі
-- exact-head CI для нового landmark contract ще виконується/стоїть у черзі; зелений статус наперед не заявляється;
-- пункт 1/10: за timing logs визначити, чи є stage, який сам займає >100 ms або тим більше >1 s, і такий stage розкласти на менші частини по кадрах;
+- exact-head CI для `7904b76...` запустив **106 workflows**; на момент checkpoint значна частина ще queued/in-progress, тому повний зелений статус наперед не заявляється;
+- пункт 1/10: за фактичними UE 5.8 timing logs визначити, чи є stage, який сам займає >100 ms або тим більше >1 s, і такий stage розкласти на менші частини по кадрах;
+- пункт 4: дочистити лише актуальні CI/runtime gaps по повному 23-позиційному каталогу, Remington/manual-action audio без повернення старої 11-class rack логіки;
 - пункт 6: після source closure потрібна фактична перевірка в UE 5.8, що стадіон, музей, Сільпо і Будинок культури реально видимі й не з'являються після spawn.
 
 ### Ще не ACCEPTED
 - фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
 - `death -> 10 s -> respawn` із HUD/input;
 - перший і повторний grenade throw/explosion у rendered runtime;
-- rendered weapon arsenal без helper/proxy/detached parts;
+- rendered повний 23-позиційний weapon catalog без helper/proxy/detached parts;
 - production BTR-4/HMMWV/M2 у фактичній грі;
 - stadium/museum/Silpo/Culture House/карта Остер у фактичній грі;
 - UI/settings interaction, HUD та весь пункт 11;
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункт 1/10: отримати фактичні `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING` з UE 5.8 і розбити тільки ті landmark stages, які реально перевищують frame budget. Паралельно продовжити source-аудит решти first-use paths без повторення вже закритої роботи.
+Пункт 1/10 + 4: дочекатися exact-head CI тільки як source regression signal, виправляти лише реальні актуальні падіння, паралельно продовжити source-аудит first-use/runtime paths. Фінальне закриття цих пунктів можливе лише після фактичного UE 5.8 runtime із `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING`, повним weapon catalog і візуальною перевіркою.
