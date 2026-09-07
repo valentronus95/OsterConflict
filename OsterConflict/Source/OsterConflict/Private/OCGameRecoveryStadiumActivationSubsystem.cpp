@@ -149,8 +149,10 @@ void UOCGameRecoveryStadiumActivationSubsystem::CompleteStadiumPreload()
 
     if (bPresentationReady)
     {
+        // Keep the streamable handle alive for the world lifetime. R138 runs after this readiness gate and its
+        // historical LoadObject(Cube) must only resolve an already-resident object, never trigger disk IO.
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_READY assets=%d async_preload=1 sync_gameplay_loads=0 museum_r138_collision_prerequisite=1 canonical_owner=R13_StadionOsterAuthoritative runtime_acceptance=0"),
+            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_READY assets=%d async_preload=1 sync_gameplay_loads=0 museum_r138_collision_prerequisite=1 prerequisite_residency=world_lifetime canonical_owner=R13_StadionOsterAuthoritative runtime_acceptance=0"),
             UE_ARRAY_COUNT(StadiumPresentationPaths));
     }
     else
@@ -158,9 +160,8 @@ void UOCGameRecoveryStadiumActivationSubsystem::CompleteStadiumPreload()
         bPreloadFailed = true;
         UE_LOG(LogTemp, Error,
             TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_FAIL reason=authoritative_actor_missing sync_fallback=0 runtime_acceptance=0"));
+        PreloadHandle.Reset();
     }
-
-    PreloadHandle.Reset();
 }
 
 void UOCGameRecoveryStadiumActivationSubsystem::Deinitialize()
