@@ -222,15 +222,24 @@ for needle in (
 require(geo_reference, 'TEXT("MuseumSolonyna"), 50.948239, 30.883865', "Museum geo identity")
 require(geo_reference, 'TEXT("OsterCultureHouse"), 50.948694, 30.881435', "Culture House geo identity")
 
+# GAME_RECOVERY replaced the old SetTimerForNextTick chain with a tickable, wall-clock-spaced pre-spawn
+# coordinator. Verify current behavior: old delayed timers are cancelled once, authoritative stages are advanced
+# separately, and the timing probe exposes any stage that still monopolises one frame.
 for needle in (
-    "SetTimerForNextTick",
+    "NextStageWallTimeSeconds = Now + StageIntervalSeconds;",
     "RunAuthoritativeStartup",
     "Timers.ClearAllTimersForObject(Stage);",
     "RunAuthoritativeBuildNow(World)",
     "RunAuthoritativeDetailNow(World)",
-    "historical delayed reveal timers were cancelled",
+    "GAME_RECOVERY_WORLD_PREP_TIMERS_CANCELLED",
+    "duplicate_startup_timers=0",
+    "GAME_RECOVERY_WORLD_PREP_STAGE_TIMING",
+    "GAME_RECOVERY_WORLD_READY",
+    "post_spawn_landmark_materialization=0",
+    "slowest_stage_ms=",
 ):
     require(coordinator, needle, "landmark startup coordinator")
+forbid(coordinator, "SetTimerForNextTick", "retired one-next-tick landmark staging")
 
 for needle in (
     "constexpr float ValidationDelaySeconds",
@@ -346,6 +355,7 @@ print("WORLD GEOMETRY STABILITY PASS12/PASS45 ITEM31 SOURCE CONTRACT PASS")
 print("- historical landmark delayed timers remain cancelled and identity validation stays mutation-free")
 print("- Pass45 daylight remains component-owned: 120000 lux + AutoExposure=True + extended EV100 range")
 print("- playable Ground and authored ISM families are async-preloaded and upgraded one family per tick before spawn")
+print("- landmark startup uses wall-clock-spaced pre-spawn stages with per-stage timing instead of one next-tick chain")
 print("- Roads/Sidewalks/ParkPaths/Fences preserve packaged materials while staged materialization avoids one-frame startup work")
 print("- Pass12 validates Ground plus four authored ISM surface families at 12s, 16s and 20s")
 print("- no unrelated late source owner may mutate Ground/Roads/Sidewalks/ParkPaths/Fences materials")
