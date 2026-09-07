@@ -11,7 +11,7 @@
 - не робити reset/stash/discard локальних `Changes` користувача;
 - PR #94 не merge до фактичного UE 5.8 runtime acceptance;
 - не повертати старі proxy/заглушки як production-рішення;
-- після кожного циклу: 🟢 зроблено / 🟡 у роботі / 🔴 лишилось + % блоку і загальний % ТЗ.
+- після кожного циклу: зроблено / у роботі / лишилось + % блоку і загальний % ТЗ.
 
 ---
 
@@ -217,33 +217,37 @@
 
 ## Поточний checkpoint — 2026-09-07
 
-**Статус:** ТЗ у роботі. Загальний прогрес: **39%**.
+**Статус:** ТЗ у роботі. Загальний прогрес: **42%**. Залишилось приблизно **58%**.
 
-### 🟢 Зроблено / source-closed
-- пункт 1/10: критичний startup переведений на pre-spawn readiness; authored world surfaces materialize staged по кадрах, foliage async/staged, deployment чекає фактичний `world ready`;
+### Зроблено / source-closed
+- пункт 1/10: world startup не випускає гравця до готовності canonical stadium + landmark chain; historical delayed timers для Museum/Silpo/Culture скасовуються, всі 13 landmark stages виконуються до `GAME_RECOVERY_WORLD_READY`;
 - пункт 2: у коді є 10-секундний respawn, recovery guard, відновлення input і вимкнення Gameplay Debugger для звичайної гри;
 - пункт 3: grenade mesh/material/VFX/audio preload виконується async до deployment release; first-use blocking loads прибрані, smoke/frag presentation та cleanup source-closed;
 - пункт 4: sandbox weapon arsenal стабілізований, physics dropping/helper/basic-shape visuals retired source-side;
 - пункт 5/10: production BTR-4, HMMWV/M2/gun-truck presentation переведені на preload/`ResolveObject()` без runtime `LoadObject()`; старі primitive/proxy visuals fail-closed;
-- пункт 6/10 частково: canonical stadium recovery owner async-preload-ить точний stadium payload, gates `GAME_RECOVERY_WORLD_READY` і тримає prerequisite residency; R13.8 museum collision більше не робить blocking `LoadObject`;
-- пункт 6/10 частково: museum preload розширений з 15 до **25 exact assets**, успішний handle зберігається до `Deinitialize`, а R14.0/R14.2/R14.3/R14.4/R14.5 споживають resident assets через `ResolveObject()` без package load;
-- source verifier `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` тепер захищає stadium + full museum R13.8/R14.x preload contract і забороняє повернення `LoadObject` у цих staged owners;
+- пункт 6/10: canonical stadium async-preload і readiness gate source-closed;
+- пункт 6/10: Museum R13.8/R14.0/R14.2/R14.3/R14.4/R14.5 переведені на resident assets через `ResolveObject()` без blocking package load;
+- пункт 6/10: Silpo R14.0/R14.1/R14.2/R14.3 переведені на resident assets через `ResolveObject()`; Culture House R14.6 також більше не використовує `LoadObject`;
+- shared pre-spawn landmark preload розширено до **29 exact assets** і зберігається resident до `Deinitialize`;
+- `VERIFY_GAME_RECOVERY_STADIUM_PRELOAD.py` тепер захищає Stadium + Museum + Silpo + Culture House від повернення blocking `LoadObject`;
+- пункт 10: додані точні runtime timing logs для кожного landmark stage, загального часу підготовки та найповільнішого stage; stage понад 100 ms окремо позначається warning;
 - пункт 8: SettingsPanel source-side повернутий у enabled/visible state і production styling;
-- canonical branch: `fix/pass45-runtime-rejection-material-closure-20260826`; source checkpoint HEAD перед цим docs-комітом `11d8ecb2341aafe46fb66d37f2264f38fe636b61`; `main` = `a1ad0e200611911102c48180956d82f73d0d8fc3`; branch була **1307 ahead / 0 behind**; PR #94 лишається OPEN/UNMERGED.
+- source checkpoint HEAD перед цим docs-комітом: `cd30d01106422e31d99c22c7f7d68255bfc1cf7a`.
 
-### 🟡 У роботі
-- exact-head CI після full museum preload closure запущений; на момент checkpoint більшість workflow runs queued/in-progress, тому старий статус `101/101 SUCCESS` більше не використовується;
-- пункт 6/10: продовжити audit Silpo/Culture House та інших landmark stages на blocking `LoadObject`, duplicate ownership і post-spawn materialization;
-- пункт 1/10: окремо перевірити не тільки disk-load, а й single-frame ISM/component registration у stadium/museum builds; async preload сам по собі не доводить відсутність game-thread hitch.
+### У роботі
+- exact-head CI для нового landmark contract ще виконується/стоїть у черзі; зелений статус наперед не заявляється;
+- пункт 1/10: за timing logs визначити, чи є stage, який сам займає >100 ms або тим більше >1 s, і такий stage розкласти на менші частини по кадрах;
+- пункт 6: після source closure потрібна фактична перевірка в UE 5.8, що стадіон, музей, Сільпо і Будинок культури реально видимі й не з'являються після spawn.
 
-### 🔴 Ще не ACCEPTED
+### Ще не ACCEPTED
 - фактичний UE 5.8 first spawn без >1 с freeze/pop-in та responsive Alt+Tab/minimize/maximize;
 - `death -> 10 s -> respawn` із HUD/input;
 - перший і повторний grenade throw/explosion у rendered runtime;
 - rendered weapon arsenal без helper/proxy/detached parts;
 - production BTR-4/HMMWV/M2 у фактичній грі;
-- stadium/museum/карта Остер, UI/settings interaction, HUD та весь пункт 11;
+- stadium/museum/Silpo/Culture House/карта Остер у фактичній грі;
+- UI/settings interaction, HUD та весь пункт 11;
 - пакетний runtime `START_HERE.cmd -> 2`.
 
 ### Наступний пункт
-Пункти 6/10: audit Silpo/Culture House та решти landmark startup на blocking loads/duplicate owners; потім виміряти й за потреби розкласти по кадрах stadium/museum ISM/component materialization. Runtime acceptance не підміняти CI/source evidence.
+Пункт 1/10: отримати фактичні `GAME_RECOVERY_WORLD_PREP_STAGE_TIMING` з UE 5.8 і розбити тільки ті landmark stages, які реально перевищують frame budget. Паралельно продовжити source-аудит решти first-use paths без повторення вже закритої роботи.
