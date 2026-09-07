@@ -7,10 +7,13 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformTime.h"
 #include "UObject/SoftObjectPath.h"
 
 namespace
 {
+    constexpr double StadiumMaterializationWarnBudgetMs = 100.0;
+
     const TCHAR* StadiumPresentationPaths[] =
     {
         TEXT("/Game/AdvancedVillagePack/Meshes/SM_Plane_1x1.SM_Plane_1x1"),
@@ -144,7 +147,28 @@ void UOCGameRecoveryStadiumActivationSubsystem::CompleteStadiumPreload()
         return;
     }
 
+    const double MaterializationStartSeconds = FPlatformTime::Seconds();
     ApplyStadiumSurface(*World);
+    const double MaterializationMilliseconds =
+        (FPlatformTime::Seconds() - MaterializationStartSeconds) * 1000.0;
+    const bool bMaterializationOverBudget =
+        MaterializationMilliseconds >= StadiumMaterializationWarnBudgetMs;
+
+    if (bMaterializationOverBudget)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("GAME_RECOVERY_STADIUM_MATERIALIZATION_TIMING duration_ms=%.2f budget_ms=%.0f over_budget=1 pre_spawn=1 assets_resident=1"),
+            MaterializationMilliseconds,
+            StadiumMaterializationWarnBudgetMs);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_STADIUM_MATERIALIZATION_TIMING duration_ms=%.2f budget_ms=%.0f over_budget=0 pre_spawn=1 assets_resident=1"),
+            MaterializationMilliseconds,
+            StadiumMaterializationWarnBudgetMs);
+    }
+
     bPresentationReady = HasAuthoritativeStadiumActor(*World);
 
     if (bPresentationReady)
@@ -152,14 +176,16 @@ void UOCGameRecoveryStadiumActivationSubsystem::CompleteStadiumPreload()
         // Keep the streamable handle alive for the world lifetime. R138 runs after this readiness gate and its
         // historical LoadObject(Cube) must only resolve an already-resident object, never trigger disk IO.
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_READY assets=%d async_preload=1 sync_gameplay_loads=0 museum_r138_collision_prerequisite=1 prerequisite_residency=world_lifetime canonical_owner=R13_StadionOsterAuthoritative runtime_acceptance=0"),
-            UE_ARRAY_COUNT(StadiumPresentationPaths));
+            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_READY assets=%d async_preload=1 sync_gameplay_loads=0 museum_r138_collision_prerequisite=1 prerequisite_residency=world_lifetime canonical_owner=R13_StadionOsterAuthoritative materialization_ms=%.2f runtime_acceptance=0"),
+            UE_ARRAY_COUNT(StadiumPresentationPaths),
+            MaterializationMilliseconds);
     }
     else
     {
         bPreloadFailed = true;
         UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_FAIL reason=authoritative_actor_missing sync_fallback=0 runtime_acceptance=0"));
+            TEXT("GAME_RECOVERY_STADIUM_PRESENTATION_FAIL reason=authoritative_actor_missing materialization_ms=%.2f sync_fallback=0 runtime_acceptance=0"),
+            MaterializationMilliseconds);
         PreloadHandle.Reset();
     }
 }
