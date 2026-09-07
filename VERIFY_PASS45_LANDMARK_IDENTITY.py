@@ -191,13 +191,13 @@ for needle in (
 ):
     require(runtime_launcher, needle, "focused landmark runtime launcher")
 
-# The canonical Pass45 TZ remains semantic authority for detailed historical identity obligations.
+# The compact canonical TZ deliberately moved historical wording out to history/ledger. Guard the current
+# production obligations instead of requiring sentences that the compacting policy explicitly retired.
 for needle in (
-    'Source-close Museum/Culture House/Silpo identity ownership',
-    'Bind Museum, Silpo and Culture House as separate Gate E/K reference contracts.',
-    'Museum/Culture/Silpo separated and identified',
-    'direct landmark screenshot sets accepted',
-    'Gate K passes.',
+    'Source-close Museum/Culture House/Silpo identity ownership.',
+    'Bind separate landmark reference contracts.',
+    'Museum/Culture/Silpo separation',
+    'PASS45 = ACTIVE / RUNTIME ACCEPTANCE DEFERRED WHILE REMOTE-PREPARABLE WORK CONTINUES.',
 ):
     require(tz, needle, "canonical Pass45 TZ")
 
