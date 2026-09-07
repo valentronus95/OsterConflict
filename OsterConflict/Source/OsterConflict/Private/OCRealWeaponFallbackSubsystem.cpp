@@ -5,15 +5,23 @@
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
-#include "UObject/UObjectGlobals.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
+    constexpr const TCHAR* GenericMachineGunPath = TEXT("/Game/R13/Weapons/machinegun.machinegun");
+    constexpr const TCHAR* GenericPistolPath = TEXT("/Game/R13/Weapons/pistol.pistol");
+    constexpr const TCHAR* GenericSMGPath = TEXT("/Game/R13/Weapons/uzi.uzi");
+    constexpr const TCHAR* GenericShotgunPath = TEXT("/Game/R13/Weapons/shotgun.shotgun");
+    constexpr const TCHAR* AuthoredAKFallbackPath = TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47");
+
     const FName RealFallbackTag(TEXT("OC_RealMeshFallbackApplied"));
     const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
@@ -25,11 +33,24 @@ namespace
     constexpr int32 MaxExpectedRackWeapons = 22;
     constexpr int32 MaxRefreshPasses = 12;
 
+    TArray<FSoftObjectPath> BuildFallbackPreloadPaths()
+    {
+        return {
+            FSoftObjectPath(GenericMachineGunPath),
+            FSoftObjectPath(GenericPistolPath),
+            FSoftObjectPath(GenericSMGPath),
+            FSoftObjectPath(GenericShotgunPath),
+            FSoftObjectPath(AuthoredAKFallbackPath),
+        };
+    }
+
+    UStaticMesh* ResolveResidentStaticMesh(const TCHAR* Path)
+    {
+        return Cast<UStaticMesh>(FSoftObjectPath(Path).ResolveObject());
+    }
+
     bool HasProductionVisual(const AOCWeaponBase& Weapon)
     {
-        // A tag alone is not renderable evidence. Pass45 2026-08-27 runtime showed actors where a tagged
-        // production component existed in source truth while the player saw no weapon after the primitive
-        // retirement pass. Require an assigned real mesh before suppressing the explicit real fallback path.
         TArray<UStaticMeshComponent*> StaticComponents;
         Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
         for (const UStaticMeshComponent* Component : StaticComponents)
@@ -71,8 +92,6 @@ namespace
             if (!IsRejectedPrimitiveMesh(Component)) continue;
 
             const bool bWasRendered = Component->IsVisible();
-            // Retire only the rejected BasicShape component. Propagating this state to children can hide a
-            // valid authored weapon presentation that is attached below the source-only physics/visual root.
             Component->SetVisibility(false, false);
             Component->SetHiddenInGame(true, false);
             Component->SetCastShadow(false);
@@ -127,8 +146,6 @@ namespace
             Material->GetName().Equals(TEXT("BasicShapeMaterial"), ESearchCase::IgnoreCase);
         if (bPlaceholderMaterial) return true;
 
-        // Item 18 requires authored material -> real texture dependencies. A non-default material object with
-        // zero render textures is still a factual content gap and must never produce MATERIAL_AUDIT_READY.
         TArray<UTexture*> UsedTextures;
         Material->GetUsedTextures(
             UsedTextures,
@@ -160,12 +177,54 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    GenericMachineGun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/machinegun.machinegun"));
-    GenericPistol = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/pistol.pistol"));
-    GenericSMG = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/uzi.uzi"));
-    GenericShotgun = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/R13/Weapons/shotgun.shotgun"));
+    const TArray<FSoftObjectPath> Paths = BuildFallbackPreloadPaths();
+    FallbackPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload));
 
-    InWorld.GetTimerManager().SetTimer(
+    if (!FallbackPreloadHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_GAP reason=invalid_handle assets=%d sync_load=0 runtime_acceptance=0"),
+            Paths.Num());
+        InWorld.GetTimerManager().SetTimer(
+            RefreshTimer,
+            this,
+            &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
+            0.50f,
+            true,
+            0.0f);
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN assets=%d async=1 sync_load=0 resident_until_deinitialize=1"),
+        Paths.Num());
+}
+
+void UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    GenericMachineGun = ResolveResidentStaticMesh(GenericMachineGunPath);
+    GenericPistol = ResolveResidentStaticMesh(GenericPistolPath);
+    GenericSMG = ResolveResidentStaticMesh(GenericSMGPath);
+    GenericShotgun = ResolveResidentStaticMesh(GenericShotgunPath);
+    AuthoredAKFallback = ResolveResidentStaticMesh(AuthoredAKFallbackPath);
+
+    const int32 ResolvedCount =
+        (GenericMachineGun ? 1 : 0) +
+        (GenericPistol ? 1 : 0) +
+        (GenericSMG ? 1 : 0) +
+        (GenericShotgun ? 1 : 0) +
+        (AuthoredAKFallback ? 1 : 0);
+
+    UE_LOG(LogTemp, ResolvedCount == 5 ? Display : Warning,
+        TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY resolved=%d expected=5 async=1 resident_only=1 sync_load=0 runtime_acceptance=0"),
+        ResolvedCount);
+
+    World->GetTimerManager().SetTimer(
         RefreshTimer,
         this,
         &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
@@ -177,10 +236,16 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 void UOCRealWeaponFallbackSubsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(RefreshTimer);
+    if (FallbackPreloadHandle.IsValid())
+    {
+        FallbackPreloadHandle->CancelHandle();
+        FallbackPreloadHandle.Reset();
+    }
     GenericMachineGun = nullptr;
     GenericPistol = nullptr;
     GenericSMG = nullptr;
     GenericShotgun = nullptr;
+    AuthoredAKFallback = nullptr;
     bRackMaterialAuditReadyLogged = false;
     RefreshPassCount = 0;
     Super::Deinitialize();
@@ -260,7 +325,6 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
         AOCWeaponBase* Weapon = *It;
         if (!IsValid(Weapon) || Weapon->IsActorBeingDestroyed()) continue;
 
-        // Pass45 source invariant: even when production/fallback content is missing, BasicShape must be invisible.
         HideRejectedPrimitiveVisuals(*Weapon);
         if (HasVisibleRejectedPrimitive(*Weapon))
         {
@@ -284,16 +348,10 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
         const FString Name = Weapon->GetWeaponDisplayName();
         if (Name.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
         {
-            // The current-head runtime can fail to resolve the skeletal AK while the committed package still contains
-            // an authored static AK sibling. Prefer that exact real AK over either a BasicShape or an invisible actor.
-            UStaticMesh* AuthoredAKFallback = LoadObject<UStaticMesh>(
-                nullptr, TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
-            ApplyRealFallback(*Weapon, AuthoredAKFallback, 88.0f, TEXT("committed AK-47 static sibling"));
+            ApplyRealFallback(*Weapon, AuthoredAKFallback.Get(), 88.0f, TEXT("committed AK-47 static sibling"));
         }
         else if (Name.Equals(TEXT("MP5"), ESearchCase::IgnoreCase))
         {
-            // Stein MP5 fresh-load is a factual 2026-08-27 content gap. Keep gameplay visible with a tracked real SMG;
-            // never call this exact production readiness.
             ApplyRealFallback(*Weapon, GenericSMG.Get(), 68.0f, TEXT("R13 real SMG temporary MP5 fallback"));
         }
         else if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
@@ -386,13 +444,10 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     for (UStaticMeshComponent* Existing : StaticComponents)
     {
         if (!IsValid(Existing) || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
-        // Suppress only the legacy/source component itself. A production/recovered presentation may be attached
-        // beneath it and must retain independent inventory/first-person visibility authority.
         Existing->SetVisibility(false, false);
         Existing->SetHiddenInGame(true, false);
         Existing->SetCastShadow(false);
         Existing->SetCanEverAffectNavigation(false);
-        // The BasicShape root remains invisible collision/physics authority for pickup/drop. Do not disable it.
         if (Existing != PhysicsRoot)
         {
             Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
