@@ -117,7 +117,7 @@ void UOCDeploymentLoadingSubsystem::BeginDeployment(AOCPlayerController* Control
     if (Widget)
     {
         Widget->AddToViewport(5000);
-        Widget->SetLoadingProgress(0.02f);
+        Widget->SetLoadingProgress(0.0f);
         Widget->SetLoadingStatus(FText::FromString(TEXT("ПІДГОТОВКА КАРТИ")));
         LoadingWidget = Widget;
     }
