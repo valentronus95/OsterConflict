@@ -95,6 +95,19 @@ for needle in (
 ):
     require(cpp, needle, "Block0 fail-visible ground evidence")
 
+# GAME_RECOVERY requires the authored ground packages to be prepared without a gameplay-thread disk load.
+for needle in (
+    "RequestAsyncLoad(",
+    "GameRecoveryBlock0GroundPreload",
+    "FSoftObjectPath(AuthoredGroundMeshPath).ResolveObject()",
+    "FSoftObjectPath(AuthoredGroundMaterialPath).ResolveObject()",
+    "async_preloaded=1",
+    "sync_load=0",
+    "resident_only=1",
+):
+    require(cpp, needle, "Block0 async resident ground contract")
+forbid(cpp, "LoadObject<", "blocking Block0 ground asset load")
+
 forbidden_legacy_material_path = "/Game/AdvancedVillagePack/Materials/M_Inst_Landscape.M_Inst_Landscape"
 forbid(cpp, forbidden_legacy_material_path, "legacy Block0 ground material selection")
 
@@ -105,7 +118,6 @@ for forbidden_new_owner_term in (
 ):
     forbid(cpp, forbidden_new_owner_term, "delayed/timer-based Block0 ground ownership")
 
-# UWorld/actor BeginPlay ordering must not let the legacy palette overwrite an already-authored Ground.
 for needle in (
     "bGroundStillSourceCube",
     'GetPathName().Contains(TEXT("/Engine/BasicShapes/Cube"), ESearchCase::IgnoreCase)',
@@ -118,8 +130,6 @@ for needle in (
 forbid(sector_cpp, "    Tint(Ground,              FLinearColor(0.16f, 0.25f, 0.10f));",
     "unconditional legacy Ground BasicShape tint")
 
-# The historical world-surface upgrader may continue owning roads/sidewalks/fences, but its Ground contract must
-# resolve the exact same intake material as the pre-tick owner or it would reject/overwrite the first-frame state.
 for needle in (
     "/Game/KiteDemo/Environments/GroundTiles/Grass/M_Ground_Grass2.M_Ground_Grass2",
     "if (CurrentMesh == AuthoredMesh)",
@@ -133,8 +143,6 @@ for needle in (
     require(late_cpp, needle, "late world-surface Ground idempotence/intake agreement")
 forbid(late_cpp, forbidden_legacy_material_path, "late owner legacy Block0 ground material selection")
 
-# Spatial grass coverage belongs to the existing strict foliage runtime guard. A second tick subsystem would
-# duplicate a full HISM scan and could disagree with the PASS10/PASS36 gate consumed by runtime acceptance.
 for retired in (RETIRED_COVERAGE_HEADER, RETIRED_COVERAGE_CPP):
     if retired.exists():
         errors.append(f"duplicate Block0 foliage coverage tick owner still exists: {retired.relative_to(ROOT)}")
@@ -172,8 +180,6 @@ for needle in (
 ):
     require(foliage_cpp, needle, "Block0 full-map grass distribution strict gate")
 
-# Main runtime acceptance must now consume the active Block0 facts directly. A later full-game marker may not
-# substitute for a missing authored Ground, failed spatial grass distribution or failed imported regional-tree intake.
 for needle in (
     "PASS45_BLOCK0_PRETICK_GROUND_READY",
     "PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY",
@@ -201,16 +207,12 @@ if errors:
 
 print("PASS45 BLOCK0 GROUND + SPATIAL GRASS FOUNDATION: PASS")
 print("- KiteDemo M_Ground_Grass2 is the selected tracked ground material for both first-frame and late idempotent owners")
-print("- the old AdvancedVillagePack landscape material cannot silently reclaim Block0 Ground")
-print("- authored ground mesh/material is applied in UWorld::OnWorldBeginPlay")
+print("- authored ground assets are async-preloaded and resolved resident-only with no gameplay-thread LoadObject")
+print("- authored ground mesh/material is applied from the world-startup owner with no Tick/timer delay")
 print("- compact source footprint and top-Z are preserved by bounds-aware conversion and numerically postvalidated")
 print("- Ground collision must remain enabled before the READY marker is permitted")
-print("- the new Ground owner contains no Tick/timer delay")
 print("- actor BeginPlay cannot reapply BasicShapeMaterial after authored Ground is installed")
 print("- later world-surface Ground handling remains idempotent on the same KiteDemo material")
 print("- the existing foliage runtime guard is the single strict owner for 4x4 spatial grass distribution")
 print("- main runtime acceptance explicitly requires Ground READY, spatial grass READY and regional-tree WIRED")
-print("- Ground FAIL/CONTENT GAP, spatial grass FAIL and regional-tree intake FAIL are explicit runtime rejection paths")
-print("- PASS36 READY cannot emit until bin/quadrant/edge coverage passes; spatial failure also emits PASS10 hard FAIL")
-print("- duplicate Block0 coverage tick subsystem is physically absent")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 compile, first-frame visual evidence, spatial coverage log and Block0 screenshots remain authoritative")
