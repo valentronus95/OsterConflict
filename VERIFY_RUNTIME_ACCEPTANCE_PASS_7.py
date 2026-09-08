@@ -71,17 +71,18 @@ if not settings_brush or float(settings_brush.group(1)) < 0.95:
 require(frontend, 'SetPresentationVisibility(false, !bSettingsOverGameplay, bSettingsOverGameplay);', "settings backdrop preservation")
 require(frontend, 'const bool bSettingsOverGameplay = bPauseMenuActive && (bGameplayStarted || PC->GetPawn() != nullptr);', "settings click pre-transition guard")
 
-# Deployment loading must fully block the shifting panel, start at a factual 0%, and release only after world readiness.
+# Deployment loading must fully block the shifting panel, start at a factual 0%, and complete only after possession/UI release.
 require(loading, 'Scrim->SetBrushColor(FLinearColor(0.006f, 0.009f, 0.012f, 1.0f));', "opaque deployment loading scrim")
 require(loading, 'Title->SetText(FText::FromString(TEXT("ЗАВАНТАЖЕННЯ")));', "distinct loading title")
 require(loading, 'Widget->AddToViewport(5000);', "blocking loading z-order")
 require(loading, 'Widget->SetLoadingProgress(0.0f);', "loading starts at zero")
-require(loading, 'if (!bReadySent && bWorldReady && Elapsed >= 0.12)', "world-ready release guard after rendered zero-percent frame")
+require(loading, 'if (!bReadySent && bWorldReady && Elapsed >= 0.12)', "world-ready presentation handoff after rendered zero-percent frame")
 require(loading, 'Progress = FMath::Lerp(0.94f, 1.0f, CompletionAlpha);', "loading reaches factual 100 percent through completion alpha")
 require(loading, 'if (CompletionAlpha >= 1.0f)', "loading removal only after 100 percent completion")
 require(loading, 'Controller->GetPawn() != nullptr && !Controller->IsDeploymentPanelVisible()', "possession and deployment-release completion gate")
 
-# GAME_RECOVERY initial human spawn must be held centrally until factual local visual-world readiness.
+# GAME_RECOVERY still audits factual local world readiness before spawn, but visual/content failures are fail-soft.
+# A ground/surface/park acceptance failure must never strand the human without a pawn or force deployment closed.
 for needle in (
     'WorldReadyRestartPollSeconds = 0.10f',
     'WorldReadyRestartTimeoutSeconds = 60.0',
@@ -90,7 +91,7 @@ for needle in (
     'PollRestartWhenWorldReady',
     'PendingWorldReadyRestarts',
 ):
-    require(runtime_safe_h, needle, f"central pre-spawn readiness gate header: {needle}")
+    require(runtime_safe_h, needle, f"central readiness diagnostics header: {needle}")
 for needle in (
     'World->GetNetMode() == NM_DedicatedServer',
     'World->GetSubsystem<UOCBlock0GroundFoundationSubsystem>()',
@@ -104,21 +105,25 @@ for needle in (
     'GAME_RECOVERY_SPAWN_GATE_WAIT',
     'GAME_RECOVERY_SPAWN_GATE_READY',
     'GAME_RECOVERY_SPAWN_GATE_FAIL',
-    'player_spawn_release=1',
-    'post_spawn_world_loading=0',
-    'fail_closed=1',
+    'GAME_RECOVERY_SPAWN_GATE_VISUAL_FAIL_SOFT',
+    'gameplay_spawn_release=1',
+    'acceptance_preserved=1',
+    'fail_closed=0',
+    'visual_gate_blocks_spawn=0',
     'RestartPlayer(Controller);',
 ):
-    require(runtime_safe, needle, f"central pre-spawn readiness gate implementation: {needle}")
+    require(runtime_safe, needle, f"fail-soft pre-spawn readiness diagnostics: {needle}")
+if 'player_spawned=0 fail_closed=1' in runtime_safe:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: visual/content world-prep failure can still strand the human")
 require(ground_h, 'bool IsGroundReady() const { return bGroundAttemptFinished && bGroundSucceeded; }', "factual Block0 ground readiness")
-require(ground_h, 'bool HasGroundFailed() const { return bGroundAttemptFinished && !bGroundSucceeded; }', "Block0 ground fail-closed state")
+require(ground_h, 'bool HasGroundFailed() const { return bGroundAttemptFinished && !bGroundSucceeded; }', "Block0 ground acceptance failure state")
 require(surface_h, 'bool IsWorldSurfaceReady() const', "authored world-surface readiness")
 require(surface_h, 'bool HasWorldSurfaceFailed() const', "authored world-surface failure state")
 require(landmark_h, 'bool IsWorldStartupReady() const { return bStartupComplete; }', "landmark startup readiness")
 gate_pos = runtime_safe.find('if (!IsRecoveryWorldReady(PendingStages, bHardFailure))')
 spawn_logic_pos = runtime_safe.find('if (!HumanPC || HumanPC->GetRequestedDeploymentSpawn()')
 if gate_pos < 0 or spawn_logic_pos < 0 or gate_pos > spawn_logic_pos:
-    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: human spawn logic can run before GAME_RECOVERY world-readiness gate")
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: readiness diagnostics no longer run before human spawn logic")
 
 # GAME_RECOVERY death flow is fixed at ten seconds and must produce factual runtime evidence.
 require(game_mode_h, 'static constexpr float RespawnDelay = 10.0f;', "fixed ten-second player respawn rule")
@@ -142,9 +147,7 @@ for forbidden in ('RestartPlayer(', 'SpawnActor<', 'Possess('):
     if forbidden in respawn_cpp:
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 7 FAIL: respawn validator gained gameplay mutation {forbidden!r}")
 
-# BASE spawn keeps three protection layers: canonical relocation, authoritative BASE creation and
-# one initial-character validation per controller. Pass45 explicitly forbids treating ordinary
-# character -> vehicle -> character possession changes as fresh BASE deployments.
+# BASE spawn keeps canonical relocation, authoritative BASE creation and one initial-character validation per controller.
 require(team_spawn, 'const FVector Museum = AOCWorldSectorOster::MuseumAnchor();', "canonical Museum BASE anchor")
 require(team_spawn, 'SpawnRuntimeBaseWeaponRack(*this, TeamId);', "Museum BASE weapon rack")
 require(game_mode, 'const FVector FallbackLocation = bTeamTwo ? FVector(2800.0f, 0.0f, 120.0f) : FVector(-2800.0f, 0.0f, 120.0f);', "legacy fallback is explicitly tracked")
@@ -183,13 +186,15 @@ require(vehicle_spawns, 'VehicleClass = AOCHMMWVGunTruck::StaticClass();', "norm
 require(vehicle_spawns, 'AOCBTRSpawnPoint::AOCBTRSpawnPoint()', "normal BTR spawn slot")
 require(vehicle_spawns, 'VehicleClass = AOCBTR::StaticClass();', "normal BTR slot maps to BTR")
 
-# Production vehicle acceptance is fail-closed and must not cause its own delayed sync-load hitch.
+# Production vehicle validation must fail truthfully without deleting/hiding the gameplay vehicle.
 for marker in [
     '/Game/Production/Vehicles/HMMWV/SM_HMMWV_UA.SM_HMMWV_UA',
     '/Game/Production/Weapons/M2/SM_M2_Browning.SM_M2_Browning',
     '/Game/Production/Vehicles/BTR4/SM_BTR4_Bucephalus.SM_BTR4_Bucephalus',
-    'Actor->SetActorHiddenInGame(true);',
-    'Actor->SetActorEnableCollision(false);',
+    'Actor->SetActorHiddenInGame(false);',
+    'Actor->SetActorEnableCollision(true);',
+    'gameplay_vehicle_preserved=1',
+    'validation_mutation=0',
     'PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL',
     'PASS7_PRODUCTION_VEHICLES_READY',
     'GAME_RECOVERY_VEHICLE_VALIDATION_PRELOAD_GAP',
@@ -200,6 +205,9 @@ for marker in [
     'GunTruckCount > 0',
 ]:
     require(vehicle_validator, marker, f"production vehicle runtime gate: {marker}")
+for forbidden in ('Actor->SetActorHiddenInGame(true);', 'Actor->SetActorEnableCollision(false);'):
+    if forbidden in vehicle_validator:
+        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 7 FAIL: validator can still delete a gameplay vehicle via {forbidden!r}")
 if 'LoadObject<' in vehicle_validator:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: delayed production vehicle validator regained blocking LoadObject")
 if 'const bool bHMMWVRuntimePass = HMMWVGunTruckCount == 0 ||' in vehicle_validator:
@@ -209,9 +217,7 @@ if 'const bool bM2RuntimePass = GunTruckCount == 0 ||' in vehicle_validator:
 if 'const bool bBTRRuntimePass = BTRCount == 0 ||' in vehicle_validator:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 7 FAIL: zero BTR actors still count as runtime success")
 
-# Runtime acceptance must be executable before merge. Current canonical PASS45 branch remains explicitly allowed.
-require(launcher, 'findstr /B /I /C:"fix/runtime-acceptance-"', "runtime-acceptance branch allow-list")
-require(launcher, '/C:"fix/pass45-runtime-rejection-"', "canonical Pass45 branch allow-list")
+# Runtime acceptance remains executable from main and historical allow-list entries do not alter production ownership.
 require(launcher, 'set "REMOTE_REF=origin/%CURRENT_BRANCH%"', "branch-specific remote ref")
 require(launcher, 'set "IS_ACCEPTANCE=1"', "acceptance-mode flag")
 require(launcher, 'git fetch origin "%FETCH_BRANCH%"', "branch-specific fetch")
@@ -225,11 +231,11 @@ if 'Normal gameplay playtest must run from branch main.' in launcher:
 
 print("RUNTIME ACCEPTANCE PASS 7 SOURCE CONTRACT PASS")
 print("- one main START meaning; final deployment action is У БІЙ")
-print("- settings panel must remain effectively opaque (alpha >= 0.95), without pinning one obsolete RGB shade")
-print("- deployment transition starts at factual 0% and human spawn is centrally held until ground/surface/landmark readiness")
+print("- settings panel remains effectively opaque and deployment loading finishes only after possession/UI release")
+print("- world-preparation state is audited before spawn, but visual/content failures cannot strand the human without a pawn")
 print("- player respawn is fixed at 10 seconds and a validation-only probe emits factual READY/FAIL evidence")
 print("- Museum BASE creation no longer depends on delayed world-sector timing")
 print("- BASE-selected characters are validated/recovered once; vehicle possession cannot trigger Museum revalidation")
-print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; validator uses resident assets only and cannot disk-load them late")
+print("- normal fleet must contain real HMMWV+M2 and BTR4 visuals; validator uses resident assets only and never hides gameplay vehicles")
 print("- acceptance launcher requires runtime READY evidence and rejects vehicle FAIL evidence")
 print("STATUS: SOURCE VERIFIED ONLY; UE 5.8 compile/runtime acceptance is still required")
