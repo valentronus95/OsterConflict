@@ -80,18 +80,13 @@ public:
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
     UFUNCTION(BlueprintCallable, Category="UI") void UIReadyDeploy();
 
-    // Recovery path for deployment flows that must not disappear before an actual pawn exists.
-    // UIReadyDeploy still performs the authoritative ready/spawn request; if it did not produce a
-    // pawn synchronously (normal for remote clients or deferred world preparation), restore only
-    // the local deployment-visible state and keep input captured by the deployment UI.
+    // Deployment recovery must not mutate Slate/input mode from inside the UMG click callback.
+    // Send only the authoritative ready request here. The deployment subsystem closes the UI on a
+    // later Tick, and only after GetPawn() confirms that possession actually exists.
     void UIReadyDeployKeepOpenUntilSpawn()
     {
-        UIReadyDeploy();
-        if (!IsValid(GetPawn()))
-        {
-            bDeploymentPanelVisible = true;
-            ApplyUIInputMode();
-        }
+        if (HasAuthority()) ServerSetLobbyReady_Implementation(true); else ServerSetLobbyReady(true);
+        bDeploymentPanelVisible = true;
     }
 
     UFUNCTION(BlueprintCallable, Category="UI") void UICommitDeployment();
