@@ -42,6 +42,10 @@ game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 bot_policy = read(SRC / "Private" / "OCBotPopulationPolicySubsystem.cpp")
 startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
+fp_h = read(SRC / "Public" / "OCFirstPersonWeaponPresentationSubsystem.h")
+fp = read(SRC / "Private" / "OCFirstPersonWeaponPresentationSubsystem.cpp")
+weapon_anim_h = read(SRC / "Public" / "OCWeaponAnimationProfiles.h")
+weapon_anim = read(SRC / "Private" / "OCWeaponAnimationProfiles.cpp")
 perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
 perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
 launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
@@ -85,6 +89,30 @@ for forbidden in (
     "R13 real SMG temporary MP5 fallback",
 ):
     forbid(fallback, forbidden, "retired weapon repair/substitution")
+
+# First-person hands/ADS/weapon action presentation must never discover animation packages with a blocking
+# LoadObject during world begin play or first shot/reload/manual action. Profile data owns the authored paths;
+# the presentation subsystem preloads them asynchronously and first-use code resolves resident objects only.
+for needle in (
+    "OCAppendWeaponAnimationAssetPaths",
+    "FSoftObjectPath",
+):
+    require(weapon_anim_h + weapon_anim, needle, "profile-owned animation preload paths")
+for needle in (
+    "PresentationAnimationPreloadHandle",
+    "RequestPresentationAnimationPreload",
+    "CompletePresentationAnimationPreload",
+    "RequestAsyncLoad(",
+    "FStreamableManager::AsyncLoadHighPriority",
+    "ResolveResidentAnimation",
+    "ResolveObject()",
+    "PASS45_FP_ANIMATION_ASYNC_PRELOAD_BEGIN",
+    "PASS45_FP_ANIMATION_ASYNC_PRELOAD_READY",
+    "sync_load=0",
+    "first_use_sync_load=0",
+):
+    require(fp_h + fp, needle, "non-blocking first-person animation presentation")
+forbid(fp, "LoadObject<", "first-person presentation may not synchronously load animation packages")
 
 # Normal local/listen gameplay owns filler bots again, but frontend/travel stays light until the human host exists.
 for needle in (
@@ -183,6 +211,7 @@ print("RUNTIME RUNAWAY / HEAT PASS 38/45 FORWARD-PORTED SOURCE CONTRACT PASS")
 print("- destructive Museum recovery and obsolete palette owner remain physically deleted")
 print("- landmark startup is staged and remains factual acceptance evidence")
 print("- weapon material audit is finite; generic look-alike weapon substitution stays retired")
+print("- first-person/ADS/weapon-action animations are asynchronously preloaded; first use performs resident-only resolution")
 print("- local/listen filler bots restore only after a human host exists; frontend/Sandbox/dedicated paths remain isolated")
 print("- visual world-preparation failures remain logged but cannot strand the human without a pawn")
 print("- strict recovery remains fullscreen; quick normal is windowed and both reuse the 60 FPS quality command")
