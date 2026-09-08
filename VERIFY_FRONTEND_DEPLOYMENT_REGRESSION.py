@@ -14,6 +14,10 @@ FILES = {
     "deploy_present": SRC / "Private" / "OCR13DeploymentPresentationSubsystem.cpp",
     "compat": SRC / "Private" / "OCR148DeploymentCompatibility.cpp",
     "controller_h": SRC / "Public" / "OCPlayerController.h",
+    "game_mode_h": SRC / "Public" / "OCGameMode.h",
+    "game_mode": SRC / "Private" / "OCGameMode.cpp",
+    "bot_policy_h": SRC / "Public" / "OCBotPopulationPolicySubsystem.h",
+    "bot_policy": SRC / "Private" / "OCBotPopulationPolicySubsystem.cpp",
 }
 
 
@@ -114,5 +118,40 @@ for token in [
     if token not in text["compat"]:
         fail(f"deployment compatibility marker missing: {token}")
 
+# GAME_RECOVERY bot regression contract. The AI implementation was never deleted; the regression was
+# population activation. Protect the current policy in this existing frontend/deployment owner instead
+# of creating yet another verifier chain.
+for token in [
+    'int32 TargetPopulation = 16;',
+    'bool bAutoFillBots = true;',
+    'bool RestoreExpectedLocalBotFill()',
+    'TargetPopulation = FMath::Clamp(Humans + RequestedBotCount, 1, MaxPlayerSlots);',
+    'bAutoFillBots = TargetPopulation > Humans;',
+    'MaintainPopulation();',
+]:
+    if token not in text["game_mode_h"]:
+        fail(f"local filler-bot policy marker missing: {token}")
+
+for token in [
+    'if (GetHumanPlayerCount() >= MaxPlayerSlots)',
+    'GetHumanPlayerCount() + GetBotPlayerCount() > TargetPopulation',
+    'SelectBotToRemove(State->GetTeamId())',
+    'RemoveBotController(Bot)',
+    'MaintainPopulation();',
+]:
+    if token not in text["game_mode"]:
+        fail(f"human-priority bot replacement marker missing: {token}")
+
+for token in [
+    'GameMode->IsFrontendOnlySession()',
+    'GameMode->IsSandboxMode()',
+    'World->GetNetMode() == NM_DedicatedServer',
+    'GameMode->GetHumanPlayerCount() <= 0',
+    'GameMode->RestoreExpectedLocalBotFill()',
+    'GAME_RECOVERY_BOT_FILL_RESTORED',
+]:
+    if token not in text["bot_policy"]:
+        fail(f"bot population recovery marker missing: {token}")
+
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Frontend backdrop is authoritative, deployment shade explicitly excludes frontend ownership, BACK closes deployment state, and R13 spawn commits directly without the stuck loading interstitial.")
+print("Frontend/deployment ownership remains stable, and normal local/listen gameplay restores filler bots only after a human host exists; frontend-only, Sandbox and dedicated-server policy remain isolated.")
