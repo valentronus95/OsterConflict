@@ -46,6 +46,14 @@ namespace
         { FName(TEXT("IMP_M72")), TEXT(""), TEXT(""), false },
         { FName(TEXT("IMP_RPG26")), TEXT(""), TEXT(""), false },
     };
+
+    void AppendPathIfPresent(TArray<FSoftObjectPath>& OutPaths, const FString& ObjectPath)
+    {
+        if (!ObjectPath.IsEmpty())
+        {
+            OutPaths.AddUnique(FSoftObjectPath(ObjectPath));
+        }
+    }
 }
 
 bool OCHasDeclaredWeaponAnimationProfile(const FName WeaponId)
@@ -73,4 +81,14 @@ FOCWeaponAnimationProfile OCResolveWeaponAnimationProfile(const FName WeaponId)
     FOCWeaponAnimationProfile Missing;
     Missing.WeaponId = WeaponId;
     return Missing;
+}
+
+void OCAppendWeaponAnimationAssetPaths(TArray<FSoftObjectPath>& OutPaths)
+{
+    for (const FOCWeaponAnimationProfile& Profile : Profiles)
+    {
+        AppendPathIfPresent(OutPaths, Profile.FireAnimationObjectPath);
+        AppendPathIfPresent(OutPaths, Profile.ReloadAnimationObjectPath);
+        AppendPathIfPresent(OutPaths, Profile.ManualActionAnimationObjectPath);
+    }
 }
