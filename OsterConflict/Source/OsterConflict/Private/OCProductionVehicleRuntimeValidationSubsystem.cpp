@@ -73,11 +73,14 @@ namespace
     {
         if (!Actor) return;
 
-        Actor->SetActorHiddenInGame(true);
-        Actor->SetActorEnableCollision(false);
+        // Validation is evidence, not gameplay authority. Older code hid the entire HMMWV/BTR and disabled
+        // collision when a production mesh was missing, which made normal gameplay lose vehicles completely.
+        // Keep the actor usable/visible and fail the production acceptance marker instead.
+        Actor->SetActorHiddenInGame(false);
+        Actor->SetActorEnableCollision(true);
 
         UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL identity=%s actor=%s bodyReady=%d weaponReady=%d location=%s"),
+            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL identity=%s actor=%s bodyReady=%d weaponReady=%d location=%s gameplay_vehicle_preserved=1 validation_mutation=0"),
             Identity,
             *Actor->GetName(),
             bBodyReady ? 1 : 0,
@@ -215,7 +218,7 @@ void UOCProductionVehicleRuntimeValidationSubsystem::ValidateProductionVehicles(
     else
     {
         UE_LOG(LogTemp, Error,
-            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d validation_owner=vehicles_only sync_load=0"),
+            TEXT("PASS7_PRODUCTION_VEHICLE_RUNTIME_FAIL summary=1 assetReady_HMMWV=%d assetReady_Pickup=%d assetReady_M2=%d assetReady_BTR4=%d expectedFleet=%d HMMWV=%d/%d pickup=%d/%d M2=%d/%d BTR4=%d/%d validation_owner=vehicles_only sync_load=0 gameplay_vehicle_preserved=1"),
             bHMMWVAssetReady ? 1 : 0, bPickupAssetReady ? 1 : 0, bM2AssetReady ? 1 : 0, bBTR4AssetReady ? 1 : 0,
             bExpectedNormalFleetPresent ? 1 : 0,
             HMMWVGunTrucksUsingHMMWV, HMMWVGunTruckCount,
