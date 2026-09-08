@@ -48,7 +48,7 @@ for stale in (
 for needle in (
     'if /I "%OC_QUICK_NORMAL%"=="1" goto quick_normal_game', ':quick_normal_game',
     '[QUICK NORMAL] Incremental C++ build only. Asset reimport is skipped.', 'Runtime acceptance: NOT RUN',
-    '-windowed -ResX=1600 -ResY=900', '-ExecCmds="%QUALITY_CMDS%"',
+    '-windowed -ForceRes -ResX=1280 -ResY=720', '-ExecCmds="%QUALITY_CMDS%"',
     'set "QUALITY_CMDS=t.MaxFPS 60,sg.ViewDistanceQuality 3,sg.ShadowQuality 2,sg.TextureQuality 3',
     'r.ScreenPercentage 100', 'PASS45_NORMAL_VISUAL_QUALITY scale=100', '-nosplash',
 ):
@@ -92,7 +92,7 @@ for destructive in ("git reset", "git clean", "git stash", "checkout --", "resto
 
 print("NORMAL GAME ROUTE PASS20 + PASS45 BATCH-FIRST SOURCE CONTRACT PASS")
 print("- START_HERE remains the only user-facing launcher")
-print("- option 1 uses 1600x900 / 100% render scale and normal high DX11-safe quality")
+print("- option 1 uses a manageable 1280x720 window / 100% render scale and normal high DX11-safe quality")
 print("- option 2 uses progress entry -> runtimefix -> canonical batch orchestrator without touching user Changes")
 print("- retired weapon/vehicle/perf result markers are no longer duplicated here; dedicated current gates own them")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime evidence remains factual")
