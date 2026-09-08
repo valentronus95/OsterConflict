@@ -81,11 +81,11 @@ public:
     UFUNCTION(BlueprintCallable, Category="UI") void UIReadyDeploy();
 
     // Deployment recovery must not mutate Slate/input mode from inside the UMG click callback.
-    // Send only the authoritative ready request here. The deployment subsystem closes the UI on a
-    // later Tick, and only after GetPawn() confirms that possession actually exists.
+    // Send only the normal server RPC here. The deployment subsystem closes the UI on a later Tick,
+    // and only after GetPawn() confirms that possession actually exists.
     void UIReadyDeployKeepOpenUntilSpawn()
     {
-        if (HasAuthority()) ServerSetLobbyReady_Implementation(true); else ServerSetLobbyReady(true);
+        ServerSetLobbyReady(true);
         bDeploymentPanelVisible = true;
     }
 
