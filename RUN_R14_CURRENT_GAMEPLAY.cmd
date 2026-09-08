@@ -385,7 +385,7 @@ echo [QUICK NORMAL] LFS hydration, weapon commandlet preflight, production vehic
 echo [QUICK NORMAL] Branch: %CURRENT_BRANCH%
 echo [QUICK NORMAL] Source: %LOCAL_HEAD%
 echo [QUICK NORMAL] Renderer: %RHI_MODE% ^(%RHI_FLAGS%^)
-echo [QUICK NORMAL] Windowed 1600x900, NORMAL HIGH quality, 100%% render scale, max 60 FPS.
+echo [QUICK NORMAL] Windowed 1280x720, NORMAL HIGH quality, 100%% render scale, max 60 FPS.
 call "%BUILD_BAT%" OsterConflictEditor Win64 Development -Project="%PROJECT%" -WaitMutex
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
@@ -397,8 +397,18 @@ if not "%BUILD_RC%"=="0" (
 echo.
 echo [QUICK NORMAL] Launching current Oster runtime directly. No asset importer runs before this process.
 echo [PASS45] PASS45_NORMAL_VISUAL_QUALITY scale=100 view=3 shadow=2 texture=3 effects=3 foliage=2 post=3 aa=3 shading=3 gi=2 reflection=2 landscape=3
-start /wait "Oster Conflict Quick Normal" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ResX=1600 -ResY=900 -ExecCmds="%QUALITY_CMDS%" -culture=uk-UA
+start /wait "Oster Conflict Quick Normal" "%EDITOR%" "%PROJECT%" "/Game/Maps/OsterConflict_Runtime" -game -Frontend %RHI_FLAGS% -NoScreenMessages -log -abslog="%PLAYTEST_LOG%" -windowed -ForceRes -ResX=1280 -ResY=720 -ExecCmds="%QUALITY_CMDS%" -culture=uk-UA
 set "GAME_RC=%ERRORLEVEL%"
+
+if not "%GAME_RC%"=="0" (
+  echo.
+  echo [CRASH-DIAGNOSTICS] Unreal exited with code %GAME_RC%.
+  echo [CRASH-DIAGNOSTICS] Relevant deployment/frontend markers:
+  if exist "%PLAYTEST_LOG%" findstr /C:"PASS45_DEPLOY" /C:"GAME_RECOVERY_" /C:"PASS24_" /C:"PASS25_" /C:"PASS26_" /C:"PASS27_" /C:"R13 frontend:" "%PLAYTEST_LOG%"
+  echo [CRASH-DIAGNOSTICS] Last 180 gameplay-log lines:
+  if exist "%PLAYTEST_LOG%" powershell -NoProfile -Command "Get-Content -LiteralPath $env:PLAYTEST_LOG -Tail 180"
+)
+
 echo.
 echo ============================================================
 echo QUICK NORMAL FINISHED - exit code %GAME_RC%
@@ -407,5 +417,5 @@ echo Source: %LOCAL_HEAD%
 echo RHI mode: %RHI_MODE%
 echo Log: %PLAYTEST_LOG%
 echo Runtime acceptance: NOT RUN
- echo ============================================================
+echo ============================================================
 exit /b %GAME_RC%
