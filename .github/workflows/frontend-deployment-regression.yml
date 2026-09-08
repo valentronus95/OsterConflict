@@ -16,6 +16,10 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCR13DeploymentPresentationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR148DeploymentCompatibility.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCPlayerController.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGameMode.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBotPopulationPolicySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCBotPopulationPolicySubsystem.h'
       - '.github/workflows/frontend-deployment-regression.yml'
   pull_request:
     paths:
@@ -30,6 +34,10 @@ on:
       - 'OsterConflict/Source/OsterConflict/Public/OCR13DeploymentPresentationSubsystem.h'
       - 'OsterConflict/Source/OsterConflict/Private/OCR148DeploymentCompatibility.cpp'
       - 'OsterConflict/Source/OsterConflict/Public/OCPlayerController.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCGameMode.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCGameMode.h'
+      - 'OsterConflict/Source/OsterConflict/Private/OCBotPopulationPolicySubsystem.cpp'
+      - 'OsterConflict/Source/OsterConflict/Public/OCBotPopulationPolicySubsystem.h'
       - '.github/workflows/frontend-deployment-regression.yml'
   workflow_dispatch:
 
