@@ -11,13 +11,67 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/SoftObjectPath.h"
 
 namespace
 {
     const FName ProductionWeaponVisualTag(TEXT("OC_ProductionWeaponVisual"));
+
+    constexpr const TCHAR* RifleIdlePath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Idle_01.AS_F_Rifle_Idle_01");
+    constexpr const TCHAR* RifleADSIdlePath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Idle_01.AS_F_ADS_Rifle_Idle_01");
+    constexpr const TCHAR* RifleWalkForwardPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_F_Loop.AS_F_Rifle_Walk_F_Loop");
+    constexpr const TCHAR* RifleWalkBackwardPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_B_Loop.AS_F_Rifle_Walk_B_Loop");
+    constexpr const TCHAR* RifleWalkLeftPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_L_Loop.AS_F_Rifle_Walk_L_Loop");
+    constexpr const TCHAR* RifleWalkRightPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_R_Loop.AS_F_Rifle_Walk_R_Loop");
+    constexpr const TCHAR* RifleADSWalkForwardPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_F_Loop.AS_F_ADS_Rifle_Walk_F_Loop");
+    constexpr const TCHAR* RifleADSWalkBackwardPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_B_Loop.AS_F_ADS_Rifle_Walk_B_Loop");
+    constexpr const TCHAR* RifleADSWalkLeftPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_L_Loop.AS_F_ADS_Rifle_Walk_L_Loop");
+    constexpr const TCHAR* RifleADSWalkRightPath =
+        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_R_Loop.AS_F_ADS_Rifle_Walk_R_Loop");
+    constexpr const TCHAR* AKFirePath = TEXT("/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W");
+    constexpr const TCHAR* AKReloadPath = TEXT("/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W");
+
+    void BuildPresentationAnimationPreloadPaths(TArray<FSoftObjectPath>& OutPaths)
+    {
+        static const TCHAR* RiflePaths[] =
+        {
+            RifleIdlePath,
+            RifleADSIdlePath,
+            RifleWalkForwardPath,
+            RifleWalkBackwardPath,
+            RifleWalkLeftPath,
+            RifleWalkRightPath,
+            RifleADSWalkForwardPath,
+            RifleADSWalkBackwardPath,
+            RifleADSWalkLeftPath,
+            RifleADSWalkRightPath,
+        };
+
+        OutPaths.Reset();
+        OutPaths.Reserve(16);
+        for (const TCHAR* Path : RiflePaths)
+        {
+            OutPaths.AddUnique(FSoftObjectPath(Path));
+        }
+
+        // Weapon-specific fire/reload/manual-action paths stay owned by the profile table.
+        // This keeps new authored paths automatically covered without duplicating identity data here.
+        OCAppendWeaponAnimationAssetPaths(OutPaths);
+    }
 }
 
 bool UOCFirstPersonWeaponPresentationSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -32,41 +86,108 @@ void UOCFirstPersonWeaponPresentationSubsystem::OnWorldBeginPlay(UWorld& InWorld
     Super::OnWorldBeginPlay(InWorld);
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
 
-    RifleIdleAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Idle_01.AS_F_Rifle_Idle_01"));
-    RifleADSIdleAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Idle_01.AS_F_ADS_Rifle_Idle_01"));
-    RifleWalkForwardAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_F_Loop.AS_F_Rifle_Walk_F_Loop"));
-    RifleWalkBackwardAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_B_Loop.AS_F_Rifle_Walk_B_Loop"));
-    RifleWalkLeftAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_L_Loop.AS_F_Rifle_Walk_L_Loop"));
-    RifleWalkRightAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_Rifle_Walk_R_Loop.AS_F_Rifle_Walk_R_Loop"));
-    RifleADSWalkForwardAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_F_Loop.AS_F_ADS_Rifle_Walk_F_Loop"));
-    RifleADSWalkBackwardAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_B_Loop.AS_F_ADS_Rifle_Walk_B_Loop"));
-    RifleADSWalkLeftAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_L_Loop.AS_F_ADS_Rifle_Walk_L_Loop"));
-    RifleADSWalkRightAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/SampleAnimationPack/Animations/Rifle/AS_F_ADS_Rifle_Walk_R_Loop.AS_F_ADS_Rifle_Walk_R_Loop"));
-    AKFireAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/AK-47/Animations/AK-47_Fire_W.AK-47_Fire_W"));
-    AKReloadAnimation = LoadObject<UAnimSequence>(nullptr,
-        TEXT("/Game/AK-47/Animations/AK-47_Reload_W.AK-47_Reload_W"));
+    RequestPresentationAnimationPreload();
+}
+
+void UOCFirstPersonWeaponPresentationSubsystem::Deinitialize()
+{
+    if (PresentationAnimationPreloadHandle.IsValid())
+    {
+        PresentationAnimationPreloadHandle->CancelHandle();
+        PresentationAnimationPreloadHandle.Reset();
+    }
+
+    RifleIdleAnimation = nullptr;
+    RifleADSIdleAnimation = nullptr;
+    RifleWalkForwardAnimation = nullptr;
+    RifleWalkBackwardAnimation = nullptr;
+    RifleWalkLeftAnimation = nullptr;
+    RifleWalkRightAnimation = nullptr;
+    RifleADSWalkForwardAnimation = nullptr;
+    RifleADSWalkBackwardAnimation = nullptr;
+    RifleADSWalkLeftAnimation = nullptr;
+    RifleADSWalkRightAnimation = nullptr;
+    AKFireAnimation = nullptr;
+    AKReloadAnimation = nullptr;
+    StateByCharacter.Reset();
+    bPresentationAnimationPreloadRequested = false;
+    bPresentationAnimationPreloadReady = false;
+
+    Super::Deinitialize();
+}
+
+void UOCFirstPersonWeaponPresentationSubsystem::RequestPresentationAnimationPreload()
+{
+    if (bPresentationAnimationPreloadRequested) return;
+    bPresentationAnimationPreloadRequested = true;
+
+    TArray<FSoftObjectPath> Paths;
+    BuildPresentationAnimationPreloadPaths(Paths);
+    PresentationAnimationPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(
+            this, &UOCFirstPersonWeaponPresentationSubsystem::CompletePresentationAnimationPreload),
+        FStreamableManager::AsyncLoadHighPriority,
+        false,
+        false,
+        TEXT("GameRecoveryFirstPersonWeaponAnimationPreload"));
+
+    if (!PresentationAnimationPreloadHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_FP_ANIMATION_ASYNC_PRELOAD_FAIL reason=invalid_handle assets=%d sync_load=0 first_use_sync_load=0 runtime_acceptance=0"),
+            Paths.Num());
+        return;
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_FP_ANIMATION_ASYNC_PRELOAD_BEGIN assets=%d async=1 sync_load=0 first_use_sync_load=0 resident_until_deinitialize=1 runtime_acceptance=0"),
+        Paths.Num());
+}
+
+UAnimSequence* UOCFirstPersonWeaponPresentationSubsystem::ResolveResidentAnimation(const FString& ObjectPath) const
+{
+    if (!bPresentationAnimationPreloadReady || ObjectPath.IsEmpty()) return nullptr;
+    return Cast<UAnimSequence>(FSoftObjectPath(ObjectPath).ResolveObject());
+}
+
+void UOCFirstPersonWeaponPresentationSubsystem::CompletePresentationAnimationPreload()
+{
+    if (!PresentationAnimationPreloadHandle.IsValid() || !PresentationAnimationPreloadHandle->HasLoadCompleted())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("PASS45_FP_ANIMATION_ASYNC_PRELOAD_FAIL reason=callback_without_completed_handle sync_load=0 first_use_sync_load=0 runtime_acceptance=0"));
+        return;
+    }
+
+    bPresentationAnimationPreloadReady = true;
+
+    RifleIdleAnimation = ResolveResidentAnimation(RifleIdlePath);
+    RifleADSIdleAnimation = ResolveResidentAnimation(RifleADSIdlePath);
+    RifleWalkForwardAnimation = ResolveResidentAnimation(RifleWalkForwardPath);
+    RifleWalkBackwardAnimation = ResolveResidentAnimation(RifleWalkBackwardPath);
+    RifleWalkLeftAnimation = ResolveResidentAnimation(RifleWalkLeftPath);
+    RifleWalkRightAnimation = ResolveResidentAnimation(RifleWalkRightPath);
+    RifleADSWalkForwardAnimation = ResolveResidentAnimation(RifleADSWalkForwardPath);
+    RifleADSWalkBackwardAnimation = ResolveResidentAnimation(RifleADSWalkBackwardPath);
+    RifleADSWalkLeftAnimation = ResolveResidentAnimation(RifleADSWalkLeftPath);
+    RifleADSWalkRightAnimation = ResolveResidentAnimation(RifleADSWalkRightPath);
+    AKFireAnimation = ResolveResidentAnimation(AKFirePath);
+    AKReloadAnimation = ResolveResidentAnimation(AKReloadPath);
 
     const bool bRifleLocomotionPackReady = RifleIdleAnimation && RifleADSIdleAnimation &&
         RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation &&
         RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_FP_RIFLE_LOCOMOTION_CONTENT_BRIDGE ready=%d hip_idle=%d ads_idle=%d directional_hip=%d directional_ads=%d runtime_acceptance=0"),
+        TEXT("PASS45_FP_RIFLE_LOCOMOTION_CONTENT_BRIDGE ready=%d hip_idle=%d ads_idle=%d directional_hip=%d directional_ads=%d async_preloaded=1 sync_load=0 first_use_sync_load=0 runtime_acceptance=0"),
         bRifleLocomotionPackReady ? 1 : 0,
         RifleIdleAnimation ? 1 : 0,
         RifleADSIdleAnimation ? 1 : 0,
         (RifleWalkForwardAnimation && RifleWalkBackwardAnimation && RifleWalkLeftAnimation && RifleWalkRightAnimation) ? 1 : 0,
         (RifleADSWalkForwardAnimation && RifleADSWalkBackwardAnimation && RifleADSWalkLeftAnimation && RifleADSWalkRightAnimation) ? 1 : 0);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_FP_ANIMATION_ASYNC_PRELOAD_READY async=1 sync_load=0 first_use_sync_load=0 resident_until_deinitialize=1 runtime_acceptance=0"));
 }
 
 TStatId UOCFirstPersonWeaponPresentationSubsystem::GetStatId() const
@@ -378,7 +499,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         {
             UAnimSequence* FireSequence = WeaponId == FName(TEXT("OC_AR1"))
                 ? AKFireAnimation.Get()
-                : LoadObject<UAnimSequence>(nullptr, *AnimationProfile.FireAnimationObjectPath);
+                : ResolveResidentAnimation(AnimationProfile.FireAnimationObjectPath);
             PlayWeaponAnimation(*Weapon, FireSequence, State, 0.11);
         }
     }
@@ -392,7 +513,7 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         {
             UAnimSequence* ReloadSequence = WeaponId == FName(TEXT("OC_AR1"))
                 ? AKReloadAnimation.Get()
-                : LoadObject<UAnimSequence>(nullptr, *AnimationProfile.ReloadAnimationObjectPath);
+                : ResolveResidentAnimation(AnimationProfile.ReloadAnimationObjectPath);
             PlayWeaponAnimation(*Weapon, ReloadSequence, State, Weapon->GetReloadDuration());
         }
     }
@@ -435,23 +556,23 @@ void UOCFirstPersonWeaponPresentationSubsystem::UpdateLocalCharacter(AOCCharacte
         bool bAuthoredManualActionStarted = false;
         if (AnimationProfile.HasManualActionAnimation())
         {
-            UAnimSequence* ManualActionSequence = LoadObject<UAnimSequence>(
-                nullptr, *AnimationProfile.ManualActionAnimationObjectPath);
+            UAnimSequence* ManualActionSequence = ResolveResidentAnimation(AnimationProfile.ManualActionAnimationObjectPath);
             const double ResetDelay = FMath::Max(0.05f, Weapon->GetManualActionCycleDuration());
             bAuthoredManualActionStarted = PlayWeaponAnimation(*Weapon, ManualActionSequence, State, ResetDelay);
             if (bAuthoredManualActionStarted)
             {
                 UE_LOG(LogTemp, Display,
-                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=%s action=%s path=%s replicated_gate=1 second_gameplay_timer=0 runtime_acceptance=0"),
+                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_READY weapon=%s action=%s path=%s replicated_gate=1 second_gameplay_timer=0 async_preloaded=1 first_use_sync_load=0 runtime_acceptance=0"),
                     *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
                     *AnimationProfile.ManualActionAnimationObjectPath);
             }
             else
             {
                 UE_LOG(LogTemp, Error,
-                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=%s action=%s path=%s reason=load_or_skeleton_or_animation_mode runtime_acceptance=0"),
+                    TEXT("PASS45_MANUAL_ACTION_AUTHORED_SOURCE_BRIDGE_FAIL weapon=%s action=%s path=%s reason=resident_asset_or_skeleton_or_animation_mode async_preloaded=%d first_use_sync_load=0 runtime_acceptance=0"),
                     *WeaponId.ToString(), *UEnum::GetValueAsString(ActionType),
-                    *AnimationProfile.ManualActionAnimationObjectPath);
+                    *AnimationProfile.ManualActionAnimationObjectPath,
+                    bPresentationAnimationPreloadReady ? 1 : 0);
             }
         }
 
