@@ -26,7 +26,6 @@ def absent(path: Path, label: str) -> None:
         raise SystemExit(f"PASS38 VERIFY FAIL: stale {label} resurrected: {path.relative_to(ROOT)}")
 
 
-# Pass 45 removes the old Museum destructive recovery entirely instead of budgeting one rebuild.
 for path, label in (
     (SRC / "Public" / "OCMuseumVisibilityPass37Subsystem.h", "Museum visibility/rebuild guard"),
     (SRC / "Private" / "OCMuseumVisibilityPass37Subsystem.cpp", "Museum visibility/rebuild guard"),
@@ -41,6 +40,7 @@ fallback_h = read(SRC / "Public" / "OCRealWeaponFallbackSubsystem.h")
 fallback = read(SRC / "Private" / "OCRealWeaponFallbackSubsystem.cpp")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 runtime_safe = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
+bot_policy = read(SRC / "Private" / "OCBotPopulationPolicySubsystem.cpp")
 startup = read(SRC / "Private" / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 perf_h = read(SRC / "Public" / "OCPerformanceSampleSubsystem.h")
 perf = read(SRC / "Private" / "OCPerformanceSampleSubsystem.cpp")
@@ -48,9 +48,6 @@ launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 acceptance = read(ROOT / "RUN_R14_PLAYFLOW_PERFORMANCE_ACCEPTANCE.cmd")
 evidence = read(ROOT / "VERIFY_PASS45_RUNTIME_EVIDENCE_LOG.py")
 
-# GAME_RECOVERY supersedes the historical one-shot startup with explicit staged pre-spawn lifecycle evidence.
-# Timing fields may legally sit between readiness fields, so verify semantics independently instead of pinning
-# one exact log sentence forever.
 for needle in (
     "GAME_RECOVERY_WORLD_PREP_BEGIN",
     "pre_spawn=1 tick_when_paused=1 staged_materialization=1",
@@ -65,39 +62,65 @@ for needle in (
     "slowest_stage_ms=",
 ):
     require(startup, needle, "staged landmark startup")
-# PASS45_LANDMARK_STARTUP_COORDINATED_READY is retained only as an evidence compatibility token inside the
-# canonical GAME_RECOVERY_WORLD_READY log. It is not a second mutating owner and is therefore allowed here.
 
-# Real-mesh fallback/material audit remains finite and truth-only.
+# Weapon audit is finite, truth-only and never substitutes a nearby look-alike mesh for exact identity.
 for needle in (
     "int32 RefreshPassCount = 0",
     "MaxRefreshPasses = 12",
     "ClearTimer(RefreshTimer)",
     "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
-    "reason=material_gap_audited",
-    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+    "PASS36_WEAPON_MATERIAL_AUDIT_READY",
     "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
+    "PASS45_GENERIC_WEAPON_FALLBACK_RETIRED",
     "permanent_scan=0",
+    "generic_substitution=0",
 ):
-    require(fallback_h + fallback, needle, "bounded truth-only weapon scan")
-forbid(fallback, "UMaterialInstanceDynamic::Create", "weapon fallback must not fabricate material recovery")
-forbid(fallback, "Component->SetMaterial(Slot", "weapon audit must not repaint slots")
+    require(fallback_h + fallback, needle, "bounded truth-only exact-identity weapon scan")
+for forbidden in (
+    "UMaterialInstanceDynamic::Create",
+    "Component->SetMaterial(Slot",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+    "reason=material_gap_audited",
+    "/Game/AK-47/Mesh/SM_AK-47.SM_AK-47",
+    "R13 real SMG temporary MP5 fallback",
+):
+    forbid(fallback, forbidden, "retired weapon repair/substitution")
 
-# Normal local game must not silently create filler AI.
+# Normal local/listen gameplay owns filler bots again, but frontend/travel stays light until the human host exists.
 for needle in (
-    "int32 TargetPopulation = 0",
-    "bool bAutoFillBots = false",
+    "int32 TargetPopulation = 16",
+    "bool bAutoFillBots = true",
+    "RestoreExpectedLocalBotFill",
+    "Humans replace bots first",
 ):
-    require(game_h, needle, "safe base population defaults")
+    require(game_h, needle, "approved filler-bot defaults and human priority")
 for needle in (
-    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
-    "TargetPopulation = 0",
-    "bAutoFillBots = false",
-    "background_ai_load=0",
+    "PASS44_LOCAL_BOT_AUTOFILL_DEFERRED_READY",
+    "background_ai_load_before_human=0",
+    "restore_owner=OCBotPopulationPolicySubsystem",
 ):
-    require(runtime_safe, needle, "runtime-safe local bot suppression")
+    require(runtime_safe, needle, "light frontend/travel staging")
+for needle in (
+    "IsFrontendOnlySession()",
+    "IsSandboxMode()",
+    "NM_DedicatedServer",
+    "GetHumanPlayerCount() <= 0",
+    "RestoreExpectedLocalBotFill()",
+    "GAME_RECOVERY_BOT_FILL_RESTORED",
+):
+    require(bot_policy, needle, "post-host filler-bot restoration")
 
-# Pass45 thermal recovery must be a real UE runtime contract, not just a launcher string.
+# Visual/content world preparation remains acceptance evidence, not permission to spawn a human pawn.
+for needle in (
+    "GAME_RECOVERY_SPAWN_GATE_VISUAL_FAIL_SOFT",
+    "gameplay_spawn_release=1",
+    "acceptance_preserved=1",
+    "fail_closed=0",
+    "visual_gate_blocks_spawn=0",
+):
+    require(runtime_safe, needle, "fail-soft human spawn gate")
+forbid(runtime_safe, "player_spawned=0 fail_closed=1", "visual world-prep failure may not strand deployment")
+
 for needle in (
     "bRecoveryRuntimeContractLogged",
     "ValidatePass45RecoveryRuntimeContract",
@@ -125,7 +148,6 @@ forbid(strict_launcher, '-windowed', "strict recovery route must not force windo
 require(quick_launcher, '-windowed', "quick normal route must remain desktop-recoverable")
 require(quick_launcher, '-ExecCmds="%QUALITY_CMDS%"', "quick normal route must reuse shared 60 FPS quality commands")
 
-# Strict evidence must reject a run where the CVar request was overridden or never applied.
 for needle in (
     'require(gameplay, "PASS45_THERMAL_CAP_RUNTIME_READY"',
     'forbid(gameplay, "PASS45_THERMAL_CAP_RUNTIME_FAIL"',
@@ -133,7 +155,6 @@ for needle in (
 ):
     require(evidence, needle, "strict thermal runtime evidence")
 
-# Acceptance follows current GAME_RECOVERY readiness and must not demand dead mutation owners.
 for marker in (
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
     "PASS38_MUSEUM_REBUILD_BUDGET_FAIL",
@@ -142,6 +163,8 @@ for marker in (
     "PASS37_MUSEUM_VISIBLE_CORE_READY",
     "PASS29_MAIN_START_DIRECT_HOST_QUEUED",
     "PASS29_STATIC_FRONTEND_HOST_TRAVEL_EXECUTE",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
 ):
     forbid(acceptance, marker, f"stale acceptance marker {marker}")
 for marker in (
@@ -149,18 +172,19 @@ for marker in (
     "PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED",
     "PASS14_MAIN_START_OPENS_SERVER_SETUP",
     "PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE",
-    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
-    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
+    "GAME_RECOVERY_BOT_FILL_RESTORED",
+    "PASS36_WEAPON_MATERIAL_AUDIT_READY",
+    "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
     "PASS14_PERF_30FPS_READY",
 ):
     require(acceptance, marker, f"current runtime acceptance marker {marker}")
 
 print("RUNTIME RUNAWAY / HEAT PASS 38/45 FORWARD-PORTED SOURCE CONTRACT PASS")
 print("- destructive Museum recovery and obsolete palette owner remain physically deleted")
-print("- landmark startup is staged before spawn, timed per stage and emits GAME_RECOVERY world-ready evidence")
-print("- weapon fallback/material audit remains finite and fail-visible")
-print("- normal local game defaults to zero filler bots unless explicitly requested")
-print("- strict recovery remains fullscreen; quick normal is windowed only so a broken startup cannot trap the desktop")
-print("- both launch modes reuse one 60 FPS quality command, and UE runtime must confirm actual t.MaxFPS=60")
+print("- landmark startup is staged and remains factual acceptance evidence")
+print("- weapon material audit is finite; generic look-alike weapon substitution stays retired")
+print("- local/listen filler bots restore only after a human host exists; frontend/Sandbox/dedicated paths remain isolated")
+print("- visual world-preparation failures remain logged but cannot strand the human without a pawn")
+print("- strict recovery remains fullscreen; quick normal is windowed and both reuse the 60 FPS quality command")
 print("- low-FPS/thermal recovery never lowers render scale to disguise the problem")
 print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 runtime remains authoritative")
