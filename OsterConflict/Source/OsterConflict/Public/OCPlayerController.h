@@ -79,6 +79,21 @@ public:
     UFUNCTION(BlueprintCallable, Category="UI") void UICycleSquad();
     UFUNCTION(BlueprintCallable, Category="UI") void UISelectSpawn(FName SpawnId);
     UFUNCTION(BlueprintCallable, Category="UI") void UIReadyDeploy();
+
+    // Recovery path for deployment flows that must not disappear before an actual pawn exists.
+    // UIReadyDeploy still performs the authoritative ready/spawn request; if it did not produce a
+    // pawn synchronously (normal for remote clients or deferred world preparation), restore only
+    // the local deployment-visible state and keep input captured by the deployment UI.
+    void UIReadyDeployKeepOpenUntilSpawn()
+    {
+        UIReadyDeploy();
+        if (!IsValid(GetPawn()))
+        {
+            bDeploymentPanelVisible = true;
+            ApplyUIInputMode();
+        }
+    }
+
     UFUNCTION(BlueprintCallable, Category="UI") void UICommitDeployment();
     UFUNCTION(BlueprintCallable, Category="UI") void UISendChat(EOCChatChannel Channel, const FString& Message);
     UFUNCTION(BlueprintCallable, Category="UI") void UIEndChatInput();
