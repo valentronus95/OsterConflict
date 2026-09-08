@@ -211,7 +211,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
         UVerticalBox* Page = NewObject<UVerticalBox>(Root);
         Switcher->AddChild(Page);
         if (UTextBlock* T = MakeFlowText(Root, Title, 22, true))
-            Page->AddChildToVerticalBox(T)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f, 6.0f));
+            Page->AddChildToVerticalBox(T)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 6.0f));
         if (UTextBlock* S = MakeFlowText(Root, Subtitle, 13, false))
             Page->AddChildToVerticalBox(S)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
         return Page;
