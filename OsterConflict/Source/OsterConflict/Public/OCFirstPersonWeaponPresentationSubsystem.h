@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCFirstPersonWeaponPresentationSubsystem.generated.h"
 
+struct FStreamableHandle;
 class AOCCharacter;
 class AOCWeaponBase;
 class UAnimSequence;
@@ -43,10 +44,15 @@ class OSTERCONFLICT_API UOCFirstPersonWeaponPresentationSubsystem : public UTick
 public:
     virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+    virtual void Deinitialize() override;
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override;
 
 private:
+    void RequestPresentationAnimationPreload();
+    void CompletePresentationAnimationPreload();
+    UAnimSequence* ResolveResidentAnimation(const FString& ObjectPath) const;
+
     void UpdateLocalCharacter(AOCCharacter& Character, float DeltaTime);
     void RestorePresentationState(AOCCharacter& Character, FOCFirstPersonWeaponState& State);
     void ApplyArmsPose(AOCCharacter& Character, FOCFirstPersonWeaponState& State, bool bADS);
@@ -71,6 +77,9 @@ private:
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> AKFireAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> AKReloadAnimation;
 
+    TSharedPtr<FStreamableHandle> PresentationAnimationPreloadHandle;
     TMap<TWeakObjectPtr<AOCCharacter>, FOCFirstPersonWeaponState> StateByCharacter;
     bool bLocalPawnFastPathLogged = false;
+    bool bPresentationAnimationPreloadRequested = false;
+    bool bPresentationAnimationPreloadReady = false;
 };
