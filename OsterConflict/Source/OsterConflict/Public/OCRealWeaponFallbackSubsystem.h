@@ -9,12 +9,15 @@ struct FStreamableHandle;
 class UStaticMesh;
 
 /**
- * Replaces visible primitive weapon fallbacks with already-imported real R13 meshes when an exact
- * production asset is missing or fails to load. This does NOT mark the weapon production-verified:
- * exact asset validation remains authoritative and must still fail for a generic fallback.
+ * Runtime weapon visual safety/audit subsystem.
  *
- * Pass 44 changes the material audit to truth-only: a missing/default authored material is reported
- * as a content gap and is never painted over with BasicShapeMaterial and mislabeled as ready.
+ * Generic look-alike weapon substitution is retired: an AK, shotgun, SMG, optic, barrel, shell or other nearby
+ * asset may not stand in for a missing exact weapon identity. Exact visual ownership belongs to the imported/local
+ * weapon bridge. This subsystem hides rejected Engine/BasicShapes primitive visuals and audits authored materials
+ * without turning a content gap into a false production-ready result.
+ *
+ * Legacy fallback members/functions remain temporarily for ABI/source compatibility, but ApplyRealFallback is a
+ * deliberate no-op and no fallback assets are preloaded.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCRealWeaponFallbackSubsystem : public UWorldSubsystem
