@@ -43,7 +43,7 @@ public:
     /** Server-owned Sandbox admin policy. Sandbox mode by itself never grants admin rights. */
     bool CanUseSandboxAdmin(const AController* Controller) const;
 
-    /** S13/S14 bot management. Bots are filler only when explicitly requested; humans always have slot priority. */
+    /** S13/S14 bot management. Normal local/listen matches may use filler bots; humans always have slot priority. */
     void SpawnDebugBots(int32 Count);
     void RemoveAllBots();
     void MaintainPopulation();
@@ -56,6 +56,32 @@ public:
     FString GetPerformanceProfileName() const { return PerformanceProfileName; }
     FString BuildPerformanceSnapshot() const;
     EOCFactionArchetype GetFactionForTeam(EOCTeam Team) const { return Team == EOCTeam::TeamTwo ? TeamTwoFaction : TeamOneFaction; }
+
+    /**
+     * Restores the player-approved filler-bot policy for local/listen gameplay after frontend travel.
+     * This is intentionally limited to non-Sandbox, non-dedicated play. Dedicated servers keep their explicit URL policy.
+     * If the frontend requested N bots, keep N bots beside the current human population; otherwise fill the local match.
+     */
+    bool RestoreExpectedLocalBotFill()
+    {
+        if (!HasAuthority() || bFrontendOnlySession || bSandboxMode || GetNetMode() == NM_DedicatedServer) return false;
+
+        const int32 Humans = GetHumanPlayerCount();
+        if (Humans <= 0) return false;
+
+        if (RequestedBotCount > 0)
+        {
+            TargetPopulation = FMath::Clamp(Humans + RequestedBotCount, 1, MaxPlayerSlots);
+        }
+        else if (TargetPopulation <= 0)
+        {
+            TargetPopulation = MaxPlayerSlots;
+        }
+
+        bAutoFillBots = TargetPopulation > Humans;
+        MaintainPopulation();
+        return true;
+    }
 
     /** S14 squad/chat backend. */
     bool RequestSquadChange(AOCPlayerState* State, int32 RequestedSquadId);
@@ -78,10 +104,10 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="Match", meta=(ClampMin="2.0")) float RoundEndDuration = 8.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="Population", meta=(ClampMin="2", ClampMax="64")) int32 MaxPlayerSlots = 16;
-    // Pass 44: normal local play measures the map/content with no implicit AI population. Explicit
-    // Bots=/Population=/BotFill options can still request a server/test population through InitGame.
-    UPROPERTY(EditDefaultsOnly, Category="Population", meta=(ClampMin="0", ClampMax="64")) int32 TargetPopulation = 0;
-    UPROPERTY(EditDefaultsOnly, Category="Population") bool bAutoFillBots = false;
+    // Normal gameplay keeps a playable population with filler bots. Humans replace bots first.
+    // Frontend-only/menu worlds still suppress gameplay and heavy AI until travel into the match world.
+    UPROPERTY(EditDefaultsOnly, Category="Population", meta=(ClampMin="0", ClampMax="64")) int32 TargetPopulation = 16;
+    UPROPERTY(EditDefaultsOnly, Category="Population") bool bAutoFillBots = true;
     UPROPERTY(EditDefaultsOnly, Category="Population", meta=(ClampMin="0.5")) float BotRefillDelay = 3.0f;
     UPROPERTY(EditDefaultsOnly, Category="Squad", meta=(ClampMin="2", ClampMax="8")) int32 MaxSquadSize = 4;
     UPROPERTY(EditDefaultsOnly, Category="Character|Faction") EOCFactionArchetype TeamOneFaction = EOCFactionArchetype::UASpecialUnit;
