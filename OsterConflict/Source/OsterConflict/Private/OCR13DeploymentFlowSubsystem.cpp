@@ -18,6 +18,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
 #include "Components/WidgetSwitcher.h"
+#include "CoreGlobals.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerState.h"
@@ -345,6 +346,8 @@ void UOCR13DeploymentFlowSubsystem::ResetFlow()
     bRoleSelected = false;
     SelectedSpawn = NAME_None;
     bDeployPending = false;
+    bDeployRequestQueued = false;
+    DeployRequestEarliestFrame = 0;
     AuthorityReconcileAge = 0.0f;
     SetStep(0);
     if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("Оберіть команду.")));
@@ -576,6 +579,19 @@ void UOCR13DeploymentFlowSubsystem::Tick(float DeltaTime)
         Legacy->SetIsEnabled(false);
     }
 
+    // Never run RestartPlayer/possession as part of the Slate button callback. In standalone mode
+    // the server RPC can execute synchronously, which can invalidate UMG/Slate state while OnClicked
+    // is still unwinding. A one-frame fence makes deployment a normal world-tick operation instead.
+    if (bDeployPending && bDeployRequestQueued && GFrameCounter >= DeployRequestEarliestFrame)
+    {
+        bDeployRequestQueued = false;
+        PC->UISelectSpawn(SelectedSpawn);
+        PC->UIReadyDeployKeepOpenUntilSpawn();
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_DEPLOY_REQUEST_EXECUTE spawn=%s frame=%llu slate_callback=0 deployment_closed=0"),
+            *SelectedSpawn.ToString(), static_cast<unsigned long long>(GFrameCounter));
+    }
+
     if (bDeployPending && IsValid(PC->GetPawn()))
     {
         bDeployPending = false;
@@ -702,32 +718,16 @@ void UOCR13DeploymentFlowSubsystem::OnDeploy()
         !bRoleSelected || SelectedSpawn.IsNone() || !IsSpawnAvailable(SelectedTeam, SelectedSpawn)) return;
 
     bDeployPending = true;
+    bDeployRequestQueued = true;
+    DeployRequestEarliestFrame = GFrameCounter + 1;
     if (DeployButton.IsValid()) DeployButton->SetIsEnabled(false);
     if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("ВХІД У БІЙ…")));
 
-    // Keep deployment visible until the controller actually owns a pawn. World-presentation recovery may
-    // release the spawn on a later tick, especially when cosmetic ground/surface acceptance has failed.
-    PC->UISelectSpawn(SelectedSpawn);
-    PC->UIReadyDeployKeepOpenUntilSpawn();
-
-    if (IsValid(PC->GetPawn()))
-    {
-        bDeployPending = false;
-        if (FlowPanel.IsValid()) FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
-        bWasVisible = false;
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_DEPLOY_DIRECT_READY spawn=%s player_spawned=1 deployment_closed=1 possession_confirmed=1"),
-            *SelectedSpawn.ToString());
-        return;
-    }
-
-    if (StatusText.IsValid())
-    {
-        StatusText->SetText(FText::FromString(TEXT("ОЧІКУВАННЯ ПОЯВИ ГРАВЦЯ…")));
-    }
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_DEPLOY_SPAWN_WAIT spawn=%s player_spawned=0 deployment_closed=0 visual_gate_failsoft_pending=1"),
-        *SelectedSpawn.ToString());
+        TEXT("PASS45_DEPLOY_REQUEST_QUEUED spawn=%s frame=%llu execute_after=%llu slate_callback_safe=1 deployment_closed=0"),
+        *SelectedSpawn.ToString(),
+        static_cast<unsigned long long>(GFrameCounter),
+        static_cast<unsigned long long>(DeployRequestEarliestFrame));
 }
 
 TStatId UOCR13DeploymentFlowSubsystem::GetStatId() const
