@@ -83,6 +83,17 @@ void UOCPass45TrenchSetpieceSubsystem::Tick(float DeltaTime)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    // The sandbag/rubble ring is an optional reference setpiece, not normal gameplay world geometry.
+    // It used to auto-spawn six sandbag pieces plus rubble around every base, permanently cluttering the map.
+    // Keep the old authoring route available only for an explicit dedicated evidence run.
+    if (!World->URL.HasOption(TEXT("EnableTrenchSetpiece")))
+    {
+        bFinished = true;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_TRENCH_SETPIECE_RETIRED normal_gameplay=1 authored_instances=0 sandbags=0 rubble=0 opt_in=EnableTrenchSetpiece"));
+        return;
+    }
+
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
     if (ElapsedSeconds < BuildDelaySeconds) return;
     bFinished = true;
@@ -112,8 +123,6 @@ void UOCPass45TrenchSetpieceSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    // Optional user-added rubble pack. Strict identity matching means a random prop is never substituted.
-    // /Game fallback is allowed because Fab packs may import to their own top-level package rather than /Game/Fab.
     UStaticMesh* RubbleMesh = OCPass45FindLocalStaticMeshStrict(
         { FName(TEXT("/Game/Fab")), FName(TEXT("/Game")) },
         { TEXT("rubble") });
