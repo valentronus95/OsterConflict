@@ -69,6 +69,9 @@ for forbidden in [
     if forbidden in text["viewport"]:
         fail(f"persistent viewport rendering suppression returned: {forbidden}")
 
+# GAME_RECOVERY deployment contract: the Slate click handler must only queue the request. Possession/restart may
+# execute synchronously in standalone, so the actual ready/deploy call is deferred to a later world tick and the
+# deployment screen is closed only after a Pawn exists. Do not regress this to direct UIReadyDeploy() in OnClicked.
 for token in [
     'TEXT("R13_DeploymentFlowPanel")',
     'TEXT("R13_DeploymentBackdrop")',
@@ -78,7 +81,9 @@ for token in [
     'PC->UIRequestSquad(',
     'PC->UIRequestRole(',
     'PC->UISelectSpawn(SelectedSpawn);',
-    'PC->UIReadyDeploy();',
+    'bDeployRequestQueued = false;',
+    'PC->UIReadyDeployKeepOpenUntilSpawn();',
+    'PASS45_DEPLOY_REQUEST_EXECUTE',
     'PASS45_DEPLOY_DIRECT_READY',
     'PC->UICloseDeployment();',
     'PASS45_DEPLOYMENT_BACK_TO_FRONTEND_READY',
@@ -105,6 +110,7 @@ for token in [
     'void UIRequestRole(EOCPlayerRole RequestedRole)',
     'void UICommitDeployment()',
     'void UIReadyDeploy()',
+    'void UIReadyDeployKeepOpenUntilSpawn()',
 ]:
     if token not in text["controller_h"]:
         fail(f"controller declaration missing: {token}")
@@ -154,4 +160,4 @@ for token in [
         fail(f"bot population recovery marker missing: {token}")
 
 print("FRONTEND/DEPLOYMENT REGRESSION GUARD: PASS")
-print("Frontend/deployment ownership remains stable, and normal local/listen gameplay restores filler bots only after a human host exists; frontend-only, Sandbox and dedicated-server policy remain isolated.")
+print("Frontend/deployment ownership remains stable; deployment executes outside the Slate click callback and closes only after possession, while normal local/listen gameplay restores filler bots only after a human host exists.")
