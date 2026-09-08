@@ -48,6 +48,8 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
 {
     Super::InitGame(MapName, Options, ErrorMessage);
 
+    // Keep the frontend/travel stage light before a real human host exists. OCBotPopulationPolicySubsystem restores
+    // the approved filler-bot population after the host is represented in the gameplay world.
     const bool bBotsExplicit = HasExplicitOption(Options, TEXT("Bots"));
     const bool bPopulationExplicit = HasExplicitOption(Options, TEXT("Population"));
     const bool bBotFillExplicit = HasExplicitOption(Options, TEXT("BotFill"));
@@ -57,7 +59,7 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
         TargetPopulation = 0;
         bAutoFillBots = false;
         UE_LOG(LogTemp, Display,
-            TEXT("PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY implicit_population=0 explicit_bot_options=0 background_ai_load=0"));
+            TEXT("PASS44_LOCAL_BOT_AUTOFILL_DEFERRED_READY implicit_population=0 explicit_bot_options=0 background_ai_load_before_human=0 restore_owner=OCBotPopulationPolicySubsystem"));
     }
     else
     {
@@ -70,10 +72,7 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
             bAutoFillBots ? 1 : 0);
     }
 
-    if (IsFrontendOnlySession() || !HasAuthority() || !GetWorld())
-    {
-        return;
-    }
+    if (IsFrontendOnlySession() || !HasAuthority() || !GetWorld()) return;
 
     TArray<AOCWorldSectorOster*> ExistingSectors;
     GatherLiveOsterSectors(GetWorld(), ExistingSectors);
@@ -90,8 +89,7 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
     {
         FActorSpawnParameters SpawnParams;
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        Sector = GetWorld()->SpawnActor<AOCWorldSectorOster>(
-            AOCWorldSectorOster::StaticClass(), FTransform::Identity, SpawnParams);
+        Sector = GetWorld()->SpawnActor<AOCWorldSectorOster>(AOCWorldSectorOster::StaticClass(), FTransform::Identity, SpawnParams);
     }
 
     if (!IsValid(Sector))
@@ -118,11 +116,7 @@ void AOCGameModeRuntimeSafe::InitGame(const FString& MapName, const FString& Opt
 void AOCGameModeRuntimeSafe::BeginPlay()
 {
     Super::BeginPlay();
-
-    if (IsFrontendOnlySession() || !HasAuthority() || !GetWorld())
-    {
-        return;
-    }
+    if (IsFrontendOnlySession() || !HasAuthority() || !GetWorld()) return;
 
     TArray<AOCWorldSectorOster*> Sectors;
     GatherLiveOsterSectors(GetWorld(), Sectors);
@@ -156,9 +150,7 @@ void AOCGameModeRuntimeSafe::BeginPlay()
     {
         UE_LOG(LogTemp, Error,
             TEXT("PASS45_OSTER_SECTOR_SINGLE_OWNER_FAIL canonical_pretick_owner=%d sector_count=%d duplicates_retired=%d before_first_tick=0 runtime_acceptance=0"),
-            CanonicalSector ? 1 : 0,
-            RemainingSectors.Num(),
-            DuplicatesRetired);
+            CanonicalSector ? 1 : 0, RemainingSectors.Num(), DuplicatesRetired);
         return;
     }
 
@@ -173,126 +165,44 @@ bool AOCGameModeRuntimeSafe::IsRecoveryWorldReady(FString& OutPendingStages, boo
     bOutHardFailure = false;
 
     UWorld* World = GetWorld();
-    if (!World || World->GetNetMode() == NM_DedicatedServer ||
-        !World->GetMapName().Contains(TEXT("OsterConflict_Runtime")))
-    {
+    if (!World || World->GetNetMode() == NM_DedicatedServer || !World->GetMapName().Contains(TEXT("OsterConflict_Runtime")))
         return true;
-    }
 
     TArray<FString> Pending;
 
     const UOCBlock0GroundFoundationSubsystem* Ground = World->GetSubsystem<UOCBlock0GroundFoundationSubsystem>();
-    if (!Ground)
-    {
-        Pending.Add(TEXT("ground_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (Ground->HasGroundFailed())
-    {
-        Pending.Add(TEXT("ground_failed"));
-        bOutHardFailure = true;
-    }
-    else if (!Ground->IsGroundReady())
-    {
-        Pending.Add(TEXT("ground"));
-    }
+    if (!Ground) { Pending.Add(TEXT("ground_subsystem_missing")); bOutHardFailure = true; }
+    else if (Ground->HasGroundFailed()) { Pending.Add(TEXT("ground_failed")); bOutHardFailure = true; }
+    else if (!Ground->IsGroundReady()) Pending.Add(TEXT("ground"));
 
-    const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surface =
-        World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>();
-    if (!Surface)
-    {
-        Pending.Add(TEXT("surface_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (Surface->HasWorldSurfaceFailed())
-    {
-        Pending.Add(TEXT("surface_failed"));
-        bOutHardFailure = true;
-    }
-    else if (!Surface->IsWorldSurfaceReady())
-    {
-        Pending.Add(TEXT("surface"));
-    }
+    const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surface = World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>();
+    if (!Surface) { Pending.Add(TEXT("surface_subsystem_missing")); bOutHardFailure = true; }
+    else if (Surface->HasWorldSurfaceFailed()) { Pending.Add(TEXT("surface_failed")); bOutHardFailure = true; }
+    else if (!Surface->IsWorldSurfaceReady()) Pending.Add(TEXT("surface"));
 
-    const UOCLandmarkStartupCoordinatorSubsystem* Landmarks =
-        World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>();
-    if (!Landmarks)
-    {
-        Pending.Add(TEXT("landmark_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (!Landmarks->IsWorldStartupReady())
-    {
-        Pending.Add(TEXT("landmarks"));
-    }
+    const UOCLandmarkStartupCoordinatorSubsystem* Landmarks = World->GetSubsystem<UOCLandmarkStartupCoordinatorSubsystem>();
+    if (!Landmarks) { Pending.Add(TEXT("landmark_subsystem_missing")); bOutHardFailure = true; }
+    else if (!Landmarks->IsWorldStartupReady()) Pending.Add(TEXT("landmarks"));
 
-    const UOCParkSemanticAuthoredUpgradeSubsystem* ParkSemantic =
-        World->GetSubsystem<UOCParkSemanticAuthoredUpgradeSubsystem>();
-    if (!ParkSemantic)
-    {
-        Pending.Add(TEXT("park_semantic_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (ParkSemantic->HasParkSemanticFailed())
-    {
-        Pending.Add(TEXT("park_semantic_failed"));
-        bOutHardFailure = true;
-    }
-    else if (!ParkSemantic->IsParkSemanticReady())
-    {
-        Pending.Add(TEXT("park_semantic"));
-    }
+    const UOCParkSemanticAuthoredUpgradeSubsystem* ParkSemantic = World->GetSubsystem<UOCParkSemanticAuthoredUpgradeSubsystem>();
+    if (!ParkSemantic) { Pending.Add(TEXT("park_semantic_subsystem_missing")); bOutHardFailure = true; }
+    else if (ParkSemantic->HasParkSemanticFailed()) { Pending.Add(TEXT("park_semantic_failed")); bOutHardFailure = true; }
+    else if (!ParkSemantic->IsParkSemanticReady()) Pending.Add(TEXT("park_semantic"));
 
-    const UOCParkGroundAuthoredUpgradeSubsystem* ParkGround =
-        World->GetSubsystem<UOCParkGroundAuthoredUpgradeSubsystem>();
-    if (!ParkGround)
-    {
-        Pending.Add(TEXT("park_ground_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (ParkGround->HasParkGroundFailed())
-    {
-        Pending.Add(TEXT("park_ground_failed"));
-        bOutHardFailure = true;
-    }
-    else if (!ParkGround->IsParkGroundReady())
-    {
-        Pending.Add(TEXT("park_ground"));
-    }
+    const UOCParkGroundAuthoredUpgradeSubsystem* ParkGround = World->GetSubsystem<UOCParkGroundAuthoredUpgradeSubsystem>();
+    if (!ParkGround) { Pending.Add(TEXT("park_ground_subsystem_missing")); bOutHardFailure = true; }
+    else if (ParkGround->HasParkGroundFailed()) { Pending.Add(TEXT("park_ground_failed")); bOutHardFailure = true; }
+    else if (!ParkGround->IsParkGroundReady()) Pending.Add(TEXT("park_ground"));
 
-    const UOCParkHardscapeAuthoredUpgradeSubsystem* ParkHardscape =
-        World->GetSubsystem<UOCParkHardscapeAuthoredUpgradeSubsystem>();
-    if (!ParkHardscape)
-    {
-        Pending.Add(TEXT("park_hardscape_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (ParkHardscape->HasParkHardscapeFailed())
-    {
-        Pending.Add(TEXT("park_hardscape_failed"));
-        bOutHardFailure = true;
-    }
-    else if (!ParkHardscape->IsParkHardscapeReady())
-    {
-        Pending.Add(TEXT("park_hardscape"));
-    }
+    const UOCParkHardscapeAuthoredUpgradeSubsystem* ParkHardscape = World->GetSubsystem<UOCParkHardscapeAuthoredUpgradeSubsystem>();
+    if (!ParkHardscape) { Pending.Add(TEXT("park_hardscape_subsystem_missing")); bOutHardFailure = true; }
+    else if (ParkHardscape->HasParkHardscapeFailed()) { Pending.Add(TEXT("park_hardscape_failed")); bOutHardFailure = true; }
+    else if (!ParkHardscape->IsParkHardscapeReady()) Pending.Add(TEXT("park_hardscape"));
 
-    const UOCParkMemorialApproachAuthoredUpgradeSubsystem* ParkMemorial =
-        World->GetSubsystem<UOCParkMemorialApproachAuthoredUpgradeSubsystem>();
-    if (!ParkMemorial)
-    {
-        Pending.Add(TEXT("park_memorial_subsystem_missing"));
-        bOutHardFailure = true;
-    }
-    else if (ParkMemorial->HasParkMemorialApproachFailed())
-    {
-        Pending.Add(TEXT("park_memorial_failed"));
-        bOutHardFailure = true;
-    }
-    else if (!ParkMemorial->IsParkMemorialApproachReady())
-    {
-        Pending.Add(TEXT("park_memorial"));
-    }
+    const UOCParkMemorialApproachAuthoredUpgradeSubsystem* ParkMemorial = World->GetSubsystem<UOCParkMemorialApproachAuthoredUpgradeSubsystem>();
+    if (!ParkMemorial) { Pending.Add(TEXT("park_memorial_subsystem_missing")); bOutHardFailure = true; }
+    else if (ParkMemorial->HasParkMemorialApproachFailed()) { Pending.Add(TEXT("park_memorial_failed")); bOutHardFailure = true; }
+    else if (!ParkMemorial->IsParkMemorialApproachReady()) Pending.Add(TEXT("park_memorial"));
 
     OutPendingStages = Pending.Num() > 0 ? FString::Join(Pending, TEXT(",")) : TEXT("none");
     return Pending.Num() == 0;
@@ -310,15 +220,10 @@ void AOCGameModeRuntimeSafe::QueueRestartWhenWorldReady(AController* NewPlayer, 
 
     FTimerDelegate RetryDelegate;
     RetryDelegate.BindUObject(this, &AOCGameModeRuntimeSafe::PollRestartWhenWorldReady, WeakController);
-    GetWorldTimerManager().SetTimer(
-        Pending.TimerHandle,
-        RetryDelegate,
-        WorldReadyRestartPollSeconds,
-        true,
-        WorldReadyRestartPollSeconds);
+    GetWorldTimerManager().SetTimer(Pending.TimerHandle, RetryDelegate, WorldReadyRestartPollSeconds, true, WorldReadyRestartPollSeconds);
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_SPAWN_GATE_WAIT pending=%s spawn_deferred=1 player_pawn=0 poll_ms=100 timeout_s=60 dedicated_server_bypass=0"),
+        TEXT("GAME_RECOVERY_SPAWN_GATE_WAIT pending=%s spawn_deferred=1 poll_ms=100 timeout_s=60 compatibility_path=1"),
         *PendingStages);
 }
 
@@ -350,29 +255,23 @@ void AOCGameModeRuntimeSafe::PollRestartWhenWorldReady(TWeakObjectPtr<AControlle
     {
         ClearPendingWorldReadyRestart(WeakController);
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f ground_ready=1 surface_ready=1 landmarks_ready=1 park_semantic_ready=1 park_ground_ready=1 park_hardscape_ready=1 park_memorial_ready=1 player_spawn_release=1 post_spawn_world_loading=0"),
+            TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=%.1f player_spawn_release=1 post_spawn_world_loading=0"),
             WaitMilliseconds);
         RestartPlayer(Controller);
         return;
     }
 
-    if (bHardFailure)
+    // Compatibility queue must never strand the human because a presentation/authoring acceptance gate failed.
+    if (bHardFailure || WaitMilliseconds >= WorldReadyRestartTimeoutSeconds * 1000.0)
     {
         ClearPendingWorldReadyRestart(WeakController);
         UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=world_preparation_failed pending=%s waited_ms=%.1f player_spawned=0 fail_closed=1"),
-            *PendingStages,
-            WaitMilliseconds);
-        return;
-    }
-
-    if (WaitMilliseconds >= WorldReadyRestartTimeoutSeconds * 1000.0)
-    {
-        ClearPendingWorldReadyRestart(WeakController);
-        UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=timeout pending=%s waited_ms=%.1f player_spawned=0 fail_closed=1"),
-            *PendingStages,
-            WaitMilliseconds);
+            TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=%s pending=%s waited_ms=%.1f player_spawned=0 fail_closed=0 acceptance_preserved=1"),
+            bHardFailure ? TEXT("world_preparation_failed") : TEXT("timeout"), *PendingStages, WaitMilliseconds);
+        UE_LOG(LogTemp, Warning,
+            TEXT("GAME_RECOVERY_SPAWN_GATE_VISUAL_FAIL_SOFT pending=%s gameplay_spawn_release=1 acceptance_failed=1 fail_closed=0"),
+            *PendingStages);
+        RestartPlayer(Controller);
     }
 }
 
@@ -385,17 +284,19 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
         bool bHardFailure = false;
         if (!IsRecoveryWorldReady(PendingStages, bHardFailure))
         {
-            if (bHardFailure)
-            {
-                UE_LOG(LogTemp, Error,
-                    TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=world_preparation_failed pending=%s waited_ms=0 player_spawned=0 fail_closed=1"),
-                    *PendingStages);
-            }
-            else
-            {
-                QueueRestartWhenWorldReady(NewPlayer, PendingStages);
-            }
-            return;
+            // Ground/surface/park/tree/material authoring is acceptance evidence, not permission to possess a pawn.
+            // Preserve every failure in the log, but do not turn a visual/content problem into an unplayable gray screen.
+            UE_LOG(LogTemp, bHardFailure ? ELogVerbosity::Error : ELogVerbosity::Warning,
+                TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=%s pending=%s waited_ms=0 player_spawned=0 fail_closed=0 acceptance_preserved=1"),
+                bHardFailure ? TEXT("world_preparation_failed") : TEXT("world_preparation_pending"), *PendingStages);
+            UE_LOG(LogTemp, Warning,
+                TEXT("GAME_RECOVERY_SPAWN_GATE_VISUAL_FAIL_SOFT pending=%s gameplay_spawn_release=1 acceptance_failed=%d fail_closed=0 visual_gate_blocks_spawn=0"),
+                *PendingStages, bHardFailure ? 1 : 0);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_SPAWN_GATE_READY waited_ms=0 player_spawn_release=1 post_spawn_world_loading=0 fail_closed=0"));
         }
     }
 
@@ -445,8 +346,7 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
         SpawnTransform = FTransform(FallbackRotation, FallbackLocation);
         SpawnSource = TEXT("museum_anchor_failsafe");
         UE_LOG(LogTemp, Warning,
-            TEXT("PASS44_MUSEUM_BASE_ACTOR_MISSING team=%d using_anchor_failsafe=1"),
-            static_cast<int32>(Team));
+            TEXT("PASS44_MUSEUM_BASE_ACTOR_MISSING team=%d using_anchor_failsafe=1"), static_cast<int32>(Team));
     }
 
     RestartPlayerAtTransform(NewPlayer, SpawnTransform);
@@ -463,11 +363,7 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     float ActualDistanceCm = FVector::Dist2D(SpawnedPawn->GetActorLocation(), Museum);
     if (ActualDistanceCm > MaxMuseumBaseDistanceCm)
     {
-        SpawnedPawn->SetActorLocation(
-            SpawnTransform.GetLocation(),
-            false,
-            nullptr,
-            ETeleportType::TeleportPhysics);
+        SpawnedPawn->SetActorLocation(SpawnTransform.GetLocation(), false, nullptr, ETeleportType::TeleportPhysics);
         SpawnedPawn->SetActorRotation(SpawnTransform.Rotator(), ETeleportType::TeleportPhysics);
         ActualDistanceCm = FVector::Dist2D(SpawnedPawn->GetActorLocation(), Museum);
         UE_LOG(LogTemp, Warning,
@@ -479,15 +375,9 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
     {
         UE_LOG(LogTemp, Display,
             TEXT("PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY team=%d requested=BASE distance_m=%.1f max_m=45 source=%s pawn=(%.0f,%.0f,%.0f) museum=(%.0f,%.0f,%.0f)"),
-            static_cast<int32>(Team),
-            ActualDistanceCm / 100.0f,
-            SpawnSource,
-            SpawnedPawn->GetActorLocation().X,
-            SpawnedPawn->GetActorLocation().Y,
-            SpawnedPawn->GetActorLocation().Z,
-            Museum.X,
-            Museum.Y,
-            Museum.Z);
+            static_cast<int32>(Team), ActualDistanceCm / 100.0f, SpawnSource,
+            SpawnedPawn->GetActorLocation().X, SpawnedPawn->GetActorLocation().Y, SpawnedPawn->GetActorLocation().Z,
+            Museum.X, Museum.Y, Museum.Z);
     }
     else
     {
@@ -502,9 +392,7 @@ void AOCGameModeRuntimeSafe::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (UWorld* World = GetWorld())
     {
         for (TPair<TWeakObjectPtr<AController>, FPendingWorldReadyRestart>& Pair : PendingWorldReadyRestarts)
-        {
             World->GetTimerManager().ClearTimer(Pair.Value.TimerHandle);
-        }
     }
     PendingWorldReadyRestarts.Reset();
     Super::EndPlay(EndPlayReason);
