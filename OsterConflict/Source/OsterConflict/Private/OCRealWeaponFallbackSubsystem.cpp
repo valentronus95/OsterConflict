@@ -5,24 +5,14 @@
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
-#include "UObject/SoftObjectPath.h"
 
 namespace
 {
-    constexpr const TCHAR* GenericMachineGunPath = TEXT("/Game/R13/Weapons/machinegun.machinegun");
-    constexpr const TCHAR* GenericPistolPath = TEXT("/Game/R13/Weapons/pistol.pistol");
-    constexpr const TCHAR* GenericSMGPath = TEXT("/Game/R13/Weapons/uzi.uzi");
-    constexpr const TCHAR* GenericShotgunPath = TEXT("/Game/R13/Weapons/shotgun.shotgun");
-    constexpr const TCHAR* AuthoredAKFallbackPath = TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47");
-
-    const FName RealFallbackTag(TEXT("OC_RealMeshFallbackApplied"));
     const FName ProductionVisualTag(TEXT("OC_ProductionWeaponVisual"));
     const FName RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"));
     const FName MaterialAuditCompleteTag(TEXT("OC_WeaponMaterialAuditComplete"));
@@ -32,48 +22,6 @@ namespace
     constexpr int32 RequiredRackWeaponCountPerTeam = 11;
     constexpr int32 MaxExpectedRackWeapons = 22;
     constexpr int32 MaxRefreshPasses = 12;
-
-    TArray<FSoftObjectPath> BuildFallbackPreloadPaths()
-    {
-        return {
-            FSoftObjectPath(GenericMachineGunPath),
-            FSoftObjectPath(GenericPistolPath),
-            FSoftObjectPath(GenericSMGPath),
-            FSoftObjectPath(GenericShotgunPath),
-            FSoftObjectPath(AuthoredAKFallbackPath),
-        };
-    }
-
-    UStaticMesh* ResolveResidentStaticMesh(const TCHAR* Path)
-    {
-        return Cast<UStaticMesh>(FSoftObjectPath(Path).ResolveObject());
-    }
-
-    bool HasProductionVisual(const AOCWeaponBase& Weapon)
-    {
-        TArray<UStaticMeshComponent*> StaticComponents;
-        Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
-        for (const UStaticMeshComponent* Component : StaticComponents)
-        {
-            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag) &&
-                IsValid(Component->GetStaticMesh()))
-            {
-                return true;
-            }
-        }
-
-        TArray<USkeletalMeshComponent*> SkeletalComponents;
-        Weapon.GetComponents<USkeletalMeshComponent>(SkeletalComponents);
-        for (const USkeletalMeshComponent* Component : SkeletalComponents)
-        {
-            if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag) &&
-                IsValid(Component->GetSkeletalMeshAsset()))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 
     bool IsRejectedPrimitiveMesh(const UStaticMeshComponent* Component)
     {
@@ -115,10 +63,7 @@ namespace
         Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
         for (const UStaticMeshComponent* Component : StaticComponents)
         {
-            if (IsRejectedPrimitiveMesh(Component) && Component->IsVisible())
-            {
-                return true;
-            }
+            if (IsRejectedPrimitiveMesh(Component) && Component->IsVisible()) return true;
         }
         return false;
     }
@@ -173,73 +118,27 @@ bool UOCRealWeaponFallbackSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
-
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    const TArray<FSoftObjectPath> Paths = BuildFallbackPreloadPaths();
-    FallbackPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
-        Paths,
-        FStreamableDelegate::CreateUObject(this, &UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload));
-
-    if (!FallbackPreloadHandle.IsValid())
-    {
-        UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_GAP reason=invalid_handle assets=%d sync_load=0 runtime_acceptance=0"),
-            Paths.Num());
-        InWorld.GetTimerManager().SetTimer(
-            RefreshTimer,
-            this,
-            &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
-            0.50f,
-            true,
-            0.0f);
-        return;
-    }
-
-    UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN assets=%d async=1 sync_load=0 resident_until_deinitialize=1"),
-        Paths.Num());
-}
-
-void UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload()
-{
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    GenericMachineGun = ResolveResidentStaticMesh(GenericMachineGunPath);
-    GenericPistol = ResolveResidentStaticMesh(GenericPistolPath);
-    GenericSMG = ResolveResidentStaticMesh(GenericSMGPath);
-    GenericShotgun = ResolveResidentStaticMesh(GenericShotgunPath);
-    AuthoredAKFallback = ResolveResidentStaticMesh(AuthoredAKFallbackPath);
-
-    const int32 ResolvedCount =
-        (GenericMachineGun ? 1 : 0) +
-        (GenericPistol ? 1 : 0) +
-        (GenericSMG ? 1 : 0) +
-        (GenericShotgun ? 1 : 0) +
-        (AuthoredAKFallback ? 1 : 0);
-
-    if (ResolvedCount == 5)
-    {
-        UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY resolved=%d expected=5 async=1 resident_only=1 sync_load=0 runtime_acceptance=0"),
-            ResolvedCount);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY resolved=%d expected=5 async=1 resident_only=1 sync_load=0 runtime_acceptance=0"),
-            ResolvedCount);
-    }
-
-    World->GetTimerManager().SetTimer(
+    // Generic look-alike substitution is retired. It was presenting a different gun as the requested identity
+    // whenever the exact asset was unavailable. The subsystem now only removes engine primitives and audits
+    // authored materials; exact visual ownership stays with the imported/local weapon bridge.
+    InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
         &UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks,
         0.50f,
         true,
         0.0f);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("PASS45_GENERIC_WEAPON_FALLBACK_RETIRED normal_gameplay=1 generic_substitution=0 exact_visual_owner=imported_bridge primitive_cleanup=1"));
+}
+
+void UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload()
+{
+    // Retained only for ABI/source compatibility with the existing header. No fallback assets are preloaded.
 }
 
 void UOCRealWeaponFallbackSubsystem::Deinitialize()
@@ -290,10 +189,7 @@ int32 UOCRealWeaponFallbackSubsystem::AuditAndRepairWeaponMaterials(AOCWeaponBas
         const int32 SlotCount = FMath::Max(1, Component->GetNumMaterials());
         for (int32 Slot = 0; Slot < SlotCount; ++Slot)
         {
-            if (IsMissingOrDefaultMaterial(Component->GetMaterial(Slot)))
-            {
-                ++MissingAuthoredSlots;
-            }
+            if (IsMissingOrDefaultMaterial(Component->GetMaterial(Slot))) ++MissingAuthoredSlots;
         }
     }
 
@@ -351,50 +247,20 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
             ++RackAudited;
             if (Weapon->ActorHasTag(AuthoredMaterialGapTag)) ++RackGapWeapons;
         }
-
-        if (Weapon->ActorHasTag(RealFallbackTag) || HasProductionVisual(*Weapon)) continue;
-
-        const FString Name = Weapon->GetWeaponDisplayName();
-        if (Name.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
-        {
-            ApplyRealFallback(*Weapon, AuthoredAKFallback.Get(), 88.0f, TEXT("committed AK-47 static sibling"));
-        }
-        else if (Name.Equals(TEXT("MP5"), ESearchCase::IgnoreCase))
-        {
-            ApplyRealFallback(*Weapon, GenericSMG.Get(), 68.0f, TEXT("R13 real SMG temporary MP5 fallback"));
-        }
-        else if (Name.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
-        {
-            ApplyRealFallback(*Weapon, GenericMachineGun.Get(), 104.0f, TEXT("R13 generic machinegun"));
-        }
-        else if (Name.Equals(TEXT("M1911"), ESearchCase::IgnoreCase))
-        {
-            ApplyRealFallback(*Weapon, GenericPistol.Get(), 24.0f, TEXT("R13 generic pistol"));
-        }
-        else if (Name.Equals(TEXT("MAC-10"), ESearchCase::IgnoreCase) || Name.Equals(TEXT("MAC10"), ESearchCase::IgnoreCase))
-        {
-            ApplyRealFallback(*Weapon, GenericSMG.Get(), 31.0f, TEXT("R13 generic SMG"));
-        }
-        else if (Name.Equals(TEXT("Remington 870"), ESearchCase::IgnoreCase))
-        {
-            ApplyRealFallback(*Weapon, GenericShotgun.Get(), 103.0f, TEXT("R13 generic shotgun"));
-        }
     }
 
     const bool bRackCountValid = RackWeapons >= RequiredRackWeaponCountPerTeam && RackWeapons <= MaxExpectedRackWeapons;
     if (bRackCountValid && RackVisiblePrimitiveWeapons == 0)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_PRIMITIVE_WEAPON_RUNTIME_READY rack_weapons=%d visible_basicshape_weapons=0 content_readiness_separate=1"),
+            TEXT("PASS45_PRIMITIVE_WEAPON_RUNTIME_READY rack_weapons=%d visible_basicshape_weapons=0 content_readiness_separate=1 generic_substitution=0"),
             RackWeapons);
     }
 
     const bool bRackAuditComplete = bRackCountValid && RackAudited == RackWeapons;
-
     if (bRackAuditComplete)
     {
         World->GetTimerManager().ClearTimer(RefreshTimer);
-
         if (RackGapWeapons == 0)
         {
             if (!bRackMaterialAuditReadyLogged)
@@ -404,18 +270,12 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
                     TEXT("PASS36_WEAPON_MATERIAL_AUDIT_READY rack_weapons=%d audited=%d authored_material_gap_weapons=0 basicshape_repair=0"),
                     RackWeapons, RackAudited);
             }
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS38_WEAPON_FALLBACK_SCAN_STOPPED reason=ready passes=%d rack_weapons=%d audited=%d permanent_scan=0"),
-                RefreshPassCount, RackWeapons, RackAudited);
         }
         else
         {
             UE_LOG(LogTemp, Error,
                 TEXT("PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP rack_weapons=%d audited=%d gap_weapons=%d exact_material_ready=0 basicshape_repair=0"),
                 RackWeapons, RackAudited, RackGapWeapons);
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS38_WEAPON_FALLBACK_SCAN_STOPPED reason=material_gap_audited passes=%d rack_weapons=%d audited=%d gap_weapons=%d permanent_scan=0"),
-                RefreshPassCount, RackWeapons, RackAudited, RackGapWeapons);
         }
         return;
     }
@@ -424,7 +284,7 @@ void UOCRealWeaponFallbackSubsystem::RefreshWeaponFallbacks()
     {
         World->GetTimerManager().ClearTimer(RefreshTimer);
         UE_LOG(LogTemp, Error,
-            TEXT("PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP passes=%d max_passes=%d rack_weapons=%d audited=%d permanent_scan=0"),
+            TEXT("PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP passes=%d max_passes=%d rack_weapons=%d audited=%d permanent_scan=0 generic_substitution=0"),
             RefreshPassCount, MaxRefreshPasses, RackWeapons, RackAudited);
     }
 }
@@ -435,59 +295,10 @@ bool UOCRealWeaponFallbackSubsystem::ApplyRealFallback(
     float DesiredLengthCm,
     const TCHAR* FallbackLabel)
 {
-    USceneComponent* PhysicsRoot = Weapon.GetRootComponent();
-    USceneComponent* VisualRoot = Weapon.GetWeaponVisualRoot();
-    if (!IsValid(&Weapon) || Weapon.IsActorBeingDestroyed() || !IsValid(Mesh) ||
-        !IsValid(PhysicsRoot) || !IsValid(VisualRoot))
-    {
-        return false;
-    }
-
-    const FBoxSphereBounds Bounds = Mesh->GetBounds();
-    const FVector NativeSize = Bounds.BoxExtent * 2.0f;
-    const float NativeLength = FMath::Max3(NativeSize.X, NativeSize.Y, NativeSize.Z);
-    if (NativeLength <= 1.0f) return false;
-
-    TArray<UStaticMeshComponent*> StaticComponents;
-    Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
-    for (UStaticMeshComponent* Existing : StaticComponents)
-    {
-        if (!IsValid(Existing) || Existing->ComponentHasTag(RealFallbackComponentTag)) continue;
-        Existing->SetVisibility(false, false);
-        Existing->SetHiddenInGame(true, false);
-        Existing->SetCastShadow(false);
-        Existing->SetCanEverAffectNavigation(false);
-        if (Existing != PhysicsRoot)
-        {
-            Existing->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        }
-    }
-
-    const FName ComponentName = MakeUniqueObjectName(
-        &Weapon,
-        UStaticMeshComponent::StaticClass(),
-        FName(TEXT("OC_RealWeaponFallback")));
-    UStaticMeshComponent* Visual = NewObject<UStaticMeshComponent>(&Weapon, ComponentName);
-    if (!IsValid(Visual)) return false;
-
-    Visual->SetupAttachment(VisualRoot);
-    Visual->SetStaticMesh(Mesh);
-    Visual->SetRelativeLocation(-Bounds.Origin * (DesiredLengthCm / NativeLength));
-    Visual->SetRelativeRotation(FRotator::ZeroRotator);
-    Visual->SetRelativeScale3D(FVector(DesiredLengthCm / NativeLength));
-    Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Visual->SetGenerateOverlapEvents(false);
-    Visual->SetCanEverAffectNavigation(false);
-    Visual->SetCastShadow(false);
-    Visual->SetHiddenInGame(false, true);
-    Visual->SetVisibility(true, true);
-    Visual->ComponentTags.Add(RealFallbackComponentTag);
-    Weapon.AddInstanceComponent(Visual);
-    Visual->RegisterComponent();
-
-    Weapon.Tags.AddUnique(RealFallbackTag);
-    UE_LOG(LogTemp, Warning,
-        TEXT("PASS45_REAL_WEAPON_FALLBACK_READY weapon=%s fallback=%s exact_production=0 playable_fallback=1 primitive_visible=0 visual_root_unscaled=1 physics_root_preserved=1"),
-        *Weapon.GetWeaponDisplayName(), FallbackLabel);
-    return true;
+    // Kept as a no-op for source compatibility. Wrong-identity replacement is intentionally forbidden.
+    (void)Weapon;
+    (void)Mesh;
+    (void)DesiredLengthCm;
+    (void)FallbackLabel;
+    return false;
 }
