@@ -7,8 +7,8 @@
 /**
  * Runtime fail-soft recovery for presentation-only world failures plus the R13 frontend field padding fix.
  *
- * Presentation stages are allowed to fail visibly without trapping a ready human controller with no pawn.
- * The normal AOCGameModeRuntimeSafe spawn gate remains authoritative while those stages are merely loading.
+ * Presentation stages may fail visibly without trapping a ready human controller with no pawn.
+ * UI repair is scoped to the current frontend widget tree and recovery bookkeeping stores no UObject refs.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCRuntimePresentationRecoverySubsystem : public UTickableWorldSubsystem
@@ -28,5 +28,5 @@ private:
 
     float TickAccumulator = 0.0f;
     bool bFrontendFieldPaddingFixed = false;
-    TSet<TWeakObjectPtr<AController>> FailsoftSpawnAttempts;
+    TSet<FString> FailsoftSpawnAttemptKeys;
 };

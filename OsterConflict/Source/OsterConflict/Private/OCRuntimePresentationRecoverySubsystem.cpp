@@ -4,16 +4,55 @@
 #include "OCBlock0GroundFoundationSubsystem.h"
 #include "OCGameMode.h"
 #include "OCGameModeRuntimeSafe.h"
+#include "OCGameUIRootWidget.h"
 #include "OCParkGroundAuthoredUpgradeSubsystem.h"
 #include "OCParkHardscapeAuthoredUpgradeSubsystem.h"
 #include "OCPlayerController.h"
 #include "OCPlayerState.h"
 
 #include "Components/EditableTextBox.h"
+#include "Components/PanelWidget.h"
+#include "Components/VerticalBox.h"
+#include "Components/Widget.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/UObjectIterator.h"
+
+namespace
+{
+    void ApplyFrontendPaddingRecursive(UWidget* Widget, int32& FixedFields)
+    {
+        if (!Widget) return;
+
+        if (UEditableTextBox* Field = Cast<UEditableTextBox>(Widget))
+        {
+            FEditableTextBoxStyle Style = Field->GetWidgetStyle();
+            const FMargin& Padding = Style.Padding;
+            const bool bNeedsFix =
+                FMath::IsNearlyEqual(Padding.Left, 14.0f) &&
+                FMath::IsNearlyEqual(Padding.Top, 9.0f) &&
+                FMath::IsNearlyEqual(Padding.Right, 14.0f) &&
+                FMath::IsNearlyEqual(Padding.Bottom, 9.0f);
+
+            if (bNeedsFix)
+            {
+                Style.Padding = FMargin(14.0f, 4.0f, 14.0f, 4.0f);
+                Field->SetWidgetStyle(Style);
+                ++FixedFields;
+            }
+            return;
+        }
+
+        if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+        {
+            for (int32 Index = 0; Index < Panel->GetChildrenCount(); ++Index)
+            {
+                ApplyFrontendPaddingRecursive(Panel->GetChildAt(Index), FixedFields);
+            }
+        }
+    }
+}
 
 bool UOCRuntimePresentationRecoverySubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -36,19 +75,22 @@ bool UOCRuntimePresentationRecoverySubsystem::HasPresentationFailure(FString& Ou
         Failed.Add(TEXT("ground_failed"));
     }
 
-    if (const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surface = World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>();
+    if (const UOCAuthoredWorldSurfaceUpgradeSubsystem* Surface =
+            World->GetSubsystem<UOCAuthoredWorldSurfaceUpgradeSubsystem>();
         Surface && Surface->HasWorldSurfaceFailed())
     {
         Failed.Add(TEXT("surface_failed"));
     }
 
-    if (const UOCParkGroundAuthoredUpgradeSubsystem* ParkGround = World->GetSubsystem<UOCParkGroundAuthoredUpgradeSubsystem>();
+    if (const UOCParkGroundAuthoredUpgradeSubsystem* ParkGround =
+            World->GetSubsystem<UOCParkGroundAuthoredUpgradeSubsystem>();
         ParkGround && ParkGround->HasParkGroundFailed())
     {
         Failed.Add(TEXT("park_ground_failed"));
     }
 
-    if (const UOCParkHardscapeAuthoredUpgradeSubsystem* ParkHardscape = World->GetSubsystem<UOCParkHardscapeAuthoredUpgradeSubsystem>();
+    if (const UOCParkHardscapeAuthoredUpgradeSubsystem* ParkHardscape =
+            World->GetSubsystem<UOCParkHardscapeAuthoredUpgradeSubsystem>();
         ParkHardscape && ParkHardscape->HasParkHardscapeFailed())
     {
         Failed.Add(TEXT("park_hardscape_failed"));
@@ -65,32 +107,31 @@ void UOCRuntimePresentationRecoverySubsystem::ApplyFrontendFieldPaddingFix()
     UWorld* World = GetWorld();
     if (!World || World->GetNetMode() == NM_DedicatedServer) return;
 
-    int32 FixedFields = 0;
-    for (TObjectIterator<UEditableTextBox> It; It; ++It)
+    AOCPlayerController* PC = Cast<AOCPlayerController>(World->GetFirstPlayerController());
+    if (!PC || !PC->IsLocalController() || !PC->IsFrontendMenuVisible()) return;
+
+    UOCGameUIRootWidget* Root = nullptr;
+    for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
     {
-        UEditableTextBox* Field = *It;
-        if (!IsValid(Field) || Field->IsTemplate() || Field->GetWorld() != World) continue;
-
-        FEditableTextBoxStyle Style = Field->GetWidgetStyle();
-        const FMargin& Padding = Style.Padding;
-        const bool bR13FrontendSignature =
-            FMath::IsNearlyEqual(Padding.Left, 14.0f) &&
-            FMath::IsNearlyEqual(Padding.Top, 9.0f) &&
-            FMath::IsNearlyEqual(Padding.Right, 14.0f) &&
-            FMath::IsNearlyEqual(Padding.Bottom, 9.0f);
-        if (!bR13FrontendSignature) continue;
-
-        // 44 px field height plus 18 px vertical padding clipped the font baseline on the server setup page.
-        Style.Padding = FMargin(14.0f, 4.0f, 14.0f, 4.0f);
-        Field->SetWidgetStyle(Style);
-        ++FixedFields;
+        if (It->GetWorld() == World && It->GetOwningPlayer() == PC)
+        {
+            Root = *It;
+            break;
+        }
     }
+    if (!Root) return;
+
+    UVerticalBox* Fields = Cast<UVerticalBox>(Root->GetWidgetFromName(TEXT("R13_FrontendFields")));
+    if (!Fields) return;
+
+    int32 FixedFields = 0;
+    ApplyFrontendPaddingRecursive(Fields, FixedFields);
 
     if (FixedFields > 0)
     {
         bFrontendFieldPaddingFixed = true;
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_FRONTEND_FIELD_ALIGNMENT_READY fields=%d vertical_padding=4 clipped_text=0"),
+            TEXT("GAME_RECOVERY_FRONTEND_FIELD_ALIGNMENT_READY fields=%d vertical_padding=4 clipped_text=0 scoped_widget_tree=1 global_uobject_scan=0"),
             FixedFields);
     }
 }
@@ -109,29 +150,29 @@ void UOCRuntimePresentationRecoverySubsystem::ReleaseReadyPlayersFromPresentatio
     for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
     {
         AOCPlayerController* PC = Cast<AOCPlayerController>(It->Get());
-        if (!IsValid(PC) || PC->GetPawn()) continue;
+        if (!PC || PC->IsActorBeingDestroyed() || PC->GetWorld() != World || PC->GetPawn()) continue;
 
         const AOCPlayerState* State = PC->GetPlayerState<AOCPlayerState>();
         if (!State || State->IsBotPlayer() || !State->IsLobbyReady()) continue;
 
-        const TWeakObjectPtr<AController> WeakController(PC);
-        if (FailsoftSpawnAttempts.Contains(WeakController)) continue;
-        FailsoftSpawnAttempts.Add(WeakController);
+        const FString AttemptKey = FString::Printf(TEXT("%d:%s"), State->GetPlayerId(), *State->GetPlayerName());
+        if (FailsoftSpawnAttemptKeys.Contains(AttemptKey)) continue;
+        FailsoftSpawnAttemptKeys.Add(AttemptKey);
 
-        // Deliberately bypass only the RuntimeSafe presentation gate. The base game mode still performs
-        // its normal team spawn selection and has its own safe fallback transform when no spawn actor is valid.
+        // Bypass only the presentation readiness gate after it has already reported a factual visual failure.
+        // Do this once per ready player and keep no UObject references in the recovery bookkeeping.
         RuntimeGameMode->AOCGameMode::RestartPlayer(PC);
 
         if (PC->GetPawn())
         {
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN READY stages=%s player_spawned=1 deployment_gray_screen=0"),
+                TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN READY stages=%s player_spawned=1 deployment_gray_screen=0 stale_uobject_bookkeeping=0"),
                 *FailedStages);
         }
         else
         {
             UE_LOG(LogTemp, Error,
-                TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN FAIL stages=%s player_spawned=0 deployment_gray_screen=0"),
+                TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN FAIL stages=%s player_spawned=0 deployment_gray_screen=0 stale_uobject_bookkeeping=0"),
                 *FailedStages);
         }
     }
