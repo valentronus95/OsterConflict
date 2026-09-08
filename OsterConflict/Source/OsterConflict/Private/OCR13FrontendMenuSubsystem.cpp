@@ -111,7 +111,7 @@ namespace
         FieldStyle.BackgroundImageHovered.TintColor = FSlateColor(FLinearColor(0.065f, 0.075f, 0.086f, 1.0f));
         FieldStyle.BackgroundImageFocused.TintColor = FSlateColor(FLinearColor(0.085f, 0.095f, 0.108f, 1.0f));
         FieldStyle.BackgroundImageReadOnly.TintColor = FSlateColor(FLinearColor(0.035f, 0.040f, 0.046f, 1.0f));
-        FieldStyle.Padding = FMargin(14.0f, 9.0f);
+        FieldStyle.Padding = FMargin(14.0f, 4.0f, 14.0f, 4.0f);
         Field->SetWidgetStyle(FieldStyle);
 
         Size->SetWidthOverride(400.0f);
