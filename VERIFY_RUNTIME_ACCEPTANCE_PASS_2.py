@@ -44,8 +44,9 @@ for needle in (
 ):
     require(runtime_safe, needle, "Pass 44 actual pawn proof")
 
-# Block0 now requests all candidate foliage packages asynchronously, waits for completion, then resolves
-# resident meshes only. Population remains incremental in Tick/PopulateBatch and never falls back to LoadObject.
+# Block0 requests all candidate foliage packages asynchronously, waits for completion, then resolves resident
+# meshes only. Population is presentation work rather than a spawn gate, so live gameplay gets a strict
+# per-frame CPU budget without changing authored density, cull distances, candidate meshes or surface guards.
 for needle in (
     "RequestPreload",
     "RequestAsyncLoad",
@@ -53,11 +54,16 @@ for needle in (
     "BeginPopulation(*World)",
     "PopulateBatch",
     "ActiveCellsPerBatch = bLowCPUProfile ? LowCPUCellsPerBatch : FullCellsPerBatch",
+    "FullPopulationFrameBudgetMilliseconds = 2.0",
+    "LowCPUPopulationFrameBudgetMilliseconds = 1.25",
     "FSoftObjectPath(Path).ResolveObject()",
+    "FrameBudgetMilliseconds",
+    "live_gameplay_safe=1",
+    "frame_budgeted=1",
     "sync_load=0",
     "full_playable_bounds=1",
 ):
-    require(foliage_cpp, needle, "incremental resident-only Block0 foliage")
+    require(foliage_cpp, needle, "frame-budgeted resident-only Block0 foliage")
 if "LoadObject<" in foliage_cpp:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: Block0 foliage reintroduced synchronous package loading")
 full_batch = re.search(r"constexpr\s+int32\s+FullCellsPerBatch\s*=\s*(\d+)\s*;", foliage_cpp)
@@ -74,13 +80,25 @@ for needle in (
 ):
     require(fx, needle, "muzzle/tracer presentation")
 
-# Generic real fallbacks remain finite and never become exact production art. Missing authored materials are fail-visible.
+# Wrong-identity generic weapon substitution is retired. This subsystem may hide rejected engine primitives and
+# audit authored materials, but it must not synthesize a different gun when the requested exact asset is missing.
 for needle in (
-    "GenericPistol", "OC_ProductionWeaponVisual", "MaxRefreshPasses = 12", "ClearTimer(RefreshTimer)",
-    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED", "PASS44_WEAPON_AUTHORED_MATERIAL_GAP",
-    "exact_production=0 playable_fallback=1",
+    "OC_ProductionWeaponVisual",
+    "MaxRefreshPasses = 12",
+    "ClearTimer(RefreshTimer)",
+    "PASS45_GENERIC_WEAPON_FALLBACK_RETIRED",
+    "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
+    "PASS44_WEAPON_AUTHORED_MATERIAL_GAP",
+    "generic_substitution=0",
+    "Wrong-identity replacement is intentionally forbidden.",
 ):
-    require(fallback, needle, "bounded fallback/material truth")
+    require(fallback, needle, "retired generic fallback/material audit truth")
+for forbidden in (
+    "exact_production=0 playable_fallback=1",
+    "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
+):
+    if forbidden in fallback:
+        raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: retired generic fallback marker returned: {forbidden}")
 if "UMaterialInstanceDynamic::Create" in fallback or "Component->SetMaterial(Slot" in fallback:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: grey runtime material repair returned")
 
@@ -133,7 +151,8 @@ for needle in (
 
 print("RUNTIME ACCEPTANCE PASS 3 + PASS 45 CURRENT CONTRACT PASS")
 print("- Museum BASE source remains and actual live-pawn Museum proof is now stronger")
-print("- Block0 foliage preloads asynchronously, resolves resident meshes only and populates the full compact map incrementally")
+print("- Block0 foliage stays resident-only and preserves authored coverage while frame-budgeting live gameplay work")
+print("- wrong-identity generic weapon substitution remains retired; primitive cleanup/material audit stay diagnostic")
 print("- normal/strict launch flow follows current independent content intake instead of the retired all-or-nothing rule")
 print("- production fresh-load rejects placeholder materials")
 print("STATUS: SOURCE VERIFIED ONLY; local UE 5.8 build/playtest still required")
