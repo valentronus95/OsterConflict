@@ -64,7 +64,7 @@ for needle in (
 ):
     req(needle in base_cpp, f'base weapon source-composite retirement contract missing: {needle}')
 req('USceneComponent* GetWeaponVisualRoot() const { return WeaponRoot; }' in base_h,
-    'real fallback has no stable unscaled visual root accessor')
+    'production visual owners have no stable unscaled visual root accessor')
 
 # Concrete variants must hide source primitives before resident production resolution. GAME_RECOVERY forbids
 # blocking package loads in BeginPlay; async owners can later populate the exact production visual.
@@ -103,6 +103,8 @@ for stale in (
 ):
     forbid(variants, stale, f'visible source fallback wording returned: {stale}')
 
+# The imported/local bridge is the exact-identity production owner. It must hide old source proxies while preserving
+# the collision/physics root. This is the replacement for the retired generic AK/MP5/look-alike fallback system.
 for needle in (
     'int32 HideSourceProxyVisuals(AOCWeaponBase& Weapon)',
     'Component->ComponentHasTag(ProductionVisualTag)',
@@ -135,46 +137,33 @@ for needle in (
 ):
     req(needle in launcher, f'launcher async fail-closed primitive contract missing: {needle}')
 
-for needle in (
-    '#include "Components/SkeletalMeshComponent.h"',
-    'Component->ComponentHasTag(ProductionVisualTag) &&',
-    'IsValid(Component->GetStaticMesh())',
-    'IsValid(Component->GetSkeletalMeshAsset())',
-    '/Game/AK-47/Mesh/SM_AK-47.SM_AK-47',
-    'committed AK-47 static sibling',
-    'Name.Equals(TEXT("MP5"), ESearchCase::IgnoreCase)',
-    'R13 real SMG temporary MP5 fallback',
-):
-    req(needle in fallback, f'2026-08-27 renderable weapon fallback guard missing: {needle}')
-forbid(
-    fallback,
-    'if (IsValid(Component) && Component->ComponentHasTag(ProductionVisualTag)) return true;',
-    'tag-only production visual acceptance returned; invisible tagged weapon can suppress fallback again')
+# Generic wrong-identity fallback is retired. This subsystem now has one job: hide rejected Engine primitives and
+# audit authored materials. It must never substitute a different gun merely to make the rack look non-empty.
 forbid(fallback, 'LoadObject<',
-    'real weapon fallback regained blocking LoadObject')
+    'primitive cleanup/material audit subsystem regained blocking LoadObject')
 for needle in (
-    'RequestAsyncLoad(',
-    'ResolveResidentStaticMesh',
-    'GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN',
-    'GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY',
-    'sync_load=0',
-):
-    req(needle in fallback, f'real fallback async preload contract missing: {needle}')
-
-for needle in (
+    'PASS45_GENERIC_WEAPON_FALLBACK_RETIRED',
+    'generic_substitution=0',
+    'exact_visual_owner=imported_bridge',
+    'primitive_cleanup=1',
     'MeshPath.Contains(TEXT("/Engine/BasicShapes/")',
     'HideRejectedPrimitiveVisuals(*Weapon);',
     'PASS45_PRIMITIVE_WEAPON_VISUAL_RETIRED',
     'PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL',
     'PASS45_PRIMITIVE_WEAPON_RUNTIME_READY',
-    'USceneComponent* PhysicsRoot = Weapon.GetRootComponent();',
-    'USceneComponent* VisualRoot = Weapon.GetWeaponVisualRoot();',
-    'if (Existing != PhysicsRoot)',
-    'Visual->SetupAttachment(VisualRoot);',
-    'PASS45_REAL_WEAPON_FALLBACK_READY',
-    'primitive_visible=0 visual_root_unscaled=1 physics_root_preserved=1',
+    'collision_authority_preserved=1',
+    'Wrong-identity replacement is intentionally forbidden.',
+    'return false;',
 ):
-    req(needle in fallback, f'real fallback primitive retirement contract missing: {needle}')
+    req(needle in fallback, f'generic fallback retirement/primitive cleanup contract missing: {needle}')
+for stale in (
+    '/Game/AK-47/Mesh/SM_AK-47.SM_AK-47',
+    'committed AK-47 static sibling',
+    'R13 real SMG temporary MP5 fallback',
+    'GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN',
+    'PASS45_REAL_WEAPON_FALLBACK_READY',
+):
+    forbid(fallback, stale, f'retired wrong-identity fallback behavior returned: {stale}')
 
 for needle in (
     'PASS45_PRIMITIVE_WEAPON_RUNTIME_READY',
@@ -182,12 +171,12 @@ for needle in (
 ):
     req(needle in runtime_evidence, f'strict runtime evidence gate missing primitive marker: {needle}')
 
+# The canonical TZ may keep historical pre-merge truth, but this source verifier only requires current runtime
+# rejection and the batch-first rule. Current main authority is AGENTS.md/GAME_RECOVERY, not old merge gating text.
 for needle in (
     'RUNTIME REJECTED',
-    '22/36 = 61.1% complete, 38.9% remaining',
     'runtime_acceptance=0',
     'item16_checked=0',
-    'merge_permitted=0',
     'Batch first, not micro-task first',
     'A historical verifier never outranks newer runtime truth or a newer user requirement.',
 ):
@@ -202,10 +191,8 @@ if errors:
 print('PASS45 PRIMITIVE WEAPON RETIREMENT: PASS')
 print('- base weapon keeps only an invisible physics root; decorative Cube/Cylinder/material runtime composite is retired')
 print('- concrete weapon variants hide source BasicShape geometry before resident production resolution and never LoadObject during BeginPlay')
-print('- local imported production bridge hides old source proxy rendering while preserving the physics root')
-print('- real fallback safety meshes preload asynchronously and refresh only uses resident assets')
-print('- production visual acceptance requires an assigned static/skeletal mesh, never only a component tag')
+print('- imported/local production bridge hides old source proxy rendering while preserving the physics root')
+print('- generic wrong-identity weapon substitution remains physically retired; primitive cleanup/material audit is the only fallback-subsystem responsibility')
 print('- launcher exact production mesh async-preloads while primitive geometry remains hidden')
-print('- real fallbacks attach to the unscaled visual root while preserving physics-root collision authority')
 print('- strict runtime evidence requires zero visible BasicShape rack weapons')
 print('STATUS: SOURCE-CODED; local UE 5.8 rendered acceptance remains pending')
