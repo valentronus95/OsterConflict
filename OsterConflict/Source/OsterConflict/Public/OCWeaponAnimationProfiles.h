@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/SoftObjectPath.h"
 
 /**
  * Source-of-truth animation coverage for one implemented weapon id.
@@ -48,3 +49,10 @@ OSTERCONFLICT_API bool OCHasDeclaredWeaponAnimationProfile(FName WeaponId);
  * Unknown ids return a profile carrying that id with empty paths so callers fail safe.
  */
 OSTERCONFLICT_API FOCWeaponAnimationProfile OCResolveWeaponAnimationProfile(FName WeaponId);
+
+/**
+ * Appends every authored weapon animation path declared by the profile table.
+ * Presentation systems use this to preload profile-owned content asynchronously instead of
+ * discovering an animation with a blocking LoadObject call during a shot/reload/manual action.
+ */
+OSTERCONFLICT_API void OCAppendWeaponAnimationAssetPaths(TArray<FSoftObjectPath>& OutPaths);
