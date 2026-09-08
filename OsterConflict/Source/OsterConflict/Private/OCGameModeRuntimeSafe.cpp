@@ -286,9 +286,18 @@ void AOCGameModeRuntimeSafe::RestartPlayer(AController* NewPlayer)
         {
             // Ground/surface/park/tree/material authoring is acceptance evidence, not permission to possess a pawn.
             // Preserve every failure in the log, but do not turn a visual/content problem into an unplayable gray screen.
-            UE_LOG(LogTemp, bHardFailure ? ELogVerbosity::Error : ELogVerbosity::Warning,
-                TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=%s pending=%s waited_ms=0 player_spawned=0 fail_closed=0 acceptance_preserved=1"),
-                bHardFailure ? TEXT("world_preparation_failed") : TEXT("world_preparation_pending"), *PendingStages);
+            if (bHardFailure)
+            {
+                UE_LOG(LogTemp, Error,
+                    TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=world_preparation_failed pending=%s waited_ms=0 player_spawned=0 fail_closed=0 acceptance_preserved=1"),
+                    *PendingStages);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("GAME_RECOVERY_SPAWN_GATE_FAIL reason=world_preparation_pending pending=%s waited_ms=0 player_spawned=0 fail_closed=0 acceptance_preserved=1"),
+                    *PendingStages);
+            }
             UE_LOG(LogTemp, Warning,
                 TEXT("GAME_RECOVERY_SPAWN_GATE_VISUAL_FAIL_SOFT pending=%s gameplay_spawn_release=1 acceptance_failed=%d fail_closed=0 visual_gate_blocks_spawn=0"),
                 *PendingStages, bHardFailure ? 1 : 0);
