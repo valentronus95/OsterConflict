@@ -211,7 +211,7 @@ void UOCR13DeploymentFlowSubsystem::EnsureBuilt(UOCGameUIRootWidget* Root, AOCPl
         UVerticalBox* Page = NewObject<UVerticalBox>(Root);
         Switcher->AddChild(Page);
         if (UTextBlock* T = MakeFlowText(Root, Title, 22, true))
-            Page->AddChildToVerticalBox(T)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 6.0f));
+            Page->AddChildToVerticalBox(T)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f, 6.0f));
         if (UTextBlock* S = MakeFlowText(Root, Subtitle, 13, false))
             Page->AddChildToVerticalBox(S)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 18.0f));
         return Page;
@@ -344,6 +344,7 @@ void UOCR13DeploymentFlowSubsystem::ResetFlow()
     SelectedRole = EOCPlayerRole::Rifleman;
     bRoleSelected = false;
     SelectedSpawn = NAME_None;
+    bDeployPending = false;
     AuthorityReconcileAge = 0.0f;
     SetStep(0);
     if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("Оберіть команду.")));
@@ -541,7 +542,7 @@ void UOCR13DeploymentFlowSubsystem::RefreshState(AOCPlayerController* PC)
 
     if (DeployButton.IsValid())
     {
-        DeployButton->SetIsEnabled(CurrentStep == 3 && SelectedTeam != EOCTeam::None &&
+        DeployButton->SetIsEnabled(!bDeployPending && CurrentStep == 3 && SelectedTeam != EOCTeam::None &&
             SelectedSquad >= 0 && bRoleSelected && !SelectedSpawn.IsNone() && IsSpawnAvailable(SelectedTeam, SelectedSpawn));
     }
 }
@@ -573,6 +574,22 @@ void UOCR13DeploymentFlowSubsystem::Tick(float DeltaTime)
         Legacy->SetVisibility(ESlateVisibility::Collapsed);
         Legacy->SetRenderOpacity(0.0f);
         Legacy->SetIsEnabled(false);
+    }
+
+    if (bDeployPending && IsValid(PC->GetPawn()))
+    {
+        bDeployPending = false;
+        PC->UICloseDeployment();
+        FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
+        if (UWidget* Backdrop = Root->GetWidgetFromName(TEXT("R13_DeploymentBackdrop")))
+        {
+            Backdrop->SetVisibility(ESlateVisibility::Collapsed);
+        }
+        bWasVisible = false;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_DEPLOY_DIRECT_READY spawn=%s player_spawned=1 deployment_closed=1 possession_confirmed=1"),
+            *SelectedSpawn.ToString());
+        return;
     }
 
     const bool bVisible = PC->IsDeploymentPanelVisible() &&
@@ -656,6 +673,11 @@ void UOCR13DeploymentFlowSubsystem::OnBack()
 {
     AOCPlayerController* PC = GetWorld() ? Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()) : nullptr;
     if (!PC) return;
+    if (bDeployPending)
+    {
+        if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("ОЧІКУВАННЯ ПОЯВИ ГРАВЦЯ…")));
+        return;
+    }
     if (CurrentStep <= 0)
     {
         if (FlowPanel.IsValid()) FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
@@ -676,21 +698,36 @@ void UOCR13DeploymentFlowSubsystem::OnBack()
 void UOCR13DeploymentFlowSubsystem::OnDeploy()
 {
     AOCPlayerController* PC = GetWorld() ? Cast<AOCPlayerController>(GetWorld()->GetFirstPlayerController()) : nullptr;
-    if (!PC || CurrentStep != 3 || SelectedTeam == EOCTeam::None || SelectedSquad < 0 ||
+    if (!PC || bDeployPending || CurrentStep != 3 || SelectedTeam == EOCTeam::None || SelectedSquad < 0 ||
         !bRoleSelected || SelectedSpawn.IsNone() || !IsSpawnAvailable(SelectedTeam, SelectedSpawn)) return;
 
+    bDeployPending = true;
     if (DeployButton.IsValid()) DeployButton->SetIsEnabled(false);
     if (StatusText.IsValid()) StatusText->SetText(FText::FromString(TEXT("ВХІД У БІЙ…")));
 
-    // UISelectSpawn and the ready RPC are ordered on the same controller connection. Do not wait on a
-    // cosmetic client-side "spawn verification" state: that old path could leave the UI frozen forever.
+    // Keep deployment visible until the controller actually owns a pawn. World-presentation recovery may
+    // release the spawn on a later tick, especially when cosmetic ground/surface acceptance has failed.
     PC->UISelectSpawn(SelectedSpawn);
-    PC->UIReadyDeploy();
-    if (FlowPanel.IsValid()) FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
-    bWasVisible = false;
+    PC->UIReadyDeployKeepOpenUntilSpawn();
 
+    if (IsValid(PC->GetPawn()))
+    {
+        bDeployPending = false;
+        if (FlowPanel.IsValid()) FlowPanel->SetVisibility(ESlateVisibility::Collapsed);
+        bWasVisible = false;
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_DEPLOY_DIRECT_READY spawn=%s player_spawned=1 deployment_closed=1 possession_confirmed=1"),
+            *SelectedSpawn.ToString());
+        return;
+    }
+
+    if (StatusText.IsValid())
+    {
+        StatusText->SetText(FText::FromString(TEXT("ОЧІКУВАННЯ ПОЯВИ ГРАВЦЯ…")));
+    }
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_DEPLOY_DIRECT_READY spawn=%s validation_wait=0 deployment_closed=1"), *SelectedSpawn.ToString());
+        TEXT("PASS45_DEPLOY_SPAWN_WAIT spawn=%s player_spawned=0 deployment_closed=0 visual_gate_failsoft_pending=1"),
+        *SelectedSpawn.ToString());
 }
 
 TStatId UOCR13DeploymentFlowSubsystem::GetStatId() const
