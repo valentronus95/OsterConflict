@@ -66,14 +66,14 @@ For PASS45, `_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md` and `_DOCS/PASS45
 ## Branch discipline — binding
 
 - For one active TZ, keep exactly **one canonical work branch** plus `main`.
-- For PASS45, the only canonical work branch is `fix/pass45-runtime-rejection-material-closure-20260826` until PR #94 is accepted and merged.
+- PR #94 was merged on 2026-09-07. Its former PASS45 branch `fix/pass45-runtime-rejection-material-closure-20260826` is historical; current GAME_RECOVERY/PASS45 continuation work proceeds on `main` unless the user explicitly starts a new TZ/branch.
 - Do **not** create separate remote branches for audits, checkpoints, backups, asset intake, individual weapons, individual fixes, verifier changes or temporary experiments.
 - Git history is the rollback mechanism. Do not keep remote `backup/*`, `tmp-*`, duplicate pass/fix branches or similar branch clutter after their unique work has been reconciled.
 - Before retiring an existing branch, verify whether it contains commits or assets not present in the canonical work branch. Transfer only unique required production/provenance work; never merge an old branch wholesale merely to preserve it.
 - A new TZ may use a new branch only when the user creates/requests that branch. The assistant does not create an additional TZ branch on its own.
 - Normal delivery cadence is: `work on canonical branch -> push coherent batch -> run only applicable critical checks -> merge to main as soon as the batch satisfies its factual acceptance gates`.
-- Runtime/visual/audio changes that require UE evidence are not considered accepted merely because GitHub CI is green. Do not move known runtime-rejected work into `main` solely to reduce branch count.
-- After an accepted TZ branch is merged, retire that work branch instead of leaving it as a permanent backup.
+- Runtime/visual/audio changes that require UE evidence are not considered accepted merely because GitHub CI is green.
+- After an accepted TZ branch is merged and its unique work is reconciled, retire that work branch instead of leaving it as a permanent backup.
 - Third-party/raw source downloads are temporary intake, not final game content. Accepted shipping assets must be imported into the Unreal project under `OsterConflict/Content/...` with required provenance retained; do not create a permanent remote branch just to warehouse source archives.
 
 ## Runtime/content non-regression
@@ -83,7 +83,7 @@ For PASS45, `_DOCS/PASS45_CHECKPOINT_CONTINUATION_PROTOCOL.md` and `_DOCS/PASS45
 - No historical verifier may require a runtime-rejected owner/fallback back into production.
 - Missing production content must fail visibly. BasicShape/default/white fallback cannot impersonate production readiness.
 - Server owns gameplay facts. Presentation/audio/animation may not become a second gameplay timer or authority.
-- Normal local game has no implicit heavy bot fill.
+- Frontend/menu worlds do not spawn gameplay bots. Normal local/listen gameplay may fill empty match population with bots; real humans always replace filler bots first. Dedicated servers keep their explicit server/URL population policy.
 - Heavy/optional production content must not reintroduce known startup-blocking synchronous constructor/CDO loads.
 
 ## Oster world authority
@@ -154,15 +154,9 @@ For PASS45:
 
 ### PASS45 merge truth
 
-Do not merge PR #94 merely to simplify local testing.
+PR #94 is already merged. Its old pre-merge body and `merge_permitted=0` text are historical evidence, not current branch authority.
 
-Until factual integrated current-head UE 5.8 acceptance passes:
-
-```text
-runtime_acceptance=0
-item16_checked=0
-merge_permitted=0
-```
+Current runtime/visual/audio changes on `main` still require factual integrated UE 5.8 acceptance before they can be reported as fully accepted. CI/source success alone remains insufficient.
 
 ## User-facing communication
 
@@ -208,6 +202,6 @@ This is a project-wide user requirement, not a one-chat preference.
 
 ## Current priority
 
-For active PASS45 work, execute the compact `PASS45_RUNTIME_RECOVERY_TZ.md` queue and latest checkpoint instead of expanding architecture surveys.
+For active GAME_RECOVERY/PASS45 work, continue from current `main`, use the compact recovery queue/checkpoint, and prioritize the latest user-observed runtime regressions before historical pass assumptions.
 
 For dedicated location work, use that location's TZ/status/reference pack. For Stadion Oster, use `STADION_OSTER_TZ.md`, `STADION_OSTER_IMPLEMENTATION_STATUS.md`, and `REFERENCE_PHOTOS/stadion_oster/`.
