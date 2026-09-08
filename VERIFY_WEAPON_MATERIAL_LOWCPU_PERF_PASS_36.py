@@ -127,8 +127,10 @@ for needle in (
 ):
     require(foliage_guard, needle, "LowCPU/full-map spatial foliage runtime guard")
 
-# Pass 44 supersedes the old grey BasicShapeMaterial "repair". A missing/default slot is content evidence,
-# not something the runtime may paint over and then call production-ready.
+# Pass 44 supersedes the old grey BasicShapeMaterial repair. A missing/default slot is content evidence,
+# not something the runtime may paint over and then call production-ready. Pass45 also retired generic look-alike
+# weapon substitution: exact identity is owned by imported/local assets, while this subsystem only hides primitives
+# and audits authored materials.
 require(weapon_h, "AuditAndRepairWeaponMaterials", "weapon material audit state")
 for needle in (
     "IsMissingOrDefaultMaterial",
@@ -139,23 +141,29 @@ for needle in (
     "PASS44_WEAPON_AUTHORED_MATERIAL_READY",
     "PASS44_WEAPON_RACK_AUTHORED_MATERIAL_GAP",
     "basicshape_repair=0",
+    "exact_material_ready=0",
     "PASS36_WEAPON_MATERIAL_AUDIT_READY",
     'RuntimeBaseRackTag(TEXT("OC_RuntimeBaseWeaponRack"))',
     "Component->SetCastShadow(false)",
-    "reason=material_gap_audited",
+    "PASS45_GENERIC_WEAPON_FALLBACK_RETIRED",
+    "generic_substitution=0",
+    "exact_visual_owner=imported_bridge",
+    "PASS45_PRIMITIVE_WEAPON_VISUAL_RETIRED",
+    "Wrong-identity replacement is intentionally forbidden.",
 ):
-    require(weapon, needle, "truth-only weapon material audit")
+    require(weapon, needle, "truth-only weapon material and exact-identity policy")
 
 for forbidden in (
     "MaterialRecoveryBase",
     "UMaterialInstanceDynamic::Create",
     "PASS36_WEAPON_MATERIAL_RECOVERED",
     "Component->SetMaterial(Slot",
+    "/Game/AK-47/Mesh/SM_AK-47.SM_AK-47",
+    "R13 real SMG temporary MP5 fallback",
+    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN",
+    "PASS45_REAL_WEAPON_FALLBACK_READY",
 ):
-    forbid(weapon_h + weapon, forbidden, "Pass 44 must not disguise missing authored materials")
-
-require(weapon, "HasProductionVisual(*Weapon)", "production visual preservation")
-require(weapon, "ApplyRealFallback", "existing real-mesh fallback preservation")
+    forbid(weapon_h + weapon, forbidden, "retired material disguise or wrong-identity weapon fallback")
 
 print("WEAPON MATERIAL + LOWCPU PERFORMANCE PASS 36/42/44 SOURCE CONTRACT PASS")
 print("- LowCPU foliage covers the same compact 960x940m playable Oster bounds as Full profile and reduces density/cull budget instead of spatially cropping the city")
@@ -164,5 +172,5 @@ print("- PASS36 cannot false-pass when accepted grass is concentrated in a small
 print("- foliage acceptance scans are throttled and stop after convergence")
 print("- missing/default weapon materials are reported as authored-content gaps, never painted grey with BasicShapeMaterial")
 print("- a fully audited rack with material gaps stops its scan immediately instead of repeating for the whole budget")
-print("- generic real-mesh fallback remains playable but is not production-art acceptance")
+print("- generic look-alike weapon substitution is retired; exact weapon identity remains an imported/local content responsibility")
 print("STATUS: SOURCE VERIFIED; actual UE 5.8 FPS/material/visual acceptance remains runtime-only")
