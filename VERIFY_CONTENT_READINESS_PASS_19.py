@@ -33,8 +33,17 @@ vehicle_fresh = read(ROOT / "OsterConflict" / "Scripts" / "verify_production_veh
 m2_launcher = read(ROOT / "RUN_IMPORT_M2_PRODUCTION.cmd")
 btr_launcher = read(ROOT / "RUN_IMPORT_BTR4_PRODUCTION.cmd")
 
-require(fallback, 'RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"))', "fallback identity")
-require(fallback, "exact_production=0 playable_fallback=1", "fallback truth log")
+# GAME_RECOVERY superseded the old wrong-identity "playable fallback" owner. The compatibility tag may remain
+# readable by Pass19, but OCRealWeaponFallbackSubsystem must not manufacture substitute guns or claim production art.
+require(fallback, 'RealFallbackComponentTag(TEXT("OC_RealFallbackWeaponVisual"))', "fallback compatibility identity")
+for needle in (
+    "PASS45_GENERIC_WEAPON_FALLBACK_RETIRED",
+    "generic_substitution=0",
+    "exact_visual_owner=imported_bridge",
+    "primitive_cleanup=1",
+):
+    require(fallback, needle, "generic fallback retirement truth")
+forbid(fallback, "exact_production=0 playable_fallback=1", "retired generic fallback readiness claim")
 forbid(fallback, "Visual->ComponentTags.Add(ProductionVisualTag);", "generic fallback pretending to be production")
 
 # Vehicle validator now owns vehicles only. Weapon completeness/exact-visual truth
@@ -67,8 +76,9 @@ for needle in (
 ):
     require(catalog, needle, "current full weapon-catalog owner")
 
-# The older Pass19 11-class focused recovery rack remains a compatibility route,
-# but it no longer owns the complete PASS45 catalog.
+# The older Pass19 11-class focused recovery rack remains a compatibility route. It can recognize a legitimate
+# explicitly-tagged real fallback if another exact-identity owner ever supplies one, but it does not require the
+# retired generic fallback subsystem to create substitutes and it no longer owns the complete PASS45 catalog.
 for needle in (
     "AllRequiredRackWeaponClassesMask", "OC_RuntimeBaseWeaponRack", "OC_ProductionWeaponVisual",
     "OC_RealFallbackWeaponVisual", "AOCWeapon_M14", "AOCWeapon_Mac10", "AOCWeapon_Tec9",
@@ -160,9 +170,9 @@ require(m2_launcher, "source_kind=downloaded", "real M2 source requirement")
 require(btr_launcher, "source_kind=local_user_fbx", "dedicated local BTR4 source helper")
 
 print("CONTENT READINESS PASS 19 + PASS45 BTR R3 MATERIAL/AXIS INTAKE CONTRACT PASS")
-print("- generic weapon fallback meshes do not impersonate production art")
+print("- retired generic weapon fallback cannot impersonate either production art or playable exact-identity readiness")
 print("- full weapon-catalog exact-visual validation is owned only by OCPass45WeaponCatalogSpawnSubsystem")
-print("- Pass 19 separately preserves its focused 11-class playable real-mesh compatibility rack")
+print("- Pass 19 separately preserves its focused 11-class compatibility rack without requiring generic substitutes")
 print("- HMMWV/M2 remain independent external-source imports")
 print("- BTR canonical runtime intake is repository-authored +X-forward with explicit glTF +Y-up/internal +Z-up provenance")
 print("- imported vehicle meshes must reopen under R3 with authored non-placeholder materials and complete BTR axis provenance")
