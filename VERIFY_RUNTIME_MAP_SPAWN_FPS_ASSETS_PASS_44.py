@@ -34,6 +34,7 @@ agents = read(ROOT / "AGENTS.md")
 ledger = read(ROOT / "OSTER_CONFLICT_WORK_LEDGER.md")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 game = read(SRC / "Private" / "OCGameMode.cpp")
+runtime = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
 bot_policy = read(SRC / "Private" / "OCBotPopulationPolicySubsystem.cpp")
 team_spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
@@ -113,7 +114,8 @@ for needle in (
 ):
     req(needle in bot_policy, f"current filler-bot policy owner missing: {needle}")
 
-req("PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" in game,
+# The actual live-Pawn Museum BASE proof belongs to the runtime-safe GameMode override, not the historical base class.
+req("PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" in runtime,
     "actual Museum pawn distance evidence path was removed")
 req("PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY" in team_spawn,
     "Museum BASE role became coordinate-edge dependent again")
