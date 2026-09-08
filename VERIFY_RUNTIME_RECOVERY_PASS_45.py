@@ -25,6 +25,7 @@ def require(condition: bool, message: str) -> None:
 
 tz = read(ROOT / "PASS45_RUNTIME_RECOVERY_TZ.md")
 recovery_tz = read(ROOT / "GAME_RECOVERY.md")
+agents = read(ROOT / "AGENTS.md")
 launcher = read(ROOT / "RUN_R14_CURRENT_GAMEPLAY.cmd")
 startup = read(PRIVATE / "OCLandmarkStartupCoordinatorSubsystem.cpp")
 weapon_base = read(PRIVATE / "OCWeaponBase.cpp")
@@ -37,11 +38,16 @@ anti_armor_launcher = read(PRIVATE / "OCAntiArmorLauncher.cpp")
 
 require("RUNTIME REJECTED" in tz and "RUNTIME ACCEPTANCE DEFERRED" in tz,
         "Pass45 runtime rejection/deferred acceptance truth was lost")
-for flag in ("runtime_acceptance=0", "merge_permitted=0"):
-    require(flag in tz, f"Pass45 factual acceptance flag missing: {flag}")
+require("runtime_acceptance=0" in tz,
+        "Pass45 factual runtime acceptance flag missing")
 
-require("fix/pass45-runtime-rejection-material-closure-20260826" in recovery_tz,
-        "GAME_RECOVERY single working branch contract is missing")
+# PR #94 and its former branch are historical. Current branch authority lives in AGENTS.md after the merge.
+for token in (
+    "Primary integration branch: `main`",
+    "PR #94 was merged on 2026-09-07",
+    "current GAME_RECOVERY/PASS45 continuation work proceeds on `main`",
+):
+    require(token in agents, f"current GAME_RECOVERY branch authority missing: {token}")
 require("Definition of Done" in recovery_tz and "UE 5.8 runtime" in recovery_tz,
         "GAME_RECOVERY no longer requires factual UE 5.8 runtime acceptance")
 
@@ -150,24 +156,32 @@ for token in (
     require(token in local_asset_resolver,
             f"metadata-only local asset resolver contract missing: {token}")
 
+# Generic look-alike fallbacks are retired. Exact visuals belong to LocalInbox/imported bridge; this subsystem
+# is now bounded primitive cleanup + authored-material audit only.
 require("LoadObject<" not in real_weapon_fallback,
-        "real weapon fallback regained blocking LoadObject")
+        "primitive cleanup/material audit subsystem regained blocking LoadObject")
 for token in (
-    "BuildFallbackPreloadPaths()",
-    "RequestAsyncLoad(",
-    "CompleteFallbackPreload",
-    "ResolveResidentStaticMesh",
-    "FSoftObjectPath(Path).ResolveObject()",
-    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN",
-    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_GAP",
-    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY",
-    "resident_until_deinitialize=1",
-    "resident_only=1",
-    "sync_load=0",
-    "AuthoredAKFallback.Get()",
+    "PASS45_GENERIC_WEAPON_FALLBACK_RETIRED",
+    "generic_substitution=0",
+    "exact_visual_owner=imported_bridge",
+    "primitive_cleanup=1",
+    "HideRejectedPrimitiveVisuals(*Weapon);",
+    "PASS45_PRIMITIVE_WEAPON_VISUAL_RETIRED",
+    "PASS45_VISIBLE_PRIMITIVE_WEAPON_FAIL",
+    "PASS45_PRIMITIVE_WEAPON_RUNTIME_READY",
+    "Wrong-identity replacement is intentionally forbidden.",
+    "return false;",
 ):
     require(token in real_weapon_fallback,
-            f"real weapon fallback async/resident contract missing: {token}")
+            f"generic weapon fallback retirement contract missing: {token}")
+for stale in (
+    "BuildFallbackPreloadPaths()",
+    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_BEGIN",
+    "GAME_RECOVERY_REAL_WEAPON_FALLBACK_PRELOAD_READY",
+    "AuthoredAKFallback.Get()",
+):
+    require(stale not in real_weapon_fallback,
+            f"retired generic fallback preload/substitution returned: {stale}")
 
 require("LoadObject<" not in weapon_variants,
         "weapon variant BeginPlay regained blocking LoadObject")
@@ -226,9 +240,9 @@ if errors:
 
 print("RUNTIME RECOVERY PASS 45: PASS")
 print("- current recovery gate delegates specialized source contracts instead of duplicating stale assertions")
+print("- current GAME_RECOVERY/PASS45 work authority is main; merged PR #94 branch text is historical")
 print("- DX11/SM5 startup, grenades, production vehicles, stadium, weapon proxy retirement and reference-driven map rules are guarded")
-print("- base weapon decorative source composite is retired; only invisible physics authority remains")
-print("- local/imported weapon owners, real fallbacks and launcher use async/resident asset routes; weapon variants are resident-only")
+print("- local/imported exact-identity weapon owners and launcher use async/resident asset routes; generic look-alike fallbacks remain retired")
 print("- weapon fallback audio preloads before first use; shot/reload/manual-action/impact never issue blocking LoadObject")
 print("- imported weapon bridge uses metadata-only AssetRegistry path selection and yields to LocalInbox ownership")
 print("- staged landmark readiness uses current GAME_RECOVERY markers")
