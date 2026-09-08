@@ -13,7 +13,7 @@ echo.
 echo 1. ЗВИЧАЙНА ГРА
 echo 2. ПОВНИЙ RUNTIME-ТЕСТ ^(ПАКЕТНИЙ^)
 echo 3. SAFE СУМІСНІСТЬ ^(RHI THREAD OFF^)
-echo 4. ВІДКРИТИ UNREAL EDITOR
+echo 4. ВІДКРИТИ UNREAL EDITOR ^(ПОТОЧНА КАРТА^)
 echo 0. ВИХІД
 echo.
 echo Для запуску проєкту завжди використовуйте тільки START_HERE.cmd.
@@ -21,6 +21,7 @@ echo Інші RUN_*.cmd - внутрішні технічні скрипти, в
 echo.
 echo Пункт 1: тільки incremental C++ build + запуск гри. Без strict reimport/fresh-load підготовки.
 echo Пункт 2: один пакетний PASS45 preflight ^(усі assets/зброя/транспорт^), один runtime, один звіт усіх проблем.
+echo Пункт 4: сам збирає Editor і відкриває OsterConflict_Runtime у режимі, де PIE не пригнічує gameplay/bots як frontend-only світ.
 echo.
 echo Pass 45 normal renderer: DirectX 11 + Shader Model 5 + HDR off, normal RHI threading.
 echo Compatibility route adds -norhithread only for A/B crash/performance diagnosis.
@@ -30,7 +31,18 @@ choice /C 12340 /N /M "Оберіть: "
 
 if errorlevel 5 goto end
 if errorlevel 4 (
-  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" -d3d11 -sm5 -nohdr
+  call "%~dp0BUILD_EDITOR_LAUNCHER_UE58.cmd" /nopause
+  set "EDITOR_BUILD_RC=!ERRORLEVEL!"
+  if not "!EDITOR_BUILD_RC!"=="0" (
+    echo.
+    echo ============================================================
+    echo [STOP] Unreal Editor build завершився помилкою. code=!EDITOR_BUILD_RC!
+    echo UBT log: %LOCALAPPDATA%\UnrealBuildTool\Log.txt
+    echo ============================================================
+    pause
+    goto menu
+  )
+  start "" "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "%~dp0OsterConflict\OsterConflict.uproject" /Game/Maps/OsterConflict_Runtime -NoFrontend -d3d11 -sm5 -nohdr
   goto menu
 )
 if errorlevel 3 (
