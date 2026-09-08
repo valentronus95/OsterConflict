@@ -78,6 +78,7 @@ private:
     bool bRoleSelected = false;
     FName SelectedSpawn = NAME_None;
     bool bWasVisible = false;
+    bool bDeployPending = false;
     float RefreshAccumulator = 0.0f;
 
     // Short replication grace window prevents a valid remote selection from being treated as a rejection
