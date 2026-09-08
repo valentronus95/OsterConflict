@@ -77,7 +77,13 @@ CHECKS = {
     ),
     "tactical map contract": (
         ROOT / "OsterConflict/Source/OsterConflict/Private/OCTacticalMapSubsystem.cpp",
-        ["EKeys::M", "EKeys::V", "UnmapKey", "Tactical map owns M exclusively", "FInputModeGameOnly"],
+        [
+            "EKeys::M",
+            "EKeys::V",
+            "UnmapKey",
+            "M reserved for map; DeployTrap moved to V for this pawn.",
+            "FInputModeGameOnly",
+        ],
     ),
 }
 
