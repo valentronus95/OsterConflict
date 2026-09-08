@@ -8,12 +8,12 @@
  * Runtime-facing correction layer for normal Oster play.
  *
  * Keeps the existing OCGameMode feature set while enforcing runtime-safe contracts:
- * - a normal local session does not silently create a 16-player filler-bot load;
+ * - frontend/travel stays light before a human host exists, then the dedicated population policy restores filler bots;
  * - BASE deployment means the actual human pawn is placed at the Museum BASE;
  * - PASS45 startup recovery keeps exactly one lightweight AOCWorldSectorOster alive before world-subsystem
  *   BeginPlay, then retires the legacy base-GameMode duplicate before the first gameplay tick;
- * - GAME_RECOVERY never uses the player pawn as a loading screen: initial human spawn waits for factual
- *   Block0 ground, authored world-surface and landmark readiness on non-dedicated Oster runtime worlds.
+ * - GAME_RECOVERY world-preparation state remains factual acceptance evidence, but visual/content preparation
+ *   failures never deny the human a pawn or close deployment without possession.
  */
 UCLASS()
 class OSTERCONFLICT_API AOCGameModeRuntimeSafe : public AOCGameMode
@@ -27,6 +27,8 @@ public:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+    // Compatibility queue retained for already-armed startup requests. New human deployment is fail-soft and does
+    // not enter this queue merely because a visual/content acceptance stage is pending or failed.
     struct FPendingWorldReadyRestart
     {
         FTimerHandle TimerHandle;
