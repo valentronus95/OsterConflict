@@ -34,7 +34,7 @@ agents = read(ROOT / "AGENTS.md")
 ledger = read(ROOT / "OSTER_CONFLICT_WORK_LEDGER.md")
 game_h = read(SRC / "Public" / "OCGameMode.h")
 game = read(SRC / "Private" / "OCGameMode.cpp")
-runtime = read(SRC / "Private" / "OCGameModeRuntimeSafe.cpp")
+bot_policy = read(SRC / "Private" / "OCBotPopulationPolicySubsystem.cpp")
 team_spawn = read(SRC / "Private" / "OCTeamSpawnPoint.cpp")
 world = read(SRC / "Private" / "OCWorldSectorOster.cpp")
 central = read(SRC / "Private" / "OCCentralPlayableAreaSubsystem.cpp")
@@ -50,8 +50,8 @@ reference = ROOT / "REFERENCE_PHOTOS" / "map_extent" / "oster_central_playable_a
 req(reference.is_file() and reference.stat().st_size > 0,
     "compact central Oster reference image is missing/empty")
 
-# Historical Pass 44 follows the current authority semantics in AGENTS.md. Do not pin this historical verifier to
-# retired headings/sentences when the current policy expresses the same stronger rules in updated language.
+# Historical Pass 44 follows current authority semantics. Never pin this historical verifier to wording or
+# behavior that newer GAME_RECOVERY work explicitly replaced.
 for needle in (
     "latest explicit user requirement and latest user-observed runtime evidence",
     "User test feedback outranks stale source assumptions",
@@ -59,7 +59,8 @@ for needle in (
     "The user-approved compact central Oster area is authoritative",
     "actual live player pawn",
     "Missing production content must fail visibly",
-    "Normal local game has no implicit heavy bot fill",
+    "Normal local/listen gameplay may fill empty match population with bots",
+    "real humans always replace filler bots first",
     "stale verifiers are updated/demoted/deleted",
 ):
     req(needle.lower() in agents.lower(), f"root authority policy missing current semantic rule: {needle}")
@@ -82,11 +83,37 @@ req(
     "ledger is missing retained Pass44 non-regression behavior",
 )
 
-req("int32 TargetPopulation = 0" in game_h and "bool bAutoFillBots = false" in game_h,
-    "implicit bot autofill defaults returned")
-req("else TargetPopulation = 0;" in game,
-    "normal local gameplay no longer keeps zero implicit bot population")
-req("PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" in runtime,
+# GAME_RECOVERY bot truth supersedes the old Pass44 zero-bot policy. InitGame may transiently hold target 0
+# while travel/frontend ownership settles, but once a real local/listen host exists the dedicated policy owner
+# restores the expected filler population. Frontend, Sandbox and dedicated server remain isolated.
+req("int32 TargetPopulation = 16" in game_h and "bool bAutoFillBots = true" in game_h,
+    "current normal-game filler-bot defaults are missing")
+for needle in (
+    "bool RestoreExpectedLocalBotFill()",
+    "TargetPopulation = MaxPlayerSlots;",
+    "bAutoFillBots = TargetPopulation > Humans;",
+    "MaintainPopulation();",
+):
+    req(needle in game_h, f"local filler-bot restore contract missing: {needle}")
+for needle in (
+    "else TargetPopulation = 0;",
+    "if (GetHumanPlayerCount() >= MaxPlayerSlots)",
+    "GetHumanPlayerCount() + GetBotPlayerCount() > TargetPopulation",
+    "SelectBotToRemove(State->GetTeamId())",
+    "RemoveBotController(Bot)",
+):
+    req(needle in game, f"human-priority/bootstrap population contract missing: {needle}")
+for needle in (
+    "GameMode->IsFrontendOnlySession()",
+    "GameMode->IsSandboxMode()",
+    "World->GetNetMode() == NM_DedicatedServer",
+    "GameMode->GetHumanPlayerCount() <= 0",
+    "GameMode->RestoreExpectedLocalBotFill()",
+    "GAME_RECOVERY_BOT_FILL_RESTORED",
+):
+    req(needle in bot_policy, f"current filler-bot policy owner missing: {needle}")
+
+req("PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY" in game,
     "actual Museum pawn distance evidence path was removed")
 req("PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY" in team_spawn,
     "Museum BASE role became coordinate-edge dependent again")
@@ -151,7 +178,8 @@ if errors:
 print("PASS44 HISTORICAL NON-REGRESSION: PASS")
 print("- factual Pass44 runtime rejection is preserved; this verifier cannot promote it back to active/verified")
 print("- current AGENTS authority semantics protect user runtime truth instead of retired wording")
-print("- compact 960x940 m extent, zero implicit bots and actual Museum pawn proof remain protected")
+print("- compact 960x940 m extent and actual Museum pawn proof remain protected")
+print("- normal local/listen gameplay may restore filler bots after a real human host exists; frontend/Sandbox/dedicated paths remain isolated")
 print("- old edge coordinates/map auto-fit and grey weapon-material repair remain retired")
 print("- retired Pass37 palette compatibility owner must stay physically deleted")
 print("- tactical topology, FPS, trees, landmarks and authored weapon materials are delegated to active Pass45")
