@@ -113,7 +113,7 @@ void UOCRuntimePresentationRecoverySubsystem::ApplyFrontendFieldPaddingFix()
     UOCGameUIRootWidget* Root = nullptr;
     for (TObjectIterator<UOCGameUIRootWidget> It; It; ++It)
     {
-        if (It->GetWorld() == World && It->GetOwningPlayer() == PC)
+        if (IsValid(*It) && It->GetWorld() == World && It->GetOwningPlayer() == PC)
         {
             Root = *It;
             break;
