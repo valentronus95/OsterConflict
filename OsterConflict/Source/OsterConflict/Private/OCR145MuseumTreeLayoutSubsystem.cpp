@@ -54,7 +54,6 @@ namespace
         Location.Z += -LocalBottom * HeightScale;
         Component->AddInstance(FTransform(FRotator(0.0f, YawDegrees, 0.0f), Location, Scale), true);
     }
-
 }
 
 bool UOCR145MuseumTreeLayoutSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -71,6 +70,16 @@ void UOCR145MuseumTreeLayoutSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>())
     {
         if (GameMode->IsFrontendOnlySession()) return;
+    }
+
+    // This photo-reference pass injected fourteen extra trees at runtime, including four deliberately
+    // close to the museum facade. Normal gameplay must use the authored map/world vegetation only.
+    // Keep the reference layout available solely when explicitly requested for a dedicated comparison run.
+    if (!InWorld.URL.HasOption(TEXT("EnableR145MuseumTrees")))
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_MUSEUM_R145_TREE_LAYOUT_RETIRED normal_gameplay=1 injected_trees=0 building_overlap_risk=0 opt_in=EnableR145MuseumTrees"));
+        return;
     }
 
     TWeakObjectPtr<UWorld> WeakWorld(&InWorld);
@@ -134,7 +143,6 @@ void UOCR145MuseumTreeLayoutSubsystem::ReplaceMuseumTrees(UWorld& World) const
         int32 Family;
     };
 
-    // REF-04/05/07/10/14: conifers frame the approach irregularly. They are intentionally not mirrored.
     const FTreeSeed Seeds[] =
     {
         { FVector(-640.0f, -1280.0f, 0.0f), 2140.0f,  18.0f, 1.03f, 0 },
@@ -145,14 +153,10 @@ void UOCR145MuseumTreeLayoutSubsystem::ReplaceMuseumTrees(UWorld& World) const
         { FVector(-760.0f, -3520.0f, 0.0f), 2210.0f, 249.0f, 0.96f, 0 },
         { FVector( 1290.0f,-4070.0f, 0.0f), 2440.0f, 292.0f, 1.02f, 0 },
         { FVector(-1460.0f,-4250.0f, 0.0f), 2280.0f, 326.0f, 0.98f, 1 },
-
-        // REF-01/03/09/13: mature deciduous trees sit close to the building and break the conifer rhythm.
         { FVector( 1250.0f, -230.0f, 0.0f), 1870.0f,  37.0f, 1.08f, 2 },
         { FVector(-1340.0f,  390.0f, 0.0f), 1800.0f, 118.0f, 1.02f, 2 },
         { FVector( 1510.0f,  930.0f, 0.0f), 1950.0f, 211.0f, 1.10f, 2 },
         { FVector(-980.0f, 1240.0f, 0.0f), 1730.0f, 303.0f, 0.94f, 2 },
-
-        // Side conifers visible beyond the long facade, kept clear of windows and the service entry.
         { FVector(-1730.0f, -420.0f, 0.0f), 2010.0f,  56.0f, 0.96f, 0 },
         { FVector( 1810.0f,  480.0f, 0.0f), 2160.0f, 176.0f, 1.00f, 1 }
     };
