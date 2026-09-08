@@ -34,6 +34,8 @@ for needle in (
     "1. ЗВИЧАЙНА ГРА", "2. ПОВНИЙ RUNTIME-ТЕСТ", "3. SAFE СУМІСНІСТЬ", "4. ВІДКРИТИ UNREAL EDITOR",
     'call "%~dp0RUN_R14_CURRENT_GAMEPLAY.cmd"', 'call "%~dp0OsterConflict\\PASS45_BATCH_RUNTIME.cmd"',
     'set "OC_RHI_COMPAT=1"', 'set "OC_RHI_COMPAT=0"',
+    'call "%~dp0BUILD_EDITOR_LAUNCHER_UE58.cmd" /nopause',
+    '/Game/Maps/OsterConflict_Runtime -NoFrontend -d3d11 -sm5 -nohdr',
 ):
     require(start, needle, "START_HERE canonical route")
 
@@ -75,7 +77,7 @@ for needle in (
     'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -nosplash"', 'if /I "%OC_RHI_COMPAT%"=="1"',
     'set "RHI_FLAGS=-d3d11 -sm5 -nohdr -norhithread -nosplash"', 'set "RHI_MODE=dx11_sm5_rhi_thread"',
     'set "RHI_MODE=dx11_sm5_no_rhi_thread_compat"', "start /wait", "[LOCAL CHANGE]",
-    'set "QUALITY_CMDS=', 'r.ScreenPercentage 100',
+    'set "QUALITY_CMDS=', 'r.ScreenPercentage 100', '-windowed -ForceRes -ResX=1280 -ResY=720',
 ):
     require(normal, needle, "normal/compat renderer contract")
 for forbidden in ("-d3d12", "-dx12", "-sm6"):
@@ -87,6 +89,7 @@ for needle in ("-d3d11", "-sm5", "-nohdr", "[LOCAL CHANGE]"):
 
 print("SINGLE LAUNCHER / D3D11 PASS22 + PASS45 BATCH SOURCE CONTRACT PASS")
 print("- START_HERE is the only user-facing entry point")
+print("- editor option builds current code, opens OsterConflict_Runtime directly, and uses -NoFrontend for gameplay inspection")
 print("- batch wrapper chain keeps one canonical gameplay runtime while adding progress/recovery and a responsive test window")
 print("- DX11/SM5/no-HDR remains canonical; option 3 owns explicit -norhithread compatibility")
 print("- normal route suppresses the separate splash and restores 100% normal visual quality")
