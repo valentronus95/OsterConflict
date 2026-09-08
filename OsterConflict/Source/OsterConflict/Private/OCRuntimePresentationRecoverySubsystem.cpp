@@ -122,11 +122,18 @@ void UOCRuntimePresentationRecoverySubsystem::ReleaseReadyPlayersFromPresentatio
         // its normal team spawn selection and has its own safe fallback transform when no spawn actor is valid.
         RuntimeGameMode->AOCGameMode::RestartPlayer(PC);
 
-        UE_LOG(LogTemp, PC->GetPawn() ? Display : Error,
-            TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN %s stages=%s player_spawned=%d deployment_gray_screen=0"),
-            PC->GetPawn() ? TEXT("READY") : TEXT("FAIL"),
-            *FailedStages,
-            PC->GetPawn() ? 1 : 0);
+        if (PC->GetPawn())
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN READY stages=%s player_spawned=1 deployment_gray_screen=0"),
+                *FailedStages);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("GAME_RECOVERY_PRESENTATION_FAILSOFT_SPAWN FAIL stages=%s player_spawned=0 deployment_gray_screen=0"),
+                *FailedStages);
+        }
     }
 }
 
