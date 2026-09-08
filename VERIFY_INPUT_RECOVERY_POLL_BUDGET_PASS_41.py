@@ -72,12 +72,12 @@ if cpp.count("ScheduleNextPoll(StablePollSeconds);") < 3:
 if cpp.count("ScheduleNextPoll(TransitionPollSeconds);") < 2:
     raise SystemExit("PASS41 VERIFY FAIL: transition 20 Hz polling is not preserved for responsive recovery")
 
-# Pass41 owns input polling only. Its cumulative dependency follows the current Pass45 launcher and must not
-# resurrect deleted production-material repair or Museum rebuild gates merely because this verifier is old.
+# Cumulative contract follows current GAME_RECOVERY runtime ownership. Normal local/listen gameplay restores
+# filler bots only after a human host exists; this input verifier must not resurrect the old zero-bot policy.
 for needle in (
     "PASS 45 CURRENT RUNTIME ACCEPTANCE",
     "PASS44_ACTUAL_PAWN_MUSEUM_BASE_READY",
-    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
+    "GAME_RECOVERY_BOT_FILL_RESTORED",
     "PASS45_MUSEUM_LAYER_VALIDATION_READY",
     "PASS41_INPUT_RECOVERY_POLL_BUDGET_READY",
     "PASS31_GAMEPLAY_INPUT_READY",
@@ -89,6 +89,7 @@ for needle in (
 ):
     require(launcher, needle, "current Pass45 full runtime acceptance")
 for retired in (
+    "PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY",
     "PASS42_PRODUCTION_VEHICLE_VISUALS_READY",
     "PASS42_PRODUCTION_MATERIALS_RESTORED",
     "PASS38_MUSEUM_REBUILD_BUDGET_READY",
@@ -99,7 +100,7 @@ for retired in (
 print("INPUT RECOVERY POLL BUDGET PASS41/PASS45 SOURCE CONTRACT PASS")
 print("- vehicle/deployment input recovery uses one-shot adaptive polling instead of a permanent 20 Hz repeating timer")
 print("- transition/UI-lock paths retain 20 Hz response while stable gameplay drops to 10 Hz")
-print("- current cumulative runtime acceptance requires actual Museum pawn placement, zero implicit bot fill and Museum validation-only ownership")
+print("- current cumulative acceptance requires actual Museum pawn placement and post-host filler-bot restoration")
 print("- production vehicle validation and vehicle-exit transform proof replace old repair markers")
 print("- full runtime acceptance still requires grounded BASE assets and >=30 FPS")
-print("STATUS: CODED_UNTESTED; local UE 5.8 vehicle/deployment/input/FPS runtime remains authoritative")
+print("STATUS: SOURCE CONTRACT ONLY; local UE 5.8 vehicle/deployment/input/FPS runtime remains authoritative")
