@@ -11,7 +11,7 @@ echo ============================================================
 echo.
 echo Перевіряється фактичний normal-game runtime, а не старі source-only припущення.
 echo Pass 45 gates: authored Block0 ground + full-map grass, live pawn біля Museum, compact central Oster,
-echo zero implicit filler bots, single visible Museum owner, no runtime material/layer repair,
+echo bounded local/listen filler bots with human slot priority, single visible Museum owner, no runtime material/layer repair,
 echo proportional production vehicles, vehicle enter/exit transform preservation, M2 normal pitch,
 echo grounded rack та >=30 FPS.
 echo.
@@ -23,9 +23,9 @@ echo   4. SPAWN виберіть BASE та натисніть У БІЙ.
 echo   5. Реальний pawn має опинитися біля Museum, не на далекому legacy edge spawn.
 echo   6. Museum має бути одним R13.7 visible exterior; R13.8 не повинен малювати другий shell.
 echo   7. Tactical map має показувати компактний центральний Остер за reference 2026-08-24.
-echo   8. Normal local run не повинен сам запускати filler bots без явних Bots/Population/BotFill options.
+echo   8. Normal local/listen run після появи human host має відновити filler bots; людина завжди має пріоритет над ботом.
 echo   9. 11 weapon pickups біля BASE мають бути grounded; white/default/BasicShape authored material = FAIL.
-echo      Exact production payload gap дозволений лише з explicit real-mesh fallback; fallback не є production READY.
+echo      Exact production/local weapon identity is required; wrong-identity look-alike fallback = FAIL.
 echo  10. HMMWV/M2/BTR: authored materials, правильні пропорції, жодного runtime material repair.
 echo  11. Зайдіть водієм у машину далеко від Museum, проїдьте, вийдіть. Повторіть для HMMWV/BTR.
 echo  12. Зайдіть gunner у M2, Invert Y OFF: mouse up має піднімати ствол; потім вийдіть з gunner seat.
@@ -54,7 +54,7 @@ for %%M in (
     PASS14_HOST_TRAVEL_BEGIN
     PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE
     PASS14_FRONTEND_TRAVEL_HANDOFF_READY
-    PASS44_LOCAL_BOT_AUTOFILL_DISABLED_READY
+    GAME_RECOVERY_BOT_FILL_RESTORED
     PASS44_PRIMARY_WORLD_COMPACT_AUTHORING_READY
     PASS44_RUNTIME_GAMEPLAY_SEEDS_COMPACT_READY
     PASS44_BASE_ROLE_COORDINATE_INDEPENDENT_READY
@@ -90,7 +90,6 @@ for %%M in (
     PASS36_LOWCPU_FOLIAGE_SCOPE_READY
     PASS36_LOWCPU_FOLIAGE_RUNTIME_READY
     PASS36_WEAPON_MATERIAL_AUDIT_READY
-    PASS38_WEAPON_FALLBACK_SCAN_STOPPED
     PASS39_GRAPHICS_QUALITY_PROFILE_READY
     PASS39_MINIMAP_UPDATE_BUDGET_READY
     PASS39_FP_LOCAL_PAWN_FAST_PATH_READY
@@ -187,7 +186,7 @@ if not errorlevel 1 (
 
 findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%LOG%" >nul
 if not errorlevel 1 (
-    echo [WEAPONS] One or more required classes have neither exact production nor explicit real fallback visual.
+    echo [WEAPONS] One or more required classes do not have an exact production/local visual identity.
     findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPON_RUNTIME_FAIL" "%LOG%"
     exit /b 54
 )
@@ -216,7 +215,7 @@ if not errorlevel 1 (
 
 findstr /C:"PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP" "%LOG%" >nul
 if not errorlevel 1 (
-    echo [PERF] Weapon fallback/material audit hit its hard startup budget instead of reaching a terminal state.
+    echo [PERF] Weapon visual/material audit hit its hard startup budget instead of reaching a terminal state.
     findstr /C:"PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP" "%LOG%"
     exit /b 44
 )
@@ -254,14 +253,14 @@ echo [PASS] Block0 authored Ground READY was recorded with no Ground FAIL/CONTEN
 echo [PASS] Block0 spatial grass coverage and imported regional-tree intake were proved READY.
 echo [PASS] Frontend START -> server creation -> hosted travel path is stable.
 echo [PASS] Landmark coordinator finished all staged pre-spawn world preparation.
-echo [PASS] Normal local run did not silently auto-fill filler bots.
+echo [PASS] Normal local/listen filler-bot policy was restored after the human host appeared; humans retain slot priority.
 echo [PASS] Primary world/gameplay/BASE/vehicle seeds remained inside compact central Oster.
 echo [PASS] Actual live pawn is within the Museum BASE acceptance radius.
 echo [PASS] R13.7 is the one visible Museum exterior; R13.8 stayed collision/interactivity-only.
 echo [PASS] Museum layer validation passed without late visibility/collision/instance repair.
 echo [PASS] Landmark separation found no foreign late-repair requirement.
 echo [PASS] All 11 Museum BASE pickups are grounded.
-echo [PASS] Required available weapon visuals passed authored material audit; exact payload gaps remain explicit CONTENT GAP.
+echo [PASS] Required weapon visuals passed exact-identity and authored-material checks; wrong-identity substitution remained retired.
 echo [PASS] VehicleBase did not repaint production assets; read-only HMMWV/M2/BTR material validation passed.
 echo [PASS] HMMWV/BTR proportional transforms and M2 mount passed.
 echo [PASS] Driver enter/exit and gunner exit preserved the current vehicle location without Museum respawn fallback.
@@ -271,9 +270,10 @@ echo [PASS] Startup scanners/ticks are bounded or physically retired.
 echo [PASS] LowCPU foliage stayed bounded and gameplay reached the current 30 FPS target.
 echo.
 findstr /C:"PASS45_SECONDARY_MENU_HOST_SETUP_QUEUED" /C:"PASS14_MAIN_START_OPENS_SERVER_SETUP" /C:"PASS45_SECONDARY_MENU_HOST_TRAVEL_EXECUTE" "%LOG%"
+findstr /C:"GAME_RECOVERY_BOT_FILL_RESTORED" "%LOG%"
 findstr /C:"PASS45_BLOCK0_PRETICK_GROUND_READY" /C:"PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY" /C:"PASS45_REGIONAL_TREE_INTAKE_WIRED" "%LOG%"
 findstr /C:"PASS45_MUSEUM_SINGLE_VISIBLE_OWNER_READY" /C:"PASS45_MUSEUM_R138_COLLISION_ONLY_READY" /C:"PASS45_MUSEUM_LAYER_VALIDATION_READY" /C:"GAME_RECOVERY_WORLD_READY" "%LOG%"
-findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" /C:"PASS38_WEAPON_FALLBACK_SCAN_STOPPED" "%LOG%"
+findstr /C:"PASS45_REQUIRED_AVAILABLE_WEAPONS_READY" /C:"PASS36_WEAPON_MATERIAL_AUDIT_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY" /C:"PASS45_PRODUCTION_VEHICLE_VISUALS_VALIDATED_READY" "%LOG%"
 findstr /C:"PASS45_HMMWV_PROPORTIONAL_VISUAL_READY" /C:"PASS45_BTR4_PROPORTIONAL_VISUAL_READY" /C:"PASS45_M2_MOUNT_ALIGNMENT_READY" "%LOG%"
 findstr /C:"PASS45_VEHICLE_ENTER_TRANSFORM_READY" /C:"PASS45_VEHICLE_EXIT_TRANSFORM_READY" /C:"PASS45_GUNNER_EXIT_TRANSFORM_READY" /C:"PASS45_M2_GUNNER_PITCH_CONTRACT_READY" "%LOG%"
