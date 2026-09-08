@@ -39,6 +39,11 @@ namespace
     constexpr int32 LowCPUPlantCullEndCm = 9000;
     constexpr int32 LowCPUFlowerCullEndCm = 6000;
 
+    // Population can overlap live gameplay because foliage is presentation, not a spawn gate.
+    // Preserve the authored density/cull profile, but cap trace/instance work on the game thread each frame.
+    constexpr double FullPopulationFrameBudgetMilliseconds = 2.0;
+    constexpr double LowCPUPopulationFrameBudgetMilliseconds = 1.25;
+
     const FName Block0PopulationCompleteTag(TEXT("OC_Block0FullMapGrassComplete"));
 
     bool IsLowCPUProfile(const UWorld& World)
@@ -392,9 +397,10 @@ bool UOCDenseGroundFoliageSubsystem::BeginPopulation(UWorld& World)
     CandidateRejectedBounds = 0;
     bPopulationStarted = true;
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo pre_spawn=1 async_preloaded=1 sync_load=0 prerequisite_resident=1"),
+        TEXT("PASS45_BLOCK0_FOLIAGE_BUDGET_READY grid_cm=%.0f cells_per_batch=%d frame_budget_ms=%.2f grass_cull_cm=%d plant_cull_cm=%d flower_cull_cm=%d profile=%s full_playable_bounds=1 candidate_surface_guard=1 water_surface_guard=1 content_intake=KiteDemo pre_spawn=0 live_gameplay_safe=1 async_preloaded=1 sync_load=0 prerequisite_resident=1"),
         ActiveGridStep,
         ActiveCellsPerBatch,
+        bLowCPUProfile ? LowCPUPopulationFrameBudgetMilliseconds : FullPopulationFrameBudgetMilliseconds,
         GrassCullEnd,
         PlantCullEnd,
         FlowerCullEnd,
@@ -458,9 +464,19 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         return true;
     };
 
+    const double BatchStartSeconds = FPlatformTime::Seconds();
+    const double FrameBudgetMilliseconds = bLowCPUProfile
+        ? LowCPUPopulationFrameBudgetMilliseconds
+        : FullPopulationFrameBudgetMilliseconds;
     int32 ProcessedThisBatch = 0;
     while (ProcessedThisBatch < ActiveCellsPerBatch && CursorX <= PopulationMaxX)
     {
+        if (ProcessedThisBatch > 0 &&
+            (FPlatformTime::Seconds() - BatchStartSeconds) * 1000.0 >= FrameBudgetMilliseconds)
+        {
+            break;
+        }
+
         const float JitterExtent = ActiveGridStep * 0.30f;
         const FVector2D Jitter(
             RandomStream.FRandRange(-JitterExtent, JitterExtent),
@@ -558,7 +574,7 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
         Owner->Tags.Add(Block0PopulationCompleteTag);
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 water_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0 pre_spawn=1"),
+            TEXT("PASS45_BLOCK0_FULL_MAP_GRASS_READY bounds_m=960x940 grass=%d plants=%d flowers=%d processed_cells=%d profile=%s population_complete=1 full_playable_bounds=1 museum_only=0 candidate_surface_guard=1 water_surface_guard=1 candidate_traces=%d candidate_accepted=%d candidate_rejected_blocked=%d candidate_rejected_trace=%d candidate_rejected_bounds=%d content_intake=KiteDemo runtime_acceptance=0 pre_spawn=0 live_gameplay_safe=1 frame_budget_ms=%.2f"),
             GrassInstances,
             PlantInstances,
             FlowerInstances,
@@ -568,8 +584,9 @@ void UOCDenseGroundFoliageSubsystem::PopulateBatch()
             CandidateAccepted,
             CandidateRejectedBlocked,
             CandidateRejectedTrace,
-            CandidateRejectedBounds);
+            CandidateRejectedBounds,
+            FrameBudgetMilliseconds);
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_FOLIAGE_PREP_FINISH success=1 post_spawn_materialization=0 sync_load=0 resident_only=1"));
+            TEXT("GAME_RECOVERY_FOLIAGE_PREP_FINISH success=1 post_spawn_materialization=1 sync_load=0 resident_only=1 frame_budgeted=1"));
     }
 }
