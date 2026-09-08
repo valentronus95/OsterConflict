@@ -21,6 +21,30 @@ namespace
         return false;
     }
 
+    bool IsObviousWeaponPartOrHelper(const FAssetData& Asset)
+    {
+        const FString Name = Asset.AssetName.ToString().ToLower();
+        const FString Path = Asset.PackageName.ToString().ToLower();
+        const FString Candidate = Path + TEXT("/") + Name;
+
+        static const TCHAR* RejectedTerms[] =
+        {
+            TEXT("collision"), TEXT("proxy"), TEXT("preview"), TEXT("socket"),
+            TEXT("scope"), TEXT("sight"), TEXT("optic"), TEXT("reticle"),
+            TEXT("magazine"), TEXT("_mag"), TEXT("mag_"), TEXT("ammo"),
+            TEXT("bullet"), TEXT("cartridge"), TEXT("shell"), TEXT("projectile"),
+            TEXT("grenade"), TEXT("rocket"), TEXT("warhead"),
+            TEXT("muzzle"), TEXT("silencer"), TEXT("suppressor"),
+            TEXT("barrel"), TEXT("trigger"), TEXT("bolt_only"), TEXT("stock_only")
+        };
+
+        for (const TCHAR* Term : RejectedTerms)
+        {
+            if (Candidate.Contains(Term, ESearchCase::IgnoreCase)) return true;
+        }
+        return false;
+    }
+
     FAssetData FindBestAsset(
         const UClass* AssetClass,
         const TArray<FName>& PackageRoots,
@@ -45,24 +69,37 @@ namespace
         {
             Assets.RemoveAll([&PreferredTokens](const FAssetData& Asset)
             {
-                return !ContainsPreferredToken(Asset, PreferredTokens);
+                return !ContainsPreferredToken(Asset, PreferredTokens) || IsObviousWeaponPartOrHelper(Asset);
             });
             if (Assets.IsEmpty()) return FAssetData();
         }
 
         auto Score = [&PreferredTokens](const FAssetData& Asset)
         {
-            const FString Candidate = (Asset.PackageName.ToString() + TEXT("/") + Asset.AssetName.ToString()).ToLower();
+            const FString Package = Asset.PackageName.ToString().ToLower();
+            const FString Name = Asset.AssetName.ToString().ToLower();
+            const FString Candidate = Package + TEXT("/") + Name;
             int32 Result = 0;
             for (const FString& RawToken : PreferredTokens)
             {
                 const FString Token = RawToken.ToLower();
-                if (!Token.IsEmpty() && Candidate.Contains(Token)) Result += 10;
+                if (Token.IsEmpty()) continue;
+                if (Name.Contains(Token)) Result += 80;
+                else if (Package.Contains(Token)) Result += 10;
             }
-            // Prefer actual mesh/animation assets over obvious collision, proxy, LOD or preview helpers.
-            if (Candidate.Contains(TEXT("collision")) || Candidate.Contains(TEXT("proxy")) ||
-                Candidate.Contains(TEXT("preview"))) Result -= 12;
+
+            // Prefer complete firearm assets. A token in a package folder alone is not proof that a child mesh
+            // is the weapon itself; modular packs commonly contain sights, barrels, magazines and projectiles.
+            if (Name.Contains(TEXT("weapon")) || Name.Contains(TEXT("rifle")) ||
+                Name.Contains(TEXT("shotgun")) || Name.Contains(TEXT("pistol")) ||
+                Name.Contains(TEXT("smg")) || Name.Contains(TEXT("launcher")) ||
+                Name.Contains(TEXT("assembled")) || Name.Contains(TEXT("complete")))
+            {
+                Result += 24;
+            }
+            if (Name.StartsWith(TEXT("sk_")) || Name.StartsWith(TEXT("sm_"))) Result += 4;
             if (Candidate.Contains(TEXT("lod"))) Result -= 3;
+            if (IsObviousWeaponPartOrHelper(Asset)) Result -= 1000;
             return Result;
         };
 
