@@ -10,7 +10,9 @@
 #include "Camera/CameraComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -320,31 +322,56 @@ void AOCGrenadeProjectile::DetonateServer()
 
 void AOCGrenadeProjectile::ApplyBoundedPhysicsImpulseServer(float Radius, float Strength)
 {
-    if (!HasAuthority() || !GetWorld() || Radius <= 0.0f || Strength <= 0.0f) return;
+    UWorld* World = GetWorld();
+    if (!HasAuthority() || !World || Radius <= 0.0f || Strength <= 0.0f) return;
+
     const FVector Origin = GetActorLocation();
-    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    TArray<FOverlapResult> Overlaps;
+    FCollisionObjectQueryParams ObjectQueryParams;
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_PhysicsBody);
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Vehicle);
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+    FCollisionQueryParams OverlapParams(SCENE_QUERY_STAT(OCFragImpulseOverlap), false, this);
+    OverlapParams.AddIgnoredActor(this);
+    World->OverlapMultiByObjectType(
+        Overlaps,
+        Origin,
+        FQuat::Identity,
+        ObjectQueryParams,
+        FCollisionShape::MakeSphere(Radius),
+        OverlapParams);
+
+    TSet<UPrimitiveComponent*> SeenComponents;
+    for (const FOverlapResult& Overlap : Overlaps)
     {
-        AActor* Actor = *It;
+        UPrimitiveComponent* Component = Overlap.Component.Get();
+        if (!Component || SeenComponents.Contains(Component) || !Component->IsSimulatingPhysics()) continue;
+        SeenComponents.Add(Component);
+
+        AActor* Actor = Component->GetOwner();
         if (!Actor || Actor == this) continue;
-        TInlineComponentArray<UPrimitiveComponent*> Components(Actor);
-        for (UPrimitiveComponent* Component : Components)
-        {
-            if (!Component || !Component->IsSimulatingPhysics()) continue;
-            const FVector Location = Component->GetComponentLocation();
-            const float Distance = FVector::Dist(Location, Origin);
-            if (Distance > Radius || Component->GetMass() > MaxImpulseBodyMassKg) continue;
 
-            FHitResult OcclusionHit;
-            FCollisionQueryParams OcclusionParams(SCENE_QUERY_STAT(OCFragImpulseLOS), false, this);
-            OcclusionParams.AddIgnoredActor(this);
-            const bool bOccluded = GetWorld()->LineTraceSingleByChannel(OcclusionHit, Origin, Location, ECC_Visibility, OcclusionParams);
-            if (bOccluded && OcclusionHit.GetActor() != Actor) continue;
+        const FVector Location = Component->GetComponentLocation();
+        const float Distance = FVector::Dist(Location, Origin);
+        if (Distance > Radius || Component->GetMass() > MaxImpulseBodyMassKg) continue;
 
-            const float Alpha = 1.0f - FMath::Clamp(Distance / Radius, 0.0f, 1.0f);
-            const FVector Direction = (Location - Origin).GetSafeNormal();
-            Component->AddImpulseAtLocation(Direction * Strength * Alpha, Location, NAME_None);
-        }
+        FHitResult OcclusionHit;
+        FCollisionQueryParams OcclusionParams(SCENE_QUERY_STAT(OCFragImpulseLOS), false, this);
+        OcclusionParams.AddIgnoredActor(this);
+        const bool bOccluded = World->LineTraceSingleByChannel(
+            OcclusionHit, Origin, Location, ECC_Visibility, OcclusionParams);
+        if (bOccluded && OcclusionHit.GetActor() != Actor) continue;
+
+        const float Alpha = 1.0f - FMath::Clamp(Distance / Radius, 0.0f, 1.0f);
+        const FVector Direction = (Location - Origin).GetSafeNormal();
+        Component->AddImpulseAtLocation(Direction * Strength * Alpha, Location, NAME_None);
     }
+
+    UE_LOG(LogTemp, Verbose,
+        TEXT("GAME_RECOVERY_GRENADE_PHYSICS_LOCAL_QUERY overlaps=%d unique_components=%d radius_cm=%.1f full_world_actor_scan=0"),
+        Overlaps.Num(), SeenComponents.Num(), Radius);
 }
 
 void AOCGrenadeProjectile::ApplyFlashServer()
