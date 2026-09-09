@@ -41,6 +41,27 @@ function Get-WeaponKind([string]$Text) {
     return $null
 }
 
+function Test-WholeWeaponModelCandidate([System.IO.FileInfo]$File) {
+    if (-not $File) { return $false }
+
+    # Fail closed on meshes whose own filename identifies a component/helper rather than a whole weapon.
+    # A labelled Remington/M249 folder or archive must never turn tube.fbx, scope.fbx, etc. into the gun.
+    $baseName = $File.BaseName.ToLowerInvariant()
+    $partTokens = @(
+        'scope', 'optic', 'sight', 'tube', 'projectile', 'bullet', 'cartridge',
+        'shell', 'casing', 'magazine', 'muzzle', 'suppressor', 'silencer',
+        'flash_hider', 'bayonet', 'barrel', 'trigger', 'handguard'
+    )
+
+    foreach ($token in $partTokens) {
+        if ($baseName.Contains($token)) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Expand-SafeArchive([System.IO.FileInfo]$Archive, [string]$Destination) {
     if (Test-Path -LiteralPath $Destination) {
         Remove-Item -LiteralPath $Destination -Recurse -Force
@@ -67,7 +88,10 @@ function Find-BestModel([string]$Root, [string]$Kind) {
     $regex = if ($Kind -eq 'M249') { '(?i)(m249|minimi)' } else { '(?i)(remington|870)' }
 
     $candidates = Get-ChildItem -LiteralPath $Root -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $supportedModels -contains $_.Extension.ToLowerInvariant() }
+        Where-Object {
+            ($supportedModels -contains $_.Extension.ToLowerInvariant()) -and
+            (Test-WholeWeaponModelCandidate -File $_)
+        }
 
     $named = $candidates | Where-Object { $_.FullName -match $regex } | Sort-Object Length -Descending | Select-Object -First 1
     if ($named) { return $named }
@@ -119,9 +143,13 @@ foreach ($archive in (Get-ChildItem -LiteralPath $Inbox -Recurse -File -Filter '
         if ($manifest[$kind]) { continue }
         $candidate = Find-BestModel -Root $stage -Kind $kind
         if (-not $candidate -and $archiveKind -eq $kind) {
-            # A clearly labelled weapon archive may contain a generic source.fbx/model.glb filename.
+            # A clearly labelled weapon archive may contain a generic source.fbx/model.glb filename,
+            # but a component/helper filename is never allowed to stand in for the whole weapon.
             $candidate = Get-ChildItem -LiteralPath $stage -Recurse -File -ErrorAction SilentlyContinue |
-                Where-Object { $supportedModels -contains $_.Extension.ToLowerInvariant() } |
+                Where-Object {
+                    ($supportedModels -contains $_.Extension.ToLowerInvariant()) -and
+                    (Test-WholeWeaponModelCandidate -File $_)
+                } |
                 Sort-Object Length -Descending |
                 Select-Object -First 1
         }
