@@ -15,6 +15,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "HAL/PlatformTime.h"
 #include "TimerManager.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -134,6 +135,9 @@ void UOCProductionCharacterAssetsSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     }
 
     bEligible = true;
+    ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
+        FOnActorSpawned::FDelegate::CreateUObject(this, &UOCProductionCharacterAssetsSubsystem::HandleActorSpawned));
+    SeedCharacterCache();
     BeginPreload();
 }
 
@@ -212,9 +216,18 @@ float UOCProductionCharacterAssetsSubsystem::GetCharacterAssetsProgress() const
 
 void UOCProductionCharacterAssetsSubsystem::Deinitialize()
 {
-    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(RefreshTimer);
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(RefreshTimer);
+        if (ActorSpawnedHandle.IsValid())
+        {
+            World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
+        }
+    }
+    ActorSpawnedHandle.Reset();
     if (PreloadHandle.IsValid()) PreloadHandle->CancelHandle();
     PreloadHandle.Reset();
+    TrackedCharacters.Reset();
     AnimationStateByCharacter.Reset();
     bEligible = false;
     bPreloadComplete = true;
@@ -253,20 +266,54 @@ void UOCProductionCharacterAssetsSubsystem::BuildProfiles()
     FallAnimation = Cast<UAnimSequence>(FSoftObjectPath(FallPath).ResolveObject());
 }
 
-void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
+void UOCProductionCharacterAssetsSubsystem::SeedCharacterCache()
 {
     UWorld* World = GetWorld();
-    if (!World || !UAProfile || !bPreloadComplete) return;
+    if (!World) return;
 
+    const double StartSeconds = FPlatformTime::Seconds();
+    TrackedCharacters.Reset();
     for (TActorIterator<AOCCharacter> It(World); It; ++It)
     {
-        AOCCharacter& Character = **It;
-        UOCCharacterVisualComponent* Visual = Character.GetCharacterVisualComponent();
+        TrackCharacter(*It);
+    }
+
+    const double DurationMs = (FPlatformTime::Seconds() - StartSeconds) * 1000.0;
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_CHARACTER_CACHE_SEED_TIMING characters=%d duration_ms=%.2f recurring_world_scans=0"),
+        TrackedCharacters.Num(), DurationMs);
+}
+
+void UOCProductionCharacterAssetsSubsystem::HandleActorSpawned(AActor* SpawnedActor)
+{
+    TrackCharacter(Cast<AOCCharacter>(SpawnedActor));
+}
+
+void UOCProductionCharacterAssetsSubsystem::TrackCharacter(AOCCharacter* Character)
+{
+    if (!Character) return;
+    TrackedCharacters.AddUnique(TWeakObjectPtr<AOCCharacter>(Character));
+}
+
+void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
+{
+    if (!UAProfile || !bPreloadComplete) return;
+
+    for (int32 Index = TrackedCharacters.Num() - 1; Index >= 0; --Index)
+    {
+        AOCCharacter* Character = TrackedCharacters[Index].Get();
+        if (!Character)
+        {
+            TrackedCharacters.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+            continue;
+        }
+
+        UOCCharacterVisualComponent* Visual = Character->GetCharacterVisualComponent();
         if (!Visual) continue;
 
         Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);
-        ApplyGear(Character);
-        ApplyAnimation(Character);
+        ApplyGear(*Character);
+        ApplyAnimation(*Character);
     }
 
     for (auto It = AnimationStateByCharacter.CreateIterator(); It; ++It)
