@@ -61,6 +61,10 @@ namespace
         Component->SetRelativeScale3D(FVector(UniformScale));
         Component->SetRelativeLocation(Location);
         Component->EmptyOverrideMaterials();
+        Component->SetVisibility(true, true);
+        Component->SetHiddenInGame(false, true);
+        Component->SetCastShadow(true);
+        Component->ComponentTags.Remove(FName(TEXT("OC_RecoveryVehicleBlockout")));
 
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_HMMWV_PROPORTIONAL_VISUAL_READY asset=%s native_cm=%s uniform_scale=%.4f desired_length_cm=%.1f axis_correction=%s nonuniform_stretch=0"),
@@ -151,6 +155,22 @@ namespace
         Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(false);
     }
+
+    void EnableRecoveryVisual(UStaticMeshComponent* Component)
+    {
+        if (!Component) return;
+        Component->SetVisibility(true, true);
+        Component->SetHiddenInGame(false, true);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(true);
+        const FName RecoveryTag(TEXT("OC_RecoveryVehicleBlockout"));
+        if (!Component->ComponentTags.Contains(RecoveryTag))
+        {
+            Component->ComponentTags.Add(RecoveryTag);
+        }
+    }
 }
 
 AOCPickupGunTruck::AOCPickupGunTruck()
@@ -235,13 +255,13 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         {
             bPresentationLoadFailed = true;
             UE_LOG(LogTemp, Error,
-                TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_FAIL hmmwv=%d request_handle=0 sync_runtime_loads=0 assets=%d"),
+                TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_FAIL hmmwv=%d request_handle=0 sync_runtime_loads=0 assets=%d gameplay_vehicle_preserved=1"),
                 bRequiresHMMWV ? 1 : 0, PresentationPaths.Num());
         }
         else
         {
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_BEGIN hmmwv=%d async=1 sync_runtime_loads=0 assets=%d"),
+                TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_BEGIN hmmwv=%d async=1 sync_runtime_loads=0 assets=%d gameplay_vehicle_preserved=1"),
                 bRequiresHMMWV ? 1 : 0, PresentationPaths.Num());
         }
     }
@@ -250,12 +270,29 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         !PresentationLoadHandle->HasLoadCompleted() && !bPresentationLoadFailed;
     if (!bPrimaryPresentationReady && bLoadPending)
     {
-        if (bRequiresHMMWV) DisableVisualProxy(Chassis);
+        if (bRequiresHMMWV)
+        {
+            EnableRecoveryVisual(Chassis);
+            for (UStaticMeshComponent* Wheel : WheelVisuals)
+            {
+                EnableRecoveryVisual(Wheel);
+            }
+
+            UStaticMeshComponent* SourceOnlyPickupParts[] =
+            {
+                CabRoof.Get(), BedFloor.Get(), BedLeft.Get(), BedRight.Get(),
+                DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get(), Windshield.Get()
+            };
+            for (UStaticMeshComponent* Component : SourceOnlyPickupParts)
+            {
+                DisableVisualProxy(Component);
+            }
+        }
         DisableVisualProxy(TurretBaseMesh);
         DisableVisualProxy(BarrelMesh);
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_WAIT hmmwv=%d pending=1 sync_runtime_loads=0 runtime_acceptance=0"),
-            bRequiresHMMWV ? 1 : 0);
+            TEXT("GAME_RECOVERY_GUNTRUCK_PRELOAD_WAIT hmmwv=%d pending=1 sync_runtime_loads=0 runtime_acceptance=0 gameplay_vehicle_preserved=1 recovery_blockout=%d blockout_claimed_as_production=0"),
+            bRequiresHMMWV ? 1 : 0, bRequiresHMMWV ? 1 : 0);
         return;
     }
 
@@ -284,9 +321,9 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     {
         if (bRequiresHMMWV)
         {
-            DisableVisualProxy(Chassis);
+            EnableRecoveryVisual(Chassis);
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_HMMWV_PRODUCTION_VISUAL_GAP exact_hmmwv=0 pickup_substitution=0 primitive_chassis_visible=0 sync_runtime_loads=0 runtime_acceptance=0"));
+                TEXT("PASS45_HMMWV_PRODUCTION_VISUAL_GAP exact_hmmwv=0 pickup_substitution=0 recovery_blockout=1 blockout_claimed_as_production=0 primitive_chassis_visible=1 gameplay_vehicle_preserved=1 sync_runtime_loads=0 runtime_acceptance=0"));
         }
         else
         {
@@ -295,14 +332,14 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
-    // Once an explicit production identity is requested, its old pickup/blockout parts must stay retired even
-    // when the exact production shell is missing. This makes the content gap visible instead of showing a fake truck.
+    // Production identity retires the pickup-shaped pieces. On a HMMWV content gap, however, keep the
+    // neutral chassis/wheels recovery silhouette visible so the live gameplay actor cannot disappear.
     if (bUsingProductionVehicle || bRequiresHMMWV)
     {
         UStaticMeshComponent* SourceOnlyPickupParts[] =
         {
             CabRoof.Get(), BedFloor.Get(), BedLeft.Get(), BedRight.Get(),
-            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get(), Windshield.Get()
         };
         for (UStaticMeshComponent* Component : SourceOnlyPickupParts)
         {
@@ -310,7 +347,14 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
         for (UStaticMeshComponent* Wheel : WheelVisuals)
         {
-            DisableVisualProxy(Wheel);
+            if (bUsingProductionVehicle)
+            {
+                DisableVisualProxy(Wheel);
+            }
+            else
+            {
+                EnableRecoveryVisual(Wheel);
+            }
         }
     }
 
@@ -335,7 +379,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
     }
 
     // A real machine-gun fallback remains acceptable for the optional pickup, but not for the explicit
-    // HMMWV+M2 identity. The HMMWV must fail closed rather than impersonating an M2 with another gun.
+    // HMMWV+M2 identity. The HMMWV must never impersonate an M2 with another gun.
     if (!bUsingMountedGunAsset && !bRequiresHMMWV && FallbackGunMesh)
     {
         if (AddGroundedTurretVisual(this, M2Parent, FallbackGunMesh, 145.0f,
@@ -355,7 +399,7 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         if (bRequiresHMMWV)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 sync_runtime_loads=0 runtime_acceptance=0"));
+                TEXT("PASS45_HMMWV_M2_PRODUCTION_VISUAL_GAP exact_m2=0 other_gun_substitution=0 primitive_turret_visible=0 gameplay_vehicle_preserved=1 sync_runtime_loads=0 runtime_acceptance=0"));
         }
         else
         {
@@ -364,10 +408,11 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
         }
     }
 
-    InteriorCamera->SetRelativeLocation(bUsingHMMWV ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
+    const bool bHMMWVIdentity = bRequiresHMMWV;
+    InteriorCamera->SetRelativeLocation(bHMMWVIdentity ? FVector(38.0f, -48.0f, 92.0f) : FVector(28.0f, -45.0f, 88.0f));
     InteriorCamera->SetFieldOfView(92.0f);
     DisableVisualProxy(Windshield);
-    ThirdPersonSpringArm->TargetArmLength = bUsingHMMWV ? 660.0f : 620.0f;
+    ThirdPersonSpringArm->TargetArmLength = bHMMWVIdentity ? 660.0f : 620.0f;
 
     if (bUsingHMMWV)
     {
@@ -378,6 +423,12 @@ void AOCPickupGunTruck::ApplyVehicleStyle()
             bUsingMountedGunAsset ? 1 : 0);
         UE_LOG(LogTemp, Warning,
             TEXT("PASS45_HMMWV_M2_SHIELD_CONTENT_GAP separate_authored_shield=0 primitive_shield_fallback=0 ring_hierarchy_ready=1"));
+    }
+    else if (bRequiresHMMWV)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("GAME_RECOVERY_HMMWV_RECOVERY_VISUAL_READY exact_hmmwv=0 recovery_blockout=1 blockout_claimed_as_production=0 gameplay_vehicle_preserved=1 exact_m2=%d runtime_acceptance=0"),
+            bUsingMountedGunAsset ? 1 : 0);
     }
     else if (bUsingProductionVehicle)
     {
