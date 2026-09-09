@@ -46,6 +46,49 @@ namespace
             default: return Pass45FragIdentityMaterialPath;
         }
     }
+
+    void GatherGrenadeCharactersInRadius(
+        UWorld* World,
+        const AActor* IgnoredActor,
+        const FVector& Origin,
+        float Radius,
+        TArray<TWeakObjectPtr<AOCCharacter>>& OutTargets)
+    {
+        OutTargets.Reset();
+        if (!World || Radius <= 0.0f) return;
+
+        TArray<FOverlapResult> Overlaps;
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(OCGrenadeCharacterOverlap), false);
+        if (IgnoredActor)
+        {
+            QueryParams.AddIgnoredActor(IgnoredActor);
+        }
+
+        World->OverlapMultiByObjectType(
+            Overlaps,
+            Origin,
+            FQuat::Identity,
+            FCollisionObjectQueryParams::AllObjects,
+            FCollisionShape::MakeSphere(Radius),
+            QueryParams);
+
+        const float RadiusSquared = FMath::Square(Radius);
+        TSet<AOCCharacter*> SeenCharacters;
+        for (const FOverlapResult& Overlap : Overlaps)
+        {
+            AOCCharacter* Target = Cast<AOCCharacter>(Overlap.GetActor());
+            if (!Target || SeenCharacters.Contains(Target) || !Target->GetHealthComponent() || Target->GetHealthComponent()->IsDead())
+            {
+                continue;
+            }
+
+            SeenCharacters.Add(Target);
+            if (FVector::DistSquared(Target->GetActorLocation(), Origin) <= RadiusSquared)
+            {
+                OutTargets.Add(Target);
+            }
+        }
+    }
 }
 
 AOCGrenadeProjectile::AOCGrenadeProjectile()
@@ -267,12 +310,7 @@ void AOCGrenadeProjectile::DetonateServer()
         MulticastDetonationVFX(GrenadeType, GetActorLocation());
 
         TArray<TWeakObjectPtr<AOCCharacter>> VisualTargets;
-        for (TActorIterator<AOCCharacter> It(GetWorld()); It; ++It)
-        {
-            AOCCharacter* Target = *It;
-            if (!Target || !Target->GetHealthComponent() || Target->GetHealthComponent()->IsDead()) continue;
-            if (FVector::Dist(Target->GetActorLocation(), GetActorLocation()) <= FragOuterRadius) VisualTargets.Add(Target);
-        }
+        GatherGrenadeCharactersInRadius(GetWorld(), this, GetActorLocation(), FragOuterRadius, VisualTargets);
 
         UGameplayStatics::ApplyRadialDamageWithFalloff(
             this, FragBaseDamage, FragMinDamage, GetActorLocation(), FragInnerRadius, FragOuterRadius,
@@ -376,9 +414,12 @@ void AOCGrenadeProjectile::ApplyBoundedPhysicsImpulseServer(float Radius, float 
 
 void AOCGrenadeProjectile::ApplyFlashServer()
 {
-    for (TActorIterator<AOCCharacter> It(GetWorld()); It; ++It)
+    TArray<TWeakObjectPtr<AOCCharacter>> FlashTargets;
+    GatherGrenadeCharactersInRadius(GetWorld(), this, GetActorLocation(), FlashRadius, FlashTargets);
+
+    for (const TWeakObjectPtr<AOCCharacter>& WeakTarget : FlashTargets)
     {
-        AOCCharacter* Target = *It;
+        AOCCharacter* Target = WeakTarget.Get();
         if (!Target || !Target->GetHealthComponent() || Target->GetHealthComponent()->IsDead()) continue;
         const float Distance = FVector::Dist(Target->GetActorLocation(), GetActorLocation());
         if (Distance > FlashRadius) continue;
