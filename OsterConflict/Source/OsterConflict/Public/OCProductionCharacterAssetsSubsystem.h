@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "OCProductionCharacterAssetsSubsystem.generated.h"
 
+class AActor;
 class AOCCharacter;
 class UAnimSequence;
 class UOCCharacterVisualProfile;
@@ -36,6 +37,9 @@ public:
 private:
     void BeginPreload();
     void BuildProfiles();
+    void SeedCharacterCache();
+    void HandleActorSpawned(AActor* SpawnedActor);
+    void TrackCharacter(AOCCharacter* Character);
     void ApplyToCharacters();
     void ApplyGear(AOCCharacter& Character);
     void ApplyAnimation(AOCCharacter& Character);
@@ -57,7 +61,9 @@ private:
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> RunAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimSequence> FallAnimation;
 
+    TArray<TWeakObjectPtr<AOCCharacter>> TrackedCharacters;
     TMap<TWeakObjectPtr<AOCCharacter>, uint8> AnimationStateByCharacter;
+    FDelegateHandle ActorSpawnedHandle;
     FTimerHandle RefreshTimer;
     bool bInitialized = false;
     bool bEligible = false;
