@@ -59,6 +59,10 @@ namespace
         Component->SetRelativeScale3D(FVector(UniformScale));
         Component->SetRelativeLocation(Location);
         Component->EmptyOverrideMaterials();
+        Component->SetVisibility(true, true);
+        Component->SetHiddenInGame(false, true);
+        Component->SetCastShadow(true);
+        Component->ComponentTags.Remove(FName(TEXT("OC_RecoveryVehicleBlockout")));
 
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_BTR4_FORWARD_AXIS_READY canonical_forward=%d runtime_axis_correction=identity native_cm=%s gameplay_vehicle_preserved=1"),
@@ -78,6 +82,22 @@ namespace
         Component->SetGenerateOverlapEvents(false);
         Component->SetCanEverAffectNavigation(false);
         Component->SetCastShadow(false);
+    }
+
+    void EnableRecoveryVisual(UStaticMeshComponent* Component)
+    {
+        if (!Component) return;
+        Component->SetVisibility(true, true);
+        Component->SetHiddenInGame(false, true);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Component->SetGenerateOverlapEvents(false);
+        Component->SetCanEverAffectNavigation(false);
+        Component->SetCastShadow(true);
+        const FName RecoveryTag(TEXT("OC_RecoveryVehicleBlockout"));
+        if (!Component->ComponentTags.Contains(RecoveryTag))
+        {
+            Component->ComponentTags.Add(RecoveryTag);
+        }
     }
 }
 
@@ -252,14 +272,14 @@ void AOCBTR::ApplyVehicleStyle()
         if (ProductionVisualLoadHandle.IsValid())
         {
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_BEGIN asset=%s async=1 sync_runtime_loads=0 blockout_substitution=0"),
+                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_BEGIN asset=%s async=1 sync_runtime_loads=0 recovery_blockout_visible=1 blockout_claimed_as_production=0"),
                 ProductionBTR4Path);
         }
         else
         {
             bProductionVisualLoadFailed = true;
             UE_LOG(LogTemp, Error,
-                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL asset=%s request_handle=0 resolved=0 sync_runtime_loads=0 blockout_substitution=0"),
+                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL asset=%s request_handle=0 resolved=0 sync_runtime_loads=0 recovery_blockout_visible=1 blockout_claimed_as_production=0"),
                 ProductionBTR4Path);
         }
     }
@@ -305,37 +325,46 @@ void AOCBTR::ApplyVehicleStyle()
     }
     else
     {
-        // Exact BTR-4 is the only valid visual owner. While its async load is pending, or if it fails,
-        // the old cube/cylinder APC stays hidden. A blocking LoadObject fallback is deliberately forbidden.
-        DisableVisualProxy(Chassis);
-        UStaticMeshComponent* ProxyParts[] =
+        // Production acceptance remains fail-closed, but presentation is fail-soft. Keep the authored
+        // recovery blockout visible so an asset/import gap cannot turn a live gameplay vehicle invisible.
+        // The recovery tag/logs make it explicit that these primitives are NOT the production BTR-4.
+        EnableRecoveryVisual(Chassis);
+        UStaticMeshComponent* RecoveryBodyParts[] =
         {
-            UpperHull.Get(), NoseArmor.Get(), RearArmor.Get(),
-            WheelExtraFL.Get(), WheelExtraFR.Get(), WheelExtraRL.Get(), WheelExtraRR.Get(),
-            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+            UpperHull.Get(), NoseArmor.Get(), RearArmor.Get()
         };
-        for (UStaticMeshComponent* Component : ProxyParts)
+        for (UStaticMeshComponent* Component : RecoveryBodyParts)
         {
-            DisableVisualProxy(Component);
+            EnableRecoveryVisual(Component);
         }
         for (UStaticMeshComponent* Wheel : WheelVisuals)
         {
-            DisableVisualProxy(Wheel);
+            EnableRecoveryVisual(Wheel);
         }
-        DisableVisualProxy(TurretBaseMesh);
-        DisableVisualProxy(BarrelMesh);
+        EnableRecoveryVisual(TurretBaseMesh);
+        EnableRecoveryVisual(BarrelMesh);
+
+        // Generic doors/bumpers belong to the base car blockout and are not part of the BTR recovery silhouette.
+        UStaticMeshComponent* NonBTRParts[] =
+        {
+            DriverDoor.Get(), PassengerDoor.Get(), FrontBumper.Get(), RearBumper.Get()
+        };
+        for (UStaticMeshComponent* Component : NonBTRParts)
+        {
+            DisableVisualProxy(Component);
+        }
 
         const bool bLoadPending = ProductionVisualLoadHandle.IsValid() &&
             !ProductionVisualLoadHandle->HasLoadCompleted() && !bProductionVisualLoadFailed;
         if (bLoadPending)
         {
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_WAIT exact_btr4=0 pending=1 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 sync_runtime_loads=0"));
+                TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_WAIT exact_btr4=0 pending=1 recovery_blockout=1 blockout_claimed_as_production=0 primitive_hull_visible=1 primitive_turret_visible=1 gameplay_vehicle_preserved=1 sync_runtime_loads=0 runtime_acceptance=0"));
         }
         else if (bProductionVisualLoadRequested)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_BTR4_PRODUCTION_VISUAL_GAP exact_btr4=0 blockout_substitution=0 primitive_hull_visible=0 primitive_turret_visible=0 sync_runtime_loads=0 runtime_acceptance=0"));
+                TEXT("PASS45_BTR4_PRODUCTION_VISUAL_GAP exact_btr4=0 recovery_blockout=1 blockout_claimed_as_production=0 primitive_hull_visible=1 primitive_turret_visible=1 gameplay_vehicle_preserved=1 sync_runtime_loads=0 runtime_acceptance=0"));
         }
     }
 
@@ -351,7 +380,7 @@ void AOCBTR::HandleProductionVisualLoaded()
     {
         bProductionVisualLoadFailed = true;
         UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL asset=%s request_handle=1 resolved=0 sync_runtime_loads=0 blockout_substitution=0"),
+            TEXT("GAME_RECOVERY_BTR4_ASYNC_LOAD_FAIL asset=%s request_handle=1 resolved=0 sync_runtime_loads=0 recovery_blockout_visible=1 blockout_claimed_as_production=0"),
             ProductionBTR4Path);
         ApplyVehicleStyle();
         return;
