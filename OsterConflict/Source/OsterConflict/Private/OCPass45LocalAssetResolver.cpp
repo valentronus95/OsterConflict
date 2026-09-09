@@ -32,10 +32,11 @@ namespace
             TEXT("collision"), TEXT("proxy"), TEXT("preview"), TEXT("socket"),
             TEXT("scope"), TEXT("sight"), TEXT("optic"), TEXT("reticle"),
             TEXT("magazine"), TEXT("_mag"), TEXT("mag_"), TEXT("ammo"),
-            TEXT("bullet"), TEXT("cartridge"), TEXT("shell"), TEXT("projectile"),
+            TEXT("bullet"), TEXT("cartridge"), TEXT("shell"), TEXT("casing"), TEXT("projectile"),
             TEXT("grenade"), TEXT("rocket"), TEXT("warhead"),
-            TEXT("muzzle"), TEXT("silencer"), TEXT("suppressor"),
-            TEXT("barrel"), TEXT("trigger"), TEXT("bolt_only"), TEXT("stock_only")
+            TEXT("muzzle"), TEXT("silencer"), TEXT("suppressor"), TEXT("flash_hider"),
+            TEXT("tube"), TEXT("barrel"), TEXT("trigger"), TEXT("handguard"), TEXT("bayonet"),
+            TEXT("bolt_only"), TEXT("stock_only")
         };
 
         for (const TCHAR* Term : RejectedTerms)
