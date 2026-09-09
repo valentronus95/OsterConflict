@@ -34,20 +34,19 @@ namespace
             return false;
         }
 
-        // PASS45 item 30: the canonical BTR source is authored with +X as the nose/forward axis.
-        // Do not guess another longest axis or its sign at runtime. If import transposes that contract,
-        // reject the production presentation instead of confidently driving a BTR backwards.
+        // PASS45 item 30: +X remains the canonical authored nose/forward axis. Axis acceptance is
+        // diagnostic-only: an import-contract mismatch must not delete the exact BTR-4 from gameplay.
         const bool bCanonicalPositiveXForward =
             NativeSize.X >= NativeSize.Y && NativeSize.X >= NativeSize.Z;
         if (!bCanonicalPositiveXForward)
         {
             UE_LOG(LogTemp, Error,
-                TEXT("PASS45_BTR4_FORWARD_AXIS_FAIL native_cm=%s expected_long_axis=X canonical_forward=+X production_visible=0"),
+                TEXT("PASS45_BTR4_FORWARD_AXIS_FAIL native_cm=%s expected_long_axis=X canonical_forward=+X production_visible=1 gameplay_vehicle_preserved=1 validation_mutation=0"),
                 *NativeSize.ToCompactString());
-            return false;
         }
 
-        const float UniformScale = DesiredLengthCm / NativeSize.X;
+        const float ScaleBasisCm = bCanonicalPositiveXForward ? NativeSize.X : NativeLength;
+        const float UniformScale = DesiredLengthCm / ScaleBasisCm;
         const FQuat AxisCorrection = FQuat::Identity;
         const FVector CorrectedOrigin = Bounds.Origin;
         const FVector CorrectedExtent = Bounds.BoxExtent.GetAbs();
@@ -62,8 +61,8 @@ namespace
         Component->EmptyOverrideMaterials();
 
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BTR4_FORWARD_AXIS_READY canonical_forward=+X runtime_axis_correction=identity native_cm=%s"),
-            *NativeSize.ToCompactString());
+            TEXT("PASS45_BTR4_FORWARD_AXIS_READY canonical_forward=%d runtime_axis_correction=identity native_cm=%s gameplay_vehicle_preserved=1"),
+            bCanonicalPositiveXForward ? 1 : 0, *NativeSize.ToCompactString());
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_BTR4_PROPORTIONAL_VISUAL_READY native_cm=%s uniform_scale=%.4f desired_length_cm=%.1f axis_correction=%s nonuniform_stretch=0"),
             *NativeSize.ToCompactString(), UniformScale, DesiredLengthCm, *AxisCorrection.Rotator().ToCompactString());
@@ -418,22 +417,21 @@ bool AOCBTR::ValidateProductionBTR4MaterialState(const TCHAR* Phase)
     }
 
     const TCHAR* SafePhase = Phase ? Phase : TEXT("Unknown");
+    Chassis->SetVisibility(true, true);
+    Chassis->SetHiddenInGame(false, true);
+
     if (bAllAuthored)
     {
-        Chassis->SetVisibility(true, true);
-        Chassis->SetHiddenInGame(false, true);
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_BTR4_MATERIAL_STATE_READY phase=%s slots=%d mesh=%s default_material=0 primitive_material=0"),
+            TEXT("PASS45_BTR4_MATERIAL_STATE_READY phase=%s slots=%d mesh=%s default_material=0 primitive_material=0 gameplay_vehicle_preserved=1 validation_mutation=0"),
             SafePhase, MaterialSlots, *MeshPath);
         return true;
     }
 
-    // Fail closed. A missing/DefaultMaterial production BTR is not allowed to become the familiar
-    // bright-white vehicle after possession just because Unreal can render an emergency material.
-    Chassis->SetVisibility(false, true);
-    Chassis->SetHiddenInGame(true, true);
+    // Material acceptance is evidence only. A wrong/default material remains a production FAIL,
+    // but it must not make an otherwise exact BTR-4 disappear during possession or restart.
     UE_LOG(LogTemp, Error,
-        TEXT("PASS45_BTR4_MATERIAL_STATE_FAIL phase=%s slots=%d invalid=%s mesh=%s production_visible=0"),
+        TEXT("PASS45_BTR4_MATERIAL_STATE_FAIL phase=%s slots=%d invalid=%s mesh=%s production_visible=1 gameplay_vehicle_preserved=1 validation_mutation=0"),
         SafePhase, MaterialSlots, *InvalidSlots, *MeshPath);
     return false;
 }
