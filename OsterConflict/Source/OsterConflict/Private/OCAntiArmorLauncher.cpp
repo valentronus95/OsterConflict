@@ -13,6 +13,17 @@
 namespace
 {
     constexpr const TCHAR* ProductionLauncherPath = TEXT("/Game/R13/Weapons/rocketlauncherModern.rocketlauncherModern");
+    constexpr const TCHAR* ForcedCategoryPrefix = TEXT("OC_FORCE_WEAPON_CATEGORY_");
+
+    bool HasForcedLocalInboxVisual(const AOCAntiArmorLauncher* Launcher)
+    {
+        if (!Launcher) return false;
+        for (const FName& Tag : Launcher->Tags)
+        {
+            if (Tag.ToString().StartsWith(ForcedCategoryPrefix, ESearchCase::CaseSensitive)) return true;
+        }
+        return false;
+    }
 }
 
 AOCAntiArmorLauncher::AOCAntiArmorLauncher()
@@ -48,6 +59,15 @@ void AOCAntiArmorLauncher::BeginPlay()
         Component->SetCanEverAffectNavigation(false);
     }
 
+    // Sandbox rack variants are explicitly owned by OCLocalInboxWeaponOverrideSubsystem. Do not also attach
+    // rocketlauncherModern to the same actor or one launcher becomes two overlapping launcher models.
+    if (HasForcedLocalInboxVisual(this))
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_LAUNCHER_FORCED_VISUAL_OWNER_READY weapon=OC_RPG1 builtin_visual=0 local_inbox_visual=1 duplicate_visual=0"));
+        return;
+    }
+
     ProductionVisualPreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
         FSoftObjectPath(ProductionLauncherPath),
         FStreamableDelegate::CreateUObject(this, &AOCAntiArmorLauncher::CompleteProductionVisualPreload));
@@ -65,6 +85,14 @@ void AOCAntiArmorLauncher::BeginPlay()
 
 void AOCAntiArmorLauncher::CompleteProductionVisualPreload()
 {
+    // Guard the async completion too. A forced category may have been assigned after spawn by compatibility code.
+    if (HasForcedLocalInboxVisual(this))
+    {
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_LAUNCHER_BUILTIN_VISUAL_SKIPPED weapon=OC_RPG1 reason=forced_local_inbox_owner duplicate_visual=0"));
+        return;
+    }
+
     UStaticMesh* ProductionMesh = Cast<UStaticMesh>(FSoftObjectPath(ProductionLauncherPath).ResolveObject());
     if (!ProductionMesh || !WeaponRoot)
     {
