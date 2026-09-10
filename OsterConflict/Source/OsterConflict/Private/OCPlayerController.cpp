@@ -34,6 +34,7 @@
 #include "OCInteractableGate.h"
 #include "OCInteractableLight.h"
 #include "OCWorldSectorOster.h"
+#include "Components/PrimitiveComponent.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
@@ -407,23 +408,56 @@ void AOCPlayerController::ExecuteSandboxAdminActionServer(EOCSandboxAdminAction 
         int32 SpawnedBoundModels = 0;
         int32 SpawnedFallbackClasses = 0;
         int32 RackIndex = 0;
+        bool bSpawnedAK47 = false;
+        bool bSpawnedM700 = false;
+        bool bSpawnedM249 = false;
 
-        auto SpawnRackWeapon = [&](const TSubclassOf<AOCWeaponBase> WeaponClass, const FString& ForcedCategory, const int32 PathIndex)
+        auto SpawnRackWeapon = [&](const TSubclassOf<AOCWeaponBase> WeaponClass, const FString& ForcedCategory, const int32 PathIndex) -> bool
         {
-            if (!WeaponClass) return;
-            const int32 Column = RackIndex % 5;
-            const int32 Row = RackIndex / 5;
-            const FVector Pos = Anchor + Facing.RotateVector(FVector(240.0f + Row * 125.0f, -240.0f + Column * 120.0f, 40.0f));
-            if (AOCWeaponBase* Weapon = GetWorld()->SpawnActor<AOCWeaponBase>(WeaponClass, Pos, Facing, Params))
+            if (!WeaponClass) return false;
+
+            // This is a sandbox inspection rack, not a physics pile. Give each long gun a proper cell and keep the
+            // pickup root suspended around waist height so production meshes cannot sink into the ground/material shell.
+            constexpr int32 Columns = 5;
+            constexpr float ColumnSpacingCm = 220.0f;
+            constexpr float RowSpacingCm = 260.0f;
+            const int32 Column = RackIndex % Columns;
+            const int32 Row = RackIndex / Columns;
+            const FVector Pos = Anchor + Facing.RotateVector(FVector(
+                600.0f + Row * RowSpacingCm,
+                -440.0f + Column * ColumnSpacingCm,
+                20.0f));
+            const FTransform SpawnTransform(Facing, Pos);
+
+            AOCWeaponBase* Weapon = GetWorld()->SpawnActorDeferred<AOCWeaponBase>(
+                WeaponClass,
+                SpawnTransform,
+                nullptr,
+                nullptr,
+                ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+            if (!Weapon) return false;
+
+            // Forced identity must exist before BeginPlay. Previously tags were added after SpawnActor, allowing the
+            // built-in launcher visual and LocalInbox visual to both attach to the same actor.
+            if (!ForcedCategory.IsEmpty())
             {
-                if (!ForcedCategory.IsEmpty())
-                {
-                    Weapon->Tags.Add(FName(*FString::Printf(TEXT("OC_FORCE_WEAPON_CATEGORY_%s"), *ForcedCategory)));
-                    Weapon->Tags.Add(FName(*FString::Printf(TEXT("OC_FORCE_WEAPON_PATH_INDEX_%d"), PathIndex)));
-                }
-                Weapon->DropToWorldServer(Pos, Facing);
-                ++RackIndex;
+                Weapon->Tags.Add(FName(*FString::Printf(TEXT("OC_FORCE_WEAPON_CATEGORY_%s"), *ForcedCategory)));
+                Weapon->Tags.Add(FName(*FString::Printf(TEXT("OC_FORCE_WEAPON_PATH_INDEX_%d"), PathIndex)));
             }
+
+            Weapon->FinishSpawning(SpawnTransform);
+            Weapon->DropToWorldServer(Pos, Facing);
+
+            if (UPrimitiveComponent* PhysicsRoot = Cast<UPrimitiveComponent>(Weapon->GetRootComponent()))
+            {
+                PhysicsRoot->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                PhysicsRoot->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                PhysicsRoot->SetEnableGravity(false);
+                PhysicsRoot->SetSimulatePhysics(false);
+            }
+
+            ++RackIndex;
+            return true;
         };
 
         for (const FWeaponRackBinding& Binding : BoundCategories)
@@ -433,25 +467,51 @@ void AOCPlayerController::ExecuteSandboxAdminActionServer(EOCSandboxAdminAction 
             if (Paths.IsEmpty()) continue;
 
             RepresentedClasses.Add(Binding.Class.Get());
-            for (int32 PathIndex = 0; PathIndex < Paths.Num(); ++PathIndex)
+
+            const FString Category(Binding.Category);
+            const bool bCoreIdentity =
+                Category.Equals(TEXT("AK47"), ESearchCase::IgnoreCase) ||
+                Category.Equals(TEXT("M700"), ESearchCase::IgnoreCase) ||
+                Category.Equals(TEXT("M249"), ESearchCase::IgnoreCase);
+            const int32 PathsToSpawn = bCoreIdentity ? 1 : Paths.Num();
+
+            for (int32 PathIndex = 0; PathIndex < PathsToSpawn; ++PathIndex)
             {
-                SpawnRackWeapon(Binding.Class, Binding.Category, PathIndex);
+                if (!SpawnRackWeapon(Binding.Class, Category, PathIndex)) continue;
                 ++SpawnedBoundModels;
+                if (Category.Equals(TEXT("AK47"), ESearchCase::IgnoreCase)) bSpawnedAK47 = true;
+                else if (Category.Equals(TEXT("M700"), ESearchCase::IgnoreCase)) bSpawnedM700 = true;
+                else if (Category.Equals(TEXT("M249"), ESearchCase::IgnoreCase)) bSpawnedM249 = true;
             }
         }
+
+        // Category manifests may contain another rifle/sniper/LMG but omit the actual core weapon identity. Ensure
+        // the inspection rack still exposes AK-47, M700 and M249/fallback exactly once for visual acceptance.
+        auto EnsureCoreWeapon = [&](const TSubclassOf<AOCWeaponBase> WeaponClass, const bool bAlreadySpawned)
+        {
+            if (bAlreadySpawned || !WeaponClass) return;
+            if (SpawnRackWeapon(WeaponClass, FString(), INDEX_NONE))
+            {
+                RepresentedClasses.Add(WeaponClass.Get());
+                ++SpawnedFallbackClasses;
+            }
+        };
+        EnsureCoreWeapon(AOCWeapon_AssaultRifle::StaticClass(), bSpawnedAK47);
+        EnsureCoreWeapon(AOCWeapon_Sniper::StaticClass(), bSpawnedM700);
+        EnsureCoreWeapon(AOCWeapon_LMG::StaticClass(), bSpawnedM249);
 
         for (const TSubclassOf<AOCWeaponBase>& GameplayClass : GameplayClasses)
         {
             if (!GameplayClass || RepresentedClasses.Contains(GameplayClass.Get())) continue;
-            SpawnRackWeapon(GameplayClass, FString(), INDEX_NONE);
-            ++SpawnedFallbackClasses;
+            if (SpawnRackWeapon(GameplayClass, FString(), INDEX_NONE)) ++SpawnedFallbackClasses;
         }
 
         GetWorld()->SpawnActor<AOCAmmoBox>(AOCAmmoBox::StaticClass(),
-            Anchor + Facing.RotateVector(FVector(220.0f, 360.0f, 30.0f)), Facing, Params);
+            Anchor + Facing.RotateVector(FVector(520.0f, 650.0f, 20.0f)), Facing, Params);
         UE_LOG(LogTemp, Display,
-            TEXT("OC_SANDBOX_ALL_WEAPONS_SPAWNED bound_models=%d fallback_gameplay_classes=%d total=%d"),
-            SpawnedBoundModels, SpawnedFallbackClasses, RackIndex);
+            TEXT("OC_SANDBOX_ALL_WEAPONS_SPAWNED bound_models=%d fallback_gameplay_classes=%d total=%d rack_physics_pile=0 spacing_cm=220 core_ak47=%d core_m700=%d core_m249=%d"),
+            SpawnedBoundModels, SpawnedFallbackClasses, RackIndex,
+            bSpawnedAK47 ? 1 : 0, bSpawnedM700 ? 1 : 0, bSpawnedM249 ? 1 : 0);
         return;
     }
     if(Action==EOCSandboxAdminAction::RefillAmmo&&ControlledCharacter){ControlledCharacter->AddAmmoFromBoxServer(EOCAmmoType::Any,9999);return;}
