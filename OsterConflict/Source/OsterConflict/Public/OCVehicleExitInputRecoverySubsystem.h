@@ -5,15 +5,16 @@
 #include "TimerManager.h"
 #include "OCVehicleExitInputRecoverySubsystem.generated.h"
 
+class AOCPlayerController;
 class APawn;
 
 /**
- * Runtime guard for character possession input recovery.
+ * Event-driven runtime guard for character possession input recovery.
  *
  * Vehicle input uses a high-priority Enhanced Input mapping context, while deployment/front-end
- * transitions can also leave an ignore-move/look stack behind during possession. This subsystem
- * observes the local pawn and restores the normal controller + character mapping stack once an
- * AOCCharacter is possessed and all intentional UI input locks have been released.
+ * transitions can also leave an ignore-move/look stack behind during possession. The subsystem
+ * binds to the local controller's pawn-change notifier and only retries while an intentional UI
+ * transition is still holding the input lock. Stable gameplay performs no background polling.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCVehicleExitInputRecoverySubsystem : public UWorldSubsystem
@@ -26,13 +27,15 @@ public:
     virtual void Deinitialize() override;
 
 private:
-    FTimerHandle PossessionPollTimer;
-    TWeakObjectPtr<APawn> LastLocalPawn;
+    FTimerHandle RecoveryRetryTimer;
+    TWeakObjectPtr<AOCPlayerController> BoundLocalController;
     TWeakObjectPtr<APawn> LastRecoveredCharacterPawn;
-    bool bLastPawnWasVehicle = false;
-    bool bPollBudgetLogged = false;
+    FDelegateHandle NewPawnDelegateHandle;
+    bool bEventBindingLogged = false;
 
-    void ScheduleNextPoll(float DelaySeconds);
-    void PollLocalPossession();
-    void RestoreCharacterInput(class AOCPlayerController& PlayerController);
+    void BindLocalControllerOrRetry();
+    void HandleLocalPawnChanged(APawn* NewPawn);
+    void TryRecoverCurrentPossession();
+    void ScheduleRetry(float DelaySeconds);
+    void RestoreCharacterInput(AOCPlayerController& PlayerController);
 };
