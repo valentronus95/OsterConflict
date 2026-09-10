@@ -164,8 +164,23 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
         }
     }
 
+    auto UseCanonicalPath = [&](const TCHAR* ObjectPath, const float LengthCm, const TCHAR* Category)
+    {
+        OutObjectPath = ObjectPath;
+        OutDesiredLengthCm = LengthCm;
+        OutCategory = Category;
+        return true;
+    };
+
     if (!ForcedCategory.IsEmpty())
     {
+        // Exact built-in identities must not be replaced by an arbitrary manifest fallback. These assets are
+        // already tracked by the project and are loaded asynchronously by ApplyLocalVisual below.
+        if (ForcedCategory.Equals(TEXT("AK47"), ESearchCase::IgnoreCase))
+            return UseCanonicalPath(TEXT("/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47"), 88.0f, TEXT("AK47"));
+        if (ForcedCategory.Equals(TEXT("M700"), ESearchCase::IgnoreCase))
+            return UseCanonicalPath(TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), 112.0f, TEXT("M700"));
+
         TArray<FString> ForcedPaths;
         UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(ForcedCategory, ForcedPaths);
         if (!ForcedPaths.IsEmpty())
@@ -227,24 +242,25 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
     if (Cast<AOCWeapon_Mac10>(Weapon)) return TryCategory(TEXT("MAC10"), 30.0f) || TryCategory(TEXT("SMG_GENERIC"), 55.0f);
     if (Cast<AOCWeapon_Tec9>(Weapon)) return TryCategory(TEXT("TEC9"), 32.0f) || TryCategory(TEXT("SMG_GENERIC"), 55.0f);
     if (Cast<AOCWeapon_LeverAction>(Weapon)) return TryCategory(TEXT("LEVER_ACTION"), 105.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
-    if (Cast<AOCAntiArmorLauncher>(Weapon))
-    {
-        return TryCategory(TEXT("M72"), 78.0f) || TryCategory(TEXT("LAUNCHER"), 105.0f) ||
-            TryCategory(TEXT("LAUNCHER_GENERIC"), 105.0f);
-    }
+
+    // AOCAntiArmorLauncher owns its normal exact visual itself. LocalInbox is used only for explicitly forced
+    // rack variants, otherwise both owners attach a launcher mesh to the same actor.
+    if (Cast<AOCAntiArmorLauncher>(Weapon)) return false;
+
     if (Cast<AOCWeapon_Shotgun>(Weapon))
     {
         return TryCategory(TEXT("REMINGTON870"), 100.0f) || TryCategory(TEXT("SHOTGUN_GENERIC"), 100.0f);
     }
     if (Cast<AOCWeapon_LMG>(Weapon))
     {
-        return TryCategory(TEXT("M249"), 104.0f) || TryCategory(TEXT("LMG_GENERIC"), 105.0f);
+        // Exact locally imported M249 wins when the manifest has it. Older tracked R13 machinegun is a real-mesh
+        // fallback so the LMG is never an invisible gameplay weapon merely because the local production import is absent.
+        return TryCategory(TEXT("M249"), 104.0f) ||
+            UseCanonicalPath(TEXT("/Game/R13/Weapons/machinegun.machinegun"), 104.0f, TEXT("M249_TRACKED_FALLBACK"));
     }
     if (Cast<AOCWeapon_Sniper>(Weapon))
     {
-        return TryCategory(TEXT("M700"), 112.0f) || TryCategory(TEXT("BALLISTA"), 118.0f) ||
-            TryCategory(TEXT("KAR98"), 111.0f) || TryCategory(TEXT("SNIPER_GENERIC"), 115.0f) ||
-            TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
+        return UseCanonicalPath(TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), 112.0f, TEXT("M700"));
     }
     if (Cast<AOCWeapon_Pistol>(Weapon))
     {
@@ -257,9 +273,7 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
     }
     if (Cast<AOCWeapon_AssaultRifle>(Weapon))
     {
-        return TryCategory(TEXT("M16_M4"), 100.0f) || TryCategory(TEXT("AR15"), 100.0f) ||
-            TryCategory(TEXT("AK74"), 94.0f) || TryCategory(TEXT("AK47"), 88.0f) ||
-            TryCategory(TEXT("ASSAULT_GENERIC"), 98.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 105.0f);
+        return UseCanonicalPath(TEXT("/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47"), 88.0f, TEXT("AK47"));
     }
     return false;
 }
