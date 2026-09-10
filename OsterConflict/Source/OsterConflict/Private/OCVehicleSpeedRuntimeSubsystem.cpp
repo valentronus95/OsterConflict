@@ -17,29 +17,53 @@ void UOCVehicleSpeedRuntimeSubsystem::Tick(float DeltaTime)
         return;
     }
 
-    for (TActorIterator<AOCPickupGunTruck> It(World); It; ++It)
+    if (!bVehicleCacheInitialized)
     {
-        if (AOCPickupGunTruck* Vehicle = *It)
+        bVehicleCacheInitialized = true;
+        for (TActorIterator<AOCVehicleBase> It(World); It; ++It)
         {
-            // PASS45 item 28: HMMWV is a distinct gameplay vehicle, not merely the pickup profile
-            // with a different visual shell. Keep the ordinary pickup at 120 km/h while giving the
-            // heavier HMMWV a stable 110 km/h contract, comfortably above the required >=80 km/h.
-            if (AOCHMMWVGunTruck* HMMWV = Cast<AOCHMMWVGunTruck>(Vehicle))
+            if (AOCVehicleBase* Vehicle = *It)
             {
-                ApplySpeedContract(*HMMWV, 110.0f, 430.0f);
-            }
-            else
-            {
-                ApplySpeedContract(*Vehicle, 120.0f, 550.0f);
+                TrackedVehicles.AddUnique(TWeakObjectPtr<AOCVehicleBase>(Vehicle));
             }
         }
+
+        World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateWeakLambda(this, [this](AActor* Actor)
+        {
+            if (AOCVehicleBase* Vehicle = Cast<AOCVehicleBase>(Actor))
+            {
+                TrackedVehicles.AddUnique(TWeakObjectPtr<AOCVehicleBase>(Vehicle));
+            }
+        }));
+
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_VEHICLE_SPEED_CACHE_READY initial_tracked=%d startup_world_scan=1 recurring_world_scan=0 spawn_hook=1"),
+            TrackedVehicles.Num());
     }
 
-    for (TActorIterator<AOCBTR> It(World); It; ++It)
+    for (auto It = TrackedVehicles.CreateIterator(); It; ++It)
     {
-        if (AOCBTR* Vehicle = *It)
+        AOCVehicleBase* Vehicle = (*It).Get();
+        if (!Vehicle)
         {
-            ApplySpeedContract(*Vehicle, 90.0f, 320.0f);
+            It.RemoveCurrent();
+            continue;
+        }
+
+        // PASS45 item 28: HMMWV is a distinct gameplay vehicle, not merely the pickup profile
+        // with a different visual shell. Keep the ordinary pickup at 120 km/h while giving the
+        // heavier HMMWV a stable 110 km/h contract, comfortably above the required >=80 km/h.
+        if (AOCHMMWVGunTruck* HMMWV = Cast<AOCHMMWVGunTruck>(Vehicle))
+        {
+            ApplySpeedContract(*HMMWV, 110.0f, 430.0f);
+        }
+        else if (AOCPickupGunTruck* Pickup = Cast<AOCPickupGunTruck>(Vehicle))
+        {
+            ApplySpeedContract(*Pickup, 120.0f, 550.0f);
+        }
+        else if (AOCBTR* BTR = Cast<AOCBTR>(Vehicle))
+        {
+            ApplySpeedContract(*BTR, 90.0f, 320.0f);
         }
     }
 }
