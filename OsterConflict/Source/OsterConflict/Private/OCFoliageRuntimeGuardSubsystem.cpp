@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -61,8 +62,6 @@ namespace
         const TCHAR* Label;
     };
 
-    // PASS45 item 27: these are the exact primary-authoring player-facing meshes. Merely being non-primitive is
-    // not enough; runtime must fail rather than accept an unverified replacement from another owner.
     const FRuntimeTreeFamilyExpectation RuntimeTreeFamilies[]
     {
         {
@@ -86,20 +85,6 @@ namespace
     {
         const TCHAR* Value = World.URL.GetOption(TEXT("PerfProfile="), TEXT(""));
         return Value && FString(Value).Equals(TEXT("LowCPU"), ESearchCase::IgnoreCase);
-    }
-
-    bool HasCompletedDenseFoliagePopulation(UWorld& World)
-    {
-        int32 DenseActorCount = 0;
-        bool bPopulationComplete = false;
-        for (TActorIterator<AActor> It(&World); It; ++It)
-        {
-            AActor* Actor = *It;
-            if (!Actor || !Actor->ActorHasTag(DenseFoliageActorTag)) continue;
-            ++DenseActorCount;
-            bPopulationComplete = Actor->ActorHasTag(Block0PopulationCompleteTag);
-        }
-        return DenseActorCount == 1 && bPopulationComplete;
     }
 
     int32 CoverageBin(const float Value, const float MinValue, const float MaxValue)
@@ -149,9 +134,89 @@ bool UOCFoliageRuntimeGuardSubsystem::ShouldCreateSubsystem(UObject* Outer) cons
         (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE);
 }
 
+void UOCFoliageRuntimeGuardSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (ActorSpawnedHandle.IsValid()) World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
+    }
+    ActorSpawnedHandle.Reset();
+    WorldSectorActor.Reset();
+    DenseFoliageActors.Reset();
+    Super::Deinitialize();
+}
+
 TStatId UOCFoliageRuntimeGuardSubsystem::GetStatId() const
 {
     RETURN_QUICK_DECLARE_CYCLE_STAT(UOCFoliageRuntimeGuardSubsystem, STATGROUP_Tickables);
+}
+
+void UOCFoliageRuntimeGuardSubsystem::InitializeRuntimeActorCache(UWorld& World)
+{
+    if (bActorCacheInitialized) return;
+    bActorCacheInitialized = true;
+
+    ActorSpawnedHandle = World.AddOnActorSpawnedHandler(
+        FOnActorSpawned::FDelegate::CreateUObject(this, &UOCFoliageRuntimeGuardSubsystem::HandleActorSpawned));
+    SeedRuntimeActorCache(World);
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_FOLIAGE_GUARD_CACHE_READY initial_world_scan=1 recurring_world_actor_scan=0 spawn_hook=1"));
+}
+
+void UOCFoliageRuntimeGuardSubsystem::SeedRuntimeActorCache(UWorld& World)
+{
+    for (TActorIterator<AActor> It(&World); It; ++It)
+    {
+        TrackRuntimeActor(*It);
+    }
+}
+
+void UOCFoliageRuntimeGuardSubsystem::HandleActorSpawned(AActor* SpawnedActor)
+{
+    if (!SpawnedActor) return;
+    TrackRuntimeActor(SpawnedActor);
+
+    // Runtime population owners commonly add their semantic tag immediately after SpawnActor returns.
+    // Re-check this single actor on the next tick instead of rescanning the entire world at 4 Hz.
+    if (UWorld* World = GetWorld())
+    {
+        const TWeakObjectPtr<AActor> WeakActor(SpawnedActor);
+        World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
+        {
+            if (AActor* Actor = WeakActor.Get()) TrackRuntimeActor(Actor);
+        }));
+    }
+}
+
+void UOCFoliageRuntimeGuardSubsystem::TrackRuntimeActor(AActor* Actor)
+{
+    if (!Actor) return;
+
+    if (AOCWorldSectorOster* Sector = Cast<AOCWorldSectorOster>(Actor))
+    {
+        WorldSectorActor = Sector;
+    }
+
+    if (Actor->ActorHasTag(DenseFoliageActorTag))
+    {
+        DenseFoliageActors.AddUnique(TWeakObjectPtr<AActor>(Actor));
+    }
+}
+
+AActor* UOCFoliageRuntimeGuardSubsystem::GetSingleDenseFoliageActor()
+{
+    for (int32 Index = DenseFoliageActors.Num() - 1; Index >= 0; --Index)
+    {
+        if (!DenseFoliageActors[Index].IsValid()) DenseFoliageActors.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+    }
+    return DenseFoliageActors.Num() == 1 ? DenseFoliageActors[0].Get() : nullptr;
+}
+
+bool UOCFoliageRuntimeGuardSubsystem::HasCompletedDenseFoliagePopulation()
+{
+    AActor* DenseActor = GetSingleDenseFoliageActor();
+    return DenseActor && DenseActor->ActorHasTag(Block0PopulationCompleteTag);
 }
 
 void UOCFoliageRuntimeGuardSubsystem::FailValidation(const FString& Reason)
@@ -163,41 +228,33 @@ void UOCFoliageRuntimeGuardSubsystem::FailValidation(const FString& Reason)
 
 bool UOCFoliageRuntimeGuardSubsystem::DestroySourceGroundCoverProxies()
 {
-    UWorld* World = GetWorld();
-    if (!World) return false;
+    AOCWorldSectorOster* Sector = WorldSectorActor.Get();
+    if (!Sector) return false;
 
-    bool bFoundSector = false;
     int32 DestroyedComponents = 0;
     int32 RemainingComponents = 0;
 
-    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
+    for (const FName ProxyName : ProxyGroundCoverNames)
     {
-        AOCWorldSectorOster* Sector = *It;
-        if (!Sector) continue;
-        bFoundSector = true;
-
-        for (const FName ProxyName : ProxyGroundCoverNames)
+        if (UInstancedStaticMeshComponent* Proxy = FindISM(Sector, ProxyName))
         {
-            if (UInstancedStaticMeshComponent* Proxy = FindISM(Sector, ProxyName))
-            {
-                Proxy->SetVisibility(false, true);
-                Proxy->SetHiddenInGame(true, true);
-                Proxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                Proxy->SetGenerateOverlapEvents(false);
-                Proxy->SetCanEverAffectNavigation(false);
-                Proxy->SetCastShadow(false);
-                Proxy->DestroyComponent();
-                ++DestroyedComponents;
-            }
-        }
-
-        for (const FName ProxyName : ProxyGroundCoverNames)
-        {
-            if (FindISM(Sector, ProxyName)) ++RemainingComponents;
+            Proxy->SetVisibility(false, true);
+            Proxy->SetHiddenInGame(true, true);
+            Proxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            Proxy->SetGenerateOverlapEvents(false);
+            Proxy->SetCanEverAffectNavigation(false);
+            Proxy->SetCastShadow(false);
+            Proxy->DestroyComponent();
+            ++DestroyedComponents;
         }
     }
 
-    const bool bReady = bFoundSector && RemainingComponents == 0;
+    for (const FName ProxyName : ProxyGroundCoverNames)
+    {
+        if (FindISM(Sector, ProxyName)) ++RemainingComponents;
+    }
+
+    const bool bReady = RemainingComponents == 0;
     if (bReady && !bGroundProxyDestructionObserved)
     {
         bGroundProxyDestructionObserved = true;
@@ -211,49 +268,41 @@ bool UOCFoliageRuntimeGuardSubsystem::DestroySourceGroundCoverProxies()
 
 bool UOCFoliageRuntimeGuardSubsystem::DestroyDeveloperVisualMarkers()
 {
-    UWorld* World = GetWorld();
-    if (!World) return false;
+    AOCWorldSectorOster* Sector = WorldSectorActor.Get();
+    if (!Sector) return false;
 
-    bool bFoundSector = false;
     int32 DestroyedMarkers = 0;
     int32 DestroyedLabels = 0;
     int32 Remaining = 0;
 
-    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
+    if (UInstancedStaticMeshComponent* Marker = FindISM(Sector, TEXT("ReferenceMarkers")))
     {
-        AOCWorldSectorOster* Sector = *It;
-        if (!Sector) continue;
-        bFoundSector = true;
+        Marker->SetVisibility(false, true);
+        Marker->SetHiddenInGame(true, true);
+        Marker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Marker->DestroyComponent();
+        ++DestroyedMarkers;
+    }
 
-        if (UInstancedStaticMeshComponent* Marker = FindISM(Sector, TEXT("ReferenceMarkers")))
+    for (const FName LabelName : DeveloperTextLabelNames)
+    {
+        if (UTextRenderComponent* Label = FindText(Sector, LabelName))
         {
-            Marker->SetVisibility(false, true);
-            Marker->SetHiddenInGame(true, true);
-            Marker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            Marker->DestroyComponent();
-            ++DestroyedMarkers;
-        }
-
-        for (const FName LabelName : DeveloperTextLabelNames)
-        {
-            if (UTextRenderComponent* Label = FindText(Sector, LabelName))
-            {
-                Label->SetVisibility(false, true);
-                Label->SetHiddenInGame(true, true);
-                Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                Label->DestroyComponent();
-                ++DestroyedLabels;
-            }
-        }
-
-        if (FindISM(Sector, TEXT("ReferenceMarkers"))) ++Remaining;
-        for (const FName LabelName : DeveloperTextLabelNames)
-        {
-            if (FindText(Sector, LabelName)) ++Remaining;
+            Label->SetVisibility(false, true);
+            Label->SetHiddenInGame(true, true);
+            Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            Label->DestroyComponent();
+            ++DestroyedLabels;
         }
     }
 
-    const bool bReady = bFoundSector && Remaining == 0;
+    if (FindISM(Sector, TEXT("ReferenceMarkers"))) ++Remaining;
+    for (const FName LabelName : DeveloperTextLabelNames)
+    {
+        if (FindText(Sector, LabelName)) ++Remaining;
+    }
+
+    const bool bReady = Remaining == 0;
     if (bReady && !bDeveloperMarkerDestructionObserved)
     {
         bDeveloperMarkerDestructionObserved = true;
@@ -268,10 +317,9 @@ bool UOCFoliageRuntimeGuardSubsystem::DestroyDeveloperVisualMarkers()
 
 bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
 {
-    UWorld* World = GetWorld();
-    if (!World) return false;
+    AOCWorldSectorOster* Sector = WorldSectorActor.Get();
+    if (!Sector) return false;
 
-    bool bFoundSector = false;
     bool bAllValid = true;
     int32 AuthoredComponents = 0;
     int32 AuthoredInstances = 0;
@@ -279,68 +327,61 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
     int32 PrimitiveTreeMeshes = 0;
     int32 RuntimeIdentityMismatches = 0;
 
-    for (TActorIterator<AOCWorldSectorOster> It(World); It; ++It)
+    for (const FName RejectedName : RejectedPrimitiveTreeProxyNames)
     {
-        AOCWorldSectorOster* Sector = *It;
-        if (!Sector) continue;
-        bFoundSector = true;
-
-        for (const FName RejectedName : RejectedPrimitiveTreeProxyNames)
+        if (FindISM(Sector, RejectedName))
         {
-            if (FindISM(Sector, RejectedName))
-            {
-                ++RejectedProxyComponents;
-                bAllValid = false;
-            }
-        }
-
-        for (const FRuntimeTreeFamilyExpectation& Family : RuntimeTreeFamilies)
-        {
-            UInstancedStaticMeshComponent* Component = FindISM(Sector, Family.ComponentName);
-            if (!Component || !Component->GetStaticMesh() || Component->GetInstanceCount() <= 0)
-            {
-                ++RuntimeIdentityMismatches;
-                bAllValid = false;
-                UE_LOG(LogTemp, Error,
-                    TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=component_mesh_or_instances_missing expected=%s runtime_acceptance=0"),
-                    Family.Label,
-                    Family.MeshPath);
-                continue;
-            }
-
-            UStaticMesh* Mesh = Component->GetStaticMesh();
-            if (IsRejectedPrimitiveTreeMesh(Mesh))
-            {
-                ++PrimitiveTreeMeshes;
-                ++RuntimeIdentityMismatches;
-                bAllValid = false;
-                UE_LOG(LogTemp, Error,
-                    TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=primitive_tree_mesh expected=%s actual=%s runtime_acceptance=0"),
-                    Family.Label,
-                    Family.MeshPath,
-                    *Mesh->GetPathName());
-                continue;
-            }
-
-            const FString ActualPath = Mesh->GetPathName();
-            if (!ActualPath.Equals(Family.MeshPath, ESearchCase::CaseSensitive))
-            {
-                ++RuntimeIdentityMismatches;
-                bAllValid = false;
-                UE_LOG(LogTemp, Error,
-                    TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=unexpected_runtime_tree_mesh expected=%s actual=%s runtime_acceptance=0"),
-                    Family.Label,
-                    Family.MeshPath,
-                    *ActualPath);
-                continue;
-            }
-
-            ++AuthoredComponents;
-            AuthoredInstances += Component->GetInstanceCount();
+            ++RejectedProxyComponents;
+            bAllValid = false;
         }
     }
 
-    const bool bReady = bFoundSector && bAllValid && RejectedProxyComponents == 0 && PrimitiveTreeMeshes == 0 &&
+    for (const FRuntimeTreeFamilyExpectation& Family : RuntimeTreeFamilies)
+    {
+        UInstancedStaticMeshComponent* Component = FindISM(Sector, Family.ComponentName);
+        if (!Component || !Component->GetStaticMesh() || Component->GetInstanceCount() <= 0)
+        {
+            ++RuntimeIdentityMismatches;
+            bAllValid = false;
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=component_mesh_or_instances_missing expected=%s runtime_acceptance=0"),
+                Family.Label,
+                Family.MeshPath);
+            continue;
+        }
+
+        UStaticMesh* Mesh = Component->GetStaticMesh();
+        if (IsRejectedPrimitiveTreeMesh(Mesh))
+        {
+            ++PrimitiveTreeMeshes;
+            ++RuntimeIdentityMismatches;
+            bAllValid = false;
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=primitive_tree_mesh expected=%s actual=%s runtime_acceptance=0"),
+                Family.Label,
+                Family.MeshPath,
+                *Mesh->GetPathName());
+            continue;
+        }
+
+        const FString ActualPath = Mesh->GetPathName();
+        if (!ActualPath.Equals(Family.MeshPath, ESearchCase::CaseSensitive))
+        {
+            ++RuntimeIdentityMismatches;
+            bAllValid = false;
+            UE_LOG(LogTemp, Error,
+                TEXT("PASS45_RUNTIME_TREE_IDENTITY_FAIL family=%s reason=unexpected_runtime_tree_mesh expected=%s actual=%s runtime_acceptance=0"),
+                Family.Label,
+                Family.MeshPath,
+                *ActualPath);
+            continue;
+        }
+
+        ++AuthoredComponents;
+        AuthoredInstances += Component->GetInstanceCount();
+    }
+
+    const bool bReady = bAllValid && RejectedProxyComponents == 0 && PrimitiveTreeMeshes == 0 &&
         RuntimeIdentityMismatches == 0 &&
         AuthoredComponents == static_cast<int32>(UE_ARRAY_COUNT(RuntimeTreeFamilies));
 
@@ -367,6 +408,7 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateSourceAuthoredTrees()
 }
 
 bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
+    AActor* DenseActor,
     int32 MinGrassInstances,
     int32& OutGrassInstances,
     int32& OutDenseGrassComponents,
@@ -383,22 +425,7 @@ bool UOCFoliageRuntimeGuardSubsystem::ValidateDenseFoliage(
     OutQuadrantOccupied[3] = 0;
     bOutEdgeReach = false;
 
-    UWorld* World = GetWorld();
-    if (!World) return false;
-
-    AActor* DenseActor = nullptr;
-    int32 DenseActorCount = 0;
-    for (TActorIterator<AActor> It(World); It; ++It)
-    {
-        AActor* Actor = *It;
-        if (Actor && Actor->ActorHasTag(DenseFoliageActorTag))
-        {
-            DenseActor = Actor;
-            ++DenseActorCount;
-        }
-    }
-
-    if (DenseActorCount != 1 || !DenseActor || !DenseActor->ActorHasTag(Block0PopulationCompleteTag)) return false;
+    if (!DenseActor || !DenseActor->ActorHasTag(Block0PopulationCompleteTag)) return false;
 
     bool OccupiedBins[CoverageBinCount] = {};
     float ObservedMinX = BIG_NUMBER;
@@ -492,12 +519,25 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    if (!bActorCacheInitialized) InitializeRuntimeActorCache(*World);
+
     ElapsedSeconds += FMath::Max(0.0f, DeltaTime);
     ValidationAccumulator += FMath::Max(0.0f, DeltaTime);
 
-    // Acceptance guard, not gameplay logic. Sample at 4 Hz and stop touching source components once validation is proven.
+    // Acceptance guard, not gameplay logic. Sampling remains throttled, but world ownership is cached/event-driven.
     if (ValidationAccumulator < 0.25f) return;
     ValidationAccumulator = 0.0f;
+
+    bool bPopulationComplete = HasCompletedDenseFoliagePopulation();
+    if (ElapsedSeconds >= 2.0f && !bCacheSeedRetried &&
+        (!WorldSectorActor.IsValid() || !GetSingleDenseFoliageActor()))
+    {
+        bCacheSeedRetried = true;
+        SeedRuntimeActorCache(*World);
+        bPopulationComplete = HasCompletedDenseFoliagePopulation();
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_FOLIAGE_GUARD_CACHE_RESEED one_time_fallback=1 recurring_world_actor_scan=0"));
+    }
 
     const bool bGroundProxiesDestroyed = bGroundProxyDestructionObserved || DestroySourceGroundCoverProxies();
     const bool bDeveloperMarkersDestroyed = bDeveloperMarkerDestructionObserved || DestroyDeveloperVisualMarkers();
@@ -507,51 +547,64 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
 
     const bool bLowCPU = IsLowCPUProfile(*World);
     const int32 MinGrassInstances = bLowCPU ? 48 : 250;
-    const bool bPopulationComplete = HasCompletedDenseFoliagePopulation(*World);
-    int32 GrassInstances = 0;
-    int32 DenseGrassComponents = 0;
-    int32 OccupiedBins = 0;
-    int32 QuadrantOccupied[4] = {};
-    bool bEdgeReach = false;
-    const bool bDenseReady = bPopulationComplete && ValidateDenseFoliage(
-        MinGrassInstances,
-        GrassInstances,
-        DenseGrassComponents,
-        OccupiedBins,
-        QuadrantOccupied,
-        bEdgeReach);
 
-    if (bGroundProxiesDestroyed && bDeveloperMarkersDestroyed && bAuthoredTreesReady && bDenseReady)
+    auto SampleDenseFoliage = [&]()
+    {
+        bDenseReadyCached = ValidateDenseFoliage(
+            GetSingleDenseFoliageActor(),
+            MinGrassInstances,
+            CachedGrassInstances,
+            CachedDenseGrassComponents,
+            CachedOccupiedBins,
+            CachedQuadrantOccupied,
+            bCachedEdgeReach);
+    };
+
+    if (bPopulationComplete && !bDenseValidationSampled)
+    {
+        bDenseValidationSampled = true;
+        SampleDenseFoliage();
+        if (!bDenseReadyCached) DenseValidationRetryAtSeconds = ElapsedSeconds + 0.75f;
+    }
+    else if (bPopulationComplete && bDenseValidationSampled && !bDenseReadyCached &&
+        !bDenseValidationRetried && DenseValidationRetryAtSeconds >= 0.0f &&
+        ElapsedSeconds >= DenseValidationRetryAtSeconds)
+    {
+        bDenseValidationRetried = true;
+        SampleDenseFoliage();
+    }
+
+    if (bGroundProxiesDestroyed && bDeveloperMarkersDestroyed && bAuthoredTreesReady && bDenseReadyCached)
     {
         bFinished = true;
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_READY grass=%d occupied_bins=%d/%d quadrants=%d,%d,%d,%d edge_reach=1 full_playable_distribution=1 strict_runtime_owner=OCFoliageRuntimeGuard mutation=0 runtime_acceptance=0"),
-            GrassInstances,
-            OccupiedBins,
+            CachedGrassInstances,
+            CachedOccupiedBins,
             CoverageBinCount,
-            QuadrantOccupied[0],
-            QuadrantOccupied[1],
-            QuadrantOccupied[2],
-            QuadrantOccupied[3]);
+            CachedQuadrantOccupied[0],
+            CachedQuadrantOccupied[1],
+            CachedQuadrantOccupied[2],
+            CachedQuadrantOccupied[3]);
         UE_LOG(LogTemp, Display,
             TEXT("PASS10_FOLIAGE_RUNTIME_READY groundProxyComponents=0 authoredTreeComponents=3 primitiveTreeProxyComponents=0 denseGrassComponents=%d grassInstances=%d minRequired=%d profile=%s developerMarkers=0 population_complete=1 full_playable_bounds=1 spatial_coverage=1 occupied_bins=%d/%d edge_reach=1 exact_runtime_tree_identity=1"),
-            DenseGrassComponents,
-            GrassInstances,
+            CachedDenseGrassComponents,
+            CachedGrassInstances,
             MinGrassInstances,
             bLowCPU ? TEXT("LowCPU") : TEXT("Full"),
-            OccupiedBins,
+            CachedOccupiedBins,
             CoverageBinCount);
         if (bLowCPU)
         {
             UE_LOG(LogTemp, Display,
                 TEXT("PASS36_LOWCPU_FOLIAGE_RUNTIME_READY grassInstances=%d minRequired=%d full_sector_population=1 population_complete=1 density_policy_only=1 spatial_coverage=1 occupied_bins=%d/%d edge_reach=1"),
-                GrassInstances,
+                CachedGrassInstances,
                 MinGrassInstances,
-                OccupiedBins,
+                CachedOccupiedBins,
                 CoverageBinCount);
         }
         UE_LOG(LogTemp, Display,
-            TEXT("PASS42_FOLIAGE_GUARD_THROTTLED_READY sample_hz=4 proxy_rescan_after_ready=0 spatial_scan_terminal=1"));
+            TEXT("PASS42_FOLIAGE_GUARD_THROTTLED_READY sample_hz=4 proxy_rescan_after_ready=0 spatial_scan_terminal=1 recurring_world_actor_scan=0 dense_instance_scans_max=2"));
         UE_LOG(LogTemp, Display,
             TEXT("PASS45_VISUAL_CLEANUP_PARTIAL_READY ground_cover_cube_proxies=0 developer_reference_markers=0 developer_text_labels=0 authored_dense_foliage=1 native_render_scale_required=1 gate_k_complete=0"));
         return;
@@ -579,33 +632,33 @@ void UOCFoliageRuntimeGuardSubsystem::Tick(float DeltaTime)
         FailValidation(TEXT("full_map_foliage_population_incomplete"));
         return;
     }
-    if (DenseGrassComponents <= 0)
+    if (CachedDenseGrassComponents <= 0)
     {
         FailValidation(TEXT("dense_grass_components_missing"));
         return;
     }
-    if (GrassInstances < MinGrassInstances)
+    if (CachedGrassInstances < MinGrassInstances)
     {
-        FailValidation(FString::Printf(TEXT("dense_grass_instances_%d_lt_%d"), GrassInstances, MinGrassInstances));
+        FailValidation(FString::Printf(TEXT("dense_grass_instances_%d_lt_%d"), CachedGrassInstances, MinGrassInstances));
         return;
     }
-    if (OccupiedBins < MinOccupiedBins ||
-        QuadrantOccupied[0] < MinOccupiedBinsPerQuadrant ||
-        QuadrantOccupied[1] < MinOccupiedBinsPerQuadrant ||
-        QuadrantOccupied[2] < MinOccupiedBinsPerQuadrant ||
-        QuadrantOccupied[3] < MinOccupiedBinsPerQuadrant ||
-        !bEdgeReach)
+    if (CachedOccupiedBins < MinOccupiedBins ||
+        CachedQuadrantOccupied[0] < MinOccupiedBinsPerQuadrant ||
+        CachedQuadrantOccupied[1] < MinOccupiedBinsPerQuadrant ||
+        CachedQuadrantOccupied[2] < MinOccupiedBinsPerQuadrant ||
+        CachedQuadrantOccupied[3] < MinOccupiedBinsPerQuadrant ||
+        !bCachedEdgeReach)
     {
         UE_LOG(LogTemp, Error,
             TEXT("PASS45_BLOCK0_SPATIAL_GRASS_COVERAGE_FAIL grass=%d occupied_bins=%d/%d quadrants=%d,%d,%d,%d edge_reach=%d full_playable_distribution=0 strict_runtime_owner=OCFoliageRuntimeGuard mutation=0 runtime_acceptance=0"),
-            GrassInstances,
-            OccupiedBins,
+            CachedGrassInstances,
+            CachedOccupiedBins,
             CoverageBinCount,
-            QuadrantOccupied[0],
-            QuadrantOccupied[1],
-            QuadrantOccupied[2],
-            QuadrantOccupied[3],
-            bEdgeReach ? 1 : 0);
+            CachedQuadrantOccupied[0],
+            CachedQuadrantOccupied[1],
+            CachedQuadrantOccupied[2],
+            CachedQuadrantOccupied[3],
+            bCachedEdgeReach ? 1 : 0);
         FailValidation(TEXT("block0_spatial_grass_distribution_insufficient"));
         return;
     }
