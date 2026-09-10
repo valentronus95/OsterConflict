@@ -212,8 +212,32 @@ void AOCVehicleBase::BeginPlay()
     }
     ApplyVehicleStyle();
 
-    if (UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+    TArray<UStaticMeshComponent*> MeshComponents;
+    GetComponents<UStaticMeshComponent>(MeshComponents);
+
+    UMaterialInterface* BaseMaterial = nullptr;
+    for (UStaticMeshComponent* Component : MeshComponents)
+    {
+        if (!Component)
+        {
+            continue;
+        }
+
+        UStaticMesh* Mesh = Component->GetStaticMesh();
+        const FString AssetPath = Mesh ? Mesh->GetPathName() : FString();
+        if (AssetPath.StartsWith(TEXT("/Game/Production/")))
+        {
+            continue;
+        }
+
+        if (UMaterialInterface* ResidentMaterial = Component->GetMaterial(0))
+        {
+            BaseMaterial = ResidentMaterial;
+            break;
+        }
+    }
+
+    if (BaseMaterial)
     {
         const FString ClassName = GetClass()->GetName();
         const bool bMilitary = ClassName.Contains(TEXT("BTR")) || ClassName.Contains(TEXT("GunTruck")) ||
@@ -228,8 +252,6 @@ void AOCVehicleBase::BeginPlay()
         const int32 ColorIndex = FMath::Abs(FMath::FloorToInt(GetActorLocation().X / 1000.0f)) % UE_ARRAY_COUNT(CivilianPalette);
         const FLinearColor BodyColor = bMilitary ? MilitaryBody : CivilianPalette[ColorIndex];
 
-        TArray<UStaticMeshComponent*> MeshComponents;
-        GetComponents<UStaticMeshComponent>(MeshComponents);
         for (UStaticMeshComponent* Component : MeshComponents)
         {
             if (!Component) continue;
@@ -260,7 +282,7 @@ void AOCVehicleBase::BeginPlay()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY production_override=0 legacy_tint_blockout_only=1"));
+        TEXT("PASS45_VEHICLEBASE_PRODUCTION_MATERIAL_BYPASS_READY production_override=0 legacy_tint_blockout_only=1 sync_material_load=0"));
     ApplyDamagePresentation();
 }
 
