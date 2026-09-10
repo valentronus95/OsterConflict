@@ -24,4 +24,7 @@ private:
     void ApplySpeedContract(AOCVehicleBase& Vehicle, float TargetKmh, float AssistAccelerationCmPerSecSq);
     bool HasGroundContact(const AOCVehicleBase& Vehicle, const UPrimitiveComponent& Body) const;
     static float DamagePowerScale(const AOCVehicleBase& Vehicle);
+
+    TArray<TWeakObjectPtr<AOCVehicleBase>> TrackedVehicles;
+    bool bVehicleCacheInitialized = false;
 };
