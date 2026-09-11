@@ -32,8 +32,9 @@ namespace
 
     constexpr float CoreClusterRadiusCm = 720.0f;
     constexpr float FullRackRadiusCm = 1450.0f;
-    constexpr float RefreshIntervalSeconds = 0.40f;
-    constexpr int32 MaxRefreshPasses = 18;
+    constexpr float RefreshIntervalSeconds = 0.45f;
+    constexpr int32 MaxRefreshPasses = 8;
+    constexpr float MinimumRackLiftCm = 90.0f;
 
     bool IsCoreRackId(const FName WeaponId)
     {
@@ -304,16 +305,20 @@ void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
     int32 SimulatingPhysicsAfter = 0;
 
     const FRotator StableRotation(0.0f, RackYaw, 0.0f);
+    const float MinimumStableZ = RackCenter.Z + MinimumRackLiftCm;
     for (AOCWeaponBase* Weapon : RackWeapons)
     {
         if (!Weapon || Weapon->IsActorBeingDestroyed() || !Weapon->IsWorldPickup()) continue;
+
+        FVector StableLocation = Weapon->GetActorLocation();
+        StableLocation.Z = FMath::Max(StableLocation.Z, MinimumStableZ);
 
         int32 HiddenForWeapon = 0;
         int32 RetiredForWeapon = 0;
         bool bExactVisual = false;
         Stabilized += StabilizeRackWeapon(
             *Weapon,
-            Weapon->GetActorLocation(),
+            StableLocation,
             StableRotation,
             HiddenForWeapon,
             RetiredForWeapon,
@@ -329,7 +334,7 @@ void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_WEAPON_RACK_STABILITY_READY pass=%d rack_weapons=%d stabilized=%d simulating_physics_after=%d hidden_basicshape_components=%d exact_visuals=%d competing_visuals_retired=%d stable_pickup_collision=query_only runtime_acceptance=0"),
+        TEXT("PASS45_WEAPON_RACK_STABILITY_READY pass=%d rack_weapons=%d stabilized=%d simulating_physics_after=%d hidden_basicshape_components=%d exact_visuals=%d competing_visuals_retired=%d stable_pickup_collision=query_only minimum_safe_lift_cm=90 runtime_acceptance=0"),
         RefreshPass,
         RackWeapons.Num(),
         Stabilized,
