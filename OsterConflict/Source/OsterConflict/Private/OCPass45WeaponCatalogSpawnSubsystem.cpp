@@ -100,15 +100,11 @@ void UOCPass45WeaponCatalogSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     const AOCGameMode* GameMode = InWorld.GetAuthGameMode<AOCGameMode>();
     if (!GameMode || GameMode->IsFrontendOnlySession() || !GameMode->IsSandboxMode()) return;
 
-    // Do not create a second automatic weapon rack. The existing admin action is the trigger/owner.
-    // We only watch briefly for its compact seven-weapon core rack, then append the missing identities once.
-    InWorld.GetTimerManager().SetTimer(
-        SpawnTimer,
-        this,
-        &UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack,
-        0.50f,
-        true,
-        0.50f);
+    // The old implementation polled every world weapon twice per second for up to a minute even when the admin
+    // never requested a rack. Observe weapon spawns instead and debounce the synchronous admin-rack burst into one scan.
+    ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
+        FOnActorSpawned::FDelegate::CreateUObject(this, &UOCPass45WeaponCatalogSpawnSubsystem::HandleActorSpawned));
+    ScheduleCatalogCheck(0.50f);
 }
 
 void UOCPass45WeaponCatalogSpawnSubsystem::Deinitialize()
@@ -117,27 +113,38 @@ void UOCPass45WeaponCatalogSpawnSubsystem::Deinitialize()
     {
         World->GetTimerManager().ClearTimer(SpawnTimer);
         World->GetTimerManager().ClearTimer(ValidationTimer);
+        if (ActorSpawnedHandle.IsValid()) World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
     }
+    ActorSpawnedHandle.Reset();
     CompletedRackCenter = FVector::ZeroVector;
-    ScanPass = 0;
     bRackCompleted = false;
     Super::Deinitialize();
+}
+
+void UOCPass45WeaponCatalogSpawnSubsystem::HandleActorSpawned(AActor* Actor)
+{
+    if (bRackCompleted || !Cast<AOCWeaponBase>(Actor)) return;
+    ScheduleCatalogCheck(0.05f);
+}
+
+void UOCPass45WeaponCatalogSpawnSubsystem::ScheduleCatalogCheck(float DelaySeconds)
+{
+    UWorld* World = GetWorld();
+    if (!World || bRackCompleted) return;
+
+    World->GetTimerManager().ClearTimer(SpawnTimer);
+    World->GetTimerManager().SetTimer(
+        SpawnTimer,
+        this,
+        &UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack,
+        FMath::Max(0.01f, DelaySeconds),
+        false);
 }
 
 void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
 {
     UWorld* World = GetWorld();
     if (!World || bRackCompleted) return;
-
-    ++ScanPass;
-    if (ScanPass > 120)
-    {
-        World->GetTimerManager().ClearTimer(SpawnTimer);
-        UE_LOG(LogTemp, Verbose,
-            TEXT("PASS45_COMPLETE_WEAPON_RACK_WATCH_STOPPED reason=no_admin_request scans=%d duplicate_auto_rack=0"),
-            ScanPass);
-        return;
-    }
 
     const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
     if (!GameMode || !GameMode->IsSandboxMode()) return;
@@ -182,6 +189,7 @@ void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
         }
     }
 
+    // No rack means no work. A later weapon spawn will schedule exactly one new check.
     if (!bFoundAdminCoreRack) return;
 
     TSet<FName> LocalIds;
@@ -241,7 +249,7 @@ void UOCPass45WeaponCatalogSpawnSubsystem::CompleteRequestedWeaponRack()
         false);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_COMPLETE_WEAPON_RACK_READY total_declared=%d local_distinct=%d appended=%d spawn_failures=%d admin_core_trigger=1 duplicate_auto_rack=0 duplicate_weapon_ids=0 exact_visual_validation_pending=1 runtime_acceptance=0"),
+        TEXT("PASS45_COMPLETE_WEAPON_RACK_READY total_declared=%d local_distinct=%d appended=%d spawn_failures=%d admin_core_trigger=1 duplicate_auto_rack=0 duplicate_weapon_ids=0 exact_visual_validation_pending=1 event_driven_watch=1 permanent_scan=0 runtime_acceptance=0"),
         UE_ARRAY_COUNT(WeaponCatalog), LocalIds.Num(), Spawned, SpawnFailures);
 }
 
