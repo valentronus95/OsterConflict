@@ -24,7 +24,7 @@ namespace
     constexpr float FullRackRadiusCm = 1450.0f;
     constexpr int32 MinimumRackActorCount = 3;
     constexpr float RefreshIntervalSeconds = 0.45f;
-    constexpr int32 MaxRefreshPasses = 8;
+    constexpr int32 MaxRefreshPasses = 4;
     constexpr float MinimumRackLiftCm = 25.0f;
     constexpr float VisualGroundClearanceCm = 4.0f;
     constexpr float GroundTraceUpCm = 800.0f;
