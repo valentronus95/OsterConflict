@@ -32,6 +32,7 @@ namespace
     constexpr const TCHAR* RunPath = TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Run_Fwd.A_MM_Run_Fwd");
     constexpr const TCHAR* FallPath = TEXT("/Game/QuantumCharacter/Demo/Animations/A_MM_Fall_Loop.A_MM_Fall_Loop");
     constexpr const TCHAR* GrenadeThrowSoundPath = TEXT("/Game/R13/Audio/snd_throw1.snd_throw1");
+    constexpr float AnimationRefreshIntervalSeconds = 0.25f;
 
     void AddSkeletalGear(AOCCharacter& Character, USkeletalMeshComponent* Body,
         USkeletalMesh* Mesh, const FName BaseComponentName)
@@ -174,12 +175,23 @@ void UOCProductionCharacterAssetsSubsystem::Tick(float DeltaTime)
     BuildProfiles();
     bPreloadComplete = true;
 
+    // Production meshes, first-person arms and gear are stable presentation state. Apply them once when the preload
+    // completes and once for future character spawns. Only the tiny locomotion state bridge remains periodic.
+    ApplyToCharacters();
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().SetTimer(
-            RefreshTimer, this, &UOCProductionCharacterAssetsSubsystem::ApplyToCharacters,
-            0.20f, true, 0.01f);
+            AnimationTimer,
+            this,
+            &UOCProductionCharacterAssetsSubsystem::UpdateCharacterAnimations,
+            AnimationRefreshIntervalSeconds,
+            true,
+            AnimationRefreshIntervalSeconds);
     }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("GAME_RECOVERY_CHARACTER_RUNTIME_LIGHTWEIGHT initial_presentation_once=1 recurring_profile_refresh=0 recurring_gear_refresh=0 animation_only_interval=%.2f actor_spawn_event=1"),
+        AnimationRefreshIntervalSeconds);
 
     const bool bBodyReady = FSoftObjectPath(BodyPath).ResolveObject() != nullptr;
     const bool bArmsReady = FSoftObjectPath(ArmsPath).ResolveObject() != nullptr;
@@ -218,7 +230,7 @@ void UOCProductionCharacterAssetsSubsystem::Deinitialize()
 {
     if (UWorld* World = GetWorld())
     {
-        World->GetTimerManager().ClearTimer(RefreshTimer);
+        World->GetTimerManager().ClearTimer(AnimationTimer);
         if (ActorSpawnedHandle.IsValid())
         {
             World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
@@ -286,7 +298,14 @@ void UOCProductionCharacterAssetsSubsystem::SeedCharacterCache()
 
 void UOCProductionCharacterAssetsSubsystem::HandleActorSpawned(AActor* SpawnedActor)
 {
-    TrackCharacter(Cast<AOCCharacter>(SpawnedActor));
+    AOCCharacter* Character = Cast<AOCCharacter>(SpawnedActor);
+    if (!Character) return;
+
+    TrackCharacter(Character);
+    if (bPreloadComplete)
+    {
+        ApplyCharacterPresentation(*Character);
+    }
 }
 
 void UOCProductionCharacterAssetsSubsystem::TrackCharacter(AOCCharacter* Character)
@@ -308,11 +327,40 @@ void UOCProductionCharacterAssetsSubsystem::ApplyToCharacters()
             continue;
         }
 
-        UOCCharacterVisualComponent* Visual = Character->GetCharacterVisualComponent();
-        if (!Visual) continue;
+        ApplyCharacterPresentation(*Character);
+    }
 
-        Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);
-        ApplyGear(*Character);
+    for (auto It = AnimationStateByCharacter.CreateIterator(); It; ++It)
+    {
+        if (!It.Key().IsValid()) It.RemoveCurrent();
+    }
+}
+
+void UOCProductionCharacterAssetsSubsystem::ApplyCharacterPresentation(AOCCharacter& Character)
+{
+    if (!UAProfile || !bPreloadComplete) return;
+
+    UOCCharacterVisualComponent* Visual = Character.GetCharacterVisualComponent();
+    if (!Visual) return;
+
+    Visual->SetRuntimeProfiles(UAProfile, MaskedProfile, RangersProfile, InsurgentsProfile);
+    ApplyGear(Character);
+    ApplyAnimation(Character);
+}
+
+void UOCProductionCharacterAssetsSubsystem::UpdateCharacterAnimations()
+{
+    if (!bPreloadComplete) return;
+
+    for (int32 Index = TrackedCharacters.Num() - 1; Index >= 0; --Index)
+    {
+        AOCCharacter* Character = TrackedCharacters[Index].Get();
+        if (!Character)
+        {
+            TrackedCharacters.RemoveAtSwap(Index, 1, EAllowShrinking::No);
+            continue;
+        }
+
         ApplyAnimation(*Character);
     }
 

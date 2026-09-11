@@ -41,6 +41,8 @@ private:
     void HandleActorSpawned(AActor* SpawnedActor);
     void TrackCharacter(AOCCharacter* Character);
     void ApplyToCharacters();
+    void ApplyCharacterPresentation(AOCCharacter& Character);
+    void UpdateCharacterAnimations();
     void ApplyGear(AOCCharacter& Character);
     void ApplyAnimation(AOCCharacter& Character);
 
@@ -64,7 +66,7 @@ private:
     TArray<TWeakObjectPtr<AOCCharacter>> TrackedCharacters;
     TMap<TWeakObjectPtr<AOCCharacter>, uint8> AnimationStateByCharacter;
     FDelegateHandle ActorSpawnedHandle;
-    FTimerHandle RefreshTimer;
+    FTimerHandle AnimationTimer;
     bool bInitialized = false;
     bool bEligible = false;
     bool bPreloadRequested = false;
