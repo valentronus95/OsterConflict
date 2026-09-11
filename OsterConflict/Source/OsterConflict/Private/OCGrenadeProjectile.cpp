@@ -27,7 +27,8 @@
 namespace
 {
     constexpr float Pass45GrenadeDesiredLengthCm = 14.0f;
-    constexpr float Pass45FragExplosionVisualScale = 1.85f;
+    constexpr float Pass45FragExplosionVisualScale = 2.65f;
+    constexpr float Pass45FragExplosionLiftCm = 18.0f;
     constexpr float Pass45FragExplosionCleanupSeconds = 2.80f;
     const TCHAR* Pass45GrenadeVisualPath = TEXT("/Game/R13/Weapons/grenade.grenade");
     const TCHAR* Pass45FragIdentityMaterialPath = TEXT("/Game/R13/Weapons/green.green");
@@ -253,10 +254,12 @@ void AOCGrenadeProjectile::MulticastDetonationVFX_Implementation(EOCGrenadeType 
         return;
     }
 
+    FVector ExplosionLocation(Location);
+    ExplosionLocation.Z += Pass45FragExplosionLiftCm;
     UNiagaraComponent* ExplosionComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
         this,
         ExplosionSystem,
-        Location,
+        ExplosionLocation,
         FRotator::ZeroRotator,
         FVector(Pass45FragExplosionVisualScale),
         true,
@@ -283,8 +286,8 @@ void AOCGrenadeProjectile::MulticastDetonationVFX_Implementation(EOCGrenadeType 
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_FRAG_EXPLOSION_VFX_READY asset=%s authored_niagara=1 replicated_presentation=1 visual_scale=%.2f forced_cleanup_s=%.2f looping_residue=0 sync_package_loads=0 runtime_acceptance=0"),
-        Pass45FragExplosionVFXPath, Pass45FragExplosionVisualScale, Pass45FragExplosionCleanupSeconds);
+        TEXT("GAME_RECOVERY_FRAG_EXPLOSION_VFX_READY asset=%s authored_niagara=1 replicated_presentation=1 visual_scale=%.2f lift_cm=%.1f forced_cleanup_s=%.2f looping_residue=0 sync_package_loads=0 runtime_acceptance=0"),
+        Pass45FragExplosionVFXPath, Pass45FragExplosionVisualScale, Pass45FragExplosionLiftCm, Pass45FragExplosionCleanupSeconds);
 }
 
 void AOCGrenadeProjectile::DetonateServer()
