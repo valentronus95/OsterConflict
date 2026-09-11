@@ -28,7 +28,7 @@ namespace
     const FName LocalInboxBoundTag(TEXT("OC_LocalInboxWeaponBound"));
     const FName LocalInboxPreloadPendingTag(TEXT("OC_LocalInboxWeaponPreloadPending"));
     constexpr const TCHAR* ForcedCategoryPrefix = TEXT("OC_FORCE_WEAPON_CATEGORY_");
-    constexpr int32 FastRefreshPasses = 8;
+    constexpr int32 FastRefreshPasses = 2;
 
     struct FLocalWeaponQuery
     {
@@ -312,13 +312,13 @@ void UOCPass45ImportedWeaponBridgeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCPass45ImportedWeaponBridgeSubsystem::HandleActorSpawned));
 
-    // A short bounded startup sweep handles actors already present while the spawn hook owns all later weapons.
-    // Do not keep scanning every weapon/AssetRegistry forever in Sandbox just to notice a late admin rack.
+    // Two startup sweeps are enough for actors authored into the map; the spawn hook owns every later weapon.
+    // This keeps recovery deterministic without repeatedly scanning the whole weapon set during startup.
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
         &UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons,
-        0.35f,
+        0.20f,
         true,
         0.08f);
 }
