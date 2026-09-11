@@ -29,15 +29,17 @@ namespace
 
     constexpr float FullGridStepCm = 1000.0f;
     constexpr int32 FullCellsPerBatch = 32;
-    constexpr int32 FullGrassCullEndCm = 18000;
-    constexpr int32 FullPlantCullEndCm = 12000;
-    constexpr int32 FullFlowerCullEndCm = 8000;
+    // Keep dense presentation near the player, but do not render a 180 m carpet around every view.
+    // These values now match the world render-budget scale used for ordinary grass/ground detail.
+    constexpr int32 FullGrassCullEndCm = 10000;
+    constexpr int32 FullPlantCullEndCm = 7000;
+    constexpr int32 FullFlowerCullEndCm = 5000;
 
     constexpr float LowCPUGridStepCm = 1500.0f;
     constexpr int32 LowCPUCellsPerBatch = 48;
-    constexpr int32 LowCPUGrassCullEndCm = 14000;
-    constexpr int32 LowCPUPlantCullEndCm = 9000;
-    constexpr int32 LowCPUFlowerCullEndCm = 6000;
+    constexpr int32 LowCPUGrassCullEndCm = 7500;
+    constexpr int32 LowCPUPlantCullEndCm = 5000;
+    constexpr int32 LowCPUFlowerCullEndCm = 3500;
 
     // Population can overlap live gameplay because foliage is presentation, not a spawn gate.
     // Preserve the authored density/cull profile, but cap trace/instance work on the game thread each frame.
