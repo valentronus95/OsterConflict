@@ -117,7 +117,7 @@ namespace
         }
         if (DisplayName.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
         {
-            Out = {{ FName(TEXT("/Game/AK-47")), FabRoot }, { TEXT("ak-47"), TEXT("ak47") }, 88.0f};
+            Out = {{ FName(TEXT("/Game/AK-47/Mesh")) }, { TEXT("SM_AK-47") }, 88.0f};
             return true;
         }
         if (DisplayName.Equals(TEXT("MP5"), ESearchCase::IgnoreCase))
@@ -127,12 +127,12 @@ namespace
         }
         if (DisplayName.Equals(TEXT("M700"), ESearchCase::IgnoreCase))
         {
-            Out = {{ FName(TEXT("/Game/R13/Weapons/Stein/M700")), FabRoot }, { TEXT("m700") }, 112.0f};
+            Out = {{ FName(TEXT("/Game/R13/Weapons/Stein/M700")) }, { TEXT("m700") }, 112.0f};
             return true;
         }
         if (DisplayName.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
         {
-            Out = {{ FName(TEXT("/Game/Production/Weapons/M249")), FabRoot }, { TEXT("m249") }, 104.0f};
+            Out = {{ FName(TEXT("/Game/Production/Weapons/M249")) }, { TEXT("m249") }, 104.0f};
             return true;
         }
         if (DisplayName.Equals(TEXT("M14"), ESearchCase::IgnoreCase))
@@ -215,6 +215,26 @@ namespace
         {
             // This identity is intentionally Fab-only so it can never steal the separate local RPG-26 model.
             Out = {{ FabRoot }, { TEXT("rpg") }, 95.0f};
+            return true;
+        }
+        return false;
+    }
+
+    bool ResolvePinnedStaticVisual(const FString& DisplayName, FSoftObjectPath& OutPath)
+    {
+        if (DisplayName.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
+        {
+            OutPath = FSoftObjectPath(TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
+            return true;
+        }
+        if (DisplayName.Equals(TEXT("M700"), ESearchCase::IgnoreCase))
+        {
+            OutPath = FSoftObjectPath(TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"));
+            return true;
+        }
+        if (DisplayName.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
+        {
+            OutPath = FSoftObjectPath(TEXT("/Game/Production/Weapons/M249/SM_M249.SM_M249"));
             return true;
         }
         return false;
@@ -352,7 +372,8 @@ bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase
 
     bool bSkeletal = false;
     FSoftObjectPath AssetPath;
-    if (!Weapon.ActorHasTag(LocalBridgeSkeletalGapTag))
+    const bool bPinnedStatic = ResolvePinnedStaticVisual(Weapon.GetWeaponDisplayName(), AssetPath);
+    if (!bPinnedStatic && !Weapon.ActorHasTag(LocalBridgeSkeletalGapTag))
     {
         AssetPath = OCPass45FindLocalSkeletalMeshPathStrict(Query.Roots, Query.Tokens);
         bSkeletal = AssetPath.IsValid();
@@ -410,8 +431,9 @@ bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase
 
     ResidentPreloadHandles.Add(Handle);
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_BEGIN weapon=%s asset=%s mesh_kind=%s async=1 sync_load=0"),
-        *Weapon.GetWeaponDisplayName(), *AssetPath.ToString(), bSkeletal ? TEXT("skeletal") : TEXT("static"));
+        TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_BEGIN weapon=%s asset=%s mesh_kind=%s pinned_static=%d async=1 sync_load=0"),
+        *Weapon.GetWeaponDisplayName(), *AssetPath.ToString(), bSkeletal ? TEXT("skeletal") : TEXT("static"),
+        bPinnedStatic ? 1 : 0);
     return false;
 }
 
