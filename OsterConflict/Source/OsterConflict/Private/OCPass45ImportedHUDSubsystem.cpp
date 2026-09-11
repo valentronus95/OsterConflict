@@ -1,10 +1,8 @@
 #include "OCPass45ImportedHUDSubsystem.h"
 
-#include "OCLocalInboxHUDOverlayWidget.h"
 #include "OCLocalInboxRuntimeSubsystem.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/CommandLine.h"
@@ -25,8 +23,7 @@ void UOCPass45ImportedHUDSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Validation mode already owns its HUD through OCLocalInboxRuntimeSubsystem. Normal gameplay used to return
-    // before that binding path, leaving only the legacy Canvas text. Bind exactly one GC-owned UUserWidget here.
+    // Validation mode owns its HUD through OCLocalInboxRuntimeSubsystem.
     if (FParse::Param(FCommandLine::Get(), TEXT("ValidateLocalInbox")))
     {
         UE_LOG(LogTemp, Display,
@@ -68,46 +65,31 @@ void UOCPass45ImportedHUDSubsystem::BindGameplayHUD()
         return;
     }
 
-    UUserWidget* Widget = nullptr;
+    // Normal gameplay accepts a real UUserWidget only. The old texture fallback stretched an arbitrary imported
+    // texture over the viewport and produced the giant cyan/blue rectangle seen in runtime. A missing widget must
+    // fail open to the existing Canvas HUD instead of inventing a fullscreen overlay.
     if (UClass* HUDClass = UOCLocalInboxRuntimeSubsystem::LoadHUDWidgetClass())
     {
-        Widget = CreateWidget<UUserWidget>(PC, TSubclassOf<UUserWidget>(HUDClass));
-        if (Widget)
+        if (UUserWidget* Widget = CreateWidget<UUserWidget>(PC, TSubclassOf<UUserWidget>(HUDClass)))
         {
+            Widget->AddToViewport(20);
+            ImportedHUDWidget = Widget;
+            World->GetTimerManager().ClearTimer(BindTimer);
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_HUD_WIDGET_READY class=%s owner=pass45_imported_hud normal_gameplay=1"),
+                TEXT("GAME_RECOVERY_HUD_WIDGET_READY class=%s owner=pass45_imported_hud normal_gameplay=1 texture_fallback=0"),
                 *HUDClass->GetPathName());
-        }
-    }
-    else if (UTexture2D* HUDTexture = UOCLocalInboxRuntimeSubsystem::LoadHUDTexture())
-    {
-        if (UOCLocalInboxHUDOverlayWidget* Overlay = CreateWidget<UOCLocalInboxHUDOverlayWidget>(
-            PC, UOCLocalInboxHUDOverlayWidget::StaticClass()))
-        {
-            Overlay->SetHUDTexture(HUDTexture);
-            Widget = Overlay;
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_HUD_TEXTURE_READY texture=%s owner=pass45_imported_hud normal_gameplay=1"),
-                *HUDTexture->GetPathName());
+                TEXT("PASS45_IMPORTED_HUD_READY safe_user_widget=1 texture_overlay=0 attempts=%d runtime_acceptance=0"),
+                BindAttempts);
+            return;
         }
-    }
-
-    if (Widget)
-    {
-        Widget->AddToViewport(20);
-        ImportedHUDWidget = Widget;
-        World->GetTimerManager().ClearTimer(BindTimer);
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_HUD_READY safe_user_widget=1 raw_slate_overlay=0 attempts=%d runtime_acceptance=0"),
-            BindAttempts);
-        return;
     }
 
     if (BindAttempts >= 12)
     {
         World->GetTimerManager().ClearTimer(BindTimer);
-        UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_HUD_BIND_FAIL reason=no_bound_hud_asset attempts=%d legacy_hud_preserved=1"),
+        UE_LOG(LogTemp, Warning,
+            TEXT("GAME_RECOVERY_HUD_WIDGET_UNAVAILABLE attempts=%d texture_fallback=0 legacy_hud_preserved=1"),
             BindAttempts);
     }
 }
