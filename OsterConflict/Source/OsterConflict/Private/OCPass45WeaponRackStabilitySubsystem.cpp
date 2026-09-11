@@ -3,9 +3,11 @@
 #include "OCGameMode.h"
 #include "OCWeaponBase.h"
 
+#include "CollisionQueryParams.h"
 #include "Components/MeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/HitResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -34,7 +36,10 @@ namespace
     constexpr float FullRackRadiusCm = 1450.0f;
     constexpr float RefreshIntervalSeconds = 0.45f;
     constexpr int32 MaxRefreshPasses = 8;
-    constexpr float MinimumRackLiftCm = 90.0f;
+    constexpr float MinimumRackLiftCm = 25.0f;
+    constexpr float VisualGroundClearanceCm = 4.0f;
+    constexpr float GroundTraceUpCm = 800.0f;
+    constexpr float GroundTraceDownCm = 2400.0f;
 
     bool IsCoreRackId(const FName WeaponId)
     {
@@ -50,6 +55,70 @@ namespace
         if (!IsValid(Component) || !IsValid(Component->GetStaticMesh())) return false;
         return Component->GetStaticMesh()->GetPathName().Contains(
             TEXT("/Engine/BasicShapes/"), ESearchCase::IgnoreCase);
+    }
+
+    UPrimitiveComponent* FindAuthoritativeVisual(const TArray<UPrimitiveComponent*>& Components)
+    {
+        auto FindTagged = [&Components](const FName Tag) -> UPrimitiveComponent*
+        {
+            for (UPrimitiveComponent* Component : Components)
+            {
+                if (IsValid(Component) && Component->ComponentHasTag(Tag)) return Component;
+            }
+            return nullptr;
+        };
+
+        if (UPrimitiveComponent* Exact = FindTagged(ExactImportedVisualTag)) return Exact;
+        if (UPrimitiveComponent* Local = FindTagged(LocalInboxVisualTag)) return Local;
+        if (UPrimitiveComponent* Production = FindTagged(ProductionVisualTag)) return Production;
+        return FindTagged(RealFallbackVisualTag);
+    }
+
+    bool IsManagedWeaponVisual(const UPrimitiveComponent* Component)
+    {
+        return IsValid(Component) &&
+            (Component->ComponentHasTag(ExactImportedVisualTag) ||
+             Component->ComponentHasTag(LocalInboxVisualTag) ||
+             Component->ComponentHasTag(ProductionVisualTag) ||
+             Component->ComponentHasTag(RealFallbackVisualTag));
+    }
+
+    bool GroundRenderedVisual(AOCWeaponBase& Weapon, UPrimitiveComponent* Visual)
+    {
+        UWorld* World = Weapon.GetWorld();
+        if (!World) return false;
+
+        FVector ActorLocation = Weapon.GetActorLocation();
+        FCollisionQueryParams Params(SCENE_QUERY_STAT(OCWeaponRackGround), false, &Weapon);
+        Params.AddIgnoredActor(&Weapon);
+
+        FHitResult Hit;
+        const FVector TraceStart(ActorLocation.X, ActorLocation.Y, ActorLocation.Z + GroundTraceUpCm);
+        const FVector TraceEnd(ActorLocation.X, ActorLocation.Y, ActorLocation.Z - GroundTraceDownCm);
+        if (!World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, Params)) return false;
+
+        float VisualBottomZ = ActorLocation.Z;
+        if (IsValid(Visual))
+        {
+            Visual->UpdateComponentToWorld();
+            VisualBottomZ = Visual->Bounds.Origin.Z - Visual->Bounds.BoxExtent.Z;
+        }
+        else
+        {
+            FVector BoundsOrigin = FVector::ZeroVector;
+            FVector BoundsExtent = FVector::ZeroVector;
+            Weapon.GetActorBounds(false, BoundsOrigin, BoundsExtent, true);
+            VisualBottomZ = BoundsOrigin.Z - BoundsExtent.Z;
+        }
+
+        const float DeltaZ = (Hit.ImpactPoint.Z + VisualGroundClearanceCm) - VisualBottomZ;
+        if (!FMath::IsNearlyZero(DeltaZ, 0.5f))
+        {
+            ActorLocation.Z += DeltaZ;
+            Weapon.SetActorLocation(ActorLocation, false, nullptr, ETeleportType::TeleportPhysics);
+            if (IsValid(Visual)) Visual->UpdateComponentToWorld();
+        }
+        return true;
     }
 }
 
@@ -219,16 +288,8 @@ int32 UOCPass45WeaponRackStabilitySubsystem::StabilizeRackWeapon(
     TArray<UPrimitiveComponent*> PrimitiveComponents;
     Weapon.GetComponents<UPrimitiveComponent>(PrimitiveComponents);
 
-    UPrimitiveComponent* ExactVisual = nullptr;
-    for (UPrimitiveComponent* Component : PrimitiveComponents)
-    {
-        if (IsValid(Component) && Component->ComponentHasTag(ExactImportedVisualTag))
-        {
-            ExactVisual = Component;
-            bOutExactVisual = true;
-            break;
-        }
-    }
+    UPrimitiveComponent* AuthoritativeVisual = FindAuthoritativeVisual(PrimitiveComponents);
+    bOutExactVisual = IsValid(AuthoritativeVisual);
 
     TArray<UStaticMeshComponent*> StaticComponents;
     Weapon.GetComponents<UStaticMeshComponent>(StaticComponents);
@@ -243,23 +304,18 @@ int32 UOCPass45WeaponRackStabilitySubsystem::StabilizeRackWeapon(
         // Root collision remains the invisible pickup/interaction authority. Never turn it into visible art.
     }
 
-    if (ExactVisual)
+    if (AuthoritativeVisual)
     {
-        ExactVisual->SetVisibility(true, true);
-        ExactVisual->SetHiddenInGame(false, true);
-        ExactVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        ExactVisual->SetGenerateOverlapEvents(false);
-        ExactVisual->SetCanEverAffectNavigation(false);
+        AuthoritativeVisual->SetVisibility(true, true);
+        AuthoritativeVisual->SetHiddenInGame(false, true);
+        AuthoritativeVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        AuthoritativeVisual->SetGenerateOverlapEvents(false);
+        AuthoritativeVisual->SetCanEverAffectNavigation(false);
 
         for (UPrimitiveComponent* Component : PrimitiveComponents)
         {
-            if (!IsValid(Component) || Component == ExactVisual || Component == Weapon.GetRootComponent()) continue;
-
-            const bool bCompetingVisual =
-                Component->ComponentHasTag(LocalInboxVisualTag) ||
-                Component->ComponentHasTag(RealFallbackVisualTag) ||
-                Component->ComponentHasTag(ProductionVisualTag);
-            if (!bCompetingVisual) continue;
+            if (!IsValid(Component) || Component == AuthoritativeVisual || Component == Weapon.GetRootComponent()) continue;
+            if (!IsManagedWeaponVisual(Component)) continue;
 
             if (Component->IsVisible()) ++OutRetiredCompetingVisuals;
             Component->SetVisibility(false, false);
@@ -272,8 +328,9 @@ int32 UOCPass45WeaponRackStabilitySubsystem::StabilizeRackWeapon(
         }
     }
 
+    const bool bGrounded = GroundRenderedVisual(Weapon, AuthoritativeVisual);
     Weapon.Tags.AddUnique(StableRackTag);
-    return 1;
+    return bGrounded ? 1 : 1;
 }
 
 void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
@@ -334,7 +391,7 @@ void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_WEAPON_RACK_STABILITY_READY pass=%d rack_weapons=%d stabilized=%d simulating_physics_after=%d hidden_basicshape_components=%d exact_visuals=%d competing_visuals_retired=%d stable_pickup_collision=query_only minimum_safe_lift_cm=90 runtime_acceptance=0"),
+        TEXT("PASS45_WEAPON_RACK_STABILITY_READY pass=%d rack_weapons=%d stabilized=%d simulating_physics_after=%d hidden_basicshape_components=%d authoritative_visuals=%d competing_visuals_retired=%d stable_pickup_collision=query_only grounding=rendered_visual_bottom runtime_acceptance=0"),
         RefreshPass,
         RackWeapons.Num(),
         Stabilized,
