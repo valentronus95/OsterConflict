@@ -27,8 +27,8 @@ namespace
     const FName LocalBridgeStaticGapTag(TEXT("OC_PASS45_LOCAL_IMPORTED_WEAPON_STATIC_GAP"));
     const FName LocalInboxBoundTag(TEXT("OC_LocalInboxWeaponBound"));
     const FName LocalInboxPreloadPendingTag(TEXT("OC_LocalInboxWeaponPreloadPending"));
+    constexpr const TCHAR* ForcedCategoryPrefix = TEXT("OC_FORCE_WEAPON_CATEGORY_");
     constexpr int32 FastRefreshPasses = 8;
-    constexpr float SandboxWatchIntervalSeconds = 1.50f;
 
     struct FLocalWeaponQuery
     {
@@ -36,6 +36,15 @@ namespace
         TArray<FString> Tokens;
         float DesiredLengthCm = 80.0f;
     };
+
+    bool HasForcedLocalInboxVisual(const AOCWeaponBase& Weapon)
+    {
+        for (const FName& Tag : Weapon.Tags)
+        {
+            if (Tag.ToString().StartsWith(ForcedCategoryPrefix, ESearchCase::CaseSensitive)) return true;
+        }
+        return false;
+    }
 
     bool HasProductionVisual(const AOCWeaponBase& Weapon)
     {
@@ -280,6 +289,11 @@ void UOCPass45ImportedWeaponBridgeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
+        FOnActorSpawned::FDelegate::CreateUObject(this, &UOCPass45ImportedWeaponBridgeSubsystem::HandleActorSpawned));
+
+    // A short bounded startup sweep handles actors already present while the spawn hook owns all later weapons.
+    // Do not keep scanning every weapon/AssetRegistry forever in Sandbox just to notice a late admin rack.
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
@@ -291,7 +305,13 @@ void UOCPass45ImportedWeaponBridgeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 void UOCPass45ImportedWeaponBridgeSubsystem::Deinitialize()
 {
-    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(RefreshTimer);
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(RefreshTimer);
+        if (ActorSpawnedHandle.IsValid()) World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
+    }
+    ActorSpawnedHandle.Reset();
+
     for (const TSharedPtr<FStreamableHandle>& Handle : ResidentPreloadHandles)
     {
         if (Handle.IsValid()) Handle->CancelHandle();
@@ -301,9 +321,25 @@ void UOCPass45ImportedWeaponBridgeSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
+void UOCPass45ImportedWeaponBridgeSubsystem::HandleActorSpawned(AActor* Actor)
+{
+    AOCWeaponBase* Weapon = Cast<AOCWeaponBase>(Actor);
+    UWorld* World = GetWorld();
+    if (!Weapon || !World) return;
+
+    const TWeakObjectPtr<AOCWeaponBase> WeakWeapon(Weapon);
+    World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, WeakWeapon]()
+    {
+        if (AOCWeaponBase* LiveWeapon = WeakWeapon.Get()) ApplyExactLocalVisual(*LiveWeapon);
+    }));
+}
+
 bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase& Weapon)
 {
-    if (Weapon.ActorHasTag(LocalBridgePreloadPendingTag) ||
+    // Forced rack variants belong exclusively to OCLocalInboxWeaponOverrideSubsystem. This guard is checked both
+    // before metadata resolution and again after async preload so a late tag cannot create a second visible launcher.
+    if (HasForcedLocalInboxVisual(Weapon) ||
+        Weapon.ActorHasTag(LocalBridgePreloadPendingTag) ||
         Weapon.ActorHasTag(LocalInboxBoundTag) ||
         Weapon.ActorHasTag(LocalInboxPreloadPendingTag) ||
         HasProductionVisual(Weapon))
@@ -389,7 +425,12 @@ void UOCPass45ImportedWeaponBridgeSubsystem::CompleteExactLocalVisual(
     if (!Weapon || Weapon->IsActorBeingDestroyed()) return;
 
     Weapon->Tags.Remove(LocalBridgePreloadPendingTag);
-    if (Weapon->ActorHasTag(LocalInboxBoundTag) || HasProductionVisual(*Weapon)) return;
+    if (HasForcedLocalInboxVisual(*Weapon) ||
+        Weapon->ActorHasTag(LocalInboxBoundTag) ||
+        HasProductionVisual(*Weapon))
+    {
+        return;
+    }
 
     UObject* Resolved = AssetPath.ResolveObject();
     bool bApplied = false;
@@ -431,7 +472,8 @@ void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
     for (TActorIterator<AOCWeaponBase> It(World); It; ++It)
     {
         AOCWeaponBase* Weapon = *It;
-        if (!Weapon || Weapon->IsActorBeingDestroyed() || HasProductionVisual(*Weapon) ||
+        if (!Weapon || Weapon->IsActorBeingDestroyed() || HasForcedLocalInboxVisual(*Weapon) ||
+            HasProductionVisual(*Weapon) ||
             Weapon->ActorHasTag(LocalBridgePreloadPendingTag) ||
             Weapon->ActorHasTag(LocalInboxBoundTag) ||
             Weapon->ActorHasTag(LocalInboxPreloadPendingTag))
@@ -452,28 +494,11 @@ void UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons()
             RefreshPass, ExactCandidates, Applied);
     }
 
-    if (RefreshPass == FastRefreshPasses)
+    if (RefreshPass >= FastRefreshPasses)
     {
-        const AOCGameMode* GameMode = World->GetAuthGameMode<AOCGameMode>();
-        if (GameMode && GameMode->IsSandboxMode())
-        {
-            World->GetTimerManager().SetTimer(
-                RefreshTimer,
-                this,
-                &UOCPass45ImportedWeaponBridgeSubsystem::RefreshWeapons,
-                SandboxWatchIntervalSeconds,
-                true,
-                SandboxWatchIntervalSeconds);
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_SANDBOX_WATCH_READY fast_passes=%d interval_s=%.2f late_spawn_support=1 permanent_scan_sandbox_only=1 wrong_identity_substitution=0 blocking_asset_loads=0"),
-                FastRefreshPasses, SandboxWatchIntervalSeconds);
-        }
-        else
-        {
-            World->GetTimerManager().ClearTimer(RefreshTimer);
-            UE_LOG(LogTemp, Display,
-                TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_STOPPED passes=%d permanent_scan=0 sandbox=0 wrong_identity_substitution=0 blocking_asset_loads=0"),
-                RefreshPass);
-        }
+        World->GetTimerManager().ClearTimer(RefreshTimer);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_LOCAL_IMPORTED_WEAPON_BRIDGE_STOPPED passes=%d permanent_scan=0 spawn_hook=1 late_spawn_support=1 wrong_identity_substitution=0 blocking_asset_loads=0"),
+            RefreshPass);
     }
 }
