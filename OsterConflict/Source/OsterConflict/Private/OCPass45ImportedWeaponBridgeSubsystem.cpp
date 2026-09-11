@@ -92,9 +92,6 @@ namespace
                 ++HiddenCount;
             }
 
-            // Keep the component alive because WeaponMesh remains the drop/physics authority. Only the old
-            // source/proxy rendering is retired. Do not propagate visibility to children because the production
-            // visual is attached below WeaponRoot and must remain visible.
             Component->SetVisibility(false, false);
             Component->SetHiddenInGame(true, false);
         }
@@ -213,15 +210,15 @@ namespace
         }
         if (DisplayName.Equals(TEXT("RPG Launcher"), ESearchCase::IgnoreCase))
         {
-            // This identity is intentionally Fab-only so it can never steal the separate local RPG-26 model.
             Out = {{ FabRoot }, { TEXT("rpg") }, 95.0f};
             return true;
         }
         return false;
     }
 
-    bool ResolvePinnedStaticVisual(const FString& DisplayName, FSoftObjectPath& OutPath)
+    bool ResolvePinnedVisual(const FString& DisplayName, FSoftObjectPath& OutPath, bool& bOutSkeletal)
     {
+        bOutSkeletal = false;
         if (DisplayName.Equals(TEXT("AK-47"), ESearchCase::IgnoreCase))
         {
             OutPath = FSoftObjectPath(TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"));
@@ -230,6 +227,7 @@ namespace
         if (DisplayName.Equals(TEXT("M700"), ESearchCase::IgnoreCase))
         {
             OutPath = FSoftObjectPath(TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"));
+            bOutSkeletal = true;
             return true;
         }
         if (DisplayName.Equals(TEXT("M249"), ESearchCase::IgnoreCase))
@@ -312,8 +310,6 @@ void UOCPass45ImportedWeaponBridgeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCPass45ImportedWeaponBridgeSubsystem::HandleActorSpawned));
 
-    // Two startup sweeps are enough for actors authored into the map; the spawn hook owns every later weapon.
-    // This keeps recovery deterministic without repeatedly scanning the whole weapon set during startup.
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
@@ -356,8 +352,6 @@ void UOCPass45ImportedWeaponBridgeSubsystem::HandleActorSpawned(AActor* Actor)
 
 bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase& Weapon)
 {
-    // Forced rack variants belong exclusively to OCLocalInboxWeaponOverrideSubsystem. This guard is checked both
-    // before metadata resolution and again after async preload so a late tag cannot create a second visible launcher.
     if (HasForcedLocalInboxVisual(Weapon) ||
         Weapon.ActorHasTag(LocalBridgePreloadPendingTag) ||
         Weapon.ActorHasTag(LocalInboxBoundTag) ||
@@ -372,8 +366,8 @@ bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase
 
     bool bSkeletal = false;
     FSoftObjectPath AssetPath;
-    const bool bPinnedStatic = ResolvePinnedStaticVisual(Weapon.GetWeaponDisplayName(), AssetPath);
-    if (!bPinnedStatic && !Weapon.ActorHasTag(LocalBridgeSkeletalGapTag))
+    const bool bPinned = ResolvePinnedVisual(Weapon.GetWeaponDisplayName(), AssetPath, bSkeletal);
+    if (!bPinned && !Weapon.ActorHasTag(LocalBridgeSkeletalGapTag))
     {
         AssetPath = OCPass45FindLocalSkeletalMeshPathStrict(Query.Roots, Query.Tokens);
         bSkeletal = AssetPath.IsValid();
@@ -431,9 +425,9 @@ bool UOCPass45ImportedWeaponBridgeSubsystem::ApplyExactLocalVisual(AOCWeaponBase
 
     ResidentPreloadHandles.Add(Handle);
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_BEGIN weapon=%s asset=%s mesh_kind=%s pinned_static=%d async=1 sync_load=0"),
+        TEXT("GAME_RECOVERY_IMPORTED_WEAPON_PRELOAD_BEGIN weapon=%s asset=%s mesh_kind=%s pinned=%d async=1 sync_load=0"),
         *Weapon.GetWeaponDisplayName(), *AssetPath.ToString(), bSkeletal ? TEXT("skeletal") : TEXT("static"),
-        bPinnedStatic ? 1 : 0);
+        bPinned ? 1 : 0);
     return false;
 }
 
@@ -478,8 +472,6 @@ void UOCPass45ImportedWeaponBridgeSubsystem::CompleteExactLocalVisual(
         *Weapon->GetWeaponDisplayName(), *AssetPath.ToString(),
         bSkeletal ? TEXT("skeletal") : TEXT("static"), Resolved ? 1 : 0);
 
-    // A failed exact skeletal candidate may still have a valid exact static sibling. Retry metadata selection
-    // without ever synchronously loading the failed package.
     if (bSkeletal) ApplyExactLocalVisual(*Weapon);
 }
 
