@@ -6,6 +6,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "OCPass45ImportedWeaponBridgeSubsystem.generated.h"
 
+class AActor;
 class AOCWeaponBase;
 struct FStreamableHandle;
 
@@ -26,9 +27,11 @@ public:
 
 private:
     FTimerHandle RefreshTimer;
+    FDelegateHandle ActorSpawnedHandle;
     int32 RefreshPass = 0;
     TArray<TSharedPtr<FStreamableHandle>> ResidentPreloadHandles;
 
+    void HandleActorSpawned(AActor* Actor);
     void RefreshWeapons();
     bool ApplyExactLocalVisual(AOCWeaponBase& Weapon);
     void CompleteExactLocalVisual(TWeakObjectPtr<AOCWeaponBase> WeakWeapon, FSoftObjectPath AssetPath,
