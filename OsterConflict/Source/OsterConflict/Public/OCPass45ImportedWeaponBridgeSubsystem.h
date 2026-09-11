@@ -25,10 +25,19 @@ public:
     virtual void OnWorldBeginPlay(UWorld& InWorld) override;
     virtual void Deinitialize() override;
 
+    /** True once the bounded initial weapon pass has finished and all async visual loads started by it have settled. */
+    bool IsInitialWeaponPresentationReady() const;
+
+    /** Lightweight 0..1 progress for deployment loading; this is readiness only, not visual acceptance proof. */
+    float GetInitialWeaponPresentationProgress() const;
+
 private:
     FTimerHandle RefreshTimer;
     FDelegateHandle ActorSpawnedHandle;
     int32 RefreshPass = 0;
+    int32 PendingPreloadCount = 0;
+    bool bRuntimeEligible = false;
+    bool bInitialRefreshComplete = false;
     TArray<TSharedPtr<FStreamableHandle>> ResidentPreloadHandles;
 
     void HandleActorSpawned(AActor* Actor);
