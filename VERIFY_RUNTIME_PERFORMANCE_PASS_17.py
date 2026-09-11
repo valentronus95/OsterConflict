@@ -50,39 +50,39 @@ for needle in (
     "0.5f",
     "PASS17_WORLD_ISM_BUDGET_NOT_APPLIED",
     "PASS17_WORLD_ISM_BUDGET_READY",
-    "PASS45_COMPACT_WORLD_CULL_BUDGET_READY",
+    "GAME_RECOVERY_COMPACT_WORLD_BUDGET_READY",
 ):
     require(cpp, needle, "world-sector retry and evidence")
 
-# Pass45 item26 retires eight Cylinder/Sphere tree families. The render budget must follow the
-# actual authored source families instead of keeping dead component names in an otherwise green table.
+# Keep the verifier aligned with the current compact-map performance budget. Older Pass17 values kept detail,
+# trees and grass visible much farther than the later GAME_RECOVERY budget and would reintroduce the FPS regression.
 required_budgets = {
-    "Roads": (0, 90000, "false"),
-    "Sidewalks": (8000, 42000, "false"),
-    "Buildings": (40000, 78000, "true"),
-    "ResidentialRoofs": (30000, 58000, "false"),
-    "ResidentialDetails": (6000, 24000, "false"),
-    "LandmarkBlocks": (50000, 95000, "true"),
-    "LandmarkRoofs": (40000, 76000, "false"),
-    "LandmarkWindows": (6000, 30000, "false"),
-    "LandmarkDetails": (10000, 40000, "false"),
-    "Fences": (6000, 28000, "false"),
-    "WoodFences": (6000, 28000, "false"),
-    "MetalFences": (6000, 28000, "false"),
-    "LightSheetFences": (6000, 28000, "false"),
-    "AuthoredDeciduousTrees": (12000, 42000, "true"),
-    "AuthoredPine01Trees": (12000, 46000, "true"),
-    "AuthoredPine03Trees": (12000, 46000, "true"),
-    "GrassMown": (0, 16000, "false"),
-    "GrassRough": (0, 18000, "false"),
-    "GrassWetland": (0, 20000, "false"),
-    "StadiumGeometry": (0, 55000, "false"),
-    "StadiumDetails": (6000, 32000, "false"),
-    "ParkGeometry": (0, 52000, "false"),
-    "ParkDetails": (6000, 30000, "false"),
-    "Waterways": (0, 60000, "false"),
-    "Bridges": (30000, 75000, "true"),
-    "ReferenceMarkers": (0, 3000, "false"),
+    "Roads": (0, 50000, "false"),
+    "Sidewalks": (4000, 24000, "false"),
+    "Buildings": (18000, 48000, "true"),
+    "ResidentialRoofs": (16000, 36000, "false"),
+    "ResidentialDetails": (3000, 14000, "false"),
+    "LandmarkBlocks": (26000, 65000, "true"),
+    "LandmarkRoofs": (22000, 50000, "false"),
+    "LandmarkWindows": (3000, 18000, "false"),
+    "LandmarkDetails": (5000, 22000, "false"),
+    "Fences": (3000, 18000, "false"),
+    "WoodFences": (3000, 18000, "false"),
+    "MetalFences": (3000, 18000, "false"),
+    "LightSheetFences": (3000, 18000, "false"),
+    "AuthoredDeciduousTrees": (7000, 24000, "false"),
+    "AuthoredPine01Trees": (7000, 26000, "false"),
+    "AuthoredPine03Trees": (7000, 26000, "false"),
+    "GrassMown": (0, 7000, "false"),
+    "GrassRough": (0, 8000, "false"),
+    "GrassWetland": (0, 9000, "false"),
+    "StadiumGeometry": (0, 38000, "false"),
+    "StadiumDetails": (3000, 18000, "false"),
+    "ParkGeometry": (0, 36000, "false"),
+    "ParkDetails": (3000, 18000, "false"),
+    "Waterways": (0, 42000, "false"),
+    "Bridges": (18000, 52000, "false"),
+    "ReferenceMarkers": (0, 2500, "false"),
 }
 for name, (start, end, shadow) in required_budgets.items():
     pattern = rf'\{{\s*TEXT\("{re.escape(name)}"\),\s*{start},\s*{end},\s*{shadow}\s*\}}'
@@ -145,6 +145,7 @@ print("RUNTIME PERFORMANCE PASS 17/45 SOURCE CONTRACT PASS")
 print(f"- all {len(required_budgets)} current source-world ISM families use the compact 960x940 m cull budget")
 print("- retired primitive tree budget entries are absent; authored deciduous/pine families are budgeted directly")
 print("- historical 1200-1300 m broad family ranges stay retired")
+print("- current GAME_RECOVERY compact cull ranges stay authoritative over obsolete wider Pass17 values")
 print("- detail/fence/grass ranges are local while important silhouettes and authored trees remain longer")
 print("- NoCollision decoration is removed from dynamic navigation participation")
 print("- gameplay collision profiles are not modified or disabled by the render-budget subsystem")
