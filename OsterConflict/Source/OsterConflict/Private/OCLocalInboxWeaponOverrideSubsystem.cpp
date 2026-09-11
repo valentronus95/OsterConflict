@@ -65,7 +65,6 @@ namespace
         {
             if (Component && !Component->ComponentHasTag(LocalVisualTag))
             {
-                // Preserve the component as physics/pickup authority. Only its old rendering is retired.
                 Component->SetVisibility(false, false);
                 Component->SetHiddenInGame(true, false);
             }
@@ -108,7 +107,7 @@ void UOCLocalInboxWeaponOverrideSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCLocalInboxWeaponOverrideSubsystem::HandleActorSpawned));
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LOCAL_WEAPON_OVERRIDE_READY initial_bound=%d spawn_hook=1 blocking_load=0 async_missing_assets=1"),
+        TEXT("PASS45_LOCAL_WEAPON_OVERRIDE_READY initial_bound=%d spawn_hook=1 forced_variants_only=1 exact_identity_owner=imported_bridge blocking_load=0 async_missing_assets=1"),
         BoundAtStart);
 }
 
@@ -164,6 +163,11 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
         }
     }
 
+    // Normal catalog identities have one owner: OCPass45ImportedWeaponBridgeSubsystem. Previously this subsystem
+    // raced that bridge and could bind AK-47 to AK-74M/AR-15/M4A1, M700 to other snipers, or a stale manifest M249
+    // before the exact local asset resolver ran. That caused wrong/late/double visuals and repeated async churn.
+    if (ForcedCategory.IsEmpty()) return false;
+
     auto UseCanonicalPath = [&](const TCHAR* ObjectPath, const float LengthCm, const TCHAR* Category)
     {
         OutObjectPath = ObjectPath;
@@ -172,110 +176,53 @@ bool UOCLocalInboxWeaponOverrideSubsystem::ResolveVisualForWeapon(AOCWeaponBase*
         return true;
     };
 
-    if (!ForcedCategory.IsEmpty())
-    {
-        // Exact built-in identities must not be replaced by an arbitrary manifest fallback. These assets are
-        // already tracked by the project and are loaded asynchronously by ApplyLocalVisual below.
-        if (ForcedCategory.Equals(TEXT("AK47"), ESearchCase::IgnoreCase))
-            return UseCanonicalPath(TEXT("/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47"), 88.0f, TEXT("AK47"));
-        if (ForcedCategory.Equals(TEXT("M700"), ESearchCase::IgnoreCase))
-            return UseCanonicalPath(TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), 112.0f, TEXT("M700"));
-
-        TArray<FString> ForcedPaths;
-        UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(ForcedCategory, ForcedPaths);
-        if (!ForcedPaths.IsEmpty())
-        {
-            const int32 SafePathIndex = ForcedPaths.IsValidIndex(ForcedPathIndex) ? ForcedPathIndex : 0;
-            OutObjectPath = ForcedPaths[SafePathIndex];
-            OutCategory = ForcedCategory;
-
-            if (Cast<AOCWeapon_M14>(Weapon)) OutDesiredLengthCm = 112.0f;
-            else if (Cast<AOCWeapon_Mac10>(Weapon)) OutDesiredLengthCm = 30.0f;
-            else if (Cast<AOCWeapon_Tec9>(Weapon)) OutDesiredLengthCm = 32.0f;
-            else if (Cast<AOCWeapon_LeverAction>(Weapon)) OutDesiredLengthCm = 105.0f;
-            else if (Cast<AOCAntiArmorLauncher>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("M72"), ESearchCase::IgnoreCase) ? 78.0f : 105.0f;
-            else if (Cast<AOCWeapon_Shotgun>(Weapon)) OutDesiredLengthCm = 100.0f;
-            else if (Cast<AOCWeapon_LMG>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("M249"), ESearchCase::IgnoreCase) ? 104.0f : 105.0f;
-            else if (Cast<AOCWeapon_Sniper>(Weapon))
-            {
-                if (ForcedCategory.Equals(TEXT("BALLISTA"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 118.0f;
-                else if (ForcedCategory.Equals(TEXT("KAR98"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 111.0f;
-                else if (ForcedCategory.Equals(TEXT("SNIPER_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 115.0f;
-                else OutDesiredLengthCm = 112.0f;
-            }
-            else if (Cast<AOCWeapon_Pistol>(Weapon))
-            {
-                if (ForcedCategory.Equals(TEXT("MAKAROV"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 22.0f;
-                else if (ForcedCategory.Equals(TEXT("PISTOL_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 24.0f;
-                else OutDesiredLengthCm = 23.0f;
-            }
-            else if (Cast<AOCWeapon_SMG>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("MP5"), ESearchCase::IgnoreCase) ? 68.0f : 62.0f;
-            else if (Cast<AOCWeapon_AssaultRifle>(Weapon))
-            {
-                if (ForcedCategory.Equals(TEXT("AK74"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 94.0f;
-                else if (ForcedCategory.Equals(TEXT("AK47"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 88.0f;
-                else if (ForcedCategory.Equals(TEXT("ASSAULT_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 98.0f;
-                else if (ForcedCategory.Equals(TEXT("RIFLE_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 105.0f;
-                else OutDesiredLengthCm = 100.0f;
-            }
-            else OutDesiredLengthCm = 100.0f;
-
-            return true;
-        }
-    }
-
-    auto TryCategory = [&](const TCHAR* Category, const float LengthCm)
-    {
-        TArray<FString> Paths;
-        UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(Category, Paths);
-        if (Paths.IsEmpty()) return false;
-        const uint32 Seed = GetTypeHash(Weapon->GetName());
-        OutObjectPath = Paths[Seed % static_cast<uint32>(Paths.Num())];
-        OutDesiredLengthCm = LengthCm;
-        OutCategory = Category;
-        return true;
-    };
-
-    // Check specific subclasses before broad assault/SMG/pistol families. Otherwise a MAC-10/M14/etc.
-    // can be swallowed by a parent class and the downloaded exact model never gets a chance to appear.
-    if (Cast<AOCWeapon_M14>(Weapon)) return TryCategory(TEXT("M14"), 112.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
-    if (Cast<AOCWeapon_Mac10>(Weapon)) return TryCategory(TEXT("MAC10"), 30.0f) || TryCategory(TEXT("SMG_GENERIC"), 55.0f);
-    if (Cast<AOCWeapon_Tec9>(Weapon)) return TryCategory(TEXT("TEC9"), 32.0f) || TryCategory(TEXT("SMG_GENERIC"), 55.0f);
-    if (Cast<AOCWeapon_LeverAction>(Weapon)) return TryCategory(TEXT("LEVER_ACTION"), 105.0f) || TryCategory(TEXT("RIFLE_GENERIC"), 108.0f);
-
-    // AOCAntiArmorLauncher owns its normal exact visual itself. LocalInbox is used only for explicitly forced
-    // rack variants, otherwise both owners attach a launcher mesh to the same actor.
-    if (Cast<AOCAntiArmorLauncher>(Weapon)) return false;
-
-    if (Cast<AOCWeapon_Shotgun>(Weapon))
-    {
-        return TryCategory(TEXT("REMINGTON870"), 100.0f) || TryCategory(TEXT("SHOTGUN_GENERIC"), 100.0f);
-    }
-    if (Cast<AOCWeapon_LMG>(Weapon))
-    {
-        // Exact locally imported M249 wins when the manifest has it. Older tracked R13 machinegun is a real-mesh
-        // fallback so the LMG is never an invisible gameplay weapon merely because the local production import is absent.
-        return TryCategory(TEXT("M249"), 104.0f) ||
-            UseCanonicalPath(TEXT("/Game/R13/Weapons/machinegun.machinegun"), 104.0f, TEXT("M249_TRACKED_FALLBACK"));
-    }
-    if (Cast<AOCWeapon_Sniper>(Weapon))
-    {
+    // The static AK mesh is the authored rendered pickup. Do not force the skeletal presentation asset for rack
+    // overrides; that path was the source of the visible placeholder/cube report in UE 5.8.
+    if (ForcedCategory.Equals(TEXT("AK47"), ESearchCase::IgnoreCase))
+        return UseCanonicalPath(TEXT("/Game/AK-47/Mesh/SM_AK-47.SM_AK-47"), 88.0f, TEXT("AK47"));
+    if (ForcedCategory.Equals(TEXT("M700"), ESearchCase::IgnoreCase))
         return UseCanonicalPath(TEXT("/Game/R13/Weapons/Stein/M700/SKM_M700.SKM_M700"), 112.0f, TEXT("M700"));
-    }
-    if (Cast<AOCWeapon_Pistol>(Weapon))
+
+    TArray<FString> ForcedPaths;
+    UOCLocalInboxRuntimeSubsystem::GetAssetObjectPathsForCategory(ForcedCategory, ForcedPaths);
+    if (ForcedPaths.IsEmpty()) return false;
+
+    const int32 SafePathIndex = ForcedPaths.IsValidIndex(ForcedPathIndex) ? ForcedPathIndex : 0;
+    OutObjectPath = ForcedPaths[SafePathIndex];
+    OutCategory = ForcedCategory;
+
+    if (Cast<AOCWeapon_M14>(Weapon)) OutDesiredLengthCm = 112.0f;
+    else if (Cast<AOCWeapon_Mac10>(Weapon)) OutDesiredLengthCm = 30.0f;
+    else if (Cast<AOCWeapon_Tec9>(Weapon)) OutDesiredLengthCm = 32.0f;
+    else if (Cast<AOCWeapon_LeverAction>(Weapon)) OutDesiredLengthCm = 105.0f;
+    else if (Cast<AOCAntiArmorLauncher>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("M72"), ESearchCase::IgnoreCase) ? 78.0f : 105.0f;
+    else if (Cast<AOCWeapon_Shotgun>(Weapon)) OutDesiredLengthCm = 100.0f;
+    else if (Cast<AOCWeapon_LMG>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("M249"), ESearchCase::IgnoreCase) ? 104.0f : 105.0f;
+    else if (Cast<AOCWeapon_Sniper>(Weapon))
     {
-        return TryCategory(TEXT("M1911"), 23.0f) || TryCategory(TEXT("MAKAROV"), 22.0f) ||
-            TryCategory(TEXT("PISTOL_GENERIC"), 24.0f);
+        if (ForcedCategory.Equals(TEXT("BALLISTA"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 118.0f;
+        else if (ForcedCategory.Equals(TEXT("KAR98"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 111.0f;
+        else if (ForcedCategory.Equals(TEXT("SNIPER_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 115.0f;
+        else OutDesiredLengthCm = 112.0f;
     }
-    if (Cast<AOCWeapon_SMG>(Weapon))
+    else if (Cast<AOCWeapon_Pistol>(Weapon))
     {
-        return TryCategory(TEXT("MP5"), 68.0f) || TryCategory(TEXT("SMG_GENERIC"), 62.0f);
+        if (ForcedCategory.Equals(TEXT("MAKAROV"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 22.0f;
+        else if (ForcedCategory.Equals(TEXT("PISTOL_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 24.0f;
+        else OutDesiredLengthCm = 23.0f;
     }
-    if (Cast<AOCWeapon_AssaultRifle>(Weapon))
+    else if (Cast<AOCWeapon_SMG>(Weapon)) OutDesiredLengthCm = ForcedCategory.Equals(TEXT("MP5"), ESearchCase::IgnoreCase) ? 68.0f : 62.0f;
+    else if (Cast<AOCWeapon_AssaultRifle>(Weapon))
     {
-        return UseCanonicalPath(TEXT("/Game/AK-47/Mesh/SKM_AK-47.SKM_AK-47"), 88.0f, TEXT("AK47"));
+        if (ForcedCategory.Equals(TEXT("AK74"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 94.0f;
+        else if (ForcedCategory.Equals(TEXT("AK47"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 88.0f;
+        else if (ForcedCategory.Equals(TEXT("ASSAULT_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 98.0f;
+        else if (ForcedCategory.Equals(TEXT("RIFLE_GENERIC"), ESearchCase::IgnoreCase)) OutDesiredLengthCm = 105.0f;
+        else OutDesiredLengthCm = 100.0f;
     }
-    return false;
+    else OutDesiredLengthCm = 100.0f;
+
+    return true;
 }
 
 void UOCLocalInboxWeaponOverrideSubsystem::ApplyLocalVisual(AOCWeaponBase* Weapon)
@@ -327,7 +274,7 @@ void UOCLocalInboxWeaponOverrideSubsystem::ApplyLocalVisual(AOCWeaponBase* Weapo
 
     ResidentPreloadHandles.Add(Handle);
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_BEGIN weapon=%s category=%s asset=%s async=1 sync_load=0"),
+        TEXT("GAME_RECOVERY_LOCAL_WEAPON_PRELOAD_BEGIN weapon=%s category=%s asset=%s async=1 sync_load=0 forced_variant=1"),
         *Weapon->GetName(), *Category, *ObjectPath);
 }
 
@@ -387,6 +334,6 @@ void UOCLocalInboxWeaponOverrideSubsystem::ApplyResidentLocalVisual(
     HideOldWeaponPresentation(Weapon);
     Weapon->Tags.AddUnique(LocalBoundTag);
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_LOCAL_WEAPON_RUNTIME_BOUND weapon=%s category=%s asset=%s production_visual=1 visual_root_unscaled=1 physics_root_preserved=1 resident_asset=1 sync_load=0 runtime_acceptance=0"),
+        TEXT("PASS45_LOCAL_WEAPON_RUNTIME_BOUND weapon=%s category=%s asset=%s production_visual=1 visual_root_unscaled=1 physics_root_preserved=1 resident_asset=1 sync_load=0 forced_variant=1 runtime_acceptance=0"),
         *Weapon->GetName(), *Category, *ObjectPath);
 }
