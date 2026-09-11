@@ -9,6 +9,7 @@
 #include "OCParkMemorialApproachAuthoredUpgradeSubsystem.h"
 #include "OCParkSemanticAuthoredUpgradeSubsystem.h"
 #include "OCPass45ImportedGrenadeVisualSubsystem.h"
+#include "OCPass45ImportedWeaponBridgeSubsystem.h"
 #include "OCPlayerController.h"
 #include "OCProductionCharacterAssetsSubsystem.h"
 
@@ -128,7 +129,7 @@ void UOCDeploymentLoadingSubsystem::BeginDeployment(AOCPlayerController* Control
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("GAME_RECOVERY_DEPLOYMENT_LOADING_BEGIN wait_for_ground=1 wait_for_landmarks=1 wait_for_surfaces=1 wait_for_foliage=1 wait_for_park_semantic=1 wait_for_park_ground=1 wait_for_park_hardscape=1 wait_for_park_memorial=1 wait_for_characters=1 wait_for_grenades=1 spawn_before_ready=0"));
+        TEXT("GAME_RECOVERY_DEPLOYMENT_LOADING_BEGIN wait_for_ground=1 wait_for_landmarks=1 wait_for_surfaces=1 wait_for_foliage=1 wait_for_park_semantic=1 wait_for_park_ground=1 wait_for_park_hardscape=1 wait_for_park_memorial=1 wait_for_characters=1 wait_for_grenades=1 wait_for_weapons=1 spawn_before_ready=0"));
 }
 
 void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
@@ -164,6 +165,8 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
         World ? World->GetSubsystem<UOCProductionCharacterAssetsSubsystem>() : nullptr;
     const UOCPass45ImportedGrenadeVisualSubsystem* Grenades =
         World ? World->GetSubsystem<UOCPass45ImportedGrenadeVisualSubsystem>() : nullptr;
+    const UOCPass45ImportedWeaponBridgeSubsystem* Weapons =
+        World ? World->GetSubsystem<UOCPass45ImportedWeaponBridgeSubsystem>() : nullptr;
 
     const bool bGroundReady = Ground != nullptr && Ground->IsGroundReady();
     const bool bLandmarksReady = Landmarks != nullptr && Landmarks->IsWorldStartupReady();
@@ -175,9 +178,10 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
     const bool bParkMemorialReady = ParkMemorial != nullptr && ParkMemorial->IsParkMemorialApproachReady();
     const bool bCharactersReady = Characters == nullptr || Characters->IsCharacterAssetsReady();
     const bool bGrenadesReady = Grenades == nullptr || Grenades->IsGrenadePresentationReady();
+    const bool bWeaponsReady = Weapons == nullptr || Weapons->IsInitialWeaponPresentationReady();
     const bool bWorldReady = bGroundReady && bLandmarksReady && bSurfacesReady && bFoliageReady &&
         bParkSemanticReady && bParkGroundReady && bParkHardscapeReady && bParkMemorialReady &&
-        bCharactersReady && bGrenadesReady;
+        bCharactersReady && bGrenadesReady && bWeaponsReady;
 
     const float GroundProgress = Ground ? Ground->GetGroundProgress() : 0.0f;
     const float LandmarksProgress = Landmarks ? Landmarks->GetStartupProgress() : 0.0f;
@@ -189,11 +193,12 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
     const float ParkMemorialProgress = ParkMemorial ? ParkMemorial->GetParkMemorialApproachProgress() : 0.0f;
     const float CharacterProgress = Characters ? Characters->GetCharacterAssetsProgress() : 1.0f;
     const float GrenadeProgress = Grenades ? Grenades->GetGrenadePresentationProgress() : 1.0f;
+    const float WeaponProgress = Weapons ? Weapons->GetInitialWeaponPresentationProgress() : 1.0f;
     const float WorldProgress = FMath::Clamp(
-        GroundProgress * 0.10f + LandmarksProgress * 0.28f + SurfacesProgress * 0.14f +
-        FoliageProgress * 0.16f + ParkSemanticProgress * 0.06f + ParkGroundProgress * 0.06f +
+        GroundProgress * 0.10f + LandmarksProgress * 0.26f + SurfacesProgress * 0.14f +
+        FoliageProgress * 0.14f + ParkSemanticProgress * 0.06f + ParkGroundProgress * 0.06f +
         ParkHardscapeProgress * 0.05f + ParkMemorialProgress * 0.05f + CharacterProgress * 0.05f +
-        GrenadeProgress * 0.05f,
+        GrenadeProgress * 0.04f + WeaponProgress * 0.05f,
         0.0f, 1.0f);
 
     const double Now = FPlatformTime::Seconds();
@@ -204,7 +209,7 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
         bReadySent = true;
         Controller->UIReadyDeploy();
         UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_DEPLOYMENT_WORLD_READY ground=1 landmarks=1 surfaces=1 foliage=1 park_semantic=1 park_ground=1 park_hardscape=1 park_memorial=1 characters=1 grenades=1 ready_request_sent=1 elapsed=%.2f"),
+            TEXT("GAME_RECOVERY_DEPLOYMENT_WORLD_READY ground=1 landmarks=1 surfaces=1 foliage=1 park_semantic=1 park_ground=1 park_hardscape=1 park_memorial=1 characters=1 grenades=1 weapons=1 ready_request_sent=1 elapsed=%.2f"),
             Elapsed);
     }
 
@@ -232,7 +237,7 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
         if (CompletionAlpha >= 1.0f)
         {
             UE_LOG(LogTemp, Display,
-                TEXT("GAME_RECOVERY_DEPLOYMENT_COMPLETE ground_ready_before_spawn=1 park_semantic_ready_before_spawn=1 park_ground_ready_before_spawn=1 park_hardscape_ready_before_spawn=1 park_memorial_ready_before_spawn=1 world_ready_before_spawn=1 character_packages_ready_before_spawn=1 grenade_assets_ready_before_spawn=1 post_spawn_world_builds=0 elapsed=%.2f"),
+                TEXT("GAME_RECOVERY_DEPLOYMENT_COMPLETE ground_ready_before_spawn=1 park_semantic_ready_before_spawn=1 park_ground_ready_before_spawn=1 park_hardscape_ready_before_spawn=1 park_memorial_ready_before_spawn=1 world_ready_before_spawn=1 character_packages_ready_before_spawn=1 grenade_assets_ready_before_spawn=1 weapon_assets_ready_before_spawn=1 post_spawn_world_builds=0 elapsed=%.2f"),
                 Elapsed);
             FinishDeploymentTransition();
             return;
@@ -242,7 +247,7 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
     if (!bReadySent && Elapsed >= 45.0)
     {
         UE_LOG(LogTemp, Error,
-            TEXT("GAME_RECOVERY_DEPLOYMENT_TIMEOUT ground=%d landmarks=%d surfaces=%d foliage=%d park_semantic=%d park_ground=%d park_hardscape=%d park_memorial=%d characters=%d grenades=%d progress=%.3f elapsed=%.2f"),
+            TEXT("GAME_RECOVERY_DEPLOYMENT_TIMEOUT ground=%d landmarks=%d surfaces=%d foliage=%d park_semantic=%d park_ground=%d park_hardscape=%d park_memorial=%d characters=%d grenades=%d weapons=%d progress=%.3f elapsed=%.2f"),
             bGroundReady ? 1 : 0,
             bLandmarksReady ? 1 : 0,
             bSurfacesReady ? 1 : 0,
@@ -253,6 +258,7 @@ void UOCDeploymentLoadingSubsystem::Tick(float DeltaTime)
             bParkMemorialReady ? 1 : 0,
             bCharactersReady ? 1 : 0,
             bGrenadesReady ? 1 : 0,
+            bWeaponsReady ? 1 : 0,
             WorldProgress,
             Elapsed);
         FinishDeploymentTransition();
