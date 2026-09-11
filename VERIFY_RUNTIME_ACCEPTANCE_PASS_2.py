@@ -80,19 +80,22 @@ for needle in (
 ):
     require(fx, needle, "muzzle/tracer presentation")
 
-# Wrong-identity generic weapon substitution is retired. This subsystem may hide rejected engine primitives and
-# audit authored materials, but it must not synthesize a different gun when the requested exact asset is missing.
+# Wrong-identity generic weapon substitution stays retired. Normal gameplay now performs only a one-shot
+# BasicShape cleanup; expensive material/texture auditing is explicitly validation-only and may use a short,
+# bounded retry loop there. Do not freeze production code around an obsolete exact pass count.
 for needle in (
     "OC_ProductionWeaponVisual",
-    "MaxRefreshPasses = 12",
-    "ClearTimer(RefreshTimer)",
+    'FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeapons"))',
+    "GAME_RECOVERY_WEAPON_FALLBACK_GAMEPLAY_READY",
+    "material_audit=0",
+    "repeated_timer=0",
     "PASS45_GENERIC_WEAPON_FALLBACK_RETIRED",
     "PASS38_WEAPON_FALLBACK_SCAN_BOUNDED_STOP",
     "PASS44_WEAPON_AUTHORED_MATERIAL_GAP",
     "generic_substitution=0",
     "Wrong-identity replacement is intentionally forbidden.",
 ):
-    require(fallback, needle, "retired generic fallback/material audit truth")
+    require(fallback, needle, "retired generic fallback / validation-only material audit truth")
 for forbidden in (
     "exact_production=0 playable_fallback=1",
     "PASS38_WEAPON_FALLBACK_SCAN_STOPPED",
@@ -101,6 +104,9 @@ for forbidden in (
         raise SystemExit(f"RUNTIME ACCEPTANCE PASS 3 FAIL: retired generic fallback marker returned: {forbidden}")
 if "UMaterialInstanceDynamic::Create" in fallback or "Component->SetMaterial(Slot" in fallback:
     raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: grey runtime material repair returned")
+refresh_passes = re.search(r"constexpr\s+int32\s+MaxRefreshPasses\s*=\s*(\d+)\s*;", fallback)
+if not refresh_passes or not 1 <= int(refresh_passes.group(1)) <= 12:
+    raise SystemExit("RUNTIME ACCEPTANCE PASS 3 FAIL: validation-only weapon audit retry ceiling is missing or unbounded")
 
 require(frontend, "PanelSlot->SetPosition(FVector2D(112.0f, 92.0f));", "frontend canonical menu geometry")
 
@@ -152,7 +158,7 @@ for needle in (
 print("RUNTIME ACCEPTANCE PASS 3 + PASS 45 CURRENT CONTRACT PASS")
 print("- Museum BASE source remains and actual live-pawn Museum proof is now stronger")
 print("- Block0 foliage stays resident-only and preserves authored coverage while frame-budgeting live gameplay work")
-print("- wrong-identity generic weapon substitution remains retired; primitive cleanup/material audit stay diagnostic")
+print("- wrong-identity generic weapon substitution remains retired; gameplay cleanup is one-shot and material audit is validation-only")
 print("- normal/strict launch flow follows current independent content intake instead of the retired all-or-nothing rule")
 print("- production fresh-load rejects placeholder materials")
 print("STATUS: SOURCE VERIFIED ONLY; local UE 5.8 build/playtest still required")
