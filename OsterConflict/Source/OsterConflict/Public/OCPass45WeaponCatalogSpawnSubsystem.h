@@ -21,12 +21,14 @@ public:
     virtual void Deinitialize() override;
 
 private:
+    void HandleActorSpawned(AActor* Actor);
+    void ScheduleCatalogCheck(float DelaySeconds);
     void CompleteRequestedWeaponRack();
     void ValidateCompleteWeaponRack();
 
+    FDelegateHandle ActorSpawnedHandle;
     FTimerHandle SpawnTimer;
     FTimerHandle ValidationTimer;
     FVector CompletedRackCenter = FVector::ZeroVector;
-    int32 ScanPass = 0;
     bool bRackCompleted = false;
 };
