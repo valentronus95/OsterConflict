@@ -15,38 +15,37 @@ namespace
         bool bCastShadow;
     };
 
-    // Pass 45: Pass 17 budgets were authored for the historical much larger sector. On the current
-    // 960 x 940 m battlefield, 700-1300 m cull distances effectively kept almost every source family
-    // alive at once. Primitive tree families are retired by item 26; only authored tree components
-    // receive tree budgets now.
+    // GAME_RECOVERY: the runtime map is roughly 960 x 940 m. Keeping most foliage/details alive out to
+    // 420-950 m made the compact map effectively uncullable and was visible in PIE as single-digit FPS.
+    // Preserve long-range silhouettes for gameplay/navigation, but aggressively retire small detail and grass.
     constexpr FISMRenderBudget Budgets[] =
     {
-        { TEXT("Roads"),                  0,  90000, false },
-        { TEXT("Sidewalks"),           8000,  42000, false },
-        { TEXT("Buildings"),          40000,  78000, true  },
-        { TEXT("ResidentialRoofs"),   30000,  58000, false },
-        { TEXT("ResidentialDetails"),  6000,  24000, false },
-        { TEXT("LandmarkBlocks"),     50000,  95000, true  },
-        { TEXT("LandmarkRoofs"),      40000,  76000, false },
-        { TEXT("LandmarkWindows"),     6000,  30000, false },
-        { TEXT("LandmarkDetails"),    10000,  40000, false },
-        { TEXT("Fences"),              6000,  28000, false },
-        { TEXT("WoodFences"),          6000,  28000, false },
-        { TEXT("MetalFences"),         6000,  28000, false },
-        { TEXT("LightSheetFences"),    6000,  28000, false },
-        { TEXT("AuthoredDeciduousTrees"), 12000, 42000, true  },
-        { TEXT("AuthoredPine01Trees"),    12000, 46000, true  },
-        { TEXT("AuthoredPine03Trees"),    12000, 46000, true  },
-        { TEXT("GrassMown"),              0,  16000, false },
-        { TEXT("GrassRough"),             0,  18000, false },
-        { TEXT("GrassWetland"),           0,  20000, false },
-        { TEXT("StadiumGeometry"),         0,  55000, false },
-        { TEXT("StadiumDetails"),       6000,  32000, false },
-        { TEXT("ParkGeometry"),            0,  52000, false },
-        { TEXT("ParkDetails"),          6000,  30000, false },
-        { TEXT("Waterways"),               0,  60000, false },
-        { TEXT("Bridges"),             30000,  75000, true  },
-        { TEXT("ReferenceMarkers"),        0,   3000, false },
+        { TEXT("Roads"),                  0,  50000, false },
+        { TEXT("Sidewalks"),           4000,  24000, false },
+        { TEXT("Buildings"),          18000,  48000, true  },
+        { TEXT("ResidentialRoofs"),   16000,  36000, false },
+        { TEXT("ResidentialDetails"),  3000,  14000, false },
+        { TEXT("LandmarkBlocks"),     26000,  65000, true  },
+        { TEXT("LandmarkRoofs"),      22000,  50000, false },
+        { TEXT("LandmarkWindows"),     3000,  18000, false },
+        { TEXT("LandmarkDetails"),     5000,  22000, false },
+        { TEXT("Fences"),              3000,  18000, false },
+        { TEXT("WoodFences"),          3000,  18000, false },
+        { TEXT("MetalFences"),         3000,  18000, false },
+        { TEXT("LightSheetFences"),    3000,  18000, false },
+        { TEXT("AuthoredDeciduousTrees"), 7000, 24000, false },
+        { TEXT("AuthoredPine01Trees"),    7000, 26000, false },
+        { TEXT("AuthoredPine03Trees"),    7000, 26000, false },
+        { TEXT("GrassMown"),              0,   7000, false },
+        { TEXT("GrassRough"),             0,   8000, false },
+        { TEXT("GrassWetland"),           0,   9000, false },
+        { TEXT("StadiumGeometry"),         0,  38000, false },
+        { TEXT("StadiumDetails"),       3000,  18000, false },
+        { TEXT("ParkGeometry"),            0,  36000, false },
+        { TEXT("ParkDetails"),          3000,  18000, false },
+        { TEXT("Waterways"),               0,  42000, false },
+        { TEXT("Bridges"),             18000,  52000, false },
+        { TEXT("ReferenceMarkers"),        0,   2500, false },
     };
 }
 
@@ -139,7 +138,7 @@ void UOCWorldRenderBudgetPass17Subsystem::TryApplyBudget()
     World->GetTimerManager().ClearTimer(RetryHandle);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_COMPACT_WORLD_CULL_BUDGET_READY tuned=%d nav_disabled=%d families=%d map_m=960x940 max_landmark_cull_m=950 authored_tree_max_cull_m=460 small_detail_cull_m=240_400 primitive_tree_budget=0"),
+        TEXT("GAME_RECOVERY_COMPACT_WORLD_BUDGET_READY tuned=%d nav_disabled=%d families=%d map_m=960x940 max_landmark_cull_m=650 authored_tree_max_cull_m=260 grass_max_cull_m=90 far_tree_shadows=0"),
         TunedCount,
         NavigationDisabledCount,
         static_cast<int32>(UE_ARRAY_COUNT(Budgets)));
