@@ -27,11 +27,15 @@ public:
 
 private:
     void BeginPresentationPreload();
+    void HandlePresentationPreloadReady();
+    void HandleActorSpawned(AActor* Actor);
+    void ScheduleRefresh(float DelaySeconds);
     void RefreshGrenadeVisuals();
 
     TSharedPtr<FStreamableHandle> PreloadHandle;
+    FDelegateHandle ActorSpawnedHandle;
     FTimerHandle RefreshTimer;
-    int32 RefreshPass = 0;
     bool bPreloadRequested = false;
     bool bPreloadFailed = false;
+    bool bPreloadReadyLogged = false;
 };
