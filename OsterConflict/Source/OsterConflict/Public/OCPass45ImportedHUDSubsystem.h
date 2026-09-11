@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Styling/SlateBrush.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Widgets/SWidget.h"
 #include "OCPass45ImportedHUDSubsystem.generated.h"
 
+class UUserWidget;
+
 /**
- * Reuses the already-imported local CrosshairFreePack without replacing the existing HUD system.
- * The legacy line crosshair is suppressed in-memory only while the authored local overlay is active.
+ * Owns the safe UUserWidget-backed imported/local HUD for normal gameplay.
+ * Raw Slate texture overlays stay retired after the previous GC crash.
  */
 UCLASS()
 class OSTERCONFLICT_API UOCPass45ImportedHUDSubsystem : public UWorldSubsystem
@@ -21,8 +21,11 @@ public:
     virtual void Deinitialize() override;
 
 private:
-    TSharedPtr<SWidget> CrosshairOverlay;
-    TSharedPtr<FSlateBrush> CrosshairBrush;
-    bool bSuppressedLegacyCrosshair = false;
-    bool bOriginalCrosshairSetting = true;
+    void BindGameplayHUD();
+
+    UPROPERTY(Transient)
+    TObjectPtr<UUserWidget> ImportedHUDWidget = nullptr;
+
+    FTimerHandle BindTimer;
+    int32 BindAttempts = 0;
 };
