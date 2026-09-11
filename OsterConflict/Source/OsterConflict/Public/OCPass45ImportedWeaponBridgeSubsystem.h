@@ -35,9 +35,6 @@ private:
     FTimerHandle RefreshTimer;
     FDelegateHandle ActorSpawnedHandle;
     int32 RefreshPass = 0;
-    int32 PendingPreloadCount = 0;
-    bool bRuntimeEligible = false;
-    bool bInitialRefreshComplete = false;
     TArray<TSharedPtr<FStreamableHandle>> ResidentPreloadHandles;
 
     void HandleActorSpawned(AActor* Actor);
