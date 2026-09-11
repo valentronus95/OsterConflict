@@ -10,6 +10,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace
 {
@@ -21,7 +23,7 @@ namespace
     const FName PrimitiveVisualRetiredTag(TEXT("OC_PrimitiveWeaponVisualRetired"));
     constexpr int32 RequiredRackWeaponCountPerTeam = 11;
     constexpr int32 MaxExpectedRackWeapons = 22;
-    constexpr int32 MaxRefreshPasses = 12;
+    constexpr int32 MaxRefreshPasses = 6;
 
     bool IsRejectedPrimitiveMesh(const UStaticMeshComponent* Component)
     {
@@ -121,9 +123,26 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (InWorld.GetNetMode() == NM_DedicatedServer) return;
     if (!InWorld.GetMapName().Contains(TEXT("OsterConflict_Runtime"))) return;
 
-    // Generic look-alike substitution is retired. It was presenting a different gun as the requested identity
-    // whenever the exact asset was unavailable. The subsystem now only removes engine primitives and audits
-    // authored materials; exact visual ownership stays with the imported/local weapon bridge.
+    // Normal gameplay needs primitive retirement once, not a material/texture dependency audit every 0.5 s.
+    // The expensive GetUsedTextures audit is acceptance-only and remains available behind ValidateProductionWeapons.
+    if (!FParse::Param(FCommandLine::Get(), TEXT("ValidateProductionWeapons")))
+    {
+        int32 WeaponsScanned = 0;
+        int32 HiddenPrimitiveComponents = 0;
+        for (TActorIterator<AOCWeaponBase> It(&InWorld); It; ++It)
+        {
+            AOCWeaponBase* Weapon = *It;
+            if (!IsValid(Weapon) || Weapon->IsActorBeingDestroyed()) continue;
+            ++WeaponsScanned;
+            HiddenPrimitiveComponents += HideRejectedPrimitiveVisuals(*Weapon);
+        }
+
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_WEAPON_FALLBACK_GAMEPLAY_READY weapons_scanned=%d hidden_basicshape_components=%d material_audit=0 repeated_timer=0 generic_substitution=0"),
+            WeaponsScanned, HiddenPrimitiveComponents);
+        return;
+    }
+
     InWorld.GetTimerManager().SetTimer(
         RefreshTimer,
         this,
@@ -133,7 +152,7 @@ void UOCRealWeaponFallbackSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         0.0f);
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_GENERIC_WEAPON_FALLBACK_RETIRED normal_gameplay=1 generic_substitution=0 exact_visual_owner=imported_bridge primitive_cleanup=1"));
+        TEXT("PASS45_GENERIC_WEAPON_FALLBACK_RETIRED validation=1 generic_substitution=0 exact_visual_owner=imported_bridge primitive_cleanup=1 material_audit=1"));
 }
 
 void UOCRealWeaponFallbackSubsystem::CompleteFallbackPreload()
