@@ -21,34 +21,14 @@ namespace
     const FName StableRackTag(TEXT("OC_StableWeaponRackPickup"));
     const FName RetiredCompetingVisualTag(TEXT("OC_RetiredCompetingWeaponVisual"));
 
-    const FName CoreRackIds[] =
-    {
-        FName(TEXT("OC_AR1")),
-        FName(TEXT("OC_SMG1")),
-        FName(TEXT("OC_PST1")),
-        FName(TEXT("OC_SNP1")),
-        FName(TEXT("OC_SG1")),
-        FName(TEXT("OC_LMG1")),
-        FName(TEXT("OC_RPG1"))
-    };
-
-    constexpr float CoreClusterRadiusCm = 720.0f;
     constexpr float FullRackRadiusCm = 1450.0f;
+    constexpr int32 MinimumRackActorCount = 3;
     constexpr float RefreshIntervalSeconds = 0.45f;
     constexpr int32 MaxRefreshPasses = 8;
     constexpr float MinimumRackLiftCm = 25.0f;
     constexpr float VisualGroundClearanceCm = 4.0f;
     constexpr float GroundTraceUpCm = 800.0f;
     constexpr float GroundTraceDownCm = 2400.0f;
-
-    bool IsCoreRackId(const FName WeaponId)
-    {
-        for (const FName& CoreId : CoreRackIds)
-        {
-            if (CoreId == WeaponId) return true;
-        }
-        return false;
-    }
 
     bool IsEngineBasicShape(const UStaticMeshComponent* Component)
     {
@@ -150,8 +130,7 @@ void UOCPass45WeaponRackStabilitySubsystem::OnWorldBeginPlay(UWorld& InWorld)
     ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
         FOnActorSpawned::FDelegate::CreateUObject(this, &UOCPass45WeaponRackStabilitySubsystem::HandleActorSpawned));
 
-    // Initial map weapons are not automatically treated as an arsenal. The bounded scan only activates
-    // if the compact seven-identity admin rack is actually present.
+    // Bounded startup scan. Any compact sandbox weapon cluster is an arsenal; exact legacy IDs are irrelevant.
     ScheduleRefresh(0.05f);
 }
 
@@ -173,9 +152,7 @@ void UOCPass45WeaponRackStabilitySubsystem::HandleActorSpawned(AActor* Actor)
 {
     if (!bSandboxActive || !Cast<AOCWeaponBase>(Actor)) return;
 
-    // SpawnWeaponRack creates actors synchronously and calls DropToWorldServer immediately afterwards.
-    // Debouncing the burst to the next frame preserves the ordinary DropToWorldServer contract while preventing
-    // showcase actors from spending meaningful time under random rigid-body motion.
+    // Catalog actors are spawned synchronously and then dropped. Debounce the burst and freeze/ground the whole rack.
     ScheduleRefresh(0.01f);
 }
 
@@ -213,40 +190,42 @@ bool UOCPass45WeaponRackStabilitySubsystem::FindAdminRack(
         }
     }
 
-    bool bFoundCore = false;
+    // GAME_RECOVERY: the previous implementation required seven exact legacy identities. If one was absent or
+    // underground, none of the weapons were frozen, deduplicated or grounded. Pick the densest sandbox cluster instead.
+    int32 BestClusterCount = 0;
+    FVector BestClusterCenter = FVector::ZeroVector;
+    float BestClusterYaw = 0.0f;
     for (AOCWeaponBase* Candidate : WorldPickups)
     {
-        if (!Candidate || !IsCoreRackId(Candidate->GetWeaponId())) continue;
+        if (!Candidate) continue;
 
-        TSet<FName> DistinctCoreIds;
-        FVector CoreLocationSum = FVector::ZeroVector;
-        int32 CoreActorCount = 0;
+        FVector LocationSum = FVector::ZeroVector;
+        int32 ClusterCount = 0;
         for (AOCWeaponBase* Nearby : WorldPickups)
         {
-            if (!Nearby || !IsCoreRackId(Nearby->GetWeaponId())) continue;
+            if (!Nearby) continue;
             if (FVector::DistSquared2D(Candidate->GetActorLocation(), Nearby->GetActorLocation()) >
-                FMath::Square(CoreClusterRadiusCm))
+                FMath::Square(FullRackRadiusCm))
             {
                 continue;
             }
 
-            DistinctCoreIds.Add(Nearby->GetWeaponId());
-            CoreLocationSum += Nearby->GetActorLocation();
-            ++CoreActorCount;
+            LocationSum += Nearby->GetActorLocation();
+            ++ClusterCount;
         }
 
-        if (DistinctCoreIds.Num() == UE_ARRAY_COUNT(CoreRackIds) &&
-            CoreActorCount >= UE_ARRAY_COUNT(CoreRackIds))
+        if (ClusterCount > BestClusterCount)
         {
-            OutRackCenter = CoreLocationSum / static_cast<float>(CoreActorCount);
-            OutRackYaw = Candidate->GetActorRotation().Yaw;
-            bFoundCore = true;
-            break;
+            BestClusterCount = ClusterCount;
+            BestClusterCenter = LocationSum / static_cast<float>(ClusterCount);
+            BestClusterYaw = Candidate->GetActorRotation().Yaw;
         }
     }
 
-    if (!bFoundCore) return false;
+    if (BestClusterCount < MinimumRackActorCount) return false;
 
+    OutRackCenter = BestClusterCenter;
+    OutRackYaw = BestClusterYaw;
     for (AOCWeaponBase* Weapon : WorldPickups)
     {
         if (!Weapon) continue;
@@ -256,7 +235,7 @@ bool UOCPass45WeaponRackStabilitySubsystem::FindAdminRack(
         }
     }
 
-    return OutRackWeapons.Num() >= UE_ARRAY_COUNT(CoreRackIds);
+    return OutRackWeapons.Num() >= MinimumRackActorCount;
 }
 
 int32 UOCPass45WeaponRackStabilitySubsystem::StabilizeRackWeapon(
@@ -301,7 +280,6 @@ int32 UOCPass45WeaponRackStabilitySubsystem::StabilizeRackWeapon(
         Component->SetHiddenInGame(true, false);
         Component->SetCastShadow(false);
         Component->SetCanEverAffectNavigation(false);
-        // Root collision remains the invisible pickup/interaction authority. Never turn it into visible art.
     }
 
     if (AuthoritativeVisual)
@@ -328,9 +306,9 @@ int32 UOCPass45WeaponRackStabilitySubsystem::StabilizeRackWeapon(
         }
     }
 
-    const bool bGrounded = GroundRenderedVisual(Weapon, AuthoritativeVisual);
+    GroundRenderedVisual(Weapon, AuthoritativeVisual);
     Weapon.Tags.AddUnique(StableRackTag);
-    return bGrounded ? 1 : 1;
+    return 1;
 }
 
 void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
@@ -349,7 +327,7 @@ void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
         {
             World->GetTimerManager().ClearTimer(RefreshTimer);
             UE_LOG(LogTemp, Verbose,
-                TEXT("PASS45_WEAPON_RACK_STABILITY_WATCH_STOPPED reason=no_admin_rack passes=%d permanent_scan=0"),
+                TEXT("PASS45_WEAPON_RACK_STABILITY_WATCH_STOPPED reason=no_sandbox_weapon_cluster passes=%d permanent_scan=0"),
                 RefreshPass);
         }
         return;
@@ -391,7 +369,7 @@ void UOCPass45WeaponRackStabilitySubsystem::RefreshRack()
     }
 
     UE_LOG(LogTemp, Display,
-        TEXT("PASS45_WEAPON_RACK_STABILITY_READY pass=%d rack_weapons=%d stabilized=%d simulating_physics_after=%d hidden_basicshape_components=%d authoritative_visuals=%d competing_visuals_retired=%d stable_pickup_collision=query_only grounding=rendered_visual_bottom runtime_acceptance=0"),
+        TEXT("PASS45_WEAPON_RACK_STABILITY_READY pass=%d rack_weapons=%d stabilized=%d simulating_physics_after=%d hidden_basicshape_components=%d authoritative_visuals=%d competing_visuals_retired=%d stable_pickup_collision=query_only grounding=rendered_visual_bottom legacy_core_requirement=0 runtime_acceptance=0"),
         RefreshPass,
         RackWeapons.Num(),
         Stabilized,
