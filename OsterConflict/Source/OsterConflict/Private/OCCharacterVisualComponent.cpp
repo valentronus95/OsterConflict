@@ -25,7 +25,9 @@ namespace
 UOCCharacterVisualComponent::UOCCharacterVisualComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.TickInterval = 0.25f;
+    // Appearance changes are rare and already force-refreshed on spawn/profile assignment. A one-second safety
+    // poll keeps replicated role/faction changes responsive without waking every character four times per second.
+    PrimaryComponentTick.TickInterval = 1.0f;
     SetIsReplicatedByDefault(true);
 }
 
