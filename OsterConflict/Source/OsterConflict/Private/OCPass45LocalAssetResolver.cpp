@@ -9,6 +9,29 @@
 
 namespace
 {
+    TMap<FString, FAssetData> AssetQueryCache;
+
+    FString BuildQueryCacheKey(
+        const UClass* AssetClass,
+        const TArray<FName>& PackageRoots,
+        const TArray<FString>& PreferredTokens,
+        bool bRequireTokenMatch)
+    {
+        FString Key = AssetClass ? AssetClass->GetClassPathName().ToString() : TEXT("None");
+        Key += bRequireTokenMatch ? TEXT("|strict") : TEXT("|loose");
+        for (const FName& Root : PackageRoots)
+        {
+            Key += TEXT("|r:");
+            Key += Root.ToString().ToLower();
+        }
+        for (const FString& RawToken : PreferredTokens)
+        {
+            Key += TEXT("|t:");
+            Key += RawToken.ToLower();
+        }
+        return Key;
+    }
+
     bool ContainsPreferredToken(const FAssetData& Asset, const TArray<FString>& PreferredTokens)
     {
         if (PreferredTokens.IsEmpty()) return true;
@@ -54,6 +77,13 @@ namespace
     {
         if (!AssetClass || PackageRoots.IsEmpty()) return FAssetData();
 
+        const FString CacheKey = BuildQueryCacheKey(
+            AssetClass, PackageRoots, PreferredTokens, bRequireTokenMatch);
+        if (const FAssetData* Cached = AssetQueryCache.Find(CacheKey))
+        {
+            return *Cached;
+        }
+
         FARFilter Filter;
         Filter.ClassPaths.Add(AssetClass->GetClassPathName());
         Filter.PackagePaths.Append(PackageRoots);
@@ -64,7 +94,11 @@ namespace
             FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
         TArray<FAssetData> Assets;
         AssetRegistryModule.Get().GetAssets(Filter, Assets);
-        if (Assets.IsEmpty()) return FAssetData();
+        if (Assets.IsEmpty())
+        {
+            AssetQueryCache.Add(CacheKey, FAssetData());
+            return FAssetData();
+        }
 
         if (bRequireTokenMatch)
         {
@@ -72,7 +106,11 @@ namespace
             {
                 return !ContainsPreferredToken(Asset, PreferredTokens) || IsObviousWeaponPartOrHelper(Asset);
             });
-            if (Assets.IsEmpty()) return FAssetData();
+            if (Assets.IsEmpty())
+            {
+                AssetQueryCache.Add(CacheKey, FAssetData());
+                return FAssetData();
+            }
         }
 
         auto Score = [&PreferredTokens](const FAssetData& Asset)
@@ -111,6 +149,8 @@ namespace
             if (ScoreA != ScoreB) return ScoreA > ScoreB;
             return A.GetObjectPathString() < B.GetObjectPathString();
         });
+
+        AssetQueryCache.Add(CacheKey, Assets[0]);
         return Assets[0];
     }
 
