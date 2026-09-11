@@ -16,8 +16,6 @@
 namespace
 {
     const FName ImportedGrenadeTag(TEXT("OC_PASS45_IMPORTED_GRENADE_VISUAL"));
-    constexpr int32 FastRefreshPasses = 12;
-    constexpr float PersistentRefreshIntervalSeconds = 0.25f;
     constexpr float DesiredGrenadeLengthCm = 14.0f;
 
     const TCHAR* TrackedGrenadeVisualPath = TEXT("/Game/R13/Weapons/grenade.grenade");
@@ -248,7 +246,8 @@ namespace
     bool ApplyImportedVisual(AOCGrenadeProjectile& Grenade, UStaticMesh* Mesh, int32 VariantIndex, int32 VariantCount)
     {
         UStaticMeshComponent* Component = Grenade.GetGrenadeMeshComponent();
-        if (!Component || !Mesh || Component->ComponentHasTag(ImportedGrenadeTag)) return false;
+        if (!Component || !Mesh) return false;
+        if (Component->ComponentHasTag(ImportedGrenadeTag) && Component->GetStaticMesh() == Mesh) return false;
 
         const FBoxSphereBounds Bounds = Mesh->GetBounds();
         const FVector NativeSize = Bounds.BoxExtent * 2.0f;
@@ -290,15 +289,9 @@ void UOCPass45ImportedGrenadeVisualSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         if (GameMode->IsFrontendOnlySession()) return;
     }
 
+    ActorSpawnedHandle = InWorld.AddOnActorSpawnedHandler(
+        FOnActorSpawned::FDelegate::CreateUObject(this, &UOCPass45ImportedGrenadeVisualSubsystem::HandleActorSpawned));
     BeginPresentationPreload();
-
-    InWorld.GetTimerManager().SetTimer(
-        RefreshTimer,
-        this,
-        &UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals,
-        0.20f,
-        true,
-        0.05f);
 }
 
 void UOCPass45ImportedGrenadeVisualSubsystem::BeginPresentationPreload()
@@ -308,7 +301,9 @@ void UOCPass45ImportedGrenadeVisualSubsystem::BeginPresentationPreload()
 
     const FGrenadeCatalogCache& Catalog = GetGrenadeCatalogCache();
     const TArray<FSoftObjectPath> Paths = BuildGrenadePresentationPreloadPaths(Catalog);
-    PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(Paths, FStreamableDelegate());
+    PreloadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+        Paths,
+        FStreamableDelegate::CreateUObject(this, &UOCPass45ImportedGrenadeVisualSubsystem::HandlePresentationPreloadReady));
     if (!PreloadHandle.IsValid())
     {
         bPreloadFailed = true;
@@ -320,6 +315,55 @@ void UOCPass45ImportedGrenadeVisualSubsystem::BeginPresentationPreload()
     UE_LOG(LogTemp, Display,
         TEXT("GAME_RECOVERY_GRENADE_PRELOAD_BEGIN assets=%d tracked_assets=6 frag_variants=%d smoke_variants=%d flash_variants=%d pre_spawn=1 async=1 sync_first_use_loads=0"),
         Paths.Num(), Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num());
+}
+
+void UOCPass45ImportedGrenadeVisualSubsystem::HandlePresentationPreloadReady()
+{
+    if (!IsGrenadePresentationReady())
+    {
+        bPreloadFailed = true;
+        UE_LOG(LogTemp, Error,
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_FAIL handle=1 completed=1 required_assets_resident=0 sync_first_use_loads=0"));
+        return;
+    }
+
+    if (!bPreloadReadyLogged)
+    {
+        bPreloadReadyLogged = true;
+        const FGrenadeCatalogCache& Catalog = GetGrenadeCatalogCache();
+        UE_LOG(LogTemp, Display,
+            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_READY pre_spawn=1 mandatory_assets=6 package_loads_on_throw=0 package_loads_on_detonation=0"));
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d launcher_candidates_rejected=1 asset_registry_scans=1 local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
+            Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num(), Catalog.Frag.Num() >= 2 ? 1 : 0);
+        UE_LOG(LogTemp, Display,
+            TEXT("PASS45_IMPORTED_GRENADE_LATE_SPAWN_WATCH_READY mode=actor_spawn_event event_driven=1 permanent_world_scan=0 asset_registry_scans=1 late_throw_support=1 shared_generic_body=0 sync_package_loads=0"));
+    }
+
+    ScheduleRefresh(0.01f);
+}
+
+void UOCPass45ImportedGrenadeVisualSubsystem::HandleActorSpawned(AActor* Actor)
+{
+    if (!Cast<AOCGrenadeProjectile>(Actor)) return;
+
+    // Replicated grenade type/initialization is completed in the same frame. A tiny one-shot delay avoids
+    // applying a fragmentation visual to a newly spawned smoke/flash grenade before its type is committed.
+    ScheduleRefresh(0.05f);
+}
+
+void UOCPass45ImportedGrenadeVisualSubsystem::ScheduleRefresh(float DelaySeconds)
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    World->GetTimerManager().ClearTimer(RefreshTimer);
+    World->GetTimerManager().SetTimer(
+        RefreshTimer,
+        this,
+        &UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals,
+        FMath::Max(0.01f, DelaySeconds),
+        false);
 }
 
 bool UOCPass45ImportedGrenadeVisualSubsystem::IsGrenadePresentationReady() const
@@ -347,11 +391,16 @@ float UOCPass45ImportedGrenadeVisualSubsystem::GetGrenadePresentationProgress() 
 
 void UOCPass45ImportedGrenadeVisualSubsystem::Deinitialize()
 {
-    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(RefreshTimer);
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(RefreshTimer);
+        if (ActorSpawnedHandle.IsValid()) World->RemoveOnActorSpawnedHandler(ActorSpawnedHandle);
+    }
+    ActorSpawnedHandle.Reset();
     PreloadHandle.Reset();
-    RefreshPass = 0;
     bPreloadRequested = false;
     bPreloadFailed = false;
+    bPreloadReadyLogged = false;
     Super::Deinitialize();
 }
 
@@ -359,26 +408,13 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
 {
     UWorld* World = GetWorld();
     if (!World || !IsGrenadePresentationReady()) return;
-    ++RefreshPass;
 
     const FGrenadeCatalogCache& Catalog = GetGrenadeCatalogCache();
-
-    if (RefreshPass == 1)
-    {
-        UE_LOG(LogTemp, Display,
-            TEXT("GAME_RECOVERY_GRENADE_PRELOAD_READY pre_spawn=1 mandatory_assets=6 package_loads_on_throw=0 package_loads_on_detonation=0"));
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_GRENADE_CATALOG frag_variants=%d smoke_variants=%d flash_variants=%d two_frag_supported=%d launcher_candidates_rejected=1 asset_registry_scans=1 local_uncommitted_assets_visible_to_ue=1 runtime_acceptance=0"),
-            Catalog.Frag.Num(), Catalog.Smoke.Num(), Catalog.Flash.Num(), Catalog.Frag.Num() >= 2 ? 1 : 0);
-    }
-
     int32 Applied = 0;
     for (TActorIterator<AOCGrenadeProjectile> It(World); It; ++It)
     {
         AOCGrenadeProjectile* Grenade = *It;
         if (!Grenade || Grenade->IsActorBeingDestroyed()) continue;
-        UStaticMeshComponent* Component = Grenade->GetGrenadeMeshComponent();
-        if (!Component || Component->ComponentHasTag(ImportedGrenadeTag)) continue;
 
         int32 VariantIndex = 0;
         int32 VariantCount = 0;
@@ -392,20 +428,6 @@ void UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals()
     if (Applied > 0)
     {
         UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_GRENADE_VISUAL_PASS pass=%d applied=%d sync_package_loads=0"), RefreshPass, Applied);
-    }
-
-    if (RefreshPass == FastRefreshPasses)
-    {
-        World->GetTimerManager().SetTimer(
-            RefreshTimer,
-            this,
-            &UOCPass45ImportedGrenadeVisualSubsystem::RefreshGrenadeVisuals,
-            PersistentRefreshIntervalSeconds,
-            true,
-            PersistentRefreshIntervalSeconds);
-        UE_LOG(LogTemp, Display,
-            TEXT("PASS45_IMPORTED_GRENADE_LATE_SPAWN_WATCH_READY fast_passes=%d interval_s=%.2f asset_registry_scans=1 late_throw_support=1 shared_generic_body=0 sync_package_loads=0"),
-            FastRefreshPasses, PersistentRefreshIntervalSeconds);
+            TEXT("PASS45_IMPORTED_GRENADE_VISUAL_PASS applied=%d sync_package_loads=0 event_driven=1 permanent_world_scan=0"), Applied);
     }
 }
