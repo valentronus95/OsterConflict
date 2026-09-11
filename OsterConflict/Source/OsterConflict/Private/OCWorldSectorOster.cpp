@@ -221,8 +221,9 @@ void AOCWorldSectorOster::BeginPlay()
 
     // R11 visual foundation: source-only blockout geometry still uses a readable outdoor palette.
     // PASS45 authored trees keep their packaged materials and are never overwritten by BasicShapeMaterial.
-    UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr,
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    // Point 10: never synchronously package-load a cosmetic source tint during normal world BeginPlay.
+    UMaterialInterface* BaseMaterial = Cast<UMaterialInterface>(
+        FSoftObjectPath(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")).ResolveObject());
 
     auto Tint = [BaseMaterial](UPrimitiveComponent* Component, const FLinearColor& Color)
     {
